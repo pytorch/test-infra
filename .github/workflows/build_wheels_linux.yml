@@ -97,6 +97,7 @@ jobs:
     outputs:
       artifact: ${{ steps.return-artifact-name.outputs.artifact }}
       bucket: ${{ steps.return-artifact-name.outputs.bucket }}
+      channel: ${{ steps.return-artifact-name.outputs.channel }}
     steps:
       - name: Clean workspace
         run: |
@@ -182,14 +183,16 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
-      - name: Return the artifact name for the upload job
+      - name: Return the artifact name and other variables for the upload job
         id: return-artifact-name
         if: steps.upload-artifact-github.outcome == 'success'
         shell: bash -l {0}
         env:
           ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+          CHANNEL: ${{ env.CHANNEL }}
         run: |
           echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "channel=${CHANNEL}" >> "${GITHUB_OUTPUT}"
           # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
           source "${BUILD_ENV_FILE}"
           echo "bucket=${PYTORCH_S3_BUCKET_PATH}" >> "${GITHUB_OUTPUT}"
@@ -239,7 +242,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
-    if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
