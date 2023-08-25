@@ -73,13 +73,6 @@
     "https://github.com/pytorch/pytorch/issues/106439",
     []
   ],
-  "test_arithmetic_add (__main__.TestVmapOperators)": [
-    "107043",
-    "https://github.com/pytorch/pytorch/issues/107043",
-    [
-      "dynamo"
-    ]
-  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -893,14 +886,6 @@
   "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105746",
     "https://github.com/pytorch/pytorch/issues/105746",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105844",
-    "https://github.com/pytorch/pytorch/issues/105844",
     [
       "linux",
       "slow"
