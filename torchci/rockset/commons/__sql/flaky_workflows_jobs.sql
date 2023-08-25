@@ -1,3 +1,6 @@
+-- This query is used to get flaky job on trunk so that they can be retried. A flaky job is the
+-- one that has the green / red / green pattern. The failure in the middle is considered flaky
+-- and can be retried
 WITH dedups AS (
   -- Note that there can be more than one commit with the same ID with the actual author and pytorchmergebot.
   -- This mess up the results in some cases, so this removes all redundant information and only keeps what is
@@ -39,6 +42,7 @@ WITH dedups AS (
     )
     AND job.name NOT LIKE '%mem_leak_check%'
     AND job.name NOT LIKE '%rerun_disabled_tests%'
+    AND job.name NOT LIKE :excludedJobName
 ),
 latest_attempts AS (
   -- Keep the latest run attempt to know if the job has already been retried

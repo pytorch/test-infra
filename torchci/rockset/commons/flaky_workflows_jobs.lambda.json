@@ -7,6 +7,11 @@
       "value": "master,main"
     },
     {
+      "name": "excludedJobName",
+      "type": "string",
+      "value": "%rocm%"
+    },
+    {
       "name": "maxAttempt",
       "type": "int",
       "value": "1"
