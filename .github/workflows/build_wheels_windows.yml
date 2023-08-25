@@ -81,7 +81,7 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: pytorchbot-env
+    environment: ${{ (inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/') && 'pytorchbot-env' || '' }}
     defaults:
       run:
         shell: bash -l {0}
