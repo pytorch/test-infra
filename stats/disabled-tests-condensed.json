@@ -68,7 +68,7 @@
     "https://github.com/pytorch/pytorch/issues/106440",
     []
   ],
-  "test_aot_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
+  "test_aot_sequence_nr_dynamic_shapes (dynamo.test_aot_autograd.DynamicShapesAotAutogradFallbackTests)": [
     "106439",
     "https://github.com/pytorch/pytorch/issues/106439",
     []
