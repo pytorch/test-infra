@@ -88,13 +88,15 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
+    outputs:
+      artifact: ${{ steps.return-artifact-name.outputs.artifact }}
+      bucket: ${{ steps.return-artifact-name.outputs.bucket }}
     steps:
       - name: Clean workspace
         run: |
@@ -174,11 +176,23 @@ jobs:
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
+        id: upload-artifact-github
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+      - name: Return the artifact name for the upload job
+        id: return-artifact-name
+        if: steps.upload-artifact-github.outcome == 'success'
+        shell: bash -l {0}
+        env:
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+        run: |
+          echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
+          source "${BUILD_ENV_FILE}"
+          echo "bucket=${PYTORCH_S3_BUCKET_PATH}" >> "${GITHUB_OUTPUT}"
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -219,20 +233,38 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+
+  upload:
+    name: '${{ matrix.build_name }} / upload'
+    runs-on: ubuntu-22.04
+    needs: build
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
+    if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    env:
+      ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+      PYTORCH_S3_BUCKET_PATH: ${{ needs.build.outputs.bucket }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Download wheel from GitHub
+        id: download-artifact-github
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: dist/
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
           set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
+          pip install awscli
           for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:
