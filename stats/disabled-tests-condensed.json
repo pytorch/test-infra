@@ -1386,6 +1386,13 @@
       "linux"
     ]
   ],
+  "test_redundant_clone_for_layout_convert_cuda (__main__.FreezingCudaTests)": [
+    "107950",
+    "https://github.com/pytorch/pytorch/issues/107950",
+    [
+      "rocm"
+    ]
+  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
