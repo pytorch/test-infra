@@ -238,11 +238,10 @@ jobs:
           fi
 
   upload:
-    name: '${{ matrix.build_name }} / upload'
     runs-on: ubuntu-22.04
     needs: build
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
-    if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -267,7 +266,8 @@ jobs:
           set -euxo pipefail
           pip install awscli
           for pkg in dist/*; do
-            aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ls "${pkg}"
+            # aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:
