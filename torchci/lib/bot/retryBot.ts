@@ -97,6 +97,11 @@ async function retryCurrentWorkflow(
       return false;
     }
 
+    // don't rerun unstable jobs as this is not needed
+    if (job.name.toLocaleLowerCase().includes("unstable")) {
+      return false;
+    }
+
     // if no test steps failed, can rerun
     return !doesLookLikeUserFailure(job, (step) =>
       step.name.toLowerCase().includes("test")
