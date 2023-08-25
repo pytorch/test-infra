@@ -614,6 +614,13 @@
       "inductor"
     ]
   ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1310,6 +1317,14 @@
     "https://github.com/pytorch/pytorch/issues/75139",
     [
       "rocm"
+    ]
+  ],
+  "test_predispatch_with_for_out_dtype_nested_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "107980",
+    "https://github.com/pytorch/pytorch/issues/107980",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
