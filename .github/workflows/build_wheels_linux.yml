@@ -237,9 +237,11 @@ jobs:
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
 
+  # NB: A limitation of running this separately is that the upload job can only be done
+  # after all the build jobs finish, so all artifacts will be uploaded in one go
   upload:
-    runs-on: ubuntu-22.04
     needs: build
+    runs-on: ubuntu-22.04
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
     steps:
@@ -266,7 +268,8 @@ jobs:
           set -euxo pipefail
           pip install awscli
           for pkg in dist/*; do
-            ls "${pkg}"
+            echo "Uploading ${pkg} to ${PYTORCH_S3_BUCKET_PATH}..."
+            ls -la "${pkg}"
             # aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 

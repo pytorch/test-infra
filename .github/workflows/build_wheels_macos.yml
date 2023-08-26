@@ -79,10 +79,13 @@ jobs:
       REF: ${{ inputs.ref }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
+    outputs:
+      artifact: ${{ steps.return-artifact-name.outputs.artifact }}
+      bucket: ${{ steps.return-artifact-name.outputs.bucket }}
+      channel: ${{ steps.return-artifact-name.outputs.channel }}
     steps:
       - name: Clean workspace
         run: |
@@ -152,11 +155,25 @@ jobs:
           set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
+        id: upload-artifact-github
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+      - name: Return the artifact name and other variables for the upload job
+        id: return-artifact-name
+        if: steps.upload-artifact-github.outcome == 'success'
+        shell: bash -l {0}
+        env:
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+          CHANNEL: ${{ env.CHANNEL }}
+        run: |
+          echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "channel=${CHANNEL}" >> "${GITHUB_OUTPUT}"
+          # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
+          source "${BUILD_ENV_FILE}"
+          echo "bucket=${PYTORCH_S3_BUCKET_PATH}" >> "${GITHUB_OUTPUT}"
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -194,20 +211,41 @@ jobs:
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           export PATH=${OLD_PATH}
+
+  # NB: A limitation of running this separately is that the upload job can only be done
+  # after all the build jobs finish, so all artifacts will be uploaded in one go
+  upload:
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
+    # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Download wheel from GitHub
+        id: download-artifact-github
+        uses: actions/download-artifact@v3
+        env:
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: dist/
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
+          PYTORCH_S3_BUCKET_PATH: ${{ needs.build.outputs.bucket }}
         run: |
           set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
+          pip install awscli
           for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            echo "Uploading ${pkg} to ${PYTORCH_S3_BUCKET_PATH}..."
+            ls -la "${pkg}"
+            # aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:
