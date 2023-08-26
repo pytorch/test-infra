@@ -86,6 +86,7 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     outputs:
+      arch: ${{ steps.return-artifact-name.outputs.arch }}
       artifact: ${{ steps.return-artifact-name.outputs.artifact }}
       channel: ${{ steps.return-artifact-name.outputs.channel }}
     steps:
@@ -162,6 +163,14 @@ jobs:
         run: |
           echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
           echo "channel=${CHANNEL}" >> "${GITHUB_OUTPUT}"
+
+          arch_name="$(uname -m)"
+          if [ "${arch_name}" = "arm64" ]; then
+            ARCH_NAME="osx-arm64"
+          else
+            ARCH_NAME="osx-64"
+          fi
+          echo "arch=${ARCH_NAME}" >> "${GITHUB_OUTPUT}"
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -236,19 +245,14 @@ jobs:
           set -euxo pipefail
           conda install --yes --quiet anaconda-client
 
-          # Need to hard code the list of arch names here because there is no
-          # way to pass this information from the build job for both ARM and x86
-          for ARCH_NAME in "osx-arm64" "osx-64"
-          do
-            ls -la "distr/${ARCH_NAME}/"
-            # anaconda \
-            #   -t "${CONDA_PYTORCHBOT_TOKEN}" \
-            #   upload "distr/"${ARCH_NAME}"/*.tar.bz2 \
-            #   -u "pytorch-${CHANNEL}" \
-            #   --label main \
-            #   --no-progress \
-            #   --force
-          done
+          ls -la "distr/${ARCH_NAME}/"
+          # anaconda \
+          #   -t "${CONDA_PYTORCHBOT_TOKEN}" \
+          #   upload "distr/"${ARCH_NAME}"/*.tar.bz2 \
+          #   -u "pytorch-${CHANNEL}" \
+          #   --label main \
+          #   --no-progress \
+          #   --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
