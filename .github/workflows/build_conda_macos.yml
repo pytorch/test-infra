@@ -82,10 +82,12 @@ jobs:
       CU_VERSION: cpu
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
+    outputs:
+      artifact: ${{ steps.return-artifact-name.outputs.artifact }}
+      channel: ${{ steps.return-artifact-name.outputs.channel }}
     steps:
       - name: Clean workspace
         run: |
@@ -144,13 +146,22 @@ jobs:
             --python "${PYTHON_VERSION}" \
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
-
       - name: Upload artifact to GitHub
+        id: upload-artifact-github
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
+      - name: Return the artifact name and other variables for the upload job
+        id: return-artifact-name
+        if: steps.upload-artifact-github.outcome == 'success'
+        env:
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+          CHANNEL: ${{ env.CHANNEL }}
+        run: |
+          echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "channel=${CHANNEL}" >> "${GITHUB_OUTPUT}"
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -197,29 +208,47 @@ jobs:
 
           export PATH=${OLD_PATH}
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      - name: Upload package to conda
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
+
+  # NB: A limitation of running this separately is that the upload job can only be done
+  # after all the build jobs finish, so all artifacts will be uploaded in one go
+  upload:
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
+    # if: ${{ (inputs.trigger-event == 'push' && needs.build.outputs.channel != 'test') || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: conda-incubator/setup-miniconda@v2
+      - name: Download conda build from GitHub
+        id: download-artifact-github
+        uses: actions/download-artifact@v3
         env:
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: distr/
+      - name: Upload package to conda
+        env:
+          ARCH_NAME: ${{ needs.build.outputs.arch }}
+          CHANNEL: ${{ needs.build.outputs.channel }}
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
           set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
+          conda install --yes --quiet anaconda-client
 
-          ${CONDA_RUN} conda install --yes --quiet anaconda-client
-          arch_name="$(uname -m)"
-          if [ "${arch_name}" = "arm64" ]; then
-            export ARCH_NAME="osx-arm64"
-          else
-            export ARCH_NAME="osx-64"
-          fi
-          ${CONDA_RUN} anaconda \
-            -t "${CONDA_PYTORCHBOT_TOKEN}" \
-            upload "distr/${ARCH_NAME}"/*.tar.bz2 \
-            -u "pytorch-${CHANNEL}" \
-            --label main \
-            --no-progress \
-            --force
+          # Need to hard code the list of arch names here because there is no
+          # way to pass this information from the build job for both ARM and x86
+          for ARCH_NAME in "osx-arm64" "osx-64"
+          do
+            ls -la "distr/${ARCH_NAME}/"
+            # anaconda \
+            #   -t "${CONDA_PYTORCHBOT_TOKEN}" \
+            #   upload "distr/"${ARCH_NAME}"/*.tar.bz2 \
+            #   -u "pytorch-${CHANNEL}" \
+            #   --label main \
+            #   --no-progress \
+            #   --force
+          done
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

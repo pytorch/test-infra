@@ -78,13 +78,15 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     defaults:
       run:
         shell: bash -l {0}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
+    outputs:
+      artifact: ${{ steps.return-artifact-name.outputs.artifact }}
+      channel: ${{ steps.return-artifact-name.outputs.channel }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -165,11 +167,21 @@ jobs:
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
+        id: upload-artifact-github
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
+      - name: Return the artifact name and other variables for the upload job
+        id: return-artifact-name
+        if: steps.upload-artifact-github.outcome == 'success'
+        env:
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+          CHANNEL: ${{ env.CHANNEL }}
+        run: |
+          echo "artifact=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "channel=${CHANNEL}" >> "${GITHUB_OUTPUT}"
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -219,23 +231,41 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      - name: Upload package to conda
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
+
+  # NB: A limitation of running this separately is that the upload job can only be done
+  # after all the build jobs finish, so all artifacts will be uploaded in one go
+  upload:
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
+    # if: ${{ (inputs.trigger-event == 'push' && needs.build.outputs.channel != 'test') || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: conda-incubator/setup-miniconda@v2
+      - name: Download conda build from GitHub
+        id: download-artifact-github
+        uses: actions/download-artifact@v3
         env:
-          PACKAGE_NAME: ${{ inputs.package-name }}
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: distr/
+      - name: Upload package to conda
+        env:
+          CHANNEL: ${{ needs.build.outputs.channel }}
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
           set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install --yes --quiet anaconda-client
-          ${CONDA_RUN} anaconda \
-            -t "${CONDA_PYTORCHBOT_TOKEN}" \
-            upload "distr/win-64/${PACKAGE_NAME}*.tar.bz2" \
-            -u "pytorch-${CHANNEL}" \
-            --label main \
-            --no-progress \
-            --force
+          conda install --yes --quiet anaconda-client
+          ls -la distr/win-64/
+          # anaconda \
+          #   -t "${CONDA_PYTORCHBOT_TOKEN}" \
+          #   upload distr/win-64/*.tar.bz2 \
+          #   -u "pytorch-${CHANNEL}" \
+          #   --label main \
+          #   --no-progress \
+          #   --force
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
