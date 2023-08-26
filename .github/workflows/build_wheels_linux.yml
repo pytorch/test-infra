@@ -243,7 +243,7 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
-    # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -269,8 +269,7 @@ jobs:
           pip install awscli
           for pkg in dist/*; do
             echo "Uploading ${pkg} to ${PYTORCH_S3_BUCKET_PATH}..."
-            ls -la "${pkg}"
-            # aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:

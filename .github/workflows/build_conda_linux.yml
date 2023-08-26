@@ -207,7 +207,7 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
-    # if: ${{ (inputs.trigger-event == 'push' && needs.build.outputs.channel != 'test') || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+    if: ${{ (inputs.trigger-event == 'push' && needs.build.outputs.channel != 'test') || (needs.build.outputs.channel == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
     steps:
       - uses: actions/checkout@v3
       - uses: conda-incubator/setup-miniconda@v2
@@ -226,14 +226,13 @@ jobs:
         run: |
           set -euxo pipefail
           conda install --yes --quiet anaconda-client
-          ls -la distr/linux-64/
-          # anaconda \
-          #   -t "${CONDA_PYTORCHBOT_TOKEN}" \
-          #   upload distr/linux-64/*.tar.bz2 \
-          #   -u "pytorch-${CHANNEL}" \
-          #   --label main \
-          #   --no-progress \
-          #   --force
+          anaconda \
+            -t "${CONDA_PYTORCHBOT_TOKEN}" \
+            upload distr/linux-64/*.tar.bz2 \
+            -u "pytorch-${CHANNEL}" \
+            --label main \
+            --no-progress \
+            --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
