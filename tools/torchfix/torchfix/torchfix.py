@@ -10,6 +10,7 @@ from .visitors.deprecated_symbols import (
 
 from .visitors.performance import TorchSynchronizedDataLoaderVisitor
 from .visitors.misc import TorchRequireGradVisitor
+from .visitors.private_symbols import TorchPrivateSymbolsVisitor
 
 __version__ = "0.0.2"
 
@@ -21,6 +22,7 @@ def GET_ALL_VISITORS():
         TorchDeprecatedSymbolsVisitor(DEPRECATED_CONFIG_PATH),
         TorchRequireGradVisitor(),
         TorchSynchronizedDataLoaderVisitor(),
+        TorchPrivateSymbolsVisitor(),
     ]
 
 
