@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import ast
-from collections.abc import Mapping, Sequence
 import os
 import pathlib
+from collections.abc import Mapping, Sequence
 
 import api
 import api.types

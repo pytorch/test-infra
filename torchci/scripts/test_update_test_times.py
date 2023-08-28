@@ -1,5 +1,6 @@
 import json
 import unittest
+
 from update_test_times import gen_test_times
 
 

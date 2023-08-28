@@ -1,12 +1,13 @@
 import os
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 from lambda_function import (
     _get_usage_log_prefix,
     _process_raw_logs,
+    ARTIFACTS_S3_BUCKET,
     get_usage_log,
     PYTORCH,
-    ARTIFACTS_S3_BUCKET,
     RUN_ATTEMPT,
 )
 
@@ -47,9 +48,7 @@ async def test_process_raw_logs():
     raw_logs = [_read_sample(i) for i in range(NUMBER_OF_SAMPLES)]
     r = await _process_raw_logs(raw_logs=raw_logs)
     assert r == {
-        "timestamp": [
-            "2022-09-27 23:05:00"
-        ],
+        "timestamp": ["2022-09-27 23:05:00"],
         "cpu": [
             7.0,
         ],
@@ -69,9 +68,9 @@ async def test_process_raw_logs():
             },
             "1 / 1": {
                 "start_time": "2022-09-27T23:05:31.560282Z",
-                "stop_time": "2022-09-27T23:05:32.586222Z"
-            }
-        }
+                "stop_time": "2022-09-27T23:05:32.586222Z",
+            },
+        },
     }
 
 
@@ -94,13 +93,17 @@ async def test_get_usage_log():
     m = AsyncMock()
     m.get_object.side_effect = _effect
 
-    async for (_, job_id, content) in get_usage_log(s3_client=m,
-                                                    owner=PYTORCH,
-                                                    repo=PYTORCH,
-                                                    prefix=TEST_PREFIX,
-                                                    workflow_ids=ids,
-                                                    job_ids=ids):
-        expected_filepath = os.path.join(TEST_SAMPLES_DIR, f"{TEST_PREFIX}_{job_id}.txt")
+    async for (_, job_id, content) in get_usage_log(
+        s3_client=m,
+        owner=PYTORCH,
+        repo=PYTORCH,
+        prefix=TEST_PREFIX,
+        workflow_ids=ids,
+        job_ids=ids,
+    ):
+        expected_filepath = os.path.join(
+            TEST_SAMPLES_DIR, f"{TEST_PREFIX}_{job_id}.txt"
+        )
 
         if not os.path.exists(expected_filepath):
             assert content == ""

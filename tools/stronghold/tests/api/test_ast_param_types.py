@@ -1,7 +1,7 @@
 """Tests the api.ast module, specific to parameter types."""
 
 import pathlib
-from typing import List, Optional, Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import api
 import api.ast

@@ -1,9 +1,11 @@
-from collections import defaultdict
 import json
-import requests
-import rockset
 import os
+from collections import defaultdict
 from pathlib import Path
+
+import requests
+
+import rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 

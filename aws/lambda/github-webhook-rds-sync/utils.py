@@ -1,17 +1,17 @@
-import json
 import datetime
+import json
 import os
 from typing import *
 
 
 from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
     Boolean,
+    Column,
+    create_engine,
     DateTime,
+    Integer,
     JSON,
+    String,
     Text,
 )
 
@@ -45,7 +45,9 @@ TYPE_MAP = {
         "allow_auto_merge": lambda: Column(Boolean),
         "delete_branch_on_merge": lambda: Column(Boolean),
     },
-    "app": {"description": lambda: Column(Text),},
+    "app": {
+        "description": lambda: Column(Text),
+    },
     "issues_event": {
         "changes_title_from": lambda: Column(String(300)),
         "changes_body_from": lambda: Column(Text),
@@ -56,7 +58,9 @@ TYPE_MAP = {
         "base_ref": lambda: Column(String(300)),
         "head_commit_message": lambda: Column(Text),
     },
-    "license": {"url": lambda: Column(String(300)),},
+    "license": {
+        "url": lambda: Column(String(300)),
+    },
     "issue": {
         "assignee": lambda: OBJECT_PLACEHOLDER,
         "milestone": lambda: OBJECT_PLACEHOLDER,
@@ -80,12 +84,22 @@ TYPE_MAP = {
         "output_summary": lambda: Column(Text),
         "output_text": lambda: Column(Text),
     },
-    "workflow_job": {"conclusion": lambda: Column(String(100)),},
-    "create_event": {"description": lambda: Column(String(100)),},
+    "workflow_job": {
+        "conclusion": lambda: Column(String(100)),
+    },
+    "create_event": {
+        "description": lambda: Column(String(100)),
+    },
     "label": {"description": lambda: Column(Text)},
-    "review": {"body": lambda: Column(Text),},
-    "pull_request_review_event": {"changes_body_from": lambda: Column(Text),},
-    "pull_request_review_comment_event": {"changes_body_from": lambda: Column(Text),},
+    "review": {
+        "body": lambda: Column(Text),
+    },
+    "pull_request_review_event": {
+        "changes_body_from": lambda: Column(Text),
+    },
+    "pull_request_review_comment_event": {
+        "changes_body_from": lambda: Column(Text),
+    },
     "comment": {
         "performed_via_github_app": lambda: OBJECT_PLACEHOLDER,
         "body": lambda: Column(Text),
@@ -127,7 +141,9 @@ TYPE_MAP = {
         "committer": lambda: OBJECT_PLACEHOLDER,
         "commit_message": lambda: Column(Text),
     },
-    "milestone": {"due_on": lambda: Column(DateTime),},
+    "milestone": {
+        "due_on": lambda: Column(DateTime),
+    },
     "installation_event": {
         "installation_single_file_name": lambda: Column(Text),
         "installation_suspended_by": lambda: OBJECT_PLACEHOLDER,

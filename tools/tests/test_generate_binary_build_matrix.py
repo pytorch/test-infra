@@ -1,7 +1,7 @@
-import os
 import json
+import os
 
-from unittest import TestCase, main
+from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import generate_build_matrix
 

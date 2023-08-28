@@ -250,6 +250,7 @@ command = [
     '@{{PATHSFILE}}'
 ]
 exclude_patterns = [
+    'tools/torchfix/**',
 ]
 init_command = [
     'python3',

@@ -3,15 +3,14 @@ This pings repos/pytorch/pytorch/actions/runs and gathers the most recent jobs
 until it sees that everything is complete. It then stores the current count of
 all types of jobs ('in_progress' and 'queued' are the relevant parts).
 """
-import aiohttp
 import asyncio
+import collections
 import datetime
 import json
 import os
-import collections
+
 import aiobotocore
-import collections
-import json
+import aiohttp
 
 
 config = {"quiet": False, "github_oauth": os.environ["gh_pat"]}
@@ -67,9 +66,10 @@ def should_check_github(stats):
     if len(stats) == 0:
         return True
 
-    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(stats[0]["last_updated"])
+    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(
+        stats[0]["last_updated"]
+    )
     return delta > datetime.timedelta(minutes=5)
-
 
 
 async def get_gha_statuses(max_pages=30, batch_size=10):
@@ -110,6 +110,7 @@ async def get_gha_statuses(max_pages=30, batch_size=10):
 
 MAX_LEN = 1000
 
+
 async def main():
     bucket_name = "ossci-checks-status"
     session = aiobotocore.get_session()
@@ -119,9 +120,7 @@ async def main():
         aws_secret_access_key=os.environ["aws_secret"],
         aws_access_key_id=os.environ["aws_key"],
     ) as client:
-        content = await client.get_object(
-            Bucket=bucket_name, Key="status.json"
-        )
+        content = await client.get_object(Bucket=bucket_name, Key="status.json")
         content = await content["Body"].read()
         all_stats = json.loads(content.decode())
 

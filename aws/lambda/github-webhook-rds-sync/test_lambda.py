@@ -8,13 +8,14 @@ import os
 
 os.environ["gh_secret"] = "test"
 
-import lambda_function
-import json
 import asyncio
 import io
+import json
+import tempfile
 import unittest
 from pathlib import Path
-import tempfile
+
+import lambda_function
 
 
 class TestWebhook(unittest.TestCase):

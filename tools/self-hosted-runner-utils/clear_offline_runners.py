@@ -1,7 +1,7 @@
-import os
-import sys
 import argparse
+import os
 import re
+import sys
 
 from github import Github
 from tqdm import tqdm
