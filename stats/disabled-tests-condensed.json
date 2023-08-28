@@ -250,13 +250,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_batch_norm_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "107025",
-    "https://github.com/pytorch/pytorch/issues/107025",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_nn_functional_instance_norm_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "107180",
     "https://github.com/pytorch/pytorch/issues/107180",
