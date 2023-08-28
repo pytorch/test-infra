@@ -82,6 +82,13 @@
       "windows"
     ]
   ],
+  "test_autocast_flash_attention (__main__.ActivationCheckpointingViaTagsTests)": [
+    "108030",
+    "https://github.com/pytorch/pytorch/issues/108030",
+    [
+      "rocm"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -502,6 +509,13 @@
     "https://github.com/pytorch/pytorch/issues/101787",
     [
       "dynamo"
+    ]
+  ],
+  "test_dequant_promotion (__main__.TestPatternMatcher)": [
+    "108031",
+    "https://github.com/pytorch/pytorch/issues/108031",
+    [
+      "rocm"
     ]
   ],
   "test_doc_examples (__main__.TestTypeHints)": [
@@ -1384,13 +1398,6 @@
       "asan"
     ]
   ],
-  "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
-    "103345",
-    "https://github.com/pytorch/pytorch/issues/103345",
-    [
-      "linux"
-    ]
-  ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
     "75168",
     "https://github.com/pytorch/pytorch/issues/75168",
@@ -1500,13 +1507,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
