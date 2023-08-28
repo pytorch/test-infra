@@ -27,12 +27,12 @@ PYTHON_ARCHES_DICT = {
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1"],
-    "test": ["11.7", "11.8"],
+    "test": ["11.8", "12.1"],
     "release": ["11.7", "11.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.5", "5.6"],
-    "test": ["5.3", "5.4.2"],
+    "test": ["5.5", "5.6"],
     "release": ["5.3", "5.4.2"],
 }
 
@@ -45,7 +45,7 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_CANDIDATE_VERSION = "2.0.1"
+CURRENT_CANDIDATE_VERSION = "2.1.0"
 CURRENT_STABLE_VERSION = "2.0.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
