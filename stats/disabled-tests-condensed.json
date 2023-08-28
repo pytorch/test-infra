@@ -896,14 +896,6 @@
       "slow"
     ]
   ],
-  "test_linear_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105932",
-    "https://github.com/pytorch/pytorch/issues/105932",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
     "106794",
     "https://github.com/pytorch/pytorch/issues/106794",
