@@ -142,6 +142,15 @@
       "linux"
     ]
   ],
+  "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
+    "102071",
+    "https://github.com/pytorch/pytorch/issues/102071",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_build_tuple_unpack (__main__.MiscTests)": [
     "102246",
     "https://github.com/pytorch/pytorch/issues/102246",
@@ -1162,6 +1171,14 @@
       "rocm"
     ]
   ],
+  "test_multilayer_var_cpu (__main__.CpuTests)": [
+    "108099",
+    "https://github.com/pytorch/pytorch/issues/108099",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_multilayer_var_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
     "107705",
     "https://github.com/pytorch/pytorch/issues/107705",
@@ -1483,6 +1500,13 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
