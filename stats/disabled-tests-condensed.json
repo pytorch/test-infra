@@ -142,15 +142,6 @@
       "linux"
     ]
   ],
-  "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "102071",
-    "https://github.com/pytorch/pytorch/issues/102071",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_build_tuple_unpack (__main__.MiscTests)": [
     "102246",
     "https://github.com/pytorch/pytorch/issues/102246",
