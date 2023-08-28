@@ -97,11 +97,17 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Clean workspace
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           echo "::group::Cleanup debug output"
-          rm -rfv "${GITHUB_WORKSPACE}"
+          rm -rf "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
+
+          if [[ "${{ inputs.architecture }}" = "aarch64" ]]; then
+            rm -rf "${RUNNER_TEMP}/*"
+          fi
+
           echo "::endgroup::"
       - uses: actions/checkout@v3
         with:
