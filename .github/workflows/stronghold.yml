@@ -14,6 +14,7 @@ on:
 
 jobs:
   api-compatibility-check:
+    if: github.event_name == 'pull_request'
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:
       # Fetch the commit, rather than the merge.
