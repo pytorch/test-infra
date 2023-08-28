@@ -21,7 +21,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: "release/2.1"
         type: string
       with-cuda:
         description: "Build with Cuda?"
