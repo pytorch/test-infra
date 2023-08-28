@@ -1,9 +1,9 @@
 import json
-import requests
-import rockset
 import os
 from collections import defaultdict
 from pathlib import Path
+
+import requests
 
 import rockset
 

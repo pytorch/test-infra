@@ -7,8 +7,8 @@ import os
 
 import boto3
 from typing import *
-from sqlalchemy import column, insert, table
 from existing_schema import existing_schema
+from sqlalchemy import column, insert, table
 from sqlalchemy.dialects.mysql import insert
 
 from utils import (
