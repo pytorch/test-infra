@@ -1462,13 +1462,6 @@
       "linux"
     ]
   ],
-  "test_scatter_stress (__main__.ProcessGroupNCCLTest)": [
-    "107740",
-    "https://github.com/pytorch/pytorch/issues/107740",
-    [
-      "linux"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
