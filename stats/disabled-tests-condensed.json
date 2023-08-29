@@ -968,6 +968,14 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107197",
+    "https://github.com/pytorch/pytorch/issues/107197",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
