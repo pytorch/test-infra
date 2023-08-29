@@ -19,7 +19,7 @@ runs:
       run: |
         set -eou pipefail
 
-        echo "Holding runner for 2 hours until all ssh sessions have logged out"
+        echo "Holding runner for 2 hours or until all ssh sessions have logged out"
         for _ in $(seq 1440); do
             # Break if no ssh session exists anymore
             if [ "$(who)" = "" ]; then
