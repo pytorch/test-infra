@@ -2,8 +2,8 @@ name: Lintrunner CI
 
 on:
   pull_request:
-    paths:
-      - 'tools/lintrunner/**'
+    # paths:
+    #   - 'tools/lintrunner/**'
   push:
     branches:
       - main
