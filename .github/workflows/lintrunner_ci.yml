@@ -123,4 +123,5 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-          args: --skip-existing -- *glob*
+          # args: --skip-existing -- *glob*
+          args: -- *glob*
