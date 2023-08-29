@@ -61,7 +61,7 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o tools/lintrunner/target/dist
+        args: --release -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
@@ -80,7 +80,7 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release -o tools/lintrunner/target/dist
+        args: --release -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
@@ -99,7 +99,7 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release --universal2 -o tools/lintrunner/target/dist
+        args: --release --universal2 -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
