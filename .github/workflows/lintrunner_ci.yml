@@ -67,7 +67,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: dist
+        path: tools/lintrunner/dist
 
   # windows:
   #   runs-on: windows-latest
