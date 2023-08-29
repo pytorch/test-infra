@@ -99,7 +99,7 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release --universal2 -o dist
+        args: --release --target universal2-apple-darwin -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
