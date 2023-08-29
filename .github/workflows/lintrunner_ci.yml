@@ -67,52 +67,53 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: tools/lintrunner/dist
+        path: dist
 
-  windows:
-    runs-on: windows-latest
-    # needs: test
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-    - uses: messense/maturin-action@v1
-      with:
-        command: build
-        args: --release -o dist
-        working-directory: tools/lintrunner
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels
-        path: tools/lintrunner/dist
+  # windows:
+  #   runs-on: windows-latest
+  #   # needs: test
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: stable
+  #   - uses: messense/maturin-action@v1
+  #     with:
+  #       command: build
+  #       args: --release -o dist
+  #       working-directory: tools/lintrunner
+  #   - name: Upload wheels
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: wheels
+  #       path: tools/lintrunner/dist
 
-  macos:
-    runs-on: macos-latest
-    # needs: test
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-    - uses: messense/maturin-action@v1
-      with:
-        command: build
-        args: --release --target universal2-apple-darwin -o dist
-        working-directory: tools/lintrunner
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels
-        path: tools/lintrunner/dist
+  # macos:
+  #   runs-on: macos-latest
+  #   # needs: test
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: stable
+  #   - uses: messense/maturin-action@v1
+  #     with:
+  #       command: build
+  #       args: --release --target universal2-apple-darwin -o dist
+  #       working-directory: tools/lintrunner
+  #   - name: Upload wheels
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: wheels
+  #       path: tools/lintrunner/dist
 
   release:
     name: Release
     runs-on: ubuntu-latest
     # if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
     # needs: [ macos, windows, linux, test ]
-    needs: [ macos, windows, linux ]
+    # needs: [ macos, windows, linux ]
+    needs: [ linux ]
     steps:
       - uses: actions/download-artifact@v2
         with:
