@@ -61,13 +61,13 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o tools/lintrunner/target/dist
+        args: --release -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: tools/lintrunner/target/dist
+        path: tools/lintrunner/dist
 
   windows:
     runs-on: windows-latest
@@ -86,7 +86,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: dist
+        path: tools/lintrunner/dist
 
   macos:
     runs-on: macos-latest
@@ -99,13 +99,13 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release -o dist
+        args: --release --target universal2-apple-darwin -o dist
         working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: dist
+        path: tools/lintrunner/dist
 
   release:
     name: Release
@@ -113,11 +113,13 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
     needs: [ macos, windows, linux, test ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
       - name: Publish to PyPI
         uses: messense/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
-          command: publish
-          working-directory: tools/lintrunner
+          command: upload
+          args: --skip-existing --non-interactive *
