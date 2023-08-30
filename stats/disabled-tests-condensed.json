@@ -151,13 +151,6 @@
       "macos"
     ]
   ],
-  "test_build_tuple_unpack (__main__.MiscTests)": [
-    "102246",
-    "https://github.com/pytorch/pytorch/issues/102246",
-    [
-      "rocm"
-    ]
-  ],
   "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102157",
     "https://github.com/pytorch/pytorch/issues/102157",
