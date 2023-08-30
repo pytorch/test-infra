@@ -116,6 +116,7 @@ jobs:
       - name: Install torch dependency
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
@@ -131,12 +132,14 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
@@ -170,6 +173,7 @@ jobs:
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
@@ -203,6 +207,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do

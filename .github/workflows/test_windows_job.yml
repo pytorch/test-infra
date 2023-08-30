@@ -28,7 +28,7 @@ jobs:
       runner: windows.8xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      submodules: "true"
+      submodules: ${{ 'true' }}
       job-name: "win-py3.8-cu117"
       timeout: 60
       script: |

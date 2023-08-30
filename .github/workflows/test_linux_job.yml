@@ -61,7 +61,7 @@ jobs:
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      submodules: "true"
+      submodules: ${{ 'true' }}
       gpu-arch-type: cuda
       gpu-arch-version: "11.6"
       timeout: 60

@@ -153,6 +153,7 @@ jobs:
       - name: Install torch dependency
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
