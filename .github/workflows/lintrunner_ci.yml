@@ -2,8 +2,8 @@ name: Lintrunner CI
 
 on:
   pull_request:
-    # paths:
-    #   - 'tools/lintrunner/**'
+    paths:
+      - 'tools/lintrunner/**'
   push:
     branches:
       - main
@@ -110,10 +110,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
-    # needs: [ macos, windows, linux, test ]
-    needs: [ macos, windows, linux ]
-    # needs: [ linux ]
+    if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
+    needs: [ macos, windows, linux, test ]
     steps:
       - uses: actions/download-artifact@v2
         with:
