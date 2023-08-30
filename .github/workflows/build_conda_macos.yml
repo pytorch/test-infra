@@ -134,6 +134,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
@@ -214,6 +215,7 @@ jobs:
           fi
 
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           ${CONDA_RUN} conda install --yes --quiet anaconda-client

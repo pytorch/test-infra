@@ -130,6 +130,7 @@ jobs:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           ${CONDA_RUN} conda build \
@@ -162,6 +163,7 @@ jobs:
           GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
 
@@ -206,6 +208,7 @@ jobs:
           fi
 
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
           ${CONDA_RUN} anaconda \
