@@ -1,5 +1,5 @@
 from pathlib import Path
-from torchfix.torchfix import TorchChecker, TorchCodemod, GET_ALL_VISITORS
+from torchfix.torchfix import TorchChecker, TorchCodemod, TorchCodemodConfig, GET_ALL_VISITORS
 import logging
 import libcst.codemod as codemod
 
@@ -15,7 +15,8 @@ def _checker_results(s):
 def _codemod_results(source_path):
     with open(source_path) as source:
         code = source.read()
-    context = TorchCodemod(codemod.CodemodContext(filename=source_path))
+    config = TorchCodemodConfig(select="ALL")
+    context = TorchCodemod(codemod.CodemodContext(filename=source_path), config)
     new_module = codemod.transform_module(context, code)
     return new_module.code
 
