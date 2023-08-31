@@ -149,6 +149,10 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
+          # temporary change to force rlease aarch64 vision and audio builds use pre and hence install 2.1.0 torch
+          if [[ "${ARCH}" == "aarch64" ]]; then
+            PIP_INSTALL_TORCH=${PIP_INSTALL_TORCH/"pip install"/"pip install --pre"}
+          fi
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
