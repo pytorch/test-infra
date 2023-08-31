@@ -1,5 +1,5 @@
 from pathlib import Path
-from torchfix.torchfix import TorchChecker, TorchCodemod
+from torchfix.torchfix import TorchChecker, TorchCodemod, GET_ALL_VISITORS
 import logging
 import libcst.codemod as codemod
 
@@ -43,3 +43,18 @@ def test_codemod_fixtures():
         expected_path = source_path.with_suffix(".py.out")
         expected_results = expected_path.read_text()
         assert _codemod_results(source_path) == expected_results
+
+
+def test_errorcodes_distinct():
+    visitors = GET_ALL_VISITORS()
+    seen = set()
+    for visitor in visitors:
+        LOGGER.info("Checking error code for %s", visitor.__class__.__name__)
+        error_code = visitor.ERROR_CODE
+        if isinstance(error_code, list):
+            for e in error_code:
+                assert e not in seen
+                seen.add(e)
+        else:
+            assert error_code not in seen
+            seen.add(error_code)
