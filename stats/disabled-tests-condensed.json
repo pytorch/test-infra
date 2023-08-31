@@ -856,13 +856,6 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
-    "107383",
-    "https://github.com/pytorch/pytorch/issues/107383",
-    [
-      "rocm"
-    ]
-  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
