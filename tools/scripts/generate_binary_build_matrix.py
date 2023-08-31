@@ -56,7 +56,6 @@ mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
-# LINUX_AARCH64_RUNNER = "linux.t4g.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
