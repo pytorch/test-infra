@@ -257,6 +257,8 @@ def get_wheel_install_command(
     desired_cuda: str,
     python_version: str,
 ) -> str:
+
+    index_url_option = "--index-url" if os != "linux-aarch64" else "--extra-index-url"
     if channel == RELEASE and (
         (gpu_arch_version == "11.7" and os == "linux")
         or (
@@ -271,7 +273,7 @@ def get_wheel_install_command(
             if channel == "nightly"
             else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         )
-        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        return f"{whl_install_command} {index_url_option} {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 
 def generate_conda_matrix(

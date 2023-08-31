@@ -34,7 +34,7 @@ def main() -> None:
     # Silence "Failed to determine module name"
     # https://github.com/Instagram/LibCST/issues/944
     parser.add_argument(
-        "--ignore-stderr",
+        "--show-stderr",
         action="store_true",
     )
 
@@ -49,7 +49,7 @@ def main() -> None:
     for file in files:
         # TODO: remove the check when https://github.com/Instagram/LibCST/pull/994 lands
         if os.path.isfile(file):  # `codemod.gather_files` can return dirs with ".py"
-            with open(file, errors='replace') as f:
+            with open(file, errors="replace") as f:
                 for line in f:
                     if MARKER in line:
                         torch_files.append(file)
@@ -58,7 +58,7 @@ def main() -> None:
     command_instance = TorchCodemod(codemod.CodemodContext())
     DIFF_CONTEXT = 5
     try:
-        if args.ignore_stderr:
+        if not args.show_stderr:
             context = contextlib.redirect_stderr(io.StringIO())
         else:
             # Should get rid of this code eventually.

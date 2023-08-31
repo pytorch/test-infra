@@ -65,7 +65,10 @@ on:
         type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
-        description: "Access Token needed to upload binaries to anaconda"
+        description: "Access Token needed to upload binaries to anaconda nightly channel"
+        required: false
+      CONDA_PYTORCHBOT_TOKEN_TEST:
+        description: "Access Token needed to upload binaries to anaconda test channel"
         required: false
 
 jobs:
@@ -131,6 +134,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
@@ -202,8 +206,16 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+          CONDA_PYTORCHBOT_TOKEN_TEST: ${{ secrets.CONDA_PYTORCHBOT_TOKEN_TEST }}
         run: |
+          if [[ "${CHANNEL}" = "nightly" ]]; then
+            export CONDA_TOKEN="${CONDA_PYTORCHBOT_TOKEN}"
+          else
+            export CONDA_TOKEN="${CONDA_PYTORCHBOT_TOKEN_TEST}"
+          fi
+
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
@@ -214,7 +226,7 @@ jobs:
             export ARCH_NAME="osx-64"
           fi
           ${CONDA_RUN} anaconda \
-            -t "${CONDA_PYTORCHBOT_TOKEN}" \
+            -t "${CONDA_TOKEN}" \
             upload "distr/${ARCH_NAME}"/*.tar.bz2 \
             -u "pytorch-${CHANNEL}" \
             --label main \

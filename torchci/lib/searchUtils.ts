@@ -6,6 +6,7 @@ export const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 // OpenSearch uses https://en.wikipedia.org/wiki/Okapi_BM25 by default.  TODO: learn more
 // about which is a reasonable value here and how to tune it
 export const MIN_SCORE = 1.0;
+export const MAX_SIZE = 20;
 
 export async function searchSimilarFailures(
   client: Client,
@@ -13,10 +14,12 @@ export async function searchSimilarFailures(
   index: string,
   startDate: string,
   endDate: string,
-  minScore: number
+  minScore: number,
+  maxSize: number = MAX_SIZE
 ): Promise<{ jobs: JobData[] }> {
   const body = {
     min_score: minScore,
+    size: maxSize,
     query: {
       bool: {
         must: [
@@ -36,11 +39,13 @@ export async function searchSimilarFailures(
         ],
       },
     },
+    // NB: It's important to sort by score first so that the most relevant results
+    // are at the top because we will only retrieve up to MAX_SIZE records
     sort: [
+      "_score",
       {
         completed_at: "desc",
       },
-      "_score",
     ],
   };
 
