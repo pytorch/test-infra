@@ -327,41 +327,9 @@
       "slow"
     ]
   ],
-  "test_conversions_all_patterns_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105544",
-    "https://github.com/pytorch/pytorch/issues/105544",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_all_patterns_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105541",
-    "https://github.com/pytorch/pytorch/issues/105541",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_all_patterns_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105540",
-    "https://github.com/pytorch/pytorch/issues/105540",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conversions_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
     "106797",
     "https://github.com/pytorch/pytorch/issues/106797",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105667",
-    "https://github.com/pytorch/pytorch/issues/105667",
     [
       "linux",
       "slow"
@@ -765,14 +733,6 @@
       "macos"
     ]
   ],
-  "test_indices_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "105745",
-    "https://github.com/pytorch/pytorch/issues/105745",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -850,33 +810,9 @@
       "mac"
     ]
   ],
-  "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105746",
-    "https://github.com/pytorch/pytorch/issues/105746",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
     "106794",
     "https://github.com/pytorch/pytorch/issues/106794",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_inference_mode_False_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "105542",
-    "https://github.com/pytorch/pytorch/issues/105542",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "105668",
-    "https://github.com/pytorch/pytorch/issues/105668",
     [
       "linux",
       "slow"
@@ -977,78 +913,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_mm_sparse_first_T_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106037",
-    "https://github.com/pytorch/pytorch/issues/106037",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_first_T_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106039",
-    "https://github.com/pytorch/pytorch/issues/106039",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_first_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106038",
-    "https://github.com/pytorch/pytorch/issues/106038",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106384",
-    "https://github.com/pytorch/pytorch/issues/106384",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_NT_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106385",
-    "https://github.com/pytorch/pytorch/issues/106385",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106383",
-    "https://github.com/pytorch/pytorch/issues/106383",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106465",
-    "https://github.com/pytorch/pytorch/issues/106465",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106463",
-    "https://github.com/pytorch/pytorch/issues/106463",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106464",
-    "https://github.com/pytorch/pytorch/issues/106464",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
@@ -1478,30 +1342,6 @@
       "mac"
     ]
   ],
-  "test_to_sparse_semi_structured_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106554",
-    "https://github.com/pytorch/pytorch/issues/106554",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_to_sparse_semi_structured_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106552",
-    "https://github.com/pytorch/pytorch/issues/106552",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_to_sparse_semi_structured_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106553",
-    "https://github.com/pytorch/pytorch/issues/106553",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
@@ -1547,22 +1387,6 @@
     "https://github.com/pytorch/pytorch/issues/106028",
     [
       "linux"
-    ]
-  ],
-  "test_unsupported_dtype_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106618",
-    "https://github.com/pytorch/pytorch/issues/106618",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_values_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "106619",
-    "https://github.com/pytorch/pytorch/issues/106619",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
