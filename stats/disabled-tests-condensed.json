@@ -112,15 +112,6 @@
       "mac"
     ]
   ],
-  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
-    "106543",
-    "https://github.com/pytorch/pytorch/issues/106543",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
