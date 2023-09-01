@@ -122,10 +122,6 @@ jobs:
           repository: "pytorch/builder"
           ref: "main"
           path: builder
-      - name: Setup SSH
-        uses: ./test-infra/.github/actions/setup-ssh
-        with:
-          github-secret: ${{ github.token }}
       - name: Set linux aarch64 CI
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
