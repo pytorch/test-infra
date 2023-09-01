@@ -62,6 +62,8 @@ export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
   inductor_dynamic: "cudagraphs_dynamic",
   inductor_no_cudagraphs: "default",
   inductor_cpp_wrapper: "cpp_wrapper",
+  inductor_aot_inductor: "aot_inductor",
+  inductor_with_cudagraphs_freezing: "cudagraphs_freezing",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
@@ -69,6 +71,8 @@ export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   cudagraphs: "inductor_with_cudagraphs",
   cudagraphs_dynamic: "inductor_dynamic",
   cpp_wrapper: "inductor_cpp_wrapper",
+  aot_inductor: "inductor_aot_inductor",
+  cudagraphs_freezing: "inductor_with_cudagraphs_freezing",
 };
 export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
 export const SUITES: { [k: string]: string } = {
