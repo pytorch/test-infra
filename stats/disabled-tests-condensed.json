@@ -48,6 +48,13 @@
       "linux"
     ]
   ],
+  "test_allocator_settings (__main__.TestCudaMallocAsync)": [
+    "108476",
+    "https://github.com/pytorch/pytorch/issues/108476",
+    [
+      "rocm"
+    ]
+  ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91486",
     "https://github.com/pytorch/pytorch/issues/91486",
