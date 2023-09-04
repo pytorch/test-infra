@@ -467,13 +467,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -864,13 +857,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107114",
-    "https://github.com/pytorch/pytorch/issues/107114",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107197",
     "https://github.com/pytorch/pytorch/issues/107197",
@@ -1224,14 +1210,6 @@
     "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
-    ]
-  ],
-  "test_restore_range_dynamic_shapes (__main__.DynamicShapesSubGraphTests)": [
-    "107572",
-    "https://github.com/pytorch/pytorch/issues/107572",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
