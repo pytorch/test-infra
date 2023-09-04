@@ -467,6 +467,13 @@
       "linux"
     ]
   ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -668,6 +675,14 @@
     "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
+    ]
+  ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
