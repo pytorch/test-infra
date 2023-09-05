@@ -104,7 +104,7 @@ def get_version_variables(
 ) -> List[str]:
     version = PytorchVersion(
         gpu_arch_version=gpu_arch_version,
-        no_build_suffix=(platform == "darwin" or package_type == "conda"),
+        no_build_suffix=(platform == "darwin" or platform == "linux-aarch64" or package_type == "conda"),
         base_build_version=base_build_version,
     )
     output_version = version.get_nightly_version()

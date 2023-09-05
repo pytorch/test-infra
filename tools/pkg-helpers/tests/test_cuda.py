@@ -22,6 +22,15 @@ def test_cuda_variables_cpu_wheel(platform):
     ]
 
 
+@pytest.mark.parametrize("platform", ["linux-aarch64"])
+def test_cuda_variables_cpu_wheel(platform):
+    assert get_cuda_variables("wheel", platform, "cpu") == [
+        "export VERSION_SUFFIX=''",
+        "export PYTORCH_VERSION_SUFFIX=''",
+        "export WHEEL_DIR=''",
+    ]
+
+
 @pytest.mark.parametrize("platform", ["linux", "win32"])
 def test_cuda_variables_cpu_conda(platform):
     assert get_cuda_variables("conda", platform, "cpu") == [
