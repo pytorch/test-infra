@@ -1439,13 +1439,6 @@
       "rocm"
     ]
   ],
-  "test_vmapvjpvjp_linalg_householder_product_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "107659",
-    "https://github.com/pytorch/pytorch/issues/107659",
-    [
-      "rocm"
-    ]
-  ],
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86929",
     "https://github.com/pytorch/pytorch/issues/86929",
