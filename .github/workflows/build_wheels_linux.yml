@@ -135,6 +135,8 @@ jobs:
           set -e
       - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
+        env:
+          PLATFORM: ${{ inputs.architecture == 'aarch64'  && 'linux-aarch64' || ''}}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
