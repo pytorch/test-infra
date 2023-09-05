@@ -22,7 +22,7 @@ def get_cuda_variables(
     version_suffix = ""
     pytorch_version_suffix = ""
     wheel_dir = ""
-    if package_type == "wheel" and platform != "darwin":
+    if package_type == "wheel" and platform != "darwin" and platform != "linux-aarch64":
         version_suffix = f"+{gpu_arch_version}"
         pytorch_version_suffix = f"+{gpu_arch_version}"
         wheel_dir = f"{gpu_arch_version}/"
