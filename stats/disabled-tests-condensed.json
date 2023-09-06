@@ -748,6 +748,13 @@
       "macos"
     ]
   ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "100520",
+    "https://github.com/pytorch/pytorch/issues/100520",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "102113",
     "https://github.com/pytorch/pytorch/issues/102113",
@@ -841,13 +848,6 @@
       "macos",
       "win",
       "windows"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107767",
-    "https://github.com/pytorch/pytorch/issues/107767",
-    [
-      "linux"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1344,13 +1344,6 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
-    ]
-  ],
-  "test_unhandled_exception_in_dynamo2 (__main__.DynamicShapesMiscTests)": [
-    "101259",
-    "https://github.com/pytorch/pytorch/issues/101259",
-    [
-      "linux"
     ]
   ],
   "test_unhandled_exception_in_dynamo2 (__main__.MiscTests)": [
