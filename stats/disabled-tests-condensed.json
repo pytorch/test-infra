@@ -665,7 +665,8 @@
     "https://github.com/pytorch/pytorch/issues/104098",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "mac"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
@@ -735,7 +736,7 @@
     "100520",
     "https://github.com/pytorch/pytorch/issues/100520",
     [
-      "linux"
+      "inductor"
     ]
   ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -756,7 +757,7 @@
     "93061",
     "https://github.com/pytorch/pytorch/issues/93061",
     [
-      "linux"
+      "inductor"
     ]
   ],
   "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
