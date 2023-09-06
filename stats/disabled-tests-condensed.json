@@ -520,14 +520,6 @@
       "inductor"
     ]
   ],
-  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95147",
-    "https://github.com/pytorch/pytorch/issues/95147",
-    [
-      "linux",
-      "inductor"
-    ]
-  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "101755",
     "https://github.com/pytorch/pytorch/issues/101755",
@@ -603,15 +595,6 @@
     "https://github.com/pytorch/pytorch/issues/101162",
     [
       "linux"
-    ]
-  ],
-  "test_function_back_compat (__main__.TestFXAPIBackwardCompatibility)": [
-    "106337",
-    "https://github.com/pytorch/pytorch/issues/106337",
-    [
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
@@ -837,17 +820,6 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "inductor"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "102775",
-    "https://github.com/pytorch/pytorch/issues/102775",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1137,16 +1109,6 @@
     "https://github.com/pytorch/pytorch/issues/106027",
     [
       "rocm"
-    ]
-  ],
-  "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
-    "100728",
-    "https://github.com/pytorch/pytorch/issues/100728",
-    [
-      "win",
-      "mac",
-      "rocm",
-      "linux"
     ]
   ],
   "test_python_ir_utils (__main__.TestJit)": [
