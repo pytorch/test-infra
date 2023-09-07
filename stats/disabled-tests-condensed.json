@@ -760,13 +760,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "94215",
-    "https://github.com/pytorch/pytorch/issues/94215",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -792,6 +785,13 @@
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
     []
+  ],
+  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
+    "107383",
+    "https://github.com/pytorch/pytorch/issues/107383",
+    [
+      "rocm"
+    ]
   ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
