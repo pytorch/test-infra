@@ -233,6 +233,13 @@
       "rocm"
     ]
   ],
+  "test_complex_half_reference_testing_fft_hfft2_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "108743",
+    "https://github.com/pytorch/pytorch/issues/108743",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
@@ -821,6 +828,24 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "inductor"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "102775",
+    "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
