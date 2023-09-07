@@ -187,8 +187,8 @@ jobs:
           export OLD_PATH=${PATH}
           export PATH="${CONDA_ENV}/bin:${PATH}"
 
-          ${CONDA_RUN} python3 -mpip install git+https://github.com/pytorch-labs/tensordict.git
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          ${CONDA_RUN} python3 -mpip install git+https://github.com/pytorch-labs/tensordict.git
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
