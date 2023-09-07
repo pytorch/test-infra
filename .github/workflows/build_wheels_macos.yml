@@ -147,7 +147,7 @@ jobs:
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-
+          ${CONDA_RUN} python3 -mpip install git+https://github.com/pytorch-labs/tensordict.git
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
@@ -187,12 +187,11 @@ jobs:
           export OLD_PATH=${PATH}
           export PATH="${CONDA_ENV}/bin:${PATH}"
 
-          ${CONDA_RUN} python -mpip install git+https://github.com/pytorch-labs/tensordict.git
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
-            ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+            ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
