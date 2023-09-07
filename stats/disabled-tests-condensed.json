@@ -841,6 +841,13 @@
       "windows"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107762",
+    "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
