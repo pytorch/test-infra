@@ -82,6 +82,63 @@ export const SUITES: { [k: string]: string } = {
   dynamic: "[Dynamic]",
   blueberries: "[Blueberries]",
 };
+
+// This is use to map pseudo group like blueberries to the list of actual
+// groups torchbench, huggingface, and timm_models
+const SUITE_TO_MODEL_MAPPINGS: {
+  [key: string]: { [key: string]: Set<string> };
+} = {
+  dynamic: {
+    // NB: Not all of these actually exercise dynamic shapes,
+    // so our numbers may be over-inflated.  Threats to validity
+    // listed below.  Note that in all cases they are run with
+    // dynamic batch size, so you are at least getting some
+    // information that way.
+    torchbench: new Set([
+      // _generate variants are good; they do E2E autoregressive
+      // generation and will induce varying context length.
+      "cm3leon_generate",
+      "nanogpt_generate",
+      "hf_T5_generate",
+      "nanogpt_generate",
+      // detection models are ok-ish; the good news is they call
+      // nonzero internally and exercise dynamic shapes that way,
+      // the bad news is we may not run enough iterations with
+      // varying data to get varying numbers of bounding boxes.
+      "detectron2_fcos_r_50_fpn",
+      "vision_maskrcnn",
+      // this recommendation model internally uses sparse tensors
+      // but once again it's not clear that dynamic shapes is exercised
+      // on this sparsity
+      "dlrm",
+      // these language models are only running a single next
+      // word prediction, we're NOT testing dynamic sequence length
+      // performance
+      "llama",
+      "BERT_pytorch",
+      "hf_T5",
+      // the GNN benchmarks only one run one batch so you
+      // aren't actually triggering dynamism (and we didn't
+      // explicitly mark something as dynamic)
+      "basic_gnn_edgecnn",
+      "basic_gnn_gcn",
+      "basic_gnn_gin",
+      "basic_gnn_sage",
+    ]),
+  },
+  blueberries: {
+    torchbench: new Set([
+      "nanogpt_generate",
+      "llama",
+      "llama_v2_7b_16h",
+      "sam",
+      "clip",
+      "stable_diffusion",
+      "hf_Whisper",
+    ]),
+  },
+};
+
 export const DEFAULT_MODE = "training";
 // The value is the default dtype for that mode
 export const MODES: { [k: string]: string } = {
@@ -108,6 +165,8 @@ const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+const MFU_HEADER = `Model FLOPs utilization`;
+const MEMORY_BANDWIDTH_HEADER = `Memory bandwidth`;
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -468,6 +527,154 @@ function computeMemoryCompressionRatio(
   });
 
   return returnedMemory;
+}
+
+// TODO: Refactor the code to avoid code duplication here
+function computeMFU(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
+  const mfu: { [k: string]: any } = {};
+  const returnedMFU: any[] = [];
+
+  data.forEach((record: CompilerPerformanceData) => {
+    const bucket = record.granularity_bucket;
+    const workflowId = record.workflow_id;
+    const suite = record.suite;
+    const model = record.name;
+    const value = record.mfu;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    if (BLOCKLIST_COMPILERS.includes(compiler)) {
+      return;
+    }
+
+    if (!(bucket in mfu)) {
+      mfu[bucket] = {};
+    }
+
+    if (!(workflowId in mfu[bucket])) {
+      mfu[bucket][workflowId] = {};
+    }
+
+    if (!(suite in mfu[bucket][workflowId])) {
+      mfu[bucket][workflowId][suite] = {};
+    }
+
+    if (!(compiler in mfu[bucket][workflowId][suite])) {
+      mfu[bucket][workflowId][suite][compiler] = [];
+    }
+
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
+      value !== 0.0
+    ) {
+      mfu[bucket][workflowId][suite][compiler].push(value);
+    }
+  });
+
+  Object.keys(mfu).forEach((bucket: string) => {
+    Object.keys(mfu[bucket]).forEach((workflowId: string) => {
+      Object.keys(mfu[bucket][workflowId]).forEach((suite: string) => {
+        Object.keys(mfu[bucket][workflowId][suite]).forEach(
+          (compiler: string) => {
+            const l = mfu[bucket][workflowId][suite][compiler].length;
+            const m =
+              mfu[bucket][workflowId][suite][compiler].reduce(
+                (total: number, v: number) => total + v,
+                0
+              ) / l;
+
+            returnedMFU.push({
+              granularity_bucket: bucket,
+              workflow_id: workflowId,
+              suite: suite,
+              compiler: compiler,
+              compression_ratio: m.toFixed(SCALE),
+            });
+          }
+        );
+      });
+    });
+  });
+
+  return returnedMFU;
+}
+
+// TODO: Refactor the code to avoid code duplication here
+function computeMemoryBandwidth(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
+  const memBandwidth: { [k: string]: any } = {};
+  const returnedMemBandwidth: any[] = [];
+
+  data.forEach((record: CompilerPerformanceData) => {
+    const bucket = record.granularity_bucket;
+    const workflowId = record.workflow_id;
+    const suite = record.suite;
+    const model = record.name;
+    const value = record.memory_bandwidth;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    if (BLOCKLIST_COMPILERS.includes(compiler)) {
+      return;
+    }
+
+    if (!(bucket in memBandwidth)) {
+      memBandwidth[bucket] = {};
+    }
+
+    if (!(workflowId in memBandwidth[bucket])) {
+      memBandwidth[bucket][workflowId] = {};
+    }
+
+    if (!(suite in memBandwidth[bucket][workflowId])) {
+      memBandwidth[bucket][workflowId][suite] = {};
+    }
+
+    if (!(compiler in memBandwidth[bucket][workflowId][suite])) {
+      memBandwidth[bucket][workflowId][suite][compiler] = [];
+    }
+
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
+      value !== 0.0
+    ) {
+      memBandwidth[bucket][workflowId][suite][compiler].push(value);
+    }
+  });
+
+  Object.keys(memBandwidth).forEach((bucket: string) => {
+    Object.keys(memBandwidth[bucket]).forEach((workflowId: string) => {
+      Object.keys(memBandwidth[bucket][workflowId]).forEach((suite: string) => {
+        Object.keys(memBandwidth[bucket][workflowId][suite]).forEach(
+          (compiler: string) => {
+            const l = memBandwidth[bucket][workflowId][suite][compiler].length;
+            const m =
+              memBandwidth[bucket][workflowId][suite][compiler].reduce(
+                (total: number, v: number) => total + v,
+                0
+              ) / l;
+
+            returnedMemBandwidth.push({
+              granularity_bucket: bucket,
+              workflow_id: workflowId,
+              suite: suite,
+              compiler: compiler,
+              compression_ratio: m.toFixed(SCALE),
+            });
+          }
+        );
+      });
+    });
+  });
+
+  return returnedMemBandwidth;
 }
 
 export function SuitePicker({
@@ -956,6 +1163,7 @@ function SummaryPanel({
   startTime,
   stopTime,
   granularity,
+  suite,
   mode,
   dtype,
   lBranch,
@@ -968,6 +1176,7 @@ function SummaryPanel({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  suite: string;
   mode: string;
   dtype: string;
   lBranch: string;
@@ -982,17 +1191,15 @@ function SummaryPanel({
     geomean: computeGeomean,
     compilation_latency: computeCompilationTime,
     compression_ratio: computeMemoryCompressionRatio,
+    mfu: computeMFU,
+    memory_bandwidth: computeMemoryBandwidth,
   };
   // The left
-  const [lPassrate, lGeomean, lCompTime, lMemory] = processSummaryData(
-    lData,
-    fields
-  );
+  const [lPassrate, lGeomean, lCompTime, lMemory, lMfu, lMemBandwidth] =
+    processSummaryData(lData, fields);
   // and the right
-  const [rPassrate, rGeomean, rCompTime, rMemory] = processSummaryData(
-    rData,
-    fields
-  );
+  const [rPassrate, rGeomean, rCompTime, rMemory, rMfu, rMemBandwidth] =
+    processSummaryData(rData, fields);
 
   const suites = Object.keys(SUITES);
   // Combine both sides
@@ -1024,6 +1231,14 @@ function SummaryPanel({
     rMemory,
     suites
   );
+  const mfu = combineLeftAndRight(lCommit, lMfu, rCommit, rMfu, suites);
+  const memBandwidth = combineLeftAndRight(
+    lCommit,
+    lMemBandwidth,
+    rCommit,
+    rMemBandwidth,
+    suites
+  );
 
   const columns = [
     {
@@ -1033,6 +1248,7 @@ function SummaryPanel({
     },
   ];
 
+  // TODO: Refactor this to avoid code duplication
   return (
     <div>
       <Grid container spacing={2} style={{ height: "100%" }}>
@@ -1406,6 +1622,200 @@ function SummaryPanel({
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
         </Grid>
+
+        {suite === "blueberries" && (
+          <Grid
+            item
+            xs={12}
+            lg={6}
+            height={ROW_HEIGHT * Object.keys(mfu).length + ROW_GAP}
+          >
+            <TablePanelWithData
+              title={MFU_HEADER}
+              helpLink={HELP_LINK}
+              data={Object.values(mfu).sort((a: any, b: any) =>
+                a["compiler"].localeCompare(b["compiler"])
+              )}
+              columns={columns.concat(
+                suites.map((suite: string) => {
+                  return {
+                    field: suite,
+                    headerName: SUITES[suite],
+                    flex: 1,
+                    renderCell: (params: GridRenderCellParams<any>) => {
+                      const v = params.value;
+                      if (v === undefined || v.l === undefined || v.l === "") {
+                        return "";
+                      }
+
+                      const url = `/benchmark/${suite}/${
+                        DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                        params.row.compiler
+                      }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                      const l = Number(v.l).toFixed(SCALE);
+                      const r = Number(v.r).toFixed(SCALE);
+
+                      if (
+                        lCommit === rCommit ||
+                        l === r ||
+                        v.r === undefined ||
+                        v.r === ""
+                      ) {
+                        return <a href={url}>{l}x</a>;
+                      } else {
+                        return (
+                          <a href={url}>
+                            {r}x → {l}x
+                          </a>
+                        );
+                      }
+                    },
+                    cellClassName: (params: GridCellParams<any>) => {
+                      const v = params.value;
+                      if (
+                        v === undefined ||
+                        v.l === undefined ||
+                        v.l === "" ||
+                        v.r === undefined ||
+                        v.r === ""
+                      ) {
+                        return "";
+                      }
+
+                      const l = Number(v.l);
+                      const r = Number(v.r);
+
+                      if (lCommit === rCommit) {
+                        return l >= COMPRESSION_RATIO_THRESHOLD
+                          ? ""
+                          : styles.warning;
+                      } else {
+                        if (l === r) {
+                          return "";
+                        }
+
+                        // Increasing more than x%
+                        if (l - r > RELATIVE_THRESHOLD * r) {
+                          return styles.ok;
+                        }
+
+                        // Decreasing more than x%
+                        if (r - l > RELATIVE_THRESHOLD * r) {
+                          return styles.error;
+                        }
+
+                        if (l < COMPRESSION_RATIO_THRESHOLD) {
+                          return styles.warning;
+                        }
+                      }
+
+                      return "";
+                    },
+                  };
+                })
+              )}
+              dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+            />
+          </Grid>
+        )}
+
+        {suite === "blueberries" && (
+          <Grid
+            item
+            xs={12}
+            lg={6}
+            height={ROW_HEIGHT * Object.keys(memBandwidth).length + ROW_GAP}
+          >
+            <TablePanelWithData
+              title={MEMORY_BANDWIDTH_HEADER}
+              helpLink={HELP_LINK}
+              data={Object.values(memBandwidth).sort((a: any, b: any) =>
+                a["compiler"].localeCompare(b["compiler"])
+              )}
+              columns={columns.concat(
+                suites.map((suite: string) => {
+                  return {
+                    field: suite,
+                    headerName: SUITES[suite],
+                    flex: 1,
+                    renderCell: (params: GridRenderCellParams<any>) => {
+                      const v = params.value;
+                      if (v === undefined || v.l === undefined || v.l === "") {
+                        return "";
+                      }
+
+                      const url = `/benchmark/${suite}/${
+                        DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                        params.row.compiler
+                      }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                      const l = Number(v.l).toFixed(SCALE);
+                      const r = Number(v.r).toFixed(SCALE);
+
+                      if (
+                        lCommit === rCommit ||
+                        l === r ||
+                        v.r === undefined ||
+                        v.r === ""
+                      ) {
+                        return <a href={url}>{l}x</a>;
+                      } else {
+                        return (
+                          <a href={url}>
+                            {r}x → {l}x
+                          </a>
+                        );
+                      }
+                    },
+                    cellClassName: (params: GridCellParams<any>) => {
+                      const v = params.value;
+                      if (
+                        v === undefined ||
+                        v.l === undefined ||
+                        v.l === "" ||
+                        v.r === undefined ||
+                        v.r === ""
+                      ) {
+                        return "";
+                      }
+
+                      const l = Number(v.l);
+                      const r = Number(v.r);
+
+                      if (lCommit === rCommit) {
+                        return l >= COMPRESSION_RATIO_THRESHOLD
+                          ? ""
+                          : styles.warning;
+                      } else {
+                        if (l === r) {
+                          return "";
+                        }
+
+                        // Increasing more than x%
+                        if (l - r > RELATIVE_THRESHOLD * r) {
+                          return styles.ok;
+                        }
+
+                        // Decreasing more than x%
+                        if (r - l > RELATIVE_THRESHOLD * r) {
+                          return styles.error;
+                        }
+
+                        if (l < COMPRESSION_RATIO_THRESHOLD) {
+                          return styles.warning;
+                        }
+                      }
+
+                      return "";
+                    },
+                  };
+                })
+              )}
+              dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+            />
+          </Grid>
+        )}
       </Grid>
     </div>
   );
@@ -1457,12 +1867,16 @@ function SuiteGraphPanel({
 }) {
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
+  const requestedSuites =
+    suite in SUITE_TO_MODEL_MAPPINGS
+      ? Object.keys(SUITE_TO_MODEL_MAPPINGS[suite]).join(",")
+      : suite;
 
   const queryParamsWithSuite: RocksetParam[] = [
     {
       name: "suites",
       type: "string",
-      value: suite,
+      value: requestedSuites,
     },
     {
       name: "branches",
@@ -1497,6 +1911,11 @@ function SuiteGraphPanel({
 
   if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  if (suite !== requestedSuites) {
+    data = AugmentData(data);
+    data = data.filter((r: any) => suite === r.suite);
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
@@ -1591,6 +2010,44 @@ function SuiteGraphPanel({
     groupByFieldName,
     TIME_FIELD_NAME,
     "compression_ratio",
+    false
+  );
+
+  // MFU
+  const mfu = computeMFU(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
+  const mfuSeries = seriesWithInterpolatedTimes(
+    mfu,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "mfu",
+    false
+  );
+
+  // Memory bandwidth
+  const memBandwidth = computeMemoryBandwidth(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
+  const memBandwidthSeries = seriesWithInterpolatedTimes(
+    mfu,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "memory_bandwidth",
     false
   );
 
@@ -1694,6 +2151,58 @@ function SuiteGraphPanel({
           }}
         />
       </Grid>
+
+      {suite === "blueberries" && (
+        <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={mfu}
+            series={mfuSeries}
+            title={`Model FLOPs utilization / ${SUITES[suite]}`}
+            groupByFieldName={groupByFieldName}
+            yAxisRenderer={(unit) => {
+              return `${unit}`;
+            }}
+            additionalOptions={{
+              yAxis: {
+                scale: true,
+              },
+              label: {
+                show: true,
+                align: "left",
+                formatter: (r: any) => {
+                  return r.value[1];
+                },
+              },
+            }}
+          />
+        </Grid>
+      )}
+
+      {suite === "blueberries" && (
+        <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={memBandwidth}
+            series={memBandwidthSeries}
+            title={`Memory bandwidth / ${SUITES[suite]}`}
+            groupByFieldName={groupByFieldName}
+            yAxisRenderer={(unit) => {
+              return `${unit}`;
+            }}
+            additionalOptions={{
+              yAxis: {
+                scale: true,
+              },
+              label: {
+                show: true,
+                align: "left",
+                formatter: (r: any) => {
+                  return r.value[1];
+                },
+              },
+            }}
+          />
+        </Grid>
+      )}
     </Grid>
   );
 }
@@ -1701,61 +2210,9 @@ function SuiteGraphPanel({
 // Generate extra entries for reporting purposes
 export function AugmentData(data: CompilerPerformanceData[]) {
   if (data === undefined) return data;
-  const groups: { [key: string]: { [key: string]: Set<string> } } = {
-    dynamic: {
-      // NB: Not all of these actually exercise dynamic shapes,
-      // so our numbers may be over-inflated.  Threats to validity
-      // listed below.  Note that in all cases they are run with
-      // dynamic batch size, so you are at least getting some
-      // information that way.
-      torchbench: new Set([
-        // _generate variants are good; they do E2E autoregressive
-        // generation and will induce varying context length.
-        "cm3leon_generate",
-        "nanogpt_generate",
-        "hf_T5_generate",
-        "nanogpt_generate",
-        // detection models are ok-ish; the good news is they call
-        // nonzero internally and exercise dynamic shapes that way,
-        // the bad news is we may not run enough iterations with
-        // varying data to get varying numbers of bounding boxes.
-        "detectron2_fcos_r_50_fpn",
-        "vision_maskrcnn",
-        // this recommendation model internally uses sparse tensors
-        // but once again it's not clear that dynamic shapes is exercised
-        // on this sparsity
-        "dlrm",
-        // these language models are only running a single next
-        // word prediction, we're NOT testing dynamic sequence length
-        // performance
-        "llama",
-        "BERT_pytorch",
-        "hf_T5",
-        // the GNN benchmarks only one run one batch so you
-        // aren't actually triggering dynamism (and we didn't
-        // explicitly mark something as dynamic)
-        "basic_gnn_edgecnn",
-        "basic_gnn_gcn",
-        "basic_gnn_gin",
-        "basic_gnn_sage",
-      ]),
-      huggingface: new Set([]),
-    },
-    blueberries: {
-      torchbench: new Set([
-        "nanogpt_generate",
-        "llama",
-        "llama_v2_7b_16h",
-        "sam",
-        "clip",
-        "stable_diffusion",
-        "hf_Whisper",
-      ]),
-    },
-  };
 
   function GenerateGroup(data: CompilerPerformanceData[], n: string) {
-    const l = groups[n];
+    const l = SUITE_TO_MODEL_MAPPINGS[n];
     return data
       .filter((e: CompilerPerformanceData) => {
         return e.suite in l && l[e.suite].has(e.name);
@@ -1767,7 +2224,7 @@ export function AugmentData(data: CompilerPerformanceData[]) {
 
   return ([] as CompilerPerformanceData[]).concat(
     data,
-    ...Object.keys(groups).map((n) => GenerateGroup(data, n))
+    ...Object.keys(SUITE_TO_MODEL_MAPPINGS).map((n) => GenerateGroup(data, n))
   );
 }
 
@@ -1874,6 +2331,7 @@ function Report({
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        suite={suite}
         mode={mode}
         dtype={dtype}
         lBranch={lBranch}

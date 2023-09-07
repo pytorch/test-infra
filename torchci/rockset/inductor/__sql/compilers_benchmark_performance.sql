@@ -12,6 +12,8 @@ WITH performance_results AS (
     compilation_latency,
     compression_ratio,
     abs_latency,
+    mfu,
+    memory_bandwidth,
     workflow_id,
     CAST(job_id AS INT) AS job_id,
   FROM
@@ -91,6 +93,14 @@ results AS (
       CAST(abs_latency AS FLOAT),
       0.0
     ) AS abs_latency,
+    IF(TRY_CAST(mfu AS FLOAT) IS NOT NULL,
+      CAST(mfu AS FLOAT),
+      0.0
+    ) AS mfu,
+    IF(TRY_CAST(memory_bandwidth AS FLOAT) IS NOT NULL,
+      CAST(memory_bandwidth AS FLOAT),
+      0.0
+    ) AS memory_bandwidth,
   FROM
     accuracy_results
     LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
@@ -109,6 +119,8 @@ SELECT DISTINCT
   results.compilation_latency,
   results.compression_ratio,
   results.abs_latency,
+  results.mfu,
+  results.memory_bandwidth,
   FORMAT_ISO8601(
     DATE_TRUNC(: granularity, w._event_time)
   ) AS granularity_bucket,
