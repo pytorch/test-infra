@@ -786,13 +786,6 @@
       "rocm"
     ]
   ],
-  "test_jvp_ScaleGradGenVmapAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "105129",
-    "https://github.com/pytorch/pytorch/issues/105129",
-    [
-      "dynamo"
-    ]
-  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1032,6 +1025,27 @@
   "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
     "101525",
     "https://github.com/pytorch/pytorch/issues/101525",
+    [
+      "inductor"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool1d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
+    "108855",
+    "https://github.com/pytorch/pytorch/issues/108855",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool1d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
+    "108856",
+    "https://github.com/pytorch/pytorch/issues/108856",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool1d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "108857",
+    "https://github.com/pytorch/pytorch/issues/108857",
     [
       "inductor"
     ]
