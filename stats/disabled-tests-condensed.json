@@ -212,6 +212,13 @@
       "linux"
     ]
   ],
+  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
+    "100074",
+    "https://github.com/pytorch/pytorch/issues/100074",
+    [
+      "linux"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -582,6 +589,11 @@
     [
       "linux"
     ]
+  ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
+    []
   ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
