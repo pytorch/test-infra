@@ -1365,6 +1365,13 @@
       "rocm"
     ]
   ],
+  "test_unhandled_exception_in_dynamo2 (__main__.MiscTests)": [
+    "106028",
+    "https://github.com/pytorch/pytorch/issues/106028",
+    [
+      "linux"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
     "95412",
     "https://github.com/pytorch/pytorch/issues/95412",
