@@ -9,7 +9,12 @@ from ...common import LintViolation, TorchVisitor
 
 class TorchVisionDeprecatedPretrainedVisitor(TorchVisitor):
     """
-    Find and fix deprecated `pretrained` parameter in TorchVision models.
+    Find and fix deprecated `pretrained` parameters in TorchVision models.
+
+    Both `pretrained` and `pretrained_backbone` parameters are supported.
+    The parameters are updated to the new `weights` and `weights_backbone` parameters
+    only if the old parameter has explicit literal `True` or `False` value,
+    otherwise only lint violation is emitted.
     """
 
     ERROR_CODE = "TOR201"
@@ -213,11 +218,9 @@ class TorchVisionDeprecatedPretrainedVisitor(TorchVisitor):
                 replacement_args[pos] = new_pretrained_backbone_arg
                 has_replacement = True
 
-            if has_replacement:
-                replacement = node.with_changes(args=replacement_args)
-            else:
-                replacement = None
-
+            replacement = (
+                node.with_changes(args=replacement_args) if has_replacement else None
+            )
             if message is not None:
                 position_metadata = self.get_metadata(
                     cst.metadata.WhitespaceInclusivePositionProvider, node
