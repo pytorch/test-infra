@@ -1252,13 +1252,6 @@
       "dynamo"
     ]
   ],
-  "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98059",
-    "https://github.com/pytorch/pytorch/issues/98059",
-    [
-      "linux"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
