@@ -35,6 +35,10 @@ ROCM_ARCHES_DICT = {
     "test": ["5.5", "5.6"],
     "release": ["5.3", "5.4.2"],
 }
+FULL_CUDA_LABEL = {
+    "11.8": "11.8.0",
+    "12.1": "12.1.1",
+}
 
 CPU_AARCH64_ARCH = ["cpu-aarch64"]
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -176,7 +180,11 @@ def get_conda_install_command(
     conda_package_type = ""
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
-        conda_channels = f"{conda_channels} -c nvidia"
+        if channel == NIGHTLY:
+            full_cuda_label = FULL_CUDA_LABEL[arch_version]
+            conda_channels = f"{conda_channels} -c nvidia/label/cuda-{full_cuda_label}"
+        else:
+            conda_channels = f"{conda_channels} -c nvidia"
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
     else:
