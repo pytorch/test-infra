@@ -561,13 +561,6 @@
       "inductor"
     ]
   ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1049,6 +1042,13 @@
       "inductor"
     ]
   ],
+  "test_nondeterministic_alert_MaxUnpool1d_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "108909",
+    "https://github.com/pytorch/pytorch/issues/108909",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_alert_MaxUnpool2d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108886",
     "https://github.com/pytorch/pytorch/issues/108886",
@@ -1059,6 +1059,13 @@
   "test_nondeterministic_alert_MaxUnpool2d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
     "108887",
     "https://github.com/pytorch/pytorch/issues/108887",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
+    "108908",
+    "https://github.com/pytorch/pytorch/issues/108908",
     [
       "dynamo"
     ]
