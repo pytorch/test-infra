@@ -827,7 +827,7 @@
     "108824",
     "https://github.com/pytorch/pytorch/issues/108824",
     [
-      "linux"
+      "asan"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
