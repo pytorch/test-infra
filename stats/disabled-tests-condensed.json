@@ -823,6 +823,13 @@
       "inductor"
     ]
   ],
+  "test_lstm_packed (__main__.CPUReproTests)": [
+    "108824",
+    "https://github.com/pytorch/pytorch/issues/108824",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107739",
     "https://github.com/pytorch/pytorch/issues/107739",
