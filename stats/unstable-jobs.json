@@ -1,4 +1,12 @@
 {
+  "inductor / cuda12.1-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
+    "atalman",
+    "108958",
+    "https://github.com/pytorch/pytorch/issues/108958",
+    "inductor",
+    "cuda12.1-py3.10-gcc9-sm80",
+    "test (inductor_torchbench_smoketest_perf)"
+  ],
   "inductor / cuda12.1-py3.10-gcc9-sm86 / test (inductor)": [
     "huydhn",
     "107079",
