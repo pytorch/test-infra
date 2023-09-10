@@ -945,11 +945,6 @@
       "macos"
     ]
   ],
-  "test_module_with_training_state (__main__.OptimizedModuleTest)": [
-    "108838",
-    "https://github.com/pytorch/pytorch/issues/108838",
-    []
-  ],
   "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
     "105825",
     "https://github.com/pytorch/pytorch/issues/105825",
