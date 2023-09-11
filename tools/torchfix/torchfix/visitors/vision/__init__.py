@@ -168,6 +168,12 @@ class TorchVisionDeprecatedPretrainedVisitor(TorchVisitor):
                 weights_arg = cst.ensure_type(
                     cst.parse_expression(f"f({new_arg_name}={weights_str})"), cst.Call
                 ).args[0]
+                self.needed_imports.add(
+                    ImportItem(
+                        module_name="torchvision",
+                        obj_name="models",
+                    )
+                )
             elif cst.ensure_type(old_arg.value, cst.Name).value == "False":
                 weights_arg = cst.ensure_type(
                     cst.parse_expression(f"f({new_arg_name}=None)"), cst.Call
@@ -212,15 +218,9 @@ class TorchVisionDeprecatedPretrainedVisitor(TorchVisitor):
                 replacement_args[pos] = new_pretrained_backbone_arg
                 has_replacement = True
 
-            replacement = None
-            if has_replacement:
-                replacement = node.with_changes(args=replacement_args)
-                self.needed_imports.append(
-                    ImportItem(
-                        module_name="torchvision",
-                        obj_name="models",
-                    )
-                )
+            replacement = (
+                node.with_changes(args=replacement_args) if has_replacement else None
+            )
             if message is not None:
                 position_metadata = self.get_metadata(
                     cst.metadata.WhitespaceInclusivePositionProvider, node
