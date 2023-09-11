@@ -247,6 +247,20 @@
       "inductor"
     ]
   ],
+  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "106913",
+    "https://github.com/pytorch/pytorch/issues/106913",
+    [
+      "rocm"
+    ]
+  ],
+  "test_complex_half_reference_testing_pow_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "108993",
+    "https://github.com/pytorch/pytorch/issues/108993",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
@@ -872,6 +886,13 @@
     [
       "asan",
       "linux"
+    ]
+  ],
+  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "108994",
+    "https://github.com/pytorch/pytorch/issues/108994",
+    [
+      "dynamo"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
