@@ -42,6 +42,12 @@ runs:
           install_nvidia_docker2_ubuntu20() {
               (
                   set -x
+                  # Install nvidia-driver package if not installed
+                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+                    sudo apt-get install -y nvidia-docker2
+                    sudo systemctl restart docker
+                  fi
               )
           }
 
