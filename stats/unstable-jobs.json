@@ -46,5 +46,13 @@
     "pull",
     "linux-focal-py3.11-clang10",
     "test (dynamo)"
+  ],
+  "pull / linux-focal-py3.8-clang10 / test (dynamo)": [
+    "clee2000",
+    "109034",
+    "https://github.com/pytorch/pytorch/issues/109034",
+    "pull",
+    "linux-focal-py3.8-clang10",
+    "test (dynamo)"
   ]
 }
