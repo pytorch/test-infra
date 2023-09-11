@@ -1198,6 +1198,13 @@
       "inductor"
     ]
   ],
+  "test_out_randn_cuda_float32 (__main__.TestCommonCUDA)": [
+    "109070",
+    "https://github.com/pytorch/pytorch/issues/109070",
+    [
+      "inductor"
+    ]
+  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
