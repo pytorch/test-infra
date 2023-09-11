@@ -1107,6 +1107,13 @@
       "dynamo"
     ]
   ],
+  "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
+    "109068",
+    "https://github.com/pytorch/pytorch/issues/109068",
+    [
+      "dynamo"
+    ]
+  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
@@ -1354,13 +1361,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
