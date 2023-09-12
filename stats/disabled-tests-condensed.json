@@ -569,6 +569,13 @@
       "inductor"
     ]
   ],
+  "test_fn_gradgrad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93062",
+    "https://github.com/pytorch/pytorch/issues/93062",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
@@ -779,6 +786,13 @@
       "linux"
     ]
   ],
+  "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "100614",
+    "https://github.com/pytorch/pytorch/issues/100614",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -885,6 +899,14 @@
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
     [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107197",
+    "https://github.com/pytorch/pytorch/issues/107197",
+    [
+      "asan",
       "linux"
     ]
   ],
@@ -1117,6 +1139,13 @@
   "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
     "109068",
     "https://github.com/pytorch/pytorch/issues/109068",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_resize_quantized_cpu_qint8 (__main__.TestTorchDeviceTypeCPU)": [
+    "109140",
+    "https://github.com/pytorch/pytorch/issues/109140",
     [
       "dynamo"
     ]
@@ -1375,6 +1404,13 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
