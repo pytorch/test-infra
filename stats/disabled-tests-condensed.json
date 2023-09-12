@@ -540,6 +540,14 @@
       "inductor"
     ]
   ],
+  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95147",
+    "https://github.com/pytorch/pytorch/issues/95147",
+    [
+      "linux",
+      "inductor"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "101755",
     "https://github.com/pytorch/pytorch/issues/101755",
@@ -762,6 +770,13 @@
     "https://github.com/pytorch/pytorch/issues/93061",
     [
       "inductor"
+    ]
+  ],
+  "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94215",
+    "https://github.com/pytorch/pytorch/issues/94215",
+    [
+      "linux"
     ]
   ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1053,6 +1068,13 @@
   "test_nondeterministic_alert_MaxUnpool1d_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "108909",
     "https://github.com/pytorch/pytorch/issues/108909",
+    [
+      "inductor"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool1d_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109130",
+    "https://github.com/pytorch/pytorch/issues/109130",
     [
       "inductor"
     ]
