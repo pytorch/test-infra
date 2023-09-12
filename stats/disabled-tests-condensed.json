@@ -988,13 +988,6 @@
       "macos"
     ]
   ],
-  "test_multilayer_var_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
-    "107705",
-    "https://github.com/pytorch/pytorch/issues/107705",
-    [
-      "macos"
-    ]
-  ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
