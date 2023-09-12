@@ -94,7 +94,7 @@ jobs:
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Clean workspace
         shell: bash -l {0}
