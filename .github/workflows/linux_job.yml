@@ -108,6 +108,9 @@ jobs:
       # Will be blank outside of this
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
+      # NB: Increase OS file watch limit, this is needed when buck2 daemon is used
+      # to build large repo like PyTorch. The default value is 8192.
+      FILE_WATCH_LIMIT: 524288
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -208,6 +211,7 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
+          echo fs.inotify.max_user_watches="${FILE_WATCH_LIMIT}" | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_docker_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
