@@ -1,12 +1,4 @@
 {
-  "inductor / cuda12.1-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
-    "atalman",
-    "108958",
-    "https://github.com/pytorch/pytorch/issues/108958",
-    "inductor",
-    "cuda12.1-py3.10-gcc9-sm80",
-    "test (inductor_torchbench_smoketest_perf)"
-  ],
   "periodic / linux-focal-cuda11.8-py3.9-gcc9 / test (multigpu)": [
     "atalman",
     "108786",
