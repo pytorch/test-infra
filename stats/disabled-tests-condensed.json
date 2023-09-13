@@ -1122,6 +1122,13 @@
       "dynamo"
     ]
   ],
+  "test_nondeterministic_alert_MaxUnpool2d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109162",
+    "https://github.com/pytorch/pytorch/issues/109162",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108908",
     "https://github.com/pytorch/pytorch/issues/108908",
