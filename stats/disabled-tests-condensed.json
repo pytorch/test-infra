@@ -91,6 +91,13 @@
       "rocm"
     ]
   ],
+  "test_autotune_conv1x1 (__main__.TestDoBench)": [
+    "109252",
+    "https://github.com/pytorch/pytorch/issues/109252",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
