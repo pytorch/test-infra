@@ -922,48 +922,6 @@
       "dynamo"
     ]
   ],
-  "test_max_autotune_cutlass_backend_addmm_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
-    "109226",
-    "https://github.com/pytorch/pytorch/issues/109226",
-    [
-      "linux"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_addmm_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
-    "109225",
-    "https://github.com/pytorch/pytorch/issues/109225",
-    [
-      "linux"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_mm_bias_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
-    "109230",
-    "https://github.com/pytorch/pytorch/issues/109230",
-    [
-      "linux"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_mm_bias_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
-    "109229",
-    "https://github.com/pytorch/pytorch/issues/109229",
-    [
-      "linux"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_regular_mm_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
-    "109228",
-    "https://github.com/pytorch/pytorch/issues/109228",
-    [
-      "linux"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_regular_mm_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
-    "109227",
-    "https://github.com/pytorch/pytorch/issues/109227",
-    [
-      "linux"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
