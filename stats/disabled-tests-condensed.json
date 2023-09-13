@@ -478,6 +478,13 @@
       "linux"
     ]
   ],
+  "test_duplicate_graph_break_log (__main__.MiscTests)": [
+    "109223",
+    "https://github.com/pytorch/pytorch/issues/109223",
+    [
+      "linux"
+    ]
+  ],
   "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
     "101785",
     "https://github.com/pytorch/pytorch/issues/101785",
@@ -908,6 +915,48 @@
       "dynamo"
     ]
   ],
+  "test_max_autotune_cutlass_backend_addmm_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
+    "109226",
+    "https://github.com/pytorch/pytorch/issues/109226",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_addmm_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
+    "109225",
+    "https://github.com/pytorch/pytorch/issues/109225",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_mm_bias_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
+    "109230",
+    "https://github.com/pytorch/pytorch/issues/109230",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_mm_bias_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
+    "109229",
+    "https://github.com/pytorch/pytorch/issues/109229",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_regular_mm_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
+    "109228",
+    "https://github.com/pytorch/pytorch/issues/109228",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_regular_mm_dynamic_False_max_autotune_gemm_backends_CUTLASS (__main__.TestDoBench)": [
+    "109227",
+    "https://github.com/pytorch/pytorch/issues/109227",
+    [
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1146,6 +1195,13 @@
     "https://github.com/pytorch/pytorch/issues/109007",
     [
       "dynamo"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool3d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109224",
+    "https://github.com/pytorch/pytorch/issues/109224",
+    [
+      "inductor"
     ]
   ],
   "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
