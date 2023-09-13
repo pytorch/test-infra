@@ -1129,6 +1129,13 @@
       "inductor"
     ]
   ],
+  "test_nondeterministic_alert_MaxUnpool2d_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109181",
+    "https://github.com/pytorch/pytorch/issues/109181",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108908",
     "https://github.com/pytorch/pytorch/issues/108908",
@@ -1160,6 +1167,13 @@
   "test_nondeterministic_resize_quantized_cpu_quint2x4 (__main__.TestTorchDeviceTypeCPU)": [
     "109167",
     "https://github.com/pytorch/pytorch/issues/109167",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_resize_quantized_cpu_quint8 (__main__.TestTorchDeviceTypeCPU)": [
+    "109182",
+    "https://github.com/pytorch/pytorch/issues/109182",
     [
       "dynamo"
     ]
