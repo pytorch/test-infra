@@ -18,7 +18,7 @@ on:
           - torchrec
           - tensorrt
           - data
-          - FBGEMM
+          - fbgemm
           - all
 jobs:
   trigger:
@@ -75,11 +75,11 @@ jobs:
           repository: pytorch/tensorrt
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: tensorrt
-      - name: Trigger nightly FBGEMM build
-        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'FBGEMM' || inputs.domain == 'all' }}
+      - name: Trigger nightly fbgemm build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'fbgemm' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
         with:
           ref: main
-          repository: pytorch/FBGEMM
+          repository: pytorch/fbgemm
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-          path: FBGEMM
+          path: fbgemm
