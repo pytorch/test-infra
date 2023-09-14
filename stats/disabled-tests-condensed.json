@@ -98,6 +98,14 @@
       "linux"
     ]
   ],
+  "test_backend_match_guard_multi_threads (__main__.MiscTests)": [
+    "109321",
+    "https://github.com/pytorch/pytorch/issues/109321",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -124,6 +132,15 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
+    ]
+  ],
+  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
+    "106543",
+    "https://github.com/pytorch/pytorch/issues/106543",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
