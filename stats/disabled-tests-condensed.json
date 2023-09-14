@@ -1192,6 +1192,13 @@
       "inductor"
     ]
   ],
+  "test_nondeterministic_alert_bincount_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "109290",
+    "https://github.com/pytorch/pytorch/issues/109290",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
     "109068",
     "https://github.com/pytorch/pytorch/issues/109068",
