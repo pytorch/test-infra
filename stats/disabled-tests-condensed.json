@@ -1169,6 +1169,13 @@
       "inductor"
     ]
   ],
+  "test_nondeterministic_alert_MaxUnpool3d_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109268",
+    "https://github.com/pytorch/pytorch/issues/109268",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
     "109068",
     "https://github.com/pytorch/pytorch/issues/109068",
