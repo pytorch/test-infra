@@ -515,6 +515,15 @@
       "linux"
     ]
   ],
+  "test_export_with_symbool_inputs (__main__.ExportTests)": [
+    "109283",
+    "https://github.com/pytorch/pytorch/issues/109283",
+    [
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
