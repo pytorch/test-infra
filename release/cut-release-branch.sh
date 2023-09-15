@@ -62,7 +62,7 @@ for branch in "release/${RELEASE_VERSION}" "orig/release/${RELEASE_VERSION}"; do
 
             if [[ "${DRY_RUN:-enabled}" == "disabled" ]]; then
                 git add .github/workflows/*.yml
-                git commit -m "[RELEASE-ONLY CHANGES] Branch Cut for Release {RELEASE_VERSION}"
+                git commit -m "[RELEASE-ONLY CHANGES] Branch Cut for Release ${RELEASE_VERSION}"
                 git push "${GIT_REMOTE}" "${branch}"
             fi
         )
