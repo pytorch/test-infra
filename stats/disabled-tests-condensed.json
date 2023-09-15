@@ -1223,6 +1223,13 @@
       "inductor"
     ]
   ],
+  "test_nondeterministic_alert_kthvalue_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "109341",
+    "https://github.com/pytorch/pytorch/issues/109341",
+    [
+      "inductor"
+    ]
+  ],
   "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
     "109068",
     "https://github.com/pytorch/pytorch/issues/109068",
