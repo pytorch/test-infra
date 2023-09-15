@@ -304,6 +304,13 @@
       "linux"
     ]
   ],
+  "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
+    "109379",
+    "https://github.com/pytorch/pytorch/issues/109379",
+    [
+      "linux"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
