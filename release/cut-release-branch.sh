@@ -21,12 +21,26 @@ GIT_BRANCH_TO_CUT_FROM=${GIT_BRANCH_TO_CUT_FROM:-viable/strict}
 
 # should output something like 1.11
 RELEASE_VERSION=${RELEASE_VERSION:-$(cut -d'.' -f1-2 "${GIT_TOP_DIR}/version.txt")}
+TEST_INFRA_BRANCH=${TEST_INFRA_BRANCH:-"release/${RELEASE_VERSION}"}
 
 DRY_RUN_FLAG="--dry-run"
 if [[ ${DRY_RUN:-enabled} == "disabled" ]]; then
     DRY_RUN_FLAG=""
 fi
 
+function update_test_infra_branch() {
+    # Change all GitHub Actions to reference the test-infra release branch
+    # as opposed to main as copied from pytorch/vision/packaging/cut_release.sh
+    for i in .github/workflows/*.yml; do
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' -e s#@main#@"${TEST_INFRA_BRANCH}"# $i;
+        sed -i '' -e s#test-infra-ref:[[:space:]]main#"test-infra-ref: ${TEST_INFRA_BRANCH}"# $i;
+      else
+        sed -i -e s#@main#@"${TEST_INFRA_BRANCH}"# $i;
+        sed -i -e s#test-infra-ref:[[:space:]]main#"test-infra-ref: ${TEST_INFRA_BRANCH}"# $i;
+      fi
+    done
+}
 
 (
     set -x
@@ -43,7 +57,14 @@ for branch in "release/${RELEASE_VERSION}" "orig/release/${RELEASE_VERSION}"; do
             set -x
             git checkout "${GIT_REMOTE}/${GIT_BRANCH_TO_CUT_FROM}"
             git checkout -b "${branch}"
-            git push "${GIT_REMOTE}" "${branch}"
+            # Apply common steps to automate release
+            update_test_infra_branch
+
+            if [[ "${DRY_RUN:-enabled}" == "disabled" ]]; then
+                git add .github/workflows/*.yml
+                git commit -m "[RELEASE-ONLY CHANGES] Branch Cut for Release {RELEASE_VERSION}"
+                git push "${GIT_REMOTE}" "${branch}"
+            fi
         )
     fi
 done
