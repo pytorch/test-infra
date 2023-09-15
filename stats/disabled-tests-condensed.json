@@ -297,13 +297,6 @@
       "linux"
     ]
   ],
-  "test_compute_local_offset_1d (__main__.UtilTest)": [
-    "100032",
-    "https://github.com/pytorch/pytorch/issues/100032",
-    [
-      "linux"
-    ]
-  ],
   "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
     "109379",
     "https://github.com/pytorch/pytorch/issues/109379",
