@@ -977,6 +977,14 @@
       "rocm"
     ]
   ],
+  "test_memory_profiler (__main__.TestProfiler)": [
+    "72280",
+    "https://github.com/pytorch/pytorch/issues/72280",
+    [
+      "linux",
+      "mac"
+    ]
+  ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
