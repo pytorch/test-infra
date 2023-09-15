@@ -79,7 +79,7 @@ runner_types:
     disk_size: 150
     instance_type: g5.4xlarge
     is_ephemeral: false
-    max_available: 600
+    max_available: 800
     os: linux
   linux.large:
     disk_size: 15
