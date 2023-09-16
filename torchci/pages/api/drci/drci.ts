@@ -46,14 +46,14 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  //if (authorization === process.env.DRCI_BOT_KEY) {
-  const { prNumber } = req.query;
-  const { repo }: UpdateCommentBody = req.body;
-  const octokit = await getOctokit(OWNER, repo);
-  updateDrciComments(octokit, repo, prNumber as string);
+  if (authorization === process.env.DRCI_BOT_KEY) {
+    const { prNumber } = req.query;
+    const { repo }: UpdateCommentBody = req.body;
+    const octokit = await getOctokit(OWNER, repo);
+    updateDrciComments(octokit, repo, prNumber as string);
 
-  //res.status(200).end();
-  //}
+    res.status(200).end();
+  }
   res.status(403).end();
 }
 
@@ -103,8 +103,7 @@ export async function updateDrciComments(
       formDrciSevBody(sevs)
     );
 
-    console.log(comment);
-    //await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
+    await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
   });
 }
 
