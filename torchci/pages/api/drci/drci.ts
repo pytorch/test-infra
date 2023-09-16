@@ -430,7 +430,10 @@ export async function getWorkflowJobsStatuses(
   const baseCommitDate = await fetchBaseCommitTimeStamp(prInfo.merge_base);
 
   for (const [name, job] of prInfo.jobs) {
-    if (job.conclusion === null && job.completed_at === null) {
+    if (
+      (job.conclusion === undefined || job.conclusion === null) &&
+      (job.completed_at === undefined || job.completed_at === null)
+    ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
       if (job.name !== undefined && job.name.includes("unstable")) {
