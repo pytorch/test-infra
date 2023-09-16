@@ -46,14 +46,14 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
-    const { prNumber } = req.query;
-    const { repo }: UpdateCommentBody = req.body;
-    const octokit = await getOctokit(OWNER, repo);
-    updateDrciComments(octokit, repo, prNumber as string);
+  //if (authorization === process.env.DRCI_BOT_KEY) {
+  const { prNumber } = req.query;
+  const { repo }: UpdateCommentBody = req.body;
+  const octokit = await getOctokit(OWNER, repo);
+  updateDrciComments(octokit, repo, prNumber as string);
 
-    res.status(200).end();
-  }
+  //res.status(200).end();
+  //}
   res.status(403).end();
 }
 
@@ -103,7 +103,8 @@ export async function updateDrciComments(
       formDrciSevBody(sevs)
     );
 
-    await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
+    console.log(comment);
+    //await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
   });
 }
 
@@ -214,7 +215,7 @@ function constructResultsJobsSections(
   }
 
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
-  const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
+  const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
   }
@@ -373,7 +374,7 @@ function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
     const jobNameRegex = new RegExp(flakyRule.name);
 
     return (
-      job.name.match(jobNameRegex) &&
+      job.name!.match(jobNameRegex) &&
       flakyRule.captures.every((capture: string) => {
         const captureRegex = new RegExp(capture);
         const matchFailureCaptures: boolean =
@@ -397,7 +398,7 @@ function isBrokenTrunk(
   job: RecentWorkflowsData,
   baseJobs: Map<string, RecentWorkflowsData[]>
 ): boolean {
-  const jobNameNoSuffix = removeJobNameSuffix(job.name);
+  const jobNameNoSuffix = removeJobNameSuffix(job.name!);
 
   // This job doesn't exist in the base commit, thus not a broken trunk failure
   if (!baseJobs.has(jobNameNoSuffix)) {

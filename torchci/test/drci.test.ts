@@ -30,7 +30,7 @@ export const successfulA = {
 
 const pendingA = {
   name: "linux-docs / build-docs (cpp)",
-  conclusion: null,
+  conclusion: undefined,
   completed_at: null,
   html_url: "abcdefg",
   head_sha: "abcdefg",

@@ -1,3 +1,5 @@
+-- This query is used by HUD commit and pull request pages to get all jobs belong
+-- to specific commit hash. They can then be displayed on those pages.
 WITH job as (
     SELECT
         job._event_time as time,
@@ -115,4 +117,5 @@ SELECT
 from
     job
 ORDER BY
-    name
+    name,
+    time DESC

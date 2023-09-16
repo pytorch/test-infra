@@ -1,8 +1,14 @@
 /**
  * Represents the individual job information returned by Rockset.
  */
-export interface JobData {
+export interface BasicJobData {
   name?: string;
+  time?: string;
+  conclusion?: string;
+}
+
+// Used by HUD
+export interface JobData extends BasicJobData {
   workflowName?: string;
   jobName?: string;
   sha?: string;
@@ -10,8 +16,6 @@ export interface JobData {
   branch?: string;
   workflowId?: string;
   githubArtifactUrl?: string;
-  time?: string;
-  conclusion?: string;
   htmlUrl?: string;
   logUrl?: string;
   durationS?: number;
@@ -22,6 +26,20 @@ export interface JobData {
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
+}
+
+// Used by Dr.CI
+export interface RecentWorkflowsData extends BasicJobData {
+  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
+  workflow_id?: string;
+  id: string;
+  completed_at: string | null;
+  html_url: string;
+  head_sha: string;
+  head_branch?: string | null;
+  pr_number?: number;
+  failure_captures: string[];
+  failure_line?: string | null;
 }
 
 export interface Artifact {
@@ -115,21 +133,6 @@ export interface DisabledNonFlakyTestData {
   flaky: boolean;
   num_green: number;
   num_red: number;
-}
-
-export interface RecentWorkflowsData {
-  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
-  workflow_id?: string;
-  id: string;
-  name: string;
-  conclusion: string | null;
-  completed_at: string | null;
-  html_url: string;
-  head_sha: string;
-  head_branch?: string | null;
-  pr_number?: number;
-  failure_captures: string[];
-  failure_line?: string | null;
 }
 
 export interface TTSChange {

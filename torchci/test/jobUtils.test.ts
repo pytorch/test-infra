@@ -2,8 +2,9 @@ import {
   removeJobNameSuffix,
   isSameFailure,
   isSameHeadBranch,
+  removeCancelledJobAfterRetry,
 } from "../lib/jobUtils";
-import { JobData, RecentWorkflowsData } from "lib/types";
+import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
 
@@ -140,5 +141,134 @@ describe("Test various job utils", () => {
     jobB.failure_captures = ["ERROR"];
     // Same failure
     expect(isSameFailure(jobA, jobB)).toEqual(true);
+  });
+
+  test("test removeCancelledJobAfterRetry", async () => {
+    const jobs: BasicJobData[] = [
+      // Basic case
+      {
+        name: "linux-binary-manywheel / manywheel-py3_10-cuda11_8-test",
+        conclusion: "cancelled",
+        time: "2023-09-12T17:42:42.746515Z",
+      },
+      {
+        name: "linux-binary-manywheel / manywheel-py3_10-cuda11_8-test / test",
+        conclusion: "success",
+        time: "2023-09-12T20:00:01.494101Z",
+      },
+
+      // Multiple matches after retrying
+      {
+        name: "pull / linux-docs",
+        conclusion: "cancelled",
+        time: "2023-08-23T08:57:45.242030Z",
+      },
+      {
+        name: "pull / linux-docs / build-docs-cpp-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:17.117449Z",
+      },
+      {
+        name: "pull / linux-docs / build-docs-functorch-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:18.699641Z",
+      },
+      {
+        name: "pull / linux-docs / build-docs-python-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:18.505274Z",
+      },
+
+      // The retry was record a split-second earlier
+      {
+        name: "Labeler",
+        conclusion: "cancelled",
+        time: "2023-08-23T08:57:20.619274Z",
+      },
+      {
+        name: "Labeler",
+        conclusion: "success",
+        time: "2023-08-23T08:57:20.499395Z",
+      },
+
+      // One retry was record a split-second earlier and there are more
+      // than one of them
+      {
+        name: "bc_linter",
+        conclusion: "success",
+        time: "2023-09-14T23:44:39.303620Z",
+      },
+      {
+        name: "bc_linter",
+        conclusion: "cancelled",
+        time: "2023-09-14T23:44:17.259156Z",
+      },
+      {
+        name: "bc_linter",
+        conclusion: "success",
+        time: "2023-09-12T18:26:22.734555Z",
+      },
+      {
+        name: "bc_linter",
+        conclusion: "success",
+        time: "2023-09-12T16:45:45.773260Z",
+      },
+
+      // One match, keep the record
+      {
+        name: "trunk / linux-focal-rocm5.6-py3.8",
+        conclusion: "cancelled",
+        time: "2023-09-12T17:42:42.746515Z",
+      },
+    ];
+
+    const results = await removeCancelledJobAfterRetry(jobs);
+    expect(results).toEqual([
+      // Basic case
+      {
+        name: "linux-binary-manywheel / manywheel-py3_10-cuda11_8-test / test",
+        conclusion: "success",
+        time: "2023-09-12T20:00:01.494101Z",
+      },
+
+      // Multiple matches after retrying
+      {
+        name: "pull / linux-docs / build-docs-cpp-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:17.117449Z",
+      },
+      {
+        name: "pull / linux-docs / build-docs-functorch-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:18.699641Z",
+      },
+      {
+        name: "pull / linux-docs / build-docs-python-false",
+        conclusion: "success",
+        time: "2023-08-23T09:11:18.505274Z",
+      },
+
+      // The retry was record a split-second earlier
+      {
+        name: "Labeler",
+        conclusion: "success",
+        time: "2023-08-23T08:57:20.499395Z",
+      },
+
+      // One retry was record a split-second earlier and there are more
+      // than one of them
+      {
+        name: "bc_linter",
+        conclusion: "success",
+        time: "2023-09-14T23:44:39.303620Z",
+      },
+
+      // One match, keep the record
+      {
+        name: "trunk / linux-focal-rocm5.6-py3.8",
+        conclusion: "cancelled",
+        time: "2023-09-12T17:42:42.746515Z",
+      },
+    ]);
   });
 });

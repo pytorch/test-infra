@@ -30,7 +30,8 @@ SELECT
   recent_shas.number AS pr_number,
   recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
-  j.torchci_classification.line AS failure_line
+  j.torchci_classification.line AS failure_line,
+  j._event_time as time
 FROM
   recent_shas
   JOIN commons.workflow_job j ON j.head_sha = recent_shas.sha
@@ -47,7 +48,10 @@ SELECT
   recent_shas.number AS pr_number,
   w.head_sha,
   null AS failure_captures,
-  null AS failure_line
+  null AS failure_line,
+  w._event_time as time
 FROM
   recent_shas
   JOIN commons.workflow_run w ON w.head_sha = recent_shas.sha
+ORDER BY
+  time DESC
