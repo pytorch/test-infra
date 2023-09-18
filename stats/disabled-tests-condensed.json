@@ -873,6 +873,14 @@
       "rocm"
     ]
   ],
+  "test_kwargs_out_list_variable_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "109495",
+    "https://github.com/pytorch/pytorch/issues/109495",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_large_reduction_list (__main__.MiscTests)": [
     "109474",
     "https://github.com/pytorch/pytorch/issues/109474",
