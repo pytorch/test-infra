@@ -696,6 +696,15 @@
       "inductor"
     ]
   ],
+  "test_get_parameter_dtype_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "109479",
+    "https://github.com/pytorch/pytorch/issues/109479",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
