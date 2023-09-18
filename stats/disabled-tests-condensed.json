@@ -134,6 +134,15 @@
       "mac"
     ]
   ],
+  "test_basicmodule1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109547",
+    "https://github.com/pytorch/pytorch/issues/109547",
+    [
+      "asan",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
     "106543",
     "https://github.com/pytorch/pytorch/issues/106543",
@@ -232,6 +241,14 @@
     "https://github.com/pytorch/pytorch/issues/100074",
     [
       "linux"
+    ]
+  ],
+  "test_children_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109546",
+    "https://github.com/pytorch/pytorch/issues/109546",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
@@ -1499,6 +1516,13 @@
     "https://github.com/pytorch/pytorch/issues/84937",
     [
       "asan"
+    ]
+  ],
+  "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
+    "103345",
+    "https://github.com/pytorch/pytorch/issues/103345",
+    [
+      "linux"
     ]
   ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
