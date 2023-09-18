@@ -864,6 +864,28 @@
       "rocm"
     ]
   ],
+  "test_large_reduction_list (__main__.MiscTests)": [
+    "109474",
+    "https://github.com/pytorch/pytorch/issues/109474",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
+  "test_large_reduction_list_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "109473",
+    "https://github.com/pytorch/pytorch/issues/109473",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
