@@ -994,6 +994,14 @@
       "dynamo"
     ]
   ],
+  "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "109512",
+    "https://github.com/pytorch/pytorch/issues/109512",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1500,13 +1508,6 @@
       "mac"
     ]
   ],
-  "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
-    "98024",
-    "https://github.com/pytorch/pytorch/issues/98024",
-    [
-      "linux"
-    ]
-  ],
   "test_redundant_clone_for_layout_convert_cuda (__main__.FreezingCudaTests)": [
     "107950",
     "https://github.com/pytorch/pytorch/issues/107950",
@@ -1524,6 +1525,13 @@
   "test_requires_grad_loop (test_jit.TestScript)": [
     "91492",
     "https://github.com/pytorch/pytorch/issues/91492",
+    [
+      "linux"
+    ]
+  ],
+  "test_rewrite_assert_noop_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "109511",
+    "https://github.com/pytorch/pytorch/issues/109511",
     [
       "linux"
     ]
