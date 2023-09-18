@@ -1709,13 +1709,6 @@
       "linux"
     ]
   ],
-  "test_vmapvjpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "104737",
-    "https://github.com/pytorch/pytorch/issues/104737",
-    [
-      "linux"
-    ]
-  ],
   "test_wait_i_3 (__main__.TestMultiThreadedWait)": [
     "100459",
     "https://github.com/pytorch/pytorch/issues/100459",
