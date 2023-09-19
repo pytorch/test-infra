@@ -666,6 +666,21 @@
       "linux"
     ]
   ],
+  "test_fnmembercmp2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109628",
+    "https://github.com/pytorch/pytorch/issues/109628",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_forward_directly_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109629",
+    "https://github.com/pytorch/pytorch/issues/109629",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
