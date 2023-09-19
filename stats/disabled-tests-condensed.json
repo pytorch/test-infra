@@ -1631,6 +1631,11 @@
       "linux"
     ]
   ],
+  "test_sdpa_rewriter_11_cpu (__main__.SDPAPatternRewriterCpuTests)": [
+    "109656",
+    "https://github.com/pytorch/pytorch/issues/109656",
+    []
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
