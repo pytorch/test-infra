@@ -652,6 +652,20 @@
       "inductor"
     ]
   ],
+  "test_fnmember_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109594",
+    "https://github.com/pytorch/pytorch/issues/109594",
+    [
+      "linux"
+    ]
+  ],
+  "test_fnmembercmp1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109595",
+    "https://github.com/pytorch/pytorch/issues/109595",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
