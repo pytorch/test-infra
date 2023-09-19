@@ -231,6 +231,13 @@
       "macos"
     ]
   ],
+  "test_cfgmod_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109589",
+    "https://github.com/pytorch/pytorch/issues/109589",
+    [
+      "rocm"
+    ]
+  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
