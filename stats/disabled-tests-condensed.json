@@ -143,6 +143,15 @@
       "rocm"
     ]
   ],
+  "test_basicmodule2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109576",
+    "https://github.com/pytorch/pytorch/issues/109576",
+    [
+      "asan",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
     "106543",
     "https://github.com/pytorch/pytorch/issues/106543",
@@ -317,6 +326,13 @@
   "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
     "109379",
     "https://github.com/pytorch/pytorch/issues/109379",
+    [
+      "linux"
+    ]
+  ],
+  "test_constloop_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109575",
+    "https://github.com/pytorch/pytorch/issues/109575",
     [
       "linux"
     ]
