@@ -949,6 +949,15 @@
       "linux"
     ]
   ],
+  "test_istraining2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109704",
+    "https://github.com/pytorch/pytorch/issues/109704",
+    [
+      "asan",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_jit_cudnn_extension (__main__.TestCppExtensionJIT)": [
     "107182",
     "https://github.com/pytorch/pytorch/issues/107182",
@@ -1174,6 +1183,13 @@
     [
       "linux",
       "macos"
+    ]
+  ],
+  "test_module_name_string_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109705",
+    "https://github.com/pytorch/pytorch/issues/109705",
+    [
+      "linux"
     ]
   ],
   "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
