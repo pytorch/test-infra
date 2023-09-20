@@ -1675,11 +1675,6 @@
       "linux"
     ]
   ],
-  "test_sdpa_rewriter_11_cpu (__main__.SDPAPatternRewriterCpuTests)": [
-    "109656",
-    "https://github.com/pytorch/pytorch/issues/109656",
-    []
-  ],
   "test_sdpa_rewriter_12_cpu (__main__.SDPAPatternRewriterCpuTests)": [
     "109682",
     "https://github.com/pytorch/pytorch/issues/109682",
