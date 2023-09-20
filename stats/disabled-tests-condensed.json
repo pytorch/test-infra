@@ -914,6 +914,27 @@
       "linux"
     ]
   ],
+  "test_intarg_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109672",
+    "https://github.com/pytorch/pytorch/issues/109672",
+    [
+      "rocm"
+    ]
+  ],
+  "test_iseval1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109671",
+    "https://github.com/pytorch/pytorch/issues/109671",
+    [
+      "linux"
+    ]
+  ],
+  "test_iseval2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109670",
+    "https://github.com/pytorch/pytorch/issues/109670",
+    [
+      "linux"
+    ]
+  ],
   "test_jit_cudnn_extension (__main__.TestCppExtensionJIT)": [
     "107182",
     "https://github.com/pytorch/pytorch/issues/107182",
@@ -1035,13 +1056,6 @@
   "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107767",
     "https://github.com/pytorch/pytorch/issues/107767",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107114",
-    "https://github.com/pytorch/pytorch/issues/107114",
     [
       "linux"
     ]
@@ -1630,6 +1644,11 @@
     [
       "linux"
     ]
+  ],
+  "test_sdpa_rewriter_11_cpu (__main__.SDPAPatternRewriterCpuTests)": [
+    "109656",
+    "https://github.com/pytorch/pytorch/issues/109656",
+    []
   ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
