@@ -1650,6 +1650,13 @@
     "https://github.com/pytorch/pytorch/issues/109656",
     []
   ],
+  "test_sdpa_rewriter_12_cpu (__main__.SDPAPatternRewriterCpuTests)": [
+    "109682",
+    "https://github.com/pytorch/pytorch/issues/109682",
+    [
+      "rocm"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
