@@ -131,7 +131,7 @@ def initialize_globals(channel: str):
             gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}"
             for gpu_arch in mod.CUDA_ARCHES
         },
-        "cpu": "pytorch/conda-builder:cpu",
+        "cpu": "pytorch/conda-builder:cpu:6f4536ed4a8e901e611b9276866f4af369e8781ef0b0b9611a13c8586c5bee5e",
     }
     mod.LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str] = {
         **{
