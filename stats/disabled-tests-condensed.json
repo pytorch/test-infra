@@ -1214,6 +1214,13 @@
       "linux"
     ]
   ],
+  "test_modulelist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109741",
+    "https://github.com/pytorch/pytorch/issues/109741",
+    [
+      "linux"
+    ]
+  ],
   "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
     "105825",
     "https://github.com/pytorch/pytorch/issues/105825",
