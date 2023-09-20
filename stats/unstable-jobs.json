@@ -1,18 +1,58 @@
 {
-  "periodic / linux-focal-cuda11.8-py3.9-gcc9 / test (multigpu)": [
+  "inductor / cuda12.1-py3.10-gcc9-sm86 / test (dynamic_inductor_timm)": [
     "atalman",
-    "108786",
-    "https://github.com/pytorch/pytorch/issues/108786",
-    "periodic",
-    "linux-focal-cuda11.8-py3.9-gcc9",
-    "test (multigpu)"
+    "127438",
+    "https://github.com/pytorch/pytorch/issues/127438",
+    "inductor",
+    "cuda12.1-py3.10-gcc9-sm86",
+    "test (dynamic_inductor_timm)"
   ],
-  "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
-    "izaitsevfb",
-    "107047",
-    "https://github.com/pytorch/pytorch/issues/107047",
+  "inductor / cuda12.1-py3.10-gcc9-sm86 / test (inductor_timm)": [
+    "clee2000",
+    "126884",
+    "https://github.com/pytorch/pytorch/issues/126884",
+    "inductor",
+    "cuda12.1-py3.10-gcc9-sm86",
+    "test (inductor_timm)"
+  ],
+  "inductor / cuda12.4-py3.10-gcc9-sm86 / test (dynamic_inductor_timm)": [
+    "huydhn",
+    "127680",
+    "https://github.com/pytorch/pytorch/issues/127680",
+    "inductor",
+    "cuda12.4-py3.10-gcc9-sm86",
+    "test (dynamic_inductor_timm)"
+  ],
+  "inductor / linux-jammy-cpu-py3.8-gcc11-inductor / test (inductor_torchbench_cpu_smoketest_perf)": [
+    "clee2000",
+    "126993",
+    "https://github.com/pytorch/pytorch/issues/126993",
+    "inductor",
+    "linux-jammy-cpu-py3.8-gcc11-inductor",
+    "test (inductor_torchbench_cpu_smoketest_perf)"
+  ],
+  "linux-binary-manywheel / manywheel-py3_8-cuda12_1-test / test": [
+    "atalman",
+    "127288",
+    "https://github.com/pytorch/pytorch/issues/127288",
+    "linux-binary-manywheel",
+    "manywheel-py3_8-cuda12_1-test",
+    "test"
+  ],
+  "linux-binary-manywheel / manywheel-py3_8-cuda12_4-test / test": [
+    "atalman",
+    "127289",
+    "https://github.com/pytorch/pytorch/issues/127289",
+    "linux-binary-manywheel",
+    "manywheel-py3_8-cuda12_4-test",
+    "test"
+  ],
+  "pull / linux-focal-cuda12.4-py3.10-gcc9-sm86 / build": [
+    "atalman",
+    "127104",
+    "https://github.com/pytorch/pytorch/issues/127104",
     "pull",
-    "linux-bionic-py3.8-clang9",
-    "test (dynamo)"
+    "linux-focal-cuda12.4-py3.10-gcc9-sm86",
+    "build"
   ]
 }

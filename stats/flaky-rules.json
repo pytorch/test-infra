@@ -42,5 +42,35 @@
   {
     "name": "asan",
     "captures": ["ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded \\(cannot open shared object file\\)"]
+  },
+  {
+    "name": "linux",
+    "captures": ["The process '/usr/bin/git' failed with exit code 1"]
+  },
+  {
+    "name": "macos",
+    "captures": ["File doesn't exist"]
+  },
+  {
+    "name": "ghstack-mergeability-check",
+    "captures": [
+      "fatal: ambiguous argument 'origin/gh.*",
+      "Mergeability check failed for infrastructure reasons.",
+      "urllib.error.HTTPError: HTTP Error 403: Forbidden"
+    ]
+  },
+  {
+    "name": "llm-retrieval",
+    "captures": [
+      "Could not assume role with user credentials: User: arn:aws:sts::308535385114:assumed-role/gh-ci-github-action-runners-runner-role"
+    ]
+  },
+  {
+    "name": "linux",
+    "captures": ["o space left on device"]
+  },
+  {
+    "name": "linux",
+    "captures": ["Failed to fetch"]
   }
 ]
