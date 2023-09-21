@@ -1051,6 +1051,17 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "102775",
+    "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107762",
     "https://github.com/pytorch/pytorch/issues/107762",
@@ -1739,6 +1750,14 @@
   "test_seq_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109773",
     "https://github.com/pytorch/pytorch/issues/109773",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_sequential_with_duplicated_module_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109783",
+    "https://github.com/pytorch/pytorch/issues/109783",
     [
       "asan",
       "linux"
