@@ -786,15 +786,6 @@
       "linux"
     ]
   ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "rocm",
-      "mac"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -1192,6 +1183,13 @@
       "macos"
     ]
   ],
+  "test_module_class_method_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109761",
+    "https://github.com/pytorch/pytorch/issues/109761",
+    [
+      "rocm"
+    ]
+  ],
   "test_module_name_string_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109705",
     "https://github.com/pytorch/pytorch/issues/109705",
@@ -1563,6 +1561,14 @@
     "https://github.com/pytorch/pytorch/issues/109070",
     [
       "inductor"
+    ]
+  ],
+  "test_parameters3_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109760",
+    "https://github.com/pytorch/pytorch/issues/109760",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
