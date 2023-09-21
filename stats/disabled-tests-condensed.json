@@ -1051,13 +1051,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107739",
-    "https://github.com/pytorch/pytorch/issues/107739",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107762",
     "https://github.com/pytorch/pytorch/issues/107762",
@@ -1227,6 +1220,13 @@
   "test_modulemethod1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109766",
     "https://github.com/pytorch/pytorch/issues/109766",
+    [
+      "linux"
+    ]
+  ],
+  "test_modulemethod2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109779",
+    "https://github.com/pytorch/pytorch/issues/109779",
     [
       "linux"
     ]
