@@ -321,6 +321,13 @@
       "linux"
     ]
   ],
+  "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "101512",
+    "https://github.com/pytorch/pytorch/issues/101512",
+    [
+      "linux"
+    ]
+  ],
   "test_constloop_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109575",
     "https://github.com/pytorch/pytorch/issues/109575",
@@ -970,6 +977,15 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
+  "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109829",
+    "https://github.com/pytorch/pytorch/issues/109829",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_kwargs_out_list_variable_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109495",
     "https://github.com/pytorch/pytorch/issues/109495",
@@ -1042,6 +1058,13 @@
     "https://github.com/pytorch/pytorch/issues/108824",
     [
       "asan"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
