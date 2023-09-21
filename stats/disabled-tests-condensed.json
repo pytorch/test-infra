@@ -968,13 +968,6 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
-    "107383",
-    "https://github.com/pytorch/pytorch/issues/107383",
-    [
-      "rocm"
-    ]
-  ],
   "test_kwargs_out_list_variable_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109495",
     "https://github.com/pytorch/pytorch/issues/109495",
@@ -1215,6 +1208,13 @@
   "test_modulelist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109741",
     "https://github.com/pytorch/pytorch/issues/109741",
+    [
+      "linux"
+    ]
+  ],
+  "test_modulemethod1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109766",
+    "https://github.com/pytorch/pytorch/issues/109766",
     [
       "linux"
     ]
