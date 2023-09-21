@@ -1055,13 +1055,6 @@
       "windows"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107762",
-    "https://github.com/pytorch/pytorch/issues/107762",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107767",
     "https://github.com/pytorch/pytorch/issues/107767",
@@ -1269,6 +1262,14 @@
     "https://github.com/pytorch/pytorch/issues/68171",
     [
       "dynamo"
+    ]
+  ],
+  "test_named_children_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109814",
+    "https://github.com/pytorch/pytorch/issues/109814",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
@@ -1774,6 +1775,14 @@
     "104526",
     "https://github.com/pytorch/pytorch/issues/104526",
     [
+      "linux"
+    ]
+  ],
+  "test_submodules1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109813",
+    "https://github.com/pytorch/pytorch/issues/109813",
+    [
+      "asan",
       "linux"
     ]
   ],
