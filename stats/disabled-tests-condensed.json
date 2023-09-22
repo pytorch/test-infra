@@ -265,6 +265,14 @@
       "rocm"
     ]
   ],
+  "test_compile_selective_checkpoint_gemm_only (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109879",
+    "https://github.com/pytorch/pytorch/issues/109879",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)": [
     "78205",
     "https://github.com/pytorch/pytorch/issues/78205",
@@ -1864,6 +1872,14 @@
     "https://github.com/pytorch/pytorch/issues/109872",
     [
       "linux"
+    ]
+  ],
+  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109901",
+    "https://github.com/pytorch/pytorch/issues/109901",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
