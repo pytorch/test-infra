@@ -1772,6 +1772,13 @@
       "linux"
     ]
   ],
+  "test_sequential_with_duplicated_module2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109846",
+    "https://github.com/pytorch/pytorch/issues/109846",
+    [
+      "rocm"
+    ]
+  ],
   "test_sequential_with_duplicated_module_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109783",
     "https://github.com/pytorch/pytorch/issues/109783",
