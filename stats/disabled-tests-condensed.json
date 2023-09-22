@@ -547,13 +547,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1076,6 +1069,13 @@
       "macos",
       "win",
       "windows"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107762",
+    "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1816,6 +1816,13 @@
       "linux"
     ]
   ],
+  "test_super1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109865",
+    "https://github.com/pytorch/pytorch/issues/109865",
+    [
+      "rocm"
+    ]
+  ],
   "test_super_resolution_cuda (__main__.TestModels)": [
     "105332",
     "https://github.com/pytorch/pytorch/issues/105332",
@@ -1836,6 +1843,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109864",
+    "https://github.com/pytorch/pytorch/issues/109864",
+    [
+      "linux"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
