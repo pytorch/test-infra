@@ -1743,13 +1743,6 @@
       "dynamo"
     ]
   ],
-  "test_runtime_assert_equality_constraint (__main__.TestPasses)": [
-    "107273",
-    "https://github.com/pytorch/pytorch/issues/107273",
-    [
-      "dynamo"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
