@@ -973,13 +973,6 @@
       "rocm"
     ]
   ],
-  "test_jvp_ScaleGradGenVmapAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "105129",
-    "https://github.com/pytorch/pytorch/issues/105129",
-    [
-      "dynamo"
-    ]
-  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1397,13 +1390,6 @@
   "test_nondeterministic_alert_MaxUnpool2d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108886",
     "https://github.com/pytorch/pytorch/issues/108886",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool2d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
-    "108887",
-    "https://github.com/pytorch/pytorch/issues/108887",
     [
       "dynamo"
     ]
