@@ -265,6 +265,14 @@
       "rocm"
     ]
   ],
+  "test_compile_selective_checkpoint_gemm_only (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109879",
+    "https://github.com/pytorch/pytorch/issues/109879",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)": [
     "78205",
     "https://github.com/pytorch/pytorch/issues/78205",
@@ -545,6 +553,13 @@
     "https://github.com/pytorch/pytorch/issues/109223",
     [
       "linux"
+    ]
+  ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
+    [
+      "dynamo"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
@@ -1074,6 +1089,13 @@
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107762",
     "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107767",
+    "https://github.com/pytorch/pytorch/issues/107767",
     [
       "linux"
     ]
