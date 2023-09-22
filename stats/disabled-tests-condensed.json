@@ -1852,6 +1852,13 @@
       "linux"
     ]
   ],
+  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109872",
+    "https://github.com/pytorch/pytorch/issues/109872",
+    [
+      "linux"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
