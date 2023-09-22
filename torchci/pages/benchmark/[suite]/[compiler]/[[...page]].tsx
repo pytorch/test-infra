@@ -72,6 +72,19 @@ const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`
 const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
 const COMPILATION_LATENCY_HEADER = `Compilation latency (seconds)`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+const MFU_HEADER = `Model FLOPs utilization`;
+const MEMORY_BANDWIDTH_HEADER = `Memory bandwidth`;
+
+const DEFAULT_COLUMNS: string[] = [
+  ACCURACY_HEADER,
+  SPEEDUP_HEADER,
+  COMPILATION_LATENCY_HEADER,
+  MEMORY_HEADER,
+  ABS_LATENCY_HEADER,
+];
+const SUITE_TO_COLUMNS = {
+  blueberries: [...DEFAULT_COLUMNS, MFU_HEADER, MEMORY_BANDWIDTH_HEADER],
+};
 
 // The number of digit after decimal to display on the detail page
 const SCALE = 4;
@@ -273,352 +286,461 @@ function ModelPanel({
   });
 
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
+  const columns = [
+    {
+      field: "metadata",
+      headerName: "Name",
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const name = params.value.name;
+        if (name === undefined) {
+          return "";
+        }
+
+        return model !== undefined && name === model ? styles.selectedRow : "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const name = params.value.name;
+        if (name === undefined) {
+          return `Invalid model name ${name}`;
+        }
+
+        const lLog =
+          params.value.l !== undefined
+            ? `${LOG_PREFIX}/${params.value.l}`
+            : undefined;
+        const rLog =
+          params.value.r !== undefined
+            ? `${LOG_PREFIX}/${params.value.r}`
+            : undefined;
+
+        const encodedName = encodeURIComponent(name);
+        const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+        if (lLog === undefined) {
+          return (
+            <a href={url}>
+              <b>{name}</b>
+            </a>
+          );
+        } else if (lLog === rLog) {
+          return (
+            <>
+              <a href={url}>
+                <b>{name}</b>
+              </a>
+              &nbsp;(
+              <a target="_blank" rel="noreferrer" href={lLog}>
+                <u>{lCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
+              </a>
+              )
+            </>
+          );
+        }
+
+        return (
+          <>
+            <a href={url}>
+              <b>{name}</b>
+            </a>
+            &nbsp;(
+            <a target="_blank" rel="noreferrer" href={rLog}>
+              <u>{rCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
+            </a>{" "}
+            →{" "}
+            <a target="_blank" rel="noreferrer" href={lLog}>
+              <u>{lCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
+            </a>
+            )
+          </>
+        );
+      },
+    },
+    {
+      field: "accuracy",
+      headerName:
+        lCommit === rCommit
+          ? ACCURACY_HEADER
+          : `${ACCURACY_HEADER}: ${DIFF_HEADER}`,
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined || v.r == undefined) {
+          return "";
+        }
+
+        if (lCommit === rCommit) {
+          return PASSING_ACCURACY.includes(v.l) ? "" : styles.warning;
+        } else {
+          if (
+            PASSING_ACCURACY.includes(v.l) &&
+            !PASSING_ACCURACY.includes(v.r)
+          ) {
+            return styles.ok;
+          }
+
+          if (
+            !PASSING_ACCURACY.includes(v.l) &&
+            PASSING_ACCURACY.includes(v.r)
+          ) {
+            return styles.error;
+          }
+
+          if (v.l === v.r) {
+            return "";
+          }
+        }
+
+        return "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined) {
+          return "";
+        }
+
+        if (v.r === undefined) {
+          return (
+            <>
+              {v.l} (<strong>NEW!</strong>)
+            </>
+          );
+        } else if (lCommit === rCommit || v.l === v.r) {
+          return v.l;
+        } else {
+          return `${v.r} → ${v.l}`;
+        }
+      },
+    },
+    {
+      field: "speedup",
+      headerName: SPEEDUP_HEADER,
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined || v.r === 0) {
+          return "";
+        }
+
+        const l = Number(v.l);
+        const r = Number(v.r);
+
+        if (lCommit === rCommit) {
+          return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
+        } else {
+          // l is the new value, r is the old value
+
+          if (l === r) {
+            // 0 means the model isn't run at all
+            return "";
+          }
+
+          // It didn't error in the past, but now it does error
+          if (l === 0) {
+            return styles.error;
+          }
+
+          // Increasing more than x%
+          if (l - r > RELATIVE_THRESHOLD * r) {
+            return styles.ok;
+          }
+
+          // Decreasing more than x%
+          if (r - l > RELATIVE_THRESHOLD * r) {
+            return styles.error;
+          }
+        }
+
+        return "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined) {
+          return "";
+        }
+
+        const l = Number(v.l).toFixed(SCALE);
+        const r = Number(v.r).toFixed(SCALE);
+
+        if (lCommit === rCommit || l === r || v.r === 0) {
+          return l;
+        } else {
+          return `${r} → ${l}`;
+        }
+      },
+    },
+    {
+      field: "compilation_latency",
+      headerName: COMPILATION_LATENCY_HEADER,
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined || v.r === 0) {
+          return "";
+        }
+
+        const l = Number(v.l);
+        const r = Number(v.r);
+
+        if (lCommit === rCommit) {
+          return "";
+        } else {
+          if (l === 0 || l === r) {
+            // 0 means the model isn't run at all
+            return "";
+          }
+
+          // Decreasing more than x%
+          if (r - l > RELATIVE_THRESHOLD * r) {
+            return styles.ok;
+          }
+
+          // Increasing more than x%
+          if (l - r > RELATIVE_THRESHOLD * r) {
+            return styles.error;
+          }
+        }
+
+        return "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined) {
+          return "";
+        }
+
+        const l = Number(v.l).toFixed(0);
+        const r = Number(v.r).toFixed(0);
+
+        if (lCommit === rCommit || l === r || v.r === 0) {
+          return l;
+        } else {
+          return `${r} → ${l}`;
+        }
+      },
+    },
+    {
+      field: "compression_ratio",
+      headerName: MEMORY_HEADER,
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined || v.r === 0) {
+          return "";
+        }
+
+        const l = Number(v.l);
+        const r = Number(v.r);
+
+        if (lCommit === rCommit) {
+          return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
+        } else {
+          if (l === 0 || l === r) {
+            // 0 means the model isn't run at all
+            return "";
+          }
+
+          // Increasing more than x%
+          if (l - r > RELATIVE_THRESHOLD * r) {
+            return styles.ok;
+          }
+
+          // Decreasing more than x%
+          if (r - l > RELATIVE_THRESHOLD * r) {
+            return styles.error;
+          }
+
+          if (l < COMPRESSION_RATIO_THRESHOLD) {
+            return styles.warning;
+          }
+        }
+
+        return "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined) {
+          return "";
+        }
+
+        const l = Number(v.l).toFixed(SCALE);
+        const r = Number(v.r).toFixed(SCALE);
+
+        if (lCommit === rCommit || l === r || v.r === 0) {
+          return l;
+        } else {
+          return `${r} → ${l}`;
+        }
+      },
+    },
+    {
+      field: "abs_latency",
+      headerName: ABS_LATENCY_HEADER,
+      flex: 1,
+      cellClassName: (params: GridCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined || v.r === 0) {
+          return "";
+        }
+
+        const l = Number(v.l);
+        const r = Number(v.r);
+
+        if (lCommit === rCommit) {
+          return "";
+        } else {
+          if (l === 0 || l === r) {
+            // 0 means the model isn't run at all
+            return "";
+          }
+
+          // Decreasing more than x%
+          if (r - l > RELATIVE_THRESHOLD * r) {
+            return styles.ok;
+          }
+
+          // Increasing more than x%
+          if (l - r > RELATIVE_THRESHOLD * r) {
+            return styles.error;
+          }
+        }
+
+        return "";
+      },
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const v = params.value;
+        if (v === undefined) {
+          return "";
+        }
+
+        const l = Number(v.l).toFixed(SCALE);
+        const r = Number(v.r).toFixed(SCALE);
+
+        if (lCommit === rCommit || l === r || v.r === 0) {
+          return l;
+        } else {
+          return `${r} → ${l}`;
+        }
+      },
+    },
+  ];
+
+  // TODO: A quick way to add few more new columns for blueberries, I will need to clean
+  // this up later
+  if (suite === "blueberries") {
+    const additionalColumns = [
+      {
+        field: "mfu",
+        headerName: MFU_HEADER,
+        flex: 1,
+        cellClassName: (params: GridCellParams<any>) => {
+          const v = params.value;
+          if (v === undefined || v.r === 0) {
+            return "";
+          }
+
+          const l = Number(v.l);
+          const r = Number(v.r);
+
+          if (lCommit === rCommit) {
+            return "";
+          } else {
+            if (l === 0 || l === r) {
+              // 0 means the model isn't run at all
+              return "";
+            }
+
+            // Decreasing more than x%
+            if (r - l > RELATIVE_THRESHOLD * r) {
+              return styles.ok;
+            }
+
+            // Increasing more than x%
+            if (l - r > RELATIVE_THRESHOLD * r) {
+              return styles.error;
+            }
+          }
+
+          return "";
+        },
+        renderCell: (params: GridRenderCellParams<any>) => {
+          const v = params.value;
+          if (v === undefined) {
+            return "";
+          }
+
+          const l = Number(v.l).toFixed(SCALE);
+          const r = Number(v.r).toFixed(SCALE);
+
+          if (lCommit === rCommit || l === r || v.r === 0) {
+            return l;
+          } else {
+            return `${r} → ${l}`;
+          }
+        },
+      },
+      {
+        field: "memory_bandwidth",
+        headerName: MEMORY_BANDWIDTH_HEADER,
+        flex: 1,
+        cellClassName: (params: GridCellParams<any>) => {
+          const v = params.value;
+          if (v === undefined || v.r === 0) {
+            return "";
+          }
+
+          const l = Number(v.l);
+          const r = Number(v.r);
+
+          if (lCommit === rCommit) {
+            return "";
+          } else {
+            if (l === 0 || l === r) {
+              // 0 means the model isn't run at all
+              return "";
+            }
+
+            // Decreasing more than x%
+            if (r - l > RELATIVE_THRESHOLD * r) {
+              return styles.ok;
+            }
+
+            // Increasing more than x%
+            if (l - r > RELATIVE_THRESHOLD * r) {
+              return styles.error;
+            }
+          }
+
+          return "";
+        },
+        renderCell: (params: GridRenderCellParams<any>) => {
+          const v = params.value;
+          if (v === undefined) {
+            return "";
+          }
+
+          const l = Number(v.l).toFixed(SCALE);
+          const r = Number(v.r).toFixed(SCALE);
+
+          if (lCommit === rCommit || l === r || v.r === 0) {
+            return l;
+          } else {
+            return `${r} → ${l}`;
+          }
+        },
+      },
+    ];
+
+    columns.push(...additionalColumns);
+  }
+
   return (
     <Grid container spacing={2} style={{ height: "100%" }}>
       <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
           data={data}
-          columns={[
-            {
-              field: "metadata",
-              headerName: "Name",
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const name = params.value.name;
-                if (name === undefined) {
-                  return "";
-                }
-
-                return model !== undefined && name === model
-                  ? styles.selectedRow
-                  : "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const name = params.value.name;
-                if (name === undefined) {
-                  return `Invalid model name ${name}`;
-                }
-
-                const lLog =
-                  params.value.l !== undefined
-                    ? `${LOG_PREFIX}/${params.value.l}`
-                    : undefined;
-                const rLog =
-                  params.value.r !== undefined
-                    ? `${LOG_PREFIX}/${params.value.r}`
-                    : undefined;
-
-                const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
-
-                if (lLog === undefined) {
-                  return (
-                    <a href={url}>
-                      <b>{name}</b>
-                    </a>
-                  );
-                } else if (lLog === rLog) {
-                  return (
-                    <>
-                      <a href={url}>
-                        <b>{name}</b>
-                      </a>
-                      &nbsp;(
-                      <a target="_blank" rel="noreferrer" href={lLog}>
-                        <u>{lCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
-                      </a>
-                      )
-                    </>
-                  );
-                }
-
-                return (
-                  <>
-                    <a href={url}>
-                      <b>{name}</b>
-                    </a>
-                    &nbsp;(
-                    <a target="_blank" rel="noreferrer" href={rLog}>
-                      <u>{rCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
-                    </a>{" "}
-                    →{" "}
-                    <a target="_blank" rel="noreferrer" href={lLog}>
-                      <u>{lCommit.substr(0, SHA_DISPLAY_LENGTH)}</u>
-                    </a>
-                    )
-                  </>
-                );
-              },
-            },
-            {
-              field: "accuracy",
-              headerName:
-                lCommit === rCommit
-                  ? ACCURACY_HEADER
-                  : `${ACCURACY_HEADER}: ${DIFF_HEADER}`,
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.r == undefined) {
-                  return "";
-                }
-
-                if (lCommit === rCommit) {
-                  return PASSING_ACCURACY.includes(v.l) ? "" : styles.warning;
-                } else {
-                  if (
-                    PASSING_ACCURACY.includes(v.l) &&
-                    !PASSING_ACCURACY.includes(v.r)
-                  ) {
-                    return styles.ok;
-                  }
-
-                  if (
-                    !PASSING_ACCURACY.includes(v.l) &&
-                    PASSING_ACCURACY.includes(v.r)
-                  ) {
-                    return styles.error;
-                  }
-
-                  if (v.l === v.r) {
-                    return "";
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                if (v.r === undefined) {
-                  return (
-                    <>
-                      {v.l} (<strong>NEW!</strong>)
-                    </>
-                  );
-                } else if (lCommit === rCommit || v.l === v.r) {
-                  return v.l;
-                } else {
-                  return `${v.r} → ${v.l}`;
-                }
-              },
-            },
-            {
-              field: "speedup",
-              headerName: SPEEDUP_HEADER,
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.r === 0) {
-                  return "";
-                }
-
-                const l = Number(v.l);
-                const r = Number(v.r);
-
-                if (lCommit === rCommit) {
-                  return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
-                } else {
-                  // l is the new value, r is the old value
-
-                  if (l === r) {
-                    // 0 means the model isn't run at all
-                    return "";
-                  }
-
-                  // It didn't error in the past, but now it does error
-                  if (l === 0) {
-                    return styles.error;
-                  }
-
-                  // Increasing more than x%
-                  if (l - r > RELATIVE_THRESHOLD * r) {
-                    return styles.ok;
-                  }
-
-                  // Decreasing more than x%
-                  if (r - l > RELATIVE_THRESHOLD * r) {
-                    return styles.error;
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = Number(v.l).toFixed(SCALE);
-                const r = Number(v.r).toFixed(SCALE);
-
-                if (lCommit === rCommit || l === r || v.r === 0) {
-                  return l;
-                } else {
-                  return `${r} → ${l}`;
-                }
-              },
-            },
-            {
-              field: "compilation_latency",
-              headerName: COMPILATION_LATENCY_HEADER,
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.r === 0) {
-                  return "";
-                }
-
-                const l = Number(v.l);
-                const r = Number(v.r);
-
-                if (lCommit === rCommit) {
-                  return "";
-                } else {
-                  if (l === 0 || l === r) {
-                    // 0 means the model isn't run at all
-                    return "";
-                  }
-
-                  // Decreasing more than x%
-                  if (r - l > RELATIVE_THRESHOLD * r) {
-                    return styles.ok;
-                  }
-
-                  // Increasing more than x%
-                  if (l - r > RELATIVE_THRESHOLD * r) {
-                    return styles.error;
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = Number(v.l).toFixed(0);
-                const r = Number(v.r).toFixed(0);
-
-                if (lCommit === rCommit || l === r || v.r === 0) {
-                  return l;
-                } else {
-                  return `${r} → ${l}`;
-                }
-              },
-            },
-            {
-              field: "compression_ratio",
-              headerName: MEMORY_HEADER,
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.r === 0) {
-                  return "";
-                }
-
-                const l = Number(v.l);
-                const r = Number(v.r);
-
-                if (lCommit === rCommit) {
-                  return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
-                } else {
-                  if (l === 0 || l === r) {
-                    // 0 means the model isn't run at all
-                    return "";
-                  }
-
-                  // Increasing more than x%
-                  if (l - r > RELATIVE_THRESHOLD * r) {
-                    return styles.ok;
-                  }
-
-                  // Decreasing more than x%
-                  if (r - l > RELATIVE_THRESHOLD * r) {
-                    return styles.error;
-                  }
-
-                  if (l < COMPRESSION_RATIO_THRESHOLD) {
-                    return styles.warning;
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = Number(v.l).toFixed(SCALE);
-                const r = Number(v.r).toFixed(SCALE);
-
-                if (lCommit === rCommit || l === r || v.r === 0) {
-                  return l;
-                } else {
-                  return `${r} → ${l}`;
-                }
-              },
-            },
-            {
-              field: "abs_latency",
-              headerName: ABS_LATENCY_HEADER,
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.r === 0) {
-                  return "";
-                }
-
-                const l = Number(v.l);
-                const r = Number(v.r);
-
-                if (lCommit === rCommit) {
-                  return "";
-                } else {
-                  if (l === 0 || l === r) {
-                    // 0 means the model isn't run at all
-                    return "";
-                  }
-
-                  // Decreasing more than x%
-                  if (r - l > RELATIVE_THRESHOLD * r) {
-                    return styles.ok;
-                  }
-
-                  // Increasing more than x%
-                  if (l - r > RELATIVE_THRESHOLD * r) {
-                    return styles.error;
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = Number(v.l).toFixed(SCALE);
-                const r = Number(v.r).toFixed(SCALE);
-
-                if (lCommit === rCommit || l === r || v.r === 0) {
-                  return l;
-                } else {
-                  return `${r} → ${l}`;
-                }
-              },
-            },
-          ]}
+          columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
       </Grid>
@@ -627,6 +749,7 @@ function ModelPanel({
 }
 
 function GraphPanel({
+  suite,
   queryParams,
   granularity,
   compiler,
@@ -635,6 +758,7 @@ function GraphPanel({
   lCommit,
   rCommit,
 }: {
+  suite: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
   compiler: string;
@@ -747,7 +871,28 @@ function GraphPanel({
     "abs_latency",
     false
   );
+  const mfuTimeSeries = seriesWithInterpolatedTimes(
+    chartData,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "mfu",
+    false
+  );
+  const memoryBandwidthTimeSeries = seriesWithInterpolatedTimes(
+    chartData,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "memory_bandwidth",
+    false
+  );
 
+  // TODO: Refactor this later instead of hard coding the suite name
   return (
     <>
       <div>
@@ -850,6 +995,58 @@ function GraphPanel({
               }}
             />
           </Grid>
+
+          {suite === "blueberries" && (
+            <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+              <TimeSeriesPanelWithData
+                data={chartData}
+                series={mfuTimeSeries}
+                title={`Model FLOPs utilization`}
+                groupByFieldName={groupByFieldName}
+                yAxisRenderer={(unit) => {
+                  return `${unit.toFixed(SCALE)}`;
+                }}
+                additionalOptions={{
+                  yAxis: {
+                    scale: true,
+                  },
+                  label: {
+                    show: true,
+                    align: "left",
+                    formatter: (r: any) => {
+                      return Number(r.value[1]).toFixed(SCALE);
+                    },
+                  },
+                }}
+              />
+            </Grid>
+          )}
+
+          {suite === "blueberries" && (
+            <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+              <TimeSeriesPanelWithData
+                data={chartData}
+                series={memoryBandwidthTimeSeries}
+                title={`Memory bandwidth`}
+                groupByFieldName={groupByFieldName}
+                yAxisRenderer={(unit) => {
+                  return `${unit.toFixed(SCALE)}`;
+                }}
+                additionalOptions={{
+                  yAxis: {
+                    scale: true,
+                  },
+                  label: {
+                    show: true,
+                    align: "left",
+                    formatter: (r: any) => {
+                      return Number(r.value[1]).toFixed(SCALE);
+                    },
+                  },
+                }}
+              />
+            </Grid>
+          )}
         </Grid>
       </div>
       <div>
@@ -863,6 +1060,8 @@ function GraphPanel({
               <th>Comptime</th>
               <th>Memory</th>
               <th>AbsLatency</th>
+              {suite === "blueberries" && <th>MFU</th>}
+              {suite === "blueberries" && <th>MemBandwidth</th>}
             </tr>
           </thead>
           <tbody>
@@ -886,6 +1085,8 @@ function GraphPanel({
                   <td>{entry.compilation_latency}</td>
                   <td>{entry.compression_ratio}</td>
                   <td>{entry.abs_latency}</td>
+                  {suite === "blueberries" && <td>{entry.mfu}</td>}
+                  {suite === "blueberries" && <td>{entry.memory_bandwidth}</td>}
                 </tr>
               );
             })}
@@ -1014,6 +1215,7 @@ function Report({
         workflowId={lData[0].workflow_id}
       />
       <GraphPanel
+        suite={suite}
         queryParams={queryParams}
         granularity={granularity}
         compiler={compiler}

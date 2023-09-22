@@ -156,6 +156,8 @@ export interface CompilerPerformanceData {
   compilation_latency: number;
   compiler: string;
   compression_ratio: number;
+  mfu: number;
+  memory_bandwidth: number;
   granularity_bucket: string;
   name: string;
   speedup: number;
