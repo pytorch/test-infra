@@ -1331,13 +1331,6 @@
       "linux"
     ]
   ],
-  "test_non_standard_bool_values_masked_scatter_cuda_bool (__main__.TestCommonCUDA)": [
-    "109006",
-    "https://github.com/pytorch/pytorch/issues/109006",
-    [
-      "inductor"
-    ]
-  ],
   "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
     "101067",
     "https://github.com/pytorch/pytorch/issues/101067",
@@ -1418,13 +1411,6 @@
   "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108908",
     "https://github.com/pytorch/pytorch/issues/108908",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool3d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
-    "109007",
-    "https://github.com/pytorch/pytorch/issues/109007",
     [
       "dynamo"
     ]
