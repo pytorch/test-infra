@@ -1115,6 +1115,13 @@
       "linux"
     ]
   ],
+  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "108994",
+    "https://github.com/pytorch/pytorch/issues/108994",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mandelbrot_numpy (__main__.MiscTests)": [
     "109997",
     "https://github.com/pytorch/pytorch/issues/109997",
