@@ -27,6 +27,13 @@
       "rocm"
     ]
   ],
+  "test_adadelta (__main__.CompiledOptimizerTests)": [
+    "109981",
+    "https://github.com/pytorch/pytorch/issues/109981",
+    [
+      "linux"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -200,6 +207,13 @@
       "rocm"
     ]
   ],
+  "test_cat_addmm (__main__.TestMaxAutotune)": [
+    "109982",
+    "https://github.com/pytorch/pytorch/issues/109982",
+    [
+      "rocm"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
@@ -285,13 +299,6 @@
     "https://github.com/pytorch/pytorch/issues/108743",
     [
       "inductor"
-    ]
-  ],
-  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
-    "106913",
-    "https://github.com/pytorch/pytorch/issues/106913",
-    [
-      "rocm"
     ]
   ],
   "test_complex_half_reference_testing_pow_cuda_complex32 (__main__.TestCommonCUDA)": [
@@ -1408,13 +1415,6 @@
       "inductor"
     ]
   ],
-  "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
-    "108908",
-    "https://github.com/pytorch/pytorch/issues/108908",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nondeterministic_alert_MaxUnpool3d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "109224",
     "https://github.com/pytorch/pytorch/issues/109224",
@@ -1849,6 +1849,14 @@
   "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
     "109901",
     "https://github.com/pytorch/pytorch/issues/109901",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109983",
+    "https://github.com/pytorch/pytorch/issues/109983",
     [
       "linux",
       "rocm"
