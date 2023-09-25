@@ -265,6 +265,13 @@
       "slow"
     ]
   ],
+  "test_circular_dependencies (__main__.TestImports)": [
+    "110040",
+    "https://github.com/pytorch/pytorch/issues/110040",
+    [
+      "rocm"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -984,6 +991,13 @@
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
     []
+  ],
+  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
+    "107383",
+    "https://github.com/pytorch/pytorch/issues/107383",
+    [
+      "rocm"
+    ]
   ],
   "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109829",
@@ -1942,7 +1956,9 @@
     "110038",
     "https://github.com/pytorch/pytorch/issues/110038",
     [
-      "linux"
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
