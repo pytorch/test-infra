@@ -1909,6 +1909,14 @@
       "slow"
     ]
   ],
+  "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110012",
+    "https://github.com/pytorch/pytorch/issues/110012",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
