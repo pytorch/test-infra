@@ -42,18 +42,30 @@ export interface UpdateCommentBody {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<void>
+  res: NextApiResponse<void | {
+    [pr: number]: { [cat: string]: RecentWorkflowsData[] };
+  }>
 ) {
   const authorization = req.headers.authorization;
 
   if (authorization === process.env.DRCI_BOT_KEY) {
-    const { prNumber } = req.query;
+    const { prNumber, wait4Results } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
-    updateDrciComments(octokit, repo, prNumber as string);
 
-    res.status(200).end();
+    if (wait4Results === "true") {
+      const failures = await updateDrciComments(
+        octokit,
+        repo,
+        prNumber as string
+      );
+      res.status(200).json(failures);
+    } else {
+      updateDrciComments(octokit, repo, prNumber as string);
+      res.status(200).end();
+    }
   }
+
   res.status(403).end();
 }
 
@@ -61,7 +73,7 @@ export async function updateDrciComments(
   octokit: Octokit,
   repo: string = "pytorch",
   prNumber?: string
-) {
+): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
   const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
     `${OWNER}/${repo}`,
     prNumber,
@@ -75,6 +87,10 @@ export async function updateDrciComments(
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
+  // Return the list of all failed jobs grouped by their classification
+  const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
+    {};
+
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
       await getWorkflowJobsStatuses(
@@ -82,6 +98,13 @@ export async function updateDrciComments(
         flakyRules,
         baseCommitJobs.get(pr_info.merge_base) || new Map()
       );
+
+    failures[pr_info.pr_number] = {
+      FAILED: failedJobs,
+      FLAKY: flakyJobs,
+      BROKEN_TRUNK: brokenTrunkJobs,
+      UNSTABLE: unstableJobs,
+    };
 
     const failureInfo = constructResultsComment(
       pending,
@@ -105,6 +128,8 @@ export async function updateDrciComments(
 
     await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
   });
+
+  return failures;
 }
 
 async function forAllPRs(
