@@ -30,7 +30,7 @@ export const successfulA = {
 
 const pendingA = {
   name: "linux-docs / build-docs (cpp)",
-  conclusion: null,
+  conclusion: undefined,
   completed_at: null,
   html_url: "abcdefg",
   head_sha: "abcdefg",
@@ -578,7 +578,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       merge_base: "merge_base",
       merge_base_date: "2023-08-08T06:03:21Z",
     });
-    console.log(failureInfoComment);
     expect(
       failureInfoComment.includes("commit sha with merge base merge_base")
     ).toBeTruthy();
@@ -595,7 +594,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       merge_base: "merge_base",
       merge_base_date: "definitely not a timestamp",
     });
-    console.log(failureInfoComment);
     expect(
       failureInfoComment.includes("commit sha with merge base merge_base")
     ).toBeTruthy();

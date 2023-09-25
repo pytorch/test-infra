@@ -2,6 +2,7 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
 import { RecentWorkflowsData } from "./types";
+import { removeCancelledJobAfterRetry } from "./jobUtils";
 
 export async function fetchRecentWorkflows(
   repo: string = "pytorch/pytorch",
@@ -34,7 +35,8 @@ export async function fetchRecentWorkflows(
         ],
       }
     );
-  return recentWorkflowsQuery.results ?? [];
+  const results = recentWorkflowsQuery.results ?? [];
+  return removeCancelledJobAfterRetry<RecentWorkflowsData>(results);
 }
 
 export async function fetchFailedJobsFromCommits(

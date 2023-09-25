@@ -1,4 +1,4 @@
--- This worklow is used by Dr.CI to get all the failed jobs from the base commit. They can then be
+-- This query is used by Dr.CI to get all the failed jobs from the base commit. They can then be
 -- used to decide if a failure is due to broken trunk
 SELECT
   j.id,
@@ -10,6 +10,7 @@ SELECT
   j.head_branch,
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line,
+  j._event_time as time,
 FROM
   commons.workflow_job j
 WHERE

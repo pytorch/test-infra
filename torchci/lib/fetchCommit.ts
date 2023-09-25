@@ -4,6 +4,7 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
 import { CommitData, JobData } from "./types";
+import { removeCancelledJobAfterRetry } from "./jobUtils";
 
 export default async function fetchCommit(
   owner: string,
@@ -48,7 +49,7 @@ export default async function fetchCommit(
 
   return {
     commit: commitDataFromResponse(githubResponse.data),
-    jobs,
+    jobs: await removeCancelledJobAfterRetry<JobData>(jobs),
   };
 }
 

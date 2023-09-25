@@ -1,7 +1,10 @@
+import _ from "lodash";
+import dayjs from "dayjs";
+import TrieSearch from "trie-search";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
-import { RecentWorkflowsData, JobData } from "lib/types";
+import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
@@ -14,6 +17,10 @@ export function isFailedJob(job: JobData) {
     job.conclusion === "cancelled" ||
     job.conclusion === "timed_out"
   );
+}
+
+export function isSuccessJob(job: BasicJobData) {
+  return job.conclusion === "success";
 }
 
 export function isMatchingJobByName(job: JobData, name: string) {
@@ -143,4 +150,71 @@ export function isSameFailure(
     jobA.conclusion === jobB.conclusion &&
     isEqual(jobA.failure_captures, jobB.failure_captures)
   );
+}
+
+export async function removeCancelledJobAfterRetry<T extends BasicJobData>(
+  jobs: T[]
+): Promise<T[]> {
+  // When a worlflow is manually cancelled and retried, the leftover cancel signals from
+  // the previous workflow run are poluting HUD and Dr.CI. For example, the pull request
+  // https://hud.pytorch.org/pytorch/pytorch/pull/107339 had many cancelled binary build
+  // jobs showing up as new failures after the workflow had been retried successfully.
+  //
+  // The issue here is that the cancelled job name is not the same as the successfully
+  // retried one, for example manywheel-py3_10-cuda11_8-test (cancel) was retried as
+  // manywheel-py3_10-cuda11_8-test / test (success). As their names look different,
+  // HUD and Dr.CI treat them incorrectly as two different jobs and mark the cancelled
+  // one as a failure.
+  //
+  // So the fix here is to check if a cancelled job has been retried successfully and
+  // keep or remove it from the list accordingly.
+  const trie: TrieSearch<T> = new TrieSearch<T>("name", {
+    splitOnRegEx: /\s\/\s/g,
+  });
+  trie.addAll(jobs);
+
+  const processedJobName: Set<string> = new Set<string>();
+  const filteredJobs: T[] = [];
+
+  for (const job of jobs) {
+    if (job.name === undefined) {
+      continue;
+    }
+
+    let currentMatch: T | undefined = undefined;
+    let currentLatestTimestamp = dayjs(0);
+
+    const matches = trie.search(job.name);
+    if (matches.length <= 1) {
+      // If there is zero or one match, keep the job as it is as this is no retry
+      currentMatch = job;
+    } else {
+      // NB: Default to the latest successful job. This is needed because the event
+      // time from GitHub does not guarantee strict chronological order. A quick
+      // retry event could have a timestamp few seconds earlier than the original
+      // job. We are getting the last successful job here (if any)
+      currentMatch = _.find(matches, (match: T) => isSuccessJob(match));
+      if (currentMatch !== undefined) {
+        currentLatestTimestamp = dayjs(currentMatch.time);
+      }
+
+      // When there are multiple matches, they are retried, so keep the latest one.
+      // Note that if the latest one was cancelled, it would still show up on HUD
+      // as expected
+      for (const match of matches) {
+        const timestamp = dayjs(match.time);
+        if (timestamp.isAfter(currentLatestTimestamp, "minute")) {
+          currentMatch = match;
+          currentLatestTimestamp = timestamp;
+        }
+      }
+    }
+
+    if (currentMatch !== undefined && !processedJobName.has(job.name)) {
+      processedJobName.add(currentMatch.name!);
+      filteredJobs.push(currentMatch);
+    }
+  }
+
+  return filteredJobs;
 }
