@@ -1115,13 +1115,6 @@
       "linux"
     ]
   ],
-  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "108994",
-    "https://github.com/pytorch/pytorch/issues/108994",
-    [
-      "dynamo"
-    ]
-  ],
   "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109512",
     "https://github.com/pytorch/pytorch/issues/109512",
@@ -1219,6 +1212,13 @@
   "test_module_comparison_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109772",
     "https://github.com/pytorch/pytorch/issues/109772",
+    [
+      "rocm"
+    ]
+  ],
+  "test_module_guard_name_is_valid_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109989",
+    "https://github.com/pytorch/pytorch/issues/109989",
     [
       "rocm"
     ]
@@ -1390,6 +1390,13 @@
   "test_nondeterministic_alert_MaxUnpool2d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108886",
     "https://github.com/pytorch/pytorch/issues/108886",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool2d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
+    "108887",
+    "https://github.com/pytorch/pytorch/issues/108887",
     [
       "dynamo"
     ]
