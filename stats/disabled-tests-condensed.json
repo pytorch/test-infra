@@ -1453,6 +1453,13 @@
       "dynamo"
     ]
   ],
+  "test_nondeterministic_alert_MaxUnpool3d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
+    "109007",
+    "https://github.com/pytorch/pytorch/issues/109007",
+    [
+      "dynamo"
+    ]
+  ],
   "test_nondeterministic_alert_MaxUnpool3d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "109224",
     "https://github.com/pytorch/pytorch/issues/109224",
@@ -1628,6 +1635,13 @@
       "inductor"
     ]
   ],
+  "test_parameterdict_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "110025",
+    "https://github.com/pytorch/pytorch/issues/110025",
+    [
+      "rocm"
+    ]
+  ],
   "test_parameters3_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109760",
     "https://github.com/pytorch/pytorch/issues/109760",
@@ -1696,6 +1710,13 @@
     "https://github.com/pytorch/pytorch/issues/73474",
     [
       "macos"
+    ]
+  ],
+  "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
+    "110026",
+    "https://github.com/pytorch/pytorch/issues/110026",
+    [
+      "linux"
     ]
   ],
   "test_rand (test_jit.TestScript)": [
