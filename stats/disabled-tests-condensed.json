@@ -1115,6 +1115,30 @@
       "linux"
     ]
   ],
+  "test_mandelbrot_numpy (__main__.MiscTests)": [
+    "109997",
+    "https://github.com/pytorch/pytorch/issues/109997",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_mandelbrot_numpy_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "109995",
+    "https://github.com/pytorch/pytorch/issues/109995",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109512",
     "https://github.com/pytorch/pytorch/issues/109512",
@@ -1338,13 +1362,6 @@
       "linux"
     ]
   ],
-  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
-    "101067",
-    "https://github.com/pytorch/pytorch/issues/101067",
-    [
-      "linux"
-    ]
-  ],
   "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
     "101525",
     "https://github.com/pytorch/pytorch/issues/101525",
@@ -1420,6 +1437,13 @@
     "https://github.com/pytorch/pytorch/issues/109195",
     [
       "inductor"
+    ]
+  ],
+  "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
+    "108908",
+    "https://github.com/pytorch/pytorch/issues/108908",
+    [
+      "dynamo"
     ]
   ],
   "test_nondeterministic_alert_MaxUnpool3d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
@@ -1867,6 +1891,15 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109996",
+    "https://github.com/pytorch/pytorch/issues/109996",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
