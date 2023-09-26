@@ -42,28 +42,23 @@ export interface UpdateCommentBody {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<void | {
+  res: NextApiResponse<{
     [pr: number]: { [cat: string]: RecentWorkflowsData[] };
   }>
 ) {
   const authorization = req.headers.authorization;
 
   if (authorization === process.env.DRCI_BOT_KEY) {
-    const { prNumber, wait4Results } = req.query;
+    const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
 
-    if (wait4Results === "true") {
-      const failures = await updateDrciComments(
-        octokit,
-        repo,
-        prNumber as string
-      );
-      res.status(200).json(failures);
-    } else {
-      updateDrciComments(octokit, repo, prNumber as string);
-      res.status(200).end();
-    }
+    const failures = await updateDrciComments(
+      octokit,
+      repo,
+      prNumber as string
+    );
+    res.status(200).json(failures);
   }
 
   res.status(403).end();
