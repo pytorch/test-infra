@@ -1649,6 +1649,13 @@
       "inductor"
     ]
   ],
+  "test_out_warning__refs_asin_cpu (__main__.TestCommonCPU)": [
+    "110069",
+    "https://github.com/pytorch/pytorch/issues/110069",
+    [
+      "dynamo"
+    ]
+  ],
   "test_parameterdict_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "110025",
     "https://github.com/pytorch/pytorch/issues/110025",
