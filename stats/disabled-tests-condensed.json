@@ -1911,6 +1911,13 @@
       "rocm"
     ]
   ],
+  "test_super2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "110075",
+    "https://github.com/pytorch/pytorch/issues/110075",
+    [
+      "rocm"
+    ]
+  ],
   "test_super_resolution_cuda (__main__.TestModels)": [
     "105332",
     "https://github.com/pytorch/pytorch/issues/105332",
