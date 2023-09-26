@@ -42,8 +42,12 @@ def run() -> None:
     print('::endgroup::')
 
     violations = api.compatibility.check_range(
-        repo, head=args.head_commit, base=args.base_commit,
-        path_spec_file=pathlib.Path(args.pathspec_config) if args.pathspec_config else None,
+        repo,
+        head=args.head_commit,
+        base=args.base_commit,
+        path_spec_file=pathlib.Path(args.pathspec_config)
+        if args.pathspec_config
+        else None,
     )
     if len(violations) == 0:
         return

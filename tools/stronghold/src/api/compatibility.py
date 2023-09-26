@@ -14,15 +14,17 @@ import api.ast
 import api.git
 import api.violations
 
-from api.path_filter import PathSpecFilter
+from api.path_filter import PathFilter, PathSpecFilter
 
 
 def check_range(
-    repo: api.git.Repository, *, head: str, base: str,
-        path_spec_file: Optional[pathlib.Path] = None
+    repo: api.git.Repository,
+    *,
+    head: str,
+    base: str,
+    path_spec_file: Optional[pathlib.Path] = None,
 ) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
-
-    path_filter = None
+    path_filter: Optional[PathFilter] = None
     if path_spec_file is not None:
         pathspec = repo.get_contents(path_spec_file, commit_id=head)
         if pathspec is None:
@@ -282,11 +284,8 @@ def _check_type_compatibility(
 
     # Checks compatibility if one types is simple (e.g. int, str, etc.)
     # or Attribute (e.g. api.types.FooBar)
-    if (
-        isinstance(type_before, api.types.TypeName)
-        or isinstance(type_after, api.types.TypeName)
-        or isinstance(type_before, api.types.Attribute)
-        or isinstance(type_after, api.types.Attribute)
+    if isinstance(type_after, (api.types.TypeName, api.types.Attribute)) or isinstance(
+        type_before, (api.types.TypeName, api.types.Attribute)
     ):
         # fail (the equality is checked earlier)
         return False

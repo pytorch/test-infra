@@ -519,10 +519,8 @@ def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
     ],
 )
 def test_check_custom_config(
-        path: str,
-        pattern: str,
-        violates: bool,
-        git_repo: api.git.Repository) -> None:
+    path: str, pattern: str, violates: bool, git_repo: api.git.Repository
+) -> None:
     git.commit_file(
         git_repo,
         pathlib.Path('bc_lint.cfg'),
@@ -546,8 +544,8 @@ def test_check_custom_config(
     )
     git.commit_file(git_repo, pathlib.Path(path), '')
     violations = api.compatibility.check_range(
-        git_repo, head='HEAD', base='HEAD~',
-        path_spec_file=pathlib.Path('bc_lint.cfg'))
+        git_repo, head='HEAD', base='HEAD~', path_spec_file=pathlib.Path('bc_lint.cfg')
+    )
     assert (violations != {}) == violates
 
 

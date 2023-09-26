@@ -4,7 +4,7 @@ Filter for the file pathes.
 import pathlib
 
 from pathspec import PathSpec
-from pathspec.patterns import GitWildMatchPattern
+
 
 class PathFilter:
     def __call__(self, path: pathlib.Path) -> bool:
@@ -57,9 +57,10 @@ class PathSpecFilter(PathFilter):
         Matching rules are applied in order of appearance,
         i.e. the last rules take precedence over the first ones.
     """
+
     def __init__(self, pathspec: str):
         self.pathspec = pathspec
-        self.matcher = PathSpec.from_lines(GitWildMatchPattern, pathspec.splitlines())
+        self.matcher = PathSpec.from_lines('gitwildmatch', pathspec.splitlines())
 
     def __call__(self, path: pathlib.Path) -> bool:
         return self.matcher.match_file(path)
