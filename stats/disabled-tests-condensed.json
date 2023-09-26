@@ -422,14 +422,6 @@
       "slow"
     ]
   ],
-  "test_conversions_all_patterns_backend_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106795",
-    "https://github.com/pytorch/pytorch/issues/106795",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
@@ -1652,6 +1644,13 @@
   "test_out_warning__refs_asin_cpu (__main__.TestCommonCPU)": [
     "110069",
     "https://github.com/pytorch/pytorch/issues/110069",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_out_warning__refs_atanh_cpu (__main__.TestCommonCPU)": [
+    "110082",
+    "https://github.com/pytorch/pytorch/issues/110082",
     [
       "dynamo"
     ]
