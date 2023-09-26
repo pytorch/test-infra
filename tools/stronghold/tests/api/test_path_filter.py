@@ -54,11 +54,15 @@ def test_path_filter() -> None:
 
 
 def test_path_filter_on_real_list_of_files() -> None:
-    default_filter = DefaultPathFilter()
+    import os
 
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(dir_path, '..', 'pytorch_files')
+
+    default_filter = DefaultPathFilter()
     # read 'pytorch_files' file
     # file is in the tests root
-    with open('pytorch_files', 'r') as f:
+    with open(file_path, 'r') as f:
         files = f.read().splitlines()
 
     # compare filter results
