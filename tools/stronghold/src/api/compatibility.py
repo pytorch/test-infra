@@ -7,40 +7,34 @@ import pathlib
 import tempfile
 
 from collections.abc import Iterable, Mapping, Sequence
+from typing import Optional
 
 import api
 import api.ast
 import api.git
 import api.violations
 
+from api.path_filter import PathSpecFilter
+
 
 def check_range(
-    repo: api.git.Repository, *, head: str, base: str
+    repo: api.git.Repository, *, head: str, base: str,
+        path_spec_file: Optional[pathlib.Path] = None
 ) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
+
+    path_filter = None
+    if path_spec_file is not None:
+        pathspec = repo.get_contents(path_spec_file, commit_id=head)
+        if pathspec is None:
+            raise FileNotFoundError(f'Could not find {path_spec_file} in {head}')
+        path_filter = PathSpecFilter(pathspec)
+
+    if path_filter is None:
+        path_filter = api.path_filter.DefaultPathFilter()
+
     result = {}
     for file in repo.get_files_in_range(f'{base}..{head}'):
-        # Someday, we'll want to customize the filters we use to
-        # ignore files.
-        if file.suffix != '.py':
-            # Only consider Python files.
-            continue
-        if any(dir.name.startswith('_') for dir in file.parents):
-            # Ignore any internal packages.
-            continue
-        if any(dir.name.startswith('.') for dir in file.parents):
-            # Ignore any internal packages and ci modules
-            continue
-        if file.name.startswith('_'):
-            # Ignore internal modules.
-            continue
-        if any(dir.name == 'test' for dir in file.parents):
-            # Ignore tests (not part of PyTorch package).
-            continue
-        if any(dir.name == 'benchmarks' for dir in file.parents):
-            # Ignore benchmarks (not part of PyTorch package).
-            continue
-        if file.name.startswith('test_') or file.stem.endswith('_test'):
-            # Ignore test files.
+        if not path_filter(file):
             continue
 
         # Get the contents before and after the diff.

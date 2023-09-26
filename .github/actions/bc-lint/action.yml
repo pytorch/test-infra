@@ -11,6 +11,10 @@ inputs:
   head_sha:
     description: 'PR head SHA (events.pull_request.head.sha)'
     required: true
+  pathspec_config:
+    description: 'Path to the file (in head_sha) containing pathspec config for files to check'
+    required: false
+    default: ''
   suppression:
     description: 'Suppression flag (true/false)'
     required: false
@@ -65,7 +69,8 @@ runs:
         ../_test-infra/tools/stronghold/bin/check-api-compatibility \
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
-            ${{ inputs.suppression == 'true' && '--suppressed' || '' }}
+            ${{ inputs.suppression == 'true' && '--suppressed' || '' }} \
+            ${{ inputs.pathspec_config && format('--pathspec-config={0}', inputs.pathspec_config) || '' }}
 
     - name: Display documentation link if failed
       if: ${{ failure() && inputs.docs_link }}

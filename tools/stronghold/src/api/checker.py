@@ -15,6 +15,12 @@ def run() -> None:
     parser.add_argument('--base-commit', type=str, required=True)
     parser.add_argument('--head-commit', type=str, required=True)
     parser.add_argument(
+        '--pathspec-config',
+        type=str,
+        required=False,
+        help='Path to the file (in HEAD) containing pathspec for files to check.',
+    )
+    parser.add_argument(
         '--suppressed',
         default=False,
         required=False,
@@ -36,7 +42,8 @@ def run() -> None:
     print('::endgroup::')
 
     violations = api.compatibility.check_range(
-        repo, head=args.head_commit, base=args.base_commit
+        repo, head=args.head_commit, base=args.base_commit,
+        path_spec_file=pathlib.Path(args.pathspec_config) if args.pathspec_config else None,
     )
     if len(violations) == 0:
         return

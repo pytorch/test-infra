@@ -502,6 +502,55 @@ def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
     assert violations == {}
 
 
+@pytest.mark.parametrize(
+    'path, pattern, violates',
+    [
+        ('python.cpp', '', False),
+        ('_internal/module.py', '', True),
+        ('_internal/module.py', '!**/_*/**', False),
+        ('_module.py', '', True),
+        ('_module.py', '!_*.py', False),
+        ('test/module.py', '', True),
+        ('test/module.py', '!**/test/**', False),
+        ('test_module.py', '', True),
+        ('test_module.py', '!**/test_*.py', False),
+        ('module_test.py', '', True),
+        ('module_test.py', '!**/*_test.py', False),
+    ],
+)
+def test_check_custom_config(
+        path: str,
+        pattern: str,
+        violates: bool,
+        git_repo: api.git.Repository) -> None:
+    git.commit_file(
+        git_repo,
+        pathlib.Path('bc_lint.cfg'),
+        textwrap.dedent(
+            f'''
+            *.py
+            {pattern}
+            '''
+        ),
+    )
+
+    git.commit_file(
+        git_repo,
+        pathlib.Path(path),
+        textwrap.dedent(
+            '''
+            def will_be_deleted():
+              pass
+            '''
+        ),
+    )
+    git.commit_file(git_repo, pathlib.Path(path), '')
+    violations = api.compatibility.check_range(
+        git_repo, head='HEAD', base='HEAD~',
+        path_spec_file=pathlib.Path('bc_lint.cfg'))
+    assert (violations != {}) == violates
+
+
 def test_check_range(git_repo: api.git.Repository) -> None:
     git.commit_file(
         git_repo,
