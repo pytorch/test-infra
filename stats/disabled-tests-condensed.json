@@ -1768,6 +1768,13 @@
       "rocm"
     ]
   ],
+  "test_rekey_optim_state_dict_to_names (__main__.TestFSDPOptimState)": [
+    "105510",
+    "https://github.com/pytorch/pytorch/issues/105510",
+    [
+      "linux"
+    ]
+  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
@@ -1876,6 +1883,13 @@
       "linux"
     ]
   ],
+  "test_submodules2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "110060",
+    "https://github.com/pytorch/pytorch/issues/110060",
+    [
+      "rocm"
+    ]
+  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -1974,6 +1988,15 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_tags_recomputed_rand (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110062",
+    "https://github.com/pytorch/pytorch/issues/110062",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
