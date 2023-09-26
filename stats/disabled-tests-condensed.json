@@ -1861,6 +1861,13 @@
       "linux"
     ]
   ],
+  "test_stringmember_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "110050",
+    "https://github.com/pytorch/pytorch/issues/110050",
+    [
+      "rocm"
+    ]
+  ],
   "test_submodules1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109813",
     "https://github.com/pytorch/pytorch/issues/109813",
@@ -1959,6 +1966,14 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110051",
+    "https://github.com/pytorch/pytorch/issues/110051",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
