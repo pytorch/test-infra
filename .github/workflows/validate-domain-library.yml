@@ -97,7 +97,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
-          source ../test-infra/.github/scripts/install_torch.sh
+          source /test-infra/.github/scripts/install_torch.sh
         fi
         eval $SMOKE_TEST
   validate-windows:
