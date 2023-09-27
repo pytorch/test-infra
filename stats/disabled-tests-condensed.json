@@ -233,7 +233,8 @@
     "109589",
     "https://github.com/pytorch/pytorch/issues/109589",
     [
-      "rocm"
+      "rocm",
+      "linux"
     ]
   ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
@@ -769,7 +770,8 @@
     [
       "linux",
       "rocm",
-      "slow"
+      "slow",
+      "mac"
     ]
   ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
