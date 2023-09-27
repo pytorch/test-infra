@@ -584,6 +584,13 @@
       "rocm"
     ]
   ],
+  "test_export_with_symbool_inputs_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "110128",
+    "https://github.com/pytorch/pytorch/issues/110128",
+    [
+      "rocm"
+    ]
+  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
@@ -623,6 +630,14 @@
       "inductor"
     ]
   ],
+  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95147",
+    "https://github.com/pytorch/pytorch/issues/95147",
+    [
+      "linux",
+      "inductor"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "101755",
     "https://github.com/pytorch/pytorch/issues/101755",
@@ -642,13 +657,6 @@
     "https://github.com/pytorch/pytorch/issues/101771",
     [
       "inductor"
-    ]
-  ],
-  "test_fn_gradgrad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93062",
-    "https://github.com/pytorch/pytorch/issues/93062",
-    [
-      "linux"
     ]
   ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -899,13 +907,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "100614",
-    "https://github.com/pytorch/pytorch/issues/100614",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -1095,14 +1096,6 @@
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
     [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107197",
-    "https://github.com/pytorch/pytorch/issues/107197",
-    [
-      "asan",
       "linux"
     ]
   ],
@@ -1500,13 +1493,6 @@
       "dynamo"
     ]
   ],
-  "test_nondeterministic_resize_quantized_cpu_qint8 (__main__.TestTorchDeviceTypeCPU)": [
-    "109140",
-    "https://github.com/pytorch/pytorch/issues/109140",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nondeterministic_resize_quantized_cpu_quint2x4 (__main__.TestTorchDeviceTypeCPU)": [
     "109167",
     "https://github.com/pytorch/pytorch/issues/109167",
@@ -1900,13 +1886,6 @@
     "https://github.com/pytorch/pytorch/issues/110075",
     [
       "rocm"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
-    [
-      "linux"
     ]
   ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
