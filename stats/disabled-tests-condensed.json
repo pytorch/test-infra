@@ -1515,6 +1515,13 @@
       "dynamo"
     ]
   ],
+  "test_nondeterministic_resize_quantized_cpu_quint4x2 (__main__.TestTorchDeviceTypeCPU)": [
+    "109190",
+    "https://github.com/pytorch/pytorch/issues/109190",
+    [
+      "dynamo"
+    ]
+  ],
   "test_nondeterministic_resize_quantized_cpu_quint8 (__main__.TestTorchDeviceTypeCPU)": [
     "109182",
     "https://github.com/pytorch/pytorch/issues/109182",
