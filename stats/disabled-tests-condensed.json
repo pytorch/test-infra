@@ -554,13 +554,6 @@
       "linux"
     ]
   ],
-  "test_duplicate_graph_break_log (__main__.MiscTests)": [
-    "109223",
-    "https://github.com/pytorch/pytorch/issues/109223",
-    [
-      "linux"
-    ]
-  ],
   "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
     "101785",
     "https://github.com/pytorch/pytorch/issues/101785",
