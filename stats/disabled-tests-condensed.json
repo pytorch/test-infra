@@ -1099,6 +1099,14 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107197",
+    "https://github.com/pytorch/pytorch/issues/107197",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "108994",
     "https://github.com/pytorch/pytorch/issues/108994",
@@ -1493,9 +1501,9 @@
       "dynamo"
     ]
   ],
-  "test_nondeterministic_resize_quantized_cpu_quint2x4 (__main__.TestTorchDeviceTypeCPU)": [
-    "109167",
-    "https://github.com/pytorch/pytorch/issues/109167",
+  "test_nondeterministic_resize_quantized_cpu_qint8 (__main__.TestTorchDeviceTypeCPU)": [
+    "109140",
+    "https://github.com/pytorch/pytorch/issues/109140",
     [
       "dynamo"
     ]
@@ -1778,6 +1786,13 @@
     "https://github.com/pytorch/pytorch/issues/86433",
     [
       "dynamo"
+    ]
+  ],
+  "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98059",
+    "https://github.com/pytorch/pytorch/issues/98059",
+    [
+      "linux"
     ]
   ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
