@@ -631,7 +631,8 @@
     "https://github.com/pytorch/pytorch/issues/110224",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "win"
     ]
   ],
   "test_decorator_generator_cpu (__main__.TestDeviceUtilsCPU)": [
