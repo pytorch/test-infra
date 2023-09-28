@@ -162,6 +162,13 @@
       "windows"
     ]
   ],
+  "test_basic (__main__.TestTraceback)": [
+    "110247",
+    "https://github.com/pytorch/pytorch/issues/110247",
+    [
+      "linux"
+    ]
+  ],
   "test_basic_cpu (__main__.TestDeviceUtilsCPU)": [
     "110208",
     "https://github.com/pytorch/pytorch/issues/110208",
@@ -630,6 +637,30 @@
   "test_decorator_generator_cpu (__main__.TestDeviceUtilsCPU)": [
     "110237",
     "https://github.com/pytorch/pytorch/issues/110237",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_decorator_generator_cuda (__main__.TestDeviceUtilsCUDA)": [
+    "110244",
+    "https://github.com/pytorch/pytorch/issues/110244",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_detach_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110248",
+    "https://github.com/pytorch/pytorch/issues/110248",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_device_mode_ops_H_cpu_bfloat16 (__main__.TestDeviceUtilsCPU)": [
+    "110246",
+    "https://github.com/pytorch/pytorch/issues/110246",
     [
       "asan",
       "linux"
@@ -1672,6 +1703,13 @@
       "macos"
     ]
   ],
+  "test_operator_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "91685",
+    "https://github.com/pytorch/pytorch/issues/91685",
+    [
+      "linux"
+    ]
+  ],
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
@@ -2134,6 +2172,13 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
+    ]
+  ],
+  "test_unary_pointwise_cpu (__main__.TestNestedTensorSubclassCPU)": [
+    "109189",
+    "https://github.com/pytorch/pytorch/issues/109189",
+    [
+      "dynamo"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
