@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/update_test_file_ratings.yml"
       - ".github/scripts/calculate_file_test_rating.py"
+      - ".github/scripts/get_merge_base_info.py"
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
