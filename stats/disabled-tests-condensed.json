@@ -627,6 +627,14 @@
       "rocm"
     ]
   ],
+  "test_decorator_generator_cpu (__main__.TestDeviceUtilsCPU)": [
+    "110237",
+    "https://github.com/pytorch/pytorch/issues/110237",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
