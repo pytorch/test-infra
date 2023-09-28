@@ -41,6 +41,13 @@
       "dynamo"
     ]
   ],
+  "test_activations_cos_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110225",
+    "https://github.com/pytorch/pytorch/issues/110225",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adadelta (__main__.CompiledOptimizerTests)": [
     "109981",
     "https://github.com/pytorch/pytorch/issues/109981",
@@ -475,6 +482,13 @@
       "slow"
     ]
   ],
+  "test_cpp_compiler_is_ok (__main__.TestCppExtensionUtils)": [
+    "110226",
+    "https://github.com/pytorch/pytorch/issues/110226",
+    [
+      "linux"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
@@ -591,6 +605,26 @@
     "https://github.com/pytorch/pytorch/issues/101787",
     [
       "dynamo"
+    ]
+  ],
+  "test_decorator_cpu (__main__.TestDeviceUtilsCPU)": [
+    "110223",
+    "https://github.com/pytorch/pytorch/issues/110223",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_decorator_cuda (__main__.TestDeviceUtilsCUDA)": [
+    "110224",
+    "https://github.com/pytorch/pytorch/issues/110224",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_doc_examples (__main__.TestTypeHints)": [
@@ -737,13 +771,6 @@
     "https://github.com/pytorch/pytorch/issues/93045",
     [
       "rocm"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "103043",
-    "https://github.com/pytorch/pytorch/issues/103043",
-    [
-      "linux"
     ]
   ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
