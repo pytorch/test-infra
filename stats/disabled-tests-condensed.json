@@ -621,15 +621,6 @@
       "linux"
     ]
   ],
-  "test_export_with_symbool_inputs (__main__.ExportTests)": [
-    "109283",
-    "https://github.com/pytorch/pytorch/issues/109283",
-    [
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_export_with_symbool_inputs_dynamic_shapes (__main__.DynamicShapesExportTests)": [
     "110128",
     "https://github.com/pytorch/pytorch/issues/110128",
