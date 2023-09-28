@@ -1699,20 +1699,6 @@
       "dynamo"
     ]
   ],
-  "test_out_warning__refs_atanh_cpu (__main__.TestCommonCPU)": [
-    "110082",
-    "https://github.com/pytorch/pytorch/issues/110082",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_out_warning__refs_cat_cpu (__main__.TestCommonCPU)": [
-    "110088",
-    "https://github.com/pytorch/pytorch/issues/110088",
-    [
-      "dynamo"
-    ]
-  ],
   "test_parameterdict_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "110025",
     "https://github.com/pytorch/pytorch/issues/110025",
