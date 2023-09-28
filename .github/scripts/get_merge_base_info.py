@@ -62,7 +62,7 @@ def upload_merge_base_info(sha: str) -> None:
             "changed_files": changed_files.splitlines(),
             "merge_base_commit_date": timestamp,
         }
-        upload_to_s3(s3,
+        upload_to_s3(
             "ossci-metrics", f"merge_bases/pytorch/{sha}", json.dumps(t, indent=2)
         )
     except Exception as e:
