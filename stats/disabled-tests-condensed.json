@@ -34,6 +34,13 @@
       "dynamo"
     ]
   ],
+  "test_activations_abs_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110211",
+    "https://github.com/pytorch/pytorch/issues/110211",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adadelta (__main__.CompiledOptimizerTests)": [
     "109981",
     "https://github.com/pytorch/pytorch/issues/109981",
@@ -148,6 +155,28 @@
       "windows"
     ]
   ],
+  "test_basic_cpu (__main__.TestDeviceUtilsCPU)": [
+    "110208",
+    "https://github.com/pytorch/pytorch/issues/110208",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_basic_cuda (__main__.TestDeviceUtilsCUDA)": [
+    "110207",
+    "https://github.com/pytorch/pytorch/issues/110207",
+    [
+      "linux",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_basicmodule1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109547",
     "https://github.com/pytorch/pytorch/issues/109547",
@@ -233,6 +262,15 @@
     "https://github.com/pytorch/pytorch/issues/93050",
     [
       "inductor"
+    ]
+  ],
+  "test_cc_compiler_is_ok (__main__.TestCppExtensionUtils)": [
+    "110209",
+    "https://github.com/pytorch/pytorch/issues/110209",
+    [
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_cdist_large_batch (__main__.TestMPS)": [
@@ -1361,6 +1399,13 @@
     "https://github.com/pytorch/pytorch/issues/81732",
     [
       "linux"
+    ]
+  ],
+  "test_noncontiguous_samples__native_batch_norm_legit_cuda_float32 (__main__.TestCommonCUDA)": [
+    "110210",
+    "https://github.com/pytorch/pytorch/issues/110210",
+    [
+      "inductor"
     ]
   ],
   "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
