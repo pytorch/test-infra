@@ -18,10 +18,11 @@ import {
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
-import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
 import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
 import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
+import getRocksetClient from "lib/rockset";
+import { uploadToS3 } from "lib/s3";
 
 interface PRandJobs {
   head_sha: string;
@@ -148,17 +149,65 @@ async function addMergeBaseCommits(
   head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const diff = await octokit.rest.repos.compareCommits({
-      owner: OWNER,
-      repo: repo,
-      base: pr_info.head_sha,
-      head: head,
-    });
+  const mergeBasesQuery = `
+select
+    sha as head_sha,
+    merge_base,
+    merge_base_commit_date,
+from
+    merge_bases
+where
+    ARRAY_CONTAINS(SPLIT(:shas, ','), sha)
+    and merge_base_commit_date is not null
+  `;
+  const rocksetClient = getRocksetClient();
 
-    pr_info.merge_base = diff.data.merge_base_commit.sha;
-    pr_info.merge_base_date =
-      diff.data.merge_base_commit.commit.committer?.date ?? "";
+  const rocksetMergeBases = new Map(
+    (
+      await rocksetClient.queries.query({
+        sql: {
+          query: mergeBasesQuery,
+          parameters: [
+            {
+              name: "shas",
+              type: "string",
+              value: Array.from(workflowsByPR.values())
+                .map((v) => v.head_sha)
+                .join(","),
+            },
+          ],
+        },
+      })
+    ).results?.map((v) => [v.head_sha, v])
+  );
+
+  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
+    const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
+    if (rocksetMergeBase === undefined) {
+      const diff = await octokit.rest.repos.compareCommits({
+        owner: OWNER,
+        repo: repo,
+        base: pr_info.head_sha,
+        head: head,
+      });
+      pr_info.merge_base = diff.data.merge_base_commit.sha;
+      pr_info.merge_base_date =
+        diff.data.merge_base_commit.commit.committer?.date ?? "";
+
+      uploadToS3(
+        "ossci-metrics",
+        `merge_bases/${repo}/${pr_info.head_sha}`,
+        JSON.stringify({
+          sha: pr_info.head_sha,
+          merge_base: pr_info.merge_base,
+          changed_files: diff.data.files?.map((e) => e.filename),
+          merge_base_commit_date: pr_info.merge_base_date ?? "",
+        })
+      );
+    } else {
+      pr_info.merge_base = rocksetMergeBase.merge_base;
+      pr_info.merge_base = rocksetMergeBase.merge_base_commit_date;
+    }
   });
 }
 

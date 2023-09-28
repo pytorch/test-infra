@@ -1,8 +1,15 @@
+import json
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List, Any
+from multiprocessing import Pool
+from datetime import datetime
 
-from rockset_utils import query_rockset, upload_to_rockset
+from rockset_utils import query_rockset
+import boto3
+
+s3 = boto3.resource("s3")
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -12,9 +19,6 @@ SELECT
 FROM
     commons.failed_tests_run t
     join workflow_job j on t.job_id = j.id
-    left outer join commons.merge_bases mb on j.head_sha = mb.sha
-where
-    mb.merge_base is null
 """
 
 
@@ -30,42 +34,55 @@ def run_command(command: str) -> str:
     )
 
 
-def upload_merge_base_info(shas: List[Dict[str, Any]]) -> None:
-    merge_bases = {}
-    all_shas = " ".join(test["head_sha"] for test in shas[i : i + 100])
+def upload_to_s3(bucket: str, key: str, body: str):
+    s3.Object(bucket, key).put(Body=body, ContentType="application/json")
+
+
+def pull_shas(shas: List[str]):
+    all_shas = " ".join(shas)
     run_command(
         f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
     )
 
-    for test in shas:
-        sha = test["head_sha"]
-        try:
-            merge_base = run_command(f"git merge-base main {sha}")
-            if merge_base == sha:
-                # The commit was probably already on main, so take the previous
-                # commit as the merge base
-                merge_base = run_command(f"git rev-parse {sha}^")
-            changed_files = run_command(f"git diff {sha} {merge_base} --name-only")
-            merge_bases[sha] = {
-                "merge_base": merge_base,
-                "changed_files": changed_files.splitlines(),
-            }
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            print(e)
 
-    docs = []
-    for sha, info in merge_bases.items():
-        docs.append({"sha": sha, **info})
-    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
-    return docs
+def upload_merge_base_info(sha: str) -> None:
+    try:
+        merge_base = run_command(f"git merge-base main {sha}")
+        if merge_base == sha:
+            # The commit was probably already on main, so take the previous
+            # commit as the merge base
+            merge_base = run_command(f"git rev-parse {sha}^")
+        changed_files = run_command(f"git diff {sha} {merge_base} --name-only")
+        unix_timestamp = run_command(f"git show --no-patch --format=%ct {merge_base}")
+        timestamp = datetime.utcfromtimestamp(int(unix_timestamp)).isoformat() + "Z"
+
+        t = {
+            "sha": sha,
+            "merge_base": merge_base,
+            "changed_files": changed_files.splitlines(),
+            "merge_base_commit_date": timestamp,
+        }
+        upload_to_s3(s3,
+            "ossci-metrics", f"merge_bases/pytorch/{sha}", json.dumps(t, indent=2)
+        )
+    except Exception as e:
+        return e
 
 
 if __name__ == "__main__":
-    failed_test_shas = query_rockset(FAILED_TEST_SHAS_QUERY)
+    failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)][
+        :100
+    ]
     interval = 100
     print(f"There are {len(failed_test_shas)}, uploading in batches of {interval}")
     for i in range(0, len(failed_test_shas), interval):
-        upload_merge_base_info(failed_test_shas[i : i + interval])
-        print(f"{i} to {i + interval} done")
+        pull_shas(failed_test_shas[i : i + interval])
+    errors = []
+    pool = Pool(20)
+    for sha in failed_test_shas:
+        errors.append(pool.apply_async(upload_merge_base_info, args=(sha,)))
+    pool.close()
+    pool.join()
+    for i in errors:
+        if i.get() is not None:
+            print(i.get())
