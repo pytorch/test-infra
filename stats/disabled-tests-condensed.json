@@ -27,6 +27,13 @@
       "rocm"
     ]
   ],
+  "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110198",
+    "https://github.com/pytorch/pytorch/issues/110198",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adadelta (__main__.CompiledOptimizerTests)": [
     "109981",
     "https://github.com/pytorch/pytorch/issues/109981",
@@ -91,13 +98,6 @@
       "rocm"
     ]
   ],
-  "test_autotune_conv1x1 (__main__.TestDoBench)": [
-    "109252",
-    "https://github.com/pytorch/pytorch/issues/109252",
-    [
-      "linux"
-    ]
-  ],
   "test_backend_match_guard_multi_threads (__main__.MiscTests)": [
     "109321",
     "https://github.com/pytorch/pytorch/issues/109321",
@@ -132,6 +132,20 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
+    ]
+  ],
+  "test_basic (__main__.TestRenderUtils)": [
+    "110197",
+    "https://github.com/pytorch/pytorch/issues/110197",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow",
+      "win",
+      "windows"
     ]
   ],
   "test_basicmodule1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
