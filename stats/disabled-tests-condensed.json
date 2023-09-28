@@ -1363,13 +1363,6 @@
       "linux"
     ]
   ],
-  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
-    "101525",
-    "https://github.com/pytorch/pytorch/issues/101525",
-    [
-      "inductor"
-    ]
-  ],
   "test_nondeterministic_alert_MaxUnpool1d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
     "108855",
     "https://github.com/pytorch/pytorch/issues/108855",
