@@ -70,9 +70,7 @@ def upload_merge_base_info(sha: str) -> None:
 
 
 if __name__ == "__main__":
-    failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)][
-        :100
-    ]
+    failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)]
     interval = 100
     print(f"There are {len(failed_test_shas)}, uploading in batches of {interval}")
     for i in range(0, len(failed_test_shas), interval):
