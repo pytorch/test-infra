@@ -174,8 +174,13 @@ describe("verify-drci-functionality", () => {
       .reply(200, { results: [] })
       .post((url) => url.includes("commit_failed_jobs"))
       .reply(200, { results: [] })
-      .post((url) => url.includes("self/queries")) // This is the query to get the base commit date
-      .reply(200, { results: [] });
+      .post(
+        (url) => url.includes("self/queries"),
+        (body) => JSON.stringify(body).includes("merge_base_commit_date")
+      )
+      .reply(200, { results: [] }) // query to get merge bases
+      .post((url) => url.includes("merge_bases"))
+      .reply(200, { results: [] }); // query to insert back to rockset
 
     const scope = nock("https://api.github.com")
       .post(

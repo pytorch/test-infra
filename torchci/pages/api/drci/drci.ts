@@ -20,9 +20,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { fetchJSON } from "lib/bot/utils";
 import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
-import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
 import getRocksetClient from "lib/rockset";
-import { uploadToS3 } from "lib/s3";
 
 interface PRandJobs {
   head_sha: string;
@@ -180,10 +178,12 @@ where
       })
     ).results?.map((v) => [v.head_sha, v])
   );
+  const newData: any[] = [];
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
     if (rocksetMergeBase === undefined) {
+      // Not found in rockset, ask github instead, then put into rockset
       const diff = await octokit.rest.repos.compareCommits({
         owner: OWNER,
         repo: repo,
@@ -194,20 +194,19 @@ where
       pr_info.merge_base_date =
         diff.data.merge_base_commit.commit.committer?.date ?? "";
 
-      uploadToS3(
-        "ossci-metrics",
-        `merge_bases/${repo}/${pr_info.head_sha}`,
-        JSON.stringify({
-          sha: pr_info.head_sha,
-          merge_base: pr_info.merge_base,
-          changed_files: diff.data.files?.map((e) => e.filename),
-          merge_base_commit_date: pr_info.merge_base_date ?? "",
-        })
-      );
+      newData.push({
+        sha: pr_info.head_sha,
+        merge_base: pr_info.merge_base,
+        changed_files: diff.data.files?.map((e) => e.filename),
+        merge_base_commit_date: pr_info.merge_base_date ?? "",
+      });
     } else {
       pr_info.merge_base = rocksetMergeBase.merge_base;
       pr_info.merge_base = rocksetMergeBase.merge_base_commit_date;
     }
+  });
+  rocksetClient.documents.addDocuments("commons", "merge_bases", {
+    data: newData,
   });
 }
 
@@ -495,9 +494,6 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
 
-  // Get the timestamp of the base commit
-  const baseCommitDate = await fetchBaseCommitTimeStamp(prInfo.merge_base);
-
   for (const [name, job] of prInfo.jobs) {
     if (
       (job.conclusion === undefined || job.conclusion === null) &&
@@ -511,7 +507,7 @@ export async function getWorkflowJobsStatuses(
         brokenTrunkJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
-        (await hasSimilarFailures(job, baseCommitDate))
+        (await hasSimilarFailures(job, prInfo.merge_base_date))
       ) {
         flakyJobs.push(job);
       } else {
