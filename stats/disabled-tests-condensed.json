@@ -1655,13 +1655,6 @@
       "dynamo"
     ]
   ],
-  "test_nondeterministic_resize_quantized_cpu_quint8 (__main__.TestTorchDeviceTypeCPU)": [
-    "109182",
-    "https://github.com/pytorch/pytorch/issues/109182",
-    [
-      "dynamo"
-    ]
-  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
