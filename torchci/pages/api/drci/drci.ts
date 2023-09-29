@@ -157,6 +157,7 @@ from
 where
     ARRAY_CONTAINS(SPLIT(:shas, ','), sha)
     and merge_base_commit_date is not null
+    and repo = :repo
   `;
   const rocksetClient = getRocksetClient();
 
@@ -172,6 +173,11 @@ where
               value: Array.from(workflowsByPR.values())
                 .map((v) => v.head_sha)
                 .join(","),
+            },
+            {
+              name: "repo",
+              type: "string",
+              value: `${OWNER}/${repo}`,
             },
           ],
         },
@@ -199,6 +205,7 @@ where
         merge_base: pr_info.merge_base,
         changed_files: diff.data.files?.map((e) => e.filename),
         merge_base_commit_date: pr_info.merge_base_date ?? "",
+        repo: `${OWNER}/${repo}`,
       });
     } else {
       pr_info.merge_base = rocksetMergeBase.merge_base;

@@ -82,6 +82,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
                     "merge_base": merge_base,
                     "changed_files": changed_files.splitlines(),
                     "merge_base_commit_date": timestamp,
+                    "repo": "pytorch/pytorch",
                 }
             )
         except Exception as e:
