@@ -257,6 +257,13 @@
       "mac"
     ]
   ],
+  "test_captured_traceback (__main__.TestTraceback)": [
+    "110271",
+    "https://github.com/pytorch/pytorch/issues/110271",
+    [
+      "linux"
+    ]
+  ],
   "test_cat_addmm (__main__.TestDoBench)": [
     "106451",
     "https://github.com/pytorch/pytorch/issues/106451",
