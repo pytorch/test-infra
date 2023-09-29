@@ -1,13 +1,5 @@
 import { Probot } from "probot";
-import {
-  OWNER,
-  REPO,
-  formDrciComment,
-  getDrciComment,
-  getActiveSEVs,
-  formDrciSevBody,
-  upsertDrCiComment,
-} from "lib/drciUtils";
+import { upsertDrCiComment } from "lib/drciUtils";
 
 export default function drciBot(app: Probot): void {
   app.on(

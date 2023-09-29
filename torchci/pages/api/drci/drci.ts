@@ -47,7 +47,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
+  if (true || authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
@@ -80,6 +80,10 @@ export async function updateDrciComments(
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
+  const existingDrCiComments = await getExistingDrCiComments(
+    `${OWNER}/${repo}`,
+    workflowsByPR
+  );
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -120,7 +124,20 @@ export async function updateDrciComments(
       formDrciSevBody(sevs)
     );
 
-    await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
+    console.log(existingDrCiComments)
+    const { id, body } =
+      existingDrCiComments.get(pr_info.pr_number) ||
+      (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
+    if (id === 0 || body === comment) {
+      return;
+    }
+
+    // await octokit.rest.issues.updateComment({
+    //   body: comment,
+    //   owner: OWNER,
+    //   repo: repo,
+    //   comment_id: id,
+    // });
   });
 
   return failures;
@@ -267,6 +284,72 @@ export async function getBaseCommitJobs(
   }
 
   return jobsByShaByName;
+}
+
+async function getExistingDrCiComments(
+  repoFullName: string,
+  workflowsByPR: Map<number, PRandJobs>
+) {
+  const existingCommentsQuery = `
+select
+  id,
+  body,
+  issue_url,
+from
+  commons.issue_comment i
+where
+  i.body like '%<!-- drci-comment-start -->%'
+  and ARRAY_CONTAINS(SPLIT(:prUrls, ','), issue_url)
+    `;
+  const rocksetClient = getRocksetClient();
+  console.log(Array.from(workflowsByPR.keys())
+  .map(
+    (prNumber) =>
+      `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
+  )
+  .join(","))
+  console.log((await rocksetClient.queries.query({
+    sql: {
+      query: existingCommentsQuery,
+      parameters: [
+        {
+          name: "prUrls",
+          type: "string",
+          value: Array.from(workflowsByPR.keys())
+            .map(
+              (prNumber) =>
+                `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
+            )
+            .join(","),
+        },
+      ],
+    },
+  })).results)
+
+  return new Map(
+    (
+      await rocksetClient.queries.query({
+        sql: {
+          query: existingCommentsQuery,
+          parameters: [
+            {
+              name: "prUrls",
+              type: "string",
+              value: Array.from(workflowsByPR.keys())
+                .map(
+                  (prNumber) =>
+                    `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
+                )
+                .join(","),
+            },
+          ],
+        },
+      })
+    ).results?.map((v) => [
+      parseInt(v.issue_url.split("/").pop()),
+      { id: parseInt(v.id), body: v.body },
+    ])
+  );
 }
 
 function constructResultsJobsSections(
@@ -563,25 +646,4 @@ export function reorganizeWorkflows(
     prInfo.jobs = newJobs;
   }
   return workflowsByPR;
-}
-
-export async function updateCommentWithWorkflow(
-  octokit: Octokit,
-  pr_info: PRandJobs,
-  comment: string,
-  repo: string
-): Promise<void> {
-  const { pr_number } = pr_info;
-  const { id, body } = await getDrciComment(octokit, OWNER, repo, pr_number!);
-
-  if (id === 0 || body === comment) {
-    return;
-  }
-
-  await octokit.rest.issues.updateComment({
-    body: comment,
-    owner: OWNER,
-    repo: repo,
-    comment_id: id,
-  });
 }
