@@ -18,10 +18,9 @@ import {
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
-import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
 import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
-import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
+import getRocksetClient from "lib/rockset";
 
 interface PRandJobs {
   head_sha: string;
@@ -148,17 +147,73 @@ async function addMergeBaseCommits(
   head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const diff = await octokit.rest.repos.compareCommits({
-      owner: OWNER,
-      repo: repo,
-      base: pr_info.head_sha,
-      head: head,
-    });
+  const mergeBasesQuery = `
+select
+    sha as head_sha,
+    merge_base,
+    merge_base_commit_date,
+from
+    merge_bases
+where
+    ARRAY_CONTAINS(SPLIT(:shas, ','), sha)
+    and merge_base_commit_date is not null
+    and repo = :repo
+  `;
+  const rocksetClient = getRocksetClient();
 
-    pr_info.merge_base = diff.data.merge_base_commit.sha;
-    pr_info.merge_base_date =
-      diff.data.merge_base_commit.commit.committer?.date ?? "";
+  const rocksetMergeBases = new Map(
+    (
+      await rocksetClient.queries.query({
+        sql: {
+          query: mergeBasesQuery,
+          parameters: [
+            {
+              name: "shas",
+              type: "string",
+              value: Array.from(workflowsByPR.values())
+                .map((v) => v.head_sha)
+                .join(","),
+            },
+            {
+              name: "repo",
+              type: "string",
+              value: `${OWNER}/${repo}`,
+            },
+          ],
+        },
+      })
+    ).results?.map((v) => [v.head_sha, v])
+  );
+  const newData: any[] = [];
+
+  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
+    const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
+    if (rocksetMergeBase === undefined) {
+      // Not found in rockset, ask github instead, then put into rockset
+      const diff = await octokit.rest.repos.compareCommits({
+        owner: OWNER,
+        repo: repo,
+        base: pr_info.head_sha,
+        head: head,
+      });
+      pr_info.merge_base = diff.data.merge_base_commit.sha;
+      pr_info.merge_base_date =
+        diff.data.merge_base_commit.commit.committer?.date ?? "";
+
+      newData.push({
+        sha: pr_info.head_sha,
+        merge_base: pr_info.merge_base,
+        changed_files: diff.data.files?.map((e) => e.filename),
+        merge_base_commit_date: pr_info.merge_base_date ?? "",
+        repo: `${OWNER}/${repo}`,
+      });
+    } else {
+      pr_info.merge_base = rocksetMergeBase.merge_base;
+      pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
+    }
+  });
+  rocksetClient.documents.addDocuments("commons", "merge_bases", {
+    data: newData,
   });
 }
 
@@ -446,9 +501,6 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
 
-  // Get the timestamp of the base commit
-  const baseCommitDate = await fetchBaseCommitTimeStamp(prInfo.merge_base);
-
   for (const [name, job] of prInfo.jobs) {
     if (
       (job.conclusion === undefined || job.conclusion === null) &&
@@ -462,7 +514,7 @@ export async function getWorkflowJobsStatuses(
         brokenTrunkJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
-        (await hasSimilarFailures(job, baseCommitDate))
+        (await hasSimilarFailures(job, prInfo.merge_base_date))
       ) {
         flakyJobs.push(job);
       } else {
