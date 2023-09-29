@@ -47,7 +47,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (true || authorization === process.env.DRCI_BOT_KEY) {
+  if (authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
@@ -124,7 +124,6 @@ export async function updateDrciComments(
       formDrciSevBody(sevs)
     );
 
-    console.log(existingDrCiComments)
     const { id, body } =
       existingDrCiComments.get(pr_info.pr_number) ||
       (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
@@ -132,12 +131,12 @@ export async function updateDrciComments(
       return;
     }
 
-    // await octokit.rest.issues.updateComment({
-    //   body: comment,
-    //   owner: OWNER,
-    //   repo: repo,
-    //   comment_id: id,
-    // });
+    await octokit.rest.issues.updateComment({
+      body: comment,
+      owner: OWNER,
+      repo: repo,
+      comment_id: id,
+    });
   });
 
   return failures;
@@ -302,30 +301,6 @@ where
   and ARRAY_CONTAINS(SPLIT(:prUrls, ','), issue_url)
     `;
   const rocksetClient = getRocksetClient();
-  console.log(Array.from(workflowsByPR.keys())
-  .map(
-    (prNumber) =>
-      `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
-  )
-  .join(","))
-  console.log((await rocksetClient.queries.query({
-    sql: {
-      query: existingCommentsQuery,
-      parameters: [
-        {
-          name: "prUrls",
-          type: "string",
-          value: Array.from(workflowsByPR.keys())
-            .map(
-              (prNumber) =>
-                `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
-            )
-            .join(","),
-        },
-      ],
-    },
-  })).results)
-
   return new Map(
     (
       await rocksetClient.queries.query({
