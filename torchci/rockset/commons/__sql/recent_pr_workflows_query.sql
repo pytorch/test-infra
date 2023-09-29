@@ -22,7 +22,7 @@ WITH recent_shas AS (
 SELECT
   w.id AS workflow_id,
   j.id,
-  j.name,
+  CONCAT(w.name, ' / ', j.name) as name,
   j.conclusion,
   j.completed_at,
   j.html_url,
