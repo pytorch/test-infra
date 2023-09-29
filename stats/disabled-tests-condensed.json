@@ -264,6 +264,13 @@
       "linux"
     ]
   ],
+  "test_captured_traceback_format_all (__main__.TestTraceback)": [
+    "110278",
+    "https://github.com/pytorch/pytorch/issues/110278",
+    [
+      "linux"
+    ]
+  ],
   "test_cat_addmm (__main__.TestDoBench)": [
     "106451",
     "https://github.com/pytorch/pytorch/issues/106451",
