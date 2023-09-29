@@ -180,7 +180,12 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200, { results: [] }) // query to get merge bases
       .post((url) => url.includes("merge_bases"))
-      .reply(200, { results: [] }); // query to insert back to rockset
+      .reply(200, { results: [] }) // query to insert back to rockset
+      .post(
+        (url) => url.includes("self/queries"),
+        (body) => JSON.stringify(body).includes("issue_comment")
+      )
+      .reply(200, { results: [] }); // query to get issue comments
 
     const scope = nock("https://api.github.com")
       .post(
