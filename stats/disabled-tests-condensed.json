@@ -382,6 +382,13 @@
       "inductor"
     ]
   ],
+  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "106913",
+    "https://github.com/pytorch/pytorch/issues/106913",
+    [
+      "rocm"
+    ]
+  ],
   "test_complex_half_reference_testing_pow_cuda_complex32 (__main__.TestCommonCUDA)": [
     "108993",
     "https://github.com/pytorch/pytorch/issues/108993",
