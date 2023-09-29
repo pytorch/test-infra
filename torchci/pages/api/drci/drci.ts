@@ -202,7 +202,7 @@ where
       });
     } else {
       pr_info.merge_base = rocksetMergeBase.merge_base;
-      pr_info.merge_base = rocksetMergeBase.merge_base_commit_date;
+      pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
     }
   });
   rocksetClient.documents.addDocuments("commons", "merge_bases", {
