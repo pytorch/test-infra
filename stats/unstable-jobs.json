@@ -23,6 +23,14 @@
     "linux-focal-cuda11.8-py3.9-gcc9",
     "test (multigpu)"
   ],
+  "periodic / macos-12-py3-x86-64 / test (default)": [
+    "huydhn",
+    "110328",
+    "https://github.com/pytorch/pytorch/issues/110328",
+    "periodic",
+    "macos-12-py3-x86-64",
+    "test (default)"
+  ],
   "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
     "izaitsevfb",
     "107047",
