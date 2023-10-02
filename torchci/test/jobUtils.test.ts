@@ -254,7 +254,7 @@ describe("Test various job utils", () => {
       },
     ];
 
-    const results = await removeCancelledJobAfterRetry(jobs);
+    const results = removeCancelledJobAfterRetry(jobs);
     expect(new Set(results)).toEqual(
       new Set([
         // Basic case
