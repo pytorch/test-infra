@@ -1,4 +1,8 @@
-import { hasSimilarFailures, querySimilarFailures } from "../lib/drciUtils";
+import {
+  getJobFullName,
+  hasSimilarFailures,
+  querySimilarFailures,
+} from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
@@ -265,5 +269,19 @@ describe("Test various utils used by Dr.CI", () => {
         "TESTING" as unknown as Client
       )
     ).toEqual(true);
+  });
+
+  test("test getJobFullName", async () => {
+    let job: RecentWorkflowsData = {
+      id: "",
+      name: "name",
+      completed_at: null,
+      html_url: "",
+      head_sha: "",
+      failure_captures: [],
+    };
+    expect(getJobFullName(job)).toEqual("name");
+    job.workflow_name = "workflow";
+    expect(getJobFullName(job)).toEqual("workflow / name");
   });
 });

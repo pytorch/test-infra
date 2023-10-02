@@ -30,8 +30,9 @@ export interface JobData extends BasicJobData {
 
 // Used by Dr.CI
 export interface RecentWorkflowsData extends BasicJobData {
-  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
+  // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
   workflow_id?: string;
+  workflow_name?: string;
   id: string;
   completed_at: string | null;
   html_url: string;

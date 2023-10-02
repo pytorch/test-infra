@@ -21,8 +21,9 @@ WITH recent_shas AS (
 )
 SELECT
   w.id AS workflow_id,
+  w.name as workflow_name,
   j.id,
-  CONCAT(w.name, ' / ', j.name) as name,
+  j.name as name,
   j.conclusion,
   j.completed_at,
   j.html_url,
@@ -39,6 +40,7 @@ FROM
 UNION
 SELECT
   null AS workflow_id,
+  null as workflow_name,
   w.id,
   w.name AS name,
   w.conclusion,

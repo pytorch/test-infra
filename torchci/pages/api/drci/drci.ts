@@ -15,6 +15,7 @@ import {
   FLAKY_RULES_JSON,
   HUD_URL,
   hasSimilarFailures,
+  getJobFullName,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -289,9 +290,13 @@ function constructResultsJobsSections(
   }
 
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
-  const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
+  const jobsSorted = jobs.sort((a, b) =>
+    getJobFullName(a).localeCompare(getJobFullName(b))
+  );
   for (const job of jobsSorted) {
-    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
+    output += `* [${getJobFullName(job)}](${hud_pr_url}#${job.id}) ([gh](${
+      job.html_url
+    }))\n`;
   }
   output += "</p></details>";
   return output;
@@ -541,11 +546,11 @@ export function reorganizeWorkflows(
         merge_base_date: "",
       });
     }
-    const name = workflow.name!;
-    const existing_job = workflowsByPR.get(pr_number)?.jobs.get(name);
+    const key = getJobFullName(workflow);
+    const existing_job = workflowsByPR.get(pr_number)?.jobs.get(key);
     if (!existing_job || existing_job.id < workflow.id!) {
       // if rerun, choose the job with the larger id as that is more recent
-      workflowsByPR.get(pr_number)!.jobs.set(name, workflow);
+      workflowsByPR.get(pr_number)!.jobs.set(key, workflow);
     }
   }
 
