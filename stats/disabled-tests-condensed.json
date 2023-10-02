@@ -1117,7 +1117,9 @@
     "https://github.com/pytorch/pytorch/issues/109495",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "rocm"
     ]
   ],
   "test_large_reduction_list (__main__.MiscTests)": [
