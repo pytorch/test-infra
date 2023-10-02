@@ -299,8 +299,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const pr_1000 = workflowsByPR.get(1000)!;
 
     expect(workflowsByPR.size).toBe(2);
-    expect(pr_1000.jobs.size).toBe(1);
-    expect(pr_1001.jobs.size).toBe(2);
+    expect(pr_1000.jobs.length).toBe(1);
+    expect(pr_1001.jobs.length).toBe(2);
   });
 
   test("Check that getWorkflowJobsStatuses works correctly", async () => {
