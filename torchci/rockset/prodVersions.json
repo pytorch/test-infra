@@ -34,7 +34,7 @@
   "pytorch_dev_infra_kpis": {
     "monthly_contribution_stats": "c1a8751a22f6b6ce",
     "num_reverts": "0163bf13629688e6",
-    "number_of_force_pushes_historical": "d268bd719957a8e9",
+    "number_of_force_pushes_historical": "08c5ab5902940a88",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "ff332d025976c103",

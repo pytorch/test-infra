@@ -1,5 +1,5 @@
 SELECT
-    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, issue_comment._event_time)) AS bucket,
+    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, issue_comment.created)) AS bucket,
     COUNT(DISTINCT issue_comment.issue_url) AS count
 FROM
     commons.issue_comment
