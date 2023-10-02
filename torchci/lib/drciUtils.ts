@@ -314,3 +314,7 @@ export async function hasSimilarFailures(
 
   return false;
 }
+
+export function getJobFullName(job: RecentWorkflowsData): string {
+  return job.workflow_name ? `${job.workflow_name} / ${job.name}` : job.name!;
+}
