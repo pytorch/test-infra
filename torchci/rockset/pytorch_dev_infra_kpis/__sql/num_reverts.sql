@@ -3,7 +3,7 @@ WITH
         SELECT
             FORMAT_TIMESTAMP(
                 '%Y-%m-%d',
-                DATE_TRUNC(:granularity, ic._event_time)
+                DATE_TRUNC(:granularity, ic.created)
             ) AS bucket,
             REGEXP_EXTRACT(
                 ic.body,
@@ -16,7 +16,7 @@ WITH
             INNER JOIN (
                 SELECT
                     issue_comment.issue_url,
-                    MAX(issue_comment._event_time) AS event_time -- Use the max for when invalid revert commands are tried first
+                    MAX(issue_comment.created) AS created -- Use the max for when invalid revert commands are tried first
                 FROM
                     commons.issue_comment
                 WHERE
@@ -28,9 +28,9 @@ WITH
                     issue_comment.issue_url
             ) AS rc ON ic.issue_url = rc.issue_url
         WHERE
-            ic._event_time = rc.event_time
-            AND ic._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-            AND ic._event_time <= PARSE_DATETIME_ISO8601(:stopTime)
+            ic.created = rc.created
+            AND ic.created >= PARSE_DATETIME_ISO8601(:startTime)
+            AND ic.created <= PARSE_DATETIME_ISO8601(:stopTime)
             AND ic.user.login != 'pytorch-bot[bot]'
             AND REGEXP_EXTRACT(
                 ic.body,

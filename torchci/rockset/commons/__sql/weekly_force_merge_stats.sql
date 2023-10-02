@@ -13,8 +13,7 @@ WITH issue_comments AS (
     issue_comment.body,
     issue_comment.issue_url,
     issue_comment.html_url,
-    issue_comment.created_at,
-    issue_comment._event_time,
+    issue_comment.created,
     CAST(
       SUBSTR(
         issue_comment.issue_url,
@@ -45,7 +44,7 @@ all_merges AS (
     m.is_failed,
     m.pr_num,
     m.merge_commit_sha,
-    max(c._event_time) AS time,
+    max(c.created) AS time,
   FROM
     commons.merges m
     INNER JOIN issue_comments c ON m.pr_num = c.pr_num
