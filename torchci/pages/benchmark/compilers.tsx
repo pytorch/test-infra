@@ -1712,9 +1712,9 @@ export function AugmentData(data: CompilerPerformanceData[]) {
         // _generate variants are good; they do E2E autoregressive
         // generation and will induce varying context length.
         "cm3leon_generate",
-        "nanogpt_generate",
+        "nanogpt",
         "hf_T5_generate",
-        "nanogpt_generate",
+        "nanogpt",
         // detection models are ok-ish; the good news is they call
         // nonzero internally and exercise dynamic shapes that way,
         // the bad news is we may not run enough iterations with
@@ -1743,12 +1743,12 @@ export function AugmentData(data: CompilerPerformanceData[]) {
     },
     blueberries: {
       torchbench: new Set([
-        "nanogpt_generate",
+        "nanogpt",
         "llama",
         "llama_v2_7b_16h",
         "sam",
         "clip",
-        "stable_diffusion",
+        "stable_diffusion_text_encoder",
         "hf_Whisper",
       ]),
     },
