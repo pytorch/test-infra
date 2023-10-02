@@ -129,6 +129,13 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
+          # Please note these are required changes to make sure our conda environment take precedence before
+          # any other environments https://github.com/conda-incubator/setup-miniconda#conda-incubatorsetup-miniconda
+          # such as test environment created by default.
+          export PATH=$CONDA_ENV/bin:$CONDA_ENV:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+          export Python3_ROOT_DIR=${CONDA_ENV}
+          export Python3_EXECUTABLE="${CONDA_ENV}"
+
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
