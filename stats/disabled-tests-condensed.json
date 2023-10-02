@@ -1127,28 +1127,6 @@
       "linux"
     ]
   ],
-  "test_large_reduction_list (__main__.MiscTests)": [
-    "109474",
-    "https://github.com/pytorch/pytorch/issues/109474",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_large_reduction_list_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "109473",
-    "https://github.com/pytorch/pytorch/issues/109473",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_layerlist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109731",
     "https://github.com/pytorch/pytorch/issues/109731",
