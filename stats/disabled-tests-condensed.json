@@ -780,20 +780,6 @@
       "inductor"
     ]
   ],
-  "test_fnmember_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109594",
-    "https://github.com/pytorch/pytorch/issues/109594",
-    [
-      "linux"
-    ]
-  ],
-  "test_fnmembercmp1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109595",
-    "https://github.com/pytorch/pytorch/issues/109595",
-    [
-      "linux"
-    ]
-  ],
   "test_fnmembercmp2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109628",
     "https://github.com/pytorch/pytorch/issues/109628",
