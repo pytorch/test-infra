@@ -780,17 +780,9 @@
       "inductor"
     ]
   ],
-  "test_fnmembercmp2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109628",
-    "https://github.com/pytorch/pytorch/issues/109628",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_forward_directly_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109629",
-    "https://github.com/pytorch/pytorch/issues/109629",
+  "test_fnmembercmp1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109595",
+    "https://github.com/pytorch/pytorch/issues/109595",
     [
       "linux"
     ]
