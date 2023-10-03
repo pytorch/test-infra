@@ -15,7 +15,6 @@ import {
   FLAKY_RULES_JSON,
   HUD_URL,
   hasSimilarFailures,
-  getJobFullName,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -352,11 +351,9 @@ function constructResultsJobsSections(
   }
 
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
-  const jobsSorted = jobs.sort((a, b) =>
-    getJobFullName(a).localeCompare(getJobFullName(b))
-  );
+  const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
-    output += `* [${getJobFullName(job)}](${hud_pr_url}#${job.id}) ([gh](${
+    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${
       job.html_url
     }))\n`;
   }
@@ -617,7 +614,7 @@ export function reorganizeWorkflows(
     // Remove retries
     const removeRetries = new Map();
     for (const job of prInfo.jobs) {
-      const key = getJobFullName(job);
+      const key = job.name!;
       const existing_job = removeRetries.get(key);
       if (!existing_job || existing_job.id < job.id!) {
         removeRetries.set(key, job);
@@ -625,7 +622,7 @@ export function reorganizeWorkflows(
     }
     // Remove workflows that have jobs
     const workflowIds = Array.from(removeRetries.values()).map(
-      (jobInfo: RecentWorkflowsData) => jobInfo.workflow_id
+      (jobInfo: RecentWorkflowsData) => jobInfo.workflowId
     );
     const newJobs = [];
     for (const jobInfo of removeRetries.values()) {

@@ -74,7 +74,6 @@ const failedAFailedRetry = {
 
 const failedB = {
   name: "something",
-  workflow_name: "workflow_name_dummy",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
   html_url: "a",
@@ -285,7 +284,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
     const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
-* [workflow_name_dummy / something](hudlink#1) ([gh](a))
+* [something](hudlink#1) ([gh](a))
 * [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))`;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
   });
@@ -544,7 +543,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       "The following job failed but was present on the merge base",
       "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
       failedA.name,
-      failedB.workflow_name,
       failedB.name,
       failedC.name,
       unstableA.name,
@@ -565,7 +563,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const expectToContain = [
       ":hourglass_flowing_sand:",
       "1 Pending, 3 Unrelated Failures",
-      failedB.workflow_name,
       failedB.name,
       failedC.name,
       unstableA.name,

@@ -1,5 +1,4 @@
 import {
-  getJobFullName,
   hasSimilarFailures,
   querySimilarFailures,
 } from "../lib/drciUtils";
@@ -228,7 +227,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     job.id = "0";
     job.name =
-      "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
+      "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
     job.failure_captures = ["NOT THE SAME ERROR"];
     // Found a match but it has a different failure
     expect(
@@ -242,7 +241,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     job.id = "0";
     job.name =
-      "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
+      "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
     job.failure_captures = ["ERROR"];
     job.conclusion = "neutral";
     // Found a match but it has a different conclusion
@@ -257,7 +256,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     job.id = "0";
     job.name =
-      "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
+      "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
     job.failure_captures = ["ERROR"];
     job.conclusion = "failure";
     // Found a similar failure
@@ -269,19 +268,5 @@ describe("Test various utils used by Dr.CI", () => {
         "TESTING" as unknown as Client
       )
     ).toEqual(true);
-  });
-
-  test("test getJobFullName", async () => {
-    let job: RecentWorkflowsData = {
-      id: "",
-      name: "name",
-      completed_at: null,
-      html_url: "",
-      head_sha: "",
-      failure_captures: [],
-    };
-    expect(getJobFullName(job)).toEqual("name");
-    job.workflow_name = "workflow";
-    expect(getJobFullName(job)).toEqual("workflow / name");
   });
 });
