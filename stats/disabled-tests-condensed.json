@@ -420,6 +420,13 @@
       "linux"
     ]
   ],
+  "test_constloop_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109575",
+    "https://github.com/pytorch/pytorch/issues/109575",
+    [
+      "linux"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
