@@ -1,12 +1,4 @@
 {
-  "inductor / linux-jammy-cpu-py3.8-gcc11-inductor / test (inductor_torchbench_cpu_accuracy)": [
-    "PaliC",
-    "110320",
-    "https://github.com/pytorch/pytorch/issues/110320",
-    "inductor",
-    "linux-jammy-cpu-py3.8-gcc11-inductor",
-    "test (inductor_torchbench_cpu_accuracy)"
-  ],
   "periodic / linux-focal-cuda11.8-py3.9-gcc9 / test (multigpu)": [
     "atalman",
     "108786",
