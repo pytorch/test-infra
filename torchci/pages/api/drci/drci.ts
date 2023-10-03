@@ -353,9 +353,7 @@ function constructResultsJobsSections(
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
   const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
-    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${
-      job.html_url
-    }))\n`;
+    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
   }
   output += "</p></details>";
   return output;

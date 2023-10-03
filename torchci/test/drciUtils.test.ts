@@ -1,7 +1,4 @@
-import {
-  hasSimilarFailures,
-  querySimilarFailures,
-} from "../lib/drciUtils";
+import { hasSimilarFailures, querySimilarFailures } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
