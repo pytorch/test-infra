@@ -191,15 +191,6 @@
       "windows"
     ]
   ],
-  "test_basicmodule2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109576",
-    "https://github.com/pytorch/pytorch/issues/109576",
-    [
-      "asan",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -329,6 +320,14 @@
       "linux"
     ]
   ],
+  "test_children_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
+    "109546",
+    "https://github.com/pytorch/pytorch/issues/109546",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_circular_dependencies (__main__.TestImports)": [
     "110040",
     "https://github.com/pytorch/pytorch/issues/110040",
@@ -417,13 +416,6 @@
   "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "101512",
     "https://github.com/pytorch/pytorch/issues/101512",
-    [
-      "linux"
-    ]
-  ],
-  "test_constloop_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109575",
-    "https://github.com/pytorch/pytorch/issues/109575",
     [
       "linux"
     ]
