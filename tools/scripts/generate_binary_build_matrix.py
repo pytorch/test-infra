@@ -28,12 +28,12 @@ PYTHON_ARCHES_DICT = {
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1"],
     "test": ["11.8", "12.1"],
-    "release": ["11.7", "11.8"],
+    "release": ["11.8", "12.1"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.6", "5.7"],
     "test": ["5.5", "5.6"],
-    "release": ["5.3", "5.4.2"],
+    "release": ["5.5", "5.6"],
 }
 
 CPU_AARCH64_ARCH = ["cpu-aarch64"]
@@ -46,7 +46,7 @@ NIGHTLY = "nightly"
 TEST = "test"
 
 CURRENT_CANDIDATE_VERSION = "2.1.0"
-CURRENT_STABLE_VERSION = "2.0.1"
+CURRENT_STABLE_VERSION = "2.1.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -259,7 +259,7 @@ def get_wheel_install_command(
 
     index_url_option = "--index-url" if os != "linux-aarch64" else "--extra-index-url"
     if channel == RELEASE and (
-        (gpu_arch_version == "11.7" and os == "linux")
+        (gpu_arch_version == "12.1" and os == "linux")
         or (
             gpu_arch_type == "cpu"
             and (os == "windows" or os == "macos" or os == "macos-arm64")
