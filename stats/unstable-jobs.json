@@ -1,12 +1,4 @@
 {
-  "periodic / linux-focal-cuda11.8-py3.9-gcc9 / test (multigpu)": [
-    "atalman",
-    "108786",
-    "https://github.com/pytorch/pytorch/issues/108786",
-    "periodic",
-    "linux-focal-cuda11.8-py3.9-gcc9",
-    "test (multigpu)"
-  ],
   "periodic / macos-12-py3-x86-64 / test (default)": [
     "huydhn",
     "110328",
