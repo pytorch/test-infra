@@ -1,2 +1,2 @@
-from .pretrained import TorchVisionDeprecatedPretrainedVisitor
-from .to_tensor import TorchVisionDeprecatedToTensorVisitor
+from .pretrained import TorchVisionDeprecatedPretrainedVisitor  # noqa: F401
+from .to_tensor import TorchVisionDeprecatedToTensorVisitor  # noqa: F401
