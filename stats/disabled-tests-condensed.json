@@ -915,13 +915,6 @@
       "rocm"
     ]
   ],
-  "test_layerlist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109731",
-    "https://github.com/pytorch/pytorch/issues/109731",
-    [
-      "rocm"
-    ]
-  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1143,21 +1136,6 @@
     "https://github.com/pytorch/pytorch/issues/109989",
     [
       "rocm"
-    ]
-  ],
-  "test_module_static_method_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109732",
-    "https://github.com/pytorch/pytorch/issues/109732",
-    [
-      "linux"
-    ]
-  ],
-  "test_moduledict_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109733",
-    "https://github.com/pytorch/pytorch/issues/109733",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_modulelist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
