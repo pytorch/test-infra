@@ -855,13 +855,6 @@
       "linux"
     ]
   ],
-  "test_jit_cudnn_extension (__main__.TestCppExtensionJIT)": [
-    "107182",
-    "https://github.com/pytorch/pytorch/issues/107182",
-    [
-      "rocm"
-    ]
-  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
