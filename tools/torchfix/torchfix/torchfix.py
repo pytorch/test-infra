@@ -12,9 +12,9 @@ from .visitors.deprecated_symbols import (
 
 from .visitors.performance import TorchSynchronizedDataLoaderVisitor
 from .visitors.misc import TorchRequireGradVisitor
-from .visitors.vision import TorchVisionDeprecatedPretrainedVisitor
+from .visitors.vision import TorchVisionDeprecatedPretrainedVisitor, TorchVisionDeprecatedToTensorVisitor
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 DEPRECATED_CONFIG_PATH = Path(__file__).absolute().parent / "deprecated_symbols.yaml"
 
@@ -27,6 +27,7 @@ def GET_ALL_VISITORS():
         TorchRequireGradVisitor(),
         TorchSynchronizedDataLoaderVisitor(),
         TorchVisionDeprecatedPretrainedVisitor(),
+        TorchVisionDeprecatedToTensorVisitor(),
     ]
 
 
