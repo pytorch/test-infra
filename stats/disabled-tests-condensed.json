@@ -993,20 +993,6 @@
       "linux"
     ]
   ],
-  "test_isnonelayer_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109693",
-    "https://github.com/pytorch/pytorch/issues/109693",
-    [
-      "rocm"
-    ]
-  ],
-  "test_istraining1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109692",
-    "https://github.com/pytorch/pytorch/issues/109692",
-    [
-      "linux"
-    ]
-  ],
   "test_istraining2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109704",
     "https://github.com/pytorch/pytorch/issues/109704",
@@ -2200,13 +2186,6 @@
     "https://github.com/pytorch/pytorch/issues/97366",
     [
       "rocm"
-    ]
-  ],
-  "test_vmapvjp_NumpyExpMarkDirtyAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "109694",
-    "https://github.com/pytorch/pytorch/issues/109694",
-    [
-      "dynamo"
     ]
   ],
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
