@@ -2,7 +2,8 @@
 -- used to decide if a failure is due to broken trunk
 SELECT
   j.id,
-  j.name,
+  j.name as jobName,
+  CONCAT(w.name, ' / ', j.name) as name,
   j.conclusion,
   j.completed_at,
   j.html_url,
@@ -13,6 +14,7 @@ SELECT
   j._event_time as time,
 FROM
   commons.workflow_job j
+  join commons.workflow_run w on w.id = j.run_id
 WHERE
   ARRAY_CONTAINS(
     SPLIT(: shas, ','),

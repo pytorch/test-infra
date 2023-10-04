@@ -49,6 +49,6 @@ export default async function fetchCommit(
 
   return {
     commit: commitDataFromResponse(githubResponse.data),
-    jobs: await removeCancelledJobAfterRetry<JobData>(jobs),
+    jobs: removeCancelledJobAfterRetry<JobData>(jobs),
   };
 }

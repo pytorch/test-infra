@@ -290,9 +290,10 @@ export async function hasSimilarFailures(
   for (const record of records) {
     // Convert the result in JobData to RecentWorkflowsData used by Dr.CI
     const failure: RecentWorkflowsData = {
-      workflow_id: record.workflowId,
+      workflowId: record.workflowId,
       id: record.id as string,
-      name: record.jobName as string,
+      jobName: record.jobName as string,
+      name: record.name as string,
       conclusion: record.conclusion as string,
       completed_at: record.time as string,
       html_url: record.htmlUrl as string,
@@ -313,8 +314,4 @@ export async function hasSimilarFailures(
   }
 
   return false;
-}
-
-export function getJobFullName(job: RecentWorkflowsData): string {
-  return job.workflow_name ? `${job.workflow_name} / ${job.name}` : job.name!;
 }

@@ -15,18 +15,21 @@ import {
   FLAKY_RULES_JSON,
   HUD_URL,
   hasSimilarFailures,
-  getJobFullName,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { fetchJSON } from "lib/bot/utils";
-import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
+import {
+  removeJobNameSuffix,
+  isSameFailure,
+  removeCancelledJobAfterRetry,
+} from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 
 interface PRandJobs {
   head_sha: string;
   pr_number: number;
-  jobs: Map<string, RecentWorkflowsData>;
+  jobs: RecentWorkflowsData[];
   merge_base: string;
   merge_base_date: string;
 }
@@ -348,13 +351,9 @@ function constructResultsJobsSections(
   }
 
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
-  const jobsSorted = jobs.sort((a, b) =>
-    getJobFullName(a).localeCompare(getJobFullName(b))
-  );
+  const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
-    output += `* [${getJobFullName(job)}](${hud_pr_url}#${job.id}) ([gh](${
-      job.html_url
-    }))\n`;
+    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
   }
   output += "</p></details>";
   return output;
@@ -564,7 +563,7 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
 
-  for (const [name, job] of prInfo.jobs) {
+  for (const job of prInfo.jobs) {
     if (
       (job.conclusion === undefined || job.conclusion === null) &&
       (job.completed_at === undefined || job.completed_at === null)
@@ -599,31 +598,38 @@ export function reorganizeWorkflows(
       workflowsByPR.set(pr_number, {
         pr_number: pr_number,
         head_sha: workflow.head_sha,
-        jobs: new Map(),
+        jobs: [],
         merge_base: "",
         merge_base_date: "",
       });
     }
-    const key = getJobFullName(workflow);
-    const existing_job = workflowsByPR.get(pr_number)?.jobs.get(key);
-    if (!existing_job || existing_job.id < workflow.id!) {
-      // if rerun, choose the job with the larger id as that is more recent
-      workflowsByPR.get(pr_number)!.jobs.set(key, workflow);
-    }
+    workflowsByPR.get(pr_number)!.jobs.push(workflow);
   }
 
-  // clean up the workflows - remove workflows that have jobs
+  // clean up the workflows - remove retries, remove workflows that have jobs,
+  // remove cancelled jobs with weird names
   for (const [, prInfo] of workflowsByPR) {
-    const workflowIds = Array.from(prInfo.jobs.values()).map(
-      (jobInfo: RecentWorkflowsData) => jobInfo.workflow_id
-    );
-    const newJobs: Map<string, RecentWorkflowsData> = new Map();
-    for (const [jobName, jobInfo] of prInfo.jobs) {
-      if (!workflowIds.includes(jobInfo.id)) {
-        newJobs.set(jobName, jobInfo);
+    // Remove retries
+    const removeRetries = new Map();
+    for (const job of prInfo.jobs) {
+      const key = job.name!;
+      const existing_job = removeRetries.get(key);
+      if (!existing_job || existing_job.id < job.id!) {
+        removeRetries.set(key, job);
       }
     }
-    prInfo.jobs = newJobs;
+    // Remove workflows that have jobs
+    const workflowIds = Array.from(removeRetries.values()).map(
+      (jobInfo: RecentWorkflowsData) => jobInfo.workflowId
+    );
+    const newJobs = [];
+    for (const jobInfo of removeRetries.values()) {
+      if (!workflowIds.includes(jobInfo.id)) {
+        newJobs.push(jobInfo);
+      }
+    }
+    // Remove cancelled jobs with weird names
+    prInfo.jobs = removeCancelledJobAfterRetry<RecentWorkflowsData>(newJobs);
   }
   return workflowsByPR;
 }

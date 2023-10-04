@@ -20,10 +20,10 @@ WITH recent_shas AS (
     AND p.base.repo.full_name = : repo
 )
 SELECT
-  w.id AS workflow_id,
-  w.name as workflow_name,
+  w.id AS workflowId,
   j.id,
-  j.name as name,
+  CONCAT(w.name, ' / ', j.name) as name,
+  j.name as jobName,
   j.conclusion,
   j.completed_at,
   j.html_url,
@@ -39,10 +39,10 @@ FROM
   JOIN commons.workflow_run w ON w.id = j.run_id
 UNION
 SELECT
-  null AS workflow_id,
-  null as workflow_name,
+  null AS workflowId,
   w.id,
-  w.name AS name,
+  w.name as name,
+  w.name AS jobName,
   w.conclusion,
   w.completed_at,
   w.html_url,

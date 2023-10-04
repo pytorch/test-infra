@@ -35,8 +35,7 @@ export async function fetchRecentWorkflows(
         ],
       }
     );
-  const results = recentWorkflowsQuery.results ?? [];
-  return removeCancelledJobAfterRetry<RecentWorkflowsData>(results);
+  return recentWorkflowsQuery.results ?? [];
 }
 
 export async function fetchFailedJobsFromCommits(

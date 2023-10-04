@@ -152,9 +152,9 @@ export function isSameFailure(
   );
 }
 
-export async function removeCancelledJobAfterRetry<T extends BasicJobData>(
+export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   jobs: T[]
-): Promise<T[]> {
+): T[] {
   // When a worlflow is manually cancelled and retried, the leftover cancel signals from
   // the previous workflow run are poluting HUD and Dr.CI. For example, the pull request
   // https://hud.pytorch.org/pytorch/pytorch/pull/107339 had many cancelled binary build
