@@ -264,6 +264,7 @@ def get_wheel_install_command(
             gpu_arch_type == "cpu"
             and (os == "windows" or os == "macos" or os == "macos-arm64")
         )
+        or (os == "linux-aarch64")
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
