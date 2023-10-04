@@ -16,7 +16,7 @@ class TorchVisionDeprecatedToTensorVisitor(TorchVisitor):
             LintViolation(
                 error_code=self.ERROR_CODE,
                 message=(
-                    "The transform `ToTensor()` is deprecated and will be removed in a"
+                    "The transform `ToTensor()` is deprecated and will be removed in a "
                     "future release. Instead, please use "
                     "`v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])`."  # noqa: E501
                 ),
