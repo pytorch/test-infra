@@ -209,8 +209,11 @@ class TorchVisionDeprecatedPretrainedVisitor(TorchVisitor):
             for submodule in self.MODEL_SUBMODULES:
                 if model_name.startswith(submodule + "."):
                     model_name = model_name[len(submodule) + 1 :]
-            message = None
 
+            if (model_name, "pretrained") not in self.MODEL_WEIGHTS:
+                return
+
+            message = None
             pretrained_arg = self.get_specific_arg(node, "pretrained", 0)
             if pretrained_arg is not None:
                 message = "Parameter `pretrained` is deprecated, please use `weights` instead."
