@@ -23,7 +23,11 @@ where
 # See get_merge_base_info for structure, should have sha, merge_base, and
 # changed_files fields
 MERGE_BASES_QUERY = """
-select * from merge_bases
+select
+    merge_base,
+    sha,
+    changed_files
+from merge_bases
 """
 
 
@@ -58,15 +62,15 @@ def filter_tests(failed_tests, merge_bases):
     return not_present_on_merge_base
 
 
-def evaluate(tests, merge_bases, rev_mapping):
+def evaluate(failing_tests, merge_bases, rev_mapping, get_test_name_fn):
     # This function doesn't produce output that is used but is meant to help
     # evaluate if the currently rating/calculation is good.
 
     # Probably not exhaustive but whatever
-    all_invoking_files = {test["invoking_file"] for test in tests}
+    all_failing_tests = {get_test_name_fn(test) for test in failing_tests}
 
     scores = []
-    for test in tests:
+    for test in failing_tests:
         changed_files = merge_bases[test["head_sha"]]["changed_files"]
 
         prediction = defaultdict(int)
@@ -74,47 +78,76 @@ def evaluate(tests, merge_bases, rev_mapping):
             for test_file, score in rev_mapping[file].items():
                 prediction[test_file] += score
 
-        test_files_sorted_by_score = [
+        failing_tests_sorted_by_score = [
             x[0] for x in sorted(prediction.items(), key=lambda x: x[1], reverse=True)
         ]
-        invoking_file = test["invoking_file"]
-        if invoking_file in test_files_sorted_by_score:
-            index = test_files_sorted_by_score.index(invoking_file)
-            scores.append((index + 1) / len(all_invoking_files))
+        failing_test = get_test_name_fn(test)
+        if failing_test in failing_tests_sorted_by_score:
+            index = failing_tests_sorted_by_score.index(failing_test)
+            scores.append((index + 1) / len(all_failing_tests))
         else:
             scores.append(1)
 
     print(f"average: {sum(scores) / len(scores)}")
     print(f"median: {sorted(scores)[len(scores) // 2]}")
     print(f"within 10%: {(len([x for x in scores if x < .1]))/len(scores)}")
-    print(f"# of invoking files: {len(all_invoking_files)}")
+    print(f"# of failing tests: {len(all_failing_tests)}")
+
+def get_test_file_name(test_row):
+    return f"{test_row['invoking_file']}"
+
+def get_test_class_name(test_row):
+    # check if classname is none, blank, or "None"
+    if test_row["classname"]:
+        return f"{test_row['invoking_file']}::{test_row['classname']}"
+    else:
+        return f"{test_row['invoking_file']}"
+
+def calculate_test_file_ratings(tests, merge_bases):
+    # Should return a mapping of changed file -> failing test files -> confidence score
+
+    return calculate_generic_test_ratings(
+        tests,
+        merge_bases,
+        get_test_fn=get_test_file_name
+        )
 
 
-def calculate_ratings(tests, merge_bases):
-    # Should return a mapping of file -> test/invoking file -> score
+def calculate_test_class_ratings(tests, merge_bases):
+    # Should return a mapping of changed file -> failing test classes -> confidence score
 
-    # Get a mapping of invoking/test file -> list of shas that broke it
-    invoking_file_to_shas = defaultdict(set)
+    return calculate_generic_test_ratings(
+        tests,
+        merge_bases,
+        get_test_fn=get_test_class_name
+        )
+
+
+def calculate_generic_test_ratings(tests, merge_bases, get_test_fn):
+    # Should return a mapping of changed file -> correlated test failures -> confidence score
+
+    # Get a mapping of failing test -> list of shas that broke it
+    failing_tests_to_sha = defaultdict(set)
     for test in tests:
-        invoking_file = test["invoking_file"]
+        failing_test = get_test_fn(test)
         sha = test["head_sha"]
-        invoking_file_to_shas[invoking_file].add(sha)
+        failing_tests_to_sha[failing_test].add(sha)
 
-    # Make mapping of invoking/test file -> file -> score
-    file_rating = {}
-    for test_file in invoking_file_to_shas:
-        score_dict = defaultdict(int)
-        for sha in invoking_file_to_shas[test_file]:
+    # Make mapping of failing test -> changed file -> confidence score
+    failing_tests_to_causes = {}
+    for failing_test in failing_tests_to_sha:
+        score_dict = defaultdict(int) # changed file -> confidence score
+        for sha in failing_tests_to_sha[failing_test]:
             changed_files = merge_bases[sha]["changed_files"]
-            for file in changed_files:
-                score_dict[file] += 1 / len(changed_files)
-        file_rating[test_file] = score_dict
+            for changed_file in changed_files:
+                score_dict[changed_file] += 1 / len(changed_files)
+        failing_tests_to_causes[failing_test] = score_dict
 
-    # Reverse the mapping to file -> test/invoking file -> score
+    # Reverse the mapping to changed file -> failing test -> confidence score
     rev_mapping = defaultdict(lambda: defaultdict(float))
-    for test_file in file_rating:
-        for file in file_rating[test_file]:
-            rev_mapping[file][test_file] = file_rating[test_file][file]
+    for failing_test in failing_tests_to_causes:
+        for changed_file in failing_tests_to_causes[failing_test]:
+            rev_mapping[changed_file][failing_test] = failing_tests_to_causes[failing_test][changed_file]
     return rev_mapping
 
 
@@ -126,12 +159,20 @@ def main() -> None:
     merge_bases = {s["sha"]: s for s in merge_bases}
     filtered_tests = filter_tests(failed_tests, merge_bases)
 
-    ratings = calculate_ratings(filtered_tests, merge_bases)
+    test_file_ratings = calculate_test_file_ratings(filtered_tests, merge_bases)
+    test_class_ratings = calculate_test_class_ratings(filtered_tests, merge_bases)
 
-    evaluate(filtered_tests, merge_bases, ratings)
+    print("Evaluating test files:")
+    evaluate(filtered_tests, merge_bases, test_file_ratings, get_test_file_name)
+
+    print("Evaluating test classes:")
+    evaluate(filtered_tests, merge_bases, test_class_ratings, get_test_class_name)
 
     with open("file_test_rating.json", mode="w") as file:
-        json.dump(ratings, file, sort_keys=True, indent=2)
+        json.dump(test_file_ratings, file, sort_keys=True, indent=2)
+
+    with open("file_test_class_rating.json", mode="w") as file:
+        json.dump(test_class_ratings, file, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":

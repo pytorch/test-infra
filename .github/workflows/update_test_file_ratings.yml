@@ -1,4 +1,4 @@
-name: Update test file ratings for TD experiment
+name: Update test file ratings for TD Heuristics
 
 on:
   pull_request:
@@ -56,6 +56,20 @@ jobs:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
           source_file: "file_test_rating.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating file test rating"
+
+      - name: Push file test rating to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "file_test_class_rating.json"
           destination_repo: "pytorch/test-infra"
           destination_folder: "stats"
           destination_branch: generated-stats
