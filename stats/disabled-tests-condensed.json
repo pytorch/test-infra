@@ -993,27 +993,6 @@
       "linux"
     ]
   ],
-  "test_intarg_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109672",
-    "https://github.com/pytorch/pytorch/issues/109672",
-    [
-      "rocm"
-    ]
-  ],
-  "test_iseval1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109671",
-    "https://github.com/pytorch/pytorch/issues/109671",
-    [
-      "linux"
-    ]
-  ],
-  "test_iseval2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109670",
-    "https://github.com/pytorch/pytorch/issues/109670",
-    [
-      "linux"
-    ]
-  ],
   "test_isnonelayer_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109693",
     "https://github.com/pytorch/pytorch/issues/109693",
