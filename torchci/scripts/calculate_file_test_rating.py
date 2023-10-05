@@ -109,7 +109,7 @@ def calculate_test_file_ratings(tests, merge_bases):
     return calculate_generic_test_ratings(
         tests,
         merge_bases,
-        get_test_fn=extract_test_file_name
+        get_test_name_fn=extract_test_file_name
         )
 
 
@@ -119,17 +119,17 @@ def calculate_test_class_ratings(tests, merge_bases):
     return calculate_generic_test_ratings(
         tests,
         merge_bases,
-        get_test_fn=extract_test_class_name
+        get_test_name_fn=extract_test_class_name
         )
 
 
-def calculate_generic_test_ratings(tests, merge_bases, get_test_fn):
+def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
     # Should return a mapping of changed file -> correlated test failures -> confidence score
 
     # Get a mapping of failing test -> list of shas that broke it
     failing_tests_to_sha = defaultdict(set)
     for test in tests:
-        failing_test = get_test_fn(test)
+        failing_test = get_test_name_fn(test)
         sha = test["head_sha"]
         failing_tests_to_sha[failing_test].add(sha)
 
