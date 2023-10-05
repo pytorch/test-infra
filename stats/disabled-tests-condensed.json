@@ -1120,14 +1120,6 @@
       "dynamo"
     ]
   ],
-  "test_named_children_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109814",
-    "https://github.com/pytorch/pytorch/issues/109814",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105120",
     "https://github.com/pytorch/pytorch/issues/105120",
@@ -1623,14 +1615,6 @@
     "https://github.com/pytorch/pytorch/issues/110050",
     [
       "rocm"
-    ]
-  ],
-  "test_submodules1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109813",
-    "https://github.com/pytorch/pytorch/issues/109813",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_submodules2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
