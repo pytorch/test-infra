@@ -92,6 +92,7 @@ def evaluate(failing_tests, merge_bases, rev_mapping, get_test_name_fn):
     print(f"median: {sorted(scores)[len(scores) // 2]}")
     print(f"within 10%: {(len([x for x in scores if x < .1]))/len(scores)}")
     print(f"# of failing tests: {len(all_failing_tests)}")
+    print()
 
 def get_test_file_name(test_row):
     return f"{test_row['invoking_file']}"
