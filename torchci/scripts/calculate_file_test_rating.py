@@ -94,11 +94,10 @@ def evaluate(failing_tests, merge_bases, rev_mapping, get_test_name_fn):
     print(f"# of failing tests: {len(all_failing_tests)}")
     print()
 
-def get_test_file_name(test_row):
+def extract_test_file_name(test_row):
     return f"{test_row['invoking_file']}"
 
-def get_test_class_name(test_row):
-    # check if classname is none, blank, or "None"
+def extract_test_class_name(test_row):
     if test_row["classname"]:
         return f"{test_row['invoking_file']}::{test_row['classname']}"
     else:
@@ -110,7 +109,7 @@ def calculate_test_file_ratings(tests, merge_bases):
     return calculate_generic_test_ratings(
         tests,
         merge_bases,
-        get_test_fn=get_test_file_name
+        get_test_fn=extract_test_file_name
         )
 
 
@@ -120,7 +119,7 @@ def calculate_test_class_ratings(tests, merge_bases):
     return calculate_generic_test_ratings(
         tests,
         merge_bases,
-        get_test_fn=get_test_class_name
+        get_test_fn=extract_test_class_name
         )
 
 
@@ -164,10 +163,10 @@ def main() -> None:
     test_class_ratings = calculate_test_class_ratings(filtered_tests, merge_bases)
 
     print("Evaluating test files:")
-    evaluate(filtered_tests, merge_bases, test_file_ratings, get_test_file_name)
+    evaluate(filtered_tests, merge_bases, test_file_ratings, extract_test_file_name)
 
     print("Evaluating test classes:")
-    evaluate(filtered_tests, merge_bases, test_class_ratings, get_test_class_name)
+    evaluate(filtered_tests, merge_bases, test_class_ratings, extract_test_class_name)
 
     with open("file_test_rating.json", mode="w") as file:
         json.dump(test_file_ratings, file, sort_keys=True, indent=2)
