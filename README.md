@@ -1,7 +1,7 @@
 # PyTorch TestInfra
 
 The PyTorch TestInfra project is collection of infrastructure components that are
-supporting the PyTorch CI/CD system. It also contains various pytorch development tools
+supporting the PyTorch CI/CD system. It also contains various PyTorch development tools
 like linters.
 
 ## Getting started
