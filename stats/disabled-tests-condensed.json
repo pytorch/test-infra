@@ -1110,13 +1110,6 @@
       "macos"
     ]
   ],
-  "test_module_class_method_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109761",
-    "https://github.com/pytorch/pytorch/issues/109761",
-    [
-      "rocm"
-    ]
-  ],
   "test_module_comparison_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109772",
     "https://github.com/pytorch/pytorch/issues/109772",
@@ -1481,14 +1474,6 @@
     "https://github.com/pytorch/pytorch/issues/110025",
     [
       "rocm"
-    ]
-  ],
-  "test_parameters3_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109760",
-    "https://github.com/pytorch/pytorch/issues/109760",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
