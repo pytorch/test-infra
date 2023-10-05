@@ -16,7 +16,7 @@ class TorchVisionDeprecatedToTensorVisitor(TorchVisitor):
             LintViolation(
                 error_code=self.ERROR_CODE,
                 message=(
-                    "The transform `ToTensor()` is deprecated and will be removed in a "
+                    "The transform `v2.ToTensor()` is deprecated and will be removed in a "
                     "future release. Instead, please use "
                     "`v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])`."  # noqa: E501
                 ),
@@ -28,17 +28,9 @@ class TorchVisionDeprecatedToTensorVisitor(TorchVisitor):
         )
 
     def visit_ImportFrom(self, node):
-        module_path_parts = []
-
-        def recurse_module_path(node):
-            if isinstance(node, cst.Attribute):
-                for child in node.children:
-                    recurse_module_path(child)
-            elif isinstance(node, cst.Name):
-                module_path_parts.append(node.value)
-
-        recurse_module_path(node.module)
-        module_path = ".".join(module_path_parts)
+        module_path = cst.helpers.get_absolute_module_from_package_for_import(None, node)
+        if module_path is None:
+            return
 
         for import_node in node.names:
             self._maybe_add_violation(
