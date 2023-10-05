@@ -682,13 +682,6 @@
       "linux"
     ]
   ],
-  "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
-    "105754",
-    "https://github.com/pytorch/pytorch/issues/105754",
-    [
-      "rocm"
-    ]
-  ],
   "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
     "105254",
     "https://github.com/pytorch/pytorch/issues/105254",
@@ -1138,13 +1131,6 @@
       "rocm"
     ]
   ],
-  "test_modulelist_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109741",
-    "https://github.com/pytorch/pytorch/issues/109741",
-    [
-      "linux"
-    ]
-  ],
   "test_modulemethod1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109766",
     "https://github.com/pytorch/pytorch/issues/109766",
@@ -1157,20 +1143,6 @@
     "https://github.com/pytorch/pytorch/issues/109779",
     [
       "linux"
-    ]
-  ],
-  "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
-    "105825",
-    "https://github.com/pytorch/pytorch/issues/105825",
-    [
-      "rocm"
-    ]
-  ],
-  "test_multi_tensor_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
-    "105820",
-    "https://github.com/pytorch/pytorch/issues/105820",
-    [
-      "rocm"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
