@@ -347,6 +347,15 @@
       "linux"
     ]
   ],
+  "test_cond_with_quantization (__main__.MiscTests)": [
+    "110593",
+    "https://github.com/pytorch/pytorch/issues/110593",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_constloop_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "109575",
     "https://github.com/pytorch/pytorch/issues/109575",
@@ -748,15 +757,6 @@
       "linux"
     ]
   ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "rocm",
-      "mac"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -977,13 +977,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107114",
-    "https://github.com/pytorch/pytorch/issues/107114",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107197",
     "https://github.com/pytorch/pytorch/issues/107197",
@@ -1108,13 +1101,6 @@
     [
       "linux",
       "macos"
-    ]
-  ],
-  "test_module_comparison_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109772",
-    "https://github.com/pytorch/pytorch/issues/109772",
-    [
-      "rocm"
     ]
   ],
   "test_module_guard_name_is_valid_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
@@ -1620,14 +1606,6 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
-    ]
-  ],
-  "test_seq_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109773",
-    "https://github.com/pytorch/pytorch/issues/109773",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_sequential_with_duplicated_module2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
