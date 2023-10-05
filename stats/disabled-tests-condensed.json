@@ -62,13 +62,6 @@
       "mac"
     ]
   ],
-  "test_all_to_all_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98875",
-    "https://github.com/pytorch/pytorch/issues/98875",
-    [
-      "linux"
-    ]
-  ],
   "test_allocator_settings (__main__.TestCudaMallocAsync)": [
     "108476",
     "https://github.com/pytorch/pytorch/issues/108476",
@@ -231,13 +224,6 @@
     "https://github.com/pytorch/pytorch/issues/97402",
     [
       "dynamo"
-    ]
-  ],
-  "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
-    "79510",
-    "https://github.com/pytorch/pytorch/issues/79510",
-    [
-      "linux"
     ]
   ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
@@ -525,13 +511,6 @@
       "rocm"
     ]
   ],
-  "test_ddp_apply_optim_in_backward_ignored_params (__main__.TestDistBackendWithSpawn)": [
-    "106361",
-    "https://github.com/pytorch/pytorch/issues/106361",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -755,6 +734,15 @@
     "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
+    ]
+  ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm",
+      "mac"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
@@ -1576,13 +1564,6 @@
       "linux"
     ]
   ],
-  "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
-    "96282",
-    "https://github.com/pytorch/pytorch/issues/96282",
-    [
-      "linux"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -1812,6 +1793,14 @@
     "https://github.com/pytorch/pytorch/issues/106026",
     [
       "rocm"
+    ]
+  ],
+  "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
+    "110610",
+    "https://github.com/pytorch/pytorch/issues/110610",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_unary_ops (__main__.TestTensorExprFuser)": [
