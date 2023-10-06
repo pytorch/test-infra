@@ -315,3 +315,18 @@ export async function hasSimilarFailures(
 
   return false;
 }
+
+export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
+  // An infra flaky job is a failed job without any failure line and runner. It shows
+  // up as an empty job without any job on GitHub. The failure can only be seen via
+  // the summary tab
+  return (
+    job.conclusion === "failure" &&
+    (job.failure_line === null ||
+      job.failure_line === undefined ||
+      job.failure_line === "") &&
+    (job.runnerName === null ||
+      job.runnerName === undefined ||
+      job.runnerName === "")
+  );
+}

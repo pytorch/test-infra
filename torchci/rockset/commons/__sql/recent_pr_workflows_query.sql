@@ -22,8 +22,9 @@ WITH recent_shas AS (
 SELECT
   w.id AS workflowId,
   j.id,
-  CONCAT(w.name, ' / ', j.name) as name,
-  j.name as jobName,
+  j.runner_name AS runnerName,
+  CONCAT(w.name, ' / ', j.name) AS name,
+  j.name AS jobName,
   j.conclusion,
   j.completed_at,
   j.html_url,
@@ -32,7 +33,7 @@ SELECT
   recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line,
-  j._event_time as time
+  j._event_time AS time
 FROM
   recent_shas
   JOIN commons.workflow_job j ON j.head_sha = recent_shas.sha
@@ -41,7 +42,8 @@ UNION
 SELECT
   null AS workflowId,
   w.id,
-  w.name as name,
+  null AS runnerName,
+  w.name AS name,
   w.name AS jobName,
   w.conclusion,
   w.completed_at,

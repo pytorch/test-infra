@@ -8,6 +8,7 @@ import {
   formDrciHeader,
   getActiveSEVs,
   formDrciSevBody,
+  isInfraFlakyJob,
 } from "lib/drciUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import dayjs from "dayjs";
@@ -37,6 +38,7 @@ const pendingA = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedA = {
@@ -48,6 +50,7 @@ const failedA = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedASuccessfulRetry = {
@@ -59,6 +62,7 @@ const failedASuccessfulRetry = {
   id: "2",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedAFailedRetry = {
@@ -70,6 +74,7 @@ const failedAFailedRetry = {
   id: "3",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedB = {
@@ -81,6 +86,7 @@ const failedB = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedC = {
@@ -92,6 +98,7 @@ const failedC = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a"],
+  runnerName: "dummy",
 };
 
 const failedD = {
@@ -103,6 +110,7 @@ const failedD = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a", "b"],
+  runnerName: "dummy",
 };
 
 // Same as failedD but has a different shard ID
@@ -115,6 +123,7 @@ const failedE = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a", "b"],
+  runnerName: "dummy",
 };
 
 // Same as unstable A but without the unstable suffix
@@ -127,6 +136,7 @@ const failedF = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a", "b"],
+  runnerName: "dummy",
 };
 
 // Some additional mock samples for flaky rules regex match
@@ -141,6 +151,7 @@ const failedG = {
   failure_captures: [
     "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
   ],
+  runnerName: "dummy",
 };
 
 const failedH = {
@@ -154,6 +165,7 @@ const failedH = {
   failure_captures: [
     "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
   ],
+  runnerName: "dummy",
 };
 
 // Match with failure line string instead of failure capture array
@@ -168,6 +180,7 @@ const failedI = {
   failure_captures: [],
   failure_line:
     "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
+  runnerName: "dummy",
 };
 
 const unstableA = {
@@ -179,6 +192,7 @@ const unstableA = {
   id: "1",
   pr_number: 1001,
   failure_captures: ["a", "b"],
+  runnerName: "dummy",
 };
 
 const sev: IssueData = {
@@ -664,4 +678,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
+
+  //test("test isInfraFlakyJob", async () => {
+  //});
 });
