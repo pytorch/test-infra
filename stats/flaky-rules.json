@@ -42,5 +42,9 @@
   {
     "name": "asan",
     "captures": ["ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded \\(cannot open shared object file\\)"]
+  },
+  {
+    "name": "linux",
+    "captures": ["The process '/usr/bin/git' failed with exit code 1"]
   }
 ]
