@@ -226,6 +226,13 @@
       "dynamo"
     ]
   ],
+  "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
+    "79510",
+    "https://github.com/pytorch/pytorch/issues/79510",
+    [
+      "linux"
+    ]
+  ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
     "100074",
     "https://github.com/pytorch/pytorch/issues/100074",
@@ -322,13 +329,6 @@
   "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
     "109379",
     "https://github.com/pytorch/pytorch/issues/109379",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "101512",
-    "https://github.com/pytorch/pytorch/issues/101512",
     [
       "linux"
     ]
