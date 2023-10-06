@@ -45,6 +45,7 @@ describe("Test various utils used by Dr.CI", () => {
     const job: RecentWorkflowsData = {
       id: "A",
       name: "",
+      jobName: "",
       html_url: "A",
       head_sha: "A",
       failure_captures: ["ERROR"],
@@ -101,6 +102,7 @@ describe("Test various utils used by Dr.CI", () => {
         [
           "TESTING",
           job.failure_captures.join(" "),
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           mockStartDate,
           mockEndDate,
@@ -126,6 +128,37 @@ describe("Test various utils used by Dr.CI", () => {
         [
           "TESTING",
           job.failure_captures.join(" "),
+          "",
+          searchUtils.WORKFLOW_JOB_INDEX,
+          dayjs(baseCommitDate)
+            .subtract(lookbackPeriodInHours, "hour")
+            .toISOString(),
+          mockEndDate,
+          searchUtils.MIN_SCORE,
+        ],
+      ])
+    );
+
+    mock.mockClear();
+
+    const workflowName = "pull";
+    job.jobName = "job / test";
+    job.name = `${workflowName} / ${job.jobName}`;
+    // Check if the workflow name is set
+    expect(
+      await querySimilarFailures(
+        job,
+        baseCommitDate,
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toStrictEqual([mockJobData]);
+    expect(JSON.stringify(mock.mock.calls)).toEqual(
+      JSON.stringify([
+        [
+          "TESTING",
+          job.failure_captures.join(" "),
+          workflowName,
           searchUtils.WORKFLOW_JOB_INDEX,
           dayjs(baseCommitDate)
             .subtract(lookbackPeriodInHours, "hour")
