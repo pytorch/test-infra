@@ -1490,6 +1490,13 @@
       "macos"
     ]
   ],
+  "test_qat_conv_bn_fusion_cuda (__main__.TestQuantizePT2EQAT)": [
+    "110691",
+    "https://github.com/pytorch/pytorch/issues/110691",
+    [
+      "rocm"
+    ]
+  ],
   "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
     "110026",
     "https://github.com/pytorch/pytorch/issues/110026",
@@ -1622,13 +1629,6 @@
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
-    ]
-  ],
-  "test_super1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109865",
-    "https://github.com/pytorch/pytorch/issues/109865",
-    [
-      "rocm"
     ]
   ],
   "test_super2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
