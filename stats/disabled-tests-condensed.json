@@ -189,13 +189,6 @@
       "rocm"
     ]
   ],
-  "test_cat_addmm (__main__.TestMaxAutotune)": [
-    "109982",
-    "https://github.com/pytorch/pytorch/issues/109982",
-    [
-      "rocm"
-    ]
-  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
@@ -835,11 +828,6 @@
       "linux"
     ]
   ],
-  "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
-    "66528",
-    "https://github.com/pytorch/pytorch/issues/66528",
-    []
-  ],
   "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
     "107383",
     "https://github.com/pytorch/pytorch/issues/107383",
@@ -1290,27 +1278,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_nvfuser_correctness_masked_amax (__main__.TestCudaFuserOpInfoCUDA)": [
-    "88723",
-    "https://github.com/pytorch/pytorch/issues/88723",
-    [
-      "rocm"
-    ]
-  ],
-  "test_nvfuser_correctness_masked_amin (__main__.TestCudaFuserOpInfoCUDA)": [
-    "88710",
-    "https://github.com/pytorch/pytorch/issues/88710",
-    [
-      "rocm"
-    ]
-  ],
-  "test_nvfuser_correctness_masked_sum (__main__.TestCudaFuserOpInfoCUDA)": [
-    "88687",
-    "https://github.com/pytorch/pytorch/issues/88687",
-    [
-      "rocm"
     ]
   ],
   "test_observer_with_ignored_function (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
