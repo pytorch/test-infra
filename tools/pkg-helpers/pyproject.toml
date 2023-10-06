@@ -9,6 +9,7 @@ pytorch_pkg_helper = "pytorch_pkg_helpers.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+packaging = "*"
 
 [tool.poetry.dev-dependencies]
 black = "^22.6.0"
