@@ -33,8 +33,8 @@ export async function searchSimilarFailures(
       },
     },
   ];
-  // If specify, restrict by the workflow name too. This makes the query more
-  // accurate for less frequent job like periodic or slow
+  // If specify, query by the workflow name too. This makes the query more
+  // accurate for less frequent jobs like periodic or slow
   if (workflowName !== "") {
     must.push({
       match: {
