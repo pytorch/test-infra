@@ -15,6 +15,7 @@ export default async function handler(
   res: NextApiResponse<{ jobs: JobData[] }>
 ) {
   const failure = req.query.failure as string;
+  const workflowName = (req.query.workflowName as string) ?? "";
   const index = (req.query.index as string) ?? WORKFLOW_JOB_INDEX;
   const startDate = req.query.startDate as string;
   const endDate = req.query.endDate as string;
@@ -43,6 +44,7 @@ export default async function handler(
       await searchSimilarFailures(
         client,
         failure,
+        workflowName,
         index,
         startDate,
         endDate,
