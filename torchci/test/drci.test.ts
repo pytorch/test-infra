@@ -678,7 +678,4 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
-
-  //test("test isInfraFlakyJob", async () => {
-  //});
 });
