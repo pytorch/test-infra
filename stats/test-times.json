@@ -1,44 +1,44 @@
 {
   "cuda12.1-py3.10-gcc9-sm86": {
     "inductor": {
-      "distributed/test_dynamo_distributed": 97.3165,
-      "distributed/test_inductor_collectives": 25.424,
-      "inductor/test_torchinductor": 1378.5854999999997,
-      "inductor/test_torchinductor_opinfo": 694.6670000000001,
-      "test_modules": 354.5059999999928,
-      "test_ops": 2017.5809999996914,
-      "test_ops_gradients": 1088.5289999999407,
-      "test_torch": 419.6380000000007
+      "distributed/test_dynamo_distributed": 136.58350000000002,
+      "distributed/test_inductor_collectives": 28.391999999999996,
+      "inductor/test_torchinductor": 1450.1204999999995,
+      "inductor/test_torchinductor_opinfo": 643.1549999999993,
+      "test_modules": 741.1969999999849,
+      "test_ops": 2563.81499999969,
+      "test_ops_gradients": 1363.97249999994,
+      "test_torch": 549.4024999999965
     },
     "inductor_distributed": {
-      "distributed/test_dynamo_distributed": 129.5505,
-      "distributed/test_inductor_collectives": 45.373999999999995
+      "distributed/test_dynamo_distributed": 208.8005,
+      "distributed/test_inductor_collectives": 50.656000000000006
     }
   },
   "default": {
     "default": {
-      "distributed/test_dynamo_distributed": 113.43350000000001,
-      "distributed/test_inductor_collectives": 35.399,
-      "inductor/test_torchinductor": 1378.5854999999997,
-      "inductor/test_torchinductor_opinfo": 694.6670000000001,
-      "test_modules": 354.5059999999928,
-      "test_ops": 2017.5809999996914,
-      "test_ops_gradients": 1088.5289999999407,
-      "test_torch": 419.6380000000007
+      "distributed/test_dynamo_distributed": 172.692,
+      "distributed/test_inductor_collectives": 39.524,
+      "inductor/test_torchinductor": 1450.1204999999995,
+      "inductor/test_torchinductor_opinfo": 643.1549999999993,
+      "test_modules": 741.1969999999849,
+      "test_ops": 2563.81499999969,
+      "test_ops_gradients": 1363.97249999994,
+      "test_torch": 549.4024999999965
     },
     "inductor": {
-      "distributed/test_dynamo_distributed": 97.3165,
-      "distributed/test_inductor_collectives": 25.424,
-      "inductor/test_torchinductor": 1378.5854999999997,
-      "inductor/test_torchinductor_opinfo": 694.6670000000001,
-      "test_modules": 354.5059999999928,
-      "test_ops": 2017.5809999996914,
-      "test_ops_gradients": 1088.5289999999407,
-      "test_torch": 419.6380000000007
+      "distributed/test_dynamo_distributed": 136.58350000000002,
+      "distributed/test_inductor_collectives": 28.391999999999996,
+      "inductor/test_torchinductor": 1450.1204999999995,
+      "inductor/test_torchinductor_opinfo": 643.1549999999993,
+      "test_modules": 741.1969999999849,
+      "test_ops": 2563.81499999969,
+      "test_ops_gradients": 1363.97249999994,
+      "test_torch": 549.4024999999965
     },
     "inductor_distributed": {
-      "distributed/test_dynamo_distributed": 129.5505,
-      "distributed/test_inductor_collectives": 45.373999999999995
+      "distributed/test_dynamo_distributed": 208.8005,
+      "distributed/test_inductor_collectives": 50.656000000000006
     }
   },
   "linux-focal-cuda11.8-py3.10-gcc9": {
