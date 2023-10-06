@@ -2,8 +2,9 @@
 -- used to decide if a failure is due to broken trunk
 SELECT
   j.id,
-  j.name as jobName,
-  CONCAT(w.name, ' / ', j.name) as name,
+  j.name AS jobName,
+  CONCAT(w.name, ' / ', j.name) AS name,
+  j.runner_name AS runnerName,
   j.conclusion,
   j.completed_at,
   j.html_url,
@@ -11,10 +12,10 @@ SELECT
   j.head_branch,
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line,
-  j._event_time as time,
+  j._event_time AS time,
 FROM
   commons.workflow_job j
-  join commons.workflow_run w on w.id = j.run_id
+  JOIN commons.workflow_run w ON w.id = j.run_id
 WHERE
   ARRAY_CONTAINS(
     SPLIT(: shas, ','),

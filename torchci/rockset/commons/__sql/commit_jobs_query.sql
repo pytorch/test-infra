@@ -37,6 +37,7 @@ WITH job AS (
     job.torchci_classification.line,
     job.torchci_classification.captures,
     job.torchci_classification.line_num,
+    job.runner_name AS runner_name,
   FROM
     workflow_job job
     INNER JOIN workflow_run workflow ON workflow.id = job.run_id
@@ -89,6 +90,8 @@ WITH job AS (
     null,
     null,
     null,
+    -- Don't care about runner name from CircleCI
+    null AS runner_name,
   FROM
     circleci.job job
   WHERE
@@ -116,6 +119,7 @@ SELECT
   line AS failureLine,
   line_num AS failureLineNumber,
   captures AS failureCaptures,
+  runner_name AS runnerName,
   time,
 FROM
   job

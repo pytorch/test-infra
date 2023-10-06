@@ -1,4 +1,8 @@
-import { hasSimilarFailures, querySimilarFailures } from "../lib/drciUtils";
+import {
+  hasSimilarFailures,
+  querySimilarFailures,
+  isInfraFlakyJob,
+} from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
@@ -298,5 +302,49 @@ describe("Test various utils used by Dr.CI", () => {
         "TESTING" as unknown as Client
       )
     ).toEqual(true);
+  });
+
+  test("test isInfraFlakyJob", () => {
+    const notInfraFlakyFailure: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "ERROR",
+      failure_captures: ["ERROR"],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
+
+    const notInfraFlakyFailureAgain: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "",
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isInfraFlakyJob(notInfraFlakyFailureAgain)).toEqual(false);
+
+    const isInfraFlakyFailure: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "",
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "",
+    };
+    expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
   });
 });

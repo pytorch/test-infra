@@ -15,6 +15,7 @@ import {
   FLAKY_RULES_JSON,
   HUD_URL,
   hasSimilarFailures,
+  isInfraFlakyJob,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -576,6 +577,7 @@ export async function getWorkflowJobsStatuses(
         brokenTrunkJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
+        isInfraFlakyJob(job) ||
         (await hasSimilarFailures(job, prInfo.merge_base_date))
       ) {
         flakyJobs.push(job);
