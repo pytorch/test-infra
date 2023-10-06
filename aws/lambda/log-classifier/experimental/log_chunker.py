@@ -9,12 +9,12 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 import asyncio
 import argparse
 
-CHUNK_SIZE = 4096
-OVERLAP_SIZE = 2048
+CHUNK_SIZE = 1024
+OVERLAP_SIZE = CHUNK_SIZE // 2
 TOP_K = 1
 CHUNKS_NUM_FOR_DEBUG = 5
 # MAX_BATCH_SIZE = 2048
-MAX_BATCH_SIZE = 126
+MAX_BATCH_SIZE = 256
 
 # taken from openai.embeddings_utils with a more aggressive retry params
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(20))
@@ -42,31 +42,32 @@ def _get_text_from_tokens(tokens):
     enc = tiktoken.encoding_for_model("text-embedding-ada-002")
     return enc.decode(tokens)
 
-async def _get_embedding_chunks_from_file(file_path):
+async def _get_embedding_chunks_from_file(file_path, chunk_size=CHUNK_SIZE, overlap_size=OVERLAP_SIZE):
     """Get the embedding chunks from the file path."""
     tokens = _get_tokens_from_file(file_path)
-    chunks = [tokens[0:CHUNK_SIZE]]
+    chunks = [tokens[0:chunk_size]]
     text_chunks = []
     embeddings = []
-    for i in range(CHUNK_SIZE - OVERLAP_SIZE, len(tokens), CHUNK_SIZE - OVERLAP_SIZE):
-        chunks.append(tokens[i:min(i+CHUNK_SIZE, len (tokens))])
+    for i in range(chunk_size - overlap_size, len(tokens), chunk_size - overlap_size):
+        chunks.append(tokens[i:min(i+chunk_size, len (tokens))])
     text_chunks = [_get_text_from_tokens(chunk) for chunk in chunks]
     batched_chunks = [text_chunks[i:i+MAX_BATCH_SIZE] for i in range(0, len(chunks), MAX_BATCH_SIZE)]
     for batch in batched_chunks:
-        # print(f"processing batch number ", batched_chunks.index(batch), "out of ", len(batched_chunks), file=sys.stderr)
-        # print(len(batch), file=sys.stderr)
+        print(f"processing batch number ", batched_chunks.index(batch), "out of ", len(batched_chunks), file=sys.stderr)
+        print(len(batch), file=sys.stderr)
         embeddings += await aget_embeddings(batch, engine="text-embedding-ada-002")
     return zip(embeddings, text_chunks)
     
 
-async def main(success_file, failure_file):
+async def main(success_file, failure_file,):
     # Get embedding chunks from the good and bad files
-    embeddings_on_good_file = list(await _get_embedding_chunks_from_file("data/log7_success.txt"))
-    embeddings_on_bad_file = list(await _get_embedding_chunks_from_file("data/log7_failures.txt"))
+    embeddings_on_good_file = list(await _get_embedding_chunks_from_file(success_file, chunk_size = CHUNK_SIZE*4, overlap_size = OVERLAP_SIZE*4))
+    embeddings_on_bad_file = list(await _get_embedding_chunks_from_file(failure_file))
 
     # Create a list of pairs of (total cosine similarity, text chunk) for each text chunk in the bad file
     text_chunk_pairs = []
     for embedding_bad, text_chunk in embeddings_on_bad_file:
+        print(f"embedding number ", embeddings_on_bad_file.index((embedding_bad, text_chunk)), "out of ", len(embeddings_on_bad_file), file=sys.stderr)
         cosine_similarities = [cosine_similarity(embedding_bad, embedding2) for embedding2, _ in embeddings_on_good_file]
         top_k = sorted(cosine_similarities)[-TOP_K:]
         total = sum(top_k)
@@ -90,8 +91,8 @@ async def main(success_file, failure_file):
 if __name__ == "__main__":
     # get success file and failure file from io
     parser = argparse.ArgumentParser()
-    parser.add_argument("--success_file", help="success file", default="data/log7_success.txt")
-    parser.add_argument("--failure_file", help="failure file", default="data/log7_failures.txt")
+    parser.add_argument("--success_file", help="success file", default="data/log8_success.txt")
+    parser.add_argument("--failure_file", help="failure file", default="data/log8_failures.txt")
     args = parser.parse_args()
     asyncio.run(main(args.success_file, args.failure_file))
 
