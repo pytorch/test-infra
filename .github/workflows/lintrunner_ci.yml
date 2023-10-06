@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/lintrunner/**'
+      - '.github/workflows/lintrunner_ci.yml'
   push:
     branches:
       - main
@@ -96,7 +97,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-    - uses: messense/maturin-action@v1
+    - uses: messense/maturin-action@v1.40.2
       with:
         command: build
         args: --release --target universal2-apple-darwin -o dist
