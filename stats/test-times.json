@@ -16,30 +16,7 @@
     }
   },
   "default": {
-    "default": {
-      "distributed/test_dynamo_distributed": 172.692,
-      "distributed/test_inductor_collectives": 39.524,
-      "inductor/test_torchinductor": 1450.1204999999995,
-      "inductor/test_torchinductor_opinfo": 643.1549999999993,
-      "test_modules": 741.1969999999849,
-      "test_ops": 2563.81499999969,
-      "test_ops_gradients": 1363.97249999994,
-      "test_torch": 549.4024999999965
-    },
-    "inductor": {
-      "distributed/test_dynamo_distributed": 136.58350000000002,
-      "distributed/test_inductor_collectives": 28.391999999999996,
-      "inductor/test_torchinductor": 1450.1204999999995,
-      "inductor/test_torchinductor_opinfo": 643.1549999999993,
-      "test_modules": 741.1969999999849,
-      "test_ops": 2563.81499999969,
-      "test_ops_gradients": 1363.97249999994,
-      "test_torch": 549.4024999999965
-    },
-    "inductor_distributed": {
-      "distributed/test_dynamo_distributed": 208.8005,
-      "distributed/test_inductor_collectives": 50.656000000000006
-    }
+    "default": {}
   },
   "linux-focal-cuda11.8-py3.10-gcc9": {
     "distributed": {
