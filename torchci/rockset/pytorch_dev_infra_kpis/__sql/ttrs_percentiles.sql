@@ -11,6 +11,25 @@
 --                 entire time range AS one big bucket and returns percnetiles accordingly
 
 WITH
+-- All the percentiles that we want the query to determine
+percentiles_desired AS (
+  SELECT 
+    CONCAT('p', n.percentile) as percentile,
+    n.percentile / 100.0 as percentile_num
+  FROM  UNNEST(ARRAY_CREATE(25, 50, 75, 90) AS percentile) AS n
+  UNION ALL
+    -- if percentile_to_get is specified, we get and only return that percentile
+  SELECT
+    CONCAT(
+      'p',
+      CAST(
+        ROUND(: percentile_to_get * 100) AS STRING
+      )
+    ),
+    : percentile_to_get
+  WHERE
+    : percentile_to_get > 0
+),
 -- Get all PRs that were merged into master, and get all the SHAs for commits from that PR which CI jobs ran against
 -- We need the shas because some jobs (like trunk) don't have a PR they explicitly ran against, but they _were_ run against
 -- a commit from a PR
@@ -75,7 +94,6 @@ commit_job_durations AS (
     js.conclusion AS step_conclusion,
     PARSE_TIMESTAMP_ISO8601(js.completed_at) AS failure_time,
     PARSE_TIMESTAMP_ISO8601(js.started_at) AS start_time,
-    PARSE_TIMESTAMP_ISO8601(j.completed_at) AS end_time,
     r.name AS workflow_name,
     j.name AS job_name,
     r.html_url AS workflow_url,
@@ -96,11 +114,7 @@ commit_job_durations AS (
     INNER JOIN commons.workflow_run r ON j.run_id = r.id
   WHERE
     1 = 1
-    AND (
-      r.name IN ('pull', 'trunk', 'Lint')
-      OR r.name like 'linux-binary%'
-      OR r.name like 'windows-binary%'
-    )
+    AND r.name = 'pull' -- Stick to pull workflows to reduce noise. Trendlines are the same within other workflows
     AND j.conclusion = 'failure' -- we just care about failed jobs
     AND js.conclusion = 'failure'
     AND j.run_attempt = 1 -- only look at the first run attempt since reruns will either 1) succeed, so are irrelevant or 2) repro the failure, biasing our data
@@ -109,43 +123,44 @@ commit_job_durations AS (
     and js.name LIKE 'Test%' -- Only consider test steps
     ),
 -- Refine our measurements to only collect the first red signal per workflow
-ci_failure AS (
-  SELECT
+-- Gets the earliest TTRS across each workflow within the same commit
+workflow_failure AS (
+  SELECT DISTINCT
     d.pr_number,
-    MIN(d.step_name) AS step_name,
-    MIN(workflow_name) AS workflow_name,
-    DURATION_SECONDS(
-      MIN(d.failure_time) - MIN(d.start_time)
-    ) / 60 AS ttrs_mins,
     d.sha,
-    MIN(workflow_url) AS workflow_url,
     d.workflow_run_id,
-    MIN(d.start_time) AS start_time,
-    MIN(d.failure_time) AS failure_time,
+    FIRST_VALUE(d.step_name) OVER(
+      PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+      ORDER BY d.failure_time
+    ) as step_name,
+    FIRST_VALUE(d.workflow_name) OVER(
+      PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+      ORDER BY d.failure_time
+    ) as workflow_name,
+    DURATION_SECONDS(
+      FIRST_VALUE(d.failure_time) OVER(
+        PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+        ORDER BY d.failure_time
+      ) -
+      FIRST_VALUE(d.start_time) OVER(
+        PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+        ORDER BY d.failure_time
+      )
+    ) / 60.0 as ttrs_mins,
+    FIRST_VALUE(d.workflow_url) OVER(
+      PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+      ORDER BY d.failure_time
+    ) as workflow_url,
+    FIRST_VALUE(d.start_time) OVER(
+      PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+      ORDER BY d.failure_time
+    ) as start_time,
+    FIRST_VALUE(d.failure_time) OVER(
+      PARTITION BY d.pr_number, d.sha, d.workflow_run_id
+      ORDER BY d.failure_time
+    ) as failure_time,
   FROM
     commit_job_durations d
-  GROUP BY
-    pr_number,
-    workflow_run_id,
-    sha
-),
--- get the earliest TTRS across each workflow within the same commit
-workflow_failure AS (
-  SELECT
-    f.pr_number,
-    MIN(f.start_time) AS start_time,
-    MIN(f.failure_time) AS failure_time,
-    MIN(f.step_name) AS step_name,
-    MIN(workflow_url) AS workflow_url,
-    MIN(f.ttrs_mins) AS ttrs_mins,
-    f.sha,
-    f.workflow_run_id
-  FROM
-    ci_failure f
-  GROUP BY
-    pr_number,
-    sha,
-    workflow_run_id
 ),
 workflow_failure_buckets AS (
   SELECT
@@ -176,36 +191,6 @@ percentiles AS (
     sha,
   FROM
     workflow_failure_buckets
-),
--- All the percentiles that we want the query to determine
-percentiles_desired AS (
-  SELECT
-    'p50' AS percentile,
-    0.50 AS percentile_num,
-  UNION ALL
-  SELECT
-    'p75',
-    0.75,
-  UNION ALL
-  SELECT
-    'p90',
-    0.90,
-  UNION ALL
-  SELECT
-    'p25',
-    0.25,
-  UNION ALL
-    -- if percentile_to_get is specified, we get and only return that percentile
-  SELECT
-    CONCAT(
-      'p',
-      CAST(
-        ROUND(: percentile_to_get * 100) AS STRING
-      )
-    ),
-    : percentile_to_get
-  WHERE
-    : percentile_to_get > 0
 ),
 -- Take the full list of percentiles and get just the ones we care about
 ttrs_percentile AS (
