@@ -1363,6 +1363,13 @@
       "linux"
     ]
   ],
+  "test_pinned_memory_with_cudaregister (__main__.TestCuda)": [
+    "110839",
+    "https://github.com/pytorch/pytorch/issues/110839",
+    [
+      "rocm"
+    ]
+  ],
   "test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)": [
     "75052",
     "https://github.com/pytorch/pytorch/issues/75052",
