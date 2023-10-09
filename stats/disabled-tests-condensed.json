@@ -1035,13 +1035,6 @@
       "macos"
     ]
   ],
-  "test_module_guard_name_is_valid_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109989",
-    "https://github.com/pytorch/pytorch/issues/109989",
-    [
-      "rocm"
-    ]
-  ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
     "108099",
     "https://github.com/pytorch/pytorch/issues/108099",
