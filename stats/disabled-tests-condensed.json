@@ -821,13 +821,6 @@
       "linux"
     ]
   ],
-  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
-    "107383",
-    "https://github.com/pytorch/pytorch/issues/107383",
-    [
-      "rocm"
-    ]
-  ],
   "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109829",
     "https://github.com/pytorch/pytorch/issues/109829",
@@ -1342,13 +1335,6 @@
     "https://github.com/pytorch/pytorch/issues/110069",
     [
       "dynamo"
-    ]
-  ],
-  "test_parameterdict_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "110025",
-    "https://github.com/pytorch/pytorch/issues/110025",
-    [
-      "rocm"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
