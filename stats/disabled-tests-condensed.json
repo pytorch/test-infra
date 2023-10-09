@@ -932,30 +932,6 @@
       "dynamo"
     ]
   ],
-  "test_mandelbrot_numpy (__main__.MiscTests)": [
-    "109997",
-    "https://github.com/pytorch/pytorch/issues/109997",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_mandelbrot_numpy_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "109995",
-    "https://github.com/pytorch/pytorch/issues/109995",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109512",
     "https://github.com/pytorch/pytorch/issues/109512",
