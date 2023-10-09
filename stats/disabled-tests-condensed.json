@@ -48,13 +48,6 @@
       "dynamo"
     ]
   ],
-  "test_adadelta (__main__.CompiledOptimizerTests)": [
-    "109981",
-    "https://github.com/pytorch/pytorch/issues/109981",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -1027,6 +1020,15 @@
   "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
     "88475",
     "https://github.com/pytorch/pytorch/issues/88475",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
+    "88466",
+    "https://github.com/pytorch/pytorch/issues/88466",
     [
       "linux",
       "mac",
