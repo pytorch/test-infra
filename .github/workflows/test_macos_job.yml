@@ -91,9 +91,15 @@ jobs:
   test-secrets-no-filter-var:
     uses: ./.github/workflows/macos_job.yml
     secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-12
+          - build-tool: macos-13-xlarge
+      fail-fast: false
     with:
       job-name: "test-secrets-no-filter-var"
-      runner: macos-m1-12
+      runner: ${{ matrix.runner }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       script: |
@@ -101,9 +107,15 @@ jobs:
   test-secrets-filter-var:
     uses: ./.github/workflows/macos_job.yml
     secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-12
+          - build-tool: macos-13-xlarge
+      fail-fast: false
     with:
       job-name: "test-secrets-filter-var"
-      runner: macos-m1-12
+      runner: ${{ matrix.runner }}
       secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
