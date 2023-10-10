@@ -103,7 +103,7 @@ jobs:
     secrets: inherit
     with:
       job-name: "test-secrets-filter-var"
-      runner: linux.2xlarge
+      runner: macos-m1-12
       secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
