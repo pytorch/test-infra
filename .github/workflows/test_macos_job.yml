@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/macos_job.yml
       - .github/workflows/test_macos_job.yml
+      - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
 jobs:
@@ -87,3 +88,36 @@ jobs:
       download-artifact: my-cool-artifact
       script: |
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-secrets-no-filter-var:
+    uses: ./.github/workflows/macos_job.yml
+    secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-12
+          - runner: macos-13-xlarge
+      fail-fast: false
+    with:
+      job-name: "test-secrets-no-filter-var"
+      runner: ${{ matrix.runner }}
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+  test-secrets-filter-var:
+    uses: ./.github/workflows/macos_job.yml
+    secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-12
+          - runner: macos-13-xlarge
+      fail-fast: false
+    with:
+      job-name: "test-secrets-filter-var"
+      runner: ${{ matrix.runner }}
+      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
