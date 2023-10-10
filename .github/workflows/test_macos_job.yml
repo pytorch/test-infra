@@ -95,7 +95,7 @@ jobs:
       matrix:
         include:
           - runner: macos-m1-12
-          - build-tool: macos-13-xlarge
+          - runner: macos-13-xlarge
       fail-fast: false
     with:
       job-name: "test-secrets-no-filter-var"
@@ -111,7 +111,7 @@ jobs:
       matrix:
         include:
           - runner: macos-m1-12
-          - build-tool: macos-13-xlarge
+          - runner: macos-13-xlarge
       fail-fast: false
     with:
       job-name: "test-secrets-filter-var"
