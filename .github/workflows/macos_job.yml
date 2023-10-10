@@ -62,6 +62,10 @@ on:
         required: false
         default: ''
         type: string
+      secrets-env:
+        description: "List of secrets to be exported to environment variables"
+        type: string
+        default: ''
 
 jobs:
   job:
@@ -129,6 +133,8 @@ jobs:
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
           {
             echo "#!/usr/bin/env bash";
@@ -140,7 +146,7 @@ jobs:
           while read line; do
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-          bash "${RUNNER_TEMP}/exec_script"
+          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Surface failing tests
         if: always()
