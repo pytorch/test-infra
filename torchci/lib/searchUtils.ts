@@ -11,32 +11,44 @@ export const MAX_SIZE = 20;
 export async function searchSimilarFailures(
   client: Client,
   query: string,
+  workflowName: string,
   index: string,
   startDate: string,
   endDate: string,
   minScore: number,
   maxSize: number = MAX_SIZE
 ): Promise<{ jobs: JobData[] }> {
+  const must: any[] = [
+    {
+      match: {
+        "torchci_classification.line": query,
+      },
+    },
+    {
+      range: {
+        completed_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    },
+  ];
+  // If specify, query by the workflow name too. This makes the query more
+  // accurate for less frequent jobs like periodic or slow
+  if (workflowName !== "") {
+    must.push({
+      match: {
+        workflow_name: workflowName,
+      },
+    });
+  }
+
   const body = {
     min_score: minScore,
     size: maxSize,
     query: {
       bool: {
-        must: [
-          {
-            match: {
-              "torchci_classification.line": query,
-            },
-          },
-          {
-            range: {
-              completed_at: {
-                gte: startDate,
-                lte: endDate,
-              },
-            },
-          },
-        ],
+        must: must,
       },
     },
     // NB: It's important to sort by score first so that the most relevant results

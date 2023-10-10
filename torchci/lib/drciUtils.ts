@@ -259,9 +259,15 @@ export async function querySimilarFailures(
     baseCommitDate !== "" ? baseCommitDate : job.completed_at
   ).subtract(lookbackPeriodInHours, "hour");
 
+  // Get the workflow name if possible
+  const jobNameIndex = job.name.indexOf(` / ${job.jobName}`);
+  const workflowName =
+    jobNameIndex !== -1 ? job.name.substring(0, jobNameIndex) : "";
+
   const results = await searchSimilarFailures(
     client,
     failure,
+    workflowName,
     WORKFLOW_JOB_INDEX,
     startDate.toISOString(),
     endDate.toISOString(),
