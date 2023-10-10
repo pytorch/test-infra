@@ -1441,13 +1441,6 @@
       "rocm"
     ]
   ],
-  "test_rekey_optim_state_dict_to_names (__main__.TestFSDPOptimState)": [
-    "105510",
-    "https://github.com/pytorch/pytorch/issues/105510",
-    [
-      "linux"
-    ]
-  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
