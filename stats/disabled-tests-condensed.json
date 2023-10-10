@@ -427,6 +427,13 @@
       "rocm"
     ]
   ],
+  "test_cublas_baddbmm_large_input_2_100_100_100_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
+    "110992",
+    "https://github.com/pytorch/pytorch/issues/110992",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
     "106308",
     "https://github.com/pytorch/pytorch/issues/106308",
