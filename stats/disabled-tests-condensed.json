@@ -1519,13 +1519,6 @@
       "linux"
     ]
   ],
-  "test_stringmember_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "110050",
-    "https://github.com/pytorch/pytorch/issues/110050",
-    [
-      "rocm"
-    ]
-  ],
   "test_submodules2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
     "110060",
     "https://github.com/pytorch/pytorch/issues/110060",
