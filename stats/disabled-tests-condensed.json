@@ -1512,13 +1512,6 @@
       "linux"
     ]
   ],
-  "test_submodules2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "110060",
-    "https://github.com/pytorch/pytorch/issues/110060",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
