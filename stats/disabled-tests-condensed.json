@@ -814,6 +814,13 @@
       "linux"
     ]
   ],
+  "test_jvp_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
+    "110980",
+    "https://github.com/pytorch/pytorch/issues/110980",
+    [
+      "macos"
+    ]
+  ],
   "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109829",
     "https://github.com/pytorch/pytorch/issues/109829",
