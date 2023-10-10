@@ -217,12 +217,12 @@ kpi_results AS (
     FORMAT_TIMESTAMP('%Y-%m-%d', d.bucket) AS bucket,
     -- rolling average
     (
-      AVG(ttrs_mins) OVER(
+      ROUND(AVG(ttrs_mins) OVER(
         PARTITION BY percentile
         ORDER BY
           -- Average over this many + 1 buckets (two weeks)
-          bucket ROWS 1 PRECEDING
-      )
+          bucket ROWS 0 PRECEDING
+      ))
     ) AS ttrs_mins,
     d.percentile
   FROM
