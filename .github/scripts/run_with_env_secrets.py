@@ -1,9 +1,9 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
-import shutil
 
 
 def run_cmd_or_die(cmd):
@@ -43,7 +43,7 @@ def main():
     all_secrets = json.loads(os.environ["ALL_SECRETS"])
     secrets_names = [x for x in sys.argv[1].split(" ") if x]
     if not secrets_names:
-        secrets_names = [x for x in all_secrets.keys()]
+        secrets_names = all_secrets.keys()
     secrets_u_names = [
         re.sub(r"[^a-zA-Z0-9_]", "", f"SECRET_{x.upper()}".replace("-", "_"))
         for x in secrets_names
@@ -58,10 +58,10 @@ def main():
     docker_path = shutil.which("docker")
     if not docker_path:
         run_cmd_or_die(f"bash { os.environ.get('RUNNER_TEMP', '') }/exec_script")
-    else
+    else:
         container_name = (
             run_cmd_or_die(
-            f"""
+                f"""
         docker run \
             -e PR_NUMBER \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
@@ -88,7 +88,7 @@ def main():
             -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
             -w /{ os.environ.get('REPOSITORY', 'work') } \
             "{ os.environ.get('DOCKER_IMAGE', '') }"
-        """
+        """  # noqa: E501
             )
             .replace("\n", "")
             .strip()
