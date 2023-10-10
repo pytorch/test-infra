@@ -427,6 +427,20 @@
       "rocm"
     ]
   ],
+  "test_cublas_baddbmm_large_input_1_10000_10000_10000_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
+    "110994",
+    "https://github.com/pytorch/pytorch/issues/110994",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cublas_baddbmm_large_input_2_1000_1000_1000_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
+    "110993",
+    "https://github.com/pytorch/pytorch/issues/110993",
+    [
+      "rocm"
+    ]
+  ],
   "test_cublas_baddbmm_large_input_2_100_100_100_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
     "110992",
     "https://github.com/pytorch/pytorch/issues/110992",
@@ -984,6 +998,13 @@
     [
       "linux",
       "win"
+    ]
+  ],
+  "test_mem_leak (__main__.TestProfilerCUDA)": [
+    "110995",
+    "https://github.com/pytorch/pytorch/issues/110995",
+    [
+      "rocm"
     ]
   ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
