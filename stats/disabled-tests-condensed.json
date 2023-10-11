@@ -1061,14 +1061,6 @@
       "macos"
     ]
   ],
-  "test_modules_can_be_imported (__main__.TestPublicBindings)": [
-    "111022",
-    "https://github.com/pytorch/pytorch/issues/111022",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_multi_return_some_unused (__main__.TestSerialize)": [
     "111038",
     "https://github.com/pytorch/pytorch/issues/111038",
