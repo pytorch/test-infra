@@ -1069,6 +1069,13 @@
       "macos"
     ]
   ],
+  "test_multi_return_some_unused (__main__.TestSerialize)": [
+    "111038",
+    "https://github.com/pytorch/pytorch/issues/111038",
+    [
+      "rocm"
+    ]
+  ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
     "108099",
     "https://github.com/pytorch/pytorch/issues/108099",
@@ -1739,20 +1746,6 @@
   "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
     "87070",
     "https://github.com/pytorch/pytorch/issues/87070",
-    [
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
-    "86732",
-    "https://github.com/pytorch/pytorch/issues/86732",
-    [
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_factor_cuda_float32 (__main__.TestJitCUDA)": [
-    "86839",
-    "https://github.com/pytorch/pytorch/issues/86839",
     [
       "linux"
     ]
