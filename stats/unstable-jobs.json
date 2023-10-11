@@ -1,4 +1,12 @@
 {
+  "linux-binary-manywheel / manywheel-py3_8-cuda11_8": [
+    "huydhn",
+    "104727",
+    "https://github.com/pytorch/pytorch/issues/104727",
+    "linux-binary-manywheel",
+    "manywheel-py3_8-cuda11_8",
+    ""
+  ],
   "periodic / macos-12-py3-x86-64 / test (default)": [
     "huydhn",
     "110328",
