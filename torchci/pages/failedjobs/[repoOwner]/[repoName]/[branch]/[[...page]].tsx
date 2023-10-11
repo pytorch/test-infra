@@ -9,7 +9,8 @@ import JobSummary from "components/JobSummary";
 import JobLinks from "components/JobLinks";
 import LogViewer from "components/LogViewer";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
-import { JobData, JobAnnotation } from "lib/types";
+import LogAnnotationToggle from "components/LogAnnotationToggle";
+import { JobData, JobAnnotation, LogAnnotation } from "lib/types";
 import { TimeRangePicker } from "pages/metrics";
 import dayjs from "dayjs";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
@@ -68,10 +69,12 @@ function FailedJob({
   job,
   similarJobs,
   classification,
+  logRating,
 }: {
   job: JobData;
   similarJobs: JobData[];
   classification: JobAnnotation;
+  logRating: LogAnnotation;
 }) {
   const hasSimilarJobs = similarJobs.length > 1;
 
@@ -83,6 +86,13 @@ function FailedJob({
           <CommitLink job={job} />
           {" | "}
           <JobLinks job={job} />
+        </div>
+        <div>
+          <LogAnnotationToggle
+            job={job}
+            log_metadata={{ "fake_key": "fake_value" }}
+            annotation={logRating}
+          />
         </div>
         <div>
           <JobAnnotationToggle
