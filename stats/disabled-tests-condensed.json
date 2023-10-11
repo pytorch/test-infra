@@ -552,13 +552,6 @@
       "linux"
     ]
   ],
-  "test_export_with_symbool_inputs_dynamic_shapes (__main__.DynamicShapesExportTests)": [
-    "110128",
-    "https://github.com/pytorch/pytorch/issues/110128",
-    [
-      "rocm"
-    ]
-  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
@@ -595,14 +588,6 @@
     "102112",
     "https://github.com/pytorch/pytorch/issues/102112",
     [
-      "inductor"
-    ]
-  ],
-  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95147",
-    "https://github.com/pytorch/pytorch/issues/95147",
-    [
-      "linux",
       "inductor"
     ]
   ],
