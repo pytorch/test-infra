@@ -841,6 +841,13 @@
       "macos"
     ]
   ],
+  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
+    "107383",
+    "https://github.com/pytorch/pytorch/issues/107383",
+    [
+      "rocm"
+    ]
+  ],
   "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109829",
     "https://github.com/pytorch/pytorch/issues/109829",
@@ -1549,13 +1556,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
