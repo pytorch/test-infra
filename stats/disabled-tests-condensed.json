@@ -27,6 +27,13 @@
       "rocm"
     ]
   ],
+  "test__int_mm (__main__.TestSelectAlgorithm)": [
+    "111050",
+    "https://github.com/pytorch/pytorch/issues/111050",
+    [
+      "rocm"
+    ]
+  ],
   "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
     "110198",
     "https://github.com/pytorch/pytorch/issues/110198",
