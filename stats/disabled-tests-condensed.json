@@ -234,6 +234,13 @@
       "slow"
     ]
   ],
+  "test_circular_dependencies (__main__.TestImports)": [
+    "110040",
+    "https://github.com/pytorch/pytorch/issues/110040",
+    [
+      "rocm"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -501,6 +508,13 @@
     "https://github.com/pytorch/pytorch/issues/109381",
     [
       "rocm"
+    ]
+  ],
+  "test_ddp_apply_optim_in_backward_ignored_params (__main__.TestDistBackendWithSpawn)": [
+    "106361",
+    "https://github.com/pytorch/pytorch/issues/106361",
+    [
+      "linux"
     ]
   ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
