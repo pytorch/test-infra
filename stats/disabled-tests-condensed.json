@@ -923,14 +923,6 @@
       "windows"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107197",
-    "https://github.com/pytorch/pytorch/issues/107197",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "108994",
     "https://github.com/pytorch/pytorch/issues/108994",
@@ -1044,6 +1036,14 @@
     "https://github.com/pytorch/pytorch/issues/88466",
     [
       "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_modules_can_be_imported (__main__.TestPublicBindings)": [
+    "111022",
+    "https://github.com/pytorch/pytorch/issues/111022",
+    [
       "mac",
       "macos"
     ]
