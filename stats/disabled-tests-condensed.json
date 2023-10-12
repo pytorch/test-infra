@@ -204,14 +204,6 @@
       "macos"
     ]
   ],
-  "test_cfgmod_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109589",
-    "https://github.com/pytorch/pytorch/issues/109589",
-    [
-      "rocm",
-      "linux"
-    ]
-  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
@@ -701,16 +693,6 @@
     "https://github.com/pytorch/pytorch/issues/93049",
     [
       "inductor"
-    ]
-  ],
-  "test_get_parameter_dtype_dynamic_shapes (__main__.DynamicShapesReproTests)": [
-    "109479",
-    "https://github.com/pytorch/pytorch/issues/109479",
-    [
-      "linux",
-      "rocm",
-      "slow",
-      "mac"
     ]
   ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
@@ -1577,14 +1559,6 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
-    ]
-  ],
-  "test_sequential_with_duplicated_module2_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109846",
-    "https://github.com/pytorch/pytorch/issues/109846",
-    [
-      "rocm",
-      "linux"
     ]
   ],
   "test_single_linear (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
