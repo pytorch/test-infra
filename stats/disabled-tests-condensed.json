@@ -1777,6 +1777,13 @@
       "rocm"
     ]
   ],
+  "test_unary_ops (__main__.TestTensorExprFuser)": [
+    "105119",
+    "https://github.com/pytorch/pytorch/issues/105119",
+    [
+      "rocm"
+    ]
+  ],
   "test_unary_pointwise_cpu (__main__.TestNestedTensorSubclassCPU)": [
     "109189",
     "https://github.com/pytorch/pytorch/issues/109189",
