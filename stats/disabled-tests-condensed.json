@@ -1366,13 +1366,6 @@
       "macos"
     ]
   ],
-  "test_operator_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "91685",
-    "https://github.com/pytorch/pytorch/issues/91685",
-    [
-      "linux"
-    ]
-  ],
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
