@@ -17,9 +17,10 @@ import { parse } from "ansicolor";
 
 import { oneDark } from "@codemirror/theme-one-dark";
 import { isFailure } from "lib/JobClassifierUtil";
-import { JobData } from "lib/types";
+import { JobData, LogAnnotation } from "lib/types";
 import { useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
+import LogAnnotationToggle from "./LogAnnotationToggle";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
 // Based on the current editor view, produce a series of decorations that
@@ -190,7 +191,15 @@ function Log({ url, line }: { url: string; line: number | null }) {
   return <div ref={viewer}></div>;
 }
 
-export default function LogViewer({ job }: { job: JobData }) {
+export default function LogViewer({
+  job,
+  logRating,
+  showAnnotationToggle = false,
+}: {
+  job: JobData;
+  logRating: LogAnnotation;
+  showAnnotationToggle?: boolean;
+}) {
   const [showLogViewer, setShowLogViewer] = useState(false);
 
   useEffect(() => {
@@ -222,6 +231,15 @@ export default function LogViewer({ job }: { job: JobData }) {
         <code>{job.failureLine ?? "Show log"}</code>
       </button>
       {showLogViewer && <Log url={job.logUrl!} line={job.failureLineNumber!} />}
+      {showAnnotationToggle && (
+        <div>
+          <LogAnnotationToggle
+            job={job}
+            log_metadata={{ job_id: "1" }}
+            annotation={logRating}
+          />
+        </div>
+      )}
     </div>
   );
 }
