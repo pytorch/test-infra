@@ -210,7 +210,7 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
       }
     }
 
-    if (currentMatch !== undefined && !processedJobName.has(job.name)) {
+    if (currentMatch !== undefined && !processedJobName.has(currentMatch.name!)) {
       processedJobName.add(currentMatch.name!);
       filteredJobs.push(currentMatch);
     }
