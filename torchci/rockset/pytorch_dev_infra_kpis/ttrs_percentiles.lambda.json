@@ -20,6 +20,11 @@
       "name": "stopTime",
       "type": "string",
       "value": "2024-08-16T00:06:32.839Z"
+    },
+    {
+      "name": "workflow",
+      "type": "string",
+      "value": "pull"
     }
   ],
   "description": "Computes the TTRS kpi"

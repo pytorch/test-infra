@@ -114,7 +114,7 @@ commit_job_durations AS (
     INNER JOIN commons.workflow_run r ON j.run_id = r.id
   WHERE
     1 = 1
-    AND r.name = 'pull' -- Stick to pull workflows to reduce noise. Trendlines are the same within other workflows
+    AND r.name = :workflow -- Stick to pull workflows to reduce noise. Trendlines are the same within other workflows
     AND j.conclusion = 'failure' -- we just care about failed jobs
     AND js.conclusion = 'failure'
     AND j.run_attempt = 1 -- only look at the first run attempt since reruns will either 1) succeed, so are irrelevant or 2) repro the failure, biasing our data
