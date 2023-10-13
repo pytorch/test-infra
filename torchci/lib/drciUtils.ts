@@ -306,7 +306,7 @@ export async function hasSimilarFailures(
       head_sha: record.sha as string,
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
-      failure_line: record.failureLine,
+      failure_line: record.failureLines ? record.failureLines[0] : undefined,
     };
 
     // Only count different jobs with the same failure

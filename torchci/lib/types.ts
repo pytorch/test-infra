@@ -21,8 +21,8 @@ export interface JobData extends BasicJobData {
   logUrl?: string;
   durationS?: number;
   queueTimeS?: number;
-  failureLine?: string;
-  failureLineNumber?: number;
+  failureLines?: string[];
+  failureLineNumbers?: number[];
   failureCaptures?: string[];
   repo?: string;
   failureAnnotation?: string;
