@@ -678,4 +678,33 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
+
+  test("test jobs excluded from flaky detection", async () => {
+    const excludedFailure = {
+      id: "1",
+      runnerName: "dummy",
+      name: "Lint / lintrunner / linux-job",
+      conclusion: "failure",
+      completed_at: "2023-10-13T15:00:48Z",
+      html_url: "a",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      failure_captures: [">>> Lint for torch/_dynamo/output_graph.py:"],
+      failure_line: ">>> Lint for torch/_dynamo/output_graph.py:",
+    };
+
+    const originalWorkflows = [excludedFailure];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
 });
