@@ -681,7 +681,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
   test("test jobs excluded from flaky detection", async () => {
     const excludedFailure = {
-      id: 1,
+      id: "1",
       runnerName: "dummy",
       name: "Lint / lintrunner / linux-job",
       conclusion: "failure",
