@@ -69,13 +69,13 @@ def filter_tests(failed_tests, merge_bases):
 
 def avg(l: List[float]) -> str:
     if len(l) == 0:
-        return " N/A"
+        return "N/A"
     return f"{sum(l) / len(l):.2f}"
 
 
 def med(l: List[float]) -> str:
     if len(l) == 0:
-        return " N/A"
+        return "N/A"
     return f"{sorted(l)[len(l) // 2]:.2f}"
 
 
