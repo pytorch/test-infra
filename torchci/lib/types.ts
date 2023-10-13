@@ -179,6 +179,14 @@ export enum JobAnnotation {
   OTHER = "Other",
 }
 
+export enum LogAnnotation {
+  NULL = "None",
+  PREFER_TOP_LOG = "Prefer Top Log",
+  PREFER_BOTTOM_LOG = "Prefer Bottom Log",
+  PREFER_NEITHER = "Prefer Neither",
+  SIMILAR_LOGS = "Similar Logs",
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
