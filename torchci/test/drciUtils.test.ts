@@ -2,6 +2,7 @@ import {
   hasSimilarFailures,
   querySimilarFailures,
   isInfraFlakyJob,
+  isExcludedFromFlakiness,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
@@ -346,5 +347,49 @@ describe("Test various utils used by Dr.CI", () => {
       runnerName: "",
     };
     expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
+  });
+
+  test("test isExcludedFromFlakiness", () => {
+    const excludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "LinT / quick-checks / linux-job",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "ERROR",
+      failure_captures: ["ERROR"],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(excludedJob)).toEqual(true);
+
+    const anotherExcludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "pull / linux-docs / build-docs-python-false",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "",
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(anotherExcludedJob)).toEqual(true);
+
+    const notExcludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_line: "",
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(notExcludedJob)).toEqual(false);
   });
 });
