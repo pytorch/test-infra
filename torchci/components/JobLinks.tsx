@@ -84,7 +84,7 @@ function getTestName(failureCapture: string, reproduction: boolean = false) {
   const pytestMatch = failureCapture.match(pytestFailureRe);
   if (pytestMatch !== null) {
     if (reproduction) {
-      return `python3 ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
+      return `python ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
     }
     return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
   }
