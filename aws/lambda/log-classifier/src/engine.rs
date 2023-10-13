@@ -37,10 +37,20 @@ pub fn evaluate_rule(rule: &Rule, log: &Log) -> Option<Match> {
 
 /// Evaluate the ruleset against `log`. Returns the highest-priority match, or
 /// None if no rule matched.
-pub fn evaluate_ruleset(ruleset: &RuleSet, log: &Log) -> Option<Match> {
+pub fn evaluate_ruleset_by_priority(ruleset: &RuleSet, log: &Log) -> Option<Match> {
     ruleset
         .rules
         .par_iter()
         .flat_map(|rule| evaluate_rule(rule, log))
         .max_by(|a, b| a.rule.priority.cmp(&b.rule.priority))
+}
+
+/// Evaluate the ruleset against `log`. Returns the match with the highest line number, or
+/// None if no rule matched.
+pub fn evaluate_ruleset_by_position(ruleset: &RuleSet, log: &Log) -> Option<Match> {
+    ruleset
+        .rules
+        .par_iter()
+        .flat_map(|rule| evaluate_rule(rule, log))
+        .max_by(|a, b| a.line_number.cmp(&b.line_number))
 }
