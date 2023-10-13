@@ -62,13 +62,6 @@
       "mac"
     ]
   ],
-  "test_allocator_settings (__main__.TestCudaMallocAsync)": [
-    "108476",
-    "https://github.com/pytorch/pytorch/issues/108476",
-    [
-      "rocm"
-    ]
-  ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91486",
     "https://github.com/pytorch/pytorch/issues/91486",
@@ -139,15 +132,6 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
-    ]
-  ],
-  "test_bottleneck_cuda (__main__.TestBottleneck)": [
-    "85284",
-    "https://github.com/pytorch/pytorch/issues/85284",
-    [
-      "linux",
-      "win",
-      "windows"
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
@@ -830,15 +814,6 @@
       "rocm"
     ]
   ],
-  "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109829",
-    "https://github.com/pytorch/pytorch/issues/109829",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_kwargs_out_list_variable_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109495",
     "https://github.com/pytorch/pytorch/issues/109495",
@@ -1339,13 +1314,6 @@
       "rocm"
     ]
   ],
-  "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
-    "82340",
-    "https://github.com/pytorch/pytorch/issues/82340",
-    [
-      "linux"
-    ]
-  ],
   "test_open_device_registration (__main__.TestCppExtensionOpenRgistration)": [
     "100152",
     "https://github.com/pytorch/pytorch/issues/100152",
@@ -1580,87 +1548,6 @@
     "https://github.com/pytorch/pytorch/issues/91488",
     [
       "linux"
-    ]
-  ],
-  "test_symints_location (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109862",
-    "https://github.com/pytorch/pytorch/issues/109862",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109864",
-    "https://github.com/pytorch/pytorch/issues/109864",
-    [
-      "linux"
-    ]
-  ],
-  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109872",
-    "https://github.com/pytorch/pytorch/issues/109872",
-    [
-      "linux"
-    ]
-  ],
-  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109901",
-    "https://github.com/pytorch/pytorch/issues/109901",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109983",
-    "https://github.com/pytorch/pytorch/issues/109983",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109996",
-    "https://github.com/pytorch/pytorch/issues/109996",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110012",
-    "https://github.com/pytorch/pytorch/issues/110012",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110038",
-    "https://github.com/pytorch/pytorch/issues/110038",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110051",
-    "https://github.com/pytorch/pytorch/issues/110051",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_tags_recomputed_rand (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110062",
-    "https://github.com/pytorch/pytorch/issues/110062",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
