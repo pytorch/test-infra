@@ -932,20 +932,6 @@
       "slow"
     ]
   ],
-  "test_max_autotune_cut_addmm_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
-    "111064",
-    "https://github.com/pytorch/pytorch/issues/111064",
-    [
-      "rocm"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_mm_bias_dynamic_False_max_autotune_gemm_backends_ATen, Triton, CUTLASS (__main__.TestDoBench)": [
-    "111065",
-    "https://github.com/pytorch/pytorch/issues/111065",
-    [
-      "rocm"
-    ]
-  ],
   "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109512",
     "https://github.com/pytorch/pytorch/issues/109512",
