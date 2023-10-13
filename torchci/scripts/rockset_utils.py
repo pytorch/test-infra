@@ -2,7 +2,9 @@ from functools import lru_cache
 import os
 from typing import Any, Dict, List, Optional
 
-import rockset  # type: ignore[import]
+import rockset
+
+from utils import cache_json  # type: ignore[import]
 
 
 @lru_cache
@@ -13,16 +15,16 @@ def get_rockset_client():
 
 
 def query_rockset(
-    query: str, params: Optional[Dict[str, Any]] = None
+    query: str, params: Optional[Dict[str, Any]] = None, use_cache: bool = False
 ) -> List[Dict[str, Any]]:
-    res: List[Dict[str, Any]] = (
-        rockset.RocksetClient(
-            host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-        )
-        .sql(query, params=params)
-        .results
-    )
-    return res
+    if not use_cache:
+        return get_rockset_client().sql(query, params=params).results
+
+    @cache_json
+    def cache_query_rockset(query, params):
+        return get_rockset_client().sql(query, params=params).results
+
+    return cache_query_rockset(query, params)
 
 
 def upload_to_rockset(
