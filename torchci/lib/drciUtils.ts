@@ -32,6 +32,7 @@ export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
+export const EXCLUDED_FROM_FLAKINESS = ["lintrunner"];
 
 export function formDrciHeader(
   owner: string,
@@ -283,6 +284,10 @@ export async function hasSimilarFailures(
   lookbackPeriodInHours: number = 24,
   client?: Client
 ): Promise<boolean> {
+  if (isExcludedFromFlakiness(job)) {
+    return false;
+  }
+
   const records = await querySimilarFailures(
     job,
     baseCommitDate,
@@ -334,5 +339,16 @@ export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
     (job.runnerName === null ||
       job.runnerName === undefined ||
       job.runnerName === "")
+  );
+}
+
+export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
+  // Lintrunner job are generally stable and should be excluded from flakiness
+  // detection
+  return (
+    _.find(
+      EXCLUDED_FROM_FLAKINESS,
+      (exclude: string) => job.name !== undefined && job.name.includes(exclude)
+    ) !== undefined
   );
 }
