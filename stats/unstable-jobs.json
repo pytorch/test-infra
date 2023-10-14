@@ -22,5 +22,13 @@
     "trunk",
     "linux-focal-rocm5.6-py3.8",
     "test (default)"
+  ],
+  "trunk / macos-12-py3-arm64": [
+    "huydhn",
+    "102299",
+    "https://github.com/pytorch/pytorch/issues/102299",
+    "trunk",
+    "macos-12-py3-arm64",
+    ""
   ]
 }
