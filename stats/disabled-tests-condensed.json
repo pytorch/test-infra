@@ -1459,6 +1459,13 @@
       "mac"
     ]
   ],
+  "test_requires_grad_loop (test_jit.TestScript)": [
+    "91492",
+    "https://github.com/pytorch/pytorch/issues/91492",
+    [
+      "linux"
+    ]
+  ],
   "test_rewrite_assert_noop_dynamic_shapes (__main__.DynamicShapesReproTests)": [
     "109511",
     "https://github.com/pytorch/pytorch/issues/109511",
