@@ -644,6 +644,13 @@
       "rocm"
     ]
   ],
+  "test_fused_int_mm_mul_gating (__main__.TestPaternMatcher)": [
+    "111398",
+    "https://github.com/pytorch/pytorch/issues/111398",
+    [
+      "rocm"
+    ]
+  ],
   "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
     "105254",
     "https://github.com/pytorch/pytorch/issues/105254",
