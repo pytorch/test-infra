@@ -1552,6 +1552,14 @@
       "linux"
     ]
   ],
+  "test_symints_location (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109862",
+    "https://github.com/pytorch/pytorch/issues/109862",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
