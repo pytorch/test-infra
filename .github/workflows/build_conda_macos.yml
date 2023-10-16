@@ -232,6 +232,10 @@ jobs:
             --label main \
             --no-progress \
             --force
+      - name: Clean up disk space
+        if: always()
+        continue-on-error: true
+        uses: ./test-infra/.github/actions/check-disk-space@main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

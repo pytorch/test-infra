@@ -178,3 +178,7 @@ jobs:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+      - name: Clean up disk space
+        if: always()
+        continue-on-error: true
+        uses: ./test-infra/.github/actions/check-disk-space@main
