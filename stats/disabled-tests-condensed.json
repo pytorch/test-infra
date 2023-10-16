@@ -1371,13 +1371,6 @@
       "linux"
     ]
   ],
-  "test_prim_grad_undefined (test_jit.TestScript)": [
-    "91493",
-    "https://github.com/pytorch/pytorch/issues/91493",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler (__main__.TestJit)": [
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
@@ -1536,6 +1529,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
+    "91482",
+    "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
     ]
   ],
   "test_tensor_requires_grad (test_jit.TestScript)": [
