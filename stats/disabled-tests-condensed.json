@@ -637,6 +637,13 @@
       "linux"
     ]
   ],
+  "test_fused_int_mm_mul (__main__.TestPaternMatcher)": [
+    "111345",
+    "https://github.com/pytorch/pytorch/issues/111345",
+    [
+      "rocm"
+    ]
+  ],
   "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
     "105254",
     "https://github.com/pytorch/pytorch/issues/105254",
