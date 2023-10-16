@@ -234,8 +234,8 @@ jobs:
             --force
       - name: Clean up disk space
         if: always()
-        continue-on-error: true
-        uses: ./test-infra/.github/actions/check-disk-space@main
+#        continue-on-error: true
+        uses: ./test-infra/.github/actions/check-disk-space
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
