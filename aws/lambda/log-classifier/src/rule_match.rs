@@ -45,7 +45,7 @@ impl SerializedMatch {
             let l = log.lines.get(&i).unwrap();
             // Choose to ignore exit N and return N command because they don't
             // mean anything and just fill up the context
-            if l.starts_with("+") && !l.contains("+ exit") && !l.contains("+ return") {
+            if l.starts_with("+") {
                 context.push(l.clone());
             }
         }

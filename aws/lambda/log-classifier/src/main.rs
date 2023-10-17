@@ -235,18 +235,17 @@ mod test {
         let log = Log::new(
             "\
             + python testing\n\
-            + exit 1\n\
-            ++ return 2\n\
             ++ echo DUMMY\n\
+            ++ exit 1\n\
             testt\n\
             "
             .into(),
         );
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
-        assert_eq!(match_.line_number, 5);
+        assert_eq!(match_.line_number, 4);
 
         let match_json = SerializedMatch::new(&match_, &log);
-        assert_eq!(match_json.context, ["++ echo DUMMY", "+ python testing"]);
+        assert_eq!(match_json.context, ["++ exit 1", "++ echo DUMMY", "+ python testing"]);
     }
 
     // Actually download some id.
