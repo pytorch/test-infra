@@ -1534,6 +1534,14 @@
       "rocm"
     ]
   ],
+  "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109983",
+    "https://github.com/pytorch/pytorch/issues/109983",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
