@@ -1457,13 +1457,6 @@
       "linux"
     ]
   ],
-  "test_rewrite_assert_noop_dynamic_shapes (__main__.DynamicShapesReproTests)": [
-    "109511",
-    "https://github.com/pytorch/pytorch/issues/109511",
-    [
-      "linux"
-    ]
-  ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
