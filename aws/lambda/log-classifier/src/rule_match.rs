@@ -1,6 +1,7 @@
 use crate::log::Log;
 use crate::rule::Rule;
 use serde::Serialize;
+use std::collections::HashMap;
 
 /// Represents a successful match of a log line against a rule.
 #[derive(Debug)]
@@ -19,10 +20,11 @@ pub struct SerializedMatch {
     line: String,
     line_num: usize,
     captures: Vec<String>,
+    classifier_metadata: HashMap<String, String>,
 }
 
 impl SerializedMatch {
-    pub fn new(m: &Match, log: &Log) -> SerializedMatch {
+    pub fn new(m: &Match, log: &Log, classifier_metadata: Option<HashMap<String, String>>) -> SerializedMatch {
         // Unwrap because we know this is a valid key (since the Log object is never mutated.)
         let line = log.lines.get(&m.line_number).unwrap();
         SerializedMatch {
@@ -30,6 +32,7 @@ impl SerializedMatch {
             line: line.clone(),
             line_num: m.line_number,
             captures: m.captures.clone(),
+            classifier_metadata: classifier_metadata.unwrap_or_else(HashMap::new),
         }
     }
 }

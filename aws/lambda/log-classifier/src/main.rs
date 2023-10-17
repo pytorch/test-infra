@@ -15,16 +15,34 @@ use log_classifier::rule_match::SerializedMatch;
 
 struct ShouldWriteDynamo(bool);
 
+async fn process_match(
+    best_match: &Match ,
+    log: &Log,
+    repo: &str,
+    job_id: usize,
+    should_write_dynamo: ShouldWriteDynamo,
+) -> Result<String> {
+    let match_json = SerializedMatch::new(best_match, log, None);
+    let body = serde_json::to_string_pretty(&match_json)?;
+    info!("match: {}", body);
+    if should_write_dynamo.0 {
+        let client = get_dynamo_client().await;
+        upload_classification_dynamo(&client, repo, job_id, &match_json).await?;
+    }
+    Ok(body)
+}
+
 async fn handle(
     job_id: usize,
     repo: &str,
     should_write_dynamo: ShouldWriteDynamo,
-) -> Result<String> {
+) -> Vec<Result<String>> {
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
     let raw_log = download_log(&client, repo, job_id).await?;
     info!("download: {:?}", start.elapsed());
+    let mut results: Vec<String> = Vec::new();
 
     // Do some preprocessing.
     let start = Instant::now();
@@ -34,25 +52,26 @@ async fn handle(
     // Run the matching
     let start = Instant::now();
     let ruleset = RuleSet::new_from_config();
-    let maybe_match = evaluate_ruleset_by_priority(&ruleset, &log);
+    let maybe_match_priority = evaluate_ruleset_by_priority(&ruleset, &log);
+    let maybe_match_position = evaluate_ruleset_by_position(&ruleset, &log);
     info!("evaluate: {:?}", start.elapsed());
 
-    match maybe_match {
-        Some(best_match) => {
-            let match_json = SerializedMatch::new(&best_match, &log);
-            let body = serde_json::to_string_pretty(&match_json)?;
-            info!("match: {}", body);
-            if should_write_dynamo.0 {
-                let client = get_dynamo_client().await;
-                upload_classification_dynamo(&client, repo, job_id, &match_json).await?;
-            }
-            Ok(body)
-        }
-        None => {
-            info!("no match found for {}", job_id);
-            Ok("No match found".into())
-        }
+    if let Some(best_match) = maybe_match_priority {
+        let res = process_match(&best_match, &log, repo, job_id, should_write_dynamo).await?;
+        results.push(res);
     }
+
+    if let Some(best_match) = maybe_match_position {
+        let res = process_match(&best_match, &log, repo, job_id, should_write_dynamo).await?;
+        results.push(res);
+    }
+
+    if results.is_empty() {
+        info!("no match found for {}", job_id);
+        results.push("No match found".into());
+    }
+
+    Ok(results)
 }
 
 async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
