@@ -14,10 +14,14 @@ use log_classifier::rule_match::SerializedMatch;
 
 struct ShouldWriteDynamo(bool);
 
+/// Set the default depth of the context stack
+static CONTEXT_DEPTH: &str = "12";
+
 async fn handle(
     job_id: usize,
     repo: &str,
     should_write_dynamo: ShouldWriteDynamo,
+    context_depth: usize,
 ) -> Result<String> {
     let client = get_s3_client().await;
     // Download the log from S3.
@@ -38,7 +42,7 @@ async fn handle(
 
     match maybe_match {
         Some(best_match) => {
-            let match_json = SerializedMatch::new(&best_match, &log);
+            let match_json = SerializedMatch::new(&best_match, &log, context_depth);
             let body = serde_json::to_string_pretty(&match_json)?;
             info!("match: {}", body);
             if should_write_dynamo.0 {
@@ -63,7 +67,11 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
             let repo = query_string_parameters
                 .first("repo")
                 .unwrap_or_else(|| "pytorch/pytorch");
-            handle(job_id, repo, ShouldWriteDynamo(true))
+            let context_depth = query_string_parameters
+                .first("context_depth")
+                .unwrap_or_else(|| CONTEXT_DEPTH)
+                .parse::<usize>()?;
+            handle(job_id, repo, ShouldWriteDynamo(true), context_depth)
                 .await?
                 .into_response()
                 .await
@@ -226,6 +234,26 @@ mod test {
         for rule in &ruleset.rules {
             Regex::new(rule.pattern.as_str()).unwrap();
         }
+    }
+
+    #[test]
+    fn gather_optional_context() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add("test", r"^test");
+        let log = Log::new(
+            "\
+            + python testing\n\
+            ++ echo DUMMY\n\
+            ++ exit 1\n\
+            testt\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.line_number, 4);
+
+        let match_json = SerializedMatch::new(&match_, &log, 12);
+        assert_eq!(match_json.context, ["++ exit 1", "++ echo DUMMY", "+ python testing"]);
     }
 
     // Actually download some id.
