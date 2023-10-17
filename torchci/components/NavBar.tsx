@@ -82,6 +82,11 @@ function NavBar() {
             </Link>
           </li>
           <li>
+            <Link prefetch={false} href="/hud/pytorch/executorch/main">
+              ExecuTorch
+            </Link>
+          </li>
+          <li>
             <Link prefetch={false} href="/hud/pytorch/vision/main">
               TorchVision
             </Link>
