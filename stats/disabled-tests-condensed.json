@@ -837,16 +837,6 @@
       "slow"
     ]
   ],
-  "test_kwargs_out_list_variable_dynamic_shapes (__main__.DynamicShapesReproTests)": [
-    "109495",
-    "https://github.com/pytorch/pytorch/issues/109495",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "rocm"
-    ]
-  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1548,6 +1538,13 @@
   "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
     "109864",
     "https://github.com/pytorch/pytorch/issues/109864",
+    [
+      "linux"
+    ]
+  ],
+  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109872",
+    "https://github.com/pytorch/pytorch/issues/109872",
     [
       "linux"
     ]
