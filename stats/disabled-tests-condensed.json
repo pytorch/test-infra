@@ -209,14 +209,6 @@
       "linux"
     ]
   ],
-  "test_children_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109546",
-    "https://github.com/pytorch/pytorch/issues/109546",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_circular_dependencies (__main__.TestImports)": [
     "110040",
     "https://github.com/pytorch/pytorch/issues/110040",
@@ -923,14 +915,6 @@
       "slow"
     ]
   ],
-  "test_maybe_multiply_symint_dynamic_shapes (__main__.DynamicShapesReproTests)": [
-    "109512",
-    "https://github.com/pytorch/pytorch/issues/109512",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1540,6 +1524,14 @@
     "https://github.com/pytorch/pytorch/issues/109872",
     [
       "linux"
+    ]
+  ],
+  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109901",
+    "https://github.com/pytorch/pytorch/issues/109901",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
