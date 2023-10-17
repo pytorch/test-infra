@@ -228,6 +228,27 @@ mod test {
         }
     }
 
+    #[test]
+    fn gather_optional_context() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add("test", r"^test");
+        let log = Log::new(
+            "\
+            + python testing\n\
+            + exit 1\n\
+            ++ return 2\n\
+            ++ echo DUMMY\n\
+            testt\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.line_number, 5);
+
+        let match_json = SerializedMatch::new(&match_, &log);
+        assert_eq!(match_json.context, ["++ echo DUMMY", "+ python testing"]);
+    }
+
     // Actually download some id.
     // #[tokio::test]
     // async fn test_real() {
