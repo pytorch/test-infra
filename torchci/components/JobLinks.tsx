@@ -61,11 +61,11 @@ export default function JobLinks({ job }: { job: JobData }) {
       <TestInsightsLink job={job} separator={" | "} />
       <DisableTest job={job} label={"skipped"} />
       {authenticated && <UnstableJob job={job} label={"unstable"} />}
-      {authenticated && job.failureLines && (
+      {authenticated && job.failureLine && (
         <ReproductionCommand
           job={job}
           separator={" | "}
-          testName={getTestName(job.failureLines[0])}
+          testName={getTestName(job.failureLine)}
         />
       )}
     </span>
@@ -98,7 +98,7 @@ This test was disabled because it is failing on main branch ([recent examples]($
 }
 
 function DisableTest({ job, label }: { job: JobData; label: string }) {
-  const hasFailureClassification = job.failureLines != null;
+  const hasFailureClassification = job.failureLine != null;
   const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
   const { data } = useSWR(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
@@ -114,7 +114,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
     return null;
   }
 
-  const testName = job.failureLines ? getTestName(job.failureLines[0]) : null;
+  const testName = getTestName(job.failureLine!);
   // - The failure classification is not a python unittest or pytest failure.
   if (testName === null) {
     return null;

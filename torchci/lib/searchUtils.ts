@@ -95,11 +95,10 @@ export async function searchSimilarFailures(
       time: data.completed_at,
       conclusion: data.conclusion,
       htmlUrl: data.html_url,
-      failureLines: [data.torchci_classification.line],
-      failureLineNumbers: [data.torchci_classification.line_num],
+      failureLine: data.torchci_classification.line,
+      failureLineNumber: data.torchci_classification.line_num,
       failureCaptures: data.torchci_classification.captures,
     });
   });
-
   return { jobs: jobs };
 }

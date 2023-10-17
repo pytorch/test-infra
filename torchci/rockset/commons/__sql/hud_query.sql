@@ -91,8 +91,8 @@ SELECT
     log_url as logUrl,
     duration_s as durationS,
     repo as repo,
-    ARRAY_CREATE(line) as failureLines,
-    ARRAY_CREATE(line_num) as failureLineNumbers,
+    line as failureLine,
+    line_num as failureLineNumber,
     captures as failureCaptures,
     annotation as failureAnnotation,
 FROM
