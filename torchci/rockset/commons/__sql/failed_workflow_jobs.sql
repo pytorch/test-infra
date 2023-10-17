@@ -46,9 +46,9 @@ SELECT
     PARSE_TIMESTAMP_ISO8601(job.completed_at)
   ) AS durationS,
   w.repository.full_name AS repo,
-  ARRAY_CREATE(job.torchci_classification.line) AS failureLines,
+  job.torchci_classification.line AS failureLine,
   job.torchci_classification.captures AS failureCaptures,
-  ARRAY_CREATE(job.torchci_classification.line_num) AS failureLineNumbers,
+  job.torchci_classification.line_num AS failureLineNumber,
 FROM
   ids
   JOIN workflow_job job on job.id = ids.id

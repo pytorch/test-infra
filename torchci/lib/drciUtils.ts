@@ -311,7 +311,7 @@ export async function hasSimilarFailures(
       head_sha: record.sha as string,
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
-      failure_lines: record.failureLines ? record.failureLines : undefined,
+      failure_line: record.failureLine,
     };
 
     // Only count different jobs with the same failure
@@ -333,9 +333,9 @@ export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
   // the workflow summary tab
   return (
     job.conclusion === "failure" &&
-    (job.failure_lines === null ||
-      job.failure_lines === undefined ||
-      job.failure_lines[0] === "") &&
+    (job.failure_line === null ||
+      job.failure_line === undefined ||
+      job.failure_line === "") &&
     (job.runnerName === null ||
       job.runnerName === undefined ||
       job.runnerName === "")
