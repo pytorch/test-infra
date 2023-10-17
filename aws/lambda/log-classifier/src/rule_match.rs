@@ -2,9 +2,6 @@ use crate::log::Log;
 use crate::rule::Rule;
 use serde::Serialize;
 
-/// Set the maximum depth of the context stack
-static CONTEXT_DEPTH: usize = 5;
-
 /// Represents a successful match of a log line against a rule.
 #[derive(Debug)]
 pub struct Match {
@@ -28,17 +25,17 @@ pub struct SerializedMatch {
 }
 
 impl SerializedMatch {
-    pub fn new(m: &Match, log: &Log) -> SerializedMatch {
+    pub fn new(m: &Match, log: &Log, context_depth: usize) -> SerializedMatch {
         // Unwrap because we know this is a valid key (since the Log object is never mutated.)
         let line = log.lines.get(&m.line_number).unwrap();
 
-        let mut context = Vec::with_capacity(CONTEXT_DEPTH);
+        let mut context = Vec::with_capacity(context_depth);
         // NB: backtrack the log till we find the previous command. This relies
         // on GitHub console log convention to prefix a bash command with +. An
         // important note is that this only works for bash though, not Windows
         // PowerShell. But Windows support could be added later.
         for i in (1..=m.line_number).rev() {
-            if context.len() == CONTEXT_DEPTH {
+            if context.len() == context_depth {
                 break
             }
 
