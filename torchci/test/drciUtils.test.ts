@@ -39,8 +39,8 @@ describe("Test various utils used by Dr.CI", () => {
       time: mockEndDate,
       conclusion: "failure",
       htmlUrl: "Anything goes",
-      failureLine: "ERROR",
-      failureLineNumber: 0,
+      failureLines: ["ERROR"],
+      failureLineNumbers: [0],
       failureCaptures: ["ERROR"],
     };
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
@@ -214,8 +214,8 @@ describe("Test various utils used by Dr.CI", () => {
       time: "2023-08-01T00:00:00Z",
       conclusion: "failure",
       htmlUrl: "Anything goes",
-      failureLine: "ERROR",
-      failureLineNumber: 0,
+      failureLines: ["ERROR"],
+      failureLineNumbers: [0],
       failureCaptures: ["ERROR"],
     };
     mock.mockImplementation(() => Promise.resolve({ jobs: [mockJobData] }));
@@ -310,7 +310,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "ERROR",
+      failure_lines: ["ERROR"],
       failure_captures: ["ERROR"],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
@@ -324,7 +324,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "",
+      failure_lines: [""],
       failure_captures: [],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
@@ -338,7 +338,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "",
+      failure_lines: [""],
       failure_captures: [],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
