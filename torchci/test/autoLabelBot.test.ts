@@ -58,7 +58,7 @@ describe("auto-label-bot", () => {
       .post(
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
         (body) => {
-          expect(body).toMatchObject({ labels: ["module: rocm"] });
+          expect(body).toMatchObject({ labels: ["module: rocm", "ciflow/rocm"] });
           return true;
         }
       )
@@ -84,7 +84,7 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["module: rocm"] });
+        expect(body).toMatchObject({ labels: ["module: rocm", "ciflow/rocm"] });
         return true;
       })
       .reply(200);
