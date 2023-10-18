@@ -537,8 +537,8 @@ function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
             failureCapture.match(captureRegex)
           );
         const matchFailureLine: boolean =
-          job.failure_line != null &&
-          job.failure_line.match(captureRegex) != null;
+          job.failure_lines != null &&
+          job.failure_lines[0].match(captureRegex) != null;
 
         // Accept both failure captures array and failure line string to make sure
         // that nothing is missing
