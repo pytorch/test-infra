@@ -3,6 +3,7 @@ import { addLabels, isPyTorchPyTorch } from "./utils";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
+  [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
   [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
