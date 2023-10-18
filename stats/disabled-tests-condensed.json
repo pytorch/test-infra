@@ -196,6 +196,14 @@
       "macos"
     ]
   ],
+  "test_check_inplace_nn_CELU_mps_float32 (__main__.TestModuleMPS)": [
+    "111449",
+    "https://github.com/pytorch/pytorch/issues/111449",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
@@ -236,6 +244,13 @@
     "https://github.com/pytorch/pytorch/issues/101625",
     [
       "rocm"
+    ]
+  ],
+  "test_compile_dtensor_redistribute_backward (__main__.TestDTensorCompileE2E)": [
+    "111448",
+    "https://github.com/pytorch/pytorch/issues/111448",
+    [
+      "linux"
     ]
   ],
   "test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)": [
@@ -600,13 +615,6 @@
     "https://github.com/pytorch/pytorch/issues/101757",
     [
       "inductor"
-    ]
-  ],
-  "test_fnmembercmp1_dynamic_shapes (__main__.DynamicShapesNNModuleTests)": [
-    "109595",
-    "https://github.com/pytorch/pytorch/issues/109595",
-    [
-      "linux"
     ]
   ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
