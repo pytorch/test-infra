@@ -35,7 +35,7 @@ impl SerializedMatch {
         // PowerShell. But Windows support could be added later.
         for i in (1..=m.line_number).rev() {
             if context.len() == context_depth {
-                break
+                break;
             }
 
             let l = log.lines.get(&i).unwrap();
