@@ -1589,6 +1589,15 @@
       "slow"
     ]
   ],
+  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110038",
+    "https://github.com/pytorch/pytorch/issues/110038",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
