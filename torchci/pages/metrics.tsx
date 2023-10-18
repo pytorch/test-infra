@@ -869,6 +869,7 @@ export default function Page() {
             additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
+
         <JobsDuration
           title={"Job time-to-signal, all branches"}
           branchName={"%"}
