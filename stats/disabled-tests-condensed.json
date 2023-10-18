@@ -989,6 +989,13 @@
       "linux"
     ]
   ],
+  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111462",
+    "https://github.com/pytorch/pytorch/issues/111462",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPaternMatcher)": [
     "111051",
     "https://github.com/pytorch/pytorch/issues/111051",
