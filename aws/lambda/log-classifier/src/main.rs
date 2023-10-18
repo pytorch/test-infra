@@ -253,7 +253,10 @@ mod test {
         assert_eq!(match_.line_number, 4);
 
         let match_json = SerializedMatch::new(&match_, &log, 12);
-        assert_eq!(match_json.context, ["++ exit 1", "++ echo DUMMY", "+ python testing"]);
+        assert_eq!(
+            match_json.context,
+            ["++ exit 1", "++ echo DUMMY", "+ python testing"]
+        );
     }
 
     // Actually download some id.

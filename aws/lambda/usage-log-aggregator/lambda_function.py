@@ -200,17 +200,10 @@ async def aggregate(body: str, context: Any) -> str:
     owner = params.get("owner", PYTORCH)
     repo = params.get("repo", PYTORCH)
 
-    # i.e. pull
-    workflow_name = params.get("workflowName")
     # i.e. linux-bionic-cuda11.6-py3.10-gcc7 / test (default, 1, 4, linux.4xlarge.nvidia.gpu)
     job_name = params.get("jobName")
-    # i.e. test_ops
-    test_file = params.get("testFile")
-    # i.e. TestCommonCUDA
-    test_class = params.get("testClass")
-
-    # Other parameters are not needed right now at the current level of granularity. However,
-    # we keep them here for future usage
+    # Other parameters including workflowName, testFile, and testClass are not needed right
+    # now at the current level of granularity. However, they're there for future usage
     if not job_name:
         return json.dumps({"error": "Missing jobName"})
 
