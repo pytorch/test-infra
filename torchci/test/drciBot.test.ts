@@ -215,6 +215,16 @@ describe("verify-drci-functionality", () => {
           body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
         },
       ])
+      .post(`/repos/${OWNER}/${REPO}/check-runs`, (body) => {
+        expect(body["name"] === "Dr.CI").toBeTruthy();
+        expect(body["status"] === "completed").toBeTruthy();
+        expect(body["conclusion"] === "neutral").toBeTruthy();
+        expect(
+          body["output"]["title"] === "Dr.CI classification results"
+        ).toBeTruthy();
+        return true;
+      })
+      .reply(200, {})
       .patch(
         `/repos/${OWNER}/${REPO}/issues/comments/${comment_id}`,
         (body) => {

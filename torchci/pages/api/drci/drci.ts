@@ -142,6 +142,23 @@ export async function updateDrciComments(
       repo: repo,
       comment_id: id,
     });
+
+    // Also update the check run status. As this is run under pytorch-bot,
+    // the check run will show up under that GitHub app
+    await octokit.rest.checks.create({
+      owner: OWNER,
+      repo: repo,
+      name: "Dr.CI",
+      head_sha: pr_info.head_sha,
+      status: "completed",
+      conclusion: "neutral",
+      output: {
+        title: "Dr.CI classification results",
+        // NB: the summary contains the classification result from Dr.CI,
+        // so that it can be queried elsewhere
+        summary: JSON.stringify(failures),
+      },
+    });
   });
 
   return failures;
