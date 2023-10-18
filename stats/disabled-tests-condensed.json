@@ -645,13 +645,6 @@
       "linux"
     ]
   ],
-  "test_fsdp_tp_integration_tensor_parallel_size_2_cpu_offload_CPUOffload(offload_params=False) (__main__.TestTPFSDPIntegration)": [
-    "111433",
-    "https://github.com/pytorch/pytorch/issues/111433",
-    [
-      "linux"
-    ]
-  ],
   "test_fused_int_mm_mul (__main__.TestPaternMatcher)": [
     "111345",
     "https://github.com/pytorch/pytorch/issues/111345",
