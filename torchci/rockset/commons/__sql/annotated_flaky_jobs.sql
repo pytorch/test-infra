@@ -14,9 +14,9 @@ select
         PARSE_TIMESTAMP_ISO8601(job.completed_at)
     ) as durationS,
     w.repository.full_name as repo,
-    ARRAY_CREATE(job.torchci_classification.line) as failureLines,
+    job.torchci_classification.line as failureLine,
     job.torchci_classification.captures as failureCaptures,
-    ARRAY_CREATE(job.torchci_classification.line_num) as failureLineNumbers,
+    job.torchci_classification.line_num as failureLineNumber,
 from
     commons.job_annotation a
     join commons.workflow_job job on job.id = a.jobID
