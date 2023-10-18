@@ -4,11 +4,11 @@ import hashlib
 import hmac
 import json
 import os
-from typing import Any, Dict
 
 import boto3
+from typing import *
 from existing_schema import existing_schema
-from sqlalchemy import column, table
+from sqlalchemy import column, insert, table
 from sqlalchemy.dialects.mysql import insert
 
 from utils import (
@@ -104,7 +104,7 @@ def lambda_handler(event, context):
     if check_hash(payload, expected):
         body = event["body"]
         if body.startswith("payload="):
-            body = body[len("payload=") :]  # noqa: E203
+            body = body[len("payload=") :]
         try:
             payload = json.loads(body)
         except Exception as e:

@@ -13,7 +13,7 @@ import asyncio
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict
+from typing import *
 
 from sqlalchemy.orm import declarative_base
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     webhooks = defaultdict(dict)
 
     # Go over and combine all webhooks of the same type
-    n = len(list(samples_path.glob("*/*.json")))
+    n = len([x for x in samples_path.glob("*/*.json")])
     for i, name in enumerate(samples_path.glob("*/*.json")):
         if i % 1000 == 0:
             print(f"{i} / {n}")

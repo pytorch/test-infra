@@ -7,11 +7,8 @@ on:
     tags:
       - v*
   pull_request:
-    # A caveat https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions:
-    # If you define a path with the ! character, you must also define at least one path without
-    # the ! character. If you only want to exclude paths, use paths-ignore instead
-    paths-ignore:
-      - 'tools/torchfix/**'
+    paths:
+      - '!tools/torchfix/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}

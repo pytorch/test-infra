@@ -1,15 +1,12 @@
 """
-This adds a lambda to handle reading / writing to our RDS MySQL instance that
-we can access from the EC2 runners in CI. Similar to scribe-proxy, this means
-we can write on pull requests without a secret and also run queries to plan
-tests / etc.
+This adds a lambda to handle reading / writing to our RDS MySQL instance that we can access from the EC2 runners in CI. Similar to scribe-proxy, this means we can write on pull requests without a secret and also run queries to plan tests / etc.
 """
 import datetime
 import json
 import os
+from typing import *
 import re
 from contextlib import closing
-from typing import Any, Dict, List, Union
 
 import mysql.connector
 
@@ -107,7 +104,7 @@ def build_query(body):
 
     limit = body.get("limit", None)
     if limit is not None:
-        query += " LIMIT %s"
+        query += f" LIMIT %s"
         params.append(int(limit))
 
     return query, params
@@ -120,7 +117,7 @@ def run_query(query: str, params: List[str], connection: Any) -> List[Dict[str, 
 
     with closing(connection.cursor(dictionary=True)) as cursor:
         cursor.execute(query, params)
-        return list(cursor)
+        return [row for row in cursor]
 
 
 def run_write(write):
@@ -130,13 +127,13 @@ def run_write(write):
         validate_schema_name(field): value for field, value in write["values"].items()
     }
     fields["updated_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    names = ", ".join(list(fields.keys()))
+    names = ", ".join([k for k in fields.keys()])
 
     # Here we can actually use parameterized queries, so don't put the actual
     # values
     placeholders = ", ".join(["%s" for _ in range(len(fields))])
     query = f"INSERT INTO {name}({names}) VALUES ({placeholders})"
-    params = list(fields.values())
+    params = [v for v in fields.values()]
 
     conn = get_connection("inserter")
     res = run_query(query, params, conn)
