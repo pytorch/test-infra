@@ -529,6 +529,13 @@
       "dynamo"
     ]
   ],
+  "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111514",
+    "https://github.com/pytorch/pytorch/issues/111514",
+    [
+      "dynamo"
+    ]
+  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -893,6 +900,13 @@
       "windows"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107762",
+    "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux"
+    ]
+  ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "108994",
     "https://github.com/pytorch/pytorch/issues/108994",
@@ -978,6 +992,13 @@
   "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111462",
     "https://github.com/pytorch/pytorch/issues/111462",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111513",
+    "https://github.com/pytorch/pytorch/issues/111513",
     [
       "dynamo"
     ]
@@ -1513,6 +1534,13 @@
       "linux"
     ]
   ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
+    [
+      "linux"
+    ]
+  ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91488",
     "https://github.com/pytorch/pytorch/issues/91488",
@@ -1582,6 +1610,14 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110051",
+    "https://github.com/pytorch/pytorch/issues/110051",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
