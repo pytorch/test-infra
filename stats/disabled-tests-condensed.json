@@ -181,6 +181,13 @@
       "rocm"
     ]
   ],
+  "test_cat_addmm (__main__.TestMaxAutotune)": [
+    "109982",
+    "https://github.com/pytorch/pytorch/issues/109982",
+    [
+      "rocm"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
@@ -1564,6 +1571,14 @@
     [
       "linux",
       "rocm",
+      "slow"
+    ]
+  ],
+  "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110012",
+    "https://github.com/pytorch/pytorch/issues/110012",
+    [
+      "linux",
       "slow"
     ]
   ],
