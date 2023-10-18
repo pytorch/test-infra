@@ -156,7 +156,7 @@ export async function updateDrciComments(
         title: "Dr.CI classification results",
         // NB: the summary contains the classification result from Dr.CI,
         // so that it can be queried elsewhere
-        summary: JSON.stringify(failures),
+        summary: JSON.stringify(failures[pr_info.pr_number]),
       },
     });
   });
