@@ -8,6 +8,7 @@ import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { JobAnnotation } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
+import { isFailedJob } from "lib/jobUtils";
 
 function FailedJobInfo({
   job,
@@ -50,10 +51,9 @@ export default function FilteredJobList({
   pred: (job: JobData) => boolean;
   showClassification?: boolean;
 }) {
-  const filteredJobs = jobs.filter(pred);
-
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
+  const filteredJobs = jobs.filter(pred);
   const { data } = useSWR(
     showClassification
       ? `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
@@ -68,6 +68,13 @@ export default function FilteredJobList({
 
   if (filteredJobs.length === 0) {
     return null;
+  }
+  console.log("filtered jobs");
+  console.log(filteredJobs);
+  console.log("pred is ", pred);
+
+  for (const job of filteredJobs) {
+    console.log("job is failed as", isFailedJob(job), pred);
   }
   return (
     <div>
