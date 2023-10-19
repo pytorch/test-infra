@@ -11,6 +11,8 @@ pub struct Match {
     /// The capture groups in the regex pattern. If no capture groups were
     /// specified, this is the entire match.
     pub captures: Vec<String>,
+    // some metadata about the match for rockset
+    pub metadata: HashMap<String, String>,
 }
 
 /// The actual format that we insert to Rockset.

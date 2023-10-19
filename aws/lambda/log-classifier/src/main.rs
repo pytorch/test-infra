@@ -134,7 +134,7 @@ async fn main() -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use log_classifier::engine::evaluate_rule;
+    use log_classifier::engine::{create_metadata_hashmap, evaluate_rule};
     use log_classifier::rule::Rule;
     use regex::Regex;
 
@@ -147,7 +147,8 @@ mod test {
         };
 
         let log = Log::new("test foo".into());
-        let match_ = evaluate_rule(&rule, &log);
+        let metadata = create_metadata_hashmap("test", "0.1.0");
+        let match_ = evaluate_rule(&rule, &log, &metadata);
         assert_eq!(match_.unwrap().line_number, 1);
     }
 
