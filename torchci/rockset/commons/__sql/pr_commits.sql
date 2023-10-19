@@ -14,14 +14,18 @@ pr_shas AS (
     j.head_sha AS sha,
     p.head_commit.message,
     CONCAT(
-      'https://github.com/pytorch/pytorch/pull/',
+      'https://github.com/',
+      :owner,
+      '/',
+      :repo,
+      '/',
       r.pull_requests[1].number
     ) AS pr_url,
     p.head_commit.url AS commit_url,
   FROM
     commons.workflow_job j
     INNER JOIN commons.workflow_run r ON j.run_id = r.id
-    INNER JOIN commons.push p ON p.head_commit.id = j.head_sha
+    JOIN commons.push p ON p.head_commit.id = j.head_sha
   WHERE
     1 = 1
     AND LENGTH(r.pull_requests) = 1
