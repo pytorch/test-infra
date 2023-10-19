@@ -884,17 +884,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "102775",
-    "https://github.com/pytorch/pytorch/issues/102775",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107762",
     "https://github.com/pytorch/pytorch/issues/107762",
@@ -1026,6 +1015,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
+    "111607",
+    "https://github.com/pytorch/pytorch/issues/111607",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPaternMatcher)": [
     "111051",
     "https://github.com/pytorch/pytorch/issues/111051",
@@ -1096,13 +1092,6 @@
       "macos"
     ]
   ],
-  "test_multilayer_var_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
-    "107705",
-    "https://github.com/pytorch/pytorch/issues/107705",
-    [
-      "macos"
-    ]
-  ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
@@ -1113,6 +1102,13 @@
   "test_narrow_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111567",
     "https://github.com/pytorch/pytorch/issues/111567",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_narrow_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111606",
+    "https://github.com/pytorch/pytorch/issues/111606",
     [
       "dynamo"
     ]
