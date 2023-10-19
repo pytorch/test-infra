@@ -65,7 +65,7 @@ export default function JobLinks({ job }: { job: JobData }) {
         <ReproductionCommand
           job={job}
           separator={" | "}
-          testName={getTestName(job.failureLines[0])}
+          testName={getTestName(job.failureLines[0] ?? "")}
         />
       )}
     </span>
@@ -73,9 +73,9 @@ export default function JobLinks({ job }: { job: JobData }) {
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
+
 function getTestName(failureCapture: string) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
@@ -117,7 +117,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   const testName =
     job.failureLines && job.failureLines[0]
-      ? getTestName(job.failureLines[0])
+      ? getTestName(job.failureLines[0] ?? "")
       : null;
   // - The failure classification is not a python unittest or pytest failure.
   if (testName === null) {
