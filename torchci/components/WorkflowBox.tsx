@@ -115,13 +115,13 @@ function useArtifacts(workflowId: string | undefined): {
   artifacts: any;
   error: any;
 } {
-  if (workflowId === undefined) {
-    return { artifacts: [], error: "No workflow ID" };
-  }
   const { data, error } = useSWR(`/api/artifacts/s3/${workflowId}`, fetcher, {
     refreshInterval: 60 * 1000,
     refreshWhenHidden: true,
   });
+  if (workflowId === undefined) {
+    return { artifacts: [], error: "No workflow ID" };
+  }
   if (data == null) {
     return { artifacts: [], error: "Loading..." };
   }
@@ -136,7 +136,9 @@ function groupArtifacts(artifacts: Artifact[]) {
   const grouping = new Map<string | undefined, Artifact[]>();
   for (const artifact of artifacts) {
     try {
-      const id = artifact.name.match(new RegExp(".*[_-](\\d+)\\.[^.]+$"))?.at(1)!;
+      const id = artifact.name
+        .match(new RegExp(".*[_-](\\d+)\\.[^.]+$"))
+        ?.at(1)!;
       parseInt(id); // Should raise exception if not an int
       if (!grouping.has(id)) {
         grouping.set(id, []);
