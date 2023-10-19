@@ -209,6 +209,13 @@
       "rocm"
     ]
   ],
+  "test_cat_nhwc (__main__.TestQuantizedOps)": [
+    "111619",
+    "https://github.com/pytorch/pytorch/issues/111619",
+    [
+      "macos"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
