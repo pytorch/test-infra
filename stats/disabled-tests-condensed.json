@@ -224,14 +224,6 @@
       "macos"
     ]
   ],
-  "test_check_inplace_nn_CELU_mps_float32 (__main__.TestModuleMPS)": [
-    "111449",
-    "https://github.com/pytorch/pytorch/issues/111449",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
@@ -1811,6 +1803,13 @@
     "https://github.com/pytorch/pytorch/issues/86887",
     [
       "linux"
+    ]
+  ],
+  "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
+    "111583",
+    "https://github.com/pytorch/pytorch/issues/111583",
+    [
+      "macos"
     ]
   ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
