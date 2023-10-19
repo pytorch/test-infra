@@ -330,15 +330,6 @@
       "linux"
     ]
   ],
-  "test_cond_with_quantization (__main__.MiscTests)": [
-    "110593",
-    "https://github.com/pytorch/pytorch/issues/110593",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -363,13 +354,6 @@
   "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105124",
     "https://github.com/pytorch/pytorch/issues/105124",
-    [
-      "rocm"
-    ]
-  ],
-  "test_conv_transposed_large_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "110550",
-    "https://github.com/pytorch/pytorch/issues/110550",
     [
       "rocm"
     ]
@@ -1048,6 +1032,13 @@
   "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
     "111561",
     "https://github.com/pytorch/pytorch/issues/111561",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111571",
+    "https://github.com/pytorch/pytorch/issues/111571",
     [
       "dynamo"
     ]
