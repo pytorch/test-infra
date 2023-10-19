@@ -23,7 +23,7 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 
-function getWorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
+function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
   var queueTimeInfo = null;
   if (job.queueTimeS != null) {
     queueTimeInfo = (
@@ -101,7 +101,7 @@ export default function WorkflowBox({
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
-            {getWorkflowJobSummary(job, groupedArtifacts?.get(job.id))}
+            {WorkflowJobSummary(job, groupedArtifacts?.get(job.id))}
             {isFailedJob(job) && <LogViewer job={job} />}
           </div>
         ))}
