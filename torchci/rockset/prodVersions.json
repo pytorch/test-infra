@@ -30,7 +30,7 @@
     "test_insights_latest_runs": "1871833a91cb8b1b",
     "master_commit_red_jobs": "4869b467679a616a",
     "weekly_force_merge_stats": "d2264131599bcf6e",
-    "pr_commits": "94d1bf6f96a2cff0"
+    "pr_commits": "7ef5e3d100a56edc"
   },
   "pytorch_dev_infra_kpis": {
     "monthly_contribution_stats": "c1a8751a22f6b6ce",

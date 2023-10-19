@@ -9,16 +9,19 @@ WITH
 -- a commit from a PR
 pr_shas AS (
   SELECT DISTINCT
-    p.head_commit.timestamp as timestamp,
+    FORMAT_ISO8601(
+        PARSE_TIMESTAMP_ISO8601(p.head_commit.timestamp),
+        'America/Los_Angeles'
+    ) as timestamp,
     r.pull_requests[1].number AS pr_number,
-    j.head_sha AS sha,
+    p.head_commit.id AS sha,
     p.head_commit.message,
     CONCAT(
       'https://github.com/',
       :owner,
       '/',
       :repo,
-      '/',
+      '/pull/',
       r.pull_requests[1].number
     ) AS pr_url,
     p.head_commit.url AS commit_url,
