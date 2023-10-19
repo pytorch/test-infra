@@ -6,6 +6,20 @@
       "linux"
     ]
   ],
+  "test_Conv2d_groups_nobias (__main__.TestConvolutionNN)": [
+    "111532",
+    "https://github.com/pytorch/pytorch/issues/111532",
+    [
+      "rocm"
+    ]
+  ],
+  "test_Conv2d_groups_nobias_v2 (__main__.TestConvolutionNN)": [
+    "111533",
+    "https://github.com/pytorch/pytorch/issues/111533",
+    [
+      "rocm"
+    ]
+  ],
   "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
     "77317",
     "https://github.com/pytorch/pytorch/issues/77317",
