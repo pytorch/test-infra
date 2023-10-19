@@ -13,8 +13,6 @@ export default async function fetchPR(
 
   const rocksetClient = getRocksetClient();
 
-
-
   const octokit = await getOctokit(owner, repo);
   const [pull, commits, historicalCommits] = await Promise.all([
     octokit.rest.pulls.get({
@@ -35,19 +33,19 @@ export default async function fetchPR(
       {
         parameters: [
           {
-            name: "pr_number",
+            name: "pr_num",
             type: "int",
             value: prNumber,
           },
           {
             name: "owner",
             type: "string",
-            value: `${owner}`,
+            value: owner,
           },
           {
             name: "repo",
             type: "string",
-            value: `${repo}`,
+            value: repo,
           },
         ],
       }
@@ -55,18 +53,24 @@ export default async function fetchPR(
   ]);
   const title = pull.data.title;
 
-  console.log("Fetcing PRS ZZZZZZZZZZ")
-  console.log(historicalCommits)
-  const shas = historicalCommits.results!.map((commit) => {
+  let shas = historicalCommits.results!.map((commit) => {
     return { sha: commit.sha, title: commit.message.split("\n")[0] };
   });
 
   // Ideally historicalCommits will be a superset of commits, but if there's a propagation delay with
   // getting the data to rockset it may be missing recent commits for a bit.
-  // For the very last sha, checking to see if the shas themselves match offer a good proxy for detecting a missing commit.
-  const lastCommit = commits[commits.length - 1];
-  if (lastCommit.sha !== shas[shas.length - 1].sha) {
-    shas.push({ sha: lastCommit.sha, title: lastCommit.commit.message.split("\n")[0] });
+  if (shas.length == 0) {
+    // If we got no data from rockset, just use the commits from GitHub.
+    shas = commits.map((commit) => {
+      return { sha: commit.sha, title: commit.commit.message.split("\n")[0] };
+    });
+  } else {
+    // For the very last sha, check to see if the shas themselves match as a proxy for detecting any missing commit.
+    const lastCommit = commits[commits.length - 1];
+    const lastHistoricalCommit = shas[shas.length - 1]
+    if (lastCommit.sha != lastHistoricalCommit.sha) {
+      shas.push({ sha: lastCommit.sha, title: lastCommit.commit.message.split("\n")[0] });
+    }
   }
 
   return { title, shas };
