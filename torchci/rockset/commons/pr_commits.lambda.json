@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/pr_commits.sql",
+  "default_parameters": [
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "pr_num",
+      "type": "int",
+      "value": "110578"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ],
+  "description": "Shows all commits for a PR"
+}
