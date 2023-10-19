@@ -50,10 +50,9 @@ export default function FilteredJobList({
   pred: (job: JobData) => boolean;
   showClassification?: boolean;
 }) {
-  const filteredJobs = jobs.filter(pred);
-
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
+  const filteredJobs = jobs.filter(pred);
   const { data } = useSWR(
     showClassification
       ? `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
@@ -69,6 +68,7 @@ export default function FilteredJobList({
   if (filteredJobs.length === 0) {
     return null;
   }
+
   return (
     <div>
       <h2>{filterName}</h2>

@@ -178,8 +178,9 @@ const failedI = {
   id: "1",
   pr_number: 1001,
   failure_captures: [],
-  failure_line:
+  failure_lines: [
     "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
+  ],
   runnerName: "dummy",
 };
 
@@ -516,6 +517,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         ],
         new Map()
       );
+    console.log("failedJobs", failedJobs);
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(3);
@@ -690,7 +692,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       head_sha: "abcdefg",
       pr_number: 1001,
       failure_captures: [">>> Lint for torch/_dynamo/output_graph.py:"],
-      failure_line: ">>> Lint for torch/_dynamo/output_graph.py:",
+      failure_lines: [">>> Lint for torch/_dynamo/output_graph.py:"],
     };
 
     const originalWorkflows = [excludedFailure];
