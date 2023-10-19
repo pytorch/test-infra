@@ -92,6 +92,7 @@ export default function CommitStatus({
           !isRerunDisabledTestsJob(job) &&
           !isUnstableJob(job)
         }
+        // pred={(job) => job.conclusion === "pending"}
         showClassification
       />
       <FilteredJobList

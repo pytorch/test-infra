@@ -194,13 +194,22 @@ function Log({ url, line }: { url: string; line: number | null }) {
 export default function LogViewer({
   job,
   logRating = LogAnnotation.NULL,
-  showAnnotationToggle = false,
+  showAnnotationToggle = process.env.DEBUG_LOG_CLASSIFIER === "true",
+  maxNumFailureLines = process.env.DEBUG_LOG_CLASSIFIER === "true" ? 2 : 1,
 }: {
   job: JobData;
   logRating?: LogAnnotation;
   showAnnotationToggle?: boolean;
+  maxNumFailureLines?: number;
 }) {
-  const [showLogViewer, setShowLogViewer] = useState(false);
+  // const numFailureLines =
+  //   Math.min(job.failureLines?.length || 0, maxNumFailureLines);
+
+  // we will replace this with the code above once we support having multiple failure lines in rockset
+  const numFailureLines = maxNumFailureLines;
+  const [showLogViewer, setShowLogViewer] = useState<boolean[]>(
+    Array.from({ length: numFailureLines }, () => false)
+  );
 
   useEffect(() => {
     document.addEventListener("copy", (e) => {
@@ -212,29 +221,51 @@ export default function LogViewer({
       e.preventDefault();
     });
   });
-
-  if (!job.failureLine && !isFailure(job.conclusion)) {
+  if (!job.failureLines && !isFailure(job.conclusion)) {
     return null;
   }
 
-  function handleClick() {
-    setShowLogViewer(!showLogViewer);
+  // return null if all failure lines are empty
+  if (
+    job.failureLines &&
+    job.failureLines.every((failureLine) => failureLine === null)
+  ) {
+    return null;
   }
 
+  const toggleLogViewer = (index: number) => {
+    // Make a copy of the current array state
+    const updatedShowLogViewer = [...showLogViewer];
+
+    // Toggle the boolean value at the given index
+    updatedShowLogViewer[index] = !updatedShowLogViewer[index];
+
+    // Update the state
+    setShowLogViewer(updatedShowLogViewer);
+  };
   return (
     <div>
-      <button
-        style={{ background: "none", cursor: "pointer" }}
-        onClick={handleClick}
-      >
-        {showLogViewer ? "▼ " : "▶ "}
-        <code>{job.failureLine ?? "Show log"}</code>
-      </button>
-      {showLogViewer && <Log url={job.logUrl!} line={job.failureLineNumber!} />}
+      {showLogViewer.map((show, index) => (
+        <div key={index}>
+          <button
+            style={{ background: "none", cursor: "pointer" }}
+            onClick={() => toggleLogViewer(index)}
+          >
+            {show ? "▼ " : "▶ "}
+            <code>
+              {(job.failureLines && job.failureLines[index]) ?? "Show log"}
+            </code>
+          </button>
+          {show && (
+            <Log url={job.logUrl!} line={job.failureLineNumbers![index]} />
+          )}
+        </div>
+      ))}
       {showAnnotationToggle && (
         <div>
           <LogAnnotationToggle
             job={job}
+            // send in real metadata later
             log_metadata={{ job_id: "1" }}
             annotation={logRating}
           />
