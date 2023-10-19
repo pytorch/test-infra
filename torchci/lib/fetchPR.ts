@@ -8,11 +8,13 @@ export default async function fetchPR(
   repo: string,
   prNumber: string
 ): Promise<PRData> {
-  // First pull data from Rockset to get everything including commits that have been force merged past.
-  // Then pull data from GitHub to get anything newer that was missed.
+
+  // We pull data from both Rockset and Github to get all commits, including
+  // the ones that have been force merged out of the git history.
+  // Rockset is the primary source, GitHub covers anything newer that might
+  // have been missed.
 
   const rocksetClient = getRocksetClient();
-
   const octokit = await getOctokit(owner, repo);
   const [pull, commits, historicalCommits] = await Promise.all([
     octokit.rest.pulls.get({
@@ -26,7 +28,7 @@ export default async function fetchPR(
       pull_number: parseInt(prNumber),
       per_page: 100,
     }),
-    await rocksetClient.queryLambdas.executeQueryLambda(
+    rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "pr_commits",
       rocksetVersions.commons.pr_commits as string,
