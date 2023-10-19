@@ -4,7 +4,8 @@ use anyhow::Result;
 use std::time::Instant;
 use tracing::info;
 
-use log_classifier::engine::evaluate_ruleset;
+use log_classifier::engine::evaluate_ruleset_by_position;
+use log_classifier::engine::evaluate_ruleset_by_priority;
 use log_classifier::log::Log;
 use log_classifier::network::{
     download_log, get_dynamo_client, get_s3_client, upload_classification_dynamo,
@@ -37,7 +38,7 @@ async fn handle(
     // Run the matching
     let start = Instant::now();
     let ruleset = RuleSet::new_from_config();
-    let maybe_match = evaluate_ruleset(&ruleset, &log);
+    let maybe_match = evaluate_ruleset_by_priority(&ruleset, &log);
     info!("evaluate: {:?}", start.elapsed());
 
     match maybe_match {
@@ -126,9 +127,12 @@ mod test {
             "
             .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 1);
         assert_eq!(match_.rule.name, "foo");
+        let match_position_ = evaluate_ruleset_by_position(&ruleset, &log).unwrap();
+        assert_eq!(match_position_.line_number, 1);
+        assert_eq!(match_position_.rule.name, "foo");
     }
 
     #[test]
@@ -142,9 +146,12 @@ mod test {
             "
             .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 1);
         assert_eq!(match_.rule.name, "foo");
+        let match_position_ = evaluate_ruleset_by_position(&ruleset, &log).unwrap();
+        assert_eq!(match_position_.line_number, 1);
+        assert_eq!(match_position_.rule.name, "foo");
     }
 
     #[test]
@@ -159,7 +166,7 @@ mod test {
             "
             .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 2);
         assert_eq!(match_.rule.name, "higher priority");
     }
@@ -176,24 +183,10 @@ mod test {
             "
                 .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log);
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log);
         assert!(match_.is_none());
-    }
-
-    #[test]
-    fn match_before_ignore() {
-        let mut ruleset = RuleSet::new();
-        ruleset.add("test", r"^test");
-        let log = Log::new(
-            "\
-            testt\n\
-            =================== sccache compilation log ===================\n\
-            =========== If your build fails, please take a look at the log above for possible reasons ===========\n\
-            "
-                .into(),
-        );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
-        assert_eq!(match_.line_number, 1);
+        let match_position_ = evaluate_ruleset_by_position(&ruleset, &log);
+        assert!(match_position_.is_none());
     }
 
     #[test]
@@ -208,8 +201,10 @@ mod test {
             "
                 .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 3);
+        let match_position_ = evaluate_ruleset_by_position(&ruleset, &log).unwrap();
+        assert_eq!(match_position_.line_number, 3);
     }
 
     #[test]
@@ -223,7 +218,7 @@ mod test {
             "
             .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 2);
     }
 
@@ -249,7 +244,7 @@ mod test {
             "
             .into(),
         );
-        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        let match_ = evaluate_ruleset_by_priority(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 4);
 
         let match_json = SerializedMatch::new(&match_, &log, 12);
@@ -265,4 +260,55 @@ mod test {
     //    let foo = handle(12421522599, "pytorch/vision", ShouldWriteDynamo(false)).await;
     //    panic!("{:#?}", foo);
     // }
+    #[test]
+    fn test_evaluate_ruleset_by_position_smoke_test() {
+        let ruleset = RuleSet {
+            rules: vec![Rule {
+                name: "test".into(),
+                pattern: r"^test".parse().unwrap(),
+                priority: 100,
+            }],
+        };
+        let log = Log::new(
+            "\
+            testt\n\
+            test foo\n\
+            "
+            .into(),
+        );
+
+        let match_ = evaluate_ruleset_by_position(&ruleset, &log).unwrap();
+
+        assert_eq!(match_.line_number, 2);
+    }
+
+    #[test]
+    fn test_evaluate_ruleset_by_position_later_line_wins() {
+        let ruleset = RuleSet {
+            rules: vec![
+                Rule {
+                    name: "test".into(),
+                    pattern: r"^test".parse().unwrap(),
+                    priority: 100,
+                },
+                Rule {
+                    name: "foo".into(),
+                    pattern: r"^foo".parse().unwrap(),
+                    priority: 1000,
+                },
+            ],
+        };
+        let log = Log::new(
+            "\
+            test foo\n\
+            testt\n\
+            "
+            .into(),
+        );
+
+        let match_ = evaluate_ruleset_by_position(&ruleset, &log).unwrap();
+
+        assert_eq!(match_.line_number, 2);
+        assert_eq!(match_.rule.name, "test");
+    }
 }
