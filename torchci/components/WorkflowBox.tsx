@@ -160,6 +160,9 @@ function Artifacts({
   if (error != null) {
     return <div>{error}</div>;
   }
+  if (artifacts.length == 0) {
+    return null;
+  }
 
   return (
     <>
