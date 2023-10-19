@@ -91,7 +91,7 @@ export default function WorkflowBox({
   const workflowId = jobs[0].workflowId;
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
 
-  const { artifacts, error } = getArtifacts(workflowId);
+  const { artifacts, error } = useArtifacts(workflowId);
   const groupedArtifacts = groupArtifacts(artifacts);
 
   return (
@@ -111,7 +111,7 @@ export default function WorkflowBox({
   );
 }
 
-function getArtifacts(workflowId: string | undefined): {
+function useArtifacts(workflowId: string | undefined): {
   artifacts: any;
   error: any;
 } {
