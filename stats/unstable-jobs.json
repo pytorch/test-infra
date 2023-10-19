@@ -14,5 +14,13 @@
     "pull",
     "linux-focal-cuda12.1-py3.10-gcc9-sm86",
     "test (default)"
+  ],
+  "rocm / linux-focal-rocm5.6-py3.8 / test (default)": [
+    "huydhn",
+    "111527",
+    "https://github.com/pytorch/pytorch/issues/111527",
+    "rocm",
+    "linux-focal-rocm5.6-py3.8",
+    "test (default)"
   ]
 }
