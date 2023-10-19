@@ -8,7 +8,6 @@ export default async function fetchPR(
   repo: string,
   prNumber: string
 ): Promise<PRData> {
-
   // We pull data from both Rockset and Github to get all commits, including
   // the ones that have been force merged out of the git history.
   // Rockset is the primary source, GitHub covers anything newer that might
