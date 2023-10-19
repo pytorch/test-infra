@@ -92,7 +92,7 @@ export default function WorkflowBox({
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
 
   const { artifacts, error } = useArtifacts(workflowId);
-  const groupedArtifacts = groupArtifacts(artifacts);
+  const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
   return (
     <div id={anchorName} className={workflowClass}>
@@ -131,20 +131,38 @@ function useArtifacts(workflowId: string | undefined): {
   return { artifacts: data, error };
 }
 
-function groupArtifacts(artifacts: Artifact[]) {
+function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
   // Group artifacts by job id if possible
+  const jobIds = jobs.map((job) => job.id);
   const grouping = new Map<string | undefined, Artifact[]>();
   for (const artifact of artifacts) {
+    let key = "none";
     try {
+      // Build artifacts usually look like <job name>/artifacts.zip
+      const buildArtifactMatch = artifact.name.match(
+        new RegExp("([^/]+)/artifacts.zip")
+      );
+      if (buildArtifactMatch && buildArtifactMatch.length == 2) {
+        const jobName = `${buildArtifactMatch.at(1)} / build`;
+        const matchingJobs = jobs.filter((job) => job.jobName == jobName);
+        if (matchingJobs.length == 1) {
+          key = matchingJobs.at(0)?.id!;
+        }
+      }
+
+      // Other artifacts generally look like <stuff><- or _><job id>.<file extension>
       const id = artifact.name
         .match(new RegExp(".*[_-](\\d+)\\.[^.]+$"))
         ?.at(1)!;
       parseInt(id); // Should raise exception if not an int
-      if (!grouping.has(id)) {
-        grouping.set(id, []);
+      if (jobIds.includes(id)) {
+        key = id;
       }
-      grouping.get(id)!.push(artifact);
     } finally {
+      if (!grouping.has(key)) {
+        grouping.set(key, []);
+      }
+      grouping.get(key)!.push(artifact);
     }
   }
   return grouping;
