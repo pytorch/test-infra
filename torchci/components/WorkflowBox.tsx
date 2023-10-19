@@ -8,6 +8,7 @@ import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
+import { useState } from "react";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -22,7 +23,7 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 
-function getWorkflowJobSummary(job: JobData) {
+function getWorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
   var queueTimeInfo = null;
   if (job.queueTimeS != null) {
     queueTimeInfo = (
@@ -43,6 +44,9 @@ function getWorkflowJobSummary(job: JobData) {
 
   var separator = queueTimeInfo && durationInfo ? ", " : "";
 
+  const [showArtifacts, setShowArtifacts] = useState(false);
+  const hasArtifacts = artifacts && artifacts.length > 0;
+
   return (
     <>
       <JobSummary job={job} />
@@ -53,9 +57,20 @@ function getWorkflowJobSummary(job: JobData) {
         {separator}
         {durationInfo}
         <TestInsightsLink job={job} separator={", "} />,{" "}
+        {hasArtifacts && (
+          <a onClick={() => setShowArtifacts(!showArtifacts)}>
+            {" "}
+            Show artifacts,{" "}
+          </a>
+        )}
         <a target="_blank" rel="noreferrer" href={job.logUrl}>
           Raw logs
         </a>
+        {hasArtifacts &&
+          showArtifacts &&
+          artifacts?.map((artifact, ind) => {
+            return <JobArtifact key={ind} {...artifact} />;
+          })}
       </small>
     </>
   );
@@ -75,6 +90,10 @@ export default function WorkflowBox({
 
   const workflowId = jobs[0].workflowId;
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
+
+  const { artifacts, error } = getArtifacts(workflowId);
+  const groupedArtifacts = groupArtifacts(artifacts);
+
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
@@ -82,33 +101,62 @@ export default function WorkflowBox({
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
-            {getWorkflowJobSummary(job)}
+            {getWorkflowJobSummary(job, groupedArtifacts?.get(job.id))}
             {isFailedJob(job) && <LogViewer job={job} />}
           </div>
         ))}
       </>
-      <>{workflowId && <Artifacts workflowId={workflowId} />}</>
+      <>{workflowId && <Artifacts artifacts={artifacts} error={error} />}</>
     </div>
   );
 }
 
-function Artifacts({ workflowId }: { workflowId: string }) {
+function getArtifacts(workflowId: string | undefined): {
+  artifacts: any;
+  error: any;
+} {
+  if (workflowId === undefined) {
+    return { artifacts: [], error: "No workflow ID" };
+  }
   const { data, error } = useSWR(`/api/artifacts/s3/${workflowId}`, fetcher, {
     refreshInterval: 60 * 1000,
     refreshWhenHidden: true,
   });
   if (data == null) {
-    return <div>Loading...</div>;
+    return { artifacts: [], error: "Loading..." };
   }
-
   if (error != null) {
-    return (
-      <div style={{ color: "red" }}>Error occured while fetching artifacts</div>
-    );
+    return { artifacts: [], error: "Error occured while fetching artifacts" };
   }
-  const artifacts = data as Artifact[];
-  if (artifacts.length === 0) {
-    return null;
+  return { artifacts: data, error };
+}
+
+function groupArtifacts(artifacts: Artifact[]) {
+  // Group artifacts by job id if possible
+  const grouping = new Map<string | undefined, Artifact[]>();
+  for (const artifact of artifacts) {
+    try {
+      const id = artifact.name.match(new RegExp(".*[_-](\\d+)\\..*$"))?.at(1)!;
+      parseInt(id); // Should raise exception if not an int
+      if (!grouping.has(id)) {
+        grouping.set(id, []);
+      }
+      grouping.get(id)!.push(artifact);
+    } finally {
+    }
+  }
+  return grouping;
+}
+
+function Artifacts({
+  artifacts,
+  error,
+}: {
+  artifacts: Artifact[];
+  error: string | null;
+}) {
+  if (error != null) {
+    return <div>{error}</div>;
   }
 
   return (
@@ -122,7 +170,7 @@ function Artifacts({ workflowId }: { workflowId: string }) {
             fontWeight: "bold",
           }}
         >
-          Expand to see Artifacts
+          Expand to see all Artifacts
         </summary>
         {artifacts.map((artifact, ind) => {
           return <JobArtifact key={ind} {...artifact} />;
