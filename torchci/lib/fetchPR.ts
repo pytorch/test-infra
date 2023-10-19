@@ -67,9 +67,12 @@ export default async function fetchPR(
   } else {
     // For the very last sha, check to see if the shas themselves match as a proxy for detecting any missing commit.
     const lastCommit = commits[commits.length - 1];
-    const lastHistoricalCommit = shas[shas.length - 1]
+    const lastHistoricalCommit = shas[shas.length - 1];
     if (lastCommit.sha != lastHistoricalCommit.sha) {
-      shas.push({ sha: lastCommit.sha, title: lastCommit.commit.message.split("\n")[0] });
+      shas.push({
+        sha: lastCommit.sha,
+        title: lastCommit.commit.message.split("\n")[0],
+      });
     }
   }
 
