@@ -1507,6 +1507,14 @@
       "mac"
     ]
   ],
+  "test_sigmoid (__main__.TestQuantizedOps)": [
+    "111692",
+    "https://github.com/pytorch/pytorch/issues/111692",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_single_linear (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105121",
     "https://github.com/pytorch/pytorch/issues/105121",
