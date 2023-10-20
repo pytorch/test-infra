@@ -329,6 +329,15 @@
       "linux"
     ]
   ],
+  "test_cond_with_quantization (__main__.MiscTests)": [
+    "110593",
+    "https://github.com/pytorch/pytorch/issues/110593",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -1165,6 +1174,13 @@
   "test_narrow_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111606",
     "https://github.com/pytorch/pytorch/issues/111606",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_narrow_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111629",
+    "https://github.com/pytorch/pytorch/issues/111629",
     [
       "dynamo"
     ]
