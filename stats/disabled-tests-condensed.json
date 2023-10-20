@@ -195,13 +195,6 @@
       "macos"
     ]
   ],
-  "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93050",
-    "https://github.com/pytorch/pytorch/issues/93050",
-    [
-      "inductor"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -679,27 +672,6 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "98295",
-    "https://github.com/pytorch/pytorch/issues/98295",
-    [
-      "inductor"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94507",
-    "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "inductor"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93049",
-    "https://github.com/pytorch/pytorch/issues/93049",
-    [
-      "inductor"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -872,13 +844,6 @@
     "https://github.com/pytorch/pytorch/issues/80338",
     [
       "linux"
-    ]
-  ],
-  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93064",
-    "https://github.com/pytorch/pytorch/issues/93064",
-    [
-      "inductor"
     ]
   ],
   "test_lstm_packed (__main__.CPUReproTests)": [
