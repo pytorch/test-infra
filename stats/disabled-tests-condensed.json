@@ -941,6 +941,14 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107197",
+    "https://github.com/pytorch/pytorch/issues/107197",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "108994",
     "https://github.com/pytorch/pytorch/issues/108994",
@@ -1197,6 +1205,13 @@
     "https://github.com/pytorch/pytorch/issues/105120",
     [
       "rocm"
+    ]
+  ],
+  "test_nested_tensor_chunk_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111644",
+    "https://github.com/pytorch/pytorch/issues/111644",
+    [
+      "dynamo"
     ]
   ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
@@ -1525,13 +1540,6 @@
     "https://github.com/pytorch/pytorch/issues/73474",
     [
       "macos"
-    ]
-  ],
-  "test_qat_conv_bn_fusion_cuda (__main__.TestQuantizePT2EQAT)": [
-    "110691",
-    "https://github.com/pytorch/pytorch/issues/110691",
-    [
-      "rocm"
     ]
   ],
   "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
