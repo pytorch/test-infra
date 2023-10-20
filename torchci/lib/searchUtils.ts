@@ -51,11 +51,13 @@ export async function searchSimilarFailures(
         must: must,
         // This limits the query to search only for failures, which are what we
         // care about
-        must_not: {
-          match: {
-            conclusion: "success",
+        must_not: [
+          {
+            match: {
+              conclusion: "success",
+            },
           },
-        },
+        ],
       },
     },
     // NB: It's important to sort by score first so that the most relevant results
