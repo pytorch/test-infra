@@ -54,7 +54,7 @@ export async function searchSimilarFailures(
         must_not: {
           match: {
             conclusion: "success",
-          }
+          },
         },
       },
     },
