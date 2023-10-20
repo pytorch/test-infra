@@ -521,6 +521,13 @@
       "dynamo"
     ]
   ],
+  "test_detach_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110248",
+    "https://github.com/pytorch/pytorch/issues/110248",
+    [
+      "dynamo"
+    ]
+  ],
   "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111514",
     "https://github.com/pytorch/pytorch/issues/111514",
@@ -928,6 +935,13 @@
       "linux"
     ]
   ],
+  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "108994",
+    "https://github.com/pytorch/pytorch/issues/108994",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mandelbrot_numpy (__main__.MiscTests)": [
     "109997",
     "https://github.com/pytorch/pytorch/issues/109997",
@@ -1062,6 +1076,13 @@
   "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
     "111651",
     "https://github.com/pytorch/pytorch/issues/111651",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ifft_cpu_uint8 (__main__.TestMetaCPU)": [
+    "111706",
+    "https://github.com/pytorch/pytorch/issues/111706",
     [
       "dynamo"
     ]
