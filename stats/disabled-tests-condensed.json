@@ -55,27 +55,6 @@
       "rocm"
     ]
   ],
-  "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110198",
-    "https://github.com/pytorch/pytorch/issues/110198",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_activations_abs_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110211",
-    "https://github.com/pytorch/pytorch/issues/110211",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_activations_cos_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110225",
-    "https://github.com/pytorch/pytorch/issues/110225",
-    [
-      "dynamo"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -535,13 +514,6 @@
       "dynamo"
     ]
   ],
-  "test_detach_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110248",
-    "https://github.com/pytorch/pytorch/issues/110248",
-    [
-      "dynamo"
-    ]
-  ],
   "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111514",
     "https://github.com/pytorch/pytorch/issues/111514",
@@ -949,13 +921,6 @@
       "linux"
     ]
   ],
-  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "108994",
-    "https://github.com/pytorch/pytorch/issues/108994",
-    [
-      "dynamo"
-    ]
-  ],
   "test_mandelbrot_numpy (__main__.MiscTests)": [
     "109997",
     "https://github.com/pytorch/pytorch/issues/109997",
@@ -1256,20 +1221,6 @@
       "inductor"
     ]
   ],
-  "test_nondeterministic_alert_MaxUnpool1d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
-    "108855",
-    "https://github.com/pytorch/pytorch/issues/108855",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool1d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
-    "108856",
-    "https://github.com/pytorch/pytorch/issues/108856",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nondeterministic_alert_MaxUnpool1d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "108857",
     "https://github.com/pytorch/pytorch/issues/108857",
@@ -1291,20 +1242,6 @@
       "inductor"
     ]
   ],
-  "test_nondeterministic_alert_MaxUnpool2d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
-    "108886",
-    "https://github.com/pytorch/pytorch/issues/108886",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool2d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
-    "108887",
-    "https://github.com/pytorch/pytorch/issues/108887",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nondeterministic_alert_MaxUnpool2d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "109162",
     "https://github.com/pytorch/pytorch/issues/109162",
@@ -1324,20 +1261,6 @@
     "https://github.com/pytorch/pytorch/issues/109195",
     [
       "inductor"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool3d_cpu_float32 (__main__.TestTorchDeviceTypeCPU)": [
-    "108908",
-    "https://github.com/pytorch/pytorch/issues/108908",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_alert_MaxUnpool3d_cpu_float64 (__main__.TestTorchDeviceTypeCPU)": [
-    "109007",
-    "https://github.com/pytorch/pytorch/issues/109007",
-    [
-      "dynamo"
     ]
   ],
   "test_nondeterministic_alert_MaxUnpool3d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
@@ -1387,34 +1310,6 @@
     "https://github.com/pytorch/pytorch/issues/109362",
     [
       "inductor"
-    ]
-  ],
-  "test_nondeterministic_resize_quantized_cpu_qint32 (__main__.TestTorchDeviceTypeCPU)": [
-    "109068",
-    "https://github.com/pytorch/pytorch/issues/109068",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_resize_quantized_cpu_qint8 (__main__.TestTorchDeviceTypeCPU)": [
-    "109140",
-    "https://github.com/pytorch/pytorch/issues/109140",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_resize_quantized_cpu_quint2x4 (__main__.TestTorchDeviceTypeCPU)": [
-    "109167",
-    "https://github.com/pytorch/pytorch/issues/109167",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nondeterministic_resize_quantized_cpu_quint4x2 (__main__.TestTorchDeviceTypeCPU)": [
-    "109190",
-    "https://github.com/pytorch/pytorch/issues/109190",
-    [
-      "dynamo"
     ]
   ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
@@ -1478,13 +1373,6 @@
     "https://github.com/pytorch/pytorch/issues/109070",
     [
       "inductor"
-    ]
-  ],
-  "test_out_warning__refs_asin_cpu (__main__.TestCommonCPU)": [
-    "110069",
-    "https://github.com/pytorch/pytorch/issues/110069",
-    [
-      "dynamo"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
@@ -1847,13 +1735,6 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
-    ]
-  ],
-  "test_unary_pointwise_cpu (__main__.TestNestedTensorSubclassCPU)": [
-    "109189",
-    "https://github.com/pytorch/pytorch/issues/109189",
-    [
-      "dynamo"
     ]
   ],
   "test_unfuse_bias_addmm (__main__.TestPaternMatcher)": [
