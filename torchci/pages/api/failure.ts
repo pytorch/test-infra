@@ -42,7 +42,7 @@ export default async function handler(
   );
   // NB: This filter step keeps only exact matchs of the failure, this is the current
   // behavior. However, we could consider remove this so that "slightly" different
-  // failures could might be included too, like a normal search engine
+  // failures could be included too, like a normal search engine
   const filteredSamples = _.filter(samples, (sample) =>
     isEqual(sample.failureCaptures, failureCaptures)
   );
