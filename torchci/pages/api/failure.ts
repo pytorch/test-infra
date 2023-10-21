@@ -8,6 +8,7 @@ import { isEqual } from "lodash";
 
 interface Data {}
 
+// The maximum number of records to be returned by `more like this` failure search
 const MAX_SIZE = 1000;
 
 export default async function handler(
