@@ -11,6 +11,7 @@ import {
   searchSimilarFailures,
   WORKFLOW_JOB_INDEX,
   MIN_SCORE,
+  MAX_SIZE,
 } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
 import { isSameHeadBranch, isSameFailure } from "lib/jobUtils";
@@ -215,6 +216,7 @@ export async function querySimilarFailures(
   job: RecentWorkflowsData,
   baseCommitDate: string,
   lookbackPeriodInHours: number = 24,
+  maxSize: number = MAX_SIZE,
   client?: Client
 ): Promise<JobData[]> {
   // This function queries HUD to find all similar failures during a period of time
@@ -272,7 +274,8 @@ export async function querySimilarFailures(
     WORKFLOW_JOB_INDEX,
     startDate.toISOString(),
     endDate.toISOString(),
-    MIN_SCORE
+    MIN_SCORE,
+    maxSize
   );
 
   return "jobs" in results ? results["jobs"] : [];
@@ -292,6 +295,7 @@ export async function hasSimilarFailures(
     job,
     baseCommitDate,
     lookbackPeriodInHours,
+    MAX_SIZE,
     client
   );
   if (records.length === 0) {

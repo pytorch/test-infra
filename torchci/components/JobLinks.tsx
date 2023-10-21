@@ -43,7 +43,13 @@ export default function JobLinks({ job }: { job: JobData }) {
         <a
           target="_blank"
           rel="noreferrer"
-          href={`/failure/${encodeURIComponent(job.failureCaptures.join(","))}`}
+          href={`/failure?name=${encodeURIComponent(
+            job.name as string
+          )}&jobName=${encodeURIComponent(
+            job.jobName as string
+          )}&failureCaptures=${encodeURIComponent(
+            JSON.stringify(job.failureCaptures)
+          )}`}
         >
           more like this
         </a>

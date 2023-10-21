@@ -219,20 +219,26 @@ function FailureInfo({
 
 export default function Page() {
   const router = useRouter();
-  const capture = router.query.capture;
+  const name = router.query.name as string;
+  const jobName = router.query.jobName as string;
+  const failureCaptures = router.query.failureCaptures as string;
 
   // `capture` is undefined pre-hydration, so we need to conditionally fetch in
   // `useSWR` to avoid sending a garbage request to the server.
   const swrKey =
-    capture !== undefined
-      ? `/api/failure/${encodeURIComponent(capture as string)}`
+    failureCaptures !== undefined
+      ? `/api/failure?name=${encodeURIComponent(
+          name
+        )}&jobName=${encodeURIComponent(
+          jobName
+        )}&failureCaptures=${encodeURIComponent(failureCaptures)}`
       : null;
   const { data } = useSWR(swrKey, fetcher);
   return (
     <div>
       <h1>PyTorch CI Failure Info</h1>
       <h2>
-        <code>{capture}</code>
+        <code>{failureCaptures}</code>
       </h2>
       <em>Showing last 14 days of data.</em>
       {data === undefined ? (

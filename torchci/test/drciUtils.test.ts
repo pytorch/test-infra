@@ -63,6 +63,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -75,6 +76,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -87,6 +89,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -99,6 +102,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -112,6 +116,7 @@ describe("Test various utils used by Dr.CI", () => {
           mockStartDate,
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
         ],
       ])
     );
@@ -125,6 +130,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         baseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -140,6 +146,7 @@ describe("Test various utils used by Dr.CI", () => {
             .toISOString(),
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
         ],
       ])
     );
@@ -155,6 +162,7 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         baseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -170,6 +178,7 @@ describe("Test various utils used by Dr.CI", () => {
             .toISOString(),
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
         ],
       ])
     );
