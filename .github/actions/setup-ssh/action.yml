@@ -23,5 +23,5 @@ inputs:
     description: 'Additional instructions on what to do next'
 
 runs:
-  using: 'node20'
+  using: 'node16'
   main: 'index.js'
