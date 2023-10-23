@@ -144,7 +144,6 @@ def main() -> None:
     with open("test-times.json", "w") as f:
         f.write(json.dumps(test_file_times, indent=2, sort_keys=True))
 
-
     test_class_times = gen_test_class_times(get_class_data_from_rockset(), download_old_test_class_times())
 
     with open("test-class-times.json", "w") as f:
