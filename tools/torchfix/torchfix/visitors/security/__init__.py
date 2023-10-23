@@ -19,8 +19,8 @@ class TorchUnsafeLoadVisitor(TorchVisitor):
     def visit_Call(self, node):
         qualified_name = self.get_qualified_name_for_call(node)
         if qualified_name == "torch.load":
-            num_workers_arg = self.get_specific_arg(node, "weights_only", -1)
-            if num_workers_arg is None:
+            weights_only_arg = self.get_specific_arg(node, "weights_only", -1)
+            if weights_only_arg is None:
                 position_metadata = self.get_metadata(
                     cst.metadata.WhitespaceInclusivePositionProvider, node
                 )
