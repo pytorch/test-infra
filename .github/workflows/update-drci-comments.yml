@@ -49,7 +49,7 @@ jobs:
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
           --data 'repo=tutorials'
 
-      - name: Retrieve rockset query results and update Dr. CI comments for the ExecuTorch repo
+      - name: Retrieve the Rockset query results and update Dr. CI comments for the ExecuTorch repo
         run: |
           curl --request POST \
           --url 'https://www.torch-ci.com/api/drci/drci' \
