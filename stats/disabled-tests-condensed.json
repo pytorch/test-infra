@@ -839,6 +839,13 @@
       "slow"
     ]
   ],
+  "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "111767",
+    "https://github.com/pytorch/pytorch/issues/111767",
+    [
+      "linux"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -953,13 +960,6 @@
       "rocm"
     ]
   ],
-  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "107426",
-    "https://github.com/pytorch/pytorch/issues/107426",
-    [
-      "linux"
-    ]
-  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1048,6 +1048,13 @@
   "test_meta_outplace_fft_ifft_cpu_uint8 (__main__.TestMetaCPU)": [
     "111706",
     "https://github.com/pytorch/pytorch/issues/111706",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft2_cpu_bool (__main__.TestMetaCPU)": [
+    "111768",
+    "https://github.com/pytorch/pytorch/issues/111768",
     [
       "dynamo"
     ]
@@ -1175,6 +1182,13 @@
   "test_nested_tensor_chunk_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111644",
     "https://github.com/pytorch/pytorch/issues/111644",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_chunk_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111769",
+    "https://github.com/pytorch/pytorch/issues/111769",
     [
       "dynamo"
     ]
@@ -1808,6 +1822,13 @@
     "https://github.com/pytorch/pytorch/issues/97366",
     [
       "rocm"
+    ]
+  ],
+  "test_vmapvjp_NumpyExpMarkDirtyAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
+    "109694",
+    "https://github.com/pytorch/pytorch/issues/109694",
+    [
+      "dynamo"
     ]
   ],
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
