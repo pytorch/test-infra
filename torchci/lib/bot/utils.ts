@@ -27,6 +27,7 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "audio",
       "pytorch-canary",
       "tutorials",
+      "executorch",
     ].includes(repo)
   );
 }
