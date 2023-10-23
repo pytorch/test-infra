@@ -1073,6 +1073,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ihfft2_cpu_float64 (__main__.TestMetaCPU)": [
+    "111799",
+    "https://github.com/pytorch/pytorch/issues/111799",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPaternMatcher)": [
     "111051",
     "https://github.com/pytorch/pytorch/issues/111051",
