@@ -6,8 +6,8 @@ export async function getPRAuthor(
   octokit: Octokit,
   prNumber: number
 ): Promise<string> {
-  let owner = github.context.repo.owner;
-  let repo = github.context.repo.repo;
+  const owner = github.context.repo.owner
+  const repo = github.context.repo.repo
   try {
     const prInfo = await octokit.pulls.get({
       owner: owner,
@@ -16,8 +16,10 @@ export async function getPRAuthor(
     })
     return prInfo.data.user?.login
   } catch (error) {
-    let actor = github.context.actor;
-    core.warning(`Failed to get author of PR https://github.com/${owner}/${repo}/pull/${prNumber}: ${error}`)
+    const actor = github.context.actor
+    core.warning(
+      `Failed to get author of PR https://github.com/${owner}/${repo}/pull/${prNumber}: ${error}`
+    )
     core.warning(`Returning ${actor} instead`)
     return actor
   }
