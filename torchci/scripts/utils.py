@@ -39,7 +39,7 @@ def run_command(command: Union[str, List[str]]) -> str:
 
 
 def cache_json(func):
-    # Requires that both input and output but json serializable.
+    # Requires that both input and output be json serializable.
     # Decorator for caching function results into a file so it can be reused betwen runs.
     os.makedirs(CACHE_FOLDER, exist_ok=True)
 
