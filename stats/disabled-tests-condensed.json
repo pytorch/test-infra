@@ -308,6 +308,13 @@
       "linux"
     ]
   ],
+  "test_cond_side_effects (__main__.MiscTests)": [
+    "111850",
+    "https://github.com/pytorch/pytorch/issues/111850",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_with_quantization (__main__.MiscTests)": [
     "110593",
     "https://github.com/pytorch/pytorch/issues/110593",
@@ -446,6 +453,13 @@
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
+    [
+      "linux"
+    ]
+  ],
+  "test_cuda_stream_context_manager2_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "111848",
+    "https://github.com/pytorch/pytorch/issues/111848",
     [
       "linux"
     ]
@@ -914,6 +928,30 @@
       "dynamo"
     ]
   ],
+  "test_mandelbrot_numpy (__main__.MiscTests)": [
+    "109997",
+    "https://github.com/pytorch/pytorch/issues/109997",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_mandelbrot_numpy_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "109995",
+    "https://github.com/pytorch/pytorch/issues/109995",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1045,6 +1083,20 @@
   "test_meta_outplace_fft_ihfft2_cpu_float64 (__main__.TestMetaCPU)": [
     "111799",
     "https://github.com/pytorch/pytorch/issues/111799",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft2_cpu_int16 (__main__.TestMetaCPU)": [
+    "111825",
+    "https://github.com/pytorch/pytorch/issues/111825",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft2_cpu_int64 (__main__.TestMetaCPU)": [
+    "111849",
+    "https://github.com/pytorch/pytorch/issues/111849",
     [
       "dynamo"
     ]
@@ -1186,6 +1238,20 @@
   "test_nested_tensor_chunk_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111790",
     "https://github.com/pytorch/pytorch/issues/111790",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111826",
+    "https://github.com/pytorch/pytorch/issues/111826",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_indexing_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111851",
+    "https://github.com/pytorch/pytorch/issues/111851",
     [
       "dynamo"
     ]
