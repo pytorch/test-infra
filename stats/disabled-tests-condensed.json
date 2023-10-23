@@ -960,6 +960,13 @@
       "rocm"
     ]
   ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1196,6 +1203,13 @@
   "test_nested_tensor_chunk_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111769",
     "https://github.com/pytorch/pytorch/issues/111769",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_chunk_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111790",
+    "https://github.com/pytorch/pytorch/issues/111790",
     [
       "dynamo"
     ]
