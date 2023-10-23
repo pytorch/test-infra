@@ -14,6 +14,37 @@ import JobLinks from "components/JobLinks";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 import { CSSProperties } from "react";
 
+import {
+  useGroupingPreference,
+  usePreference,
+} from "lib/useGroupingPreference";
+
+function FuzzySearchCheckBox({
+  useFuzzySearch,
+  setUseFuzzySearch,
+}: {
+  useFuzzySearch: boolean;
+  setUseFuzzySearch: any;
+}) {
+  return (
+    <>
+      <div
+        onClick={() => {
+          setUseFuzzySearch(!useFuzzySearch);
+        }}
+      >
+        <input
+          type="checkbox"
+          name="useFuzzySearch"
+          checked={useFuzzySearch}
+          onChange={() => {}}
+        />
+        <label htmlFor="useFuzzySearch"> Use fuzzy search</label>
+      </div>
+    </>
+  );
+}
+
 function FailureInfo({
   totalCount,
   jobCount,
@@ -223,6 +254,10 @@ export default function Page() {
   const jobName = router.query.jobName as string;
   const failureCaptures = router.query.failureCaptures as string;
 
+  const [useFuzzySearch, setUseFuzzySearch] = usePreference(
+    "useFuzzySearch",
+    false
+  );
   // `capture` is undefined pre-hydration, so we need to conditionally fetch in
   // `useSWR` to avoid sending a garbage request to the server.
   const swrKey =
@@ -231,7 +266,9 @@ export default function Page() {
           name
         )}&jobName=${encodeURIComponent(
           jobName
-        )}&failureCaptures=${encodeURIComponent(failureCaptures)}`
+        )}&failureCaptures=${encodeURIComponent(
+          failureCaptures
+        )}&useFuzzySearch=${useFuzzySearch}`
       : null;
   const { data } = useSWR(swrKey, fetcher);
   return (
@@ -240,6 +277,10 @@ export default function Page() {
       <h2>
         <code>{failureCaptures}</code>
       </h2>
+      <FuzzySearchCheckBox
+        useFuzzySearch={useFuzzySearch}
+        setUseFuzzySearch={setUseFuzzySearch}
+      />
       <em>Showing last 14 days of data.</em>
       {data === undefined ? (
         <div>Loading...</div>

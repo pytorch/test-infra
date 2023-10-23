@@ -18,6 +18,7 @@ export default async function handler(
   const name = req.query.name as string;
   const jobName = req.query.jobName as string;
   const failureCaptures = JSON.parse(req.query.failureCaptures as string);
+  const useFuzzySearch = req.query.useFuzzySearch as string;
 
   // Create a mock record to use as the input for querySimilarFailures.
   const failure: RecentWorkflowsData = {
@@ -40,12 +41,16 @@ export default async function handler(
     lookbackPeriodInHours,
     MAX_SIZE
   );
+
   // NB: This filter step keeps only exact matchs of the failure, this is the current
   // behavior. However, we could consider remove this so that "slightly" different
   // failures could be included too, like a normal search engine
-  const filteredSamples = _.filter(samples, (sample) =>
-    isEqual(sample.failureCaptures, failureCaptures)
-  );
+  const filteredSamples =
+    useFuzzySearch === "true"
+      ? samples
+      : _.filter(samples, (sample) =>
+          isEqual(sample.failureCaptures, failureCaptures)
+        );
 
   const jobCount: {
     [jobName: string]: number;
