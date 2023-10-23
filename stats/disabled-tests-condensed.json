@@ -1056,6 +1056,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ihfft2_cpu_int16 (__main__.TestMetaCPU)": [
+    "111825",
+    "https://github.com/pytorch/pytorch/issues/111825",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPaternMatcher)": [
     "111051",
     "https://github.com/pytorch/pytorch/issues/111051",
@@ -1193,6 +1200,13 @@
   "test_nested_tensor_chunk_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111790",
     "https://github.com/pytorch/pytorch/issues/111790",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111826",
+    "https://github.com/pytorch/pytorch/issues/111826",
     [
       "dynamo"
     ]
