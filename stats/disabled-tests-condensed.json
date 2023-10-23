@@ -461,7 +461,8 @@
     "111848",
     "https://github.com/pytorch/pytorch/issues/111848",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
