@@ -62,6 +62,13 @@
       "dynamo"
     ]
   ],
+  "test_accumulate_grad_different_strides_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "111969",
+    "https://github.com/pytorch/pytorch/issues/111969",
+    [
+      "dynamo"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -578,13 +585,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -850,13 +850,6 @@
       "linux"
     ]
   ],
-  "test_jvp_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "110980",
-    "https://github.com/pytorch/pytorch/issues/110980",
-    [
-      "macos"
-    ]
-  ],
   "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
     "107383",
     "https://github.com/pytorch/pytorch/issues/107383",
@@ -1060,6 +1053,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111967",
+    "https://github.com/pytorch/pytorch/issues/111967",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111535",
     "https://github.com/pytorch/pytorch/issues/111535",
@@ -1161,6 +1161,13 @@
   "test_meta_outplace_fft_ihfft_cpu_float64 (__main__.TestMetaCPU)": [
     "111909",
     "https://github.com/pytorch/pytorch/issues/111909",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft_cpu_int32 (__main__.TestMetaCPU)": [
+    "111968",
+    "https://github.com/pytorch/pytorch/issues/111968",
     [
       "dynamo"
     ]
