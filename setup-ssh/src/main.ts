@@ -9,7 +9,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {Octokit} from '@octokit/rest'
 import {install} from 'source-map-support'
-import fetch from "node-fetch";
+import fetch from 'node-fetch'
 
 install()
 
@@ -39,7 +39,7 @@ async function run(): Promise<void> {
         return
       }
     }
-    const octokit = new Octokit({auth: github_token, request: {fetch: fetch}})
+    const octokit = new Octokit({auth: github_token, request: {fetch}})
     if (activateWithLabel) {
       const labels = await octokit.issues.listLabelsOnIssue({
         owner: github.context.repo.owner,

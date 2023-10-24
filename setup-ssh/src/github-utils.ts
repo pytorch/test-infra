@@ -11,7 +11,7 @@ export async function getPRAuthor(
     repo: github.context.repo.repo,
     pull_number: prNumber
   })
-  return prInfo.data.user?.login as string
+  return prInfo.data.user?.login
 }
 
 export function extractCiFlowPrNumber(reference: string): number {
