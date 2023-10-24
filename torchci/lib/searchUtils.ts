@@ -5,7 +5,7 @@ export const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 // https://www.elastic.co/guide/en/elasticsearch/reference/7.17/similarity.html#similarity
 // OpenSearch uses https://en.wikipedia.org/wiki/Okapi_BM25 by default.  TODO: learn more
 // about which is a reasonable value here and how to tune it
-export const MIN_SCORE = 10.0;
+export const MIN_SCORE = 1.0;
 export const MAX_SIZE = 20;
 
 export async function searchSimilarFailures(

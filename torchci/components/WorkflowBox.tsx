@@ -43,10 +43,7 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
   }
 
   var separator = queueTimeInfo && durationInfo ? ", " : "";
-
-  const [showArtifacts, setShowArtifacts] = useState(false);
   const hasArtifacts = artifacts && artifacts.length > 0;
-  const hidden: CSSProperties = { visibility: "hidden" };
 
   return (
     <>
@@ -58,20 +55,17 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
         {separator}
         {durationInfo}
         <TestInsightsLink job={job} separator={", "} />,{" "}
-        <a
-          onClick={() => setShowArtifacts(!showArtifacts)}
-          style={hasArtifacts ? {} : hidden}
-        >
-          {hasArtifacts ? "Show artifacts," : ""}
-        </a>
         <a target="_blank" rel="noreferrer" href={job.logUrl}>
           Raw logs
         </a>
-        {hasArtifacts &&
-          showArtifacts &&
-          artifacts?.map((artifact, ind) => {
-            return <JobArtifact key={ind} {...artifact} />;
-          })}
+        {hasArtifacts && (
+          <details>
+            <summary>{hasArtifacts ? "Show artifacts" : ""}</summary>
+            {artifacts?.map((artifact, ind) => {
+              return <JobArtifact key={ind} {...artifact} />;
+            })}
+          </details>
+        )}
       </small>
     </>
   );
