@@ -16921,16 +16921,24 @@ async function run() {
         }
         const octokit = new rest_1.Octokit({ auth: github_token, request: { fetch: node_fetch_1.default } });
         if (activateWithLabel) {
-            const labels = await octokit.issues.listLabelsOnIssue({
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo,
-                issue_number: prNumber
-            });
             let sshLabelSet = false;
-            for (const label of labels.data) {
-                if (label.name === sshLabel) {
-                    sshLabelSet = true;
+            const owner = github.context.repo.owner;
+            const repo = github.context.repo.repo;
+            try {
+                const labels = await octokit.issues.listLabelsOnIssue({
+                    owner,
+                    repo,
+                    issue_number: prNumber
+                });
+                for (const label of labels.data) {
+                    if (label.name === sshLabel) {
+                        sshLabelSet = true;
+                    }
                 }
+            }
+            catch (error) {
+                core.warning(`Failed ot fetch labels for https://github.com/${owner}/${repo}/pull/${prNumber}: ${error}`);
+                return;
             }
             if (!sshLabelSet) {
                 core.info(`Label ${sshLabel} not set, skipping adding ssh keys`);
