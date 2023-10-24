@@ -10,8 +10,8 @@ export async function getPRAuthor(
   const repo = github.context.repo.repo
   try {
     const prInfo = await octokit.pulls.get({
-      owner: owner,
-      repo: repo,
+      owner,
+      repo,
       pull_number: prNumber
     })
     return prInfo.data.user?.login
