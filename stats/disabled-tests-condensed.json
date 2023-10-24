@@ -55,6 +55,13 @@
       "rocm"
     ]
   ],
+  "test_abs_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "111927",
+    "https://github.com/pytorch/pytorch/issues/111927",
+    [
+      "dynamo"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -1021,6 +1028,13 @@
   "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
     "111903",
     "https://github.com/pytorch/pytorch/issues/111903",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111928",
+    "https://github.com/pytorch/pytorch/issues/111928",
     [
       "dynamo"
     ]
