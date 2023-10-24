@@ -8,7 +8,7 @@ import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState } from "react";
+import { useState, CSSProperties } from "react";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -43,8 +43,6 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
   }
 
   var separator = queueTimeInfo && durationInfo ? ", " : "";
-
-  const [showArtifacts, setShowArtifacts] = useState(false);
   const hasArtifacts = artifacts && artifacts.length > 0;
 
   return (
@@ -57,20 +55,17 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
         {separator}
         {durationInfo}
         <TestInsightsLink job={job} separator={", "} />,{" "}
-        {hasArtifacts && (
-          <a onClick={() => setShowArtifacts(!showArtifacts)}>
-            {" "}
-            Show artifacts,{" "}
-          </a>
-        )}
         <a target="_blank" rel="noreferrer" href={job.logUrl}>
           Raw logs
         </a>
-        {hasArtifacts &&
-          showArtifacts &&
-          artifacts?.map((artifact, ind) => {
-            return <JobArtifact key={ind} {...artifact} />;
-          })}
+        {hasArtifacts && (
+          <details>
+            <summary>{hasArtifacts ? "Show artifacts" : ""}</summary>
+            {artifacts?.map((artifact, ind) => {
+              return <JobArtifact key={ind} {...artifact} />;
+            })}
+          </details>
+        )}
       </small>
     </>
   );
