@@ -25,8 +25,7 @@ def call_replacement_cholesky(node: cst.Call) -> cst.CSTNode:
             value=[input_arg],
         )
     else:
-        replacement = cst.parse_expression(f"{module_name}.linalg.cholesky(A)").with_changes(
-            args=[input_arg]
-        )
+        replacement = cst.parse_expression(f"{module_name}.linalg.cholesky(A)")
+        replacement = replacement.with_changes(args=[input_arg])
 
     return replacement
