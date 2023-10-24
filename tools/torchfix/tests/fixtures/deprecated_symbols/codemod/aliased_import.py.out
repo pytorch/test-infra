@@ -1,0 +1,5 @@
+import torch as troch
+
+A = troch.arange(9).reshape(3, 3)
+A3 = troch.linalg.multi_dot([A, A, A])
+
