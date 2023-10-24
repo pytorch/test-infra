@@ -457,6 +457,13 @@
       "linux"
     ]
   ],
+  "test_cuda_stream_context_manager2 (__main__.CtxManagerTests)": [
+    "111890",
+    "https://github.com/pytorch/pytorch/issues/111890",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_stream_context_manager2_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
     "111848",
     "https://github.com/pytorch/pytorch/issues/111848",
@@ -636,6 +643,13 @@
     "https://github.com/pytorch/pytorch/issues/101757",
     [
       "inductor"
+    ]
+  ],
+  "test_forward_ad_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "111891",
+    "https://github.com/pytorch/pytorch/issues/111891",
+    [
+      "linux"
     ]
   ],
   "test_forward_ad_stft_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
@@ -1260,6 +1274,13 @@
   "test_nested_tensor_indexing_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111851",
     "https://github.com/pytorch/pytorch/issues/111851",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_nested_tensor_indexing_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111892",
+    "https://github.com/pytorch/pytorch/issues/111892",
     [
       "dynamo"
     ]
