@@ -16831,8 +16831,8 @@ async function getPRAuthor(octokit, prNumber) {
     const repo = github.context.repo.repo;
     try {
         const prInfo = await octokit.pulls.get({
-            owner: owner,
-            repo: repo,
+            owner,
+            repo,
             pull_number: prNumber
         });
         return (_a = prInfo.data.user) === null || _a === void 0 ? void 0 : _a.login;
@@ -16898,6 +16898,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const rest_1 = __nccwpck_require__(5375);
 const source_map_support_1 = __nccwpck_require__(9249);
+const node_fetch_1 = __importDefault(__nccwpck_require__(467));
 (0, source_map_support_1.install)();
 async function run() {
     var _a;
@@ -16918,7 +16919,7 @@ async function run() {
                 return;
             }
         }
-        const octokit = new rest_1.Octokit({ auth: github_token });
+        const octokit = new rest_1.Octokit({ auth: github_token, request: { fetch: node_fetch_1.default } });
         if (activateWithLabel) {
             const labels = await octokit.issues.listLabelsOnIssue({
                 owner: github.context.repo.owner,
