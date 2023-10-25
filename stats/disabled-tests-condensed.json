@@ -96,6 +96,13 @@
     "https://github.com/pytorch/pytorch/issues/106439",
     []
   ],
+  "test_as_nested_tensor_propagates_gradients_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "111988",
+    "https://github.com/pytorch/pytorch/issues/111988",
+    [
+      "dynamo"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -585,6 +592,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
+    "100126",
+    "https://github.com/pytorch/pytorch/issues/100126",
+    [
+      "linux"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -903,6 +917,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
@@ -1102,6 +1123,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
+    "111986",
+    "https://github.com/pytorch/pytorch/issues/111986",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
     "111651",
     "https://github.com/pytorch/pytorch/issues/111651",
@@ -1168,6 +1196,13 @@
   "test_meta_outplace_fft_ihfft_cpu_int32 (__main__.TestMetaCPU)": [
     "111968",
     "https://github.com/pytorch/pytorch/issues/111968",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft_cpu_int8 (__main__.TestMetaCPU)": [
+    "111987",
+    "https://github.com/pytorch/pytorch/issues/111987",
     [
       "dynamo"
     ]
