@@ -12,6 +12,7 @@ export async function searchSimilarFailures(
   client: Client,
   query: string,
   workflowName: string,
+  branchName: string,
   index: string,
   startDate: string,
   endDate: string,
@@ -39,6 +40,15 @@ export async function searchSimilarFailures(
     must.push({
       match: {
         workflow_name: workflowName,
+      },
+    });
+  }
+  // If specify, limit the query to only this branch name. This is used to
+  // query only failures from specific branches like main or release
+  if (branchName !== "") {
+    must.push({
+      match: {
+        head_branch: branchName,
       },
     });
   }

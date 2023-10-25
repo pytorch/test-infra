@@ -112,6 +112,7 @@ describe("Test various utils used by Dr.CI", () => {
           "TESTING",
           job.failure_captures.join(" "),
           "",
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           mockStartDate,
           mockEndDate,
@@ -139,6 +140,7 @@ describe("Test various utils used by Dr.CI", () => {
         [
           "TESTING",
           job.failure_captures.join(" "),
+          "",
           "",
           searchUtils.WORKFLOW_JOB_INDEX,
           dayjs(baseCommitDate)
@@ -172,6 +174,7 @@ describe("Test various utils used by Dr.CI", () => {
           "TESTING",
           job.failure_captures.join(" "),
           workflowName,
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           dayjs(baseCommitDate)
             .subtract(lookbackPeriodInHours, "hour")

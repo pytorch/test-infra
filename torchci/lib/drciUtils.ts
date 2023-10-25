@@ -271,6 +271,7 @@ export async function querySimilarFailures(
     client,
     failure,
     workflowName,
+    "",
     WORKFLOW_JOB_INDEX,
     startDate.toISOString(),
     endDate.toISOString(),
