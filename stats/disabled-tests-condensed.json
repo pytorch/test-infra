@@ -127,6 +127,13 @@
       "macos"
     ]
   ],
+  "test_backward_add_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112005",
+    "https://github.com/pytorch/pytorch/issues/112005",
+    [
+      "dynamo"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -1203,6 +1210,20 @@
   "test_meta_outplace_fft_ihfft_cpu_int8 (__main__.TestMetaCPU)": [
     "111987",
     "https://github.com/pytorch/pytorch/issues/111987",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfft_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112003",
+    "https://github.com/pytorch/pytorch/issues/112003",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_bool (__main__.TestMetaCPU)": [
+    "112004",
+    "https://github.com/pytorch/pytorch/issues/112004",
     [
       "dynamo"
     ]
