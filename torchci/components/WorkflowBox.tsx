@@ -23,7 +23,17 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 
-function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
+function WorkflowJobSummary({
+  job,
+  artifacts,
+  artifactsToShow,
+  setArtifactsToShow,
+}: {
+  job: JobData;
+  artifacts?: Artifact[];
+  artifactsToShow: Set<string>;
+  setArtifactsToShow: any;
+}) {
   var queueTimeInfo = null;
   if (job.queueTimeS != null) {
     queueTimeInfo = (
@@ -45,6 +55,20 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
   var separator = queueTimeInfo && durationInfo ? ", " : "";
   const hasArtifacts = artifacts && artifacts.length > 0;
 
+  function setArtifactsToShowHelper() {
+    const id = job.id;
+    if (id === undefined) {
+      return;
+    }
+    if (artifactsToShow.has(id)) {
+      const newSet = new Set(artifactsToShow);
+      newSet.delete(id);
+      setArtifactsToShow(newSet);
+    } else {
+      setArtifactsToShow(new Set(artifactsToShow).add(id));
+    }
+  }
+
   return (
     <>
       <JobSummary job={job} />
@@ -55,17 +79,17 @@ function WorkflowJobSummary(job: JobData, artifacts?: Artifact[]) {
         {separator}
         {durationInfo}
         <TestInsightsLink job={job} separator={", "} />,{" "}
+        {hasArtifacts && (
+          <a onClick={() => setArtifactsToShowHelper()}> Show artifacts, </a>
+        )}
         <a target="_blank" rel="noreferrer" href={job.logUrl}>
           Raw logs
         </a>
-        {hasArtifacts && (
-          <details>
-            <summary>{hasArtifacts ? "Show artifacts" : ""}</summary>
-            {artifacts?.map((artifact, ind) => {
-              return <JobArtifact key={ind} {...artifact} />;
-            })}
-          </details>
-        )}
+        {hasArtifacts &&
+          artifactsToShow.has(job.id!) &&
+          artifacts?.map((artifact, ind) => {
+            return <JobArtifact key={ind} {...artifact} />;
+          })}
       </small>
     </>
   );
@@ -87,6 +111,7 @@ export default function WorkflowBox({
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
 
   const { artifacts, error } = useArtifacts(workflowId);
+  const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
   return (
@@ -96,7 +121,12 @@ export default function WorkflowBox({
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
-            {WorkflowJobSummary(job, groupedArtifacts?.get(job.id))}
+            <WorkflowJobSummary
+              job={job}
+              artifacts={groupedArtifacts?.get(job.id)}
+              artifactsToShow={artifactsToShow}
+              setArtifactsToShow={setArtifactsToShow}
+            />
             {isFailedJob(job) && <LogViewer job={job} />}
           </div>
         ))}
