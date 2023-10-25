@@ -210,7 +210,10 @@ function computePassrate(
       passCount[bucket][workflowId][suite][compiler] = 0;
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passingModels)) {
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
+      record.speedup !== 0.0
+    ) {
       passCount[bucket][workflowId][suite][compiler] += 1;
     }
 
