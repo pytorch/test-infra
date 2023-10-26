@@ -1845,13 +1845,6 @@
       "mac"
     ]
   ],
-  "test_sparse_all_reduce_sum_cuda (__main__.TestDistBackendWithSpawn)": [
-    "104526",
-    "https://github.com/pytorch/pytorch/issues/104526",
-    [
-      "linux"
-    ]
-  ],
   "test_splitwithsizes_cat (__main__.TestPaternMatcher)": [
     "111056",
     "https://github.com/pytorch/pytorch/issues/111056",
@@ -2009,6 +2002,22 @@
     "https://github.com/pytorch/pytorch/issues/98618",
     [
       "linux"
+    ]
+  ],
+  "test_triton_bsr_scatter_mm_blocksize_16_cuda_bfloat16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
+    "112157",
+    "https://github.com/pytorch/pytorch/issues/112157",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_triton_bsr_scatter_mm_blocksize_16_cuda_float16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
+    "112158",
+    "https://github.com/pytorch/pytorch/issues/112158",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
