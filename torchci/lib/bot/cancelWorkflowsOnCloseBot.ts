@@ -4,9 +4,9 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
   app.on("pull_request.closed", async (ctx) => {
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
-    const prNumber = ctx.payload.pull_request.number;
     const senderLogin = ctx.payload.sender.login;
     const senderId = ctx.payload.sender.id;
+    const headSha = ctx.payload.pull_request.head.sha;
 
     if (
       senderLogin == "pytorchmergebot" ||
@@ -19,41 +19,22 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
       return;
     }
 
-    const graphqlquery = `query ($owner: String!, $repo: String!, $prNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          pullRequest(number: $prNumber) {
-            commits(last: 1) {
-              nodes {
-                commit {
-                  checkSuites(first: 30, filterBy: {appId: 15368}) {
-                    nodes {
-                      status
-                      workflowRun {
-                        databaseId
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }`;
-    const response: any = await ctx.octokit.graphql(graphqlquery, {
+    const workflowRuns = await ctx.octokit.actions.listWorkflowRunsForRepo({
       owner,
       repo,
-      prNumber,
+      head_sha: headSha,
+      per_page: 30,
     });
 
     await Promise.all(
-      response.repository.pullRequest.commits.nodes[0].commit.checkSuites.nodes
-        .filter((node: any) => node.status != "COMPLETED")
+      workflowRuns.data.workflow_runs
+        .filter((workflowRun) => workflowRun.status != "completed")
         .map(
-          async (node: any) =>
+          async (workflowRun) =>
             await ctx.octokit.rest.actions.cancelWorkflowRun({
               owner,
               repo,
-              run_id: node.workflowRun.databaseId,
+              run_id: workflowRun.id,
             })
         )
     );

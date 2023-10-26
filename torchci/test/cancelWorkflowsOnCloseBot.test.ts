@@ -14,65 +14,18 @@ describe("accept bot", () => {
   });
 
   test("Cancel in progress workflows when not pytorchmergebot closes thr PR", async () => {
-    // Got this response through the online graphql explorer
-    const graphqlResponse = {
-      repository: {
-        pullRequest: {
-          commits: {
-            nodes: [
-              {
-                commit: {
-                  checkSuites: {
-                    nodes: [
-                      {
-                        status: "IN_PROGRESS",
-                        workflowRun: {
-                          databaseId: 6647495490,
-                        },
-                      },
-                      {
-                        status: "COMPLETED",
-                        workflowRun: {
-                          databaseId: 6647495493,
-                        },
-                      },
-                      {
-                        status: "IN_PROGRESS",
-                        workflowRun: {
-                          databaseId: 6647495495,
-                        },
-                      },
-                      {
-                        status: "COMPLETED",
-                        workflowRun: {
-                          databaseId: 6647495497,
-                        },
-                      },
-                      {
-                        status: "COMPLETED",
-                        workflowRun: {
-                          databaseId: 6647495505,
-                        },
-                      },
-                      {
-                        status: "COMPLETED",
-                        workflowRun: {
-                          databaseId: 6647495536,
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            ],
-          },
-        },
-      },
-    };
     const event = requireDeepCopy("./fixtures/pull_request.closed.json");
     const scope = nock("https://api.github.com")
-      .post("/graphql")
-      .reply(200, { data: graphqlResponse })
+      .get(
+        "/repos/clee2000/random-testing/actions/runs?head_sha=381ace654ad6474357cedad09418340896d16d90&per_page=30"
+      )
+      .reply(200, {
+        workflow_runs: [
+          { id: 6647495490, status: "in_progress" },
+          { id: 6647495495, status: "in_progress" },
+          { id: 6647495497, status: "completed" },
+        ],
+      })
       .post(`/repos/clee2000/random-testing/actions/runs/6647495490/cancel`)
       .reply(200, {})
       .post(`/repos/clee2000/random-testing/actions/runs/6647495495/cancel`)
