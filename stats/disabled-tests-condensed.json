@@ -513,6 +513,13 @@
       "linux"
     ]
   ],
+  "test_cuda_stream_context_manager1 (__main__.CtxManagerTests)": [
+    "112117",
+    "https://github.com/pytorch/pytorch/issues/112117",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_stream_context_manager2 (__main__.CtxManagerTests)": [
     "111890",
     "https://github.com/pytorch/pytorch/issues/111890",
