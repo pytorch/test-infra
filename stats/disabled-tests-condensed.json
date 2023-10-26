@@ -1663,6 +1663,13 @@
       "inductor"
     ]
   ],
+  "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
+    "112142",
+    "https://github.com/pytorch/pytorch/issues/112142",
+    [
+      "dynamo"
+    ]
+  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
