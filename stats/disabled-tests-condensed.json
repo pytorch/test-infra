@@ -378,6 +378,14 @@
       "linux"
     ]
   ],
+  "test_cond (__main__.MiscTests)": [
+    "112181",
+    "https://github.com/pytorch/pytorch/issues/112181",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cond_export_single_arg (__main__.MiscTests)": [
     "101738",
     "https://github.com/pytorch/pytorch/issues/101738",
@@ -797,6 +805,13 @@
     "https://github.com/pytorch/pytorch/issues/103935",
     [
       "linux"
+    ]
+  ],
+  "test_gelu_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112183",
+    "https://github.com/pytorch/pytorch/issues/112183",
+    [
+      "dynamo"
     ]
   ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
@@ -1322,6 +1337,13 @@
   "test_meta_outplace_fft_ihfftn_cpu_int8 (__main__.TestMetaCPU)": [
     "112150",
     "https://github.com/pytorch/pytorch/issues/112150",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112182",
+    "https://github.com/pytorch/pytorch/issues/112182",
     [
       "dynamo"
     ]
