@@ -8,7 +8,14 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
     const senderLogin = ctx.payload.sender.login;
     const senderId = ctx.payload.sender.id;
 
-    if (senderLogin == "pytorchmergebot" || senderId == 97764156) {
+    if (
+      senderLogin == "pytorchmergebot" ||
+      senderLogin == "pytorchbot" ||
+      senderLogin == "pytorch-bot[bot]" ||
+      senderId == 97764156 || // pytorchmergebot's id
+      senderId == 54816060 || // pytorch-bot's id
+      senderId == 21957446 // pytorchbot's id
+    ) {
       return;
     }
 
