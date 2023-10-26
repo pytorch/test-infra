@@ -162,11 +162,25 @@
       "dynamo"
     ]
   ],
+  "test_backward_for_sub_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112105",
+    "https://github.com/pytorch/pytorch/issues/112105",
+    [
+      "dynamo"
+    ]
+  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
+    ]
+  ],
+  "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98048",
+    "https://github.com/pytorch/pytorch/issues/98048",
+    [
+      "linux"
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
@@ -1252,6 +1266,13 @@
   "test_meta_outplace_fft_ihfftn_cpu_int16 (__main__.TestMetaCPU)": [
     "112048",
     "https://github.com/pytorch/pytorch/issues/112048",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_int32 (__main__.TestMetaCPU)": [
+    "112104",
+    "https://github.com/pytorch/pytorch/issues/112104",
     [
       "dynamo"
     ]
