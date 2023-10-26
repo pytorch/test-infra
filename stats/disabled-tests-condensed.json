@@ -69,6 +69,13 @@
       "dynamo"
     ]
   ],
+  "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
+    "98049",
+    "https://github.com/pytorch/pytorch/issues/98049",
+    [
+      "linux"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -639,6 +646,13 @@
     "https://github.com/pytorch/pytorch/issues/98259",
     [
       "linux"
+    ]
+  ],
+  "test_dropout_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112151",
+    "https://github.com/pytorch/pytorch/issues/112151",
+    [
+      "dynamo"
     ]
   ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
@@ -1301,6 +1315,13 @@
   "test_meta_outplace_fft_ihfftn_cpu_int64 (__main__.TestMetaCPU)": [
     "112133",
     "https://github.com/pytorch/pytorch/issues/112133",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_int8 (__main__.TestMetaCPU)": [
+    "112150",
+    "https://github.com/pytorch/pytorch/issues/112150",
     [
       "dynamo"
     ]
