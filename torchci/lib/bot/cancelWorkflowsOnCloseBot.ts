@@ -38,18 +38,18 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
       prNumber,
     });
 
-   await Promise.all(
-     response.repository.pullRequest.commits.nodes[0].commit.checkSuites.nodes
-       .filter((node: any) => node.status != "COMPLETED")
-       .map(
-         async (node: any) =>
-           await ctx.octokit.rest.actions.cancelWorkflowRun({
-             owner,
-             repo,
-             run_id: node.workflowRun.databaseId,
-           })
-       )
-   );
+    await Promise.all(
+      response.repository.pullRequest.commits.nodes[0].commit.checkSuites.nodes
+        .filter((node: any) => node.status != "COMPLETED")
+        .map(
+          async (node: any) =>
+            await ctx.octokit.rest.actions.cancelWorkflowRun({
+              owner,
+              repo,
+              run_id: node.workflowRun.databaseId,
+            })
+        )
+    );
     return;
   });
 }
