@@ -19,15 +19,19 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
       return;
     }
 
-    const workflowRuns = await ctx.octokit.actions.listWorkflowRunsForRepo({
-      owner,
-      repo,
-      head_sha: headSha,
-      per_page: 30,
-    });
+    const workflowRuns = await ctx.octokit.paginate(
+      ctx.octokit.actions.listWorkflowRunsForRepo,
+      {
+        owner,
+        repo,
+        head_sha: headSha,
+        per_page: 30,
+      },
+      (o) => o.data.workflow_runs
+    );
 
     await Promise.all(
-      workflowRuns.data.workflow_runs
+      workflowRuns
         .filter((workflowRun) => workflowRun.status != "completed")
         .map(
           async (workflowRun) =>
