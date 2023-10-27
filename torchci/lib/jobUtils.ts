@@ -10,6 +10,7 @@ export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
 export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
+export const GHSTACK_PREFIX_REGEX = new RegExp("gh/(?<author>.*)");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -105,7 +106,31 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
-export function isSameHeadBranch(
+function getAuthorFromBranch(branch: string): string {
+  const replaceWith = "";
+  const branchNoGhstack = branch.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+
+  // This works with ghstack branch and forked repos, where the author name is
+  // part of the branch. For example, `gh/jcaip/45/head` is in ghstack format
+  if (branchNoGhstack !== branch) {
+    const ghstackAuthor = branchNoGhstack.match(GHSTACK_PREFIX_REGEX);
+    if (
+      ghstackAuthor !== null &&
+      ghstackAuthor.groups !== undefined &&
+      ghstackAuthor.groups.author
+    ) {
+      return ghstackAuthor.groups.author;
+    }
+  }
+  // Or `jcaip/semi-sparse-shape-mismatch-bug` if it comes from a forked repo
+  else if (branch.indexOf("/") !== -1 && branch.indexOf("ciflow") === -1) {
+    return branch.split("/", 1)[0];
+  }
+
+  return branch;
+}
+
+export function isSameAuthor(
   branchA: string | null | undefined,
   branchB: string | null | undefined
 ): boolean {
@@ -113,15 +138,14 @@ export function isSameHeadBranch(
     return false;
   }
 
-  const replaceWith = "";
   // This function exists because we want to treat all ghstack head branches
   // as one branch when it comes to finding similar failures. A legit failure
   // coming from the same job but different commits in the stack shouldn't be
   // treated as a flaky similar failure
-  const branchANoGhstack = branchA.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
-  const branchBNoGhstack = branchB.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+  const branchAAuthor = getAuthorFromBranch(branchA);
+  const branchBAuthor = getAuthorFromBranch(branchB);
 
-  return branchANoGhstack === branchBNoGhstack;
+  return branchAAuthor === branchBAuthor;
 }
 
 export function isSameFailure(
