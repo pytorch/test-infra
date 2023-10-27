@@ -978,6 +978,13 @@
       "dynamo"
     ]
   ],
+  "test_layer_norm_backward_5d_size_32_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112275",
+    "https://github.com/pytorch/pytorch/issues/112275",
+    [
+      "dynamo"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1382,9 +1389,23 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_linalg_pinv_hermitian_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112274",
+    "https://github.com/pytorch/pytorch/issues/112274",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_alpha_dropout_cpu_bfloat16 (__main__.TestMetaCPU)": [
+    "112273",
+    "https://github.com/pytorch/pytorch/issues/112273",
     [
       "dynamo"
     ]
