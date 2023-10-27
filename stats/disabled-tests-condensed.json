@@ -884,14 +884,6 @@
       "dynamo"
     ]
   ],
-  "test_index_select_scalar (__main__.TestNLLLoss)": [
-    "94162",
-    "https://github.com/pytorch/pytorch/issues/94162",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_indexing_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112221",
     "https://github.com/pytorch/pytorch/issues/112221",
