@@ -972,6 +972,13 @@
       "slow"
     ]
   ],
+  "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112237",
+    "https://github.com/pytorch/pytorch/issues/112237",
+    [
+      "dynamo"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1358,6 +1365,13 @@
   "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
     "112220",
     "https://github.com/pytorch/pytorch/issues/112220",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112236",
+    "https://github.com/pytorch/pytorch/issues/112236",
     [
       "dynamo"
     ]
