@@ -106,15 +106,15 @@ export function removeJobNameSuffix(
 }
 
 function getAuthorFromBranch(branch: string): string {
-  const branchNoGhstack = branch.match(GHSTACK_REGEX);
+  const isGhstack = branch.match(GHSTACK_REGEX);
   // This works with ghstack branch and forked repos, where the author name is
   // part of the branch. For example, `gh/jcaip/45/head` is in ghstack format
   if (
-    branchNoGhstack !== null &&
-    branchNoGhstack.groups !== undefined &&
-    branchNoGhstack.groups.author
+    isGhstack !== null &&
+    isGhstack.groups !== undefined &&
+    isGhstack.groups.author
   ) {
-    return branchNoGhstack.groups.author;
+    return isGhstack.groups.author;
   }
   // Or `jcaip/semi-sparse-shape-mismatch-bug` if it comes from a forked repo
   else if (branch.indexOf("/") !== -1 && branch.indexOf("ciflow") === -1) {
