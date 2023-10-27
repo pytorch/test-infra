@@ -628,6 +628,13 @@
       "dynamo"
     ]
   ],
+  "test_derpy_nn_module_usage (__main__.MiscTests)": [
+    "112295",
+    "https://github.com/pytorch/pytorch/issues/112295",
+    [
+      "linux"
+    ]
+  ],
   "test_detach_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "110248",
     "https://github.com/pytorch/pytorch/issues/110248",
