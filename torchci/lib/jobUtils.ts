@@ -9,8 +9,7 @@ import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
-export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
-export const GHSTACK_PREFIX_REGEX = new RegExp("gh/(?<author>.*)");
+export const GHSTACK_REGEX = new RegExp("gh/(?<author>.*)/[0-9]+/head");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -107,20 +106,15 @@ export function removeJobNameSuffix(
 }
 
 function getAuthorFromBranch(branch: string): string {
-  const replaceWith = "";
-  const branchNoGhstack = branch.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
-
+  const branchNoGhstack = branch.match(GHSTACK_REGEX);
   // This works with ghstack branch and forked repos, where the author name is
   // part of the branch. For example, `gh/jcaip/45/head` is in ghstack format
-  if (branchNoGhstack !== branch) {
-    const ghstackAuthor = branchNoGhstack.match(GHSTACK_PREFIX_REGEX);
-    if (
-      ghstackAuthor !== null &&
-      ghstackAuthor.groups !== undefined &&
-      ghstackAuthor.groups.author
-    ) {
-      return ghstackAuthor.groups.author;
-    }
+  if (
+    branchNoGhstack !== null &&
+    branchNoGhstack.groups !== undefined &&
+    branchNoGhstack.groups.author
+  ) {
+    return branchNoGhstack.groups.author;
   }
   // Or `jcaip/semi-sparse-shape-mismatch-bug` if it comes from a forked repo
   else if (branch.indexOf("/") !== -1 && branch.indexOf("ciflow") === -1) {
