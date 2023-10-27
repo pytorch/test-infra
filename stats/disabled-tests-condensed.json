@@ -237,13 +237,6 @@
       "mac"
     ]
   ],
-  "test_cat_addmm (__main__.TestDoBench)": [
-    "106451",
-    "https://github.com/pytorch/pytorch/issues/106451",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
@@ -998,14 +991,6 @@
     [
       "macos",
       "mac"
-    ]
-  ],
-  "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "106794",
-    "https://github.com/pytorch/pytorch/issues/106794",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
@@ -2109,13 +2094,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
-    "106026",
-    "https://github.com/pytorch/pytorch/issues/106026",
-    [
-      "rocm"
     ]
   ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
