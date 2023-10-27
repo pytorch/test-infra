@@ -182,6 +182,7 @@ function computePassrate(
     const workflowId = record.workflow_id;
     const suite = record.suite;
     const model = record.name;
+    const accuracy = record.accuracy;
 
     // Use clear compiler name to avoid confusion about what they do
     const compiler =
@@ -210,7 +211,14 @@ function computePassrate(
       passCount[bucket][workflowId][suite][compiler] = 0;
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passingModels)) {
+    // If the model pass accuracy check but fails the performance benchmark with an
+    // 0 speedup, it should be counted as a failure. However, `pass_due_to_skip` is
+    // an exception and it's ok to have 0 speedup there
+    if (
+      (isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
+        record.speedup !== 0.0) ||
+      accuracy === "pass_due_to_skip"
+    ) {
       passCount[bucket][workflowId][suite][compiler] += 1;
     }
 
