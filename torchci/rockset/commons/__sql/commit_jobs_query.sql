@@ -39,6 +39,7 @@ WITH
             job.torchci_classification.captures,
             job.torchci_classification.line_num,
             job.runner_name AS runner_name,
+            workflow.head_commit.author.email AS authorEmail,
         FROM
             workflow_job job
             INNER JOIN workflow_run workflow ON workflow.id = job.run_id
@@ -93,6 +94,7 @@ WITH
             null,
             -- Don't care about runner name from CircleCI
             null AS runner_name,
+            null AS authorEmail,
         FROM
             circleci.job job
         WHERE
@@ -119,6 +121,7 @@ SELECT
     ARRAY_CREATE(line_num) AS failureLineNumbers,
     captures AS failureCaptures,
     runner_name AS runnerName,
+    authorEmail,
     time,
 FROM
     job

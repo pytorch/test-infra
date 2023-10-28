@@ -55,44 +55,30 @@ describe("Test various job utils", () => {
     ).toStrictEqual("Test `run_test.py` is usable without boto3/rockset");
   });
 
-  test("test isSameAuthor", () => {
-    expect(isSameAuthor("", "")).toEqual(false);
+  test("test isSameAuthor", async () => {
+    const job: RecentWorkflowsData = {
+      head_sha: "123",
+      authorEmail: "mock@user.com",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
+    const failure: RecentWorkflowsData = {
+      head_sha: "456",
+      authorEmail: "mock@user.com",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
 
-    expect(isSameAuthor("mock-branch", "")).toEqual(false);
+    expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    expect(isSameAuthor("", "mock-branch")).toEqual(false);
-
-    expect(isSameAuthor("mock-branch", "mock-branch")).toEqual(true);
-
-    expect(isSameAuthor("one-branch", "another-branch")).toEqual(false);
-
-    expect(isSameAuthor("ciflow/trunk/1", "ciflow/trunk/2")).toEqual(false);
-
-    expect(isSameAuthor("ciflow/trunk/1", "ciflow/trunk/1")).toEqual(true);
-
-    expect(isSameAuthor("gh/user/1/head", "gh/user/2/head")).toEqual(true);
-
-    expect(isSameAuthor("gh/user/1/head", "gh/user/1/head")).toEqual(true);
-
-    expect(isSameAuthor("gh/user/1/head", "user/debug-branch")).toEqual(true);
-
-    expect(isSameAuthor("gh/user/1/head", "gh/another-user/2/head")).toEqual(
-      false
-    );
-
-    expect(isSameAuthor("gh/user/1/head", "gh/another-user/1/head")).toEqual(
-      false
-    );
-
-    expect(isSameAuthor("gh/user/1/head", "debug-branch")).toEqual(false);
-
-    expect(isSameAuthor("user/one-branch", "user/another-branch")).toEqual(
-      true
-    );
-
-    expect(isSameAuthor("user/one-branch", "another-user/one-branch")).toEqual(
-      false
-    );
+    failure.authorEmail = "different.author";
+    expect(await isSameAuthor(job, failure)).toEqual(false);
   });
 
   test("test isSameFailure", () => {

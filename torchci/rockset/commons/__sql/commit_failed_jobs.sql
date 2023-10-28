@@ -5,6 +5,7 @@ SELECT
   j.name AS jobName,
   CONCAT(w.name, ' / ', j.name) AS name,
   j.runner_name AS runnerName,
+  w.head_commit.author.email as authorEmail,
   j.conclusion,
   j.completed_at,
   j.html_url,

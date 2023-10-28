@@ -5,10 +5,12 @@ import {
   isExcludedFromFlakiness,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
+import * as jobUtils from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
 import { Client } from "@opensearch-project/opensearch";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 
@@ -204,6 +206,9 @@ describe("Test various utils used by Dr.CI", () => {
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
+    const mockJobUtils = jest.spyOn(jobUtils, "isSameAuthor");
+    mockJobUtils.mockImplementation(() => Promise.resolve(false));
+
     // Found no similar job
     expect(
       await hasSimilarFailures(

@@ -317,15 +317,19 @@ export async function hasSimilarFailures(
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
       failure_lines: record.failureLines,
+      authorEmail: record.authorEmail,
     };
 
     // Only count different jobs with the same failure. To avoid FP, PRs from the
     // same author are treated as the same till we could figure out a better way
     // to separate them
     if (
-      !isSameAuthor(job.head_branch, record.branch) &&
       job.id !== failure.id &&
-      isSameFailure(job, failure)
+      job.head_sha !== failure.head_sha &&
+      isSameFailure(job, failure) &&
+      // Run this check last because it costs one query to query for the commit
+      // author of the failure
+      !(await isSameAuthor(job, failure))
     ) {
       return true;
     }

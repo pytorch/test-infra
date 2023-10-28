@@ -105,41 +105,53 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
-function getAuthorFromBranch(branch: string): string {
-  const isGhstack = branch.match(GHSTACK_REGEX);
-  // This works with ghstack branch and forked repos, where the author name is
-  // part of the branch. For example, `gh/jcaip/45/head` is in ghstack format
-  if (
-    isGhstack !== null &&
-    isGhstack.groups !== undefined &&
-    isGhstack.groups.author
-  ) {
-    return isGhstack.groups.author;
-  }
-  // Or `jcaip/semi-sparse-shape-mismatch-bug` if it comes from a forked repo
-  else if (branch.indexOf("/") !== -1 && branch.indexOf("ciflow") === -1) {
-    return branch.split("/", 1)[0];
-  }
-
-  return branch;
+async function getAuthor(job: RecentWorkflowsData): Promise<string> {
+  // Actually query Rockset to get the author of the commit. We do this last
+  // because it costs one query
+  const query = `
+SELECT
+  w.head_commit.author.email
+FROM
+  commons.workflow_run w
+WHERE
+  w.head_commit.id = :sha
+LIMIT
+  1
+  `;
+  const rocksetClient = getRocksetClient();
+  const results = (
+    await rocksetClient.queries.query({
+      sql: {
+        query: query,
+        parameters: [
+          {
+            name: "sha",
+            type: "string",
+            value: job.head_sha,
+          },
+        ],
+      },
+    })
+  ).results;
+  return results !== undefined && results.length === 1 ? results[0].email : "";
 }
 
-export function isSameAuthor(
-  branchA: string | null | undefined,
-  branchB: string | null | undefined
-): boolean {
-  if (!branchA || !branchB) {
-    return false;
-  }
+export async function isSameAuthor(
+  job: RecentWorkflowsData,
+  failure: RecentWorkflowsData
+): Promise<boolean> {
+  const jobAuthor = job.authorEmail ? job.authorEmail : await getAuthor(job);
+  const failureAuthor = failure.authorEmail
+    ? failure.authorEmail
+    : await getAuthor(failure);
 
   // This function exists because we want to treat all ghstack head branches
   // as one branch when it comes to finding similar failures. A legit failure
   // coming from the same job but different commits in the stack shouldn't be
   // treated as a flaky similar failure
-  const branchAAuthor = getAuthorFromBranch(branchA);
-  const branchBAuthor = getAuthorFromBranch(branchB);
-
-  return branchAAuthor === branchBAuthor;
+  return (
+    jobAuthor !== "" && failureAuthor !== "" && jobAuthor === failureAuthor
+  );
 }
 
 export function isSameFailure(
