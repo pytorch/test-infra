@@ -9,7 +9,6 @@ import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
-export const GHSTACK_REGEX = new RegExp("gh/(?<author>.*)/[0-9]+/head");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -106,8 +105,6 @@ export function removeJobNameSuffix(
 }
 
 async function getAuthor(job: RecentWorkflowsData): Promise<string> {
-  // Actually query Rockset to get the author of the commit. We do this last
-  // because it costs one query
   const query = `
 SELECT
   w.head_commit.author.email
@@ -145,10 +142,11 @@ export async function isSameAuthor(
     ? failure.authorEmail
     : await getAuthor(failure);
 
-  // This function exists because we want to treat all ghstack head branches
-  // as one branch when it comes to finding similar failures. A legit failure
-  // coming from the same job but different commits in the stack shouldn't be
-  // treated as a flaky similar failure
+  // This function exists because we don't want to wrongly count similar failures
+  // from commits of the same author as flaky. Some common cases include:
+  // * ghstack
+  // * Draft commit
+  // * Cherry picking
   return (
     jobAuthor !== "" && failureAuthor !== "" && jobAuthor === failureAuthor
   );
