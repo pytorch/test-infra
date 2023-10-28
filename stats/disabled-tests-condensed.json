@@ -237,6 +237,13 @@
       "mac"
     ]
   ],
+  "test_cat_addmm (__main__.TestDoBench)": [
+    "106451",
+    "https://github.com/pytorch/pytorch/issues/106451",
+    [
+      "rocm"
+    ]
+  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
