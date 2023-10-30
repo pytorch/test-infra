@@ -393,6 +393,13 @@
       "linux"
     ]
   ],
+  "test_cond_nested (__main__.MiscTests)": [
+    "101758",
+    "https://github.com/pytorch/pytorch/issues/101758",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_side_effects (__main__.MiscTests)": [
     "111850",
     "https://github.com/pytorch/pytorch/issues/111850",
@@ -2016,13 +2023,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109864",
-    "https://github.com/pytorch/pytorch/issues/109864",
-    [
-      "linux"
     ]
   ],
   "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
