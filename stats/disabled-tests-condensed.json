@@ -962,15 +962,6 @@
       "rocm"
     ]
   ],
-  "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109829",
-    "https://github.com/pytorch/pytorch/issues/109829",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112237",
     "https://github.com/pytorch/pytorch/issues/112237",
