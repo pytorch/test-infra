@@ -962,6 +962,15 @@
       "rocm"
     ]
   ],
+  "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109829",
+    "https://github.com/pytorch/pytorch/issues/109829",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112237",
     "https://github.com/pytorch/pytorch/issues/112237",
@@ -986,6 +995,13 @@
   "test_layer_norm_backward_5d_size_4_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112356",
     "https://github.com/pytorch/pytorch/issues/112356",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_layer_norm_backward_edge_case_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112388",
+    "https://github.com/pytorch/pytorch/issues/112388",
     [
       "dynamo"
     ]
@@ -1400,6 +1416,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_linalg_vecdot_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112385",
+    "https://github.com/pytorch/pytorch/issues/112385",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
@@ -1417,6 +1440,13 @@
   "test_meta_outplace_nn_functional_alpha_dropout_cpu_float16 (__main__.TestMetaCPU)": [
     "112353",
     "https://github.com/pytorch/pytorch/issues/112353",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
+    "112386",
+    "https://github.com/pytorch/pytorch/issues/112386",
     [
       "dynamo"
     ]
@@ -1779,6 +1809,13 @@
       "inductor"
     ]
   ],
+  "test_out_warning__refs_arange_cpu (__main__.TestCommonCPU)": [
+    "112387",
+    "https://github.com/pytorch/pytorch/issues/112387",
+    [
+      "dynamo"
+    ]
+  ],
   "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
     "112142",
     "https://github.com/pytorch/pytorch/issues/112142",
@@ -1966,14 +2003,6 @@
     "https://github.com/pytorch/pytorch/issues/91488",
     [
       "linux"
-    ]
-  ],
-  "test_symints_location (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109862",
-    "https://github.com/pytorch/pytorch/issues/109862",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
