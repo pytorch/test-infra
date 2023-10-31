@@ -526,6 +526,13 @@
     "https://github.com/pytorch/pytorch/issues/106308",
     []
   ],
+  "test_cuda_event_method (__main__.CtxManagerTests)": [
+    "112462",
+    "https://github.com/pytorch/pytorch/issues/112462",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -1004,6 +1011,13 @@
       "dynamo"
     ]
   ],
+  "test_layer_norm_backward_size_1024_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112464",
+    "https://github.com/pytorch/pytorch/issues/112464",
+    [
+      "dynamo"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1428,6 +1442,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_masked_std_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112461",
+    "https://github.com/pytorch/pytorch/issues/112461",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
@@ -1459,6 +1480,13 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float32 (__main__.TestMetaCPU)": [
     "112422",
     "https://github.com/pytorch/pytorch/issues/112422",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
+    "112463",
+    "https://github.com/pytorch/pytorch/issues/112463",
     [
       "dynamo"
     ]
@@ -1960,6 +1988,13 @@
       "linux"
     ]
   ],
+  "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
+    "96282",
+    "https://github.com/pytorch/pytorch/issues/96282",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -2023,6 +2058,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109864",
+    "https://github.com/pytorch/pytorch/issues/109864",
+    [
+      "linux"
     ]
   ],
   "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
@@ -2094,6 +2136,13 @@
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
+    ]
+  ],
+  "test_tensor_dtype_complex (__main__.CommTest)": [
+    "112460",
+    "https://github.com/pytorch/pytorch/issues/112460",
     [
       "linux"
     ]
