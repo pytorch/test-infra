@@ -60,6 +60,10 @@ function NavBar() {
       name: "Failures Classifier",
       href: "/failedjobs/pytorch/pytorch/main",
     },
+    {
+      name: "TorchBench",
+      href: "/torchbench/userbenchmark",
+    },
     // uncomment after some eyeballs are on this
     // {
     //   name: "Testing Overhead",

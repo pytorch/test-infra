@@ -11,29 +11,18 @@ type UserbenchmarkRow = {
   metric_name: string;
   control_value: string | number;
   treatment_value: string | number;
-  speedup: string | number | null;
+  delta: string | number | null;
 };
 
 export const USERBENCHMARKS: { [k: string]: string } = {
   torch_trt: "Torch TensorRT",
 };
 
-type UserbenchmarkProps = {};
 type UserbenchmarkState = { url: string | null; content: any };
 
 class UserbenchmarkReport extends React.Component<
-  UserbenchmarkProps,
   UserbenchmarkState
 > {
-
-  constructor(props: UserbenchmarkProps) {
-    super(props);
-
-    this.state = {
-      url: null,
-      content: null,
-    };
-  }
 
   // returns a list[UserbenchmarkRow]
   // The first element is headers, remaining elements are rows.
@@ -42,9 +31,9 @@ class UserbenchmarkReport extends React.Component<
   getHeader(row: UserbenchmarkRow) {
     const headers = [
       row.metric_name as string,
-      row.base_value as string,
-      row.pr_value as string,
-      row.speedup as string,
+      row.control_value as string,
+      row.treatment_value as string,
+      row.delta as string,
     ];
     return (
       <thead>
@@ -93,40 +82,20 @@ class UserbenchmarkReport extends React.Component<
     return (
       <tbody>
         <tr className={styles.userbenchmarkTable}>
-          {[row.metric_name, row.base_value, row.pr_value].map(
+          {[row.metric_name, row.control_value, row.treatment_value].map(
             (val: any, idx: number) => (
               <td className={styles.userbenchmarkTable} key={idx}>
                 {val}
               </td>
             )
           )}
-          {convertSpeedup(row.speedup as number)}
+          {convertSpeedup(row.delta as number)}
         </tr>
       </tbody>
     );
   }
 
-  csvToTable(csvString: string) {
-    const data = this.parseCsv(csvString);
-
-    const minSpeedup = Math.min(
-      0.0,
-      ...data
-        .slice(1)
-        .map((subarr: UserbenchmarkRow) => subarr.speedup as number)
-    );
-    const maxSpeedup = Math.max(
-      0.0,
-      ...data
-        .slice(1)
-        .map((subarr: UserbenchmarkRow) => subarr.speedup as number)
-    );
-    return (
-      <table className={styles.userbenchmarkTable}>
-        {this.getHeader(data[0])}
-        {data.slice(1).map((row) => this.getRow(row, minSpeedup, maxSpeedup))}
-      </table>
-    );
+  jsonToTable(csvString: string) {
   }
 
   componentDidMount() {
@@ -146,7 +115,7 @@ class UserbenchmarkReport extends React.Component<
         })
         .then((response) => {
           this.setState({
-            content: this.csvToTable(response),
+            content: "abc",
             url: url,
           });
         });
@@ -158,16 +127,13 @@ class UserbenchmarkReport extends React.Component<
       <div>
         <h1>
           {" "}
-          Userbenchmark results from <span>{this.state.url}</span>{" "}
+          TorchBench Userbenchmark results from <span>{this.state.url}</span>{" "}
         </h1>
         <p>
-          Userbenchmarks can be optionally run in the CI by adding
-          &quot;RUN_TORCHBENCH: [userbenchmark]&quot; in the body of PRs in the
-          pytorch/pytorch repo, where [userbenchmark] should be replaced by one
-          of the userbenchmark options, e.g. nvfuser. The CI job will generate a
-          CSV of the results, showing result times from the base revision as
-          well as the PR revision. This page displays the speedup/slowdown by
-          comparing the base and PR revision results.
+          TorchBench Userbenchmarks can be run in the CI deployed in the pytorch/benchmark
+          repo. The CI job will generate a JSON of the results, showing result times
+          from the control revision as well as the treatment revision.
+          This page displays the metrics delta by comparing the revision results.
         </p>
         <div> {this.state.content} </div>
       </div>
@@ -175,7 +141,7 @@ class UserbenchmarkReport extends React.Component<
   }
 }
 
-export default function Userbenchmark() {
+export default function Page() {
   return <div>
     <UserbenchmarkReport />
   </div>;
