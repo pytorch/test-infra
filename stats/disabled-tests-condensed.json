@@ -2254,6 +2254,13 @@
       "slow"
     ]
   ],
+  "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
+    "106026",
+    "https://github.com/pytorch/pytorch/issues/106026",
+    [
+      "rocm"
+    ]
+  ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
     "110610",
     "https://github.com/pytorch/pytorch/issues/110610",
