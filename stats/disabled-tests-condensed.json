@@ -2130,6 +2130,14 @@
       "linux"
     ]
   ],
+  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109901",
+    "https://github.com/pytorch/pytorch/issues/109901",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109996",
     "https://github.com/pytorch/pytorch/issues/109996",
