@@ -76,6 +76,13 @@
       "dynamo"
     ]
   ],
+  "test_activations_abs_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110211",
+    "https://github.com/pytorch/pytorch/issues/110211",
+    [
+      "dynamo"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -1456,6 +1463,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_masked_std_cpu_complex64 (__main__.TestMetaCPU)": [
+    "112481",
+    "https://github.com/pytorch/pytorch/issues/112481",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
@@ -1477,6 +1491,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
+    "112480",
+    "https://github.com/pytorch/pytorch/issues/112480",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
     "112386",
     "https://github.com/pytorch/pytorch/issues/112386",
@@ -1494,6 +1515,13 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
     "112463",
     "https://github.com/pytorch/pytorch/issues/112463",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112479",
+    "https://github.com/pytorch/pytorch/issues/112479",
     [
       "dynamo"
     ]
@@ -2070,6 +2098,13 @@
   "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
     "109864",
     "https://github.com/pytorch/pytorch/issues/109864",
+    [
+      "linux"
+    ]
+  ],
+  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109872",
+    "https://github.com/pytorch/pytorch/issues/109872",
     [
       "linux"
     ]
