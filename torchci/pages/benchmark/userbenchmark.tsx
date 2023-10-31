@@ -9,17 +9,23 @@ const MAX_BRIGHTNESS: number = 255;
 
 type UserbenchmarkRow = {
   metric_name: string;
-  base_value: string | number;
-  pr_value: string | number;
+  control_value: string | number;
+  treatment_value: string | number;
   speedup: string | number | null;
+};
+
+export const USERBENCHMARKS: { [k: string]: string } = {
+  torch_trt: "Torch TensorRT",
 };
 
 type UserbenchmarkProps = {};
 type UserbenchmarkState = { url: string | null; content: any };
-class UserbenchmarkResults extends React.Component<
+
+class UserbenchmarkReport extends React.Component<
   UserbenchmarkProps,
   UserbenchmarkState
 > {
+
   constructor(props: UserbenchmarkProps) {
     super(props);
 
@@ -31,38 +37,7 @@ class UserbenchmarkResults extends React.Component<
 
   // returns a list[UserbenchmarkRow]
   // The first element is headers, remaining elements are rows.
-  // Expected csv format is:
-  //   metric_name;base_revision_value;pr_revision_value
   // 1 header row is expected, followed by data rows.
-  parseCsv(msg: string) {
-    // split semicolon-separated csv
-    const as_array = msg
-      .split("\n")
-      .map((x: any) => x.split(";"))
-      .filter((subarray: any[]) => subarray.length == 3);
-    let result: UserbenchmarkRow[] = [];
-    const HEADER_COL: number = 0;
-    const METRIC_ROW: number = 0;
-    const BASE_VALUE_ROW: number = 1;
-    const PR_VALUE_ROW: number = 2;
-    result.push({
-      metric_name: as_array[HEADER_COL][METRIC_ROW],
-      base_value: as_array[HEADER_COL][BASE_VALUE_ROW],
-      pr_value: as_array[HEADER_COL][PR_VALUE_ROW],
-      speedup: "Speedup",
-    });
-    for (let i = 1; i < as_array.length; ++i) {
-      const base_value: number = parseFloat(as_array[i][BASE_VALUE_ROW]);
-      const pr_value: number = parseFloat(as_array[i][PR_VALUE_ROW]);
-      result.push({
-        metric_name: as_array[i][METRIC_ROW],
-        base_value: base_value,
-        pr_value: pr_value,
-        speedup: base_value / pr_value - 1,
-      });
-    }
-    return result;
-  }
 
   getHeader(row: UserbenchmarkRow) {
     const headers = [
@@ -201,5 +176,7 @@ class UserbenchmarkResults extends React.Component<
 }
 
 export default function Userbenchmark() {
-  return <UserbenchmarkResults />;
+  return <div>
+    <UserbenchmarkReport />
+  </div>;
 }
