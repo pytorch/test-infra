@@ -69,6 +69,13 @@
       "dynamo"
     ]
   ],
+  "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "110198",
+    "https://github.com/pytorch/pytorch/issues/110198",
+    [
+      "dynamo"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -2063,13 +2070,6 @@
   "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
     "109864",
     "https://github.com/pytorch/pytorch/issues/109864",
-    [
-      "linux"
-    ]
-  ],
-  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109872",
-    "https://github.com/pytorch/pytorch/issues/109872",
     [
       "linux"
     ]
