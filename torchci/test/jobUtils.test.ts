@@ -1,7 +1,7 @@
 import {
   removeJobNameSuffix,
   isSameFailure,
-  isSameHeadBranch,
+  isSameAuthor,
   removeCancelledJobAfterRetry,
 } from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
@@ -55,30 +55,30 @@ describe("Test various job utils", () => {
     ).toStrictEqual("Test `run_test.py` is usable without boto3/rockset");
   });
 
-  test("test isSameHeadBranch", () => {
-    expect(isSameHeadBranch("", "")).toEqual(false);
+  test("test isSameAuthor", async () => {
+    const job: RecentWorkflowsData = {
+      head_sha: "123",
+      authorEmail: "mock@user.com",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
+    const failure: RecentWorkflowsData = {
+      head_sha: "456",
+      authorEmail: "mock@user.com",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
 
-    expect(isSameHeadBranch("mock-branch", "")).toEqual(false);
+    expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    expect(isSameHeadBranch("", "mock-branch")).toEqual(false);
-
-    expect(isSameHeadBranch("mock-branch", "mock-branch")).toEqual(true);
-
-    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/2")).toEqual(false);
-
-    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/1")).toEqual(true);
-
-    expect(isSameHeadBranch("gh/user/1/head", "gh/user/2/head")).toEqual(true);
-
-    expect(isSameHeadBranch("gh/user/1/head", "gh/user/1/head")).toEqual(true);
-
-    expect(
-      isSameHeadBranch("gh/user/1/head", "gh/another-user/2/head")
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch("gh/user/1/head", "gh/another-user/1/head")
-    ).toEqual(false);
+    failure.authorEmail = "different.author";
+    expect(await isSameAuthor(job, failure)).toEqual(false);
   });
 
   test("test isSameFailure", () => {

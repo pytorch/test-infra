@@ -9,7 +9,6 @@ import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
-export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -105,23 +104,52 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
-export function isSameHeadBranch(
-  branchA: string | null | undefined,
-  branchB: string | null | undefined
-): boolean {
-  if (!branchA || !branchB) {
-    return false;
-  }
+async function getAuthor(job: RecentWorkflowsData): Promise<string> {
+  const query = `
+SELECT
+  w.head_commit.author.email
+FROM
+  commons.workflow_run w
+WHERE
+  w.head_commit.id = :sha
+LIMIT
+  1
+  `;
+  const rocksetClient = getRocksetClient();
+  const results = (
+    await rocksetClient.queries.query({
+      sql: {
+        query: query,
+        parameters: [
+          {
+            name: "sha",
+            type: "string",
+            value: job.head_sha,
+          },
+        ],
+      },
+    })
+  ).results;
+  return results !== undefined && results.length === 1 ? results[0].email : "";
+}
 
-  const replaceWith = "";
-  // This function exists because we want to treat all ghstack head branches
-  // as one branch when it comes to finding similar failures. A legit failure
-  // coming from the same job but different commits in the stack shouldn't be
-  // treated as a flaky similar failure
-  const branchANoGhstack = branchA.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
-  const branchBNoGhstack = branchB.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+export async function isSameAuthor(
+  job: RecentWorkflowsData,
+  failure: RecentWorkflowsData
+): Promise<boolean> {
+  const jobAuthor = job.authorEmail ? job.authorEmail : await getAuthor(job);
+  const failureAuthor = failure.authorEmail
+    ? failure.authorEmail
+    : await getAuthor(failure);
 
-  return branchANoGhstack === branchBNoGhstack;
+  // This function exists because we don't want to wrongly count similar failures
+  // from commits of the same author as flaky. Some common cases include:
+  // * ghstack
+  // * Draft commit
+  // * Cherry picking
+  return (
+    jobAuthor !== "" && failureAuthor !== "" && jobAuthor === failureAuthor
+  );
 }
 
 export function isSameFailure(

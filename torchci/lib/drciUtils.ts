@@ -14,7 +14,7 @@ import {
   MAX_SIZE,
 } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
-import { isSameHeadBranch, isSameFailure } from "lib/jobUtils";
+import { isSameAuthor, isSameFailure } from "lib/jobUtils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -317,13 +317,19 @@ export async function hasSimilarFailures(
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
       failure_lines: record.failureLines,
+      authorEmail: record.authorEmail,
     };
 
-    // Only count different jobs with the same failure
+    // Only count different jobs with the same failure. To avoid FP, PRs from the
+    // same author are treated as the same till we could figure out a better way
+    // to separate them
     if (
-      !isSameHeadBranch(job.head_branch, record.branch) &&
       job.id !== failure.id &&
-      isSameFailure(job, failure)
+      job.head_sha !== failure.head_sha &&
+      isSameFailure(job, failure) &&
+      // Run this check last because it costs one query to query for the commit
+      // author of the failure
+      !(await isSameAuthor(job, failure))
     ) {
       return true;
     }

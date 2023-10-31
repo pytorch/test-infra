@@ -6,6 +6,7 @@ export interface BasicJobData {
   time?: string;
   conclusion?: string;
   runnerName?: string;
+  authorEmail?: string;
 }
 
 // Used by HUD
