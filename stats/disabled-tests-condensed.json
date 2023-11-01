@@ -249,14 +249,6 @@
       "mac"
     ]
   ],
-  "test_caching_pinned_memory (__main__.TestCuda)": [
-    "79508",
-    "https://github.com/pytorch/pytorch/issues/79508",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
@@ -692,6 +684,13 @@
   "test_dropout_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112151",
     "https://github.com/pytorch/pytorch/issues/112151",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_dropout_layout_torch_jagged_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112546",
+    "https://github.com/pytorch/pytorch/issues/112546",
     [
       "dynamo"
     ]
@@ -2165,15 +2164,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109996",
-    "https://github.com/pytorch/pytorch/issues/109996",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
