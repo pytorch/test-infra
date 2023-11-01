@@ -2085,6 +2085,14 @@
       "linux"
     ]
   ],
+  "test_resnet18_cpu (__main__.BenchmarkFusionCpuTest)": [
+    "112615",
+    "https://github.com/pytorch/pytorch/issues/112615",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
