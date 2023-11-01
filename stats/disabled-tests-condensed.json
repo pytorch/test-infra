@@ -204,6 +204,13 @@
       "dynamo"
     ]
   ],
+  "test_backward_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "112559",
+    "https://github.com/pytorch/pytorch/issues/112559",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_sub_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112134",
     "https://github.com/pytorch/pytorch/issues/112134",
@@ -1553,6 +1560,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int64 (__main__.TestMetaCPU)": [
+    "112557",
+    "https://github.com/pytorch/pytorch/issues/112557",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int8 (__main__.TestMetaCPU)": [
     "112534",
     "https://github.com/pytorch/pytorch/issues/112534",
@@ -1563,6 +1577,13 @@
   "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
     "112479",
     "https://github.com/pytorch/pytorch/issues/112479",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_pinverse_cpu_complex64 (__main__.TestMetaCPU)": [
+    "112558",
+    "https://github.com/pytorch/pytorch/issues/112558",
     [
       "dynamo"
     ]
@@ -2198,13 +2219,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
-    "91482",
-    "https://github.com/pytorch/pytorch/issues/91482",
-    [
-      "linux"
     ]
   ],
   "test_tensor_dtype_complex (__main__.CommTest)": [
