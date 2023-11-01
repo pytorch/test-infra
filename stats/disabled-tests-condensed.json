@@ -695,6 +695,13 @@
       "dynamo"
     ]
   ],
+  "test_dropout_backward_layout_torch_jagged_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112664",
+    "https://github.com/pytorch/pytorch/issues/112664",
+    [
+      "dynamo"
+    ]
+  ],
   "test_dropout_layout_torch_jagged_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "112546",
     "https://github.com/pytorch/pytorch/issues/112546",
