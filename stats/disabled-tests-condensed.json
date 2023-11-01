@@ -2210,12 +2210,11 @@
       "slow"
     ]
   ],
-  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110038",
-    "https://github.com/pytorch/pytorch/issues/110038",
+  "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110012",
+    "https://github.com/pytorch/pytorch/issues/110012",
     [
       "linux",
-      "rocm",
       "slow"
     ]
   ],
