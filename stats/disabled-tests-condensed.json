@@ -702,6 +702,13 @@
       "dynamo"
     ]
   ],
+  "test_dropout_layout_torch_jagged_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112568",
+    "https://github.com/pytorch/pytorch/issues/112568",
+    [
+      "dynamo"
+    ]
+  ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
@@ -1883,6 +1890,13 @@
       "inductor"
     ]
   ],
+  "test_numpy_non_writeable_cpu (__main__.TestNumPyInteropCPU)": [
+    "112567",
+    "https://github.com/pytorch/pytorch/issues/112567",
+    [
+      "dynamo"
+    ]
+  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
@@ -2187,11 +2201,12 @@
       "rocm"
     ]
   ],
-  "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110012",
-    "https://github.com/pytorch/pytorch/issues/110012",
+  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109996",
+    "https://github.com/pytorch/pytorch/issues/109996",
     [
       "linux",
+      "rocm",
       "slow"
     ]
   ],
