@@ -46,5 +46,9 @@
   {
     "name": "linux",
     "captures": ["The process '/usr/bin/git' failed with exit code 1"]
+  },
+  {
+    "name": "macos",
+    "captures": ["File doesn't exist"]
   }
 ]
