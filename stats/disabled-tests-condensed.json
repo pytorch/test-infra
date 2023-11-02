@@ -1729,13 +1729,6 @@
       "dynamo"
     ]
   ],
-  "test_narrow_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111567",
-    "https://github.com/pytorch/pytorch/issues/111567",
-    [
-      "dynamo"
-    ]
-  ],
   "test_narrow_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111606",
     "https://github.com/pytorch/pytorch/issues/111606",
