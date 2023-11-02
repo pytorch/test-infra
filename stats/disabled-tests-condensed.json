@@ -511,6 +511,13 @@
       "linux"
     ]
   ],
+  "test_cuda_event_method_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "112791",
+    "https://github.com/pytorch/pytorch/issues/112791",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -1234,6 +1241,13 @@
   "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
     "111561",
     "https://github.com/pytorch/pytorch/issues/111561",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111571",
+    "https://github.com/pytorch/pytorch/issues/111571",
     [
       "dynamo"
     ]
@@ -2132,6 +2146,13 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
