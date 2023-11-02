@@ -574,6 +574,13 @@
       "linux"
     ]
   ],
+  "test_cuda_stream_context_manager1_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "112694",
+    "https://github.com/pytorch/pytorch/issues/112694",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_stream_context_manager2 (__main__.CtxManagerTests)": [
     "111890",
     "https://github.com/pytorch/pytorch/issues/111890",
@@ -2457,6 +2464,13 @@
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86929",
     "https://github.com/pytorch/pytorch/issues/86929",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapvjpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "104737",
+    "https://github.com/pytorch/pytorch/issues/104737",
     [
       "linux"
     ]
