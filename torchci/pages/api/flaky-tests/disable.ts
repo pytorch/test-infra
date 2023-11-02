@@ -36,20 +36,17 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     octokit,
     flakyTests,
     flakyTestsAcrossFileReruns,
-    flakyTestsAcrossJobs,
     issues,
     disabledNonFlakyTests,
   ] = await Promise.all([
     getOctokit(owner, repo),
     fetchFlakyTests(`${NUM_HOURS}`),
     fetchFlakyTestsAcrossFileReruns(`${NUM_HOURS}`),
-    fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
     fetchIssuesByLabel("skipped"),
     fetchDisabledNonFlakyTests(),
   ]);
 
   const allFlakyTests = flakyTests
-    .concat(flakyTestsAcrossJobs)
     .concat(flakyTestsAcrossFileReruns);
   // If the test is flaky only on PRs, we should not disable it yet.
   const flakyTestsOnTrunk = filterThreshold(
