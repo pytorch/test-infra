@@ -667,13 +667,6 @@
       "dynamo"
     ]
   ],
-  "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111514",
-    "https://github.com/pytorch/pytorch/issues/111514",
-    [
-      "dynamo"
-    ]
-  ],
   "test_detach_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111549",
     "https://github.com/pytorch/pytorch/issues/111549",
@@ -698,6 +691,13 @@
   "test_dropout_backward_layout_torch_jagged_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112664",
     "https://github.com/pytorch/pytorch/issues/112664",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_dropout_backward_layout_torch_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112680",
+    "https://github.com/pytorch/pytorch/issues/112680",
     [
       "dynamo"
     ]
@@ -1113,13 +1113,6 @@
       "windows"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107762",
-    "https://github.com/pytorch/pytorch/issues/107762",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107767",
     "https://github.com/pytorch/pytorch/issues/107767",
@@ -1241,13 +1234,6 @@
   "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111462",
     "https://github.com/pytorch/pytorch/issues/111462",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111513",
-    "https://github.com/pytorch/pytorch/issues/111513",
     [
       "dynamo"
     ]
@@ -1605,6 +1591,13 @@
   "test_meta_outplace_std_mean_cpu_float16 (__main__.TestMetaCPU)": [
     "112574",
     "https://github.com/pytorch/pytorch/issues/112574",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_std_mean_cpu_float32 (__main__.TestMetaCPU)": [
+    "112681",
+    "https://github.com/pytorch/pytorch/issues/112681",
     [
       "dynamo"
     ]
@@ -2171,13 +2164,6 @@
       "linux"
     ]
   ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
-    [
-      "linux"
-    ]
-  ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91488",
     "https://github.com/pytorch/pytorch/issues/91488",
@@ -2247,14 +2233,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110051",
-    "https://github.com/pytorch/pytorch/issues/110051",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_tags_recomputed_rand (__main__.ActivationCheckpointingViaTagsTests)": [
