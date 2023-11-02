@@ -6,27 +6,6 @@
       "linux"
     ]
   ],
-  "test_Conv2d_groups_nobias (__main__.TestConvolutionNN)": [
-    "111532",
-    "https://github.com/pytorch/pytorch/issues/111532",
-    [
-      "rocm"
-    ]
-  ],
-  "test_Conv2d_groups_nobias_v2 (__main__.TestConvolutionNN)": [
-    "111533",
-    "https://github.com/pytorch/pytorch/issues/111533",
-    [
-      "rocm"
-    ]
-  ],
-  "test_Conv2d_naive_groups_cuda_float16 (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "111536",
-    "https://github.com/pytorch/pytorch/issues/111536",
-    [
-      "rocm"
-    ]
-  ],
   "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
     "77317",
     "https://github.com/pytorch/pytorch/issues/77317",
@@ -314,13 +293,6 @@
       "linux"
     ]
   ],
-  "test_circular_dependencies (__main__.TestImports)": [
-    "110040",
-    "https://github.com/pytorch/pytorch/issues/110040",
-    [
-      "rocm"
-    ]
-  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -527,27 +499,6 @@
       "rocm"
     ]
   ],
-  "test_cublas_baddbmm_large_input_1_10000_10000_10000_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
-    "110994",
-    "https://github.com/pytorch/pytorch/issues/110994",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cublas_baddbmm_large_input_2_1000_1000_1000_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
-    "110993",
-    "https://github.com/pytorch/pytorch/issues/110993",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cublas_baddbmm_large_input_2_100_100_100_cuda_float16 (__main__.TestMatmulCudaCUDA)": [
-    "110992",
-    "https://github.com/pytorch/pytorch/issues/110992",
-    [
-      "rocm"
-    ]
-  ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
     "106308",
     "https://github.com/pytorch/pytorch/issues/106308",
@@ -677,6 +628,13 @@
   "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111514",
     "https://github.com/pytorch/pytorch/issues/111514",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_detach_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "111549",
+    "https://github.com/pytorch/pytorch/issues/111549",
     [
       "dynamo"
     ]
@@ -1008,13 +966,6 @@
       "macos"
     ]
   ],
-  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
-    "107383",
-    "https://github.com/pytorch/pytorch/issues/107383",
-    [
-      "rocm"
-    ]
-  ],
   "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
     "109829",
     "https://github.com/pytorch/pytorch/issues/109829",
@@ -1280,9 +1231,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111571",
-    "https://github.com/pytorch/pytorch/issues/111571",
+  "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111561",
+    "https://github.com/pytorch/pytorch/issues/111561",
     [
       "dynamo"
     ]
@@ -1698,13 +1649,6 @@
     [
       "linux",
       "macos"
-    ]
-  ],
-  "test_multi_return_some_unused (__main__.TestSerialize)": [
-    "111038",
-    "https://github.com/pytorch/pytorch/issues/111038",
-    [
-      "rocm"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
@@ -2271,6 +2215,15 @@
       "rocm"
     ]
   ],
+  "test_tags_recomputed_rand (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110062",
+    "https://github.com/pytorch/pytorch/issues/110062",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
@@ -2430,13 +2383,6 @@
     "https://github.com/pytorch/pytorch/issues/86887",
     [
       "linux"
-    ]
-  ],
-  "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "111583",
-    "https://github.com/pytorch/pytorch/issues/111583",
-    [
-      "macos"
     ]
   ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
