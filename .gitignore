@@ -128,5 +128,4 @@ docs/_build/
 # Pyenv
 .python-version
 
-# torchci caching utils
-.torchci_python_utils_cache
+/_logs

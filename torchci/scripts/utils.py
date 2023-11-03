@@ -9,7 +9,7 @@ from typing import List, Union
 
 FILE_CACHE_LIFESPAN_SECONDS = 60 * 60 * 24  # 1 day
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
-CACHE_FOLDER = REPO_ROOT / ".torchci_python_utils_cache"
+CACHE_FOLDER = REPO_ROOT / "_logs" / ".torchci_python_utils_cache"
 
 
 def js_beautify(obj):
