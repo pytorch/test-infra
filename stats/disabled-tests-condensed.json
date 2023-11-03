@@ -258,18 +258,18 @@
       "mac"
     ]
   ],
-  "test_cat_addmm (__main__.TestDoBench)": [
-    "106451",
-    "https://github.com/pytorch/pytorch/issues/106451",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
     [
       "rocm"
+    ]
+  ],
+  "test_cat_nhwc (__main__.TestQuantizedOps)": [
+    "111619",
+    "https://github.com/pytorch/pytorch/issues/111619",
+    [
+      "macos"
     ]
   ],
   "test_cdist_large_batch (__main__.TestMPS)": [
@@ -1709,6 +1709,13 @@
       "macos"
     ]
   ],
+  "test_multilayer_var_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
+    "107705",
+    "https://github.com/pytorch/pytorch/issues/107705",
+    [
+      "macos"
+    ]
+  ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
@@ -2365,27 +2372,12 @@
       "linux"
     ]
   ],
-  "test_triton_bsr_scatter_mm_blocksize_16_cuda_bfloat16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
-    "112157",
-    "https://github.com/pytorch/pytorch/issues/112157",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_triton_bsr_scatter_mm_blocksize_16_cuda_float16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
     "112158",
     "https://github.com/pytorch/pytorch/issues/112158",
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
-    "106026",
-    "https://github.com/pytorch/pytorch/issues/106026",
-    [
-      "rocm"
     ]
   ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
@@ -2459,6 +2451,13 @@
     "https://github.com/pytorch/pytorch/issues/86887",
     [
       "linux"
+    ]
+  ],
+  "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
+    "111583",
+    "https://github.com/pytorch/pytorch/issues/111583",
+    [
+      "macos"
     ]
   ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
