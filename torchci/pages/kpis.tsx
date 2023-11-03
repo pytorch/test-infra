@@ -206,6 +206,19 @@ export default function Kpis() {
           groupByFieldName={"percentile"}
         />
       </Grid>
+
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Total number of open disabled tests (Daily)"}
+          queryName={"disabled_test_historical"}
+          queryCollection={"metrics"}
+          queryParams={[...timeParams]}
+          granularity={"day"}
+          timeFieldName={"granularity_bucket"}
+          yAxisFieldName={"number_of_open_disabled_tests"}
+          yAxisRenderer={(duration) => duration}
+        />
+      </Grid>
     </Grid>
   );
 }
