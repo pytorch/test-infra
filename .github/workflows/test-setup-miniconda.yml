@@ -51,6 +51,7 @@ jobs:
         run: |
           set -ex
           sleep 5
+          env
 
           ${CONDA_RUN} which python
           ${CONDA_RUN} python --version
