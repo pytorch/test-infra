@@ -407,6 +407,15 @@
       "linux"
     ]
   ],
+  "test_cond_with_quantization (__main__.MiscTests)": [
+    "110593",
+    "https://github.com/pytorch/pytorch/issues/110593",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -1232,6 +1241,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_hfft_cpu_uint8 (__main__.TestMetaCPU)": [
+    "111626",
+    "https://github.com/pytorch/pytorch/issues/111626",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
     "111986",
     "https://github.com/pytorch/pytorch/issues/111986",
@@ -1651,13 +1667,6 @@
     "https://github.com/pytorch/pytorch/issues/105120",
     [
       "rocm"
-    ]
-  ],
-  "test_nested_tensor_chunk_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111644",
-    "https://github.com/pytorch/pytorch/issues/111644",
-    [
-      "dynamo"
     ]
   ],
   "test_nested_tensor_chunk_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
@@ -2253,6 +2262,20 @@
     "https://github.com/pytorch/pytorch/issues/112815",
     [
       "rocm"
+    ]
+  ],
+  "test_transpose_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112845",
+    "https://github.com/pytorch/pytorch/issues/112845",
+    [
+      "linux"
+    ]
+  ],
+  "test_transpose_inference_mode_interaction_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112846",
+    "https://github.com/pytorch/pytorch/issues/112846",
+    [
+      "linux"
     ]
   ],
   "test_transpose_with_norm (__main__.CPUReproTests)": [
