@@ -43,13 +43,6 @@ runs:
           conda init bash --reverse || true
           conda init zsh --reverse || true
 
-          # Clean up some env variables CONDA_EXE, CONDA_PREFIX, CONDA_PYTHON_EXE
-          # Note that there is no way to unset env variable in GitHub action at the moment. The tracking
-          # issue is at https://github.com/actions/runner/issues/1126
-          {
-            echo "CONDA_PYTHON_EXE=";
-          } >> "${GITHUB_ENV}"
-
       - name: Setup miniconda cache
         id: miniconda-cache
         uses: actions/cache@v3
@@ -94,7 +87,10 @@ runs:
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
           # NB: GITHUB_PATH has a lower priority than PATH, so also set the path
           # here to make sure that the correct conda is used
-          echo "PATH=${MINICONDA_INSTALL_PATH}/bin:${PATH}" >> $GITHUB_ENV
+          {
+            echo "PATH=${MINICONDA_INSTALL_PATH}/bin:${PATH}"
+            echo "CONDA_EXE=${MINICONDA_INSTALL_PATH}/bin/conda";
+          } >> "${GITHUB_ENV}"
 
       # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
       # function will return an empty string without failing the step. This works out nicely and we can have a various
@@ -169,36 +165,36 @@ runs:
           CONDA_RUNTIME=$(which conda)
           "${CONDA_RUNTIME}" --version
 
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          CONDA_PREFIX="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           "${CONDA_RUNTIME}" create \
             --yes --quiet \
-            --prefix "${CONDA_ENV}" \
+            --prefix "${CONDA_PREFIX}" \
             --clone "${CONDA_BASE_ENV}"
 
           set +e
           # NB: Cloning sometimes doesn't copied pip dependencies (untracked files) over. If this
           # happens, let's attempt to install the pip requirements directly on top of the cloned
           # environment. This is to make sure that no dependency is missing.
-          UNTRACKED_FILES_COUNT=$("${CONDA_RUNTIME}" package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l | xargs)
+          UNTRACKED_FILES_COUNT=$("${CONDA_RUNTIME}" package -p "${CONDA_PREFIX}" -u | grep -v "^#" | wc -l | xargs)
           set -e
 
           if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
             if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
               # NB: Force reinstall and don't use the cache, as the installation would still fail
               # when reporting that all requirements have been satisfied
-              "${CONDA_RUNTIME}" run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install --ignore-installed --no-cache-dir -r "${PIP_REQUIREMENTS_FILE}"
+              "${CONDA_RUNTIME}" run -p "${CONDA_PREFIX}" --no-capture-output python3 -mpip install --ignore-installed --no-cache-dir -r "${PIP_REQUIREMENTS_FILE}"
             elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
               echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
             fi
           fi
 
-          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_RUN=${CONDA_RUNTIME} run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
+          echo "CONDA_PREFIX=${CONDA_PREFIX}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=${CONDA_RUNTIME} run -p ${CONDA_PREFIX} --no-capture-output" >> "${GITHUB_ENV}"
           if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
             # TODO: Remove me, when more packages will be available on default channel
-            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_PREFIX} -c pytorch-nightly" >> "${GITHUB_ENV}"
           else
-            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_PREFIX}" >> "${GITHUB_ENV}"
           fi
 
       - name: Reset channel priority
