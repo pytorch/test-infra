@@ -47,14 +47,15 @@ jobs:
           pip-requirements-file: ${{ matrix.pip-requirements-file }}
 
       - name: Can use ${CONDA_RUN}, outputs correct python version
-        shell: bash
+        continue-on-error: true
         run: |
+          set -ex
+
           ${CONDA_RUN} which python
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
 
       - name: Can use ${CONDA_INSTALL}, installs some conda packages
-        shell: bash
         run: |
           sleep 3600
           ${CONDA_INSTALL} numpy cmake ninja typing_extensions dataclasses pip
