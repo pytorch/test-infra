@@ -859,6 +859,15 @@
       "linux"
     ]
   ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm",
+      "mac"
+    ]
+  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -1078,14 +1087,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107197",
-    "https://github.com/pytorch/pytorch/issues/107197",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "108994",
     "https://github.com/pytorch/pytorch/issues/108994",
@@ -1227,13 +1228,6 @@
   "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
     "111607",
     "https://github.com/pytorch/pytorch/issues/111607",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111638",
-    "https://github.com/pytorch/pytorch/issues/111638",
     [
       "dynamo"
     ]
