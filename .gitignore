@@ -128,4 +128,4 @@ docs/_build/
 # Pyenv
 .python-version
 
-/logs
+/_logs
