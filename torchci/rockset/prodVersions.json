@@ -84,6 +84,9 @@
     "compilers_benchmark_performance": "04773901fc1135d4",
     "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc"
   },
+  "torchbench": {
+    "torchbench_list_userbenchmarks": "fcfa85c5d1056e8f"
+  },
   "utilization": {
     "runner_utilization": "2dfc4f9c16e51da0",
     "runner_utilization_by_repo": "2ca7468c6f158924",
