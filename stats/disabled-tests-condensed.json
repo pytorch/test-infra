@@ -839,6 +839,13 @@
       "dynamo"
     ]
   ],
+  "test_get_parent_mesh_dim_not_exist (__main__.TestDeviceMeshGetItem)": [
+    "112814",
+    "https://github.com/pytorch/pytorch/issues/112814",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1252,13 +1259,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111607",
-    "https://github.com/pytorch/pytorch/issues/111607",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_fft_hfft_cpu_uint8 (__main__.TestMetaCPU)": [
     "111626",
     "https://github.com/pytorch/pytorch/issues/111626",
@@ -1581,6 +1581,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_std_mean_cpu_bfloat16 (__main__.TestMetaCPU)": [
+    "112816",
+    "https://github.com/pytorch/pytorch/issues/112816",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_std_mean_cpu_float16 (__main__.TestMetaCPU)": [
     "112574",
     "https://github.com/pytorch/pytorch/issues/112574",
@@ -1683,13 +1690,6 @@
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_narrow_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111606",
-    "https://github.com/pytorch/pytorch/issues/111606",
     [
       "dynamo"
     ]
@@ -2301,6 +2301,13 @@
     "https://github.com/pytorch/pytorch/issues/81213",
     [
       "linux"
+    ]
+  ],
+  "test_trace_while_active (__main__.NCCLTraceTest)": [
+    "112815",
+    "https://github.com/pytorch/pytorch/issues/112815",
+    [
+      "rocm"
     ]
   ],
   "test_transpose_with_norm (__main__.CPUReproTests)": [
