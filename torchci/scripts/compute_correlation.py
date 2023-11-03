@@ -2,13 +2,11 @@ import json
 import math
 import os
 from collections import defaultdict
-
 from typing import Any, List
 
 import pandas as pd
 from rockset import RocksetClient
 from sklearn.metrics.pairwise import pairwise_distances
-
 
 ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
 if ROCKSET_API_KEY is None:

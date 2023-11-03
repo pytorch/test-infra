@@ -13,7 +13,6 @@ from check_alerts import (
     PYTORCH_ALERT_LABEL,
 )
 
-
 JOB_NAME = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
 DISABLED_JOB_NAMES = [
     "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
