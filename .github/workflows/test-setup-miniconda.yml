@@ -50,6 +50,7 @@ jobs:
         continue-on-error: true
         run: |
           set -ex
+          sleep 5
 
           ${CONDA_RUN} which python
           ${CONDA_RUN} python --version
