@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from update_test_times import gen_test_file_times, gen_test_class_times
+from update_test_times import gen_test_class_times, gen_test_file_times
 
 
 class TestUpdateTestTimesFile(unittest.TestCase):
@@ -94,8 +94,16 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
 
 class TestUpdateTestTimesClass(unittest.TestCase):
-    def make_rockset_row(self, job: str, config: str, file: str, classname: str, time: float):
-        return {"base_name": job, "test_config": config, "file": file, "classname": classname, "time": time}
+    def make_rockset_row(
+        self, job: str, config: str, file: str, classname: str, time: float
+    ):
+        return {
+            "base_name": job,
+            "test_config": config,
+            "file": file,
+            "classname": classname,
+            "time": time,
+        }
 
     def test_gen_test_class_times_create_default(self) -> None:
         data = [
@@ -141,7 +149,10 @@ class TestUpdateTestTimesClass(unittest.TestCase):
         ]
         res = gen_test_class_times(data, {})
         expected = {
-            "default": {"config": {"a": {"classa": 3.5}}, "default": {"a": {"classa": 4.0}}},
+            "default": {
+                "config": {"a": {"classa": 3.5}},
+                "default": {"a": {"classa": 4.0}},
+            },
             "job": {"config": {"a": {"classa": 6}}},
         }
         self.assertDictEqual(res, expected)
@@ -155,7 +166,10 @@ class TestUpdateTestTimesClass(unittest.TestCase):
         ]
         res = gen_test_class_times(data, {"default": {"config": {"a": {"classa": 57}}}})
         expected = {
-            "default": {"config": {"a": {"classa": 3.5}}, "default": {"a": {"classa": 4.0}}},
+            "default": {
+                "config": {"a": {"classa": 3.5}},
+                "default": {"a": {"classa": 4.0}},
+            },
             "job": {"config": {"a": {"classa": 6}}},
         }
         self.assertDictEqual(res, expected)
@@ -164,10 +178,19 @@ class TestUpdateTestTimesClass(unittest.TestCase):
             self.make_rockset_row("env", "config", "a", "classa", 1),
         ]
         res = gen_test_class_times(
-            data, {"default": {"config": {"a": {"classa": 57}}, "default": {"a": {"classa": 100}}}}
+            data,
+            {
+                "default": {
+                    "config": {"a": {"classa": 57}},
+                    "default": {"a": {"classa": 100}},
+                }
+            },
         )
         expected = {
-            "default": {"config": {"a": {"classa": 1.0}}, "default": {"a": {"classa": 1.0}}},
+            "default": {
+                "config": {"a": {"classa": 1.0}},
+                "default": {"a": {"classa": 1.0}},
+            },
             "env": {"config": {"a": {"classa": 1}}},
         }
         self.assertDictEqual(res, expected)
@@ -179,7 +202,10 @@ class TestUpdateTestTimesClass(unittest.TestCase):
         res = gen_test_class_times(data, {"env": {"config": {"b": {"classb": 57}}}})
         expected = {
             "env": {"config": {"b": {"classb": 57}, "a": {"classa": 5}}},
-            "default": {"config": {"a": {"classa": 5.0}}, "default": {"a": {"classa": 5.0}}},
+            "default": {
+                "config": {"a": {"classa": 5.0}},
+                "default": {"a": {"classa": 5.0}},
+            },
         }
         self.assertDictEqual(res, expected)
 

@@ -1,6 +1,10 @@
 from unittest import main, TestCase
 
-from calculate_file_test_rating import calculate_test_file_ratings, calculate_test_class_ratings, filter_tests
+from calculate_file_test_rating import (
+    calculate_test_class_ratings,
+    calculate_test_file_ratings,
+    filter_tests,
+)
 
 
 class TestCalculateFileTestRating(TestCase):
@@ -75,7 +79,10 @@ class TestCalculateFileTestRating(TestCase):
                 self.gen_merge_base("head_sha_2", ["a.txt"], "merge_base_2"),
             ]
         )
-        expected = {"a.txt": {"invoking_file::classname": 1.5}, "b.txt": {"invoking_file::classname": 0.5}}
+        expected = {
+            "a.txt": {"invoking_file::classname": 1.5},
+            "b.txt": {"invoking_file::classname": 0.5},
+        }
         scores = calculate_test_class_ratings(tests, merge_bases)
         self.assertDictEqual(scores, expected)
 
@@ -89,8 +96,14 @@ class TestCalculateFileTestRating(TestCase):
             ]
         )
         expected = {
-            "a.txt": {"invoking_file_1::classname1": 0.5, "invoking_file_2::classname2": 0.5},
-            "b.txt": {"invoking_file_1::classname1": 0.5, "invoking_file_2::classname2": 0.5},
+            "a.txt": {
+                "invoking_file_1::classname1": 0.5,
+                "invoking_file_2::classname2": 0.5,
+            },
+            "b.txt": {
+                "invoking_file_1::classname1": 0.5,
+                "invoking_file_2::classname2": 0.5,
+            },
         }
         scores = calculate_test_class_ratings(tests, merge_bases)
         self.assertDictEqual(scores, expected)

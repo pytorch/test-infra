@@ -94,8 +94,10 @@ def evaluate(failing_tests, merge_bases, rev_mapping, get_test_name_fn):
     print(f"# of failing tests: {len(all_failing_tests)}")
     print()
 
+
 def extract_test_file_name(test_row):
     return f"{test_row['invoking_file']}"
+
 
 def extract_test_class_name(test_row):
     if test_row["classname"]:
@@ -103,24 +105,21 @@ def extract_test_class_name(test_row):
     else:
         return f"{test_row['invoking_file']}"
 
+
 def calculate_test_file_ratings(tests, merge_bases):
     # Should return a mapping of changed file -> failing test files -> confidence score
 
     return calculate_generic_test_ratings(
-        tests,
-        merge_bases,
-        get_test_name_fn=extract_test_file_name
-        )
+        tests, merge_bases, get_test_name_fn=extract_test_file_name
+    )
 
 
 def calculate_test_class_ratings(tests, merge_bases):
     # Should return a mapping of changed file -> failing test classes -> confidence score
 
     return calculate_generic_test_ratings(
-        tests,
-        merge_bases,
-        get_test_name_fn=extract_test_class_name
-        )
+        tests, merge_bases, get_test_name_fn=extract_test_class_name
+    )
 
 
 def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
@@ -136,7 +135,7 @@ def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
     # Make mapping of failing test -> changed file -> confidence score
     failing_tests_to_causes = {}
     for failing_test in failing_tests_to_sha:
-        score_dict = defaultdict(int) # changed file -> confidence score
+        score_dict = defaultdict(int)  # changed file -> confidence score
         for sha in failing_tests_to_sha[failing_test]:
             changed_files = merge_bases[sha]["changed_files"]
             for changed_file in changed_files:
@@ -147,7 +146,9 @@ def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
     rev_mapping = defaultdict(lambda: defaultdict(float))
     for failing_test in failing_tests_to_causes:
         for changed_file in failing_tests_to_causes[failing_test]:
-            rev_mapping[changed_file][failing_test] = failing_tests_to_causes[failing_test][changed_file]
+            rev_mapping[changed_file][failing_test] = failing_tests_to_causes[
+                failing_test
+            ][changed_file]
     return rev_mapping
 
 
