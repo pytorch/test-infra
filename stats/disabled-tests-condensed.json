@@ -90,6 +90,13 @@
       "mac"
     ]
   ],
+  "test_all_to_all_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98875",
+    "https://github.com/pytorch/pytorch/issues/98875",
+    [
+      "linux"
+    ]
+  ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91486",
     "https://github.com/pytorch/pytorch/issues/91486",
@@ -662,6 +669,26 @@
       "linux"
     ]
   ],
+  "test_double_backward_errors (__main__.AotAutogradFallbackTests)": [
+    "112910",
+    "https://github.com/pytorch/pytorch/issues/112910",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
+  "test_double_backward_errors_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
+    "112912",
+    "https://github.com/pytorch/pytorch/issues/112912",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_dropout_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112151",
     "https://github.com/pytorch/pytorch/issues/112151",
@@ -701,6 +728,14 @@
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
     [
+      "linux"
+    ]
+  ],
+  "test_eager_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
+    "112911",
+    "https://github.com/pytorch/pytorch/issues/112911",
+    [
+      "asan",
       "linux"
     ]
   ],
@@ -2297,11 +2332,30 @@
       "linux"
     ]
   ],
+  "test_transpose_inference_mode_interaction_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112909",
+    "https://github.com/pytorch/pytorch/issues/112909",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_transpose_inference_mode_interaction_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "112846",
     "https://github.com/pytorch/pytorch/issues/112846",
     [
       "linux"
+    ]
+  ],
+  "test_transpose_inference_mode_interaction_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112908",
+    "https://github.com/pytorch/pytorch/issues/112908",
+    [
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_transpose_with_norm (__main__.CPUReproTests)": [
