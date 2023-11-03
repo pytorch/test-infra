@@ -265,13 +265,6 @@
       "rocm"
     ]
   ],
-  "test_cat_nhwc (__main__.TestQuantizedOps)": [
-    "111619",
-    "https://github.com/pytorch/pytorch/issues/111619",
-    [
-      "macos"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -412,15 +405,6 @@
     "https://github.com/pytorch/pytorch/issues/111850",
     [
       "linux"
-    ]
-  ],
-  "test_cond_with_quantization (__main__.MiscTests)": [
-    "110593",
-    "https://github.com/pytorch/pytorch/issues/110593",
-    [
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
@@ -1240,6 +1224,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
+    "111607",
+    "https://github.com/pytorch/pytorch/issues/111607",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
     "111638",
     "https://github.com/pytorch/pytorch/issues/111638",
@@ -1657,13 +1648,6 @@
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_narrow_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111629",
-    "https://github.com/pytorch/pytorch/issues/111629",
     [
       "dynamo"
     ]
