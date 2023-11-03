@@ -181,6 +181,9 @@ runs:
             fi
           fi
 
+          # Keep exporting CONDA_PREFIX under CONDA_ENV because the latter could be used elsewhere
+          echo "CONDA_ENV=${CONDA_PREFIX}" >> "${GITHUB_ENV}"
+
           echo "CONDA_PREFIX=${CONDA_PREFIX}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=${CONDA_RUNTIME} run -p ${CONDA_PREFIX} --no-capture-output" >> "${GITHUB_ENV}"
           if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
