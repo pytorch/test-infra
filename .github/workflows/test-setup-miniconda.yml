@@ -47,7 +47,6 @@ jobs:
           pip-requirements-file: ${{ matrix.pip-requirements-file }}
 
       - name: Can use ${CONDA_RUN}, outputs correct python version
-        continue-on-error: true
         run: |
           env
 
