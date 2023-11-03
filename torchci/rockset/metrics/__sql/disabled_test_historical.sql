@@ -1,6 +1,7 @@
 --- This query returns the number of new disabled tests (number_of_new_disabled_tests)
 --- and the number of open disabled tests (number_of_open_disabled_tests) daily
-WITH --- There could be day where there is no new issue or no issue is closed and we want
+WITH
+--- There could be day where there is no new issue or no issue is closed and we want
 --- the count on that day to be 0
 buckets AS (
   SELECT
