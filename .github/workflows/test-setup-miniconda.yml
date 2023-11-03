@@ -49,6 +49,7 @@ jobs:
       - name: Can use ${CONDA_RUN}, outputs correct python version
         shell: bash
         run: |
+          ${CONDA_RUN} which python
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
 
