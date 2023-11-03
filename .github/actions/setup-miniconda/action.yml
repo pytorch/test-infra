@@ -35,14 +35,6 @@ runs:
         run: |
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
 
-      - name: Deactivate system conda
-        shell: bash
-        if: ${{ runner.os }} == 'MacOSX'
-        run: |
-          # Clean up system conda init installed by brew, so we don't accidentally use it
-          conda init bash --reverse || true
-          conda init zsh --reverse || true
-
       - name: Setup miniconda cache
         id: miniconda-cache
         uses: actions/cache@v3
@@ -165,6 +157,7 @@ runs:
           CONDA_RUNTIME=$(which conda)
           "${CONDA_RUNTIME}" --version
 
+          # https://docs.conda.io/projects/conda-build/en/stable/user-guide/environment-variables.html
           CONDA_PREFIX="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           "${CONDA_RUNTIME}" create \
             --yes --quiet \
