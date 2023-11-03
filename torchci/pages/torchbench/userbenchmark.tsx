@@ -1,11 +1,6 @@
-import { Grid } from "@mui/material";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
-import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import React, { useState } from "react";
-import styles from "components/metrics.module.css";
 import {
   Stack,
   Typography,
@@ -16,7 +11,6 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
-const MAX_BRIGHTNESS: number = 255;
 const queryCollection = "torchbench";
 
 type UserbenchmarkRow = {
@@ -45,41 +39,26 @@ export function UserbenchmarkPicker({
   let { data, error } = useSWR(list_userbenchmark_url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  console.log(data);
   if (data === undefined || data.length === 0) {
-    return (
-      <>
-        <FormControl>
-            <InputLabel id="ub-picker-input-label">Userbenchmark</InputLabel>
-            <Select
-              value={userbenchmark}
-              label="Userbenchmark"
-              labelId="ub-picker-select-label"
-              id="ub-picker-select"
-              onChange={handleChange}
-            >
-              <MenuItem key="Error" value="Error">
-                  Error
-              </MenuItem>
-            </Select>
-        </FormControl>
-      </>
-      );
+    data = [ {
+      "name": "API error"
+    }];
+    userbenchmark = "API error";
   }
   return (
     <>
       <FormControl>
         <InputLabel id="ub-picker-input-label">Userbenchmark</InputLabel>
         <Select
-          value="Userbenchmark"
+          value={userbenchmark}
           label="Userbenchmark"
           labelId="ub-picker-select-label"
           id="ub-picker-select"
           onChange={handleChange}
         >
           {Object.keys(data).map((ub) => (
-            <MenuItem key={data[ub].name} value={data[ub].name}>
-              {data[ub].name}
+            <MenuItem key={data[ub]["name"]} value={data[ub]["name"]}>
+              {data[ub]["name"]}
             </MenuItem>
           ))}
         </Select>
@@ -89,7 +68,7 @@ export function UserbenchmarkPicker({
 }
 
 export default function Page() {
-  const defaultUB = "torch_trt"
+  const defaultUB = "torch-nightly"
   const [userbenchmark, setUserbenchmark] = useState(defaultUB);
   return <div>
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
