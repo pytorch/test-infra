@@ -47,8 +47,6 @@ runs:
           # Note that there is no way to unset env variable in GitHub action at the moment. The tracking
           # issue is at https://github.com/actions/runner/issues/1126
           {
-            echo "CONDA_EXE=";
-            echo "CONDA_PREFIX=";
             echo "CONDA_PYTHON_EXE=";
           } >> "${GITHUB_ENV}"
 
