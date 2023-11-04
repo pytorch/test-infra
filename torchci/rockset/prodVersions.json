@@ -85,7 +85,8 @@
     "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc"
   },
   "torchbench": {
-    "torchbench_list_userbenchmarks": "fcfa85c5d1056e8f"
+    "torchbench_list_userbenchmarks": "fcfa85c5d1056e8f",
+    "torchbench_userbenchmark_list_commits": "4fe38fb33bf27b41"
   },
   "utilization": {
     "runner_utilization": "2dfc4f9c16e51da0",

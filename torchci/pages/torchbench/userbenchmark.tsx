@@ -1,17 +1,21 @@
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import React, { useState } from "react";
+import { RocksetParam } from "lib/rockset";
 import {
   Stack,
   Typography,
   Select,
   MenuItem,
   FormControl,
+  Divider,
   InputLabel,
   SelectChangeEvent,
 } from "@mui/material";
 
 const queryCollection = "torchbench";
+const MAX_COMMIT_SHAS = 10;
+const SHA_DISPLAY_LENGTH = 10;
 
 type UserbenchmarkRow = {
   metric_name: string;
@@ -20,7 +24,7 @@ type UserbenchmarkRow = {
   delta: string | number | null;
 };
 
-export function UserbenchmarkPicker({
+function UserbenchmarkPicker({
   userbenchmark,
   setUserbenchmark
 }: {
@@ -67,9 +71,82 @@ export function UserbenchmarkPicker({
   );
 }
 
+function CommitPicker({
+  userbenchmark,
+  commit,
+  setCommit,
+  titlePrefix,
+  fallbackIndex
+}: {
+    userbenchmark: string;
+    commit: string;
+    setCommit: any;
+    titlePrefix: string;
+    fallbackIndex: number;
+}) {
+
+  function handleCommitChange(e: SelectChangeEvent<string>) {
+    setCommit(e.target.value);
+  }
+
+  const queryName = "torchbench_userbenchmark_list_commits";
+  const queryCollection = "torchbench";
+  const queryParams: RocksetParam[] = [
+    {
+      name: "userbenchmark",
+      type: "string",
+      value: userbenchmark,
+    },
+  ];
+  const list_commits_url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  let { data, error } = useSWR(list_commits_url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+  if (data === undefined || data.length === 0) {
+    data = [ {
+      "name": "api_error",
+      "environ": {
+        "pytorch_git_version": "api_error",
+      }
+    }];
+    commit = "api_error";
+  }
+
+  let all_commits: string[] = data.map((r: any) => r["environ"]["pytorch_git_version"]).slice(0, MAX_COMMIT_SHAS)
+
+  return (
+    <div>
+      <FormControl>
+        <InputLabel id={`commit-picker-input-label-${commit}`}>
+          {titlePrefix} Commit
+        </InputLabel>
+        <Select
+          value={commit}
+          label="Commit"
+          labelId={`commit-picker-select-label-${commit}`}
+          onChange={handleCommitChange}
+          id={`commit-picker-select-${commit}`}
+        >
+          {all_commits.map((r: any) => (
+             <MenuItem key={r} value={r}>
+             {r.substring(0, SHA_DISPLAY_LENGTH)} 
+           </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </div>
+  );
+}
+
 export default function Page() {
   const defaultUB = "torch-nightly"
   const [userbenchmark, setUserbenchmark] = useState(defaultUB);
+  const [lCommit, setLCommit] = useState<string>("");
+  const [rCommit, setRCommit] = useState<string>("");
+
   return <div>
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
       TorchBench Userbenchmark Dashboard
@@ -83,6 +160,23 @@ export default function Page() {
       <UserbenchmarkPicker
         userbenchmark={userbenchmark}
         setUserbenchmark={setUserbenchmark}
+      />
+      <CommitPicker
+        userbenchmark={userbenchmark}
+        commit={lCommit}
+        setCommit={setLCommit}
+        titlePrefix={"Base"}
+        fallbackIndex={-1} // Default to the next to latest in the window
+      />
+      <Divider orientation="vertical" flexItem>
+          &mdash;Diff→
+      </Divider>
+      <CommitPicker
+        userbenchmark={userbenchmark}
+        commit={rCommit}
+        setCommit={setRCommit}
+        titlePrefix={"New"}
+        fallbackIndex={0} // Default to the latest in the window
       />
     </Stack>
   </div>;
