@@ -1,10 +1,7 @@
 import json
 from collections import defaultdict
-from pathlib import Path
 
-from rockset_utils import query_rockset
-
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+from torchci.scripts.rockset_utils import query_rockset
 
 FAILED_TESTS_QUERY = """
 SELECT

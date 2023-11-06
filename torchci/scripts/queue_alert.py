@@ -7,8 +7,13 @@ from typing import Any, Dict, List, NamedTuple
 
 import rockset  # type: ignore[import]
 
-from check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
 from setuptools import distutils  # type: ignore[import]
+from torchci.scripts.check_alerts import (
+    clear_alerts,
+    create_issue,
+    fetch_alerts,
+    update_issue,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 

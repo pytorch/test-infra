@@ -27,3 +27,13 @@ jobs:
       - run: yarn node scripts/checkRockset.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          pip3 install --upgrade pip
+          pip3 install setuptools==68.2.2 rockset==1.0.3 boto3==1.19.12 pytest==7.2.0
+          pip3 install -e .
+          pytest scripts/test

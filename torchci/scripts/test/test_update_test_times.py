@@ -1,7 +1,6 @@
-import json
 import unittest
 
-from update_test_times import gen_test_class_times, gen_test_file_times
+from torchci.scripts.update_test_times import gen_test_class_times, gen_test_file_times
 
 
 class TestUpdateTestTimesFile(unittest.TestCase):

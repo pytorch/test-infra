@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from utils_td_heuristics import (
+from torchci.scripts.td.utils import (
     evaluate,
     get_filtered_failed_tests,
     get_merge_bases_dict,

@@ -42,14 +42,10 @@ jobs:
         uses: actions/checkout@v3
       - name: Install requests
         run: |
-           pip3 install requests setuptools
-      - name: Run tests
-        if: ${{ github.event_name == 'pull_request'}}
-        run: |
-          python3 torchci/scripts/test_check_alerts.py
+           pip3 install requests setuptools==61.2.0
       - name: Check for alerts and creates issue
         run: |
-          python3 torchci/scripts/check_alerts.py
+          python3 -m torchci.scripts.check_alerts
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,14 +60,10 @@ jobs:
         uses: actions/checkout@v3
       - name: Install requests
         run: |
-           pip3 install requests setuptools rockset==1.0.3
-      - name: Run tests
-        if: ${{ github.event_name == 'pull_request'}}
-        run: |
-          python3 torchci/scripts/test_queue_alert.py
+           pip3 install requests setuptools==61.2.0 rockset==1.0.3
       - name: Check for alerts and creates issue
         run: |
-          python3 torchci/scripts/queue_alert.py
+          python3 -m torchci.scripts.queue_alert
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

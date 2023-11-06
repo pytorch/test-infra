@@ -1,0 +1,10 @@
+[project]
+name = "torchci"
+dynamic = ["version"]
+
+[build-system]
+requires = ["setuptools==68.2.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"torchci.scripts" = "scripts"

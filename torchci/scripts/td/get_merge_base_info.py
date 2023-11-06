@@ -3,8 +3,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from rockset_utils import query_rockset, remove_from_rockset, upload_to_rockset
-from utils_td_heuristics import list_past_year_shas, run_command
+from torchci.scripts.rockset_utils import (
+    query_rockset,
+    remove_from_rockset,
+    upload_to_rockset,
+)
+from torchci.scripts.td.utils import list_past_year_shas, run_command
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
