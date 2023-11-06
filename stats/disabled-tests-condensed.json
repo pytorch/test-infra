@@ -1109,13 +1109,6 @@
       "mac"
     ]
   ],
-  "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "111767",
-    "https://github.com/pytorch/pytorch/issues/111767",
-    [
-      "linux"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
