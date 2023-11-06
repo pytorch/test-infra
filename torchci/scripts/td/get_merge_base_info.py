@@ -103,7 +103,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
         except Exception as e:
             return e
 
-    # upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
+    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
 
 
 if __name__ == "__main__":
