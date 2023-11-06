@@ -1,16 +1,4 @@
 {
-  "test_2d_optim_state_dict_is_even_sharded_model_False (__main__.TestNew2dParallelStateDict)": [
-    "112969",
-    "https://github.com/pytorch/pytorch/issues/112969",
-    [
-      "linux"
-    ]
-  ],
-  "test_2d_optim_state_dict_is_even_sharded_model_True (__main__.TestNew2dParallelStateDict)": [
-    "113033",
-    "https://github.com/pytorch/pytorch/issues/113033",
-    []
-  ],
   "test_Conv2d_dilated_cuda_tf32 (__main__.TestNN)": [
     "102727",
     "https://github.com/pytorch/pytorch/issues/102727",
