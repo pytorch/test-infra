@@ -6,6 +6,7 @@ from functools import cmp_to_key
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+
 from rockset_utils import query_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent

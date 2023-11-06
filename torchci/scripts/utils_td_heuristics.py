@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import Any, Dict, List
 
 import requests
+
 from rockset_utils import query_rockset
 from utils import cache_json, run_command
 

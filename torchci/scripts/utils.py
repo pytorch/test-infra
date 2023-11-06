@@ -1,11 +1,10 @@
 import datetime
-from hashlib import sha256
 import json
 import os
 import pathlib
 import subprocess
+from hashlib import sha256
 from typing import List, Union
-
 
 FILE_CACHE_LIFESPAN_SECONDS = 60 * 60 * 24  # 1 day
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
