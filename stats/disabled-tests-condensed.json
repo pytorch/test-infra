@@ -1157,6 +1157,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107114",
+    "https://github.com/pytorch/pytorch/issues/107114",
+    [
+      "linux"
+    ]
+  ],
   "test_mandelbrot_numpy (__main__.MiscTests)": [
     "109997",
     "https://github.com/pytorch/pytorch/issues/109997",
@@ -1620,6 +1627,13 @@
   "test_meta_outplace_std_mean_cpu_bfloat16 (__main__.TestMetaCPU)": [
     "112816",
     "https://github.com/pytorch/pytorch/issues/112816",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_std_mean_cpu_complex128 (__main__.TestMetaCPU)": [
+    "113027",
+    "https://github.com/pytorch/pytorch/issues/113027",
     [
       "dynamo"
     ]
