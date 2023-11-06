@@ -11,7 +11,7 @@ from torchci.scripts.rockset_utils import (
 from torchci.scripts.td.utils import list_past_year_shas, run_command
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 FAILED_TEST_SHAS_QUERY = """
 SELECT
@@ -103,7 +103,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
         except Exception as e:
             return e
 
-    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
+    # upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
 
 
 if __name__ == "__main__":
