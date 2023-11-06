@@ -1744,13 +1744,6 @@
       "dynamo"
     ]
   ],
-  "test_nested_tensor_chunk_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111790",
-    "https://github.com/pytorch/pytorch/issues/111790",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111826",
     "https://github.com/pytorch/pytorch/issues/111826",
