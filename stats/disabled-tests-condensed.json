@@ -1097,6 +1097,13 @@
       "mac"
     ]
   ],
+  "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
+    "111767",
+    "https://github.com/pytorch/pytorch/issues/111767",
+    [
+      "linux"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1147,6 +1154,14 @@
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
     [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107197",
+    "https://github.com/pytorch/pytorch/issues/107197",
+    [
+      "asan",
       "linux"
     ]
   ],
@@ -1645,6 +1660,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_vdot_cpu_complex64 (__main__.TestMetaCPU)": [
+    "113076",
+    "https://github.com/pytorch/pytorch/issues/113076",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPaternMatcher)": [
     "111051",
     "https://github.com/pytorch/pytorch/issues/111051",
@@ -1735,13 +1757,6 @@
     "https://github.com/pytorch/pytorch/issues/105120",
     [
       "rocm"
-    ]
-  ],
-  "test_nested_tensor_chunk_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111769",
-    "https://github.com/pytorch/pytorch/issues/111769",
-    [
-      "dynamo"
     ]
   ],
   "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
