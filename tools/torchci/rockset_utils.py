@@ -3,8 +3,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import rockset
-
-from utils import cache_json  # type: ignore[import]
+from torchci.utils import cache_json  # type: ignore[import]
 
 
 @lru_cache

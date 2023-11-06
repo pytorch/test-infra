@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from typing import Dict
 
-from utils_td_heuristics import (
+from torchci.td.utils import (
     cache_json,
     evaluate,
     get_all_invoking_files,

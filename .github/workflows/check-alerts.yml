@@ -3,8 +3,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/check-alerts.yml
-      - torchci/scripts/check_alerts.py
-      - torchci/scripts/queue_alert.py
+      - tools/torchci/check_alerts.py
+      - tools/torchci/queue_alert.py
   schedule:
     # Every 5 minutes
     - cron: "*/5 * * * *"
@@ -40,16 +40,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Install requests
-        run: |
-           pip3 install requests setuptools
-      - name: Run tests
-        if: ${{ github.event_name == 'pull_request'}}
-        run: |
-          python3 torchci/scripts/test_check_alerts.py
+      - name: Install Dependencies
+        run: pip3 install requests setuptools==61.2.0
       - name: Check for alerts and creates issue
         run: |
-          python3 torchci/scripts/check_alerts.py
+          cd tools
+          python3 -m torchci.check_alerts
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,16 +58,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Install requests
-        run: |
-           pip3 install requests setuptools rockset==1.0.3
-      - name: Run tests
-        if: ${{ github.event_name == 'pull_request'}}
-        run: |
-          python3 torchci/scripts/test_queue_alert.py
+      - name: Install Dependencies
+        run: pip3 install requests setuptools==61.2.0 rockset==1.0.3
       - name: Check for alerts and creates issue
         run: |
-          python3 torchci/scripts/queue_alert.py
+          cd tools
+          python3 -m torchci.queue_alert
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -241,7 +241,7 @@ init_command = [
 [[linter]]
 code = 'UFMT'
 include_patterns = [
-    'torchci/**/*.py',
+    'tools/torchci/**/*.py',
 ]
 command = [
     'python3',

@@ -6,8 +6,8 @@ from typing import Any, Dict, List
 
 import requests
 
-from rockset_utils import query_rockset
-from utils import cache_json, run_command
+from torchci.rockset_utils import query_rockset
+from torchci.utils import cache_json, run_command
 
 
 def list_past_year_shas():
