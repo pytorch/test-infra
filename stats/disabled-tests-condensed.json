@@ -34,13 +34,6 @@
       "rocm"
     ]
   ],
-  "test_abs_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "111927",
-    "https://github.com/pytorch/pytorch/issues/111927",
-    [
-      "dynamo"
-    ]
-  ],
   "test_accumulate_grad_different_strides_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "111969",
     "https://github.com/pytorch/pytorch/issues/111969",
@@ -174,13 +167,6 @@
     "https://github.com/pytorch/pytorch/issues/104011",
     [
       "linux"
-    ]
-  ],
-  "test_backward_for_add_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112049",
-    "https://github.com/pytorch/pytorch/issues/112049",
-    [
-      "dynamo"
     ]
   ],
   "test_backward_for_sub_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
@@ -818,13 +804,6 @@
       "linux"
     ]
   ],
-  "test_forward_ad_stft_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "111880",
-    "https://github.com/pytorch/pytorch/issues/111880",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1291,9 +1270,9 @@
       "linux"
     ]
   ],
-  "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111928",
-    "https://github.com/pytorch/pytorch/issues/111928",
+  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111903",
+    "https://github.com/pytorch/pytorch/issues/111903",
     [
       "dynamo"
     ]
