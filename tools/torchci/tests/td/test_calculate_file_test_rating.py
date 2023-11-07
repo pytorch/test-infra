@@ -1,6 +1,6 @@
 from unittest import main, TestCase
 
-from calculate_file_test_rating import (
+from torchci.td.calculate_file_test_rating import (
     calculate_test_class_ratings,
     calculate_test_file_ratings,
     filter_tests,

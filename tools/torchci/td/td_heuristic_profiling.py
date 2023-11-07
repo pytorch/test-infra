@@ -2,11 +2,7 @@ import json
 
 import requests
 
-from utils_td_heuristics import (
-    evaluate,
-    get_filtered_failed_tests,
-    get_merge_bases_dict,
-)
+from torchci.td.utils import evaluate, get_filtered_failed_tests, get_merge_bases_dict
 
 
 def get_profiling_dict():

@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest import main, TestCase
 from unittest.mock import patch
 
-from check_alerts import (
+from torchci.check_alerts import (
     fetch_alerts_filter,
     filter_job_names,
     gen_update_comment,
@@ -183,9 +183,9 @@ class TestGitHubPR(TestCase):
         issue = generate_no_flaky_tests_issue()
         self.assertListEqual(issue["labels"], ["no-flaky-tests-alert"])
 
-    @patch("check_alerts.create_issue")
-    @patch("check_alerts.datetime")
-    @patch("check_alerts.get_num_issues_with_label")
+    @patch("torchci.check_alerts.create_issue")
+    @patch("torchci.check_alerts.datetime")
+    @patch("torchci.check_alerts.get_num_issues_with_label")
     def test_handle_flaky_tests_alert(
         self, mock_get_num_issues_with_label, mock_date, mock_create_issue
     ):

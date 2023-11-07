@@ -1,6 +1,6 @@
 from unittest import main, TestCase
 
-from queue_alert import filter_long_queues, gen_update_comment, QueueInfo
+from torchci.queue_alert import filter_long_queues, gen_update_comment, QueueInfo
 
 
 class TestGitHubPR(TestCase):

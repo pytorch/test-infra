@@ -4,11 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/update_test_file_ratings.yml"
-      - "torchci/scripts/calculate_file_test_rating.py"
-      - "torchci/scripts/test_calculate_file_test_rating.py"
-      - "torchci/scripts/td_heuristic_historical_edited_files.py"
-      - "torchci/scripts/td_heuristic_profiling.py"
-      - "torchci/scripts/get_merge_base_info.py"
+      - "tools/torchci/td"
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
@@ -34,24 +30,23 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip3 install boto3==1.19.12
-          pip3 install rockset==1.0.3
-
-      - name: Run tests
-        run: python3 test-infra/torchci/scripts/test_calculate_file_test_rating.py
+          pip3 install --upgrade pip
+          pip3 install boto3==1.19.12 rockset==1.0.3
+          cd test-infra/tools/torchci
+          pip3 install -e .
 
       - name: Get merge base info
         run: |
-          python3 test-infra/torchci/scripts/get_merge_base_info.py
+          python3 test-infra/tools/torchci/td/get_merge_base_info.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
       - name: Generate file test ratings
         run: |
-          python3 test-infra/torchci/scripts/calculate_file_test_rating.py
-          python3 test-infra/torchci/scripts/td_heuristic_historical_edited_files.py
+          python3 test-infra/tools/torchci/td/calculate_file_test_rating.py
+          python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
           # Do not run this one, it won't change
-          # python3 test-infra/torchci/scripts/td_heuristic_profiling.py
+          # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
 
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
