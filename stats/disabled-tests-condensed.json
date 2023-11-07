@@ -2404,13 +2404,6 @@
       "windows"
     ]
   ],
-  "test_transpose_with_norm (__main__.CPUReproTests)": [
-    "98618",
-    "https://github.com/pytorch/pytorch/issues/98618",
-    [
-      "linux"
-    ]
-  ],
   "test_triton_bsr_scatter_mm_blocksize_16_cuda_bfloat16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
     "112157",
     "https://github.com/pytorch/pytorch/issues/112157",
