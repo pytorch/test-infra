@@ -235,8 +235,9 @@ def get_libtorch_install_command(
         else f"{prefix}-{_libtorch_variant}-latest.zip"
     )
 
-    if os == MACOS:
-        build_name = "libtorch-macos-latest.zip"
+    if os in [MACOS, MACOS_ARM64]:
+        arch = "x86_64" if os == MACOS else "arm64"
+        build_name = f"libtorch-macos-{arch}-latest.zip"
         if channel == RELEASE:
             build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
     elif os == LINUX and (channel == RELEASE or channel == TEST):
@@ -357,7 +358,7 @@ def generate_libtorch_matrix(
     ret: List[Dict[str, str]] = []
 
     # macos-arm64 does not have any libtorch builds
-    if os == MACOS_ARM64:
+    if os == MACOS_ARM64 and channel != "nightly":
         return ret
 
     if arches is None:
