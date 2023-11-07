@@ -1031,6 +1031,69 @@
       "slow"
     ]
   ],
+  "test_large_block_sizes_cpu (__main__.CpuTests)": [
+    "113139",
+    "https://github.com/pytorch/pytorch/issues/113139",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_cuda (__main__.CudaTests)": [
+    "113140",
+    "https://github.com/pytorch/pytorch/issues/113140",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113135",
+    "https://github.com/pytorch/pytorch/issues/113135",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
+    "113133",
+    "https://github.com/pytorch/pytorch/issues/113133",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
+    "113136",
+    "https://github.com/pytorch/pytorch/issues/113136",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+    "113132",
+    "https://github.com/pytorch/pytorch/issues/113132",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_offset_pointwise_cpu (__main__.CpuTests)": [
+    "113138",
+    "https://github.com/pytorch/pytorch/issues/113138",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113137",
+    "https://github.com/pytorch/pytorch/issues/113137",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
+    "113134",
+    "https://github.com/pytorch/pytorch/issues/113134",
+    [
+      "linux"
+    ]
+  ],
   "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112237",
     "https://github.com/pytorch/pytorch/issues/112237",
@@ -1736,13 +1799,6 @@
   "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111826",
     "https://github.com/pytorch/pytorch/issues/111826",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nested_tensor_indexing_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111892",
-    "https://github.com/pytorch/pytorch/issues/111892",
     [
       "dynamo"
     ]
