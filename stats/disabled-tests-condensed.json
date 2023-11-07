@@ -169,6 +169,13 @@
       "linux"
     ]
   ],
+  "test_backward_for_add_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112049",
+    "https://github.com/pytorch/pytorch/issues/112049",
+    [
+      "dynamo"
+    ]
+  ],
   "test_backward_for_sub_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112105",
     "https://github.com/pytorch/pytorch/issues/112105",
