@@ -1094,6 +1094,13 @@
       "linux"
     ]
   ],
+  "test_large_strided_reduction_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113146",
+    "https://github.com/pytorch/pytorch/issues/113146",
+    [
+      "linux"
+    ]
+  ],
   "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112237",
     "https://github.com/pytorch/pytorch/issues/112237",
@@ -1156,6 +1163,13 @@
     [
       "macos",
       "mac"
+    ]
+  ],
+  "test_lgamma_cpu (__main__.CpuTests)": [
+    "113148",
+    "https://github.com/pytorch/pytorch/issues/113148",
+    [
+      "linux"
     ]
   ],
   "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
