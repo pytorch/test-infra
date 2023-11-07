@@ -115,7 +115,8 @@ function CommitPicker({
     commit = "api_error";
   }
 
-  let all_commits: string[] = data.map((r: any) => r["environ"]["pytorch_git_version"]).slice(0, MAX_COMMIT_SHAS)
+  let all_commits: string[] = data.map((r: any) => r["environ"]["pytorch_git_version"])
+      .sort((x: string, y: string) => x < y ? -1 : 1).slice(0, MAX_COMMIT_SHAS)
 
   return (
     <div>
@@ -139,6 +140,41 @@ function CommitPicker({
       </FormControl>
     </div>
   );
+}
+
+function Report({
+  userbenchmark,
+  lCommit,
+  rCommit
+}: {
+    userbenchmark: string;
+    lCommit: string;
+    rCommit: string;
+}) {
+  const queryName = "torchbench_userbenchmark_query_metrics";
+  const queryCollection = "torchbench";
+  const queryParams: RocksetParam[] = [
+    {
+      name: "userbenchmark",
+      type: "string",
+      value: userbenchmark,
+    },
+    {
+      name: "control_commit",
+      type: "string",
+      value: lCommit,
+    },
+    {
+      name: "treatment_commit",
+      type: "string",
+      value: rCommit,
+    },
+  ];
+  const list_commits_url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  return (
+    <div> </div>);
 }
 
 export default function Page() {
@@ -179,5 +215,11 @@ export default function Page() {
         fallbackIndex={0} // Default to the latest in the window
       />
     </Stack>
+
+    <Report
+        userbenchmark={userbenchmark}
+        lCommit={lCommit}
+        rCommit={rCommit}
+      />
   </div>;
 }
