@@ -414,13 +414,6 @@
       "linux"
     ]
   ],
-  "test_cond_side_effects (__main__.MiscTests)": [
-    "111850",
-    "https://github.com/pytorch/pytorch/issues/111850",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_with_quantization (__main__.MiscTests)": [
     "110593",
     "https://github.com/pytorch/pytorch/issues/110593",
@@ -762,6 +755,11 @@
     [
       "linux"
     ]
+  ],
+  "test_fd_pool (__main__.TestMultiprocessing)": [
+    "69660",
+    "https://github.com/pytorch/pytorch/issues/69660",
+    []
   ],
   "test_find_or_create_pg (__main__.TestPgTag)": [
     "107278",
@@ -1163,30 +1161,6 @@
     [
       "asan",
       "linux"
-    ]
-  ],
-  "test_mandelbrot_numpy (__main__.MiscTests)": [
-    "109997",
-    "https://github.com/pytorch/pytorch/issues/109997",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_mandelbrot_numpy_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "109995",
-    "https://github.com/pytorch/pytorch/issues/109995",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
@@ -1762,13 +1736,6 @@
   "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111826",
     "https://github.com/pytorch/pytorch/issues/111826",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nested_tensor_indexing_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111851",
-    "https://github.com/pytorch/pytorch/issues/111851",
     [
       "dynamo"
     ]
