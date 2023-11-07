@@ -2350,13 +2350,6 @@
       "rocm"
     ]
   ],
-  "test_transpose_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112845",
-    "https://github.com/pytorch/pytorch/issues/112845",
-    [
-      "linux"
-    ]
-  ],
   "test_transpose_inference_mode_interaction_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "112909",
     "https://github.com/pytorch/pytorch/issues/112909",
