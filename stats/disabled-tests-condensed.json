@@ -2363,6 +2363,14 @@
       "slow"
     ]
   ],
+  "test_triton_bsr_scatter_mm_blocksize_16_cuda_float16 (__main__.TestSparseCompressedTritonKernelsCUDA)": [
+    "112158",
+    "https://github.com/pytorch/pytorch/issues/112158",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
     "106026",
     "https://github.com/pytorch/pytorch/issues/106026",
