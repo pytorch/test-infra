@@ -379,8 +379,8 @@ def generate_libtorch_matrix(
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
             abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
-        elif os == MACOS:
-            abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
+        elif os in [MACOS, MACOS_ARM64]:
+            abi_versions = [CXX11_ABI]
 
     if libtorch_variants is None:
         libtorch_variants = [
@@ -388,7 +388,7 @@ def generate_libtorch_matrix(
             "shared-without-deps",
             "static-with-deps",
             "static-without-deps",
-        ]
+        ] if os not in [MACOS, MACOS_ARM64] else ["shared-with-deps"]
 
     for abi_version in abi_versions:
         for arch_version in arches:
