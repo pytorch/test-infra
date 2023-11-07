@@ -2292,7 +2292,8 @@
     "https://github.com/pytorch/pytorch/issues/112354",
     [
       "mac",
-      "macos"
+      "macos",
+      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
