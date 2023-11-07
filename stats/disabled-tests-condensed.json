@@ -343,13 +343,6 @@
       "inductor"
     ]
   ],
-  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
-    "111945",
-    "https://github.com/pytorch/pytorch/issues/111945",
-    [
-      "rocm"
-    ]
-  ],
   "test_complex_half_reference_testing_pow_cuda_complex32 (__main__.TestCommonCUDA)": [
     "108993",
     "https://github.com/pytorch/pytorch/issues/108993",
@@ -2355,6 +2348,13 @@
     "https://github.com/pytorch/pytorch/issues/112815",
     [
       "rocm"
+    ]
+  ],
+  "test_transpose_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
+    "112845",
+    "https://github.com/pytorch/pytorch/issues/112845",
+    [
+      "linux"
     ]
   ],
   "test_transpose_inference_mode_interaction_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
