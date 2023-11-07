@@ -1291,13 +1291,6 @@
       "linux"
     ]
   ],
-  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111903",
-    "https://github.com/pytorch/pytorch/issues/111903",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111928",
     "https://github.com/pytorch/pytorch/issues/111928",
@@ -1813,13 +1806,6 @@
   "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111826",
     "https://github.com/pytorch/pytorch/issues/111826",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_nested_tensor_sum_dim_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111904",
-    "https://github.com/pytorch/pytorch/issues/111904",
     [
       "dynamo"
     ]
