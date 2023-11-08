@@ -10,14 +10,13 @@ from torchci.td.utils import list_past_year_shas, run_command
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 FAILED_TEST_SHAS_QUERY = """
-SELECT
-    DISTINCT j.head_sha,
-FROM
+select
+    distinct j.head_sha
+from
     commons.failed_tests_run t
     join workflow_job j on t.job_id = j.id
-    left outer join commons.merge_bases mb on j.head_sha = mb.sha
-where
-    mb.merge_base is null
+    join commons.merge_bases mb on j.head_sha = mb.sha
+where LENGTH(mb.changed_files) > 100
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
@@ -96,10 +95,11 @@ def upload_merge_base_info(shas: List[str]) -> None:
                     "repo": "pytorch/pytorch",
                 }
             )
+            print(len(changed_files.splitlines()))
         except Exception as e:
             return e
 
-    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
+    # upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
 
 
 if __name__ == "__main__":
@@ -114,16 +114,16 @@ if __name__ == "__main__":
         pull_shas(failed_test_shas[i : i + interval])
         upload_merge_base_info(failed_test_shas[i : i + interval])
 
-    interval = 500
-    main_branch_shas = list_past_year_shas()
-    print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
-    for i in range(0, len(main_branch_shas), interval):
-        shas = [
-            x["head_sha"]
-            for x in query_rockset(
-                NOT_IN_MERGE_BASES_TABLE,
-                {"shas": ",".join(main_branch_shas[i : i + interval])},
-            )
-        ]
-        upload_merge_base_info(shas)
-        print(f"{i} to {i + interval} done")
+    # interval = 500
+    # main_branch_shas = list_past_year_shas()
+    # print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
+    # for i in range(0, len(main_branch_shas), interval):
+    #     shas = [
+    #         x["head_sha"]
+    #         for x in query_rockset(
+    #             NOT_IN_MERGE_BASES_TABLE,
+    #             {"shas": ",".join(main_branch_shas[i : i + interval])},
+    #         )
+    #     ]
+    #     upload_merge_base_info(shas)
+    #     print(f"{i} to {i + interval} done")
