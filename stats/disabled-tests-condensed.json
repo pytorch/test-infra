@@ -176,13 +176,6 @@
       "linux"
     ]
   ],
-  "test_backward_sub_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112134",
-    "https://github.com/pytorch/pytorch/issues/112134",
-    [
-      "dynamo"
-    ]
-  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -2101,6 +2094,13 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_reorder_compute_for_overlap (__main__.TestComputeCommReorderingMultiProc)": [
+    "113249",
+    "https://github.com/pytorch/pytorch/issues/113249",
+    [
+      "rocm"
     ]
   ],
   "test_requires_grad_loop (test_jit.TestScript)": [
