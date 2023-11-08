@@ -176,13 +176,6 @@
       "linux"
     ]
   ],
-  "test_backward_sub_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112134",
-    "https://github.com/pytorch/pytorch/issues/112134",
-    [
-      "dynamo"
-    ]
-  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
