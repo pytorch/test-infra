@@ -86,7 +86,8 @@
   },
   "torchbench": {
     "torchbench_list_userbenchmarks": "fcfa85c5d1056e8f",
-    "torchbench_userbenchmark_list_commits": "4fe38fb33bf27b41"
+    "torchbench_userbenchmark_list_commits": "4fe38fb33bf27b41",
+    "torchbench_userbenchmark_query_metrics": "39d10fce6485c0a3"
   },
   "utilization": {
     "runner_utilization": "2dfc4f9c16e51da0",

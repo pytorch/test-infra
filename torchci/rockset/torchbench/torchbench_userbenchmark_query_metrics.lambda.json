@@ -1,0 +1,15 @@
+{
+    "sql_path": "__sql/torchbench_userbenchmark_query_metrics.sql",
+    "default_parameters": [
+        {
+          "name": "userbenchmark",
+          "type": "string",
+          "value": "torch-nightly"
+        },
+        {
+            "name": "commit",
+            "type": "string",
+            "value": "torch-nightly"
+          }
+    ]
+}

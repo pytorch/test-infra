@@ -103,7 +103,7 @@ function CommitPicker({
   )}`;
 
   let { data, error } = useSWR(list_commits_url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
+    refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
   });
   if (data === undefined || data.length === 0) {
     data = [ {
@@ -151,28 +151,47 @@ function Report({
     lCommit: string;
     rCommit: string;
 }) {
+  function get_query_url(params: RocksetParam[]) {
+    return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+      JSON.stringify(params)
+    )}`;
+  }
+  function query_metrics(url: string) {
+    let { data, error } = useSWR(url, fetcher, {
+      refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
+    });
+    return data
+  }
   const queryName = "torchbench_userbenchmark_query_metrics";
   const queryCollection = "torchbench";
-  const queryParams: RocksetParam[] = [
+  const queryControlParams: RocksetParam[] = [
     {
       name: "userbenchmark",
       type: "string",
       value: userbenchmark,
     },
     {
-      name: "control_commit",
+      name: "commit",
       type: "string",
       value: lCommit,
     },
+  ];
+  const queryTreatmentParams: RocksetParam[] = [
     {
-      name: "treatment_commit",
+      name: "userbenchmark",
+      type: "string",
+      value: userbenchmark,
+    },
+    {
+      name: "commit",
       type: "string",
       value: rCommit,
     },
   ];
-  const list_commits_url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  // We assume to return at least one instance for the query
+  let cMetrics = query_metrics(get_query_url(queryControlParams))[0];
+  let tMetrics = query_metrics(get_query_url(queryTreatmentParams))[0];
+
   return (
     <div> </div>);
 }
