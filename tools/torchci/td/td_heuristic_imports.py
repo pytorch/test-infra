@@ -3,8 +3,10 @@ import json
 from typing import List, Dict, Any
 
 import requests
+from torchci.rockset_utils import remove_from_rockset
 from torchci.td.utils import (
-    avg, med,
+    avg,
+    med,
     get_all_invoking_files,
     get_filtered_failed_tests,
     get_merge_bases_dict,
@@ -32,7 +34,7 @@ def main() -> None:
     readable_merge_bases_dict()
 
     merge_baess = get_merge_bases_dict()
-    print(len(list(v for v in merge_baess.values() if len(v['changed_files']) < 100)))
+    print(len(list(v for v in merge_baess.values() if len(v["changed_files"]) < 100)))
     with open(REPO_ROOT / "_logs" / "important_files.txt") as f:
         a = json.load(f)
     with open(REPO_ROOT / "_logs" / "all_files.txt") as f:
@@ -42,7 +44,11 @@ def main() -> None:
     count_b = 0
     out_of = 0
     for c, data in merge_baess.items():
-        torch_files = [x for x in data['changed_files'] if x.startswith("torch/") and x.endswith(".py")]
+        torch_files = [
+            x
+            for x in data["changed_files"]
+            if x.startswith("torch/") and x.endswith(".py")
+        ]
         if torch_files:
             out_of += 1
         if any(file in a for file in torch_files):
@@ -58,14 +64,28 @@ def main() -> None:
     import csv
 
     mydict = []
-    with open("results.csv") as f:
+    with open(REPO_ROOT / "_logs" / "results.csv") as f:
         file = csv.DictReader(f)
         mydict.extend(row for row in file)
 
     # Count the number of tests that have fewer than 100 changed files
-    print(len(list(v for v in mydict if len(merge_baess[v['head_sha']]['changed_files']) < 100)))
+    print(
+        len(
+            [
+                v
+                for v in mydict
+                if len(merge_baess[v["head_sha"]]["changed_files"]) < 100
+            ]
+        )
+    )
 
-    s = sorted([int(test["position"]) for test in mydict if test["position"] is not None and test["position"] != ""])
+    s = sorted(
+        [
+            int(test["position"])
+            for test in mydict
+            if test["position"] is not None and test["position"] != ""
+        ]
+    )
     print(f"avg: {avg(s)}")
     print(f"med: {med(s)}")
     print(f"per evaled: {len(s) / len(mydict)}")
@@ -76,22 +96,20 @@ def main() -> None:
     plt.show()  # display
     exit(0)
 
-    profiling_dict = get_imports_dict()
-    merge_bases = get_merge_bases_dict()
-    filtered_tests = get_filtered_failed_tests()
+    # profiling_dict = get_imports_dict()
+    # merge_bases = get_merge_bases_dict()
+    # filtered_tests = get_filtered_failed_tests()
 
-    evaluate(filtered_tests, merge_bases, profiling_dict)
+    # evaluate(filtered_tests, merge_bases, profiling_dict)
 
-    readable_merge_bases_dict()
+    # readable_merge_bases_dict()
+
 
 def readable_merge_bases_dict():
     merge_bases_dict = get_merge_bases_dict()
-    smaller = {
-        k: m['changed_files'] for k, m in merge_bases_dict.items()
-    }
+    smaller = {k: m["changed_files"] for k, m in merge_bases_dict.items()}
     with open(REPO_ROOT / "_logs" / "readable_merge_bases.json", "w") as f:
         f.write(json.dumps(smaller, indent=2))
-
 
 
 def evaluate(
@@ -100,6 +118,7 @@ def evaluate(
     rev_mapping: Dict[str, Dict[str, float]],
 ) -> None:
     import csv
+
     # This function creates a file called results.csv which contains information
     # about ordering of tests.  It doesn't produce output that is used but is
     # meant to help evaluate if the currently rating/calculation is good.
@@ -115,7 +134,7 @@ def evaluate(
             for test_file, score in rev_mapping.get(file, {}).items():
                 prediction[test_file] += score
 
-        invoking_file = test['invoking_file']
+        invoking_file = test["invoking_file"]
 
         position = None
         if invoking_file in prediction.keys():
@@ -128,17 +147,13 @@ def evaluate(
         elif len(prediction) != 0:
             position = len(all_invoking_files)
 
-        output.append({
-            **test,
-            "position": position
-        })
+        output.append({**test, "position": position})
 
-
-    with open("results.csv", "w") as csvfile:
+    with open(REPO_ROOT / "_logs" / "results.csv", "w") as csvfile:
         writer = csv.DictWriter(csvfile, output[0].keys())
         writer.writeheader()
         writer.writerows(output)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     main()
