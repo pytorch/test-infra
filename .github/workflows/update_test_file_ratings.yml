@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/update_test_file_ratings.yml"
-      - "tools/torchci/td"
+      - "tools/torchci/td/**"
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
