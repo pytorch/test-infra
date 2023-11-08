@@ -121,6 +121,7 @@ runs:
                 conda=23.7.3 \
                 ninja=1.10 \
                 pkg-config=0.29 \
+                packaging \
                 wheel=0.37
             else
               conda create \
@@ -131,6 +132,7 @@ runs:
                 conda=23.7.3 \
                 ninja=1.10 \
                 pkg-config=0.29 \
+                packaging \
                 wheel=0.37
             fi
           else
@@ -143,6 +145,7 @@ runs:
               conda=23.7.3 \
               ninja=1.10 \
               pkg-config=0.29 \
+              packaging \
               wheel=0.37
           fi
 
