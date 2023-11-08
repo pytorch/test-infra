@@ -76,7 +76,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
     docs = []
     for sha in shas:
         try:
-            merge_base = run_command(f"git merge-base main {sha}")
+            merge_base = run_command(f"git merge-base origin/main {sha}")
             if merge_base == sha:
                 # The commit was probably already on main, so take the previous
                 # commit as the merge base
@@ -95,6 +95,8 @@ def upload_merge_base_info(shas: List[str]) -> None:
                     "repo": "pytorch/pytorch",
                 }
             )
+            print(f"Done with {sha}")
+            print(changed_files.splitlines())
         except Exception as e:
             return e
 
@@ -102,6 +104,17 @@ def upload_merge_base_info(shas: List[str]) -> None:
 
 
 if __name__ == "__main__":
+    dedup_merge_base_info()
+
+    failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)]
+    interval = 100
+    print(
+        f"There are {len(failed_test_shas)} shas, uploading in intervals of {interval}"
+    )
+    for i in range(0, len(failed_test_shas), interval):
+        pull_shas(failed_test_shas[i : i + interval])
+        upload_merge_base_info(failed_test_shas[i : i + interval])
+
     dedup_merge_base_info()
 
     failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)]

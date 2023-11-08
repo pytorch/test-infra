@@ -3,7 +3,7 @@ import json
 from typing import List, Dict, Any
 
 import requests
-from utils_td_heuristics import (
+from torchci.td.utils import (
     avg, med,
     get_all_invoking_files,
     get_filtered_failed_tests,
@@ -11,7 +11,7 @@ from utils_td_heuristics import (
 )
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def get_imports_dict():
@@ -29,6 +29,8 @@ def get_imports_dict():
 
 
 def main() -> None:
+    readable_merge_bases_dict()
+
     merge_baess = get_merge_bases_dict()
     print(len(list(v for v in merge_baess.values() if len(v['changed_files']) < 100)))
     with open(REPO_ROOT / "_logs" / "important_files.txt") as f:
@@ -62,9 +64,6 @@ def main() -> None:
 
     # Count the number of tests that have fewer than 100 changed files
     print(len(list(v for v in mydict if len(merge_baess[v['head_sha']]['changed_files']) < 100)))
-    # print( / len(mydict))
-
-
 
     s = sorted([int(test["position"]) for test in mydict if test["position"] is not None and test["position"] != ""])
     print(f"avg: {avg(s)}")
@@ -77,15 +76,13 @@ def main() -> None:
     plt.show()  # display
     exit(0)
 
-    # profiling_dict = get_imports_dict()
-    # merge_bases = get_merge_bases_dict()
-    # filtered_tests = get_filtered_failed_tests()
+    profiling_dict = get_imports_dict()
+    merge_bases = get_merge_bases_dict()
+    filtered_tests = get_filtered_failed_tests()
 
-    # evaluate(filtered_tests, merge_bases, profiling_dict)
+    evaluate(filtered_tests, merge_bases, profiling_dict)
 
-    # with open("td_heuristic_profiling.json", mode="w") as file:
-    #     json.dump(profiling_dict, file, sort_keys=True, indent=2)
-    # readable_merge_bases_dict()
+    readable_merge_bases_dict()
 
 def readable_merge_bases_dict():
     merge_bases_dict = get_merge_bases_dict()
