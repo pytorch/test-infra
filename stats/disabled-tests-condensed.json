@@ -176,6 +176,13 @@
       "linux"
     ]
   ],
+  "test_backward_sub_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
+    "112134",
+    "https://github.com/pytorch/pytorch/issues/112134",
+    [
+      "dynamo"
+    ]
+  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -823,6 +830,13 @@
     "https://github.com/pytorch/pytorch/issues/101162",
     [
       "linux"
+    ]
+  ],
+  "test_function_returns_input_inner_requires_grad_True_save_for_jvp_save_tensors_neither_mark_dirty_True_cpu (__main__.TestAutogradFunctionCPU)": [
+    "113252",
+    "https://github.com/pytorch/pytorch/issues/113252",
+    [
+      "dynamo"
     ]
   ],
   "test_fused_int_mm_mul (__main__.TestPaternMatcher)": [
