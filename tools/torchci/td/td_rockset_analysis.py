@@ -43,6 +43,7 @@ QUERY = """
     m.job,
     m.build_environment,
     m.test_config,
+    m.confidence_ratings,
 FROM
     metrics.metrics m -- CROSS JOIN UNNEST (heuristics) h
 where
@@ -210,10 +211,30 @@ def get_num_heuristics_prioritized_by(data):
     plt.savefig(OUTPUT_FOLDER / f"percentile_num_heuristics_prioritized.png")
     plt.clf()
 
+def evaluate_confidence_ratings(data):
+    non_null_confidence_ratings = [x for x in data if x["confidence_ratings"] is not None]
+    for row in non_null_confidence_ratings:
+        failed_test = row["test_name"]
+        aggregated_ratings_dict = defaultdict(float)
+        for heuristic, ratings_dict in row['confidence_ratings'].items():
+            if ratings_dict is None:
+                continue
+            for tf, rating in ratings_dict.items():
+                aggregated_ratings_dict[tf] += rating
+        aggregated_ratings = sorted(aggregated_ratings_dict.items(), key=lambda x: x[1], reverse=True)
+        if failed_test in aggregated_ratings_dict:
+            position = aggregated_ratings.index((failed_test, aggregated_ratings_dict[failed_test]))
+            print(position)
+        else:
+            print(f"{failed_test} was not present")
+
+
+
 
 if __name__ == "__main__":
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     rockset_data = query_rockset(QUERY, use_cache=True)
+    evaluate_confidence_ratings(rockset_data)
 
     make_csv(
         to_array(get_heuristics_eval(rockset_data), "heuristic"),
