@@ -103,13 +103,6 @@
     "https://github.com/pytorch/pytorch/issues/106439",
     []
   ],
-  "test_as_nested_tensor_propagates_gradients_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "111988",
-    "https://github.com/pytorch/pytorch/issues/111988",
-    [
-      "dynamo"
-    ]
-  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -762,6 +755,13 @@
       "rocm"
     ]
   ],
+  "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "105199",
+    "https://github.com/pytorch/pytorch/issues/105199",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
@@ -1179,13 +1179,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107739",
-    "https://github.com/pytorch/pytorch/issues/107739",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
@@ -1343,13 +1336,6 @@
   "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
     "111638",
     "https://github.com/pytorch/pytorch/issues/111638",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
-    "111986",
-    "https://github.com/pytorch/pytorch/issues/111986",
     [
       "dynamo"
     ]
