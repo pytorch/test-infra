@@ -29,9 +29,9 @@ class TorchUnsafeLoadVisitor(TorchVisitor):
                 # (do not add `weights_only=False` with `pickle_module`, as it
                 # needs to be an explicit choice).
                 #
-                # This codemod is somewhat unsafe because full pickling functionality
-                # may still be needed even without `pickle_module`, so the changes need
-                # to be verified/tested.
+                # This codemod is somewhat unsafe correctness-wise because full pickling
+                # functionality may still be needed even without `pickle_module`, so the changes
+                # need to be verified/tested.
                 replacement = None
                 pickle_module_arg = self.get_specific_arg(node, "pickle_module", 2)
                 if pickle_module_arg is None:
