@@ -155,13 +155,6 @@
       "linux"
     ]
   ],
-  "test_backward_sub_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112134",
-    "https://github.com/pytorch/pytorch/issues/112134",
-    [
-      "dynamo"
-    ]
-  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -1434,13 +1427,6 @@
   "test_meta_outplace_fft_ihfftn_cpu_int16 (__main__.TestMetaCPU)": [
     "112048",
     "https://github.com/pytorch/pytorch/issues/112048",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfftn_cpu_int64 (__main__.TestMetaCPU)": [
-    "112133",
-    "https://github.com/pytorch/pytorch/issues/112133",
     [
       "dynamo"
     ]
