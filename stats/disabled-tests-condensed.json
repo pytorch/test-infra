@@ -148,13 +148,6 @@
       "linux"
     ]
   ],
-  "test_backward_for_sub_op_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112105",
-    "https://github.com/pytorch/pytorch/issues/112105",
-    [
-      "dynamo"
-    ]
-  ],
   "test_backward_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "112559",
     "https://github.com/pytorch/pytorch/issues/112559",
@@ -1227,6 +1220,13 @@
       "win"
     ]
   ],
+  "test_mem_leak (__main__.TestProfilerCUDA)": [
+    "110995",
+    "https://github.com/pytorch/pytorch/issues/110995",
+    [
+      "rocm"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "107426",
     "https://github.com/pytorch/pytorch/issues/107426",
@@ -1287,6 +1287,13 @@
   "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111967",
     "https://github.com/pytorch/pytorch/issues/111967",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111535",
+    "https://github.com/pytorch/pytorch/issues/111535",
     [
       "dynamo"
     ]
@@ -1420,13 +1427,6 @@
   "test_meta_outplace_fft_ihfftn_cpu_float64 (__main__.TestMetaCPU)": [
     "112016",
     "https://github.com/pytorch/pytorch/issues/112016",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfftn_cpu_int32 (__main__.TestMetaCPU)": [
-    "112104",
-    "https://github.com/pytorch/pytorch/issues/112104",
     [
       "dynamo"
     ]
