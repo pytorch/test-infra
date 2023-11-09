@@ -322,7 +322,10 @@ describe("Test various utils used by Dr.CI", () => {
     ).toEqual(true);
   });
 
-  test("test isInfraFlakyJob", () => {
+  test("test isInfraFlakyJob", async () => {
+    const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
+    mockJobUtils.mockImplementation(() => Promise.resolve(true));
+
     const notInfraFlakyFailure: RecentWorkflowsData = {
       id: "A",
       name: "A",
@@ -335,7 +338,7 @@ describe("Test various utils used by Dr.CI", () => {
       head_branch: "whatever",
       runnerName: "dummy",
     };
-    expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
+    expect(await isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
 
     const notInfraFlakyFailureAgain: RecentWorkflowsData = {
       id: "A",
@@ -349,7 +352,7 @@ describe("Test various utils used by Dr.CI", () => {
       head_branch: "whatever",
       runnerName: "dummy",
     };
-    expect(isInfraFlakyJob(notInfraFlakyFailureAgain)).toEqual(false);
+    expect(await isInfraFlakyJob(notInfraFlakyFailureAgain)).toEqual(false);
 
     const isInfraFlakyFailure: RecentWorkflowsData = {
       id: "A",
@@ -363,7 +366,11 @@ describe("Test various utils used by Dr.CI", () => {
       head_branch: "whatever",
       runnerName: "",
     };
-    expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
+    expect(await isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
+
+    // No S3 log will be considered as infra flaky
+    mockJobUtils.mockImplementation(() => Promise.resolve(false));
+    expect(await isInfraFlakyJob(notInfraFlakyFailure)).toEqual(true);
   });
 
   test("test isExcludedFromFlakiness", () => {

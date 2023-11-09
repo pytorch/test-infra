@@ -595,7 +595,7 @@ export async function getWorkflowJobsStatuses(
         brokenTrunkJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
-        isInfraFlakyJob(job) ||
+        (await isInfraFlakyJob(job)) ||
         (await hasSimilarFailures(job, prInfo.merge_base_date))
       ) {
         flakyJobs.push(job);

@@ -133,6 +133,14 @@ LIMIT
   return results !== undefined && results.length === 1 ? results[0].email : "";
 }
 
+export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
+  // This is to handle the infra flaky issue where the log is not available on
+  // S3 and no failure is found
+  const url = `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id}`;
+  const res = await fetch(url, { method: "HEAD" });
+  return res.status !== 404;
+}
+
 export async function isSameAuthor(
   job: RecentWorkflowsData,
   failure: RecentWorkflowsData

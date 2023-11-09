@@ -14,7 +14,7 @@ import {
   MAX_SIZE,
 } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
-import { isSameAuthor, isSameFailure } from "lib/jobUtils";
+import { isSameAuthor, isSameFailure, hasS3Log } from "lib/jobUtils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -338,18 +338,27 @@ export async function hasSimilarFailures(
   return false;
 }
 
-export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
-  // An infra flaky job is a failed job without any failure line and runner. It shows
-  // up as an empty job without any logs on GitHub. The failure can only be seen via
-  // the workflow summary tab
+export async function isInfraFlakyJob(
+  job: RecentWorkflowsData
+): Promise<boolean> {
+  // This covers few cases of infra flaky:
+  // * A failed job without any failure line and runner. It shows up as an empty
+  //   job without any logs on GitHub. The failure can only be seen via the workflow
+  //   summary tab
+  // * A failed job without any log on S3
+  const hasFailureLines =
+    job.failure_lines !== null &&
+    job.failure_lines !== undefined &&
+    job.failure_lines.join("") !== "";
+  const hasRunnerName =
+    job.runnerName !== null &&
+    job.runnerName !== undefined &&
+    job.runnerName !== "";
+  const hasLog = await hasS3Log(job);
+
   return (
     job.conclusion === "failure" &&
-    (job.failure_lines === null ||
-      job.failure_lines === undefined ||
-      job.failure_lines.join("") === "") &&
-    (job.runnerName === null ||
-      job.runnerName === undefined ||
-      job.runnerName === "")
+    ((!hasFailureLines && !hasRunnerName) || !hasLog)
   );
 }
 
