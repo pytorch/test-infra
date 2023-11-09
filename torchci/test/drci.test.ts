@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import * as drciUtils from "lib/drciUtils";
+import * as jobUtils from "lib/jobUtils";
 
 nock.disableNetConnect();
 
@@ -264,6 +265,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   beforeEach(() => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() => Promise.resolve(false));
+
+    const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
+    mockJobUtils.mockImplementation(() => Promise.resolve(true));
   });
 
   afterEach(() => {
