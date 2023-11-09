@@ -118,6 +118,7 @@ runs:
                 "python=3.8" \
                 cmake=3.22 \
                 conda-build=3.21 \
+                conda=23.7.3 \
                 ninja=1.10 \
                 pkg-config=0.29 \
                 wheel=0.37
@@ -126,6 +127,7 @@ runs:
                 --yes --quiet \
                 --prefix "${CONDA_ENV}" \
                 "python=${PYTHON_VERSION}" \
+                conda=23.7.3 \
                 cmake=3.22 \
                 ninja=1.10 \
                 pkg-config=0.29 \
@@ -138,6 +140,7 @@ runs:
               "python=${PYTHON_VERSION}" \
               cmake=3.22 \
               conda-build=3.21 \
+              conda=23.7.3 \
               ninja=1.10 \
               pkg-config=0.29 \
               wheel=0.37
