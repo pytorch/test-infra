@@ -238,11 +238,8 @@ def get_libtorch_install_command(
     if os in [MACOS, MACOS_ARM64]:
         arch = "x86_64" if os == MACOS else "arm64"
         build_name = f"libtorch-macos-{arch}-latest.zip"
-        if channel == RELEASE:
+        if channel in [RELEASE, TEST]:
             build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
-        # Please note this is temporary, to be removed when doing branch cut for 2.2 release
-        elif channel == TEST:
-            build_name = "libtorch-macos-latest.zip"
 
     elif os == LINUX and (channel == RELEASE or channel == TEST):
         build_name = (
