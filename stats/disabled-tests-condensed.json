@@ -775,6 +775,11 @@
       "rocm"
     ]
   ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
+    []
+  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
@@ -1037,13 +1042,6 @@
       "linux"
     ]
   ],
-  "test_layer_norm_backward_5d_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112237",
-    "https://github.com/pytorch/pytorch/issues/112237",
-    [
-      "dynamo"
-    ]
-  ],
   "test_layer_norm_backward_5d_size_2_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112249",
     "https://github.com/pytorch/pytorch/issues/112249",
@@ -1127,6 +1125,13 @@
     "https://github.com/pytorch/pytorch/issues/108824",
     [
       "asan"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1440,13 +1445,6 @@
   "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
     "112220",
     "https://github.com/pytorch/pytorch/issues/112220",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112236",
-    "https://github.com/pytorch/pytorch/issues/112236",
     [
       "dynamo"
     ]
