@@ -336,13 +336,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_single_arg (__main__.MiscTests)": [
-    "101738",
-    "https://github.com/pytorch/pytorch/issues/101738",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_nested (__main__.MiscTests)": [
     "101758",
     "https://github.com/pytorch/pytorch/issues/101758",
@@ -1304,6 +1297,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
+    "111986",
+    "https://github.com/pytorch/pytorch/issues/111986",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
     "111651",
     "https://github.com/pytorch/pytorch/issues/111651",
@@ -1426,6 +1426,13 @@
   "test_meta_outplace_fft_ihfftn_cpu_int8 (__main__.TestMetaCPU)": [
     "112150",
     "https://github.com/pytorch/pytorch/issues/112150",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112182",
+    "https://github.com/pytorch/pytorch/issues/112182",
     [
       "dynamo"
     ]
@@ -1758,6 +1765,14 @@
     "https://github.com/pytorch/pytorch/issues/81732",
     [
       "linux"
+    ]
+  ],
+  "test_non_contiguous_tensors_nn_Embedding_mps_float32 (__main__.TestModuleMPS)": [
+    "113436",
+    "https://github.com/pytorch/pytorch/issues/113436",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_noncontiguous_samples__native_batch_norm_legit_cuda_float32 (__main__.TestCommonCUDA)": [
