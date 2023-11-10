@@ -209,13 +209,6 @@
       "mac"
     ]
   ],
-  "test_cat_addmm (__main__.TestDoBench)": [
-    "106451",
-    "https://github.com/pytorch/pytorch/issues/106451",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
@@ -632,13 +625,6 @@
       "macos"
     ]
   ],
-  "test_dropout_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112151",
-    "https://github.com/pytorch/pytorch/issues/112151",
-    [
-      "dynamo"
-    ]
-  ],
   "test_dropout_backward_layout_torch_jagged_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112664",
     "https://github.com/pytorch/pytorch/issues/112664",
@@ -799,20 +785,6 @@
     "https://github.com/pytorch/pytorch/issues/113252",
     [
       "dynamo"
-    ]
-  ],
-  "test_fused_int_mm_mul (__main__.TestPaternMatcher)": [
-    "111345",
-    "https://github.com/pytorch/pytorch/issues/111345",
-    [
-      "rocm"
-    ]
-  ],
-  "test_fused_int_mm_mul_gating (__main__.TestPaternMatcher)": [
-    "111398",
-    "https://github.com/pytorch/pytorch/issues/111398",
-    [
-      "rocm"
     ]
   ],
   "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
@@ -1654,34 +1626,6 @@
       "dynamo"
     ]
   ],
-  "test_mixed_mm (__main__.TestPaternMatcher)": [
-    "111051",
-    "https://github.com/pytorch/pytorch/issues/111051",
-    [
-      "rocm"
-    ]
-  ],
-  "test_mixed_mm_epi_works (__main__.TestPaternMatcher)": [
-    "111052",
-    "https://github.com/pytorch/pytorch/issues/111052",
-    [
-      "rocm"
-    ]
-  ],
-  "test_mixed_mm_gating (__main__.TestPaternMatcher)": [
-    "111053",
-    "https://github.com/pytorch/pytorch/issues/111053",
-    [
-      "rocm"
-    ]
-  ],
-  "test_mm_plus_mm (__main__.TestPaternMatcher)": [
-    "111054",
-    "https://github.com/pytorch/pytorch/issues/111054",
-    [
-      "rocm"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -2154,13 +2098,6 @@
       "mac"
     ]
   ],
-  "test_splitwithsizes_cat (__main__.TestPaternMatcher)": [
-    "111056",
-    "https://github.com/pytorch/pytorch/issues/111056",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -2362,13 +2299,6 @@
       "windows"
     ]
   ],
-  "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
-    "106026",
-    "https://github.com/pytorch/pytorch/issues/106026",
-    [
-      "rocm"
-    ]
-  ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
     "110610",
     "https://github.com/pytorch/pytorch/issues/110610",
@@ -2377,44 +2307,9 @@
       "slow"
     ]
   ],
-  "test_uint4x2_mixed_mm (__main__.TestPaternMatcher)": [
-    "111057",
-    "https://github.com/pytorch/pytorch/issues/111057",
-    [
-      "rocm"
-    ]
-  ],
-  "test_uint4x2_mixed_mm_epi (__main__.TestPaternMatcher)": [
-    "111058",
-    "https://github.com/pytorch/pytorch/issues/111058",
-    [
-      "rocm"
-    ]
-  ],
-  "test_uint4x2_mixed_mm_fail_to_match (__main__.TestPaternMatcher)": [
-    "111059",
-    "https://github.com/pytorch/pytorch/issues/111059",
-    [
-      "rocm"
-    ]
-  ],
-  "test_uint4x2_mixed_mm_gating_works (__main__.TestPaternMatcher)": [
-    "111060",
-    "https://github.com/pytorch/pytorch/issues/111060",
-    [
-      "rocm"
-    ]
-  ],
   "test_unary_ops (__main__.TestTensorExprFuser)": [
     "105119",
     "https://github.com/pytorch/pytorch/issues/105119",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unfuse_bias_addmm (__main__.TestPaternMatcher)": [
-    "111062",
-    "https://github.com/pytorch/pytorch/issues/111062",
     [
       "rocm"
     ]
