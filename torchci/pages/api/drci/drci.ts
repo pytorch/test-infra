@@ -605,7 +605,7 @@ export async function getWorkflowJobsStatuses(
         flakyJobs.push(job);
       } else if (await isLogClassifierFailed(job)) {
         flakyJobs.push(job);
-        backfillMissingLog(prInfo.owner, prInfo.repo, job);
+        await backfillMissingLog(prInfo.owner, prInfo.repo, job);
       } else {
         failedJobs.push(job);
       }
