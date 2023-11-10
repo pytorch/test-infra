@@ -761,13 +761,6 @@
       "inductor"
     ]
   ],
-  "test_forward_ad_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "111891",
-    "https://github.com/pytorch/pytorch/issues/111891",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1040,13 +1033,6 @@
     "https://github.com/pytorch/pytorch/issues/113146",
     [
       "linux"
-    ]
-  ],
-  "test_layer_norm_backward_5d_size_2_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112249",
-    "https://github.com/pytorch/pytorch/issues/112249",
-    [
-      "dynamo"
     ]
   ],
   "test_layer_norm_backward_5d_size_32_cpu (__main__.TestNestedTensorAutogradCPU)": [
@@ -1445,6 +1431,13 @@
   "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
     "112220",
     "https://github.com/pytorch/pytorch/issues/112220",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112236",
+    "https://github.com/pytorch/pytorch/issues/112236",
     [
       "dynamo"
     ]
