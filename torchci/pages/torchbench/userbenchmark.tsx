@@ -190,8 +190,10 @@ function Report({
     },
   ];
   // We assume to return at least one instance for the query
-  // let cMetrics = query_metrics(get_query_url(queryControlParams))[0];
-  // let tMetrics = query_metrics(get_query_url(queryTreatmentParams))[0];
+  let cMetrics = query_metrics(get_query_url(queryControlParams));
+  cMetrics = (cMetrics === undefined) ? cMetrics : cMetrics[0];
+  let tMetrics = query_metrics(get_query_url(queryTreatmentParams));
+  tMetrics = (tMetrics === undefined) ? tMetrics : tMetrics[0];
 
   return (
     <div> </div>);
