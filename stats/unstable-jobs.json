@@ -6,13 +6,5 @@
     "pull",
     "linux-bionic-py3.8-clang9",
     "test (dynamo)"
-  ],
-  "pull / linux-focal-py3_8-clang9-xla / test (xla)": [
-    "clee2000",
-    "113251",
-    "https://github.com/pytorch/pytorch/issues/113251",
-    "pull",
-    "linux-focal-py3_8-clang9-xla",
-    "test (xla)"
   ]
 }
