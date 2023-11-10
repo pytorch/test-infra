@@ -908,13 +908,6 @@
       "dynamo"
     ]
   ],
-  "test_indexing_backward_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112221",
-    "https://github.com/pytorch/pytorch/issues/112221",
-    [
-      "dynamo"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
