@@ -3,6 +3,7 @@ import { fetcher } from "lib/GeneralUtils";
 import React, { useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import {
+  Grid,
   Stack,
   Typography,
   Select,
@@ -163,6 +164,11 @@ function Report({
     });
     return data
   }
+
+  function gen_ABMetrics(cMetrics: any, tMetrics: any) {
+
+  }
+
   const queryName = "torchbench_userbenchmark_query_metrics";
   const queryCollection = "torchbench";
   const queryControlParams: RocksetParam[] = [
@@ -196,7 +202,11 @@ function Report({
   tMetrics = (tMetrics === undefined) ? tMetrics : tMetrics[0];
 
   return (
-    <div> </div>);
+    <div>
+       <Grid container spacing={2} style={{ height: "100%" }}>
+
+       </Grid>
+    </div>);
 }
 
 export default function Page() {
