@@ -27,6 +27,7 @@ export const successfulA = {
   head_sha: "abcdefg",
   pr_number: 1000,
   id: "1",
+  failure_lines: ["a"],
   failure_captures: ["a"],
 };
 
@@ -38,6 +39,7 @@ const pendingA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a"],
   failure_captures: ["a"],
   runnerName: "dummy",
 };
@@ -50,6 +52,7 @@ const failedA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a"],
   failure_captures: ["a"],
   runnerName: "dummy",
 };
@@ -74,6 +77,7 @@ const failedAFailedRetry = {
   head_sha: "abcdefg",
   id: "3",
   pr_number: 1001,
+  failure_lines: ["a"],
   failure_captures: ["a"],
   runnerName: "dummy",
 };
@@ -86,6 +90,7 @@ const failedB = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a"],
   failure_captures: ["a"],
   runnerName: "dummy",
 };
@@ -98,6 +103,7 @@ const failedC = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a"],
   failure_captures: ["a"],
   runnerName: "dummy",
 };
@@ -110,6 +116,7 @@ const failedD = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -123,6 +130,7 @@ const failedE = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -136,6 +144,7 @@ const failedF = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -149,6 +158,9 @@ const failedG = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: [
+    "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
+  ],
   failure_captures: [
     "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
   ],
@@ -163,6 +175,9 @@ const failedH = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: [
+    "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+  ],
   failure_captures: [
     "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
   ],
@@ -193,6 +208,7 @@ const unstableA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -284,6 +300,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedC,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -311,6 +329,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("Check that reorganizeWorkflows works correctly", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -324,6 +344,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("Check that getWorkflowJobsStatuses works correctly", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -353,6 +375,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("Make dr ci comment with failures", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -392,6 +416,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test form dr ci comment with sevs", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -428,6 +454,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedASuccessfulRetry,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -458,6 +486,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedAFailedRetry,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -479,6 +509,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
     const originalWorkflows = [failedA, failedB, unstableA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -497,6 +529,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test(" test flaky rule regex", async () => {
     const originalWorkflows = [failedA, failedG, failedH, failedI];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -531,6 +565,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test shard id and suffix in job name are handled correctly", async () => {
     const originalWorkflows = [failedA, failedD, failedF];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -643,6 +679,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test getBaseCommitJobs", async () => {
     const originalWorkflows = [failedA, failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const mock = jest.spyOn(fetchRecentWorkflows, "fetchFailedJobsFromCommits");
@@ -674,6 +712,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const originalWorkflows = [failedA, failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -701,6 +741,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const originalWorkflows = [excludedFailure];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
 

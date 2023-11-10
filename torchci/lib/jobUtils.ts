@@ -141,6 +141,38 @@ export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
   return res.status !== 404;
 }
 
+export async function backfillMissingLog(
+  owner: string,
+  repo: string,
+  job: RecentWorkflowsData
+): Promise<boolean> {
+  // This creates a mock GitHub workflow_job completion event to reupload the log
+  // to S3 and trigger log classifier
+  const body = {
+    action: "completed",
+    repository: {
+      full_name: `${owner}/${repo}`,
+    },
+    workflow_job: {
+      conclusion: job.conclusion,
+      id: job.id,
+    },
+  };
+  const res = await fetch(
+    "https://jqogootqqe.execute-api.us-east-1.amazonaws.com/default/github-status-test",
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-GitHub-Event": "workflow_job",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return res.status === 200;
+}
+
 export async function isSameAuthor(
   job: RecentWorkflowsData,
   failure: RecentWorkflowsData

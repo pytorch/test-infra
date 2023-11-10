@@ -338,28 +338,32 @@ export async function hasSimilarFailures(
   return false;
 }
 
-export async function isInfraFlakyJob(
+export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
+  // An infra flaky job is a failed job without any failure line and runner. It shows
+  // up as an empty job without any logs on GitHub. The failure can only be seen via
+  // the workflow summary tab
+  return (
+    job.conclusion === "failure" &&
+    (job.failure_lines === null ||
+      job.failure_lines === undefined ||
+      job.failure_lines.join("") === "") &&
+    (job.runnerName === null ||
+      job.runnerName === undefined ||
+      job.runnerName === "")
+  );
+}
+
+export async function isLogClassifierFailed(
   job: RecentWorkflowsData
 ): Promise<boolean> {
-  // This covers few cases of infra flaky:
-  // * A failed job without any failure line and runner. It shows up as an empty
-  //   job without any logs on GitHub. The failure can only be seen via the workflow
-  //   summary tab
-  // * A failed job without any log on S3
+  // This covers the case when there is no log on S3 or log classifier fails to triggered
   const hasFailureLines =
     job.failure_lines !== null &&
     job.failure_lines !== undefined &&
     job.failure_lines.join("") !== "";
-  const hasRunnerName =
-    job.runnerName !== null &&
-    job.runnerName !== undefined &&
-    job.runnerName !== "";
   const hasLog = await hasS3Log(job);
 
-  return (
-    job.conclusion === "failure" &&
-    ((!hasFailureLines && !hasRunnerName) || !hasLog)
-  );
+  return job.conclusion === "failure" && (!hasFailureLines || !hasLog);
 }
 
 export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
