@@ -1430,6 +1430,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ihfftn_cpu_int8 (__main__.TestMetaCPU)": [
+    "112150",
+    "https://github.com/pytorch/pytorch/issues/112150",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
     "112220",
     "https://github.com/pytorch/pytorch/issues/112220",
