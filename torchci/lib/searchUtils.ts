@@ -117,6 +117,7 @@ export async function searchSimilarFailures(
       failureLines: [data.torchci_classification.line],
       failureLineNumbers: [data.torchci_classification.line_num],
       failureCaptures: data.torchci_classification.captures,
+      logUrl: `https://ossci-raw-job-status.s3.amazonaws.com/log/${data.id}`,
       // NB: The author information, unfortunately, is not available atm in
       // torchci-workflow-job DynamoDB table. We might be able to update the
       // lambda to add it in the future though, but that's not a guarantee
