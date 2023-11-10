@@ -12,7 +12,7 @@ SELECT
   j.head_sha,
   j.head_branch,
   j.torchci_classification.captures AS failure_captures,
-  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
+  j.torchci_classification.line AS failure_line,
   j._event_time AS time,
 FROM
   commons.workflow_job j
