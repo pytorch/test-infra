@@ -115,7 +115,8 @@ function CommitPicker({
     commit = "api_error";
   }
 
-  let all_commits: string[] = data.map((r: any) => r["environ"]["pytorch_git_version"])
+  let all_commits: string[] = data.map((r: any) => r["pytorch_git_version"])
+      .filter((s: any) => s !== undefined)
       .sort((x: string, y: string) => x < y ? -1 : 1).slice(0, MAX_COMMIT_SHAS)
 
   return (
@@ -133,7 +134,7 @@ function CommitPicker({
         >
           {all_commits.map((r: any) => (
              <MenuItem key={r} value={r}>
-             {r.substring(0, SHA_DISPLAY_LENGTH)} 
+             {r.substring(0, SHA_DISPLAY_LENGTH)}
            </MenuItem>
           ))}
         </Select>
@@ -189,8 +190,8 @@ function Report({
     },
   ];
   // We assume to return at least one instance for the query
-  let cMetrics = query_metrics(get_query_url(queryControlParams))[0];
-  let tMetrics = query_metrics(get_query_url(queryTreatmentParams))[0];
+  // let cMetrics = query_metrics(get_query_url(queryControlParams))[0];
+  // let tMetrics = query_metrics(get_query_url(queryTreatmentParams))[0];
 
   return (
     <div> </div>);
