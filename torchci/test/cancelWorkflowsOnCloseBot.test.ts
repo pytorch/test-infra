@@ -19,13 +19,11 @@ describe("accept bot", () => {
       .get(
         "/repos/clee2000/random-testing/actions/runs?head_sha=381ace654ad6474357cedad09418340896d16d90&per_page=30"
       )
-      .reply(200, {
-        workflow_runs: [
-          { id: 6647495490, status: "in_progress" },
-          { id: 6647495495, status: "in_progress" },
-          { id: 6647495497, status: "completed" },
-        ],
-      })
+      .reply(200, [
+        { id: 6647495490, status: "in_progress" },
+        { id: 6647495495, status: "in_progress" },
+        { id: 6647495497, status: "completed" },
+      ])
       .post(`/repos/clee2000/random-testing/actions/runs/6647495490/cancel`)
       .reply(200, {})
       .post(`/repos/clee2000/random-testing/actions/runs/6647495495/cancel`)
