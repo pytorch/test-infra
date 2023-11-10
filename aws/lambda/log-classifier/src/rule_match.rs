@@ -39,9 +39,11 @@ impl SerializedMatch {
                 break;
             }
 
-            let l = log.lines.get(&i).unwrap();
-            if l.starts_with("+") {
-                context.push(l.clone());
+            if !log.lines.get(&i).is_none() {
+                let l = log.lines.get(&i).unwrap();
+                if l.starts_with("+") {
+                    context.push(l.clone());
+                }
             }
         }
 
