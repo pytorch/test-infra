@@ -26,7 +26,7 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
         repo,
         head_sha: headSha,
         per_page: 30,
-      },
+      }
     );
 
     await Promise.all(
