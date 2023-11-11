@@ -209,6 +209,15 @@
       "mac"
     ]
   ],
+  "test_cast_round_trip_float8_e4m3fn_soak_cuda_float8_e4m3fn (__main__.TestFloat8DtypeCUDA)": [
+    "113501",
+    "https://github.com/pytorch/pytorch/issues/113501",
+    [
+      "linux",
+      "win",
+      "windows"
+    ]
+  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
