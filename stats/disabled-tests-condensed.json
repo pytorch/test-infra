@@ -2346,6 +2346,15 @@
       "linux"
     ]
   ],
+  "test_vit_aten_export (__main__.TestQuantizePT2EModels)": [
+    "113506",
+    "https://github.com/pytorch/pytorch/issues/113506",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
     "111583",
     "https://github.com/pytorch/pytorch/issues/111583",
