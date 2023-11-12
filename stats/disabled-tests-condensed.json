@@ -1924,6 +1924,13 @@
       "dynamo"
     ]
   ],
+  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset9CPU)": [
+    "113526",
+    "https://github.com/pytorch/pytorch/issues/113526",
+    [
+      "linux"
+    ]
+  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
