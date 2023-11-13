@@ -937,15 +937,6 @@
       "macos"
     ]
   ],
-  "test_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109829",
-    "https://github.com/pytorch/pytorch/issues/109829",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_large_block_sizes_cpu (__main__.CpuTests)": [
     "113139",
     "https://github.com/pytorch/pytorch/issues/113139",
