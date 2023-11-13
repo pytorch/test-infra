@@ -57,15 +57,23 @@ export function getExpectedLabels(
   return nonIssuePlatformLabels.concat(expectedPlatformLabels);
 }
 
-export function parseBody(body: string): [Set<string>, Set<string>] {
-  const lines = body.split(/[\r\n]+/);
+export function parseBody(body: string) {
+  if (body === "") {
+    return {
+      platformsToSkip: [],
+      invalidPlatforms: [],
+      bodyWithoutPlatforms: "",
+    };
+  }
+  const lines = body.match(/([^\r\n]+)|(\r|\n)+/g);
   const platformsToSkip = new Set<string>();
   const invalidPlatforms = new Set<string>();
+  const bodyWithoutPlatforms = [];
   const key = "platforms:";
-  for (let line of lines) {
-    line = line.toLowerCase();
-    if (line.startsWith(key)) {
-      for (const platform of line
+  for (let line of lines!) {
+    let lowerCaseLine = line.toLowerCase().trim();
+    if (lowerCaseLine.startsWith(key)) {
+      for (const platform of lowerCaseLine
         .slice(key.length)
         .split(/^\s+|\s*,\s*|\s+$/)) {
         if (supportedPlatforms.has(platform)) {
@@ -74,9 +82,19 @@ export function parseBody(body: string): [Set<string>, Set<string>] {
           invalidPlatforms.add(platform);
         }
       }
+    } else {
+      bodyWithoutPlatforms.push(line);
     }
   }
-  return [platformsToSkip, invalidPlatforms];
+  return {
+    platformsToSkip: Array.from(platformsToSkip).sort((a, b) =>
+      a.localeCompare(b)
+    ),
+    invalidPlatforms: Array.from(invalidPlatforms).sort((a, b) =>
+      a.localeCompare(b)
+    ),
+    bodyWithoutPlatforms: bodyWithoutPlatforms.join(""),
+  };
 }
 
 export function parseTitle(title: string, prefix: string): string {
@@ -101,18 +119,13 @@ export function formValidationComment(
   username: string,
   authorized: boolean,
   testName: string,
-  platforms: [Set<string>, Set<string>]
+  platformsToSkip: string[],
+  invalidPlatforms: string[]
 ): string {
-  const platformsToSkip = Array.from(platforms[0]).sort((a, b) =>
-    a.localeCompare(b)
-  );
   const platformMsg =
     platformsToSkip.length === 0
       ? "none parsed, defaulting to ALL platforms"
       : platformsToSkip.join(", ");
-  const invalidPlatforms = Array.from(platforms[1]).sort((a, b) =>
-    a.localeCompare(b)
-  );
 
   let body =
     "<body>Hello there! From the DISABLED prefix in this issue title, ";
@@ -227,7 +240,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const existingValidationComment = existingValidationCommentData[1];
 
     const target = parseTitle(title, prefix);
-    const platforms = parseBody(body!);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body!);
     const username = context.payload["issue"]["user"]["login"];
     const authorized =
       context.payload["issue"]["user"]["id"] === pytorchBotId ||
@@ -236,7 +249,13 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
 
     const validationComment = isDisabledTest(title)
-      ? formValidationComment(username, authorized, target, platforms)
+      ? formValidationComment(
+          username,
+          authorized,
+          target,
+          platformsToSkip,
+          invalidPlatforms
+        )
       : formJobValidationComment(username, authorized, target, prefix);
 
     if (existingValidationComment === validationComment) {
@@ -269,7 +288,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       });
     } else {
       // check labels, add labels as needed
-      let expectedLabels = getExpectedLabels(Array.from(platforms[0]), labels);
+      let expectedLabels = getExpectedLabels(platformsToSkip, labels);
       if (!_.isEqual(new Set(expectedLabels), new Set(labels))) {
         await context.octokit.issues.setLabels({
           owner,

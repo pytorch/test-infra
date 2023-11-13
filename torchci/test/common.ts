@@ -29,6 +29,10 @@ export function requireDeepCopy(fileName: string) {
   return JSON.parse(JSON.stringify(require(fileName)));
 }
 
+export function deepCopy(obj: any) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 export function handleScope(scope: nock.Scope) {
   if (!scope.isDone()) {
     console.error("pending mocks: %j", scope.pendingMocks());
