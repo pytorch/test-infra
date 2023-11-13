@@ -13,8 +13,18 @@ import {
   InputLabel,
   SelectChangeEvent,
 } from "@mui/material";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import {
+  GridValueFormatterParams,
+  GridRenderCellParams,
+  GridCellParams,
+} from "@mui/x-data-grid";
+import styles from "components/metrics.module.css";
 
 const queryCollection = "torchbench";
+const ROW_GAP = 30;
+const ROW_HEIGHT = 48;
+const MIN_ENTRIES = 10;
 const MAX_COMMIT_SHAS = 10;
 const SHA_DISPLAY_LENGTH = 10;
 
@@ -165,8 +175,20 @@ function Report({
     return data
   }
 
-  function gen_ABMetrics(cMetrics: any, tMetrics: any) {
-
+  function genABMetrics(cMetrics: any, tMetrics: any): Record<string, any> {
+    // Return a list of metrics that are the union of cMetrics and tMetrics
+    let cMetricNames: string[] = "metrics" in cMetrics ? Array.from(Object.keys(cMetrics["metrics"])) : [];
+    let tMetricNames: string[] = "metrics" in tMetrics ? Array.from(Object.keys(tMetrics["metrics"])) : [];
+    const metricNameSet: Set<string> = new Set([...cMetricNames, ...tMetricNames]);
+    let metrics = Array.from(metricNameSet).sort().reduce((obj: Record<string, any>, key: string) => {
+      obj[key] = {};
+      if (key in cMetricNames) {
+        obj[key]["control"] = cMetrics["metrics"][key];
+        obj[key]["treatment"] = tMetrics["metrics"][key];
+      }
+      return obj;
+    }, {});
+    return metrics;
   }
 
   const queryName = "torchbench_userbenchmark_query_metrics";
@@ -195,16 +217,49 @@ function Report({
       value: rCommit,
     },
   ];
-  // We assume to return at least one instance for the query
+  // We only submit the query if both commit IDs are available
+  if (lCommit.length === 0 || rCommit.length === 0) {
+    return;
+  }
   let cMetrics = query_metrics(get_query_url(queryControlParams));
-  cMetrics = (cMetrics === undefined) ? cMetrics : cMetrics[0];
+  cMetrics = (cMetrics === undefined) ? {} : cMetrics[0];
   let tMetrics = query_metrics(get_query_url(queryTreatmentParams));
-  tMetrics = (tMetrics === undefined) ? tMetrics : tMetrics[0];
+  tMetrics = (tMetrics === undefined) ? {} : tMetrics[0];
+  const metrics: Record<string, any> = genABMetrics(cMetrics, tMetrics);
+  const minEntries = Object.keys(metrics).length > MIN_ENTRIES ? Object.keys(metrics).length : MIN_ENTRIES;
 
   return (
     <div>
        <Grid container spacing={2} style={{ height: "100%" }}>
-
+       <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
+          <TablePanelWithData
+           title={"Metrics"}
+           data={metrics}
+           columns={[
+            {
+              field: "metadata",
+              headerName: "Name",
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                const name = params.value.name;
+                if (name === undefined) {
+                  return "";
+                }
+                return name;
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const name = params.value.name;
+                return <>
+                      <a href="#">
+                        <b>{params.value}</b>
+                      </a>
+                </>
+              }
+            }
+           ]}
+           dataGridProps={{ getRowId: (el: any) => el.name }}
+          />
+       </Grid>
        </Grid>
     </div>);
 }
