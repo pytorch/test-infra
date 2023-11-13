@@ -1016,13 +1016,6 @@
       "linux"
     ]
   ],
-  "test_layer_norm_backward_5d_size_4_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112356",
-    "https://github.com/pytorch/pytorch/issues/112356",
-    [
-      "dynamo"
-    ]
-  ],
   "test_layer_norm_backward_edge_case_cpu (__main__.TestNestedTensorAutogradCPU)": [
     "112388",
     "https://github.com/pytorch/pytorch/issues/112388",
@@ -1446,13 +1439,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_pinv_hermitian_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112355",
-    "https://github.com/pytorch/pytorch/issues/112355",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_linalg_vecdot_cpu_complex128 (__main__.TestMetaCPU)": [
     "112385",
     "https://github.com/pytorch/pytorch/issues/112385",
@@ -1484,13 +1470,6 @@
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_alpha_dropout_cpu_float16 (__main__.TestMetaCPU)": [
-    "112353",
-    "https://github.com/pytorch/pytorch/issues/112353",
     [
       "dynamo"
     ]
