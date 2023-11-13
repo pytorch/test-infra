@@ -26,7 +26,7 @@ export function nockTracker(
 }
 
 export function requireDeepCopy(fileName: string) {
-  return JSON.parse(JSON.stringify(require(fileName)));
+  return deepCopy(require(fileName));
 }
 
 export function deepCopy(obj: any) {

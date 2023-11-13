@@ -981,7 +981,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     });
   });
 
-  describe("handleAnotherCaseOfFlakiness", () => {
+  describe("updateExistingIssueForFlakyTest", () => {
     const defaultIssue: IssueData = {
       number: 1,
       title: "",
@@ -1016,7 +1016,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         )
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         defaultIssue,
         test
@@ -1052,7 +1052,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         })
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         issue,
         test
@@ -1092,7 +1092,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         })
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         issue,
         test
@@ -1134,7 +1134,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         })
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         issue,
         test
@@ -1178,7 +1178,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         })
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         issue,
         test
@@ -1218,7 +1218,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         })
         .reply(200, {});
 
-      await disableFlakyTestBot.handleAnotherCaseOfFlakiness(
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
         octokit,
         issue,
         test

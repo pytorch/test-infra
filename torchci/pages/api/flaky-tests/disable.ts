@@ -87,7 +87,7 @@ export function filterThreshold(
   return tests.filter((test) => new Set(test.jobIds).size > threshold);
 }
 
-export async function handleAnotherCaseOfFlakiness(
+export async function updateExistingIssueForFlakyTest(
   octokit: Octokit,
   matchingIssue: IssueData,
   test: FlakyTestData
@@ -159,7 +159,7 @@ export async function handleFlakyTest(
     if (!wasRecent(test)) {
       return;
     }
-    await handleAnotherCaseOfFlakiness(octokit, matchingIssue, test);
+    await updateExistingIssueForFlakyTest(octokit, matchingIssue, test);
   } else {
     await createIssueFromFlakyTest(test, octokit);
   }
