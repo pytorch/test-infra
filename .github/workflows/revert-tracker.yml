@@ -22,9 +22,9 @@ jobs:
           fetch-depth: 0
       - id: generate-reverts-file
         run: |
-          cd test-infra
+          cd test-infra/tools
           python3 -m pip install rockset==1.0.3
-          python3 -m torchci.scripts.reverts
+          python3 -m torchci.reverts
           echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
@@ -35,7 +35,7 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: test-infra/${{ steps.generate-reverts-file.outputs.revert_file }}
+          source_file: test-infra/tools/${{ steps.generate-reverts-file.outputs.revert_file }}
           destination_repo: "pytorch/test-infra"
           destination_folder: "reverts"
           destination_branch: generated-stats
