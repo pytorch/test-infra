@@ -564,13 +564,6 @@
       "dynamo"
     ]
   ],
-  "test_derpy_nn_module_usage (__main__.MiscTests)": [
-    "112295",
-    "https://github.com/pytorch/pytorch/issues/112295",
-    [
-      "linux"
-    ]
-  ],
   "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
     "111514",
     "https://github.com/pytorch/pytorch/issues/111514",
@@ -1193,13 +1186,6 @@
       "rocm"
     ]
   ],
-  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "107426",
-    "https://github.com/pytorch/pytorch/issues/107426",
-    [
-      "linux"
-    ]
-  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1699,13 +1685,6 @@
       "rocm"
     ]
   ],
-  "test_nested_tensor_indexing_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111826",
-    "https://github.com/pytorch/pytorch/issues/111826",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96088",
     "https://github.com/pytorch/pytorch/issues/96088",
@@ -1927,6 +1906,13 @@
   "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset10CPU)": [
     "113529",
     "https://github.com/pytorch/pytorch/issues/113529",
+    [
+      "linux"
+    ]
+  ],
+  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset11CPU)": [
+    "113540",
+    "https://github.com/pytorch/pytorch/issues/113540",
     [
       "linux"
     ]
