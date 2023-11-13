@@ -5,6 +5,7 @@ on:
   schedule:
     # At 15:10 (8:10 AM PST) on Monday
     - cron: 10 15 * * 1
+  pull_request:
 
 jobs:
   revert_printer:
@@ -22,9 +23,9 @@ jobs:
           fetch-depth: 0
       - id: generate-reverts-file
         run: |
-          cd test-infra
+          cd test-infra/tools
           python3 -m pip install rockset==1.0.3
-          python3 -m torchci.scripts.reverts
+          python3 -m torchci.reverts
           echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}

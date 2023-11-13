@@ -4,6 +4,7 @@ import os
 import re
 import shlex
 from collections import defaultdict
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from rockset import RocksetClient  # type: ignore[import]
@@ -11,6 +12,8 @@ from torchci.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 # Should match the contents produced by trymerge on revert
 RE_REVERT_COMMIT_BODY = r"Reverted .* on behalf of .* due to .* \(\[comment\]\((.*)\)\)"
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
@@ -23,7 +26,6 @@ CLASSIFICATIONS = {
 
 ROCKSET_REVERT_QUERY = """
 SELECT
-    ic._event_time revert_time,
     ic.user.login as reverter,
     ic.body,
     ic.html_url as comment_url
@@ -34,8 +36,8 @@ WHERE
         ic.body,
         '@pytorch(merge|)bot +revert'
     )
-    AND ic._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
-    AND ic._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
+    AND ic.created >= PARSE_TIMESTAMP_ISO8601(:startTime)
+    AND ic.created < PARSE_TIMESTAMP_ISO8601(:stopTime)
     AND ic.user.login != 'pytorch-bot[bot]'
 """
 
@@ -104,7 +106,7 @@ def get_rockset_reverts(start_time: str, end_time: str) -> Dict[str, Dict[str, s
 
 
 def get_gitlog_reverts(start_time: str, end_time: str) -> List[GitCommit]:
-    repo_path = "../pytorch"
+    repo_path = REPO_ROOT / ".." / "pytorch"
     remote = "origin"
     repo = GitRepo(repo_path, remote)
     all_commits = repo._run_git_log(
