@@ -1866,34 +1866,6 @@
       "dynamo"
     ]
   ],
-  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset10CPU)": [
-    "113529",
-    "https://github.com/pytorch/pytorch/issues/113529",
-    [
-      "linux"
-    ]
-  ],
-  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset11CPU)": [
-    "113540",
-    "https://github.com/pytorch/pytorch/issues/113540",
-    [
-      "linux"
-    ]
-  ],
-  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset12CPU)": [
-    "113542",
-    "https://github.com/pytorch/pytorch/issues/113542",
-    [
-      "linux"
-    ]
-  ],
-  "test_output_match_atan2_cpu_float16 (__main__.TestOnnxModelOutputConsistency_opset9CPU)": [
-    "113526",
-    "https://github.com/pytorch/pytorch/issues/113526",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
