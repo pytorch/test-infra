@@ -36,7 +36,7 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: test-infra/${{ steps.generate-reverts-file.outputs.revert_file }}
+          source_file: test-infra/tools/${{ steps.generate-reverts-file.outputs.revert_file }}
           destination_repo: "pytorch/test-infra"
           destination_folder: "reverts"
           destination_branch: generated-stats
