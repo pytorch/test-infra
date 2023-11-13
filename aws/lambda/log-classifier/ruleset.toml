@@ -73,10 +73,6 @@ name = 'Windows PyLong API usage check'
 pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
 
 [[rule]]
-name = 'npm error'
-pattern = '^npm ERR! code .*'
-
-[[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
@@ -103,6 +99,10 @@ pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 [[rule]]
 name = 'inductor model failure'
 pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
+
+[[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code .*'
 
 [[rule]]
 name = 'NVIDIA installation failure'
