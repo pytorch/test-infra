@@ -508,13 +508,6 @@
       "slow"
     ]
   ],
-  "test_ddp_activation_checkpointing (__main__.TestMultiProc)": [
-    "109381",
-    "https://github.com/pytorch/pytorch/issues/109381",
-    [
-      "rocm"
-    ]
-  ],
   "test_ddp_apply_optim_in_backward_ignored_params (__main__.TestDistBackendWithSpawn)": [
     "106361",
     "https://github.com/pytorch/pytorch/issues/106361",
@@ -1747,13 +1740,6 @@
     "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
-    ]
-  ],
-  "test_out_warning__refs_arange_cpu (__main__.TestCommonCPU)": [
-    "112387",
-    "https://github.com/pytorch/pytorch/issues/112387",
-    [
-      "dynamo"
     ]
   ],
   "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
