@@ -18,7 +18,6 @@ import {
   GridRenderCellParams,
   GridCellParams,
 } from "@mui/x-data-grid";
-import styles from "components/metrics.module.css";
 
 const queryCollection = "torchbench";
 const ROW_GAP = 30;
