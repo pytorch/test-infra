@@ -1,0 +1,41 @@
+name: Generates release matrix
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release matrix for pytorch release version"
+        default: "2.1.1"
+        type: string
+    outputs:
+      matrix:
+        description: "Release matrix for PyTorch version"
+        value: ${{ jobs.generate.outputs.matrix }}
+
+jobs:
+  generate:
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+      - name: Generate release matrix
+        id: generate
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -eou pipefail
+          MATRIX_BLOB="$(python3 tools/scripts/generate_release_matrix.py)"
+          echo "${MATRIX_BLOB}"
+          echo "matrix=${MATRIX_BLOB}" >> "${GITHUB_OUTPUT}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
