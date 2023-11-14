@@ -7,6 +7,14 @@ on:
         description: "Release matrix for pytorch release version"
         default: "2.1.1"
         type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: "main"
+        type: string
     outputs:
       matrix:
         description: "Release matrix for PyTorch version"
