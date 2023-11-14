@@ -8,6 +8,10 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
     const senderId = ctx.payload.sender.id;
     const headSha = ctx.payload.pull_request.head.sha;
 
+    if (owner !== "pytorch" || repo !== "pytorch") {
+      return;
+    }
+
     if (
       senderLogin == "pytorchmergebot" ||
       senderLogin == "pytorchbot" ||
@@ -16,6 +20,18 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
       senderId == 54816060 || // pytorch-bot's id
       senderId == 21957446 // pytorchbot's id
     ) {
+      return;
+    }
+
+    const diff = await ctx.octokit.rest.repos.compareCommits({
+      owner,
+      repo,
+      base: "main",
+      head: headSha,
+    });
+
+    if (diff.data.merge_base_commit.sha == headSha) {
+      // PR got made with main branch as head
       return;
     }
 
