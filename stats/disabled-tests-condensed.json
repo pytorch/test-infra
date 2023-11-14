@@ -1369,9 +1369,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_masked_std_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112461",
-    "https://github.com/pytorch/pytorch/issues/112461",
+  "test_meta_outplace_linalg_vecdot_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112385",
+    "https://github.com/pytorch/pytorch/issues/112385",
     [
       "dynamo"
     ]
@@ -1428,13 +1428,6 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float64 (__main__.TestMetaCPU)": [
     "112533",
     "https://github.com/pytorch/pytorch/issues/112533",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
-    "112463",
-    "https://github.com/pytorch/pytorch/issues/112463",
     [
       "dynamo"
     ]
@@ -1777,13 +1770,6 @@
       "linux"
     ]
   ],
-  "test_out__refs_randn_cuda_float32 (__main__.TestCommonCUDA)": [
-    "109061",
-    "https://github.com/pytorch/pytorch/issues/109061",
-    [
-      "inductor"
-    ]
-  ],
   "test_out_warning__refs_arange_cpu (__main__.TestCommonCPU)": [
     "112387",
     "https://github.com/pytorch/pytorch/issues/112387",
@@ -2003,13 +1989,6 @@
       "rocm"
     ]
   ],
-  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109864",
-    "https://github.com/pytorch/pytorch/issues/109864",
-    [
-      "linux"
-    ]
-  ],
   "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
     "109872",
     "https://github.com/pytorch/pytorch/issues/109872",
@@ -2079,13 +2058,6 @@
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_dtype_complex (__main__.CommTest)": [
-    "112460",
-    "https://github.com/pytorch/pytorch/issues/112460",
     [
       "linux"
     ]
