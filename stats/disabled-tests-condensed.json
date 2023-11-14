@@ -1961,12 +1961,11 @@
       "linux"
     ]
   ],
-  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109901",
-    "https://github.com/pytorch/pytorch/issues/109901",
+  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109872",
+    "https://github.com/pytorch/pytorch/issues/109872",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
