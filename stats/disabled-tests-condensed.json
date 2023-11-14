@@ -526,8 +526,7 @@
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
     [
-      "rocm",
-      "linux"
+      "rocm"
     ]
   ],
   "test_ddp_profiling_autograd_profiler (__main__.TestDistBackendWithSpawn)": [
