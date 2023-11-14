@@ -33,7 +33,7 @@ SELECT
   recent_shas.number AS pr_number,
   recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
-  j.torchci_classification.line AS failure_line,
+  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
   j._event_time AS time
 FROM
   recent_shas
@@ -54,7 +54,7 @@ SELECT
   recent_shas.number AS pr_number,
   w.head_sha,
   null AS failure_captures,
-  null AS failure_line,
+  null AS failure_lines,
   w._event_time as time
 FROM
   recent_shas
