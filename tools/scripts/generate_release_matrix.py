@@ -10,6 +10,7 @@ Will output a JSON representing PyTorch Release versions. To be used with valida
 import argparse
 import json
 import sys
+import os
 from typing import Dict
 
 mod = sys.modules[__name__]
