@@ -1,0 +1,5 @@
+{
+  "sql_path": "__sql/torchbench_list_userbenchmarks.sql",
+  "default_parameters": [],
+  "description": "List unique userbenchmark names"
+}

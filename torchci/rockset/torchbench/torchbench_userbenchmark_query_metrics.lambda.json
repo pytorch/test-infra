@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/torchbench_userbenchmark_query_metrics.sql",
+  "default_parameters": [
+    {
+      "name": "commit",
+      "type": "string",
+      "value": "4a4af8fb1c"
+    },
+    {
+      "name": "userbenchmark",
+      "type": "string",
+      "value": "torch-nightly"
+    }
+  ],
+  "description": "Query userbenchmark metrics by userbenchmark name and pytorch git commit hash"
+}
