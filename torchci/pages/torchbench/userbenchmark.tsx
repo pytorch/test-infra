@@ -15,7 +15,6 @@ import {
 } from "@mui/material";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
-  GridValueFormatterParams,
   GridRenderCellParams,
   GridCellParams,
 } from "@mui/x-data-grid";
@@ -27,13 +26,6 @@ const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
 const MAX_COMMIT_SHAS = 10;
 const SHA_DISPLAY_LENGTH = 10;
-
-type UserbenchmarkRow = {
-  metric_name: string;
-  control_value: string | number;
-  treatment_value: string | number;
-  delta: string | number | null;
-};
 
 function UserbenchmarkPicker({
   userbenchmark,
@@ -163,12 +155,12 @@ function Report({
     lCommit: string;
     rCommit: string;
 }) {
-  function get_query_url(params: RocksetParam[]) {
+  function getQueryUrl(params: RocksetParam[]) {
     return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
       JSON.stringify(params)
     )}`;
   }
-  function query_metrics(url: string) {
+  function QueryMetrics(url: string) {
     let { data, error } = useSWR(url, fetcher, {
       refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
     });
@@ -253,9 +245,9 @@ function Report({
       Error: we require both commits to be available: left {lCommit} and right {rCommit}.
     </div>);
   }
-  let cMetrics = query_metrics(get_query_url(queryControlParams));
+  let cMetrics = QueryMetrics(getQueryUrl(queryControlParams));
   cMetrics = (cMetrics === undefined) ? {} : cMetrics[0];
-  let tMetrics = query_metrics(get_query_url(queryTreatmentParams));
+  let tMetrics = QueryMetrics(getQueryUrl(queryTreatmentParams));
   tMetrics = (tMetrics === undefined) ? {} : tMetrics[0];
   const metrics: Record<string, any>[] = genABMetrics(cMetrics, tMetrics);
   const minEntries = metrics.length > MIN_ENTRIES ? Object.keys(metrics).length : MIN_ENTRIES;
