@@ -1411,13 +1411,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
-    "112480",
-    "https://github.com/pytorch/pytorch/issues/112480",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
     "112386",
     "https://github.com/pytorch/pytorch/issues/112386",
