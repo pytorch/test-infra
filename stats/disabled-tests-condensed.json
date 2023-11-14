@@ -41,27 +41,6 @@
       "dynamo"
     ]
   ],
-  "test_activations_abs_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110211",
-    "https://github.com/pytorch/pytorch/issues/110211",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_activations_cos_cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110225",
-    "https://github.com/pytorch/pytorch/issues/110225",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_activations_gelu__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112535",
-    "https://github.com/pytorch/pytorch/issues/112535",
-    [
-      "dynamo"
-    ]
-  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -564,20 +543,6 @@
       "dynamo"
     ]
   ],
-  "test_detach_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111514",
-    "https://github.com/pytorch/pytorch/issues/111514",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_detach_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "111549",
-    "https://github.com/pytorch/pytorch/issues/111549",
-    [
-      "dynamo"
-    ]
-  ],
   "test_disable_fwd_grad_inside_cpu (__main__.TestJvpCPU)": [
     "113220",
     "https://github.com/pytorch/pytorch/issues/113220",
@@ -625,34 +590,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_dropout_backward_layout_torch_jagged_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112664",
-    "https://github.com/pytorch/pytorch/issues/112664",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_dropout_backward_layout_torch_strided_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112680",
-    "https://github.com/pytorch/pytorch/issues/112680",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_dropout_layout_torch_jagged_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112546",
-    "https://github.com/pytorch/pytorch/issues/112546",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_dropout_layout_torch_jagged_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112568",
-    "https://github.com/pytorch/pytorch/issues/112568",
-    [
-      "dynamo"
     ]
   ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
@@ -1014,20 +951,6 @@
     "https://github.com/pytorch/pytorch/issues/113146",
     [
       "linux"
-    ]
-  ],
-  "test_layer_norm_backward_size_1024_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112464",
-    "https://github.com/pytorch/pytorch/issues/112464",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_layer_norm_backward_size_128_cpu (__main__.TestNestedTensorAutogradCPU)": [
-    "112720",
-    "https://github.com/pytorch/pytorch/issues/112720",
-    [
-      "dynamo"
     ]
   ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
@@ -1484,6 +1407,13 @@
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
     "112480",
     "https://github.com/pytorch/pytorch/issues/112480",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
+    "112386",
+    "https://github.com/pytorch/pytorch/issues/112386",
     [
       "dynamo"
     ]
