@@ -1784,13 +1784,6 @@
       "inductor"
     ]
   ],
-  "test_out_randn_cuda_float32 (__main__.TestCommonCUDA)": [
-    "109070",
-    "https://github.com/pytorch/pytorch/issues/109070",
-    [
-      "inductor"
-    ]
-  ],
   "test_out_warning__refs_arange_cpu (__main__.TestCommonCPU)": [
     "112387",
     "https://github.com/pytorch/pytorch/issues/112387",
@@ -1974,13 +1967,6 @@
       "rocm"
     ]
   ],
-  "test_softmax_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112886",
-    "https://github.com/pytorch/pytorch/issues/112886",
-    [
-      "linux"
-    ]
-  ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
     "73145",
     "https://github.com/pytorch/pytorch/issues/73145",
@@ -2154,39 +2140,6 @@
     "https://github.com/pytorch/pytorch/issues/112815",
     [
       "rocm"
-    ]
-  ],
-  "test_transpose_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112845",
-    "https://github.com/pytorch/pytorch/issues/112845",
-    [
-      "linux"
-    ]
-  ],
-  "test_transpose_inference_mode_interaction_cpu_float16 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112909",
-    "https://github.com/pytorch/pytorch/issues/112909",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_transpose_inference_mode_interaction_cpu_float32 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112846",
-    "https://github.com/pytorch/pytorch/issues/112846",
-    [
-      "linux"
-    ]
-  ],
-  "test_transpose_inference_mode_interaction_cpu_float64 (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "112908",
-    "https://github.com/pytorch/pytorch/issues/112908",
-    [
-      "linux",
-      "win",
-      "windows"
     ]
   ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
