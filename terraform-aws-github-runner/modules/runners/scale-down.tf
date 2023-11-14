@@ -130,6 +130,7 @@ resource "aws_iam_role" "scale_down" {
 resource "aws_iam_role_policy" "scale_down" {
   name = "${var.environment}-lambda-scale-down-policy"
   role = aws_iam_role.scale_down.name
+
   policy = templatefile("${path.module}/policies/lambda-scale-down.json", {
     arn_ssm_parameters = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment}-*"
   })
@@ -138,6 +139,7 @@ resource "aws_iam_role_policy" "scale_down" {
 resource "aws_iam_role_policy" "scale_down_logging" {
   name = "${var.environment}-lambda-logging"
   role = aws_iam_role.scale_down.name
+
   policy = templatefile("${path.module}/policies/lambda-cloudwatch.json", {
     log_group_arn = aws_cloudwatch_log_group.scale_down.arn
   })
@@ -150,9 +152,10 @@ resource "aws_iam_role_policy_attachment" "scale_down_vpc_execution_role" {
 }
 
 resource "aws_iam_role_policy" "scale_down_secretsmanager_access" {
-  count = var.secretsmanager_secrets_id != null ? 1 : 0
-  role  = aws_iam_role.scale_down.name
-  policy = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
+  count       = var.secretsmanager_secrets_id != null ? 1 : 0
+  role        = aws_iam_role.scale_down.name
+  name_prefix = "terraform-"
+  policy      = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
     secretsmanager_arn = data.aws_secretsmanager_secret_version.app_creds.arn
   })
 }
