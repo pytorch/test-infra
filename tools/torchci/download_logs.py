@@ -1,9 +1,10 @@
+import argparse
 import multiprocessing as mp
 import os
+from pathlib import Path
+
 import requests
 from torchci.rockset_utils import query_rockset
-from pathlib import Path
-import argparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
