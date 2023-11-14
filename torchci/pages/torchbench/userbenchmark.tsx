@@ -175,20 +175,50 @@ function Report({
     return data
   }
 
-  function genABMetrics(cMetrics: any, tMetrics: any): Record<string, any> {
+  function genABMetrics(cMetrics: any, tMetrics: any): Record<string, any>[] {
     // Return a list of metrics that are the union of cMetrics and tMetrics
+    cMetrics = (cMetrics === undefined) ? {} : cMetrics;
+    tMetrics = (tMetrics === undefined) ? {} : tMetrics;
     let cMetricNames: string[] = "metrics" in cMetrics ? Array.from(Object.keys(cMetrics["metrics"])) : [];
     let tMetricNames: string[] = "metrics" in tMetrics ? Array.from(Object.keys(tMetrics["metrics"])) : [];
     const metricNameSet: Set<string> = new Set([...cMetricNames, ...tMetricNames]);
-    let metrics = Array.from(metricNameSet).sort().reduce((obj: Record<string, any>, key: string) => {
-      obj[key] = {};
-      if (key in cMetricNames) {
-        obj[key]["control"] = cMetrics["metrics"][key];
-        obj[key]["treatment"] = tMetrics["metrics"][key];
-      }
-      return obj;
-    }, {});
-    return metrics;
+    let metricNames = Array.from(metricNameSet).sort();
+    const data = metricNames.map((name: string) => {
+      const hasL = (cMetrics === undefined || !("metrics" in cMetrics)) ? false : name in cMetrics["metrics"];
+      const hasR = (tMetrics === undefined || !("metrics" in tMetrics)) ? false : name in tMetrics["metrics"];
+
+      const delta = (hasL && hasR) ?
+                    (tMetrics["metrics"][name] - cMetrics["metrics"][name]) / cMetrics["metrics"][name] :
+                    "undefined";
+      return {
+        // Keep the name as as the row ID as DataGrid requires it
+        name: name,
+
+        // The metrics name
+        metadata: {
+          name: name,
+        },
+
+        // The metrics value on base commit
+        control: {
+          name: name,
+          v: hasL ? cMetrics["metrics"][name] : "undefined",
+        },
+
+        // The metrics value on head commit
+        treatment: {
+          name: name,
+          v: hasR ? tMetrics["metrics"][name] : "undefined",
+        },
+
+        // The metrics value delta
+        delta: {
+          name: name,
+          v: delta,
+        }
+      };
+    });
+    return data;
   }
 
   const queryName = "torchbench_userbenchmark_query_metrics";
@@ -219,14 +249,16 @@ function Report({
   ];
   // We only submit the query if both commit IDs are available
   if (lCommit.length === 0 || rCommit.length === 0) {
-    return;
+    return (<div>
+      Error: we require both commits to be available: left {lCommit} and right {rCommit}.
+    </div>);
   }
   let cMetrics = query_metrics(get_query_url(queryControlParams));
   cMetrics = (cMetrics === undefined) ? {} : cMetrics[0];
   let tMetrics = query_metrics(get_query_url(queryTreatmentParams));
   tMetrics = (tMetrics === undefined) ? {} : tMetrics[0];
-  const metrics: Record<string, any> = genABMetrics(cMetrics, tMetrics);
-  const minEntries = Object.keys(metrics).length > MIN_ENTRIES ? Object.keys(metrics).length : MIN_ENTRIES;
+  const metrics: Record<string, any>[] = genABMetrics(cMetrics, tMetrics);
+  const minEntries = metrics.length > MIN_ENTRIES ? Object.keys(metrics).length : MIN_ENTRIES;
 
   return (
     <div>
@@ -238,7 +270,7 @@ function Report({
            columns={[
             {
               field: "metadata",
-              headerName: "Name",
+              headerName: "Metrics Name",
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const name = params.value.name;
@@ -248,14 +280,64 @@ function Report({
                 return name;
               },
               renderCell: (params: GridRenderCellParams<any>) => {
-                const name = params.value.name;
                 return <>
                       <a href="#">
-                        <b>{params.value}</b>
+                        <b>{params.value.name}</b>
                       </a>
                 </>
               }
-            }
+            },
+            {
+              field: "control",
+              headerName: "Base Commit (" + lCommit.substring(0, SHA_DISPLAY_LENGTH) + ")",
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value.v;
+                if (v === undefined) {
+                  return "";
+                }
+                return v;
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return <>
+                    {params.value.v}
+                </>
+              }
+            },
+            {
+              field: "treatment",
+              headerName: "Head Commit (" + rCommit.substring(0, SHA_DISPLAY_LENGTH) + ")",
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value.v;
+                if (v === undefined) {
+                  return "";
+                }
+                return v;
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return <>
+                    {params.value.v}
+                </>
+              }
+            },
+            {
+              field: "delta",
+              headerName: "Value Delta",
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value.v;
+                if (v === undefined) {
+                  return "";
+                }
+                return v;
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return <>
+                    {params.value.v}
+                </>
+              }
+            },
            ]}
            dataGridProps={{ getRowId: (el: any) => el.name }}
           />
