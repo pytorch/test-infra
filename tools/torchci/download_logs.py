@@ -7,6 +7,7 @@ import argparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
+
 def download_log(id):
     "Given an id for a job, returns the log as a string"
     url = f"https://ossci-raw-job-status.s3.amazonaws.com/log/{id}"
@@ -15,6 +16,7 @@ def download_log(id):
         return None
     return data.text
 
+
 def download_log_to_file(id, file, name):
     t = download_log(id)
     if t is None:
@@ -22,6 +24,7 @@ def download_log_to_file(id, file, name):
         return
     with open(file, "w") as f:
         f.write(t)
+
 
 def download_logs_to_dir(commit):
     "Given a commit sha, downloads all test logs for that commit to logs/<commit> folder"
@@ -42,10 +45,14 @@ def download_logs_to_dir(commit):
     pool.join()
     return folder
 
+
 def get_parser():
-    parser = argparse.ArgumentParser(description="Download TEST logs for a particular commit")
+    parser = argparse.ArgumentParser(
+        description="Download TEST logs for a particular commit"
+    )
     parser.add_argument("commit", type=str)
     return parser
+
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
