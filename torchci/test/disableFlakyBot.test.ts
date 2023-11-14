@@ -2,8 +2,9 @@ import nock from "nock";
 import * as utils from "./utils";
 import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
 import dayjs from "dayjs";
-import { handleScope } from "./common";
+import { deepCopy, handleScope } from "./common";
 import { IssueData } from "lib/types";
+import { parseBody } from "lib/bot/verifyDisableTestIssueBot";
 
 nock.disableNetConnect();
 
@@ -149,7 +150,8 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         expect(comment).toContain(
           "Another case of trunk flakiness has been found"
         );
-        expect(comment).toContain("Please verify");
+        expect(comment).toContain("appears to contain");
+        expect(comment).toContain("Either the change didn't propogate");
         return true;
       })
       .reply(200, {});
@@ -283,10 +285,8 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, [], octokit);
 
-    if (!nock.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-      console.error("pending mocks: %j", scope2.pendingMocks());
-    }
+    handleScope(scope);
+    handleScope(scope2);
   });
 
   test("previously undetected flaky test should create an issue on main", async () => {
@@ -313,10 +313,8 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestB, [], octokit);
 
-    if (!nock.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-      console.error("pending mocks: %j", scope2.pendingMocks());
-    }
+    handleScope(scope);
+    handleScope(scope2);
   });
 
   test("flaky test associated with an open issue should comment", async () => {
@@ -326,7 +324,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         expect(comment).toContain(
           "Another case of trunk flakiness has been found"
         );
-        expect(comment).toContain("Please verify");
+        expect(comment).toContain("Either the change didn't propogate");
         return true;
       })
       .reply(200, {});
@@ -345,10 +343,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("flaky test associated with a closed issue should reopen issue and comment", async () => {
@@ -382,10 +377,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("comment and close non flaky test", async () => {
@@ -395,7 +387,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         expect(comment).toContain(
           "Another case of trunk flakiness has been found"
         );
-        expect(comment).toContain("Please verify");
+        expect(comment).toContain("Either the change didn't propogate");
         return true;
       })
       .reply(200, {})
@@ -438,10 +430,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       octokit
     );
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("do not close non flaky test if it's manual updated recently", async () => {
@@ -451,7 +440,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         expect(comment).toContain(
           "Another case of trunk flakiness has been found"
         );
-        expect(comment).toContain("Please verify");
+        expect(comment).toContain("Either the change didn't propogate");
         return true;
       })
       .reply(200, {});
@@ -481,10 +470,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       octokit
     );
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 });
 
@@ -975,5 +961,270 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
     await helper([closedSmall, closedBig], closedBig, []);
     await helper([closedSmall, openSmall], openSmall, []);
+  });
+
+  test("parseBody: bodyWithoutPlatforms preserves new lines", async () => {
+    expect(
+      parseBody(
+        "Platforms: win, rocm\r\nHello\r\n\nMy name is\n\n```a;dlskfja\ndklfj```"
+      )
+    ).toEqual({
+      platformsToSkip: ["rocm", "win"],
+      invalidPlatforms: [],
+      bodyWithoutPlatforms:
+        "\r\nHello\r\n\nMy name is\n\n```a;dlskfja\ndklfj```",
+    });
+    expect(parseBody("Platforms: win, rocm\r\n")).toEqual({
+      platformsToSkip: ["rocm", "win"],
+      invalidPlatforms: [],
+      bodyWithoutPlatforms: "\r\n",
+    });
+  });
+
+  describe("updateExistingIssueForFlakyTest", () => {
+    const defaultIssue: IssueData = {
+      number: 1,
+      title: "",
+      html_url: "",
+      state: "open",
+      body: "",
+      updated_at: "",
+      author_association: "MEMBER",
+    };
+    beforeEach(() => {});
+
+    afterEach(() => {
+      nock.cleanAll();
+      jest.restoreAllMocks();
+    });
+
+    test("open issue, contains platforms", async () => {
+      const test = deepCopy(flakyTestA);
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${defaultIssue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("appears to contain");
+            expect(comment).toContain("Either the change didn't propogate");
+            expect(comment.includes("Reopening issue")).toBe(false);
+            return true;
+          }
+        )
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        defaultIssue,
+        test
+      );
+
+      handleScope(scope);
+    });
+
+    test("closed issue, contains platforms", async () => {
+      const test = deepCopy(flakyTestA);
+      const issue: IssueData = { ...defaultIssue, state: "closed" };
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${issue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("appears to contain");
+            expect(comment).toContain("Reopening issue");
+            expect(comment.includes("Either the change didn't propogate")).toBe(
+              false
+            );
+            return true;
+          }
+        )
+        .reply(200, {})
+        .patch(`/repos/pytorch/pytorch/issues/${issue.number}`, (body) => {
+          expect(body.state).toEqual("open");
+          expect(body.body).toBe(undefined);
+          return true;
+        })
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        issue,
+        test
+      );
+
+      handleScope(scope);
+    });
+
+    test("open issue, does not contain platforms", async () => {
+      const test = deepCopy(flakyTestA);
+      const issue: IssueData = {
+        ...defaultIssue,
+        body: "Platforms: linux\nhello",
+      };
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${issue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("Adding [win]");
+            expect(comment.includes("Reopening issue")).toBe(false);
+            expect(comment.includes("Either the change didn't propogate")).toBe(
+              false
+            );
+            return true;
+          }
+        )
+        .reply(200, {})
+        .patch(`/repos/pytorch/pytorch/issues/${issue.number}`, (body) => {
+          expect(body.state).toEqual("open");
+          expect(body.body).toContain("Platforms: linux, win");
+          expect(body.body).toContain("hello");
+          return true;
+        })
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        issue,
+        test
+      );
+
+      handleScope(scope);
+    });
+
+    test("closed issue, does not contain platforms", async () => {
+      const test = deepCopy(flakyTestA);
+      const issue: IssueData = {
+        ...defaultIssue,
+        body: "Platforms: linux\nhello",
+        state: "closed",
+      };
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${issue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("does not appear to contain");
+            expect(comment).toContain("Adding [win]");
+            expect(comment).toContain("Reopening issue");
+            expect(comment.includes("Either the change didn't propogate")).toBe(
+              false
+            );
+            return true;
+          }
+        )
+        .reply(200, {})
+        .patch(`/repos/pytorch/pytorch/issues/${issue.number}`, (body) => {
+          expect(body.body).toContain("Platforms: linux, win");
+          expect(body.body).toContain("hello");
+          expect(body.state).toEqual("open");
+          return true;
+        })
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        issue,
+        test
+      );
+
+      handleScope(scope);
+    });
+
+    test("open issue, does not contain platforms, longer platforms lists", async () => {
+      const test = deepCopy(flakyTestA);
+      test.jobNames.push("rocm");
+      test.workflowNames.push("test");
+      const issue: IssueData = {
+        ...defaultIssue,
+        body: "Platforms: inductor, dynamo\nhello",
+        state: "closed",
+      };
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${issue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("does not appear to contain");
+            expect(comment).toContain("Adding [rocm, win]");
+            expect(comment).toContain("Reopening issue");
+            expect(comment.includes("Either the change didn't propogate")).toBe(
+              false
+            );
+            return true;
+          }
+        )
+        .reply(200, {})
+        .patch(`/repos/pytorch/pytorch/issues/${issue.number}`, (body) => {
+          expect(body.body).toContain("Platforms: dynamo, inductor, rocm, win");
+          expect(body.body).toContain("hello");
+          expect(body.state).toEqual("open");
+          return true;
+        })
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        issue,
+        test
+      );
+
+      handleScope(scope);
+    });
+
+    test("closed issue, contains platforms, longer platforms lists", async () => {
+      const test = deepCopy(flakyTestA);
+      const issue: IssueData = {
+        ...defaultIssue,
+        body: "Platforms: win\nhello",
+        state: "closed",
+      };
+
+      const scope = nock("https://api.github.com");
+      scope
+        .post(
+          `/repos/pytorch/pytorch/issues/${issue.number}/comments`,
+          (body) => {
+            const comment = JSON.stringify(body.body);
+            expect(comment).toContain("Another case of trunk flakiness");
+            expect(comment).toContain("appears to contain");
+            expect(comment).toContain("Reopening issue");
+            expect(comment.includes("Either the change didn't propogate")).toBe(
+              false
+            );
+            return true;
+          }
+        )
+        .reply(200, {})
+        .patch(`/repos/pytorch/pytorch/issues/${issue.number}`, (body) => {
+          expect(body.body).toBe(undefined);
+          expect(body.state).toEqual("open");
+          return true;
+        })
+        .reply(200, {});
+
+      await disableFlakyTestBot.updateExistingIssueForFlakyTest(
+        octokit,
+        issue,
+        test
+      );
+
+      handleScope(scope);
+    });
   });
 });
