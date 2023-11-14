@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 
-"""Generates a matrix to be utilized through github actions
+"""Generates a release matrix to be utilized through github actions
 
-Will output a condensed version of the matrix if on a pull request that only
-includes the latest version of python we support built on three different
-architectures:
-    * CPU
-    * Latest CUDA
-    * Latest ROCM
+Will output a JSON representing PyTorch Release versions. To be used with validation framework.
+
 """
 
 
 import argparse
 import json
-import os
 import sys
-
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
 mod = sys.modules[__name__]
 
