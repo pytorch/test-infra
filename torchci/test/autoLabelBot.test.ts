@@ -59,7 +59,7 @@ describe("auto-label-bot", () => {
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
         (body) => {
           expect(body).toMatchObject({
-            labels: ["module: rocm", "ciflow/rocm"],
+            labels: ["module: rocm"],
           });
           return true;
         }
