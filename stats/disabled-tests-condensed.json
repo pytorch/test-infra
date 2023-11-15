@@ -1039,7 +1039,9 @@
     "107739",
     "https://github.com/pytorch/pytorch/issues/107739",
     [
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1434,6 +1436,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
+    "112480",
+    "https://github.com/pytorch/pytorch/issues/112480",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
     "112386",
     "https://github.com/pytorch/pytorch/issues/112386",
@@ -1455,13 +1464,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int64 (__main__.TestMetaCPU)": [
-    "112557",
-    "https://github.com/pytorch/pytorch/issues/112557",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
     "112719",
     "https://github.com/pytorch/pytorch/issues/112719",
@@ -1472,13 +1474,6 @@
   "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
     "112479",
     "https://github.com/pytorch/pytorch/issues/112479",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_pinverse_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112558",
-    "https://github.com/pytorch/pytorch/issues/112558",
     [
       "dynamo"
     ]
@@ -1580,6 +1575,13 @@
     "https://github.com/pytorch/pytorch/issues/68171",
     [
       "dynamo"
+    ]
+  ],
+  "test_neg_view_grid_sampler_2d_cuda_float64 (__main__.TestMathBitsCUDA)": [
+    "113742",
+    "https://github.com/pytorch/pytorch/issues/113742",
+    [
+      "linux"
     ]
   ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
@@ -2008,6 +2010,15 @@
   "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
     "109901",
     "https://github.com/pytorch/pytorch/issues/109901",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
+    "109983",
+    "https://github.com/pytorch/pytorch/issues/109983",
     [
       "linux",
       "rocm",
