@@ -1007,6 +1007,21 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113805",
+    "https://github.com/pytorch/pytorch/issues/113805",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113806",
+    "https://github.com/pytorch/pytorch/issues/113806",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
@@ -1152,13 +1167,6 @@
   "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111928",
     "https://github.com/pytorch/pytorch/issues/111928",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111462",
-    "https://github.com/pytorch/pytorch/issues/111462",
     [
       "dynamo"
     ]
@@ -2069,15 +2077,6 @@
       "linux",
       "slow",
       "rocm"
-    ]
-  ],
-  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110038",
-    "https://github.com/pytorch/pytorch/issues/110038",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
