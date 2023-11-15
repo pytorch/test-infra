@@ -8,7 +8,26 @@ import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
 
-export default function JobLinks({ job }: { job: JobData }) {
+export default function JobLinks({
+  job,
+  showCommitLink = false,
+}: {
+  job: JobData;
+  showCommitLink?: boolean;
+}) {
+  const commitLink = showCommitLink ? (
+    <span>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={`/pytorch/pytorch/commit/${job.sha}`}
+      >
+        Commit
+      </a>
+      {` | `}
+    </span>
+  ) : null;
+
   const rawLogs =
     job.conclusion !== "pending" ? (
       <span>
@@ -59,6 +78,7 @@ export default function JobLinks({ job }: { job: JobData }) {
   const authenticated = useSession().status === "authenticated";
   return (
     <span>
+      {commitLink}
       {rawLogs}
       {failureCaptures}
       {queueTimeS}

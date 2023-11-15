@@ -238,7 +238,7 @@ function FailureInfo({
                 }
               />
               <div>
-                <JobLinks job={sample} />
+                <JobLinks job={sample} showCommitLink={true} />
               </div>
               <LogViewer job={sample} />
             </li>
