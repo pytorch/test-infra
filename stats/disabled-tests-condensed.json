@@ -2025,15 +2025,6 @@
       "slow"
     ]
   ],
-  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109996",
-    "https://github.com/pytorch/pytorch/issues/109996",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
     "110012",
     "https://github.com/pytorch/pytorch/issues/110012",
