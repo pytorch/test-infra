@@ -196,11 +196,11 @@ function myBot(app: Probot): void {
     }
   });
 
-  function getLabelsToAddFromTitle(title: string): string[] {
+  function getLabelsToAddFromTitle(title: string, labelFilter: RegExp = /.*/): string[] {
     const labelsToAdd: string[] = [];
 
     for (const [regex, label] of titleRegexToLabel) {
-      if (title.match(regex)) {
+      if (title.match(regex) && label.match(labelFilter)) {
         labelsToAdd.push(label);
       }
     }
@@ -315,7 +315,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ labels, title });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title);
+    const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
     await addNewLabels(labels, labelsToAdd, context);
   });
 
