@@ -1,4 +1,11 @@
 {
+  "test_2d_fsdp_tp_ac_compile (__main__.TestDTensorCompileE2E)": [
+    "113781",
+    "https://github.com/pytorch/pytorch/issues/113781",
+    [
+      "linux"
+    ]
+  ],
   "test_Conv2d_dilated_cuda_tf32 (__main__.TestNN)": [
     "102727",
     "https://github.com/pytorch/pytorch/issues/102727",
