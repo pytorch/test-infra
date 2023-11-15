@@ -993,6 +993,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113736",
+    "https://github.com/pytorch/pytorch/issues/113736",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
