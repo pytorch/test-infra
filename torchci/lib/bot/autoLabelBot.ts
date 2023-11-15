@@ -196,7 +196,10 @@ function myBot(app: Probot): void {
     }
   });
 
-  function getLabelsToAddFromTitle(title: string, labelFilter: RegExp = /.*/): string[] {
+  function getLabelsToAddFromTitle(
+    title: string,
+    labelFilter: RegExp = /.*/
+  ): string[] {
     const labelsToAdd: string[] = [];
 
     for (const [regex, label] of titleRegexToLabel) {
