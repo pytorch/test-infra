@@ -183,14 +183,6 @@
       "mac"
     ]
   ],
-  "test_cast_round_trip_soak_cuda_float8_e4m3fn (__main__.TestFloat8DtypeCUDA)": [
-    "113829",
-    "https://github.com/pytorch/pytorch/issues/113829",
-    [
-      "linux",
-      "win"
-    ]
-  ],
   "test_cat_addmm (__main__.TestMaxAutotune)": [
     "109982",
     "https://github.com/pytorch/pytorch/issues/109982",
