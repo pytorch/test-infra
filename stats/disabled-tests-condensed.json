@@ -1030,6 +1030,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113862",
+    "https://github.com/pytorch/pytorch/issues/113862",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113806",
     "https://github.com/pytorch/pytorch/issues/113806",
@@ -1099,13 +1106,6 @@
       "macos",
       "win",
       "windows"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107767",
-    "https://github.com/pytorch/pytorch/issues/107767",
-    [
-      "linux"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1191,6 +1191,13 @@
   "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111462",
     "https://github.com/pytorch/pytorch/issues/111462",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111513",
+    "https://github.com/pytorch/pytorch/issues/111513",
     [
       "dynamo"
     ]
@@ -1520,13 +1527,6 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int64 (__main__.TestMetaCPU)": [
     "112557",
     "https://github.com/pytorch/pytorch/issues/112557",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
-    "112719",
-    "https://github.com/pytorch/pytorch/issues/112719",
     [
       "dynamo"
     ]
