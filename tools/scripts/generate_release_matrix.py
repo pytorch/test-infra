@@ -27,15 +27,16 @@ def main(args) -> None:
         "--version",
         help="PyTorch Release version",
         type=str,
-        default=os.getenv("VERSION", "2.1.1"),
+        default=os.getenv("VERSION", ""),
     )
-
     options = parser.parse_args(args)
 
-    if options.version not in RELEASE_DICT.keys():
+    if options.version and options.version not in RELEASE_DICT.keys():
         raise ValueError(f"{options.version} is not a valid release")
-
-    print(json.dumps(RELEASE_DICT[options.version]))
+    else if options.version:
+        print(json.dumps(RELEASE_DICT[options.version]))
+    else
+        print(json.dumps({}))
 
 
 if __name__ == "__main__":

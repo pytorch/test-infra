@@ -5,7 +5,7 @@ on:
     inputs:
       version:
         description: "Release matrix for pytorch release version"
-        default: "2.1.1"
+        default: ""
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
