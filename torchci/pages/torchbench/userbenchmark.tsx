@@ -88,16 +88,22 @@ function CommitPicker({
   }
 
   function objToCommitDesc(data: any) {
-    if (data["pytorch_git_version"] === undefined ||
-        data["pytorch_nightly_date"] === undefined) {
+    if (
+      data["pytorch_git_version"] === undefined ||
+      data["pytorch_nightly_date"] === undefined
+    ) {
       return undefined;
     }
-    return data["pytorch_nightly_date"] + " (" +
-           data["pytorch_git_version"].substring(0, SHA_DISPLAY_LENGTH) + ")";
+    return (
+      data["pytorch_nightly_date"] +
+      " (" +
+      data["pytorch_git_version"].substring(0, SHA_DISPLAY_LENGTH) +
+      ")"
+    );
   }
 
   function commitDescToDate(desc: string) {
-    const [firstGroup] = desc.split(' ');
+    const [firstGroup] = desc.split(" ");
     return firstGroup;
   }
 
@@ -132,7 +138,9 @@ function CommitPicker({
   let all_commits: string[] = data
     .map((r: any) => objToCommitDesc(r))
     .filter((s: any) => s !== undefined)
-    .sort((x: string, y: string) => (commitDescToDate(x) < commitDescToDate(y) ? 1 : -1))
+    .sort((x: string, y: string) =>
+      commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+    )
     .slice(0, MAX_PYTORCH_VERSIONS);
 
   return (
@@ -328,8 +336,7 @@ function Report({
               },
               {
                 field: "control",
-                headerName:
-                  "Base Commit: " + lCommit,
+                headerName: "Base Commit: " + lCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
@@ -344,8 +351,7 @@ function Report({
               },
               {
                 field: "treatment",
-                headerName:
-                  "New Commit: " + rCommit,
+                headerName: "New Commit: " + rCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
