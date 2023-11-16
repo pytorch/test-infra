@@ -1200,13 +1200,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111561",
-    "https://github.com/pytorch/pytorch/issues/111561",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
     "111571",
     "https://github.com/pytorch/pytorch/issues/111571",
@@ -1515,6 +1508,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int8 (__main__.TestMetaCPU)": [
+    "112534",
+    "https://github.com/pytorch/pytorch/issues/112534",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
     "112479",
     "https://github.com/pytorch/pytorch/issues/112479",
@@ -1553,6 +1553,13 @@
   "test_meta_outplace_std_mean_cpu_float32 (__main__.TestMetaCPU)": [
     "112681",
     "https://github.com/pytorch/pytorch/issues/112681",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_std_mean_cpu_float64 (__main__.TestMetaCPU)": [
+    "112702",
+    "https://github.com/pytorch/pytorch/issues/112702",
     [
       "dynamo"
     ]
