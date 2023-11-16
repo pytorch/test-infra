@@ -20,7 +20,7 @@ const queryCollection = "torchbench";
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
-const MAX_COMMIT_SHAS = 10;
+const MAX_PYTORCH_VERSIONS = 30;
 const SHA_DISPLAY_LENGTH = 10;
 
 function UserbenchmarkPicker({
@@ -77,16 +77,28 @@ function CommitPicker({
   commit,
   setCommit,
   titlePrefix,
-  fallbackIndex,
 }: {
   userbenchmark: string;
   commit: string;
   setCommit: any;
   titlePrefix: string;
-  fallbackIndex: number;
 }) {
   function handleCommitChange(e: SelectChangeEvent<string>) {
     setCommit(e.target.value);
+  }
+
+  function objToCommitDesc(data: any) {
+    if (data["pytorch_git_version"] === undefined ||
+        data["pytorch_nightly_date"] === undefined) {
+      return undefined;
+    }
+    return data["pytorch_nightly_date"] + " (" +
+           data["pytorch_git_version"].substring(0, SHA_DISPLAY_LENGTH) + ")";
+  }
+
+  function commitDescToDate(desc: string) {
+    const [firstGroup] = desc.split(' ');
+    return firstGroup;
   }
 
   const queryName = "torchbench_userbenchmark_list_commits";
@@ -118,10 +130,10 @@ function CommitPicker({
   }
 
   let all_commits: string[] = data
-    .map((r: any) => r["pytorch_git_version"])
+    .map((r: any) => objToCommitDesc(r))
     .filter((s: any) => s !== undefined)
-    .sort((x: string, y: string) => (x < y ? -1 : 1))
-    .slice(0, MAX_COMMIT_SHAS);
+    .sort((x: string, y: string) => (commitDescToDate(x) < commitDescToDate(y) ? 1 : -1))
+    .slice(0, MAX_PYTORCH_VERSIONS);
 
   return (
     <div>
@@ -138,7 +150,7 @@ function CommitPicker({
         >
           {all_commits.map((r: any) => (
             <MenuItem key={r} value={r}>
-              {r.substring(0, SHA_DISPLAY_LENGTH)}
+              {r}
             </MenuItem>
           ))}
         </Select>
@@ -156,6 +168,18 @@ function Report({
   lCommit: string;
   rCommit: string;
 }) {
+  function getCommitHash(commitDesc: string): string {
+    if (commitDesc === undefined) {
+      return "";
+    }
+    const regex = /\((.*)\)/;
+    const matches = commitDesc.match(regex);
+    if (matches && matches.length > 1) {
+      return matches[1];
+    }
+    return "";
+  }
+
   function getQueryUrl(params: RocksetParam[]) {
     return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
       JSON.stringify(params)
@@ -227,6 +251,9 @@ function Report({
     return data;
   }
 
+  const lCommitHash: string = getCommitHash(lCommit);
+  const rCommitHash: string = getCommitHash(rCommit);
+
   const queryName = "torchbench_userbenchmark_query_metrics";
   const queryCollection = "torchbench";
   const queryControlParams: RocksetParam[] = [
@@ -238,7 +265,7 @@ function Report({
     {
       name: "commit",
       type: "string",
-      value: lCommit,
+      value: lCommitHash,
     },
   ];
   const queryTreatmentParams: RocksetParam[] = [
@@ -250,11 +277,11 @@ function Report({
     {
       name: "commit",
       type: "string",
-      value: rCommit,
+      value: rCommitHash,
     },
   ];
   // We only submit the query if both commit IDs are available
-  if (lCommit.length === 0 || rCommit.length === 0) {
+  if (lCommitHash.length === 0 || rCommitHash.length === 0) {
     return (
       <div>
         Error: we require both commits to be available: left {lCommit} and right{" "}
@@ -302,9 +329,7 @@ function Report({
               {
                 field: "control",
                 headerName:
-                  "Base Commit (" +
-                  lCommit.substring(0, SHA_DISPLAY_LENGTH) +
-                  ")",
+                  "Base Commit: " + lCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
@@ -320,9 +345,7 @@ function Report({
               {
                 field: "treatment",
                 headerName:
-                  "Head Commit (" +
-                  rCommit.substring(0, SHA_DISPLAY_LENGTH) +
-                  ")",
+                  "New Commit: " + rCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
@@ -386,7 +409,6 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={-1} // Default to the next to latest in the window
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -396,7 +418,6 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           titlePrefix={"New"}
-          fallbackIndex={0} // Default to the latest in the window
         />
       </Stack>
 
