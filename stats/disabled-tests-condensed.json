@@ -129,13 +129,6 @@
       "linux"
     ]
   ],
-  "test_backward_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "112559",
-    "https://github.com/pytorch/pytorch/issues/112559",
-    [
-      "linux"
-    ]
-  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -188,15 +181,6 @@
     [
       "linux",
       "mac"
-    ]
-  ],
-  "test_cast_round_trip_float8_e4m3fn_soak_cuda_float8_e4m3fn (__main__.TestFloat8DtypeCUDA)": [
-    "113501",
-    "https://github.com/pytorch/pytorch/issues/113501",
-    [
-      "linux",
-      "win",
-      "windows"
     ]
   ],
   "test_cast_round_trip_soak_cuda_float8_e4m3fn (__main__.TestFloat8DtypeCUDA)": [
