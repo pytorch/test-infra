@@ -147,9 +147,11 @@ export async function backfillMissingLog(
   job: RecentWorkflowsData
 ): Promise<boolean> {
   // This creates a mock GitHub workflow_job completion event to reupload the log
-  // to S3 and trigger log classifier
+  // to S3 and trigger log classifier. The action is set to backfill to tell the
+  // lambda code that this is a mock event body. Note that backfill is not a GitHub
+  // event actions
   const body = {
-    action: "completed",
+    action: "backfill",
     repository: {
       full_name: `${owner}/${repo}`,
     },
