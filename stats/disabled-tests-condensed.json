@@ -1171,6 +1171,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111462",
+    "https://github.com/pytorch/pytorch/issues/111462",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
     "111513",
     "https://github.com/pytorch/pytorch/issues/111513",
@@ -1489,6 +1496,13 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
     "112463",
     "https://github.com/pytorch/pytorch/issues/112463",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int32 (__main__.TestMetaCPU)": [
+    "112499",
+    "https://github.com/pytorch/pytorch/issues/112499",
     [
       "dynamo"
     ]
@@ -2079,6 +2093,15 @@
       "rocm"
     ]
   ],
+  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
+    "110038",
+    "https://github.com/pytorch/pytorch/issues/110038",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_tags_rand (__main__.ActivationCheckpointingViaTagsTests)": [
     "110051",
     "https://github.com/pytorch/pytorch/issues/110051",
@@ -2200,6 +2223,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_vjpvmap_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "113824",
+    "https://github.com/pytorch/pytorch/issues/113824",
+    [
+      "rocm"
     ]
   ],
   "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
