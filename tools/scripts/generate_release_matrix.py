@@ -33,9 +33,9 @@ def main(args) -> None:
 
     if options.version and options.version not in RELEASE_DICT.keys():
         raise ValueError(f"{options.version} is not a valid release")
-    else if options.version:
+    elif options.version:
         print(json.dumps(RELEASE_DICT[options.version]))
-    else
+    else:
         print(json.dumps({}))
 
 
