@@ -330,8 +330,11 @@ function Report({
   tMetrics = tMetrics === undefined ? {} : tMetrics[0];
   const metrics: Record<string, any>[] = genABMetrics(cMetrics, tMetrics);
   const minEntries =
-    metrics.length > MIN_ENTRIES ?
-    (Object.keys(metrics).length > MAX_ENTRIES ? MAX_ENTRIES : Object.keys(metrics).length) : MIN_ENTRIES;
+    metrics.length > MIN_ENTRIES
+      ? Object.keys(metrics).length > MAX_ENTRIES
+        ? MAX_ENTRIES
+        : Object.keys(metrics).length
+      : MIN_ENTRIES;
 
   return (
     <div>
