@@ -1,9 +1,11 @@
+import dayjs, { Dayjs } from "dayjs";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RocksetParam } from "lib/rockset";
 import {
   Grid,
+  Skeleton,
   Stack,
   Typography,
   Select,
@@ -20,8 +22,13 @@ const queryCollection = "torchbench";
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
-const MAX_COMMIT_SHAS = 10;
+const MAX_PYTORCH_VERSIONS = 30;
 const SHA_DISPLAY_LENGTH = 10;
+
+function getShortDateFromDateString(dateString: string): string {
+  const d = dayjs(dateString);
+  return d.format("YYYY-MM-DD HH:mm:ss");
+}
 
 function UserbenchmarkPicker({
   userbenchmark,
@@ -89,6 +96,26 @@ function CommitPicker({
     setCommit(e.target.value);
   }
 
+  function objToCommitDesc(data: any) {
+    if (
+      data["pytorch_git_version"] === undefined ||
+      data["pytorch_commit_time"] === undefined
+    ) {
+      return "";
+    }
+    return (
+      getShortDateFromDateString(data["pytorch_commit_time"]) +
+      " (" +
+      data["pytorch_git_version"].substring(0, SHA_DISPLAY_LENGTH) +
+      ")"
+    );
+  }
+
+  function commitDescToDate(desc: string) {
+    const [firstGroup] = desc.split(" ");
+    return firstGroup;
+  }
+
   const queryName = "torchbench_userbenchmark_list_commits";
   const queryCollection = "torchbench";
   const queryParams: RocksetParam[] = [
@@ -105,23 +132,47 @@ function CommitPicker({
   let { data, error } = useSWR(list_commits_url, fetcher, {
     refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
   });
+
+  useEffect(() => {
+    if (data !== undefined && data.length !== 0) {
+      const allCommits: string[] = data
+        .map((r: any) => objToCommitDesc(r))
+        .filter((s: any) => s !== undefined)
+        .sort((x: string, y: string) =>
+          commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+        )
+        .slice(0, MAX_PYTORCH_VERSIONS);
+
+      if (commit === undefined || commit === "" || commit.length === 0) {
+        if (allCommits.length === 1) {
+          fallbackIndex = 0;
+        }
+        const index = (allCommits.length + fallbackIndex) % allCommits.length;
+        const desc = objToCommitDesc(allCommits[index]);
+        setCommit(desc);
+      }
+    }
+  }, [data]);
+
+  if (error !== undefined) {
+    return (
+      <div>
+        An error occurred while fetching data, perhaps there are too many
+        results with your choice of userbenchmark?
+      </div>
+    );
+  }
   if (data === undefined || data.length === 0) {
-    data = [
-      {
-        name: "api_error",
-        environ: {
-          pytorch_git_version: "api_error",
-        },
-      },
-    ];
-    commit = "api_error";
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let all_commits: string[] = data
-    .map((r: any) => r["pytorch_git_version"])
+  const allCommits: string[] = data
+    .map((r: any) => objToCommitDesc(r))
     .filter((s: any) => s !== undefined)
-    .sort((x: string, y: string) => (x < y ? -1 : 1))
-    .slice(0, MAX_COMMIT_SHAS);
+    .sort((x: string, y: string) =>
+      commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+    )
+    .slice(0, MAX_PYTORCH_VERSIONS);
 
   return (
     <div>
@@ -136,9 +187,9 @@ function CommitPicker({
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
         >
-          {all_commits.map((r: any) => (
+          {allCommits.map((r: any) => (
             <MenuItem key={r} value={r}>
-              {r.substring(0, SHA_DISPLAY_LENGTH)}
+              {r}
             </MenuItem>
           ))}
         </Select>
@@ -156,6 +207,18 @@ function Report({
   lCommit: string;
   rCommit: string;
 }) {
+  function getCommitHash(commitDesc: string): string {
+    if (commitDesc === undefined) {
+      return "";
+    }
+    const regex = /\((.*)\)/;
+    const matches = commitDesc.match(regex);
+    if (matches && matches.length > 1) {
+      return matches[1];
+    }
+    return "";
+  }
+
   function getQueryUrl(params: RocksetParam[]) {
     return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
       JSON.stringify(params)
@@ -227,6 +290,9 @@ function Report({
     return data;
   }
 
+  const lCommitHash: string = getCommitHash(lCommit);
+  const rCommitHash: string = getCommitHash(rCommit);
+
   const queryName = "torchbench_userbenchmark_query_metrics";
   const queryCollection = "torchbench";
   const queryControlParams: RocksetParam[] = [
@@ -238,7 +304,7 @@ function Report({
     {
       name: "commit",
       type: "string",
-      value: lCommit,
+      value: lCommitHash,
     },
   ];
   const queryTreatmentParams: RocksetParam[] = [
@@ -250,17 +316,12 @@ function Report({
     {
       name: "commit",
       type: "string",
-      value: rCommit,
+      value: rCommitHash,
     },
   ];
   // We only submit the query if both commit IDs are available
-  if (lCommit.length === 0 || rCommit.length === 0) {
-    return (
-      <div>
-        Error: we require both commits to be available: left {lCommit} and right{" "}
-        {rCommit}.
-      </div>
-    );
+  if (lCommitHash.length === 0 || rCommitHash.length === 0) {
+    return <div>Please select both left and right commits.</div>;
   }
   let cMetrics = QueryMetrics(getQueryUrl(queryControlParams));
   cMetrics = cMetrics === undefined ? {} : cMetrics[0];
@@ -301,10 +362,7 @@ function Report({
               },
               {
                 field: "control",
-                headerName:
-                  "Base Commit (" +
-                  lCommit.substring(0, SHA_DISPLAY_LENGTH) +
-                  ")",
+                headerName: "Base Commit: " + lCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
@@ -319,10 +377,7 @@ function Report({
               },
               {
                 field: "treatment",
-                headerName:
-                  "Head Commit (" +
-                  rCommit.substring(0, SHA_DISPLAY_LENGTH) +
-                  ")",
+                headerName: "New Commit: " + rCommit,
                 flex: 1,
                 cellClassName: (params: GridCellParams<any>) => {
                   const v = params.value.v;
@@ -386,7 +441,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={-1} // Default to the next to latest in the window
+          fallbackIndex={-1} // default to the second latest commit available
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -396,7 +451,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           titlePrefix={"New"}
-          fallbackIndex={0} // Default to the latest in the window
+          fallbackIndex={0} // default to the latest commit available
         />
       </Stack>
 
