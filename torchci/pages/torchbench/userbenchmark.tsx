@@ -22,6 +22,7 @@ const queryCollection = "torchbench";
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
+const MAX_ENTRIES = 100;
 const MAX_PYTORCH_VERSIONS = 30;
 const SHA_DISPLAY_LENGTH = 10;
 
@@ -329,7 +330,8 @@ function Report({
   tMetrics = tMetrics === undefined ? {} : tMetrics[0];
   const metrics: Record<string, any>[] = genABMetrics(cMetrics, tMetrics);
   const minEntries =
-    metrics.length > MIN_ENTRIES ? Object.keys(metrics).length : MIN_ENTRIES;
+    metrics.length > MIN_ENTRIES ?
+    (Object.keys(metrics).length > MAX_ENTRIES ? MAX_ENTRIES : Object.keys(metrics).length) : MIN_ENTRIES;
 
   return (
     <div>
@@ -406,7 +408,9 @@ function Report({
                 },
               },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
+            dataGridProps={{
+              getRowId: (el: any) => el.name,
+            }}
           />
         </Grid>
       </Grid>

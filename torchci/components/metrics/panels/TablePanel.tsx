@@ -95,7 +95,7 @@ export function TablePanelWithData({
       density={"compact"}
       rows={data}
       columns={columns}
-      hideFooter
+      autoPageSize
       components={{
         Toolbar: Header,
       }}
