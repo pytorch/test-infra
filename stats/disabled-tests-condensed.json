@@ -316,15 +316,6 @@
       "linux"
     ]
   ],
-  "test_cond_with_quantization (__main__.MiscTests)": [
-    "110593",
-    "https://github.com/pytorch/pytorch/issues/110593",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -549,7 +540,8 @@
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_distributed_checkpoint_state_dict_type1 (__main__.TestDistributedCheckpoint)": [
@@ -600,6 +592,16 @@
     "https://github.com/pytorch/pytorch/issues/100126",
     [
       "linux"
+    ]
+  ],
+  "test_dynamic_kwarg (__main__.SubGraphTests)": [
+    "113946",
+    "https://github.com/pytorch/pytorch/issues/113946",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_eager_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
@@ -776,15 +778,6 @@
     "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
-    ]
-  ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "rocm",
-      "mac"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
@@ -1052,6 +1045,13 @@
   "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113910",
     "https://github.com/pytorch/pytorch/issues/113910",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113947",
+    "https://github.com/pytorch/pytorch/issues/113947",
     [
       "linux"
     ]
