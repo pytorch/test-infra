@@ -601,7 +601,8 @@
       "linux",
       "mac",
       "macos",
-      "rocm"
+      "rocm",
+      "asan"
     ]
   ],
   "test_eager_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
@@ -956,6 +957,13 @@
       "linux"
     ]
   ],
+  "test_lazy_clone_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "113953",
+    "https://github.com/pytorch/pytorch/issues/113953",
+    [
+      "inductor"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1251,9 +1259,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_hfft_cpu_uint8 (__main__.TestMetaCPU)": [
-    "111626",
-    "https://github.com/pytorch/pytorch/issues/111626",
+  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
+    "111607",
+    "https://github.com/pytorch/pytorch/issues/111607",
     [
       "dynamo"
     ]
