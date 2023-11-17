@@ -473,6 +473,14 @@
       "rocm"
     ]
   ],
+  "test_cuda_stream_method (__main__.CtxManagerTests)": [
+    "113909",
+    "https://github.com/pytorch/pytorch/issues/113909",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
@@ -635,6 +643,13 @@
   "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "105199",
     "https://github.com/pytorch/pytorch/issues/105199",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_fwgrad_bwgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "113908",
+    "https://github.com/pytorch/pytorch/issues/113908",
     [
       "linux"
     ]
@@ -1027,6 +1042,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113910",
+    "https://github.com/pytorch/pytorch/issues/113910",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
@@ -1082,6 +1104,14 @@
       "macos",
       "win",
       "windows"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107762",
+    "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux",
+      "asan"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1192,9 +1222,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111571",
-    "https://github.com/pytorch/pytorch/issues/111571",
+  "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111561",
+    "https://github.com/pytorch/pytorch/issues/111561",
     [
       "dynamo"
     ]
@@ -2082,15 +2112,6 @@
   "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
     "110038",
     "https://github.com/pytorch/pytorch/issues/110038",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_tags_recomputed_rand (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110062",
-    "https://github.com/pytorch/pytorch/issues/110062",
     [
       "linux",
       "rocm",
