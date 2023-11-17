@@ -309,13 +309,6 @@
       "linux"
     ]
   ],
-  "test_cond_nested (__main__.MiscTests)": [
-    "101758",
-    "https://github.com/pytorch/pytorch/issues/101758",
-    [
-      "linux"
-    ]
-  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -779,6 +772,16 @@
     "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
+    ]
+  ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "mac",
+      "rocm",
+      "macos"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
