@@ -1551,13 +1551,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_std_mean_cpu_bfloat16 (__main__.TestMetaCPU)": [
-    "112816",
-    "https://github.com/pytorch/pytorch/issues/112816",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_std_mean_cpu_complex128 (__main__.TestMetaCPU)": [
     "113027",
     "https://github.com/pytorch/pytorch/issues/113027",
@@ -2040,6 +2033,13 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
