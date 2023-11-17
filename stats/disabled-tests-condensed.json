@@ -710,13 +710,6 @@
       "dynamo"
     ]
   ],
-  "test_fsdp_tp_checkpoint_integration (__main__.TestTPFSDPIntegration)": [
-    "101162",
-    "https://github.com/pytorch/pytorch/issues/101162",
-    [
-      "linux"
-    ]
-  ],
   "test_function_returns_input_inner_requires_grad_True_save_for_jvp_save_tensors_neither_mark_dirty_True_cpu (__main__.TestAutogradFunctionCPU)": [
     "113252",
     "https://github.com/pytorch/pytorch/issues/113252",
@@ -729,13 +722,6 @@
     "https://github.com/pytorch/pytorch/issues/105254",
     [
       "rocm"
-    ]
-  ],
-  "test_gather_state_dict_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
-    "103935",
-    "https://github.com/pytorch/pytorch/issues/103935",
-    [
-      "linux"
     ]
   ],
   "test_get_parent_mesh_dim_not_exist (__main__.TestDeviceMeshGetItem)": [
