@@ -1,0 +1,15 @@
+runnerConfig:
+  - cpu: 4.0
+    isEphemeral: true
+    maxRunners: 150
+    memory: 8Gi
+    minRunners: 1
+    nodeType: compute-amd64
+    partDocker: 20Gi
+    partTmp: 50Gi
+    partWork: 150Gi
+    runnerLabel: linux.large.arc
+    scaleDownFactor: 0.80
+    scaleDownThreshold: 0.60
+    scaleUpFactor: 1.20
+    scaleUpThreshold: 0.80
