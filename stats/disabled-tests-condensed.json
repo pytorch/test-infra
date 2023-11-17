@@ -167,14 +167,6 @@
       "mac"
     ]
   ],
-  "test_caching_pinned_memory (__main__.TestCuda)": [
-    "79508",
-    "https://github.com/pytorch/pytorch/issues/79508",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
@@ -551,6 +543,21 @@
     "https://github.com/pytorch/pytorch/issues/113221",
     [
       "dynamo"
+    ]
+  ],
+  "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
+    "113937",
+    "https://github.com/pytorch/pytorch/issues/113937",
+    [
+      "linux"
+    ]
+  ],
+  "test_distributed_checkpoint_state_dict_type1 (__main__.TestDistributedCheckpoint)": [
+    "113936",
+    "https://github.com/pytorch/pytorch/issues/113936",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
@@ -1114,6 +1121,14 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107767",
+    "https://github.com/pytorch/pytorch/issues/107767",
+    [
+      "linux",
+      "asan"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
@@ -1229,9 +1244,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111607",
-    "https://github.com/pytorch/pytorch/issues/111607",
+  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111571",
+    "https://github.com/pytorch/pytorch/issues/111571",
     [
       "dynamo"
     ]
