@@ -133,6 +133,48 @@ LIMIT
   return results !== undefined && results.length === 1 ? results[0].email : "";
 }
 
+export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
+  // This is to handle the infra flaky issue where the log is not available on
+  // S3 and no failure is found
+  const url = `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id}`;
+  const res = await fetch(url, { method: "HEAD" });
+  return res.status !== 404;
+}
+
+export async function backfillMissingLog(
+  owner: string,
+  repo: string,
+  job: RecentWorkflowsData
+): Promise<boolean> {
+  // This creates a mock GitHub workflow_job completion event to reupload the log
+  // to S3 and trigger log classifier. The action is set to backfill to tell the
+  // lambda code that this is a mock event body. Note that backfill is not a GitHub
+  // event actions
+  const body = {
+    action: "backfill",
+    repository: {
+      full_name: `${owner}/${repo}`,
+    },
+    workflow_job: {
+      conclusion: job.conclusion,
+      id: job.id,
+    },
+  };
+  const res = await fetch(
+    "https://jqogootqqe.execute-api.us-east-1.amazonaws.com/default/github-status-test",
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-GitHub-Event": "workflow_job",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return res.status === 200;
+}
+
 export async function isSameAuthor(
   job: RecentWorkflowsData,
   failure: RecentWorkflowsData
