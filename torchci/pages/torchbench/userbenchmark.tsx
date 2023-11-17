@@ -1,9 +1,11 @@
+import dayjs, { Dayjs } from "dayjs";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RocksetParam } from "lib/rockset";
 import {
   Grid,
+  Skeleton,
   Stack,
   Typography,
   Select,
@@ -22,6 +24,11 @@ const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
 const MAX_PYTORCH_VERSIONS = 30;
 const SHA_DISPLAY_LENGTH = 10;
+
+function getShortDateFromDateString(dateString: string): string {
+  const d = dayjs(dateString);
+  return d.format("YYYY-MM-DD HH:mm:ss");
+}
 
 function UserbenchmarkPicker({
   userbenchmark,
@@ -77,11 +84,13 @@ function CommitPicker({
   commit,
   setCommit,
   titlePrefix,
+  fallbackIndex,
 }: {
   userbenchmark: string;
   commit: string;
   setCommit: any;
   titlePrefix: string;
+  fallbackIndex: number;
 }) {
   function handleCommitChange(e: SelectChangeEvent<string>) {
     setCommit(e.target.value);
@@ -90,12 +99,12 @@ function CommitPicker({
   function objToCommitDesc(data: any) {
     if (
       data["pytorch_git_version"] === undefined ||
-      data["pytorch_nightly_date"] === undefined
+      data["pytorch_commit_time"] === undefined
     ) {
-      return undefined;
+      return "";
     }
     return (
-      data["pytorch_nightly_date"] +
+      getShortDateFromDateString(data["pytorch_commit_time"]) +
       " (" +
       data["pytorch_git_version"].substring(0, SHA_DISPLAY_LENGTH) +
       ")"
@@ -123,25 +132,47 @@ function CommitPicker({
   let { data, error } = useSWR(list_commits_url, fetcher, {
     refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
   });
+
+  useEffect(() => {
+    if (data !== undefined && data.length !== 0) {
+      const allCommits: string[] = data
+        .map((r: any) => objToCommitDesc(r))
+        .filter((s: any) => s !== undefined)
+        .sort((x: string, y: string) =>
+          commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+        )
+        .slice(0, MAX_PYTORCH_VERSIONS);
+    
+      if (commit === undefined || commit === "" || commit.length === 0) {
+        if (allCommits.length === 1) {
+          fallbackIndex = 0;
+        }
+        const index = (allCommits.length + fallbackIndex) % allCommits.length;
+        const desc = objToCommitDesc(allCommits[index])
+        setCommit(desc);
+      }
+    }
+  }, [data]);
+
+  if (error !== undefined) {
+    return (
+      <div>
+        An error occurred while fetching data, perhaps there are too many
+        results with your choice of userbenchmark?
+      </div>
+    );
+  }
   if (data === undefined || data.length === 0) {
-    data = [
-      {
-        name: "api_error",
-        environ: {
-          pytorch_git_version: "api_error",
-        },
-      },
-    ];
-    commit = "api_error";
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let all_commits: string[] = data
-    .map((r: any) => objToCommitDesc(r))
-    .filter((s: any) => s !== undefined)
-    .sort((x: string, y: string) =>
-      commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
-    )
-    .slice(0, MAX_PYTORCH_VERSIONS);
+  const allCommits: string[] = data
+      .map((r: any) => objToCommitDesc(r))
+      .filter((s: any) => s !== undefined)
+      .sort((x: string, y: string) =>
+        commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+      )
+      .slice(0, MAX_PYTORCH_VERSIONS);
 
   return (
     <div>
@@ -156,7 +187,7 @@ function CommitPicker({
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
         >
-          {all_commits.map((r: any) => (
+          {allCommits.map((r: any) => (
             <MenuItem key={r} value={r}>
               {r}
             </MenuItem>
@@ -292,8 +323,7 @@ function Report({
   if (lCommitHash.length === 0 || rCommitHash.length === 0) {
     return (
       <div>
-        Error: we require both commits to be available: left {lCommit} and right{" "}
-        {rCommit}.
+        Please select both left and right commits.
       </div>
     );
   }
@@ -415,6 +445,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
+          fallbackIndex={-1} // default to the second latest commit available
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -424,6 +455,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           titlePrefix={"New"}
+          fallbackIndex={0}  // default to the latest commit available
         />
       </Stack>
 
