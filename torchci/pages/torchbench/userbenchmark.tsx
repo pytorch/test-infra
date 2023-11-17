@@ -142,13 +142,13 @@ function CommitPicker({
           commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
         )
         .slice(0, MAX_PYTORCH_VERSIONS);
-    
+
       if (commit === undefined || commit === "" || commit.length === 0) {
         if (allCommits.length === 1) {
           fallbackIndex = 0;
         }
         const index = (allCommits.length + fallbackIndex) % allCommits.length;
-        const desc = objToCommitDesc(allCommits[index])
+        const desc = objToCommitDesc(allCommits[index]);
         setCommit(desc);
       }
     }
@@ -167,12 +167,12 @@ function CommitPicker({
   }
 
   const allCommits: string[] = data
-      .map((r: any) => objToCommitDesc(r))
-      .filter((s: any) => s !== undefined)
-      .sort((x: string, y: string) =>
-        commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
-      )
-      .slice(0, MAX_PYTORCH_VERSIONS);
+    .map((r: any) => objToCommitDesc(r))
+    .filter((s: any) => s !== undefined)
+    .sort((x: string, y: string) =>
+      commitDescToDate(x) < commitDescToDate(y) ? 1 : -1
+    )
+    .slice(0, MAX_PYTORCH_VERSIONS);
 
   return (
     <div>
@@ -321,11 +321,7 @@ function Report({
   ];
   // We only submit the query if both commit IDs are available
   if (lCommitHash.length === 0 || rCommitHash.length === 0) {
-    return (
-      <div>
-        Please select both left and right commits.
-      </div>
-    );
+    return <div>Please select both left and right commits.</div>;
   }
   let cMetrics = QueryMetrics(getQueryUrl(queryControlParams));
   cMetrics = cMetrics === undefined ? {} : cMetrics[0];
@@ -455,7 +451,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           titlePrefix={"New"}
-          fallbackIndex={0}  // default to the latest commit available
+          fallbackIndex={0} // default to the latest commit available
         />
       </Stack>
 
