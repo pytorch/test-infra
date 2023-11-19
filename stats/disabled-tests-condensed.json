@@ -776,6 +776,15 @@
       "linux"
     ]
   ],
+  "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
+    "68643",
+    "https://github.com/pytorch/pytorch/issues/68643",
+    [
+      "macos",
+      "linux",
+      "win"
+    ]
+  ],
   "test_index_add_correctness (__main__.TestTorch)": [
     "91184",
     "https://github.com/pytorch/pytorch/issues/91184",
