@@ -121,6 +121,7 @@ runs:
                 conda=23.7.3 \
                 ninja=1.10 \
                 pkg-config=0.29 \
+                packaging \
                 wheel=0.37
             else
               conda create \
@@ -129,8 +130,10 @@ runs:
                 "python=${PYTHON_VERSION}" \
                 conda=23.7.3 \
                 cmake=3.22 \
+                conda=23.7.3 \
                 ninja=1.10 \
                 pkg-config=0.29 \
+                packaging \
                 wheel=0.37
             fi
           else
@@ -143,6 +146,7 @@ runs:
               conda=23.7.3 \
               ninja=1.10 \
               pkg-config=0.29 \
+              packaging \
               wheel=0.37
           fi
 
