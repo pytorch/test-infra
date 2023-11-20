@@ -1223,9 +1223,23 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
+    "111638",
+    "https://github.com/pytorch/pytorch/issues/111638",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
     "111986",
     "https://github.com/pytorch/pytorch/issues/111986",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
+    "111651",
+    "https://github.com/pytorch/pytorch/issues/111651",
     [
       "dynamo"
     ]
