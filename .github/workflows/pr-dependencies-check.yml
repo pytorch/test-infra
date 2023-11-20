@@ -38,7 +38,11 @@ jobs:
           
           # remove branch if exists
           git branch -D pr-branch
-          git fetch origin pull/$PR_NUMBER/head:pr-branch
+          
+          if ! git fetch origin pull/$PR_NUMBER/head:pr-branch; then
+            echo "Failed to fetch PR #$PR_NUMBER"
+            exit 1
+          fi
           
           git checkout pr-branch
           MERGE_BASE=$(git merge-base origin/main HEAD)
@@ -99,22 +103,37 @@ jobs:
             git clean -fd
           
             # print conflicts
-            echo "Found ${#CONFLICTING_COMMITS[@]} conflicts that prevent merging PR #$PR_NUMBER into main:"
+            
+            {
+              echo "### Found ${#CONFLICTING_COMMITS[@]} conflicts that prevent merging PR #$PR_NUMBER into main:"
+              echo "These are commits in the \`main\` branch that conflict with the PR and prevent it from being merged. \
+                    To merge this pr, these commits have to be reverted, or the PR has to be rebased onto \`main\` using \
+                    the manual conflict resolution."
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          
             for CONFLICT in "${CONFLICTING_COMMITS[@]}"; do
-              git show --oneline -s "$CONFLICT"
+              echo "- $(git show --oneline -s "$CONFLICT")" >> "$GITHUB_STEP_SUMMARY"
             done
+          
+            {
+              echo ""
+              echo "---"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
           }
 
           # try merging pr-branch into main
           if ! git merge --no-commit --no-ff pr-branch; then
             # red
-            echo -e "\033[0;31mPR is not mergeable into main!\033[0m"
+            echo "::error::PR is not mergeable into main!"
+            
             git merge --abort
             find_conflicting_commits
             echo "----"
           else
-            # green
-            echo -e "\033[0;32mPR is mergeable into main!\033[0m"
+            # same as a github warning
+            echo "::notice::PR is mergeable into main."
           fi
           
           # reset main to MERGE_BASE
@@ -160,10 +179,17 @@ jobs:
             fi
           done
           
-          echo "----"
-          echo "Found ${#DEPENDENCIES[@]} dependencies in ${SEARCH_DEPTH} commits before the PR base:"
+          {
+            echo "### Found ${#DEPENDENCIES[@]} dependencies in ${SEARCH_DEPTH} commits before the PR base:"
+            echo "Dependencies here are the commits in PR's base history that are essential for the PR to be mergeable \
+                  into its own base. I.e., these dependencies cannot be reverted without reverting the first PR."
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+          
           # print dependencies with commit messages
           for DEPENDENCY in "${DEPENDENCIES[@]}"; do
-            # git show --oneline -s
-            git show --oneline -s "$DEPENDENCY"
+            echo "- $(git show --oneline -s "$DEPENDENCY")" >> "$GITHUB_STEP_SUMMARY"
           done
+          
+          echo "Check the job Summary for the results:"
+          echo "https://github.com/pytorch/test-infra/actions/runs/${{ github.run_id }}"
