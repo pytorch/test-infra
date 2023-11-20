@@ -552,26 +552,6 @@
       "linux"
     ]
   ],
-  "test_double_backward_errors (__main__.AotAutogradFallbackTests)": [
-    "112910",
-    "https://github.com/pytorch/pytorch/issues/112910",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_double_backward_errors_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
-    "112912",
-    "https://github.com/pytorch/pytorch/issues/112912",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
@@ -1246,13 +1226,6 @@
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
     "111986",
     "https://github.com/pytorch/pytorch/issues/111986",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
-    "111651",
-    "https://github.com/pytorch/pytorch/issues/111651",
     [
       "dynamo"
     ]
