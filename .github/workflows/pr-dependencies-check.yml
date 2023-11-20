@@ -1,0 +1,169 @@
+name: PR Dependency Check
+
+on:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Pytorch repository
+        uses: malfet/checkout@silent-checkout
+        with:
+          repository: pytorch/pytorch
+          fetch-depth: -1
+          submodules: false
+          quiet-checkout: true
+
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+
+      - name: Check PR dependencies
+        run: |
+          PR_NUMBER=113650
+          SEARCH_DEPTH=100
+          
+          # FIXME: rewrite the script so that it doesn't rely on +e
+          set +e
+          
+          # update main
+          git checkout main
+          git pull
+          # reset main to origin/main
+          git reset --hard origin/main
+          git clean -fd
+          
+          # remove branch if exists
+          git branch -D pr-branch
+          git fetch origin pull/$PR_NUMBER/head:pr-branch
+          
+          git checkout pr-branch
+          MERGE_BASE=$(git merge-base origin/main HEAD)
+          
+          # checkout main
+          git checkout main
+          
+          # find conflicting commits in main that prevent merging PR into main
+          find_conflicting_commits() {
+            CONFLICTING_COMMITS=()
+          
+            # get all commits in main after MERGE_BASE in reverse order
+            COMMITS=$(git log --reverse --oneline "$MERGE_BASE"..HEAD | cut -d' ' -f1)
+          
+            echo "----"
+            NUM_COMMITS=$(echo "$COMMITS" | wc -w)
+            echo "Analyzing $NUM_COMMITS commits in main after MERGE_BASE:"
+          
+            # reset main to MERGE_BASE
+            git reset --hard "$MERGE_BASE"
+            git clean -fd
+          
+            # iterate over commits
+            # try cherry-picking only the commits that don't conflict with the squashed PR commit
+            # if cherry-pick fails, then the commit is also conflict (transitive dependency for other conflicts)
+            for COMMIT in $COMMITS; do
+              PREV_COMMIT=$(git rev-parse HEAD)
+              
+              # try cherry-picking the commit
+              # if cherry-pick failed, then the commit is a conflict (it is a dependency for the previous conflicting commits)
+              if ! git cherry-pick "$COMMIT"; then
+                echo "Found conflict $COMMIT"
+                CONFLICTING_COMMITS+=("$COMMIT")
+                # abort
+                git cherry-pick --abort
+                git clean -fd
+                git reset --hard "$PREV_COMMIT"
+              else
+                # try merging pr-branch into main
+                if ! git merge --squash --no-commit pr-branch; then
+                  echo "Found conflict $COMMIT"
+                  CONFLICTING_COMMITS+=("$COMMIT")
+                  # abort
+                  git merge --abort
+                  # remove the grafted commit
+                  git reset --hard "$PREV_COMMIT"
+                else
+                  # drop the staged changes
+                  git reset --hard
+                fi
+                
+                git clean -fd
+              fi
+            done
+          
+            # reset main to MERGE_BASE
+            git reset --hard "$MERGE_BASE"
+            git clean -fd
+          
+            # print conflicts
+            echo "Found ${#CONFLICTING_COMMITS[@]} conflicts that prevent merging PR #$PR_NUMBER into main:"
+            for CONFLICT in "${CONFLICTING_COMMITS[@]}"; do
+              git show --oneline -s "$CONFLICT"
+            done
+          }
+
+          # try merging pr-branch into main
+          if ! git merge --no-commit --no-ff pr-branch; then
+            # red
+            echo -e "\033[0;31mPR is not mergeable into main!\033[0m"
+            git merge --abort
+            find_conflicting_commits
+            echo "----"
+          else
+            # green
+            echo -e "\033[0;32mPR is mergeable into main!\033[0m"
+          fi
+          
+          # reset main to MERGE_BASE
+          git reset --hard "$MERGE_BASE"
+          
+          # merge pr-branch into main with squash
+          
+          if ! git merge --squash pr-branch; then
+            echo "Something went wrong while squashing commits!"
+            git merge --abort
+          fi
+          
+          git commit -m "Squashed changes from PR #$PR_NUMBER"
+          
+          # SEARCH_DEPTH Commits to analyze:
+          COMMITS=$(git log --oneline HEAD~$((SEARCH_DEPTH+1))..HEAD~1 | cut -d' ' -f1)
+          
+          echo "----"
+          echo "Analyzing history:"
+          # non-interactively print commits HEAD~$SEARCH_DEPTH..HEAD
+          git log --oneline HEAD~$((SEARCH_DEPTH+1))..HEAD~1 | cat
+          echo "----"
+          
+          DEPENDENCIES=()
+          
+          git merge --abort
+          git rebase --abort
+          rm -fr ".git/rebase-merge"
+          git clean -fd
+          
+          # iterate over commits and find dependencies
+          for COMMIT in $COMMITS; do
+            echo "Analyzing commit $COMMIT"
+            
+            # try removing the commit from the branch
+            # if rebase failed, then the commit is a dependency
+            if ! git rebase --onto "${COMMIT}^" "$COMMIT"; then
+              echo "Found dependency $COMMIT"
+              DEPENDENCIES+=("$COMMIT")
+              # abort
+              git rebase --abort
+              git clean -fd
+            fi
+          done
+          
+          echo "----"
+          echo "Found ${#DEPENDENCIES[@]} dependencies in ${SEARCH_DEPTH} commits before the PR base:"
+          # print dependencies with commit messages
+          for DEPENDENCY in "${DEPENDENCIES[@]}"; do
+            # git show --oneline -s
+            git show --oneline -s "$DEPENDENCY"
+          done
