@@ -1,7 +1,18 @@
 name: PR Dependency Check
 
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number or URL'
+        type: string
+        required: true
+      search_depth:
+        description: 'Dependencies search depth'
+        required: true
+        default: '100'
+        type: choice
+        options: ['100', '200', '500']
 
 jobs:
   check:
@@ -23,10 +34,13 @@ jobs:
 
       - name: Check PR dependencies
         run: |
-          PR_NUMBER=113714
-          SEARCH_DEPTH=200
+          SEARCH_DEPTH=${{ github.event.inputs.search_depth }}
           
-          # FIXME: rewrite the script so that it doesn't rely on +e
+          PR_NUMBER=${{ github.event.inputs.pr_number }}
+          # extract PR number from URL
+          PR_NUMBER=$(echo "$PR_NUMBER" | grep -oE '[0-9]+$')
+          
+          # TODO: rewrite the script so that it doesn't rely on +e
           set +e
           
           # update main
