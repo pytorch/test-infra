@@ -23,8 +23,8 @@ jobs:
 
       - name: Check PR dependencies
         run: |
-          PR_NUMBER=113650
-          SEARCH_DEPTH=100
+          PR_NUMBER=113714
+          SEARCH_DEPTH=200
           
           # FIXME: rewrite the script so that it doesn't rely on +e
           set +e
@@ -43,6 +43,8 @@ jobs:
             echo "Failed to fetch PR #$PR_NUMBER"
             exit 1
           fi
+          
+          echo "Analyzing PR [${PR_NUMBER}](https://github.com/pytorch/pytorch/pull/${PR_NUMBER})." >> "$GITHUB_STEP_SUMMARY"
           
           git checkout pr-branch
           MERGE_BASE=$(git merge-base origin/main HEAD)
