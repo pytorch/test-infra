@@ -2218,13 +2218,6 @@
       "linux"
     ]
   ],
-  "test_vmapvjp_NumpyExpMarkDirtyAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "109694",
-    "https://github.com/pytorch/pytorch/issues/109694",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86929",
     "https://github.com/pytorch/pytorch/issues/86929",
