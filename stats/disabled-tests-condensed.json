@@ -316,6 +316,13 @@
       "linux"
     ]
   ],
+  "test_cond_nested (__main__.MiscTests)": [
+    "101758",
+    "https://github.com/pytorch/pytorch/issues/101758",
+    [
+      "linux"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -1099,6 +1106,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107114",
+    "https://github.com/pytorch/pytorch/issues/107114",
+    [
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1510,6 +1524,13 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int8 (__main__.TestMetaCPU)": [
     "112534",
     "https://github.com/pytorch/pytorch/issues/112534",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112719",
+    "https://github.com/pytorch/pytorch/issues/112719",
     [
       "dynamo"
     ]
@@ -2174,6 +2195,20 @@
   "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
     "87070",
     "https://github.com/pytorch/pytorch/issues/87070",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
+    "86711",
+    "https://github.com/pytorch/pytorch/issues/86711",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86732",
+    "https://github.com/pytorch/pytorch/issues/86732",
     [
       "linux"
     ]
