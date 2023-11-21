@@ -34,9 +34,9 @@ jobs:
 
       - name: Check PR dependencies
         run: |
-          SEARCH_DEPTH=${{ github.event.inputs.search_depth }}
+          SEARCH_DEPTH="${{ github.event.inputs.search_depth }}"
           
-          PR_NUMBER=${{ github.event.inputs.pr_number }}
+          PR_NUMBER="${{ github.event.inputs.pr_number }}"
           # extract PR number from URL
           PR_NUMBER=$(echo "$PR_NUMBER" | grep -oE '[0-9]+$')
           
@@ -53,7 +53,7 @@ jobs:
           # remove branch if exists
           git branch -D pr-branch
           
-          if ! git fetch origin pull/$PR_NUMBER/head:pr-branch; then
+          if ! git fetch origin "pull/$PR_NUMBER/head:pr-branch"; then
             echo "Failed to fetch PR #$PR_NUMBER"
             exit 1
           fi
