@@ -323,6 +323,13 @@
       "linux"
     ]
   ],
+  "test_cond_side_effects (__main__.MiscTests)": [
+    "111850",
+    "https://github.com/pytorch/pytorch/issues/111850",
+    [
+      "linux"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -1113,6 +1120,21 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114211",
+    "https://github.com/pytorch/pytorch/issues/114211",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114212",
+    "https://github.com/pytorch/pytorch/issues/114212",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1566,13 +1588,6 @@
   "test_meta_outplace_std_mean_cpu_float64 (__main__.TestMetaCPU)": [
     "112702",
     "https://github.com/pytorch/pytorch/issues/112702",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_vdot_cpu_complex64 (__main__.TestMetaCPU)": [
-    "113076",
-    "https://github.com/pytorch/pytorch/issues/113076",
     [
       "dynamo"
     ]
