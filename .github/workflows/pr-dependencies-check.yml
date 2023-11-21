@@ -19,6 +19,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Extract PR number
+        id: extract_pr_number
+        shell: bash
+        run: |
+          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          
+          # extract PR number from URL
+          if ! PR_NUMBER=$(echo "$PR_NUMBER" | \
+                grep -oE -m 1 '^(https://github\.com/pytorch/pytorch/pull/|#)?[0-9]+$' | \
+                grep -oE '[0-9]+'); then
+              echo "::error::Failed to extract PR number from $PR_NUMBER"
+              echo "::notice::Make sure to provide a valid pytorch PR number or URL"
+              exit 1
+          fi
+          
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
       - name: Checkout Pytorch repository
         uses: malfet/checkout@silent-checkout
         with:
@@ -28,17 +45,16 @@ jobs:
           quiet-checkout: true
 
       - name: Set up Git
+        shell: bash
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
 
       - name: Check PR dependencies
+        shell: bash
         run: |
+          PR_NUMBER="${{ steps.extract_pr_number.outputs.pr_number }}"
           SEARCH_DEPTH="${{ github.event.inputs.search_depth }}"
-          
-          PR_NUMBER="${{ github.event.inputs.pr_number }}"
-          # extract PR number from URL
-          PR_NUMBER=$(echo "$PR_NUMBER" | grep -oE '[0-9]+$')
           
           # TODO: rewrite the script so that it doesn't rely on +e
           set +e
@@ -86,7 +102,7 @@ jobs:
             # if cherry-pick fails, then the commit is also conflict (transitive dependency for other conflicts)
             for COMMIT in $COMMITS; do
               PREV_COMMIT=$(git rev-parse HEAD)
-              
+          
               # try cherry-picking the commit
               # if cherry-pick failed, then the commit is a conflict (it is a dependency for the previous conflicting commits)
               if ! git cherry-pick "$COMMIT"; then
@@ -109,7 +125,7 @@ jobs:
                   # drop the staged changes
                   git reset --hard
                 fi
-                
+          
                 git clean -fd
               fi
             done
@@ -119,7 +135,7 @@ jobs:
             git clean -fd
           
             # print conflicts
-            
+          
             {
               echo "### Found ${#CONFLICTING_COMMITS[@]} conflicts that prevent merging PR #$PR_NUMBER into main:"
               echo "These are commits in the \`main\` branch that conflict with the PR and prevent it from being merged. \
@@ -143,7 +159,7 @@ jobs:
           if ! git merge --no-commit --no-ff pr-branch; then
             # red
             echo "::error::PR is not mergeable into main!"
-            
+          
             git merge --abort
             find_conflicting_commits
             echo "----"
@@ -183,7 +199,7 @@ jobs:
           # iterate over commits and find dependencies
           for COMMIT in $COMMITS; do
             echo "Analyzing commit $COMMIT"
-            
+          
             # try removing the commit from the branch
             # if rebase failed, then the commit is a dependency
             if ! git rebase --onto "${COMMIT}^" "$COMMIT"; then
