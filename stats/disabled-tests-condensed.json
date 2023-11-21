@@ -566,6 +566,15 @@
       "rocm"
     ]
   ],
+  "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
+    "112887",
+    "https://github.com/pytorch/pytorch/issues/112887",
+    [
+      "mac",
+      "macos",
+      "linux"
+    ]
+  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -1340,13 +1349,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111903",
-    "https://github.com/pytorch/pytorch/issues/111903",
-    [
-      "dynamo"
     ]
   ],
   "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
