@@ -225,6 +225,13 @@
       "rocm"
     ]
   ],
+  "test_closure_out_of_scope_cell_with_cond (__main__.MiscTests)": [
+    "114191",
+    "https://github.com/pytorch/pytorch/issues/114191",
+    [
+      "rocm"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -940,13 +947,6 @@
       "linux"
     ]
   ],
-  "test_list_inputs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "111767",
-    "https://github.com/pytorch/pytorch/issues/111767",
-    [
-      "linux"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1097,14 +1097,6 @@
     [
       "linux",
       "asan"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107197",
-    "https://github.com/pytorch/pytorch/issues/107197",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
