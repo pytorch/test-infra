@@ -729,13 +729,6 @@
       "slow"
     ]
   ],
-  "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "105199",
-    "https://github.com/pytorch/pytorch/issues/105199",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_fwgrad_bwgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "113908",
     "https://github.com/pytorch/pytorch/issues/113908",
@@ -1310,6 +1303,13 @@
   "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114230",
     "https://github.com/pytorch/pytorch/issues/114230",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114332",
+    "https://github.com/pytorch/pytorch/issues/114332",
     [
       "linux"
     ]
