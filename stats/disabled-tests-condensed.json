@@ -379,14 +379,6 @@
       "rocm"
     ]
   ],
-  "test_copy_cast_no_leak (__main__.TestMemoryLeak)": [
-    "114305",
-    "https://github.com/pytorch/pytorch/issues/114305",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
