@@ -1324,6 +1324,13 @@
       "macos"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114408",
+    "https://github.com/pytorch/pytorch/issues/114408",
+    [
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1539,6 +1546,13 @@
   "test_meta_outplace_fft_ihfft_cpu_uint8 (__main__.TestMetaCPU)": [
     "112003",
     "https://github.com/pytorch/pytorch/issues/112003",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_bool (__main__.TestMetaCPU)": [
+    "112004",
+    "https://github.com/pytorch/pytorch/issues/112004",
     [
       "dynamo"
     ]
