@@ -1319,7 +1319,10 @@
     "https://github.com/pytorch/pytorch/issues/114212",
     [
       "win",
-      "windows"
+      "windows",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
