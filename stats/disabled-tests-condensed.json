@@ -1197,13 +1197,6 @@
       "win"
     ]
   ],
-  "test_mem_leak (__main__.TestProfilerCUDA)": [
-    "110995",
-    "https://github.com/pytorch/pytorch/issues/110995",
-    [
-      "rocm"
-    ]
-  ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "107426",
     "https://github.com/pytorch/pytorch/issues/107426",
@@ -1986,6 +1979,13 @@
   "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_1_cpu_bfloat16 (__main__.TestUnaryUfuncsCPU)": [
     "114453",
     "https://github.com/pytorch/pytorch/issues/114453",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_1_cpu_float32 (__main__.TestUnaryUfuncsCPU)": [
+    "114456",
+    "https://github.com/pytorch/pytorch/issues/114456",
     [
       "dynamo"
     ]
