@@ -1268,13 +1268,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111535",
-    "https://github.com/pytorch/pytorch/issues/111535",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_addmm_decomposed_cpu_complex64 (__main__.TestMetaCPU)": [
     "111561",
     "https://github.com/pytorch/pytorch/issues/111561",
@@ -2241,6 +2234,13 @@
   "test_use_orig_params (__main__.TestFSDPOptimState)": [
     "114340",
     "https://github.com/pytorch/pytorch/issues/114340",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_eager_linalg_lu_factor_cuda_float32 (__main__.TestCommonCUDA)": [
+    "114439",
+    "https://github.com/pytorch/pytorch/issues/114439",
     [
       "linux"
     ]
