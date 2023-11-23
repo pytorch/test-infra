@@ -1182,6 +1182,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114461",
+    "https://github.com/pytorch/pytorch/issues/114461",
+    [
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
