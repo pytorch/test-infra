@@ -14,6 +14,10 @@ on:
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-linux.yml'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     runs-on: linux.12xlarge
@@ -36,6 +40,13 @@ jobs:
           image_id=$(docker create ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA")
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
           docker rm -v "$image_id"
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        id: aws_creds
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_clang-tidy-linux
+          aws-region: us-east-1
+          output-credentials: true
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -45,8 +56,8 @@ jobs:
           s3-prefix: linux64/15.0.6
           s3-bucket: oss-clang-format
           path: clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_access_key_id: ${{ steps.aws_creds.outputs.aws-access-key-id }}
+          aws_secret_access_key: ${{ steps.aws_creds.outputs.aws-secret-access-key }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

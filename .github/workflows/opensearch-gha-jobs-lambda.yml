@@ -15,6 +15,10 @@ defaults:
   run:
     working-directory: aws/lambda/opensearch-gha-jobs/
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-22.04
@@ -37,7 +41,9 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_opensearch-gha-jobs-lambda
+          aws-region: us-east-1
       - run: make deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
