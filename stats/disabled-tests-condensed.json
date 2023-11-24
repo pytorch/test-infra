@@ -1690,14 +1690,6 @@
       "linux"
     ]
   ],
-  "test_non_contiguous_tensors_nn_Embedding_mps_float32 (__main__.TestModuleMPS)": [
-    "113436",
-    "https://github.com/pytorch/pytorch/issues/113436",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_noncontiguous_samples__native_batch_norm_legit_cuda_float32 (__main__.TestCommonCUDA)": [
     "110210",
     "https://github.com/pytorch/pytorch/issues/110210",
