@@ -1,5 +1,5 @@
 import { ArgumentParser, RawTextHelpFormatter, SUPPRESS } from "argparse";
-import { revertClassifications } from "./Constants";
+import { revertClassifications, cherryPickClassifications } from "./Constants";
 
 // The default ArgumentParser is designed to be used from the command line, so
 // when it encounters an error it calls process.exit. We want to throw an
@@ -147,6 +147,31 @@ drCi.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
+// cherry-pick
+const cherryPick = commands.add_parser("cherry-pick", {
+  help: "Cherry pick a PR onto a release branch",
+  description:
+    "Cherry pick a pull request onto a release branch for inclusion in a release\n",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+cherryPick.add_argument("--onto", {
+  required: true,
+  help: "Branch you would like to cherry pick onto (Example: release/2.1)",
+});
+cherryPick.add_argument("--fixes", {
+  help: "Link to the issue that your PR fixes (Example: https://github.com/pytorch/pytorch/issues/110666)",
+});
+cherryPick.add_argument("-c", "--classification", {
+  required: true,
+  choices: Object.keys(cherryPickClassifications),
+  help: "A machine-friendly classification of the cherry-pick reason.",
+});
+cherryPick.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
@@ -189,5 +214,8 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
+## cherry-pick 
+\`\`\`
+${cherryPick.format_help()}\`\`\`
 `;
 }

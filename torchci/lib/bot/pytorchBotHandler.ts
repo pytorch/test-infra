@@ -3,6 +3,7 @@ import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { getHelp, getParser } from "./cliParser";
+import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   isPyTorchOrg,
@@ -401,6 +402,23 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, repo, prNum.toString());
   }
 
+  async handleCherryPick(
+    branch: string,
+    fixes: string,
+    classification: string
+  ) {
+    await this.logger.log("cherry-pick", { branch, fixes, classification });
+
+    await this.ackComment();
+    const classificationData = cherryPickClassifications[classification];
+    await this.dispatchEvent("try-cherry-pick", {
+      branch: branch,
+      fixes: fixes,
+      requiresIssue: classificationData.requiresIssue,
+      classificationHelp: classificationData.help,
+    });
+  }
+
   async handlePytorchCommands(inputArgs: string) {
     let args;
     try {
@@ -441,6 +459,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }
       case "drci": {
         return await this.handleDrCI();
+      }
+      case "cherry-pick": {
+        return await this.handleCherryPick(
+          args.onto,
+          args.fixes,
+          args.classification
+        );
       }
       default:
         return await this.handleConfused(false);
