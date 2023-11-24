@@ -109,10 +109,6 @@ runs:
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
 
-          # Both conda-build and conda need to be advanced togeather.
-          # This will make system conda use required value.
-          conda install --yes conda=23.7.3
-
           if [[ "${PYTHON_VERSION}" = "3.11" ]]; then
 
             if [[ "${PACKAGE_TYPE:-}" == "conda" ]]; then

@@ -141,6 +141,10 @@ jobs:
             export USE_OPENMP="0"
           fi
 
+          # conda 23.10 is installed by default on macos M1
+          # and this creates an issue. Hence downgrading it here
+          conda install --yes conda=23.7.3
+
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "pytorch-${CHANNEL}" \
