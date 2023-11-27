@@ -1959,6 +1959,20 @@
       "linux"
     ]
   ],
+  "test_schema_correctness_nn_functional_conv3d_cuda_complex128 (__main__.TestSchemaCheckModeOpInfoCUDA)": [
+    "114573",
+    "https://github.com/pytorch/pytorch/issues/114573",
+    [
+      "linux"
+    ]
+  ],
+  "test_schema_correctness_nn_functional_conv3d_cuda_complex64 (__main__.TestSchemaCheckModeOpInfoCUDA)": [
+    "114574",
+    "https://github.com/pytorch/pytorch/issues/114574",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
