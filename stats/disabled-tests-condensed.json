@@ -317,13 +317,6 @@
       "asan"
     ]
   ],
-  "test_cond_export_single_arg (__main__.MiscTests)": [
-    "101738",
-    "https://github.com/pytorch/pytorch/issues/101738",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_nested (__main__.MiscTests)": [
     "101758",
     "https://github.com/pytorch/pytorch/issues/101758",
@@ -606,14 +599,6 @@
       "macos",
       "rocm",
       "asan"
-    ]
-  ],
-  "test_eager_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
-    "112911",
-    "https://github.com/pytorch/pytorch/issues/112911",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
@@ -914,13 +899,6 @@
   "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "113132",
     "https://github.com/pytorch/pytorch/issues/113132",
-    [
-      "linux"
-    ]
-  ],
-  "test_large_offset_pointwise_cpu (__main__.CpuTests)": [
-    "113138",
-    "https://github.com/pytorch/pytorch/issues/113138",
     [
       "linux"
     ]
@@ -1406,13 +1384,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_pinv_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112248",
-    "https://github.com/pytorch/pytorch/issues/112248",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_linalg_pinv_hermitian_cpu_complex128 (__main__.TestMetaCPU)": [
     "112274",
     "https://github.com/pytorch/pytorch/issues/112274",
@@ -1451,13 +1422,6 @@
   "test_meta_outplace_masked_std_cpu_complex64 (__main__.TestMetaCPU)": [
     "112481",
     "https://github.com/pytorch/pytorch/issues/112481",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112247",
-    "https://github.com/pytorch/pytorch/issues/112247",
     [
       "dynamo"
     ]
