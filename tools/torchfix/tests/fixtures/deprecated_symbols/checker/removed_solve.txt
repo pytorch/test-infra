@@ -1,1 +1,0 @@
-4:1 TOR001 Use of removed function torch.solve: https://github.com/pytorch/test-infra/tree/main/tools/torchfix#torchsolve
