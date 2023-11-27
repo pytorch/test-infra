@@ -1279,6 +1279,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
+    "111986",
+    "https://github.com/pytorch/pytorch/issues/111986",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
     "111651",
     "https://github.com/pytorch/pytorch/issues/111651",
@@ -2173,6 +2180,13 @@
   "test_variant_consistency_eager_linalg_lu_factor_cuda_float32 (__main__.TestCommonCUDA)": [
     "114439",
     "https://github.com/pytorch/pytorch/issues/114439",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_eager_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
+    "114592",
+    "https://github.com/pytorch/pytorch/issues/114592",
     [
       "linux"
     ]
