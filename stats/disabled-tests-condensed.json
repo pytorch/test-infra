@@ -1389,13 +1389,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_pinv_hermitian_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112355",
-    "https://github.com/pytorch/pytorch/issues/112355",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_linalg_vecdot_cpu_complex128 (__main__.TestMetaCPU)": [
     "112385",
     "https://github.com/pytorch/pytorch/issues/112385",
@@ -1420,13 +1413,6 @@
   "test_meta_outplace_masked_std_cpu_complex64 (__main__.TestMetaCPU)": [
     "112481",
     "https://github.com/pytorch/pytorch/issues/112481",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_alpha_dropout_cpu_float16 (__main__.TestMetaCPU)": [
-    "112353",
-    "https://github.com/pytorch/pytorch/issues/112353",
     [
       "dynamo"
     ]
@@ -2013,14 +1999,6 @@
       "linux"
     ]
   ],
-  "test_symints_location (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109862",
-    "https://github.com/pytorch/pytorch/issues/109862",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
     "109864",
     "https://github.com/pytorch/pytorch/issues/109864",
@@ -2219,6 +2197,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_vjpvmap_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "114631",
+    "https://github.com/pytorch/pytorch/issues/114631",
+    [
+      "rocm"
     ]
   ],
   "test_vjpvmap_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
