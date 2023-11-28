@@ -497,13 +497,7 @@
     "114665",
     "https://github.com/pytorch/pytorch/issues/114665",
     [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows.>"
+      "linux"
     ]
   ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
