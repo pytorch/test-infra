@@ -331,6 +331,13 @@
       "linux"
     ]
   ],
+  "test_conj_view_nn_functional_conv3d_cuda_complex64 (__main__.TestMathBitsCUDA)": [
+    "114656",
+    "https://github.com/pytorch/pytorch/issues/114656",
+    [
+      "linux"
+    ]
+  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -850,6 +857,13 @@
     "https://github.com/pytorch/pytorch/issues/110980",
     [
       "macos"
+    ]
+  ],
+  "test_jvpvjp_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "114654",
+    "https://github.com/pytorch/pytorch/issues/114654",
+    [
+      "rocm"
     ]
   ],
   "test_large_block_sizes_cpu (__main__.CpuTests)": [
@@ -1382,6 +1396,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ihfftn_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112182",
+    "https://github.com/pytorch/pytorch/issues/112182",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
     "112220",
     "https://github.com/pytorch/pytorch/issues/112220",
@@ -1420,13 +1441,6 @@
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
     "112480",
     "https://github.com/pytorch/pytorch/issues/112480",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
-    "112386",
-    "https://github.com/pytorch/pytorch/issues/112386",
     [
       "dynamo"
     ]
@@ -1626,6 +1640,13 @@
     "https://github.com/pytorch/pytorch/issues/101525",
     [
       "inductor"
+    ]
+  ],
+  "test_noncontiguous_samples_nn_functional_conv3d_cuda_float32 (__main__.TestCommonCUDA)": [
+    "114655",
+    "https://github.com/pytorch/pytorch/issues/114655",
+    [
+      "rocm"
     ]
   ],
   "test_nondeterministic_alert_MaxUnpool1d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
@@ -2203,7 +2224,9 @@
     "114631",
     "https://github.com/pytorch/pytorch/issues/114631",
     [
-      "rocm"
+      "rocm",
+      "win",
+      "windows"
     ]
   ],
   "test_vjpvmap_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
