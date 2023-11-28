@@ -6,7 +6,6 @@ on:
       - mypy.ini
       - '**.py'
       - '**requirements.txt'
-      - '!tools/torchfix/**'
   push:
     branches:
       - main
@@ -14,7 +13,6 @@ on:
       - mypy.ini
       - '**.py'
       - '**requirements.txt'
-      - '!tools/torchfix/**'
 
 jobs:
   test-tools:
