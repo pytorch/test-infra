@@ -1457,6 +1457,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_alpha_dropout_cpu_bfloat16 (__main__.TestMetaCPU)": [
+    "112273",
+    "https://github.com/pytorch/pytorch/issues/112273",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
     "112480",
     "https://github.com/pytorch/pytorch/issues/112480",
@@ -2047,13 +2054,6 @@
       "rocm"
     ]
   ],
-  "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109872",
-    "https://github.com/pytorch/pytorch/issues/109872",
-    [
-      "linux"
-    ]
-  ],
   "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
     "109901",
     "https://github.com/pytorch/pytorch/issues/109901",
@@ -2273,13 +2273,6 @@
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86733",
     "https://github.com/pytorch/pytorch/issues/86733",
-    [
-      "linux"
-    ]
-  ],
-  "test_vmapjvpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "100928",
-    "https://github.com/pytorch/pytorch/issues/100928",
     [
       "linux"
     ]
