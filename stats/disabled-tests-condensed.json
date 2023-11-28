@@ -1787,6 +1787,13 @@
       "rocm"
     ]
   ],
+  "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
+    "82340",
+    "https://github.com/pytorch/pytorch/issues/82340",
+    [
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.TestCppExtensionOpenRgistration)": [
     "100152",
     "https://github.com/pytorch/pytorch/issues/100152",
@@ -2036,6 +2043,14 @@
     "https://github.com/pytorch/pytorch/issues/91488",
     [
       "linux"
+    ]
+  ],
+  "test_sync_batch_norm_empty_input (__main__.DistributedDataParallelTest)": [
+    "114681",
+    "https://github.com/pytorch/pytorch/issues/114681",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_tags_dropout (__main__.ActivationCheckpointingViaTagsTests)": [
