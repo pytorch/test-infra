@@ -1436,13 +1436,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_masked_std_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112461",
-    "https://github.com/pytorch/pytorch/issues/112461",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_masked_std_cpu_complex64 (__main__.TestMetaCPU)": [
     "112481",
     "https://github.com/pytorch/pytorch/issues/112481",
