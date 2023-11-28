@@ -1410,13 +1410,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_vecdot_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112385",
-    "https://github.com/pytorch/pytorch/issues/112385",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_linalg_vecdot_cpu_complex64 (__main__.TestMetaCPU)": [
     "112421",
     "https://github.com/pytorch/pytorch/issues/112421",
