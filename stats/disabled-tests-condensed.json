@@ -129,6 +129,13 @@
       "linux"
     ]
   ],
+  "test_backward_nn_functional_conv3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "114670",
+    "https://github.com/pytorch/pytorch/issues/114670",
+    [
+      "linux"
+    ]
+  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -715,6 +722,11 @@
     [
       "rocm"
     ]
+  ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
+    []
   ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
@@ -1423,9 +1435,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_vecdot_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112421",
-    "https://github.com/pytorch/pytorch/issues/112421",
+  "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112236",
+    "https://github.com/pytorch/pytorch/issues/112236",
     [
       "dynamo"
     ]
@@ -1454,13 +1466,6 @@
   "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float64 (__main__.TestMetaCPU)": [
     "112498",
     "https://github.com/pytorch/pytorch/issues/112498",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float32 (__main__.TestMetaCPU)": [
-    "112422",
-    "https://github.com/pytorch/pytorch/issues/112422",
     [
       "dynamo"
     ]
@@ -2022,13 +2027,6 @@
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91488",
     "https://github.com/pytorch/pytorch/issues/91488",
-    [
-      "linux"
-    ]
-  ],
-  "test_tags_decomps (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109864",
-    "https://github.com/pytorch/pytorch/issues/109864",
     [
       "linux"
     ]
