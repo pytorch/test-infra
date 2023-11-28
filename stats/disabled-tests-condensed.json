@@ -486,6 +486,19 @@
       "rocm"
     ]
   ],
+  "test_cuda_stream_method_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "114665",
+    "https://github.com/pytorch/pytorch/issues/114665",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>"
+    ]
+  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
