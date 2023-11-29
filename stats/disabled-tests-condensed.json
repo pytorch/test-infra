@@ -875,7 +875,10 @@
     "114654",
     "https://github.com/pytorch/pytorch/issues/114654",
     [
-      "rocm"
+      "rocm",
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_large_block_sizes_cpu (__main__.CpuTests)": [
@@ -1446,13 +1449,6 @@
   "test_meta_outplace_nn_functional_alpha_dropout_cpu_float16 (__main__.TestMetaCPU)": [
     "112353",
     "https://github.com/pytorch/pytorch/issues/112353",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float16 (__main__.TestMetaCPU)": [
-    "112480",
-    "https://github.com/pytorch/pytorch/issues/112480",
     [
       "dynamo"
     ]
@@ -2031,15 +2027,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109983",
-    "https://github.com/pytorch/pytorch/issues/109983",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
