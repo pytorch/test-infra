@@ -225,13 +225,6 @@
       "linux"
     ]
   ],
-  "test_circular_dependencies (__main__.TestImports)": [
-    "110040",
-    "https://github.com/pytorch/pytorch/issues/110040",
-    [
-      "rocm"
-    ]
-  ],
   "test_closure_out_of_scope_cell_with_cond (__main__.MiscTests)": [
     "114191",
     "https://github.com/pytorch/pytorch/issues/114191",
@@ -1443,13 +1436,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_masked_std_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112481",
-    "https://github.com/pytorch/pytorch/issues/112481",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
     "112247",
     "https://github.com/pytorch/pytorch/issues/112247",
@@ -1516,13 +1502,6 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
     "112719",
     "https://github.com/pytorch/pytorch/issues/112719",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112479",
-    "https://github.com/pytorch/pytorch/issues/112479",
     [
       "dynamo"
     ]
@@ -2052,15 +2031,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_tags_function (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109901",
-    "https://github.com/pytorch/pytorch/issues/109901",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tags_function_via_global_checkpoint (__main__.ActivationCheckpointingViaTagsTests)": [
