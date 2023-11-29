@@ -203,10 +203,10 @@ jobs:
           ${CONDA_RUN_SMOKE} conda install \
             --quiet \
             --yes \
-            -c pytorch-"${CHANNEL}" \
+            -c pytorch-${CHANNEL} \
             -c nvidia \
             -c "${CONDA_LOCAL_CHANNEL}" \
-            distr::"${PACKAGE_NAME}" \
+            "${CONDA_LOCAL_CHANNEL}::${PACKAGE_NAME}" \
             ${CONSTRAINTS}
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
