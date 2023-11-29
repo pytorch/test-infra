@@ -463,9 +463,12 @@ def generate_wheels_matrix(
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
-    if python_versions is None:
-        # Define default python version
-        python_versions = list(mod.PYTHON_ARCHES)
+    # Define default python version
+    if python_versions is None and channel == NIGHTLY:
+        # Python 3.12 is added to the nightly wheel matrix only
+        python_versions = list(mod.PYTHON_ARCHES) + ["3.12"]
+    elif python_versions is None:
+         python_versions = list(mod.PYTHON_ARCHES)
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
