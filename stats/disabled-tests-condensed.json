@@ -1207,13 +1207,6 @@
       "win"
     ]
   ],
-  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "107426",
-    "https://github.com/pytorch/pytorch/issues/107426",
-    [
-      "linux"
-    ]
-  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1467,13 +1460,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float64 (__main__.TestMetaCPU)": [
-    "112498",
-    "https://github.com/pytorch/pytorch/issues/112498",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float32 (__main__.TestMetaCPU)": [
     "112422",
     "https://github.com/pytorch/pytorch/issues/112422",
@@ -1512,13 +1498,6 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
     "112719",
     "https://github.com/pytorch/pytorch/issues/112719",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_pinverse_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112558",
-    "https://github.com/pytorch/pytorch/issues/112558",
     [
       "dynamo"
     ]
@@ -2041,15 +2020,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_tags_function_with_kwargs (__main__.ActivationCheckpointingViaTagsTests)": [
-    "109996",
-    "https://github.com/pytorch/pytorch/issues/109996",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tags_module (__main__.ActivationCheckpointingViaTagsTests)": [
