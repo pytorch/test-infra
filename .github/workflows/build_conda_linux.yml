@@ -180,14 +180,32 @@ jobs:
             CONSTRAINTS="cpuonly"
           fi
 
+          # From Conda documentation:
+          # https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/channels.html#specifying-channels-when-installing-packages
+          # From the command line use --c
+          # You may specify multiple channels by passing the argument multiple times.
+          # Priority decreases from left to right - the first argument is higher priority than the second.
+          # From the command line use --override-channels to only search the specified channel(s),
+          # rather than any channels configured in .condarc.
+
           ${CONDA_RUN_SMOKE} conda install \
             --yes \
             --quiet \
+            -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
-            -c "${CONDA_LOCAL_CHANNEL}" \
-            distr::"${PACKAGE_NAME}" \
-            ${CONSTRAINTS}
+            -c defaults \
+            "${PACKAGE_NAME}" \
+            ${CONSTRAINTS} \
+            --override-channels
+
+          # check for installed package channel
+          CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${CONDA_LOCAL_CHANNEL}")
+          if [[ -z "${CONDA_PKG}" ]]; then
+            ${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}"
+            echo "${PACKAGE_NAME} is not installed from local channel"
+            exit 1
+          fi
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
