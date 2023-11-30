@@ -203,11 +203,21 @@ jobs:
           ${CONDA_RUN_SMOKE} conda install \
             --quiet \
             --yes \
+            -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
-            -c "${CONDA_LOCAL_CHANNEL}" \
-            distr::"${PACKAGE_NAME}" \
-            ${CONSTRAINTS}
+            -c defaults \
+            "${PACKAGE_NAME}" \
+            ${CONSTRAINTS} \
+            --override-channels
+
+          # fow windows we use BUILD_VERSION to validate the package
+          CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${BUILD_VERSION}")
+          if [[ -z "${CONDA_PKG}" ]]; then
+            ${CONDA_RUN_SMOKE} conda list | grep "${BUILD_VERSION}"
+            echo "${PACKAGE_NAME} is not installed with a correct version"
+            exit 1
+          fi
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
