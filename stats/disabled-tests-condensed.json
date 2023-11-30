@@ -689,9 +689,23 @@
       "inductor"
     ]
   ],
+  "test_fn_gradgrad_linalg_lu_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "114833",
+    "https://github.com/pytorch/pytorch/issues/114833",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "88469",
     "https://github.com/pytorch/pytorch/issues/88469",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "114832",
+    "https://github.com/pytorch/pytorch/issues/114832",
     [
       "linux"
     ]
@@ -753,6 +767,13 @@
   "test_grad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98677",
     "https://github.com/pytorch/pytorch/issues/98677",
+    [
+      "linux"
+    ]
+  ],
+  "test_grad_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "114834",
+    "https://github.com/pytorch/pytorch/issues/114834",
     [
       "linux"
     ]
@@ -1235,13 +1256,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111462",
-    "https://github.com/pytorch/pytorch/issues/111462",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
     "111513",
     "https://github.com/pytorch/pytorch/issues/111513",
@@ -1462,13 +1476,6 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
     "112463",
     "https://github.com/pytorch/pytorch/issues/112463",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int32 (__main__.TestMetaCPU)": [
-    "112499",
-    "https://github.com/pytorch/pytorch/issues/112499",
     [
       "dynamo"
     ]
@@ -2014,15 +2021,6 @@
       "rocm"
     ]
   ],
-  "test_tags_multiple_checkpoints (__main__.ActivationCheckpointingViaTagsTests)": [
-    "110038",
-    "https://github.com/pytorch/pytorch/issues/110038",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
@@ -2061,6 +2059,16 @@
       "mac",
       "macos",
       "linux"
+    ]
+  ],
+  "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
+    "114831",
+    "https://github.com/pytorch/pytorch/issues/114831",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
