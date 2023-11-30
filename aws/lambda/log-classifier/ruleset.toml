@@ -97,6 +97,10 @@ name = 'pytest test error'
 pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
+name = 'xla cpp test failure'
+pattern = 'Build completed, \d+ test FAILED, \d+ total actions'
+
+[[rule]]
 name = 'inductor model failure'
 pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
 
@@ -247,6 +251,10 @@ pattern = 'FAIL:\s+graph_breaks='
 [[rule]]
 name = 'Improved graph breaks'
 pattern = 'IMPROVED:\s+graph_breaks='
+
+[[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code .*'
 
 [[rule]]
 name = 'GHA error'
