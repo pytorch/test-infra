@@ -211,12 +211,11 @@ jobs:
             ${CONSTRAINTS} \
             --override-channels
 
-          # check for installed package channel
-          CONDA_PKG_DBG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}")
-          CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${CONDA_LOCAL_CHANNEL}")
+          # fow windows we use BUILD_VERSION to validate the package
+          CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${BUILD_VERSION}")
           if [[ -z "${CONDA_PKG}" ]]; then
-            ${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}"
-            echo "${PACKAGE_NAME} is not installed from local channel"
+            ${CONDA_RUN_SMOKE} conda list | grep "${BUILD_VERSION}"
+            echo "${PACKAGE_NAME} is not installed with a correct version"
             exit 1
           fi
 
