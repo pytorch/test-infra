@@ -101,10 +101,6 @@ name = 'inductor model failure'
 pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
 
 [[rule]]
-name = 'npm error'
-pattern = '^npm ERR! code .*'
-
-[[rule]]
 name = 'NVIDIA installation failure'
 pattern = '^ERROR: Installation has failed.*?nvidia'
 
@@ -251,6 +247,10 @@ pattern = 'FAIL:\s+graph_breaks='
 [[rule]]
 name = 'Improved graph breaks'
 pattern = 'IMPROVED:\s+graph_breaks='
+
+[[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code (?!EEXIST).*'
 
 [[rule]]
 name = 'GHA error'
