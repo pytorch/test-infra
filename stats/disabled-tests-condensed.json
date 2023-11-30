@@ -1092,6 +1092,17 @@
       "windows"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
@@ -1455,13 +1466,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int8 (__main__.TestMetaCPU)": [
-    "112534",
-    "https://github.com/pytorch/pytorch/issues/112534",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
     "112719",
     "https://github.com/pytorch/pytorch/issues/112719",
@@ -1493,13 +1497,6 @@
   "test_meta_outplace_std_mean_cpu_float32 (__main__.TestMetaCPU)": [
     "112681",
     "https://github.com/pytorch/pytorch/issues/112681",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_std_mean_cpu_float64 (__main__.TestMetaCPU)": [
-    "112702",
-    "https://github.com/pytorch/pytorch/issues/112702",
     [
       "dynamo"
     ]
