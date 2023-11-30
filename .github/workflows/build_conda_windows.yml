@@ -200,14 +200,6 @@ jobs:
             CONSTRAINTS="cpuonly"
           fi
 
-          # From Conda documentation:
-          # https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/channels.html#specifying-channels-when-installing-packages
-          # From the command line use --c
-          # You may specify multiple channels by passing the argument multiple times.
-          # Priority decreases from left to right - the first argument is higher priority than the second.
-          # From the command line use --override-channels to only search the specified channel(s),
-          # rather than any channels configured in .condarc.
-
           ${CONDA_RUN_SMOKE} conda install \
             --quiet \
             --yes \
