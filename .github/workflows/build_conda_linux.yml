@@ -189,7 +189,7 @@ jobs:
             -c defaults \
             "${PACKAGE_NAME}" \
             ${CONSTRAINTS} \
-            --override-channels
+            --strict-channel-priority
 
           # check for installed package channel
           CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${CONDA_LOCAL_CHANNEL}")
