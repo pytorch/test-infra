@@ -191,7 +191,7 @@ jobs:
             -c pytorch-${CHANNEL} \
             -c defaults \
             "${PACKAGE_NAME}" \
-            "--strict-channel-priority"
+            "--override-channels"
 
           # check for installed package channel
           CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${CONDA_LOCAL_CHANNEL}")
