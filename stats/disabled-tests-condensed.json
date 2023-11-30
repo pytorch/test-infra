@@ -1476,13 +1476,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int64 (__main__.TestMetaCPU)": [
-    "112557",
-    "https://github.com/pytorch/pytorch/issues/112557",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int8 (__main__.TestMetaCPU)": [
     "112534",
     "https://github.com/pytorch/pytorch/issues/112534",
