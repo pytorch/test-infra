@@ -994,14 +994,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113805",
-    "https://github.com/pytorch/pytorch/issues/113805",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -1012,13 +1004,6 @@
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113862",
     "https://github.com/pytorch/pytorch/issues/113862",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113806",
-    "https://github.com/pytorch/pytorch/issues/113806",
     [
       "linux"
     ]
@@ -1205,6 +1190,13 @@
     [
       "linux",
       "win"
+    ]
+  ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
     ]
   ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
@@ -1498,6 +1490,13 @@
   "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_uint8 (__main__.TestMetaCPU)": [
     "112719",
     "https://github.com/pytorch/pytorch/issues/112719",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112479",
+    "https://github.com/pytorch/pytorch/issues/112479",
     [
       "dynamo"
     ]
