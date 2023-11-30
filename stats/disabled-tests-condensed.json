@@ -1008,20 +1008,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113757",
-    "https://github.com/pytorch/pytorch/issues/113757",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113862",
-    "https://github.com/pytorch/pytorch/issues/113862",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113806",
     "https://github.com/pytorch/pytorch/issues/113806",
@@ -1241,13 +1227,6 @@
   "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111462",
     "https://github.com/pytorch/pytorch/issues/111462",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111513",
-    "https://github.com/pytorch/pytorch/issues/111513",
     [
       "dynamo"
     ]
@@ -1566,13 +1545,6 @@
     "https://github.com/pytorch/pytorch/issues/68171",
     [
       "dynamo"
-    ]
-  ],
-  "test_neg_view_grid_sampler_2d_cuda_float64 (__main__.TestMathBitsCUDA)": [
-    "113742",
-    "https://github.com/pytorch/pytorch/issues/113742",
-    [
-      "linux"
     ]
   ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
