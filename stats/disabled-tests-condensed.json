@@ -1015,16 +1015,16 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113837",
-    "https://github.com/pytorch/pytorch/issues/113837",
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113862",
+    "https://github.com/pytorch/pytorch/issues/113862",
     [
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113862",
-    "https://github.com/pytorch/pytorch/issues/113862",
+  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113806",
+    "https://github.com/pytorch/pytorch/issues/113806",
     [
       "linux"
     ]
@@ -1099,17 +1099,6 @@
     "https://github.com/pytorch/pytorch/issues/113479",
     [
       "asan",
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107739",
-    "https://github.com/pytorch/pytorch/issues/107739",
-    [
       "linux",
       "mac",
       "macos",
@@ -1252,6 +1241,13 @@
   "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111928",
     "https://github.com/pytorch/pytorch/issues/111928",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111462",
+    "https://github.com/pytorch/pytorch/issues/111462",
     [
       "dynamo"
     ]
@@ -1504,6 +1500,13 @@
   "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
     "112479",
     "https://github.com/pytorch/pytorch/issues/112479",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_pinverse_cpu_complex64 (__main__.TestMetaCPU)": [
+    "112558",
+    "https://github.com/pytorch/pytorch/issues/112558",
     [
       "dynamo"
     ]
@@ -2068,7 +2071,9 @@
       "asan",
       "linux",
       "mac",
-      "macos"
+      "macos",
+      "rocm",
+      "slow"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
@@ -2178,7 +2183,8 @@
     [
       "rocm",
       "win",
-      "windows"
+      "windows",
+      "linux"
     ]
   ],
   "test_vjpvmap_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
