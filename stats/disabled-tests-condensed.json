@@ -965,13 +965,6 @@
       "linux"
     ]
   ],
-  "test_lazy_clone_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "113953",
-    "https://github.com/pytorch/pytorch/issues/113953",
-    [
-      "inductor"
-    ]
-  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
