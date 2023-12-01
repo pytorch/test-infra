@@ -1115,14 +1115,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "107767",
-    "https://github.com/pytorch/pytorch/issues/107767",
-    [
-      "linux",
-      "asan"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107114",
     "https://github.com/pytorch/pytorch/issues/107114",
@@ -1244,13 +1236,6 @@
   "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111967",
     "https://github.com/pytorch/pytorch/issues/111967",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111571",
-    "https://github.com/pytorch/pytorch/issues/111571",
     [
       "dynamo"
     ]
