@@ -38,7 +38,7 @@
     "echarts-for-react": "^3.0.2",
     "lodash": "^4.17.21",
     "minimist": "^1.2.6",
-    "next": "12.1.5",
+    "next": "13.5.5",
     "next-auth": "^4.20.1",
     "octokit": "^1.7.1",
     "probot": "^12.2.2",
