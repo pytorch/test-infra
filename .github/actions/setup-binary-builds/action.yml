@@ -108,23 +108,10 @@ runs:
         run: |
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-<<<<<<< HEAD
           if [[ "${PACKAGE_TYPE:-}" == "conda" ]]; then
             # For conda package host python version is irrelevant
             export PYTHON_VERSION=3.9
             export CONDA_BUILD_EXTRA="conda=23.10.0 conda-build=3.27.0"
-=======
-
-          if [[ "${PYTHON_VERSION}" = "3.12" ]]; then
-            conda create \
-              --yes --quiet \
-              --prefix "${CONDA_ENV}" \
-              "python=${PYTHON_VERSION}" \
-              cmake=3.22 \
-              ninja=1.10 \
-              pkg-config=0.29 \
-              wheel=0.37
->>>>>>> 1c8dc94df (conda_not_needed)
           else
             # For wheel builds we don't need neither conda nor conda-build
             export CONDA_BUILD_EXTRA=""
