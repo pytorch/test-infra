@@ -124,7 +124,7 @@ runs:
             cmake=3.22 \
             ninja=1.10 \
             pkg-config=0.29 \
-            "${CONDA_BUILD_EXTRA}" \
+            ${CONDA_BUILD_EXTRA} \
             wheel=0.37
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
