@@ -1154,6 +1154,13 @@
       "linux"
     ]
   ],
+  "test_matmul_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
+    "115002",
+    "https://github.com/pytorch/pytorch/issues/115002",
+    [
+      "rocm"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
