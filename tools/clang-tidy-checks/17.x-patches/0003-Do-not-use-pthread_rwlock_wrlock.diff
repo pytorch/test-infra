@@ -1,0 +1,31 @@
+From e86ae476ba38350366e8cfd5c0f29174c10ea9a3 Mon Sep 17 00:00:00 2001
+From: Nikita Shulga <nshulga@meta.com>
+Date: Thu, 12 Jan 2023 17:35:55 -0800
+Subject: [PATCH] Do not use pthread_rwlock_wrlock
+
+As it causes crash during initialization on Linux, see https://github.com/pytorch/test-infra/pull/1382#issuecomment-1381197416
+---
+ llvm/include/llvm/Support/RWMutex.h | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/llvm/include/llvm/Support/RWMutex.h b/llvm/include/llvm/Support/RWMutex.h
+index 3dd962586..1342db6f3 100644
+--- a/llvm/include/llvm/Support/RWMutex.h
++++ b/llvm/include/llvm/Support/RWMutex.h
+@@ -19,12 +19,8 @@
+ #include <mutex>
+ #include <shared_mutex>
+ 
+-// std::shared_timed_mutex is only availble on macOS 10.12 and later.
+-#if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
+-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++// Always use homegrown implementation for static linking
+ #define LLVM_USE_RW_MUTEX_IMPL
+-#endif
+-#endif
+ 
+ namespace llvm {
+ namespace sys {
+-- 
+2.31.1
+
