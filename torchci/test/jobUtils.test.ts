@@ -185,6 +185,12 @@ describe("Test various job utils", () => {
     // Same error but have different context
     expect(isSameContext(jobA, jobB)).toEqual(false);
     expect(isSameFailure(jobA, jobB)).toEqual(false);
+
+    jobA.failure_context = ["FOO"];
+    jobB.failure_context = ["FOO"];
+    // Same error with same context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
   });
 
   test("test removeCancelledJobAfterRetry", async () => {
