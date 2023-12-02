@@ -317,6 +317,7 @@ export async function hasSimilarFailures(
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
       failure_lines: record.failureLines,
+      failure_context: record.failureContext,
       authorEmail: record.authorEmail,
     };
 

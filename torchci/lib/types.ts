@@ -25,6 +25,7 @@ export interface JobData extends BasicJobData {
   failureLines?: string[];
   failureLineNumbers?: number[];
   failureCaptures?: string[];
+  failureContext?: string[];
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
@@ -43,6 +44,7 @@ export interface RecentWorkflowsData extends BasicJobData {
   pr_number?: number;
   failure_captures: string[];
   failure_lines?: string[] | null;
+  failure_context?: string[] | null;
 }
 
 export interface Artifact {
