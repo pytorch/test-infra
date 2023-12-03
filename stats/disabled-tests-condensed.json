@@ -359,6 +359,13 @@
       "rocm"
     ]
   ],
+  "test_conv1d (__main__.ComputeBoundedTests)": [
+    "115049",
+    "https://github.com/pytorch/pytorch/issues/115049",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv3d_64bit_indexing_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
     "104366",
     "https://github.com/pytorch/pytorch/issues/104366",
