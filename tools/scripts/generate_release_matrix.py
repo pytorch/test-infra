@@ -17,7 +17,9 @@ mod = sys.modules[__name__]
 
 RELEASE_DICT = {
     "2.1.0": { 'torch': '2.1.0', 'torchvision': '0.16.0', 'torchaudio': '2.1.0', 'torchtext': '0.16.0', 'tochdata': '0.7.0'},
-    "2.1.1": { 'torch': '2.1.1', 'torchvision': '0.16.1', 'torchaudio': '2.1.1', 'torchtext': '0.16.1', 'tochdata': '0.7.1'}
+    "2.1.1": { 'torch': '2.1.1', 'torchvision': '0.16.1', 'torchaudio': '2.1.1', 'torchtext': '0.16.1', 'tochdata': '0.7.1'},
+    "2.1.2": { 'torch': '2.1.2', 'torchvision': '0.16.2', 'torchaudio': '2.1.2', 'torchtext': '0.16.2', 'tochdata': '0.7.1'},
+    "2.2.0": { 'torch': '2.2.0', 'torchvision': '0.17.0', 'torchaudio': '2.2.0', 'torchtext': '0.17.0', 'tochdata': '0.7.1'}
 }
 
 
@@ -27,15 +29,16 @@ def main(args) -> None:
         "--version",
         help="PyTorch Release version",
         type=str,
-        default=os.getenv("VERSION", "2.1.1"),
+        default=os.getenv("VERSION", ""),
     )
-
     options = parser.parse_args(args)
 
-    if options.version not in RELEASE_DICT.keys():
+    if options.version and options.version not in RELEASE_DICT.keys():
         raise ValueError(f"{options.version} is not a valid release")
-
-    print(json.dumps(RELEASE_DICT[options.version]))
+    elif options.version:
+        print(json.dumps(RELEASE_DICT[options.version]))
+    else:
+        print(json.dumps({}))
 
 
 if __name__ == "__main__":

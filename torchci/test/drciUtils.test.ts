@@ -3,6 +3,7 @@ import {
   querySimilarFailures,
   isInfraFlakyJob,
   isExcludedFromFlakiness,
+  isLogClassifierFailed,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import * as jobUtils from "../lib/jobUtils";
@@ -364,6 +365,47 @@ describe("Test various utils used by Dr.CI", () => {
       runnerName: "",
     };
     expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
+  });
+
+  test("test isLogClassifierFailed", async () => {
+    const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
+    mockJobUtils.mockImplementation(() => Promise.resolve(true));
+
+    // Has log and failure lines
+    const validFailure: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: ["ERROR"],
+      failure_captures: ["ERROR"],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(await isLogClassifierFailed(validFailure)).toEqual(false);
+
+    // Has log but not failure lines (log classifier not triggered)
+    const logClassifierNotTriggered: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: [],
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(await isLogClassifierFailed(logClassifierNotTriggered)).toEqual(
+      true
+    );
+
+    // No S3 log
+    mockJobUtils.mockImplementation(() => Promise.resolve(false));
+    expect(await isLogClassifierFailed(validFailure)).toEqual(true);
   });
 
   test("test isExcludedFromFlakiness", () => {

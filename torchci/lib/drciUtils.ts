@@ -14,7 +14,7 @@ import {
   MAX_SIZE,
 } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
-import { isSameAuthor, isSameFailure } from "lib/jobUtils";
+import { isSameAuthor, isSameFailure, hasS3Log } from "lib/jobUtils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -351,6 +351,19 @@ export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
       job.runnerName === undefined ||
       job.runnerName === "")
   );
+}
+
+export async function isLogClassifierFailed(
+  job: RecentWorkflowsData
+): Promise<boolean> {
+  // This covers the case when there is no log on S3 or log classifier fails to triggered
+  const hasFailureLines =
+    job.failure_lines !== null &&
+    job.failure_lines !== undefined &&
+    job.failure_lines.join("") !== "";
+  const hasLog = await hasS3Log(job);
+
+  return job.conclusion === "failure" && (!hasFailureLines || !hasLog);
 }
 
 export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {

@@ -1,3 +1,0 @@
-2:1 TOR101 Use of deprecated function torch.nn.UpsamplingNearest2d
-5:1 TOR101 Use of deprecated function torch.nn.UpsamplingNearest2d
-8:1 TOR101 Use of deprecated function torch.nn.UpsamplingNearest2d

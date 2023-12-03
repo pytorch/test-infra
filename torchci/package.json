@@ -39,7 +39,7 @@
     "lodash": "^4.17.21",
     "minimist": "^1.2.6",
     "next": "12.1.5",
-    "next-auth": "^4.20.1",
+    "next-auth": "^4.24.5",
     "octokit": "^1.7.1",
     "probot": "^12.2.2",
     "react": "18.0.0",
