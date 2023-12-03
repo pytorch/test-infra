@@ -41,6 +41,13 @@
       "dynamo"
     ]
   ],
+  "test_addmm (__main__.ComputeBoundedTests)": [
+    "115022",
+    "https://github.com/pytorch/pytorch/issues/115022",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
