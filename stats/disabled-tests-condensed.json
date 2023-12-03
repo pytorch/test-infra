@@ -1807,6 +1807,13 @@
       "linux"
     ]
   ],
+  "test_rand (test_jit.TestScript)": [
+    "91495",
+    "https://github.com/pytorch/pytorch/issues/91495",
+    [
+      "linux"
+    ]
+  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
     "https://github.com/pytorch/pytorch/issues/84937",
