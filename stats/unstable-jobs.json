@@ -1,1 +1,10 @@
-{}
+{
+  "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
+    "malfet",
+    "115050",
+    "https://github.com/pytorch/pytorch/issues/115050",
+    "rocm",
+    "linux-focal-rocm5.7-py3.8",
+    "test (default)"
+  ]
+}
