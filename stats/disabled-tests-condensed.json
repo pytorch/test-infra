@@ -150,6 +150,13 @@
       "mac"
     ]
   ],
+  "test_bmm (__main__.ComputeBoundedTests)": [
+    "115036",
+    "https://github.com/pytorch/pytorch/issues/115036",
+    [
+      "rocm"
+    ]
+  ],
   "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
     "98048",
     "https://github.com/pytorch/pytorch/issues/98048",
