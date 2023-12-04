@@ -5574,6 +5574,11 @@ istanbul-reports@^3.1.3:
     html-escaper "^2.0.0"
     istanbul-lib-report "^3.0.0"
 
+jaro-winkler-typescript@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/jaro-winkler-typescript/-/jaro-winkler-typescript-1.0.1.tgz#d976d269eef10675c58ce28d304d40f642ef93ed"
+  integrity sha512-MsXieUkvK2Lv5CCVu42ddaE2tALmerhEY46DQb1ry0AEl/Au6HFi7zFemIKlbc3md93NDijfOj0AFuSfUJST3g==
+
 jclass@^1.0.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/jclass/-/jclass-1.2.1.tgz#eaafeec0dd6a5bf8b3ea43c04e010c637638768b"

@@ -3,12 +3,13 @@ import dayjs from "dayjs";
 import TrieSearch from "trie-search";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
-import { isEqual } from "lodash";
 import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
+import { jaroWinkler } from "jaro-winkler-typescript";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
+export const STRING_SIMILARITY_THRESHOLD = 0.85;
 
 export function isFailedJob(job: JobData) {
   return (
@@ -218,7 +219,13 @@ export function isSameFailure(
 
   return (
     jobA.conclusion === jobB.conclusion &&
-    isEqual(jobA.failure_captures, jobB.failure_captures)
+    jobA.failure_captures.length === jobB.failure_captures.length &&
+    _.every(
+      _.zip(jobA.failure_captures, jobB.failure_captures),
+      (p: string[]) =>
+        jaroWinkler(p[0], p[1], { caseSensitive: false }) >=
+        STRING_SIMILARITY_THRESHOLD
+    )
   );
 }
 

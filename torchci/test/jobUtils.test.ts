@@ -141,6 +141,21 @@ describe("Test various job utils", () => {
     jobB.failure_captures = ["ERROR"];
     // Same failure
     expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobA.name =
+      "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)";
+    jobA.conclusion = "failure";
+    jobA.failure_captures = [
+      "/tmp/pip-install-sdv7mx3q/fbgemm-gpu_fa0c79131309402191fdda37c97e4b4b/fbgemm_gpu/src/sparse_ops/sparse_ops_cpu.cpp:129:7: error: ‘optTypeMetaToScalarType’ was not declared in this scope; did you mean ‘c10::optTypeMetaToScalarType’?",
+    ];
+    jobB.name =
+      "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 2, 5, linux.g5.4xlarge.nvidia.gpu)";
+    jobB.conclusion = "failure";
+    jobB.failure_captures = [
+      "/tmp/pip-install-todusv3h/fbgemm-gpu_a5f04fd26b01466c9b9ed5c461ed8857/fbgemm_gpu/src/sparse_ops/sparse_ops_cpu.cpp:129:7: error: ‘optTypeMetaToScalarType’ was not declared in this scope; did you mean ‘c10::optTypeMetaToScalarType’?",
+    ];
+    // Fuzzy comparison of the same failure
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
   });
 
   test("test removeCancelledJobAfterRetry", async () => {
