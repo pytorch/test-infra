@@ -21,7 +21,7 @@ describe("label-bot", () => {
     jest.restoreAllMocks();
   });
 
-  test("random pr comment no reactoin", async () => {
+  test("random pr comment no reaction", async () => {
     const event = require("./fixtures/pull_request_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -62,6 +62,38 @@ describe("label-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`{"labels":["enhancement"]}`);
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("issue comment with one valid label", async () => {
+    const event = require("./fixtures/issue_comment.json");
+
+    event.payload.comment.body = "@pytorchbot label enhancement";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${issue_number}/labels`, (body) => {
         expect(JSON.stringify(body)).toContain(`{"labels":["enhancement"]}`);
         return true;
       })
@@ -183,6 +215,40 @@ describe("label-bot", () => {
         expect(JSON.stringify(body)).toContain(`{"labels":["ciflow/trunk"]}`);
         return true;
       })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("label with ciflow on issue should have no event", async () => {
+    const event = require("./fixtures/issue_comment.json");
+    event.payload.comment.body = "@pytorchbot label 'ciflow/trunk'";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .post(
+        `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"body":"Can't add ciflow labels to an Issue.`
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
       .reply(200, {});
 
     await probot.receive(event);

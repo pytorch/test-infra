@@ -21,7 +21,7 @@ function pytorchBot(app: Probot): void {
       commentBody,
       useReactions: true,
     });
-
+    const is_pr_comment = ctx.payload.issue.pull_request != null;
     const skipUsers = [
       54816060, // pytorch-bot
       97764156, // pytorchmergebot
@@ -35,13 +35,7 @@ function pytorchBot(app: Probot): void {
     if (inputArgs.length == 0) {
       return;
     }
-
-    if (!ctx.payload.issue.pull_request) {
-      // Issue, not pull request.
-      return await pytorchbotHandler.handleConfused(false);
-    }
-
-    await pytorchbotHandler.handlePytorchCommands(inputArgs);
+    await pytorchbotHandler.handlePytorchCommands(inputArgs, is_pr_comment);
   });
 
   app.on(

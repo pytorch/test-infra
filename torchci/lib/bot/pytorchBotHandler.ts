@@ -351,7 +351,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return _hasWRP(this.ctx, username);
   }
 
-  async handleLabel(labels: string[]) {
+  async handleLabel(labels: string[], is_pr_comment: boolean = true) {
     await this.logger.log("label", { labels });
     const { ctx } = this;
     /**
@@ -369,6 +369,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     const ciflowLabels = labelsToAdd.filter((l: string) =>
       l.startsWith("ciflow/")
     );
+    if (ciflowLabels.length > 0 && !is_pr_comment) {
+      return await this.handleConfused(
+        true,
+        "Can't add ciflow labels to an Issue."
+      );
+    }
     if (
       ciflowLabels.length > 0 &&
       !(await this.hasWorkflowRunningPermissions(
@@ -401,7 +407,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, repo, prNum.toString());
   }
 
-  async handlePytorchCommands(inputArgs: string) {
+  async handlePytorchCommands(
+    inputArgs: string,
+    is_pr_comment: boolean = true
+  ) {
     let args;
     try {
       const parser = getParser();
@@ -420,27 +429,33 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (args.help) {
       return await this.addComment(getHelp());
     }
-    switch (args.command) {
-      case "revert":
-        return await this.handleRevert(args.message);
-      case "merge":
-        return await this.handleMerge(
-          args.force,
-          args.ignore_current,
-          args.rebase,
-          args.ic
-        );
-      case "rebase": {
-        if (!args.branch) {
-          args.branch = "viable/strict";
+
+    // commands which only make sense in the context of a PR
+    if (is_pr_comment) {
+      switch (args.command) {
+        case "revert":
+          return await this.handleRevert(args.message);
+        case "merge":
+          return await this.handleMerge(
+            args.force,
+            args.ignore_current,
+            args.rebase,
+            args.ic
+          );
+        case "rebase": {
+          if (!args.branch) {
+            args.branch = "viable/strict";
+          }
+          return await this.handleRebase(args.branch);
         }
-        return await this.handleRebase(args.branch);
+        case "drci": {
+          return await this.handleDrCI();
+        }
       }
+    }
+    switch (args.command) {
       case "label": {
-        return await this.handleLabel(args.labels);
-      }
-      case "drci": {
-        return await this.handleDrCI();
+        return await this.handleLabel(args.labels, is_pr_comment);
       }
       default:
         return await this.handleConfused(false);
