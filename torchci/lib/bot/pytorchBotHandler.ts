@@ -11,6 +11,7 @@ import {
   hasWritePermissions as _hasWP,
   reactOnComment,
   hasWorkflowRunningPermissions as _hasWRP,
+  closeIssueOrPR,
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
@@ -350,6 +351,23 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
     return _hasWRP(this.ctx, username);
   }
+  async handleClose() {
+  // if ctx.name starts with "pull_request", then it's a pull request event
+  // otherwise, it's an issue event
+
+    if (this.ctx.name.startsWith("pull_request")) {
+      this.addComment("Closing this pull request!")
+      await this.ctx.octokit.pulls.update(this.ctx.pullRequest({ state: "closed" }));
+    }
+    else if (this.ctx.name == "issues") {
+      this.addComment("Closing this issue!")
+      await this.ctx.octokit.issues.update(this.ctx.issue({ state: "closed" }));
+    }
+    else {
+      // ideally we never hit this case, but it doesn't hurt to have error handling
+      this.handleConfused(true, "This is not a pull request or issue, so we cannot close this.")
+    }
+  }
 
   async handleLabel(labels: string[], is_pr_comment: boolean = true) {
     await this.logger.log("label", { labels });
@@ -456,6 +474,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     switch (args.command) {
       case "label": {
         return await this.handleLabel(args.labels, is_pr_comment);
+      }
+      case "close": {
+        return await this.handleClose();
       }
       default:
         return await this.handleConfused(false);
