@@ -731,13 +731,6 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "114832",
-    "https://github.com/pytorch/pytorch/issues/114832",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
@@ -750,6 +743,13 @@
     "https://github.com/pytorch/pytorch/issues/93045",
     [
       "rocm"
+    ]
+  ],
+  "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "106452",
+    "https://github.com/pytorch/pytorch/issues/106452",
+    [
+      "linux"
     ]
   ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
@@ -1278,6 +1278,13 @@
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
     "111986",
     "https://github.com/pytorch/pytorch/issues/111986",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
+    "111651",
+    "https://github.com/pytorch/pytorch/issues/111651",
     [
       "dynamo"
     ]
