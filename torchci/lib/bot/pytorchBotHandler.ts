@@ -350,6 +350,20 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
     return _hasWRP(this.ctx, username);
   }
+  async handleClose() {
+    // test if pr or issue
+    const is_pr_comment = this.ctx.payload.issue.pull_request != null;
+
+    if (is_pr_comment) {
+      this.addComment("Closing this pull request!");
+      await this.ctx.octokit.pulls.update(
+        this.ctx.pullRequest({ state: "closed" })
+      );
+    } else {
+      this.addComment("Closing this issue!");
+      await this.ctx.octokit.issues.update(this.ctx.issue({ state: "closed" }));
+    }
+  }
 
   async handleLabel(labels: string[], is_pr_comment: boolean = true) {
     await this.logger.log("label", { labels });
@@ -456,6 +470,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     switch (args.command) {
       case "label": {
         return await this.handleLabel(args.labels, is_pr_comment);
+      }
+      case "close": {
+        return await this.handleClose();
       }
       default:
         return await this.handleConfused(false);
