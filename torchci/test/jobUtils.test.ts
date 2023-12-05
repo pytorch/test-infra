@@ -2,6 +2,7 @@ import {
   removeJobNameSuffix,
   isSameFailure,
   isSameAuthor,
+  isSameContext,
   removeCancelledJobAfterRetry,
 } from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
@@ -140,6 +141,55 @@ describe("Test various job utils", () => {
     jobB.conclusion = "failure";
     jobB.failure_captures = ["ERROR"];
     // Same failure
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+  });
+
+  test("test isSameContext", () => {
+    const jobA: RecentWorkflowsData = {
+      id: "A",
+      name: "Testing",
+      html_url: "A",
+      head_sha: "A",
+      failure_captures: ["Process completed with exit code 1"],
+      failure_context: null,
+      conclusion: "failure",
+      completed_at: "A",
+    };
+    const jobB: RecentWorkflowsData = {
+      id: "B",
+      name: "Testing",
+      html_url: "B",
+      head_sha: "B",
+      failure_captures: ["Process completed with exit code 1"],
+      failure_context: null,
+      conclusion: "failure",
+      completed_at: "B",
+    };
+
+    // If both jobs don't have any context, consider them the same
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobB.failure_context = [];
+    // Empty context is the same as having no context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobB.failure_context = ["FOOBAR"];
+    // If only one job has context, the other doesn't, they are not the same
+    expect(isSameContext(jobA, jobB)).toEqual(false);
+    expect(isSameFailure(jobA, jobB)).toEqual(false);
+
+    jobA.failure_context = ["FOO"];
+    jobB.failure_context = ["BAR"];
+    // Same error but have different context
+    expect(isSameContext(jobA, jobB)).toEqual(false);
+    expect(isSameFailure(jobA, jobB)).toEqual(false);
+
+    jobA.failure_context = ["FOO"];
+    jobB.failure_context = ["FOO"];
+    // Same error with same context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
     expect(isSameFailure(jobA, jobB)).toEqual(true);
   });
 
