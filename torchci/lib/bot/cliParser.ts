@@ -17,7 +17,7 @@ const parser = new NonExitingArgumentParser({
   description:
     "In order to invoke the bot on your PR, include a line that starts with\n" +
     "@pytorchbot anywhere in a comment. That line will form the command; no\n" +
-    "multi-line commands are allowed. " +
+    "multi-line commands are allowed. Some commands may be used on issues as specified below." +
     `
 
 Example:
@@ -119,14 +119,14 @@ rebase.add_argument("-h", "--help", {
 
 const label = commands.add_parser("label", {
   help: "Add label to a PR",
-  description: "Adds label to a PR",
+  description: "Adds label to a PR or Issue [Can be used on Issues]",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
 label.add_argument("labels", {
   type: "string",
   nargs: "+",
-  help: "Labels to add to given Pull Request",
+  help: "Labels to add to given Pull Request or Issue [Can be used on Issues]",
 });
 label.add_argument("-h", "--help", {
   action: "store_true",
@@ -145,6 +145,14 @@ const drCi = commands.add_parser("drci", {
 drCi.add_argument("-h", "--help", {
   action: "store_true",
   help: SUPPRESS,
+});
+
+// close
+const close = commands.add_parser("close", {
+  help: "Close a PR",
+  description: "Close a PR [Can be used on issues]",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
 });
 
 // Help
@@ -189,5 +197,7 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
+## Close
+${close.format_help()}
 `;
 }
