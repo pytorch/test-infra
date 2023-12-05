@@ -317,13 +317,6 @@
       "asan"
     ]
   ],
-  "test_cond_nested (__main__.MiscTests)": [
-    "101758",
-    "https://github.com/pytorch/pytorch/issues/101758",
-    [
-      "linux"
-    ]
-  ],
   "test_conj_view_nn_functional_conv3d_cuda_complex64 (__main__.TestMathBitsCUDA)": [
     "114656",
     "https://github.com/pytorch/pytorch/issues/114656",
@@ -1004,6 +997,13 @@
   "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113736",
     "https://github.com/pytorch/pytorch/issues/113736",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113837",
+    "https://github.com/pytorch/pytorch/issues/113837",
     [
       "linux"
     ]
