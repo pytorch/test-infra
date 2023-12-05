@@ -5,6 +5,7 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
 import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
+import { getAuthors } from "lib/getAuthors";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
@@ -104,35 +105,6 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
-async function getAuthor(job: RecentWorkflowsData): Promise<string> {
-  const query = `
-SELECT
-  w.head_commit.author.email
-FROM
-  commons.workflow_run w
-WHERE
-  w.head_commit.id = :sha
-LIMIT
-  1
-  `;
-  const rocksetClient = getRocksetClient();
-  const results = (
-    await rocksetClient.queries.query({
-      sql: {
-        query: query,
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: job.head_sha,
-          },
-        ],
-      },
-    })
-  ).results;
-  return results !== undefined && results.length === 1 ? results[0].email : "";
-}
-
 export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
   // This is to handle the infra flaky issue where the log is not available on
   // S3 and no failure is found
@@ -179,19 +151,36 @@ export async function isSameAuthor(
   job: RecentWorkflowsData,
   failure: RecentWorkflowsData
 ): Promise<boolean> {
-  const jobAuthor = job.authorEmail ? job.authorEmail : await getAuthor(job);
-  const failureAuthor = failure.authorEmail
-    ? failure.authorEmail
-    : await getAuthor(failure);
+  const authors = await getAuthors([job, failure]);
+  // Extract the authors for each job
+  const jobAuthor =
+    job.head_sha in authors
+      ? authors[job.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+  const failureAuthor =
+    failure.head_sha in authors
+      ? authors[failure.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+
+  const isSameEmail =
+    jobAuthor.email !== "" &&
+    failureAuthor.email !== "" &&
+    jobAuthor.email === failureAuthor.email;
+  const isSameCommitUsername =
+    jobAuthor.commit_username !== "" &&
+    failureAuthor.commit_username !== "" &&
+    jobAuthor.commit_username === failureAuthor.commit_username;
+  const isSamePrUsername =
+    jobAuthor.pr_username !== "" &&
+    failureAuthor.pr_username !== "" &&
+    jobAuthor.pr_username === failureAuthor.pr_username;
 
   // This function exists because we don't want to wrongly count similar failures
   // from commits of the same author as flaky. Some common cases include:
   // * ghstack
   // * Draft commit
   // * Cherry picking
-  return (
-    jobAuthor !== "" && failureAuthor !== "" && jobAuthor === failureAuthor
-  );
+  return isSameEmail || isSameCommitUsername || isSamePrUsername;
 }
 
 export function isSameFailure(
