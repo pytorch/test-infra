@@ -5,7 +5,7 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
 import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
-import { getAuthor } from "lib/getAuthor";
+import { getAuthors } from "lib/getAuthors";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
@@ -151,8 +151,16 @@ export async function isSameAuthor(
   job: RecentWorkflowsData,
   failure: RecentWorkflowsData
 ): Promise<boolean> {
-  const jobAuthor = await getAuthor(job);
-  const failureAuthor = await getAuthor(failure);
+  const authors = await getAuthors([job, failure]);
+  // Extract the authors for each job
+  const jobAuthor =
+    job.head_sha in authors
+      ? authors[job.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+  const failureAuthor =
+    failure.head_sha in authors
+      ? authors[failure.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
 
   const isSameEmail =
     jobAuthor.email !== "" &&

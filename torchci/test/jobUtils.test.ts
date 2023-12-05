@@ -8,7 +8,7 @@ import {
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
-import * as getAuthor from "../lib/getAuthor";
+import * as getAuthors from "../lib/getAuthors";
 
 nock.disableNetConnect();
 
@@ -75,62 +75,104 @@ describe("Test various job utils", () => {
       failure_captures: [],
     };
 
-    const mock = jest.spyOn(getAuthor, "getAuthor");
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    const mock = jest.spyOn(getAuthors, "getAuthors");
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: "mock@user.com",
-        commit_username: "",
-        pr_username: "",
+        "123": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+        "456": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
       })
     );
     // Same email
     expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: "",
-        commit_username: "mock",
-        pr_username: "",
+        "123": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
+        "456": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
       })
     );
     // Same commit username
     expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: "",
-        commit_username: "",
-        pr_username: "mock",
+        "123": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
+        "456": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
       })
     );
     // Same PR username
     expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: r.head_sha === job.head_sha ? "mock@user.com" : "diff@user.com",
-        commit_username: "",
-        pr_username: "",
+        "123": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+        "456": {
+          email: "diff@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
       })
     );
     // Different email
     expect(await isSameAuthor(job, failure)).toEqual(false);
 
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: "",
-        commit_username: r.head_sha === job.head_sha ? "mock" : "diff",
-        pr_username: "",
+        "123": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
+        "456": {
+          email: "",
+          commit_username: "diff",
+          pr_username: "",
+        },
       })
     );
     // Different commit username
     expect(await isSameAuthor(job, failure)).toEqual(false);
 
-    mock.mockImplementation((r: RecentWorkflowsData) =>
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
       Promise.resolve({
-        email: "",
-        commit_username: "",
-        pr_username: r.head_sha === job.head_sha ? "mock" : "diff",
+        "123": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
+        "456": {
+          email: "",
+          commit_username: "",
+          pr_username: "diff",
+        },
       })
     );
     // Different pr username
