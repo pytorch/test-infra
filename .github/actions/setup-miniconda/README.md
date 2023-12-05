@@ -18,7 +18,7 @@ This action provides the following environment variables to use with the provide
 ```yaml
       - name: Setup miniconda
         # You could potentially lock this down to a specific hash as well
-        uses: pytorch/test-infra/.github/actions/setup-miniconda@main
+        uses: /test-infra/.github/actions/setup-miniconda@release/2.2
         with:
           python_version: "3.9"
       - name: Can use ${CONDA_RUN}, outputs Python "3.9"
