@@ -590,17 +590,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_kwarg (__main__.SubGraphTests)": [
-    "113946",
-    "https://github.com/pytorch/pytorch/issues/113946",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "asan"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -732,13 +721,6 @@
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_function_returns_input_inner_requires_grad_True_save_for_jvp_save_tensors_neither_mark_dirty_True_cpu (__main__.TestAutogradFunctionCPU)": [
-    "113252",
-    "https://github.com/pytorch/pytorch/issues/113252",
     [
       "dynamo"
     ]
