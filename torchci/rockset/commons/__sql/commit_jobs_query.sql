@@ -38,6 +38,7 @@ WITH
             job.torchci_classification.line,
             job.torchci_classification.captures,
             job.torchci_classification.line_num,
+            job.torchci_classification.context,
             job.runner_name AS runner_name,
             workflow.head_commit.author.email AS authorEmail,
         FROM
@@ -92,6 +93,7 @@ WITH
             null,
             null,
             null,
+            null,
             -- Don't care about runner name from CircleCI
             null AS runner_name,
             null AS authorEmail,
@@ -120,6 +122,7 @@ SELECT
     ARRAY_CREATE(line) AS failureLines,
     ARRAY_CREATE(line_num) AS failureLineNumbers,
     captures AS failureCaptures,
+    context AS failureContext,
     runner_name AS runnerName,
     authorEmail,
     time,

@@ -199,8 +199,39 @@ export function isSameFailure(
 
   return (
     jobA.conclusion === jobB.conclusion &&
-    isEqual(jobA.failure_captures, jobB.failure_captures)
+    isEqual(jobA.failure_captures, jobB.failure_captures) &&
+    isSameContext(jobA, jobB)
   );
+}
+
+export function isSameContext(
+  jobA: RecentWorkflowsData,
+  jobB: RecentWorkflowsData
+): boolean {
+  const jobAHasFailureContext =
+    jobA.failure_context !== null &&
+    jobA.failure_context !== undefined &&
+    jobA.failure_context.length !== 0;
+  const jobBHasFailureContext =
+    jobB.failure_context !== null &&
+    jobB.failure_context !== undefined &&
+    jobB.failure_context.length !== 0;
+
+  if (!jobAHasFailureContext && !jobBHasFailureContext) {
+    return true;
+  }
+
+  if (!jobAHasFailureContext || !jobBHasFailureContext) {
+    return false;
+  }
+
+  // NB: The failure context is a few experiment feature showing the last
+  // N bash commands before the failure occurs. So, let's check only the
+  // last command for now and see how it goes
+  const jobALastCmd = jobA.failure_context![0] ?? "";
+  const jobBLastCmd = jobB.failure_context![0] ?? "";
+
+  return isEqual(jobALastCmd, jobBLastCmd);
 }
 
 export function removeCancelledJobAfterRetry<T extends BasicJobData>(
