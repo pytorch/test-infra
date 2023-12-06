@@ -1179,9 +1179,9 @@
       "linux"
     ]
   ],
-  "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111928",
-    "https://github.com/pytorch/pytorch/issues/111928",
+  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111903",
+    "https://github.com/pytorch/pytorch/issues/111903",
     [
       "dynamo"
     ]
@@ -1514,6 +1514,13 @@
     "https://github.com/pytorch/pytorch/issues/101525",
     [
       "inductor"
+    ]
+  ],
+  "test_noncontiguous_samples_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
+    "115254",
+    "https://github.com/pytorch/pytorch/issues/115254",
+    [
+      "linux"
     ]
   ],
   "test_noncontiguous_samples_nn_functional_conv3d_cuda_float32 (__main__.TestCommonCUDA)": [
