@@ -10,6 +10,10 @@ on:
     paths:
       - .github/scripts/update_disabled_issues.py
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   update-disabled-tests:
     runs-on: ubuntu-latest
@@ -83,6 +87,12 @@ jobs:
           user_name: "Pytorch Test Infra"
           commit_message: "Updating unstable jobs"
 
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_update_disabled_tests
+          aws-region: us-east-1
+
       - name: Upload file to s3
         if: github.event_name != 'pull_request'
         run: |
@@ -91,6 +101,3 @@ jobs:
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
           aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

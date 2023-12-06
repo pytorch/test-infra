@@ -16,6 +16,10 @@ defaults:
   run:
     working-directory: aws/lambda/github-status-test/
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -36,13 +40,15 @@ jobs:
           command: |
             set -eux
             python3 -m pip install awscli
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_github-status-test-lambda
+          aws-region: us-east-1
       - name: Prepare package
         run: |
           make prepare
       - name: Deploy the lambda. (This only makes the lambda ready. Manual verification steps are still required to get it into prod because of the lack of automated testing here. Checkout aws/lambda/github-status-test/github-status-test/README.md to see how to get the deployed lambda to prod)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           make deploy
