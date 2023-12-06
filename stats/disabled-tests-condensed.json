@@ -1082,13 +1082,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114408",
-    "https://github.com/pytorch/pytorch/issues/114408",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114461",
     "https://github.com/pytorch/pytorch/issues/114461",
@@ -1262,13 +1255,6 @@
   "test_meta_outplace_fft_ihfft_cpu_uint8 (__main__.TestMetaCPU)": [
     "112003",
     "https://github.com/pytorch/pytorch/issues/112003",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfftn_cpu_bool (__main__.TestMetaCPU)": [
-    "112004",
-    "https://github.com/pytorch/pytorch/issues/112004",
     [
       "dynamo"
     ]
@@ -2020,6 +2006,15 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_vjp_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "115296",
+    "https://github.com/pytorch/pytorch/issues/115296",
+    [
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_vjpvmap_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
