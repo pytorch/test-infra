@@ -1179,13 +1179,6 @@
       "linux"
     ]
   ],
-  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111903",
-    "https://github.com/pytorch/pytorch/issues/111903",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111928",
     "https://github.com/pytorch/pytorch/issues/111928",
