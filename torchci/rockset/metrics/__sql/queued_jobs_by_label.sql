@@ -5,7 +5,7 @@ WITH queued_jobs as (
         job.html_url,
         IF(
           LENGTH(job.labels) = 0,
-          '',
+          'N/A',
           IF(
             LENGTH(job.labels) > 1,
             ELEMENT_AT(job.labels, 2),
