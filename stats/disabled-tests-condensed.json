@@ -1022,20 +1022,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114339",
-    "https://github.com/pytorch/pytorch/issues/114339",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114352",
-    "https://github.com/pytorch/pytorch/issues/114352",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_log_ndtr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114719",
     "https://github.com/pytorch/pytorch/issues/114719",
@@ -1094,24 +1080,6 @@
     "https://github.com/pytorch/pytorch/issues/114211",
     [
       "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114332",
-    "https://github.com/pytorch/pytorch/issues/114332",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114212",
-    "https://github.com/pytorch/pytorch/issues/114212",
-    [
-      "win",
-      "windows",
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1186,16 +1154,16 @@
       "dynamo"
     ]
   ],
-  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
-    "111462",
-    "https://github.com/pytorch/pytorch/issues/111462",
+  "test_meta_inplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
+    "111928",
+    "https://github.com/pytorch/pytorch/issues/111928",
     [
       "dynamo"
     ]
   ],
-  "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111967",
-    "https://github.com/pytorch/pytorch/issues/111967",
+  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111462",
+    "https://github.com/pytorch/pytorch/issues/111462",
     [
       "dynamo"
     ]
@@ -1992,13 +1960,6 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
-    ]
-  ],
-  "test_use_orig_params (__main__.TestFSDPOptimState)": [
-    "114340",
-    "https://github.com/pytorch/pytorch/issues/114340",
-    [
-      "linux"
     ]
   ],
   "test_variant_consistency_eager_linalg_lu_factor_cuda_float32 (__main__.TestCommonCUDA)": [
