@@ -8,28 +8,17 @@ on:
       - '.github/workflows/lambda_github_status_webhook_handler.yml'
       - 'aws/lambda/github-status-webhook-handler/**'
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   deploy:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: configure aws credentials
-        id: aws_creds
-        uses: aws-actions/configure-aws-credentials@v1.7.0
-        with:
-          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_lambda_github_status_webhook_handler
-          aws-region: us-east-1
-          output-credentials: true
       - name: Deploy
         uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
         with:
-          aws_access_key_id: ${{ steps.aws_creds.outputs.aws-access-key-id }}
-          aws_secret_access_key: ${{ steps.aws_creds.outputs.aws-secret-access-key }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
           function_name: github-status-webhook-handler
           source: aws/lambda/github-status-webhook-handler/lambda_function.py
