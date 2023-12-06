@@ -59,13 +59,10 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
-    secrets:
-      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
-        description: "AWS Access Key passed from caller workflow"
-        required: false
-      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
-        description: "AWS Secret Access Ket passed from caller workflow"
-        required: false
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build:
@@ -97,6 +94,11 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_build_wheels_macos
+          aws-region: us-east-1
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
@@ -208,9 +210,6 @@ jobs:
         if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090

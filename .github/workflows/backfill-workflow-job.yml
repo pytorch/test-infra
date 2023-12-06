@@ -12,6 +12,11 @@ permissions:
 defaults:
   run:
     working-directory: torchci
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   backfill-rockset:
     runs-on: ubuntu-20.04
