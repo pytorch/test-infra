@@ -4,7 +4,7 @@ name: Upload tutorials stat
 
 # Controls when the workflow will run
 on:
-  pull_request:
+  pull_request: 
     paths:
       - .github/workflows/upload-tutorials-stats.yml
       - .github/scripts/get_tutorials_stats.py
@@ -13,10 +13,6 @@ on:
     - cron: "0 0 * * *"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   get-tutorials-stats:
@@ -36,12 +32,12 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install boto3==1.26.69 typing==3.7.4.3
-      - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
-        with:
-          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_upload-tutorials-stats
-          aws-region: us-east-1
+
       - name: Run the script
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.TORCHCI_TUTORIAL_DYNAMODB_READ_WRITE_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TORCHCI_TUTORIAL_DYNAMODB_READ_WRITE_AWS_SECRET_ACCESS_KEY }}
         run: |
           set -x
           python3 test-infra/.github/scripts/get_tutorials_stats.py
