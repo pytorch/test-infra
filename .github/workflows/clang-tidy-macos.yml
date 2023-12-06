@@ -16,6 +16,10 @@ on:
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-macos.yml'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build-Intel:
     runs-on: macos-12-xl
@@ -38,6 +42,13 @@ jobs:
           export PATH
 
           ./setup.sh
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_clang-tidy-macos
+          aws-region: us-east-1
+          output-credentials: true
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -47,8 +58,8 @@ jobs:
           s3-prefix: macos-i386/17.0.6
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_access_key_id: ${{ steps.aws_creds.outputs.aws-access-key-id }}
+          aws_secret_access_key: ${{ steps.aws_creds.outputs.aws-secret-access-key }}
   build-M1:
     runs-on: macos-m1-12
     steps:
@@ -67,6 +78,13 @@ jobs:
           export PATH
 
           ./setup.sh
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_clang-tidy-macos
+          aws-region: us-east-1
+          output-credentials: true
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -76,8 +94,8 @@ jobs:
           s3-prefix: macos-arm/17.0.6
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_access_key_id: ${{ steps.aws_creds.outputs.aws-access-key-id }}
+          aws_secret_access_key: ${{ steps.aws_creds.outputs.aws-secret-access-key }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
