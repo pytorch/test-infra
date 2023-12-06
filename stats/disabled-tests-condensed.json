@@ -590,6 +590,17 @@
       "linux"
     ]
   ],
+  "test_dynamic_kwarg (__main__.SubGraphTests)": [
+    "113946",
+    "https://github.com/pytorch/pytorch/issues/113946",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "asan"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
