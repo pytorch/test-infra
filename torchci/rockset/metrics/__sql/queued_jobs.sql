@@ -3,9 +3,13 @@ SELECT
     CONCAT(workflow.name, ' / ', job.name) as name,
     job.html_url,
     IF(
+      LENGTH(job.labels) = 0,
+      '',
+      IF(
         LENGTH(job.labels) > 1,
         ELEMENT_AT(job.labels, 2),
         ELEMENT_AT(job.labels, 1)
+      )
     ) as machine_type,
 FROM
     commons.workflow_job job
