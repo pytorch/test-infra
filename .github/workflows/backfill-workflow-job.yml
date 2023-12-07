@@ -10,7 +10,7 @@ defaults:
     working-directory: torchci
 jobs:
   backfill-rockset:
-    runs-on: ubuntu-20.04
+    runs-on: linux.large
     steps:
       - uses: actions/checkout@v3
       - run: yarn install --frozen-lockfile
