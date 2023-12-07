@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - .github/workflows/update_disabled_tests.yml
       - .github/scripts/update_disabled_issues.py
 
 jobs:
@@ -83,7 +84,27 @@ jobs:
           user_name: "Pytorch Test Infra"
           commit_message: "Updating unstable jobs"
 
-      - name: Upload file to s3
+      - uses: actions/upload-artifact@v3
+        with:
+          name: disabled-artifacts
+          if-no-files-found: error
+          path: |
+            disabled-tests-condensed.json
+            disabled-jobs.json
+            unstable-jobs.json
+
+  # NB: Use our self-hosted runner to upload the files to S3, the runners already
+  # have access to the bucket
+  upload-disabled-tests-s3:
+    runs-on: linux.large
+    needs: update-disabled-tests
+    steps:
+      - name: Download disabled artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: disabled-artifacts
+
+      - name: Upload files to s3
         if: github.event_name != 'pull_request'
         run: |
           python3 -mpip install awscli==1.27.69
@@ -91,6 +112,3 @@ jobs:
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
           aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
