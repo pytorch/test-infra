@@ -14,6 +14,14 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import { parse } from "ansicolor";
+import {
+  search,
+  setSearchQuery,
+  SearchQuery,
+  openSearchPanel,
+  SearchCursor,
+  findNext,
+} from "@codemirror/search";
 
 import { oneDark } from "@codemirror/theme-one-dark";
 import { isFailure } from "lib/JobClassifierUtil";
@@ -140,64 +148,133 @@ const ansiColors = ViewPlugin.fromClass(
 );
 
 const fetcher = (url: string) => fetch(url).then((res) => res.text());
-function Log({ url, line }: { url: string; line: number | null }) {
+
+function wrapper({
+  url,
+  line,
+  query,
+}: {
+  url: string;
+  line: number | null;
+  query?: string;
+}) {
+  const { data } = useSWRImmutable(url, fetcher);
+
+}
+
+function Log({
+  url,
+  line,
+  query,
+}: {
+  url: string;
+  line: number | null;
+  query?: string;
+}) {
   const { data } = useSWRImmutable(url, fetcher);
   const viewer = useRef<HTMLDivElement>(null!);
+  const state = EditorState.create({
+    doc: data ?? "loading...",
+    extensions: [
+      basicSetup, // standard text editor things
+      EditorState.readOnly.of(true), // make the editor read-only
+      EditorView.theme({ "&": { height: "50vh" } }), // set height
+      EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
+      oneDark, // set theme
+      ansiColors, // properly render ansi colors in the logs
+      foldUninteresting, // Fold the uninteresting parts of the log to clean up the view.
+      codeFolding({
+        placeholderText: "<probably uninteresting folded group, click to show>",
+      }),
+      search({ top: true }),
+    ],
+  });
+  const threshold = 100;
+  const [matches, setMatches] = useState<number[]>([]);
+  const [show, setShow] = useState<boolean>(false);
+  const [currentLine, setCurrentLine] = useState<number>(line ?? 0);
+
+  // const view = new EditorView({ state, parent: viewer.current });
+  // foldAll(view);
 
   useEffect(() => {
-    const state = EditorState.create({
-      doc: data ?? "loading...",
-      extensions: [
-        basicSetup, // standard text editor things
-        EditorState.readOnly.of(true), // make the editor read-only
-        EditorView.theme({ "&": { height: "90vh" } }), // set height
-        EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
-        oneDark, // set theme
-        ansiColors, // properly render ansi colors in the logs
-        foldUninteresting, // Fold the uninteresting parts of the log to clean up the view.
-        codeFolding({
-          placeholderText:
-            "<probably uninteresting folded group, click to show>",
-        }),
-      ],
-    });
+    if (data !== undefined && query !== undefined) {
+      const searchQuery = new SearchQuery({ search: query });
+      let cursor = searchQuery.getCursor(state.doc) as SearchCursor;
+      cursor.next();
+      const quickMatches = [];
+      while (!cursor.done && quickMatches.length < threshold) {
+        const line = state.doc.lineAt(
+          EditorSelection.single(cursor.value.from, cursor.value.to).main.head
+        );
+        quickMatches.push(line.number);
+        cursor.next();
+      }
+      setMatches(quickMatches);
+    }
+  }, [data, query]);
 
-    const view = new EditorView({ state, parent: viewer.current });
+  useEffect(() => {
+    if (show) {
+      const view = new EditorView({ state, parent: viewer.current });
+      foldAll(view);
 
-    foldAll(view);
-    if (data !== undefined) {
-      if (line != null) {
-        // Select and center the failure line
-        const focusLine = state.doc.line(line);
+      if (currentLine > 0) {
+        const focusLine = state.doc.line(currentLine);
         view.dispatch({
           selection: EditorSelection.cursor(focusLine.from),
           effects: EditorView.scrollIntoView(focusLine.from, { y: "center" }),
         });
-      } else {
-        // If we don't have a failure line, just scroll to the bottom.
-        view.dispatch({
-          effects: EditorView.scrollIntoView(
-            state.doc.line(state.doc.lines).from,
-            {}
-          ),
-        });
+      }
+
+      return () => {
+        view.destroy();
       }
     }
-    return () => {
-      view.destroy();
-    };
-  }, [data, line]);
+  }, [show, currentLine]);
 
-  return <div ref={viewer}></div>;
+  let lines = Array.from(new Set(matches));
+  return (
+    <>
+      <div>
+        {matches.length > 0 ? (
+          <div onClick={() => setShow(!show)}>
+            {show ? "▼ " : "▶ "}Found{" "}
+            {matches.length < threshold ? matches.length : "100+"} matches on{" "}
+            {lines.length} lines
+          </div>
+        ) : (
+          <div>No matches</div>
+        )}
+      </div>
+      {show &&
+        lines.map((line) => (
+          <div
+            style={{
+              textOverflow: "ellipsis",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+            key={`show-line-${url}-${line}`}
+            onClick={() => setCurrentLine(line)}
+          >
+            Go to line: <code>{line}  {state.doc.line(line).text}</code>
+          </div>
+        ))}
+      <div ref={viewer}></div>
+    </>
+  );
 }
 
-export default function LogViewer({
+export default function LogViewer2({
   job,
+  query,
   logRating = LogAnnotation.NULL,
   showAnnotationToggle = process.env.DEBUG_LOG_CLASSIFIER === "true",
   maxNumFailureLines = process.env.DEBUG_LOG_CLASSIFIER === "true" ? 2 : 1,
 }: {
   job: JobData;
+  query: string;
   logRating?: LogAnnotation;
   showAnnotationToggle?: boolean;
   maxNumFailureLines?: number;
@@ -248,8 +325,8 @@ export default function LogViewer({
               {(job.failureLines && job.failureLines[index]) ?? "Show log"}
             </code>
           </button>
-          {show && (
-            <Log url={job.logUrl!} line={job.failureLineNumbers![index]} />
+          {(show || query) && (
+            <Log url={job.logUrl!} line={job.failureLineNumbers![index]} query={query}/>
           )}
         </div>
       ))}

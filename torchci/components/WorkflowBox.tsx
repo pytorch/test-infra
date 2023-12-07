@@ -5,7 +5,7 @@ import { Artifact, JobData } from "lib/types";
 import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
-import LogViewer from "./LogViewer";
+import LogViewer2 from "./LogViewer2";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
 import { useState, CSSProperties } from "react";
@@ -112,11 +112,23 @@ export default function WorkflowBox({
 
   const { artifacts, error } = useArtifacts(workflowId);
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
+  const [searchString, setSearchString] = useState("");
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
+      <form
+        onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+          e.preventDefault();
+          // @ts-ignore
+          const searchString = e.target[0].value;
+          setSearchString(searchString)
+        }}
+      >
+        <input type="text"></input>
+        <input type="submit"></input>
+      </form>
       <h4>Job Status</h4>
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
@@ -127,7 +139,7 @@ export default function WorkflowBox({
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
             />
-            {isFailedJob(job) && <LogViewer job={job} />}
+            {(isFailedJob(job) || searchString) && <LogViewer2 job={job} query={searchString}/>}
           </div>
         ))}
       </>
