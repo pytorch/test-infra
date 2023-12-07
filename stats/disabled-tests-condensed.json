@@ -317,6 +317,13 @@
       "asan"
     ]
   ],
+  "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "101512",
+    "https://github.com/pytorch/pytorch/issues/101512",
+    [
+      "linux"
+    ]
+  ],
   "test_conj_view_nn_functional_conv3d_cuda_complex64 (__main__.TestMathBitsCUDA)": [
     "114656",
     "https://github.com/pytorch/pytorch/issues/114656",
