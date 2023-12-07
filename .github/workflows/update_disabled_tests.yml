@@ -99,12 +99,6 @@ jobs:
     runs-on: linux.large
     needs: update-disabled-tests
     steps:
-      # For awscli S3 upload
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-          cache: pip
-
       - name: Download disabled artifacts
         uses: actions/download-artifact@v3
         with:
