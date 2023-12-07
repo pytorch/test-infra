@@ -86,7 +86,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: disabled-tests
+          name: disabled-artifacts
           if-no-files-found: error
           path: |
             disabled-tests-condensed.json
@@ -99,6 +99,17 @@ jobs:
     runs-on: linux.large
     needs: linux.large
     steps:
+      # For awscli S3 upload
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Download disabled artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: disabled-artifacts
+
       - name: Upload files to s3
         # if: github.event_name != 'pull_request'
         run: |
