@@ -6,5 +6,13 @@
     "rocm",
     "linux-focal-rocm5.7-py3.8",
     "test (default)"
+  ],
+  "trunk / linux-focal-rocm5.7-py3.8 / test (default)": [
+    "huydhn",
+    "115319",
+    "https://github.com/pytorch/pytorch/issues/115319",
+    "trunk",
+    "linux-focal-rocm5.7-py3.8",
+    "test (default)"
   ]
 }
