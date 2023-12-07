@@ -105,7 +105,7 @@ jobs:
           name: disabled-artifacts
 
       - name: Upload files to s3
-        # if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         run: |
           python3 -mpip install awscli==1.27.69
 
