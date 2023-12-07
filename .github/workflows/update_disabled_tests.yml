@@ -97,7 +97,7 @@ jobs:
   # have access to the bucket
   upload-disabled-tests-s3:
     runs-on: linux.large
-    needs: linux.large
+    needs: update-disabled-tests
     steps:
       # For awscli S3 upload
       - uses: actions/setup-python@v4
