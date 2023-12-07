@@ -4,6 +4,7 @@ self-hosted-runner:
     - macos-m1-12
     - linux.12xlarge
     - linux.2xlarge
+    - linux.large
     - linux.4xlarge.nvidia.gpu
     - linux.g5.4xlarge.nvidia.gpu
     - linux.g5.12xlarge.nvidia.gpu
