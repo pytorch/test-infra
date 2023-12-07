@@ -12,6 +12,10 @@ WITH performance_results AS (
     compilation_latency,
     compression_ratio,
     abs_latency,
+    mfu,
+    memory_bandwidth,
+    dynamo_peak_mem,
+    eager_peak_mem,
     workflow_id,
     CAST(job_id AS INT) AS job_id,
   FROM
@@ -50,6 +54,8 @@ accuracy_results AS (
     AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
     AND (workflow_id = :workflowId OR :workflowId = 0)
+    AND accuracy != 'model_fail_to_load'
+    AND accuracy != 'eager_fail_to_run'
 ),
 results AS (
   SELECT
@@ -91,6 +97,22 @@ results AS (
       CAST(abs_latency AS FLOAT),
       0.0
     ) AS abs_latency,
+    IF(TRY_CAST(mfu AS FLOAT) IS NOT NULL,
+      CAST(mfu AS FLOAT),
+      0.0
+    ) AS mfu,
+    IF(TRY_CAST(memory_bandwidth AS FLOAT) IS NOT NULL,
+      CAST(memory_bandwidth AS FLOAT),
+      0.0
+    ) AS memory_bandwidth,
+    IF(TRY_CAST(dynamo_peak_mem AS FLOAT) IS NOT NULL,
+      CAST(dynamo_peak_mem AS FLOAT),
+      0.0
+    ) AS dynamo_peak_mem,
+    IF(TRY_CAST(eager_peak_mem AS FLOAT) IS NOT NULL,
+      CAST(eager_peak_mem AS FLOAT),
+      0.0
+    ) AS eager_peak_mem,
   FROM
     accuracy_results
     LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
@@ -109,6 +131,10 @@ SELECT DISTINCT
   results.compilation_latency,
   results.compression_ratio,
   results.abs_latency,
+  results.mfu,
+  results.memory_bandwidth,
+  results.dynamo_peak_mem,
+  results.eager_peak_mem,
   FORMAT_ISO8601(
     DATE_TRUNC(: granularity, w._event_time)
   ) AS granularity_bucket,

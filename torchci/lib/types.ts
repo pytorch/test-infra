@@ -164,6 +164,8 @@ export interface CompilerPerformanceData {
   compilation_latency: number;
   compiler: string;
   compression_ratio: number;
+  dynamo_peak_mem: number;
+  eager_peak_mem: number;
   granularity_bucket: string;
   name: string;
   speedup: number;
