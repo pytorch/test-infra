@@ -17,7 +17,5 @@ jobs:
       - run: yarn node scripts/backfillJobs.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
-          OUR_AWS_ACCESS_KEY_ID: ${{ secrets.OUR_AWS_ACCESS_KEY_ID }}
-          OUR_AWS_SECRET_ACCESS_KEY: ${{ secrets.OUR_AWS_SECRET_ACCESS_KEY }}
           APP_ID: ${{ secrets.APP_ID }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
