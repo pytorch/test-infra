@@ -805,6 +805,16 @@ function GraphPanel({
     "abs_latency",
     false
   );
+  const peakMemoryUsageTimeSeries = seriesWithInterpolatedTimes(
+    chartData,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "dynamo_peak_mem",
+    false
+  );
 
   return (
     <>
@@ -908,6 +918,31 @@ function GraphPanel({
               }}
             />
           </Grid>
+
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={peakMemoryUsageTimeSeries}
+              title={"Dynamo peak mem usage"}
+              groupByFieldName={groupByFieldName}
+              yAxisLabel={"GB"}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(SCALE)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(SCALE);
+                  },
+                },
+              }}
+            />
+          </Grid>
         </Grid>
       </div>
       <div>
@@ -919,8 +954,9 @@ function GraphPanel({
               <th>Accuracy</th>
               <th>Speedup</th>
               <th>Comptime</th>
-              <th>Memory</th>
+              <th>MemoryCompression</th>
               <th>AbsLatency</th>
+              <th>DynamoPeakMemory</th>
             </tr>
           </thead>
           <tbody>
@@ -944,6 +980,7 @@ function GraphPanel({
                   <td>{entry.compilation_latency}</td>
                   <td>{entry.compression_ratio}</td>
                   <td>{entry.abs_latency}</td>
+                  <td>{entry.dynamo_peak_mem}</td>
                 </tr>
               );
             })}
