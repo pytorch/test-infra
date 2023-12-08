@@ -204,14 +204,18 @@ jobs:
 #        if:  ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
+        env:
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
+          echo "${AWS_DEFAULT_REGION}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
             # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            # ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}"
           done
       - name: Clean up disk space
         if: always()
