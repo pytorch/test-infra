@@ -27,13 +27,6 @@
       "rocm"
     ]
   ],
-  "test__int_mm (__main__.TestSelectAlgorithm)": [
-    "111050",
-    "https://github.com/pytorch/pytorch/issues/111050",
-    [
-      "rocm"
-    ]
-  ],
   "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
     "110198",
     "https://github.com/pytorch/pytorch/issues/110198",
@@ -1987,13 +1980,6 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
-    ]
-  ],
-  "test_variant_consistency_eager_linalg_lu_factor_cuda_float32 (__main__.TestCommonCUDA)": [
-    "114439",
-    "https://github.com/pytorch/pytorch/issues/114439",
-    [
-      "linux"
     ]
   ],
   "test_variant_consistency_eager_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
