@@ -5,13 +5,22 @@ on:
     # Every 5 minutes
     - cron: "*/5 * * * *"
 
+permissions:
+  id-token: write
+  contents: read
+
 defaults:
   run:
     working-directory: torchci
 jobs:
   backfill-rockset:
-    runs-on: linux.large
+    runs-on: ubuntu-20.04
     steps:
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_backfill-workflow-job
+          aws-region: us-east-1
       - uses: actions/checkout@v3
       - run: yarn install --frozen-lockfile
       - run: yarn node scripts/backfillJobs.mjs
