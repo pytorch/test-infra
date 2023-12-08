@@ -309,14 +309,6 @@
       "linux"
     ]
   ],
-  "test_cond_export (__main__.MiscTests)": [
-    "101527",
-    "https://github.com/pytorch/pytorch/issues/101527",
-    [
-      "linux",
-      "asan"
-    ]
-  ],
   "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "101512",
     "https://github.com/pytorch/pytorch/issues/101512",
@@ -720,6 +712,13 @@
   "test_foreach_matches_forloop_Adadelta_cpu_float64 (__main__.TestOptimRenewedCPU)": [
     "115393",
     "https://github.com/pytorch/pytorch/issues/115393",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_foreach_matches_forloop_Adam_cpu_float64 (__main__.TestOptimRenewedCPU)": [
+    "115406",
+    "https://github.com/pytorch/pytorch/issues/115406",
     [
       "dynamo"
     ]
