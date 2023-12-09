@@ -15,14 +15,6 @@
     "linux-focal-rocm5.7-py3.8",
     "test (default)"
   ],
-  "slow / linux-focal-rocm5.6-py3.8 / test": [
-    "huydhn",
-    "115361",
-    "https://github.com/pytorch/pytorch/issues/115361",
-    "slow",
-    "linux-focal-rocm5.6-py3.8",
-    "test"
-  ],
   "trunk / linux-focal-rocm5.7-py3.8 / test (default)": [
     "huydhn",
     "115319",
