@@ -625,13 +625,6 @@
       "rocm"
     ]
   ],
-  "test_fn_fwgrad_bwgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "113908",
-    "https://github.com/pytorch/pytorch/issues/113908",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
@@ -1105,6 +1098,13 @@
   "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114211",
     "https://github.com/pytorch/pytorch/issues/114211",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114230",
+    "https://github.com/pytorch/pytorch/issues/114230",
     [
       "linux"
     ]
