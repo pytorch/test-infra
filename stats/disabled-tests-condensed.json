@@ -1202,13 +1202,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
-    "111986",
-    "https://github.com/pytorch/pytorch/issues/111986",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
     "111651",
     "https://github.com/pytorch/pytorch/issues/111651",
@@ -1851,6 +1844,13 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
+    ]
+  ],
+  "test_silu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
+    "115540",
+    "https://github.com/pytorch/pytorch/issues/115540",
+    [
+      "rocm"
     ]
   ],
   "test_single_linear (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
