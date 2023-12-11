@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import "styles/globals.css";
+import { Analytics } from '@vercel/analytics/react';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -19,6 +20,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <div style={{ margin: "20px" }}>
           <Component {...pageProps} />
         </div>
+        <Analytics />
       </SessionProvider>
     </>
   );

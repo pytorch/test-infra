@@ -30,6 +30,7 @@
     "@opensearch-project/opensearch": "^2.3.1",
     "@rockset/client": "^0.8.9",
     "@types/minimist": "^1.2.2",
+    "@vercel/analytics": "^1.1.1",
     "ansicolor": "^1.1.100",
     "axios": "^0.26.1",
     "dayjs": "^1.11.3",
