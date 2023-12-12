@@ -1336,9 +1336,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_alpha_dropout_cpu_bfloat16 (__main__.TestMetaCPU)": [
-    "112273",
-    "https://github.com/pytorch/pytorch/issues/112273",
+  "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
+    "112247",
+    "https://github.com/pytorch/pytorch/issues/112247",
     [
       "dynamo"
     ]
@@ -2035,6 +2035,13 @@
       "linux",
       "win",
       "windows"
+    ]
+  ],
+  "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "101828",
+    "https://github.com/pytorch/pytorch/issues/101828",
+    [
+      "rocm"
     ]
   ],
   "test_vjpvmap_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
