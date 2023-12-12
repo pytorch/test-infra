@@ -1315,16 +1315,16 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112220",
-    "https://github.com/pytorch/pytorch/issues/112220",
+  "test_meta_outplace_fft_ihfftn_cpu_uint8 (__main__.TestMetaCPU)": [
+    "112182",
+    "https://github.com/pytorch/pytorch/issues/112182",
     [
       "dynamo"
     ]
   ],
-  "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
-    "112236",
-    "https://github.com/pytorch/pytorch/issues/112236",
+  "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
+    "112220",
+    "https://github.com/pytorch/pytorch/issues/112220",
     [
       "dynamo"
     ]
