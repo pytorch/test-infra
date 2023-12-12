@@ -1889,14 +1889,6 @@
       "linux"
     ]
   ],
-  "test_sync_batch_norm_empty_input (__main__.DistributedDataParallelTest)": [
-    "114681",
-    "https://github.com/pytorch/pytorch/issues/114681",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
