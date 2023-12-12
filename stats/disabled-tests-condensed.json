@@ -1861,13 +1861,6 @@
       "rocm"
     ]
   ],
-  "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
-    "73145",
-    "https://github.com/pytorch/pytorch/issues/73145",
-    [
-      "mac"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
