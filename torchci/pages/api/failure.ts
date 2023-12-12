@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import fetchFailureSamples from "lib/fetchFailureSamples";
 import { querySimilarFailures } from "lib/drciUtils";
+import { NEWEST_FIRST } from "lib/searchUtils";
 import dayjs from "dayjs";
 import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -33,13 +34,15 @@ export default async function handler(
     head_sha: "",
   };
 
-  // The current HUD page shows the last 14 days
+  // The current HUD page shows the last 14 days. Newer results are preferred
+  // here, thus NEWEST_FIRST
   const lookbackPeriodInHours = 14 * 24;
   const samples = await querySimilarFailures(
     failure,
     "",
     lookbackPeriodInHours,
-    MAX_SIZE
+    MAX_SIZE,
+    NEWEST_FIRST
   );
 
   // NB: This filter step keeps only exact matchs of the failure, this is the current
