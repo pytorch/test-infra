@@ -434,7 +434,6 @@ export default function Hud() {
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
-
   return (
     <>
       <Head>
