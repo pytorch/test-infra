@@ -777,8 +777,6 @@ describe("auto-label-bot", () => {
   });
 
   test("Review adds ciflow/trunk label", async () => {
-    // TODO: Revert me
-    return;
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.review.state = "approved";
     const owner = event.payload.repository.owner.login;
@@ -790,12 +788,8 @@ describe("auto-label-bot", () => {
       .reply(200, { token: "test" });
 
     const scope = nock("https://api.github.com")
-      .get(
-        `/repos/${owner}/${repo}/collaborators/${event.payload.review.user.login}/permission`
-      )
-      .reply(200, { permission: "write" })
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`"labels":["ciflow/trunk"]`);
+        expect(JSON.stringify(body)).toContain(`"ciflow/trunk"`);
         return true;
       })
       .reply(200, {});
