@@ -1008,13 +1008,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113736",
-    "https://github.com/pytorch/pytorch/issues/113736",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -1351,9 +1344,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float32 (__main__.TestMetaCPU)": [
-    "112422",
-    "https://github.com/pytorch/pytorch/issues/112422",
+  "test_meta_outplace_nn_functional_hinge_embedding_loss_cpu_float32 (__main__.TestMetaCPU)": [
+    "112386",
+    "https://github.com/pytorch/pytorch/issues/112386",
     [
       "dynamo"
     ]
@@ -1846,6 +1839,13 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
+    ]
+  ],
+  "test_set_gloo_pg_timeout (__main__.ProcessGroupGlooTest)": [
+    "115740",
+    "https://github.com/pytorch/pytorch/issues/115740",
+    [
+      "linux"
     ]
   ],
   "test_silu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
