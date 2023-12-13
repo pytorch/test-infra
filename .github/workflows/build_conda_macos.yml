@@ -189,13 +189,18 @@ jobs:
           export PATH="${CONDA_ENV_SMOKE}/bin:${PATH}"
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
 
+          CONSTRAINT_BUILD=""
+          if [[ "${CHANNEL}" = "test" ]]; then
+            CONSTRAINT_BUILD="=${BUILD_VERSION}"
+          fi
+
           ${CONDA_RUN_SMOKE} conda install \
             --quiet \
             --yes \
             -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-${CHANNEL} \
             -c defaults \
-            "${PACKAGE_NAME}" \
+            "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
             "--override-channels"
 
           # check for installed package channel
