@@ -81,7 +81,7 @@ async function backfillWorkflowJob(
     await dClient.put(thing);
   } catch (error) {
     console.log(`Failed to find job id ${id}: ${error}`);
-    console.log(`Assuming job id ${id} cancelled right after start`);
+    console.log(`Marking job id ${id} as incomplete`);
     console.log(`Querying dynamo entry for job id ${id}`);
     const dynamoEntry = await client.queries.query({
       sql: {
