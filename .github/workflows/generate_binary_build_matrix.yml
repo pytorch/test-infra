@@ -13,7 +13,7 @@ on:
         type: string
       channel:
         description: "Channel to use (nightly, test, release, all)"
-        default: "nightly"
+        default: ""
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
@@ -60,7 +60,7 @@ jobs:
         env:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
-          CHANNEL: ${{ inputs.channel }}
+          CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_ROCM: ${{ inputs.with-rocm }}
           WITH_CPU: ${{ inputs.with-cpu }}
