@@ -1932,6 +1932,13 @@
       "slow"
     ]
   ],
+  "test_tp_transform_with_uncovered_op (__main__.TensorParallelTest)": [
+    "115784",
+    "https://github.com/pytorch/pytorch/issues/115784",
+    [
+      "rocm"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
