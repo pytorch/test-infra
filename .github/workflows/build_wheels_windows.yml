@@ -79,6 +79,9 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
+      # When building RC, set the version to be the current candidate version, otherwise, leave
+      # it empty so nightly will pick up the latest
+      PYTORCH_VERSION: ${{ matrix.channel == 'test' && matrix.stable_version || '' }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}

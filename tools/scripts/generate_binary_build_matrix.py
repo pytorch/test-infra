@@ -45,8 +45,21 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_CANDIDATE_VERSION = "2.1.0"
-CURRENT_STABLE_VERSION = "2.0.1"
+# OS constants
+LINUX = "linux"
+LINUX_AARCH64 = "linux-aarch64"
+MACOS = "macos"
+MACOS_ARM64 = "macos-arm64"
+WINDOWS = "windows"
+
+# Accelerator architectures
+CPU = "cpu"
+CPU_AARCH64 = "cpu-aarch64"
+CUDA = "cuda"
+ROCM = "rocm"
+
+CURRENT_CANDIDATE_VERSION = "2.1.2"
+CURRENT_STABLE_VERSION = "2.1.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
