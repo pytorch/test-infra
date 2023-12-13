@@ -81,7 +81,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
       # When building RC, set the version to be the current candidate version, otherwise, leave
       # it empty so nightly will pick up the latest
-      PYTORCH_VERSION: ${{ matrix.channel == 'test' && matrix.stable_version || '' }}
+      PYTORCH_VERSION: ${{ matrix.channel == 'test' && matrix.stable_version }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
