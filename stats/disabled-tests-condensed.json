@@ -1050,13 +1050,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_log_ndtr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114719",
-    "https://github.com/pytorch/pytorch/issues/114719",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
@@ -1354,13 +1347,6 @@
   "test_meta_outplace_nn_functional_alpha_dropout_cpu_bfloat16 (__main__.TestMetaCPU)": [
     "112273",
     "https://github.com/pytorch/pytorch/issues/112273",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_alpha_dropout_cpu_float16 (__main__.TestMetaCPU)": [
-    "112353",
-    "https://github.com/pytorch/pytorch/issues/112353",
     [
       "dynamo"
     ]
