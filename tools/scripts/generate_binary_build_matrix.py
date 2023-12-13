@@ -58,7 +58,7 @@ CUDA = "cuda"
 ROCM = "rocm"
 
 
-CURRENT_CANDIDATE_VERSION = "2.1.2"
+CURRENT_CANDIDATE_VERSION = "2.2.0"
 CURRENT_STABLE_VERSION = "2.1.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -564,7 +564,7 @@ def generate_build_matrix(
 
     for channel in channels:
         for package in package_types:
-            initialize_globals(channel)
+            initialize_globals(ggchannel)
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](
                     operating_system,
