@@ -291,10 +291,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           (e: any) => e["name"]
         );
       }
-
+      const pr_body =
+        JSON.stringify(this.ctx.payload?.pull_request?.body) || "";
       if (
         labels !== undefined &&
-        !labels.find((x) => x === CIFLOW_TRUNK_LABEL)
+        !labels.find((x) => x === CIFLOW_TRUNK_LABEL) &&
+        // skip applying label to codev diffs
+        !pr_body.includes("Differential Revision: D")
       ) {
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
