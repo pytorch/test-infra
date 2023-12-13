@@ -21,7 +21,7 @@ class GenerateBuildMatrixTest(TestCase):
         out = generate_build_matrix(
             package_type,
             operating_system,
-            "nightly",
+            "test",
             "enable" if cuda else "disable",
             "enable" if rocm else "disable",
             "enable" if cpu else "disable",
