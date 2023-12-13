@@ -376,6 +376,9 @@ function constructResultsJobsSections(
   const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
+    if (job.failure_captures) {
+      output += `    \`${job.failure_captures[0]}\`\n`;
+    }
   }
   output += "</p></details>";
   return output;
