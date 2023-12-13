@@ -564,7 +564,7 @@ def generate_build_matrix(
 
     for channel in channels:
         for package in package_types:
-            initialize_globals(ggchannel)
+            initialize_globals(channel)
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](
                     operating_system,
