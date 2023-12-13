@@ -20,7 +20,6 @@ function getDynamoClient() {
 async function getOctokit(owner, repo) {
   let privateKey = process.env.PRIVATE_KEY;
   privateKey = Buffer.from(privateKey, "base64").toString();
-
   const app = new App({
     appId: process.env.APP_ID,
     privateKey,
@@ -49,35 +48,76 @@ async function backfillWorkflowJob(
   repo_name,
   owner,
   dynamo_key,
+  created_at,
+  started_at,
   skipBackfill
 ) {
   console.log(`Checking job ${id}`);
 
-  let job = await octokit.rest.actions.getJobForWorkflowRun({
-    owner: owner,
-    repo: repo_name,
-    job_id: id,
-  });
-  job = job.data;
-
-  if (skipBackfill(job)) {
-    console.log(`Skipping backfill for job ${id}`);
-    return;
-  }
-
-  const payload = job;
   const table = "torchci-workflow-job";
 
-  const thing = {
-    TableName: table,
-    Item: {
-      dynamoKey: dynamo_key,
-      ...payload,
-    },
-  };
-  console.log(`Writing job ${id} to DynamoDB`);
-  console.log(thing);
-  await dClient.put(thing);
+  try {
+    let job = await octokit.rest.actions.getJobForWorkflowRun({
+      owner: owner,
+      repo: repo_name,
+      job_id: id,
+    });
+    job = job.data;
+
+    if (skipBackfill(job)) {
+      console.log(`Skipping backfill for job ${id}`);
+      return;
+    }
+
+    const payload = job;
+
+    const thing = {
+      TableName: table,
+      Item: {
+        dynamoKey: dynamo_key,
+        ...payload,
+      },
+    };
+    console.log(`Writing job ${id} to DynamoDB`);
+    console.log(thing);
+    await dClient.put(thing);
+  } catch (error) {
+    console.log(`Failed to find job id ${id}: ${error}`);
+    console.log(`Assuming job id ${id} cancelled right after start`);
+    console.log(`Querying dynamo entry for job id ${id}`);
+    const dynamoEntry = await client.queries.query({
+      sql: {
+        query: `
+SELECT
+    *
+FROM
+    workflow_job j
+WHERE
+    j.dynamoKey = '${dynamo_key}'
+`,
+      },
+    });
+    if (dynamoEntry.results.length === 0) {
+      console.log(`No dynamo entry found for job id ${id}`);
+      return;
+    }
+    const result = dynamoEntry.results[0];
+    console.log(`Writing job ${id} to DynamoDB:`);
+    const thing = {
+      TableName: table,
+      Item: {
+        ...result,
+        dynamoKey: dynamo_key,
+        id: id,
+        conclusion: "cancelled",
+        status: "completed",
+        completed_at: started_at ? started_at : created_at,
+      },
+    };
+    console.log(thing);
+    await dClient.put(thing);
+    return;
+  }
 }
 
 console.log("::group::Backfilling jobs without a conclusion...");
@@ -88,7 +128,9 @@ SELECT
     j.id,
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
+    j.created_at,
+    j.started_at,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -114,6 +156,8 @@ for (const {
   repo_name,
   owner,
   dynamo_key,
+  created_at,
+  started_at,
 } of jobsWithNoConclusion.results) {
   // Some jobs just never get marked completed due to bugs in the GHA backend.
   // Just skip them.
@@ -122,6 +166,8 @@ for (const {
     repo_name,
     owner,
     dynamo_key,
+    created_at,
+    started_at,
     (job) => job.conclusion === null
   );
 }
@@ -137,7 +183,9 @@ SELECT
     j.id,
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
+    j.created_at,
+    j.started_at,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -154,12 +202,14 @@ LIMIT 10000
 });
 
 // See above for why we're awaiting in a loop.
-for (const { id, repo_name, owner, dynamo_key } of queuedJobs.results) {
+for (const { id, repo_name, owner, dynamo_key, created_at, started_at } of queuedJobs.results) {
   await backfillWorkflowJob(
     id,
     repo_name,
     owner,
     dynamo_key,
+    created_at,
+    started_at,
     (job) => job.status === "queued" && job.steps.length === 0
   );
 }
