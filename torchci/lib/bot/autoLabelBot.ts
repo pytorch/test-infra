@@ -129,6 +129,8 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
 };
 
+const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+
 function getRepoSpecificLabels(
   owner: string,
   repo: string
@@ -375,16 +377,12 @@ function myBot(app: Probot): void {
 
   app.on("pull_request_review.submitted", async (context) => {
     // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed
-    if (context.payload.review.state !== "approved") {
-      return;
-    }
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     if (!isPyTorchPyTorch(owner, repo)) {
       return;
     }
-    // TEMP disable for 24 hours to see if it affects number of reverts / queueing
-    // await addLabels(context, [CIFLOW_TRUNK_LABEL]);
+    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
   });
 }
 
