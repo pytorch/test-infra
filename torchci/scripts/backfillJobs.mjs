@@ -48,8 +48,6 @@ async function backfillWorkflowJob(
   repo_name,
   owner,
   dynamo_key,
-  created_at,
-  started_at,
   skipBackfill
 ) {
   console.log(`Checking job ${id}`);
@@ -107,11 +105,8 @@ WHERE
       TableName: table,
       Item: {
         ...result,
-        dynamoKey: dynamo_key,
-        id: id,
-        conclusion: "cancelled",
-        status: "completed",
-        completed_at: started_at ? started_at : created_at,
+        data_quality: "incomplete",
+        backfill: "not-found",
       },
     };
     console.log(thing);
@@ -129,8 +124,6 @@ SELECT
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
     j.dynamoKey as dynamo_key,
-    j.created_at,
-    j.started_at,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -139,6 +132,7 @@ WHERE
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
     AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -156,8 +150,6 @@ for (const {
   repo_name,
   owner,
   dynamo_key,
-  created_at,
-  started_at,
 } of jobsWithNoConclusion.results) {
   // Some jobs just never get marked completed due to bugs in the GHA backend.
   // Just skip them.
@@ -166,8 +158,6 @@ for (const {
     repo_name,
     owner,
     dynamo_key,
-    created_at,
-    started_at,
     (job) => job.conclusion === null
   );
 }
@@ -184,8 +174,6 @@ SELECT
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
     j.dynamoKey as dynamo_key,
-    j.created_at,
-    j.started_at,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -194,6 +182,7 @@ WHERE
     AND w.status != 'completed'
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
     AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -202,21 +191,12 @@ LIMIT 10000
 });
 
 // See above for why we're awaiting in a loop.
-for (const {
-  id,
-  repo_name,
-  owner,
-  dynamo_key,
-  created_at,
-  started_at,
-} of queuedJobs.results) {
+for (const { id, repo_name, owner, dynamo_key } of queuedJobs.results) {
   await backfillWorkflowJob(
     id,
     repo_name,
     owner,
     dynamo_key,
-    created_at,
-    started_at,
     (job) => job.status === "queued" && job.steps.length === 0
   );
 }
@@ -240,6 +220,7 @@ where
     and w.event != 'workflow_run'
     and w.event != 'repository_dispatch'
     and w.head_repository.full_name = 'pytorch/pytorch'
+    AND j.backfill IS NULL
 `,
   },
 });
