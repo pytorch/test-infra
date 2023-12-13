@@ -4,6 +4,7 @@ import {
   isSameAuthor,
   isSameContext,
   removeCancelledJobAfterRetry,
+  isFailureFromPrevMergeCommit,
 } from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
 import nock from "nock";
@@ -288,6 +289,33 @@ describe("Test various job utils", () => {
     // Same error with same context
     expect(isSameContext(jobA, jobB)).toEqual(true);
     expect(isSameFailure(jobA, jobB)).toEqual(true);
+  });
+
+  test("test isFailureFromPrevMergeCommit", () => {
+    const failure: RecentWorkflowsData = {
+      id: "B",
+      name: "Testing",
+      html_url: "B",
+      head_sha: "B",
+      failure_captures: ["whatever"],
+      conclusion: "failure",
+      completed_at: "B",
+    };
+
+    failure.head_branch = "whatever";
+    // Not a failure from trunk, it couldn't come from a previous merge commit
+    // of a reverted PR
+    expect(isFailureFromPrevMergeCommit(failure, [])).toEqual(false);
+
+    failure.head_branch = "main";
+    // No merge commit, PR is not yet merged
+    expect(isFailureFromPrevMergeCommit(failure, [])).toEqual(false);
+
+    // No matching commit SHA
+    expect(isFailureFromPrevMergeCommit(failure, ["NO MATCH"])).toEqual(false);
+
+    // Matching SHA, this is a failure from a merge commit
+    expect(isFailureFromPrevMergeCommit(failure, ["B"])).toEqual(true);
   });
 
   test("test removeCancelledJobAfterRetry", async () => {

@@ -67,6 +67,7 @@ describe("Test various utils used by Dr.CI", () => {
         emptyBaseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -80,6 +81,7 @@ describe("Test various utils used by Dr.CI", () => {
         emptyBaseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -93,6 +95,7 @@ describe("Test various utils used by Dr.CI", () => {
         emptyBaseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -106,6 +109,7 @@ describe("Test various utils used by Dr.CI", () => {
         emptyBaseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -121,6 +125,7 @@ describe("Test various utils used by Dr.CI", () => {
           mockEndDate,
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );
@@ -135,6 +140,7 @@ describe("Test various utils used by Dr.CI", () => {
         baseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -152,6 +158,7 @@ describe("Test various utils used by Dr.CI", () => {
           mockEndDate,
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );
@@ -168,6 +175,7 @@ describe("Test various utils used by Dr.CI", () => {
         baseCommitDate,
         lookbackPeriodInHours,
         searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -185,6 +193,7 @@ describe("Test various utils used by Dr.CI", () => {
           mockEndDate,
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );

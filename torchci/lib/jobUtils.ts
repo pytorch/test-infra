@@ -183,6 +183,64 @@ export async function isSameAuthor(
   return isSameEmail || isSameCommitUsername || isSamePrUsername;
 }
 
+export async function getPRMergeCommits(
+  job: RecentWorkflowsData
+): Promise<String[]> {
+  // No a PR job
+  if (!job.pr_number) {
+    return [];
+  }
+
+  // Sort by comment ID desc because we don't want to depend on _event_time in
+  // general
+  const query = `
+SELECT
+  merge_commit_sha,
+FROM
+  commons.merges
+WHERE
+  pr_num = :pr_num
+ORDER BY
+  comment_id DESC
+  `;
+
+  const rocksetClient = getRocksetClient();
+  const results = (
+    await rocksetClient.queries.query({
+      sql: {
+        query: query,
+        parameters: [
+          {
+            name: "pr_num",
+            type: "int",
+            value: job.pr_number.toString(),
+          },
+        ],
+      },
+    })
+  ).results;
+
+  // The PR hasn't been merged yet
+  return results !== undefined
+    ? _.map(results, (record) => record.merge_commit_sha)
+    : [];
+}
+
+export function isFailureFromPrevMergeCommit(
+  failure: RecentWorkflowsData,
+  mergeCommits: String[]
+): boolean {
+  // Not coming from main, it couldn't be a failure coming from the merge commit
+  if (!failure.head_branch || failure.head_branch !== "main") {
+    return false;
+  }
+
+  return _.find(mergeCommits, (commit) => commit === failure.head_sha) !==
+    undefined
+    ? true
+    : false;
+}
+
 export function isSameFailure(
   jobA: RecentWorkflowsData,
   jobB: RecentWorkflowsData
