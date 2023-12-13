@@ -98,16 +98,6 @@
       "rocm"
     ]
   ],
-  "test_backend_match_guard_multi_threads (__main__.MiscTests)": [
-    "109321",
-    "https://github.com/pytorch/pytorch/issues/109321",
-    [
-      "mac",
-      "macos",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -1008,6 +998,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113736",
+    "https://github.com/pytorch/pytorch/issues/113736",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -1351,9 +1348,9 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
-    "112463",
-    "https://github.com/pytorch/pytorch/issues/112463",
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_float32 (__main__.TestMetaCPU)": [
+    "112422",
+    "https://github.com/pytorch/pytorch/issues/112422",
     [
       "dynamo"
     ]
