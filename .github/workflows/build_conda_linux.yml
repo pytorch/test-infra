@@ -180,6 +180,11 @@ jobs:
             CONSTRAINTS="cpuonly"
           fi
 
+          CONSTRAINT_BUILD=""
+          if [[ "${CHANNEL}" = "test" ]]; then
+            CONSTRAINT_BUILD="=${BUILD_VERSION}"
+          fi
+
           ${CONDA_RUN_SMOKE} conda install \
             --yes \
             --quiet \
@@ -187,7 +192,7 @@ jobs:
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
             -c defaults \
-            "${PACKAGE_NAME}" \
+            "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
             ${CONSTRAINTS} \
             --override-channels
 
