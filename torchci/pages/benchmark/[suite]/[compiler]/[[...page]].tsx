@@ -73,7 +73,7 @@ const SPEEDUP_HEADER = `Perf. speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const ABS_LATENCY_HEADER = `Abs. execution time (millisecond)`;
 const COMPILATION_LATENCY_HEADER = `Compilation latency (seconds)`;
 const MEMORY_HEADER = `Peak mem compress ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
-const PEAK_MEMORY_USAGE_HEADER = `Peak dynamo mem usage (threshold = ${PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD}x)`;
+const PEAK_MEMORY_USAGE_HEADER = `Peak dynamo mem usage (GB)`;
 
 // The number of digit after decimal to display on the detail page
 const SCALE = 4;
