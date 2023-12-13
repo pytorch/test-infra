@@ -8,6 +8,8 @@ export default async function handler(
   const body = JSON.parse(req.body);
   const timestamp = Date.now();
 
+  // TODO: Upload to s3/dynamo instead of rockset if this experiment results in
+  // interesting data
   if (req.method == "POST" && body.url.startsWith("https://hud.pytorch.org")) {
     const rocksetClient = getRocksetClient();
     rocksetClient.documents.addDocuments("commons", "hud_tracking", {
