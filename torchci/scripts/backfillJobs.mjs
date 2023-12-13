@@ -202,7 +202,14 @@ LIMIT 10000
 });
 
 // See above for why we're awaiting in a loop.
-for (const { id, repo_name, owner, dynamo_key, created_at, started_at } of queuedJobs.results) {
+for (const {
+  id,
+  repo_name,
+  owner,
+  dynamo_key,
+  created_at,
+  started_at,
+} of queuedJobs.results) {
   await backfillWorkflowJob(
     id,
     repo_name,
