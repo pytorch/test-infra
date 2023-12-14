@@ -1173,6 +1173,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111462",
+    "https://github.com/pytorch/pytorch/issues/111462",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111967",
     "https://github.com/pytorch/pytorch/issues/111967",
