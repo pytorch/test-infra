@@ -1362,6 +1362,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
+    "112479",
+    "https://github.com/pytorch/pytorch/issues/112479",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_std_mean_cpu_float16 (__main__.TestMetaCPU)": [
     "112574",
     "https://github.com/pytorch/pytorch/issues/112574",
