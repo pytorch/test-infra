@@ -1811,6 +1811,13 @@
       "dynamo"
     ]
   ],
+  "test_scaled_dot_product_attention_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+    "115865",
+    "https://github.com/pytorch/pytorch/issues/115865",
+    [
+      "rocm"
+    ]
+  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
