@@ -548,6 +548,13 @@
       "dynamo"
     ]
   ],
+  "test_dispatch_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_float16 (__main__.TestMetaCUDA)": [
+    "115866",
+    "https://github.com/pytorch/pytorch/issues/115866",
+    [
+      "rocm"
+    ]
+  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
