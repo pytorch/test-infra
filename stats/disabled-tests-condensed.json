@@ -903,6 +903,13 @@
       "linux"
     ]
   ],
+  "test_intra_node_comm_all_reduce (__main__.CommTest)": [
+    "115859",
+    "https://github.com/pytorch/pytorch/issues/115859",
+    [
+      "rocm"
+    ]
+  ],
   "test_jvp_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
     "110980",
     "https://github.com/pytorch/pytorch/issues/110980",
