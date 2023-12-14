@@ -1514,7 +1514,8 @@
     "114655",
     "https://github.com/pytorch/pytorch/issues/114655",
     [
-      "rocm"
+      "rocm",
+      "linux"
     ]
   ],
   "test_nondeterministic_alert_MaxUnpool1d_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
