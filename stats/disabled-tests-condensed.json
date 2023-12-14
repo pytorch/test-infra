@@ -548,9 +548,23 @@
       "dynamo"
     ]
   ],
+  "test_dispatch_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_bfloat16 (__main__.TestMetaCUDA)": [
+    "115874",
+    "https://github.com/pytorch/pytorch/issues/115874",
+    [
+      "rocm"
+    ]
+  ],
   "test_dispatch_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_float16 (__main__.TestMetaCUDA)": [
     "115866",
     "https://github.com/pytorch/pytorch/issues/115866",
+    [
+      "rocm"
+    ]
+  ],
+  "test_dispatch_symbolic_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_bfloat16 (__main__.TestMetaCUDA)": [
+    "115873",
+    "https://github.com/pytorch/pytorch/issues/115873",
     [
       "rocm"
     ]
