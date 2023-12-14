@@ -82,6 +82,13 @@
     "https://github.com/pytorch/pytorch/issues/106439",
     []
   ],
+  "test_as_strided_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
+    "115796",
+    "https://github.com/pytorch/pytorch/issues/115796",
+    [
+      "rocm"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -1355,6 +1362,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
+    "112463",
+    "https://github.com/pytorch/pytorch/issues/112463",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_pinverse_cpu_complex128 (__main__.TestMetaCPU)": [
     "112479",
     "https://github.com/pytorch/pytorch/issues/112479",
@@ -1757,6 +1771,13 @@
   "test_redundant_clone_for_layout_convert_cuda (__main__.FreezingCudaTests)": [
     "107950",
     "https://github.com/pytorch/pytorch/issues/107950",
+    [
+      "rocm"
+    ]
+  ],
+  "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
+    "115797",
+    "https://github.com/pytorch/pytorch/issues/115797",
     [
       "rocm"
     ]
