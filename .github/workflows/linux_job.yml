@@ -51,8 +51,8 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-#        default: "pytorch/conda-builder"
-        default: "ubuntu:latest"
+        default: "pytorch/conda-builder"
+#        default: "ubuntu:latest"
         type: string
       docker-build-dir:
         description: |
@@ -115,8 +115,8 @@ jobs:
     #       user in a container will make it so that the directories will need to be chowned to the
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
-#    container:
-#      image: inputs.docker-image
+    container:
+      image: inputs.docker-image
     steps:
       - name: Clean workspace
         env:
