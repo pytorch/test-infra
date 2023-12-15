@@ -28,7 +28,7 @@ export const successfulA = {
   pr_number: 1000,
   id: "1",
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: ["Doc build successful"],
 };
 
 const pendingA = {
@@ -40,7 +40,7 @@ const pendingA = {
   id: "1",
   pr_number: 1001,
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: [],
   runnerName: "dummy",
 };
 
@@ -53,7 +53,7 @@ const failedA = {
   id: "1",
   pr_number: 1001,
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: ["mind blown", "ha ha"],
   runnerName: "dummy",
 };
 
@@ -78,7 +78,7 @@ const failedAFailedRetry = {
   id: "3",
   pr_number: 1001,
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: ["Retired but mind still blown", "ha ha ha"],
   runnerName: "dummy",
 };
 
@@ -91,7 +91,7 @@ const failedB = {
   id: "1",
   pr_number: 1001,
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: ["cde"],
   runnerName: "dummy",
 };
 
@@ -104,7 +104,7 @@ const failedC = {
   id: "1",
   pr_number: 1001,
   failure_lines: ["a"],
-  failure_captures: ["a"],
+  failure_captures: ["bababa"],
   runnerName: "dummy",
 };
 
@@ -321,8 +321,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
     const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
+    \`mind blown\`
 * [something](hudlink#1) ([gh](a))
-* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))`;
+    \`cde\`
+* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))
+    \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
   });
 
@@ -555,7 +558,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         ],
         new Map()
       );
-    console.log("failedJobs", failedJobs);
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(3);

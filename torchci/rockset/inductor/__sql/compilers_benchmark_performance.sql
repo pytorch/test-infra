@@ -14,6 +14,8 @@ WITH performance_results AS (
     abs_latency,
     mfu,
     memory_bandwidth,
+    dynamo_peak_mem,
+    eager_peak_mem,
     workflow_id,
     CAST(job_id AS INT) AS job_id,
   FROM
@@ -103,6 +105,14 @@ results AS (
       CAST(memory_bandwidth AS FLOAT),
       0.0
     ) AS memory_bandwidth,
+    IF(TRY_CAST(dynamo_peak_mem AS FLOAT) IS NOT NULL,
+      CAST(dynamo_peak_mem AS FLOAT),
+      0.0
+    ) AS dynamo_peak_mem,
+    IF(TRY_CAST(eager_peak_mem AS FLOAT) IS NOT NULL,
+      CAST(eager_peak_mem AS FLOAT),
+      0.0
+    ) AS eager_peak_mem,
   FROM
     accuracy_results
     LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
@@ -123,6 +133,8 @@ SELECT DISTINCT
   results.abs_latency,
   results.mfu,
   results.memory_bandwidth,
+  results.dynamo_peak_mem,
+  results.eager_peak_mem,
   FORMAT_ISO8601(
     DATE_TRUNC(: granularity, w._event_time)
   ) AS granularity_bucket,
