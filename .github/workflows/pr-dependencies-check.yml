@@ -19,7 +19,6 @@ on:
         required: true
       search_depth:
         description: 'Dependencies search depth'
-        required: true
         default: '100'
         type: choice
         options: ['100', '200', '500']
