@@ -78,7 +78,7 @@ jobs:
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
-      runner: linux.2xlarge
+      runner: linux.2xlarge.arc
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       docker-image: fedora:37@sha256:f2c083c0b7d2367a375f15e002c2dc7baaca2b3181ace61f9d5113a8fe2f6b44
