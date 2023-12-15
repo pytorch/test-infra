@@ -116,7 +116,7 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     container:
-      image: inputs.docker-image
+      image: ${{ inputs.docker-image }}
     steps:
       - name: Clean workspace
         env:
