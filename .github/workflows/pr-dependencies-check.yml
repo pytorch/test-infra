@@ -1,6 +1,17 @@
 name: PR Dependency Check
 
 on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number or URL'
+        type: string
+        required: true
+      search_depth:
+        description: 'Dependencies search depth'
+        required: true
+        default: '100'
+        type: string
   workflow_dispatch:
     inputs:
       pr_number:
