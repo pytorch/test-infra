@@ -2011,6 +2011,13 @@
       "rocm"
     ]
   ],
+  "test_transformerencoderlayer_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
+    "115912",
+    "https://github.com/pytorch/pytorch/issues/115912",
+    [
+      "rocm"
+    ]
+  ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
     "110610",
     "https://github.com/pytorch/pytorch/issues/110610",
