@@ -105,6 +105,13 @@
       "rocm"
     ]
   ],
+  "test_autocast_sdpa_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "115895",
+    "https://github.com/pytorch/pytorch/issues/115895",
+    [
+      "rocm"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -1831,6 +1838,20 @@
     "https://github.com/pytorch/pytorch/issues/86433",
     [
       "dynamo"
+    ]
+  ],
+  "test_scaled_dot_product_attention_cuda (__main__.CudaTests)": [
+    "115897",
+    "https://github.com/pytorch/pytorch/issues/115897",
+    [
+      "rocm"
+    ]
+  ],
+  "test_scaled_dot_product_attention_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
+    "115896",
+    "https://github.com/pytorch/pytorch/issues/115896",
+    [
+      "rocm"
     ]
   ],
   "test_scaled_dot_product_attention_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
