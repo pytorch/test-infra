@@ -1,6 +1,6 @@
 One yes, but not two separated by words :green_heart: works
 :green_heart: :green_heart: works
-:green_heeart: This does not work :green_heart:
+:green_heart: This does not work :green_heart:
 
 People
 
