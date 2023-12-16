@@ -40,7 +40,7 @@
     "minimist": "^1.2.6",
     "next": "12.1.5",
     "next-auth": "^4.24.5",
-    "octokit": "^1.7.1",
+    "octokit": "^3.1.2",
     "probot": "^12.2.2",
     "react": "18.0.0",
     "react-dom": "18.0.0",
