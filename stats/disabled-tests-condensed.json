@@ -721,41 +721,6 @@
       "inductor"
     ]
   ],
-  "test_foreach_matches_forloop_ASGD_cpu_float64 (__main__.TestOptimRenewedCPU)": [
-    "115394",
-    "https://github.com/pytorch/pytorch/issues/115394",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_foreach_matches_forloop_Adadelta_cpu_float64 (__main__.TestOptimRenewedCPU)": [
-    "115393",
-    "https://github.com/pytorch/pytorch/issues/115393",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_foreach_matches_forloop_Adam_cpu_float64 (__main__.TestOptimRenewedCPU)": [
-    "115406",
-    "https://github.com/pytorch/pytorch/issues/115406",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_foreach_matches_forloop_RMSprop_cpu_float64 (__main__.TestOptimRenewedCPU)": [
-    "115391",
-    "https://github.com/pytorch/pytorch/issues/115391",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_foreach_matches_forloop_Rprop_cpu_float64 (__main__.TestOptimRenewedCPU)": [
-    "115392",
-    "https://github.com/pytorch/pytorch/issues/115392",
-    [
-      "dynamo"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
