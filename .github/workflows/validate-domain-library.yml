@@ -44,6 +44,11 @@ on:
         required: false
         type: boolean
         default: false
+      version:
+        description: "Version to validate - optional"
+        default: ""
+        required: false
+        type: string
 
 jobs:
   generate-linux-matrix:
@@ -96,6 +101,7 @@ jobs:
         set -ex
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source /test-infra/.github/scripts/install_torch.sh
         fi
@@ -119,6 +125,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export TARGET_OS="windows"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi
@@ -142,6 +149,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="macos"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi
@@ -165,6 +173,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi
