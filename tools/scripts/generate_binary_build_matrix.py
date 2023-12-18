@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10", "3.11"],
+    "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "test": ["3.8", "3.9", "3.10", "3.11"],
     "release": ["3.8", "3.9", "3.10", "3.11"],
 }
@@ -464,11 +464,8 @@ def generate_wheels_matrix(
     package_type = "wheel"
 
     # Define default python version
-    if python_versions is None and channel == NIGHTLY:
-        # Python 3.12 is added to the nightly wheel matrix only
-        python_versions = list(mod.PYTHON_ARCHES) + ["3.12"]
-    elif python_versions is None:
-         python_versions = list(mod.PYTHON_ARCHES)
+    if python_versions is None:
+        python_versions = list(mod.PYTHON_ARCHES)
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
