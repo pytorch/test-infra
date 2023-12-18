@@ -35,6 +35,7 @@ jobs:
           # As a workaround, we create a temporary container, copy the binary, and remove it
           image_id=$(docker create ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA")
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
+          docker cp "$image_id":/clang-tidy-checks/build/bin/clang-format ./clang-format
           docker rm -v "$image_id"
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish clang-tidy binary
