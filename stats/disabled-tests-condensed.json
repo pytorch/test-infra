@@ -571,6 +571,16 @@
       "rocm"
     ]
   ],
+  "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
+    "112887",
+    "https://github.com/pytorch/pytorch/issues/112887",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "asan"
+    ]
+  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -1117,6 +1127,13 @@
       "win"
     ]
   ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1163,6 +1180,13 @@
   "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111967",
     "https://github.com/pytorch/pytorch/issues/111967",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
+    "111607",
+    "https://github.com/pytorch/pytorch/issues/111607",
     [
       "dynamo"
     ]
