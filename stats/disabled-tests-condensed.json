@@ -1742,13 +1742,6 @@
       "rocm"
     ]
   ],
-  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_1_cpu_bfloat16 (__main__.TestUnaryUfuncsCPU)": [
-    "114453",
-    "https://github.com/pytorch/pytorch/issues/114453",
-    [
-      "dynamo"
-    ]
-  ],
   "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_1_cpu_float32 (__main__.TestUnaryUfuncsCPU)": [
     "114456",
     "https://github.com/pytorch/pytorch/issues/114456",
