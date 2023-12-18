@@ -796,16 +796,6 @@
       "linux"
     ]
   ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "mac",
-      "rocm",
-      "macos"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -1137,13 +1127,6 @@
       "win"
     ]
   ],
-  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "107426",
-    "https://github.com/pytorch/pytorch/issues/107426",
-    [
-      "linux"
-    ]
-  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1190,20 +1173,6 @@
   "test_meta_outplace_addmm_cpu_complex64 (__main__.TestMetaCPU)": [
     "111967",
     "https://github.com/pytorch/pytorch/issues/111967",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_hfft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111607",
-    "https://github.com/pytorch/pytorch/issues/111607",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_hfft_cpu_uint8 (__main__.TestMetaCPU)": [
-    "111626",
-    "https://github.com/pytorch/pytorch/issues/111626",
     [
       "dynamo"
     ]
@@ -1668,6 +1637,13 @@
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
+    [
+      "linux"
+    ]
+  ],
+  "test_optional_tensor (test_jit.TestScript)": [
+    "91494",
+    "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
     ]
