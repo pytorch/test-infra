@@ -105,13 +105,6 @@
       "rocm"
     ]
   ],
-  "test_autocast_sdpa_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
-    "115895",
-    "https://github.com/pytorch/pytorch/issues/115895",
-    [
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -553,27 +546,6 @@
     "https://github.com/pytorch/pytorch/issues/113221",
     [
       "dynamo"
-    ]
-  ],
-  "test_dispatch_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_bfloat16 (__main__.TestMetaCUDA)": [
-    "115874",
-    "https://github.com/pytorch/pytorch/issues/115874",
-    [
-      "rocm"
-    ]
-  ],
-  "test_dispatch_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_float16 (__main__.TestMetaCUDA)": [
-    "115866",
-    "https://github.com/pytorch/pytorch/issues/115866",
-    [
-      "rocm"
-    ]
-  ],
-  "test_dispatch_symbolic_meta_outplace_torch_ops_aten__flash_attention_forward_cuda_bfloat16 (__main__.TestMetaCUDA)": [
-    "115873",
-    "https://github.com/pytorch/pytorch/issues/115873",
-    [
-      "rocm"
     ]
   ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
@@ -1795,27 +1767,6 @@
       "dynamo"
     ]
   ],
-  "test_scaled_dot_product_attention_cuda (__main__.CudaTests)": [
-    "115897",
-    "https://github.com/pytorch/pytorch/issues/115897",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_dot_product_attention_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
-    "115896",
-    "https://github.com/pytorch/pytorch/issues/115896",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_dot_product_attention_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
-    "115865",
-    "https://github.com/pytorch/pytorch/issues/115865",
-    [
-      "rocm"
-    ]
-  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
@@ -1973,13 +1924,6 @@
   "test_trace_while_active (__main__.NCCLTraceTest)": [
     "112815",
     "https://github.com/pytorch/pytorch/issues/112815",
-    [
-      "rocm"
-    ]
-  ],
-  "test_transformerencoderlayer_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
-    "115912",
-    "https://github.com/pytorch/pytorch/issues/115912",
     [
       "rocm"
     ]
