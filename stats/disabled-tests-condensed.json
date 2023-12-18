@@ -148,6 +148,13 @@
       "rocm"
     ]
   ],
+  "test_bitwise_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
+    "116044",
+    "https://github.com/pytorch/pytorch/issues/116044",
+    [
+      "rocm"
+    ]
+  ],
   "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
     "98048",
     "https://github.com/pytorch/pytorch/issues/98048",
@@ -966,6 +973,16 @@
     "https://github.com/pytorch/pytorch/issues/113148",
     [
       "linux"
+    ]
+  ],
+  "test_linear_cutlass_backend_cutlass_cuda_float32 (__main__.TestSparseSemiStructuredCUDA)": [
+    "116045",
+    "https://github.com/pytorch/pytorch/issues/116045",
+    [
+      "linux",
+      "slow",
+      "win",
+      "windows"
     ]
   ],
   "test_lobpcg (__main__.TestAutograd)": [
