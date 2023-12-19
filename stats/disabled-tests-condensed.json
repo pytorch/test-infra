@@ -1822,6 +1822,20 @@
       "dynamo"
     ]
   ],
+  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_3_cpu_int32 (__main__.TestUnaryUfuncsCPU)": [
+    "116139",
+    "https://github.com/pytorch/pytorch/issues/116139",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_5_cpu_float64 (__main__.TestUnaryUfuncsCPU)": [
+    "116140",
+    "https://github.com/pytorch/pytorch/issues/116140",
+    [
+      "dynamo"
+    ]
+  ],
   "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
     "115797",
     "https://github.com/pytorch/pytorch/issues/115797",
