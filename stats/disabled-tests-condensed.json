@@ -384,6 +384,13 @@
       "rocm"
     ]
   ],
+  "test_cpp_frontend_module_has_same_output_as_python (__main__.TestCppExtensionJIT)": [
+    "116105",
+    "https://github.com/pytorch/pytorch/issues/116105",
+    [
+      "dynamo"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
