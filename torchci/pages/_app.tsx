@@ -8,13 +8,17 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import "styles/globals.css";
+import ReactGA from "react-ga4";
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   useEffect(() => {
+    // GA records page views on its own, but I want to see how it differs with
+    // this one.
     track(router, "pageview", {});
   }, [router.pathname]);
 
+  ReactGA.initialize("G-HZEXJ323ZF");
   return (
     <>
       <SessionProvider>
