@@ -1,6 +1,7 @@
 import { Artifact } from "./types";
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
-import s3client from "./s3";
+import getS3Client from "./s3";
+
 export default async function fetchS3Links(
   suiteId: string
 ): Promise<Artifact[]> {
@@ -8,6 +9,7 @@ export default async function fetchS3Links(
     Bucket: "gha-artifacts",
     Prefix: `pytorch/pytorch/${suiteId}`,
   });
+  const s3client = await getS3Client();
   const response = await s3client.send(command);
 
   const artifacts =
