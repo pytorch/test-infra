@@ -1808,6 +1808,13 @@
       "dynamo"
     ]
   ],
+  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_3_cpu_float64 (__main__.TestUnaryUfuncsCPU)": [
+    "116130",
+    "https://github.com/pytorch/pytorch/issues/116130",
+    [
+      "dynamo"
+    ]
+  ],
   "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_3_cpu_int16 (__main__.TestUnaryUfuncsCPU)": [
     "116129",
     "https://github.com/pytorch/pytorch/issues/116129",
