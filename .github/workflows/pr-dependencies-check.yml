@@ -61,6 +61,7 @@ jobs:
 
       - name: Check PR dependencies
         shell: bash
+        id: pr_merge_check
         run: |
           PR_NUMBER="${{ steps.extract_pr_number.outputs.pr_number }}"
           SEARCH_DEPTH="${{ inputs.search_depth }}"
@@ -163,7 +164,7 @@ jobs:
               echo ""
             } >> "$GITHUB_STEP_SUMMARY"
           }
-
+          PR_IS_MERGEABLE=1
           # try merging pr-branch into main
           if ! git merge --no-commit --no-ff pr-branch; then
             # red
@@ -171,12 +172,13 @@ jobs:
 
             git merge --abort
             find_conflicting_commits
+            PR_IS_MERGEABLE=0
             echo "----"
           else
             # same as a github warning
             echo "::notice::PR is mergeable into main."
           fi
-
+          echo "pr_is_mergeable=${PR_IS_MERGEABLE}" >> "$GITHUB_OUTPUT"
           # reset main to MERGE_BASE
           git reset --hard "$MERGE_BASE"
 
@@ -234,3 +236,10 @@ jobs:
 
           echo "Check the job Summary for the results:"
           echo "https://github.com/pytorch/test-infra/actions/runs/${{ github.run_id }}"
+
+      - name: Fail if PR is Not Mergeable
+        if: ${{ steps.pr_merge_check.outputs.pr_is_mergeable == '0' }}
+        run: |
+          echo "The value --- ${{ steps.pr_merge_check.outputs.pr_is_mergeable }} --- == 0 but should be 1."
+          echo "Failing the job as PR_IS_MERGEABLE is not 0."
+          exit 1
