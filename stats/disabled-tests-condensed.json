@@ -2051,6 +2051,18 @@
       "linux"
     ]
   ],
+  "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
+    "114831",
+    "https://github.com/pytorch/pytorch/issues/114831",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_tp_transform_with_uncovered_op (__main__.TensorParallelTest)": [
     "115784",
     "https://github.com/pytorch/pytorch/issues/115784",
