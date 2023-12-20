@@ -1226,6 +1226,13 @@
       "dynamo"
     ]
   ],
+  "test_meta_outplace_fft_ifft_cpu_int64 (__main__.TestMetaCPU)": [
+    "111651",
+    "https://github.com/pytorch/pytorch/issues/111651",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_outplace_fft_ihfft2_cpu_bool (__main__.TestMetaCPU)": [
     "111768",
     "https://github.com/pytorch/pytorch/issues/111768",
@@ -2042,18 +2049,6 @@
       "mac",
       "macos",
       "linux"
-    ]
-  ],
-  "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
-    "114831",
-    "https://github.com/pytorch/pytorch/issues/114831",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
     ]
   ],
   "test_tp_transform_with_uncovered_op (__main__.TensorParallelTest)": [
