@@ -1843,6 +1843,13 @@
       "dynamo"
     ]
   ],
+  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_5_cpu_float32 (__main__.TestUnaryUfuncsCPU)": [
+    "116162",
+    "https://github.com/pytorch/pytorch/issues/116162",
+    [
+      "dynamo"
+    ]
+  ],
   "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_5_cpu_float64 (__main__.TestUnaryUfuncsCPU)": [
     "116140",
     "https://github.com/pytorch/pytorch/issues/116140",
@@ -1860,6 +1867,13 @@
   "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_5_cpu_int64 (__main__.TestUnaryUfuncsCPU)": [
     "116155",
     "https://github.com/pytorch/pytorch/issues/116155",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_reference_numerics_large_mvlgamma_mvlgamma_p_1_cpu_bfloat16 (__main__.TestUnaryUfuncsCPU)": [
+    "116164",
+    "https://github.com/pytorch/pytorch/issues/116164",
     [
       "dynamo"
     ]
