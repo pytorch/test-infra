@@ -10,9 +10,11 @@ import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import webhookToDynamo from "./webhookToDynamo";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
+import stripApprovalBot from "./stripApprovalBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
+  stripApprovalBot(app);
   autoLabelBot(app);
   verifyDisableTestIssueBot(app);
   ciflowPushTrigger(app);
