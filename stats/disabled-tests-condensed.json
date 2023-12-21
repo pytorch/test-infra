@@ -321,13 +321,6 @@
       "linux"
     ]
   ],
-  "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "101512",
-    "https://github.com/pytorch/pytorch/issues/101512",
-    [
-      "linux"
-    ]
-  ],
   "test_conj_view_nn_functional_conv3d_cuda_complex64 (__main__.TestMathBitsCUDA)": [
     "114656",
     "https://github.com/pytorch/pytorch/issues/114656",
@@ -382,13 +375,6 @@
     "https://github.com/pytorch/pytorch/issues/105528",
     [
       "rocm"
-    ]
-  ],
-  "test_cpp_frontend_module_has_same_output_as_python (__main__.TestCppExtensionJIT)": [
-    "116105",
-    "https://github.com/pytorch/pytorch/issues/116105",
-    [
-      "dynamo"
     ]
   ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
@@ -593,13 +579,6 @@
     "https://github.com/pytorch/pytorch/issues/100126",
     [
       "linux"
-    ]
-  ],
-  "test_dunder_round_edgecases_val_2147483647_ndigits_-1 (__main__.TestNonarrayArgs)": [
-    "116121",
-    "https://github.com/pytorch/pytorch/issues/116121",
-    [
-      "dynamo"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
