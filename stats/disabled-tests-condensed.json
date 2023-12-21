@@ -1163,6 +1163,13 @@
       "linux"
     ]
   ],
+  "test_meta_inplace_addmm_cpu_complex128 (__main__.TestMetaCPU)": [
+    "111903",
+    "https://github.com/pytorch/pytorch/issues/111903",
+    [
+      "dynamo"
+    ]
+  ],
   "test_meta_inplace_addmm_decomposed_cpu_complex128 (__main__.TestMetaCPU)": [
     "111462",
     "https://github.com/pytorch/pytorch/issues/111462",
@@ -1320,6 +1327,13 @@
   "test_meta_outplace_fft_ihfftn_cpu_bool (__main__.TestMetaCPU)": [
     "112004",
     "https://github.com/pytorch/pytorch/issues/112004",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_meta_outplace_fft_ihfftn_cpu_float64 (__main__.TestMetaCPU)": [
+    "112016",
+    "https://github.com/pytorch/pytorch/issues/112016",
     [
       "dynamo"
     ]
