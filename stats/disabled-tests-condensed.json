@@ -581,6 +581,13 @@
       "linux"
     ]
   ],
+  "test_dunder_round_edgecases_val_2147483647_ndigits_-1 (__main__.TestNonarrayArgs)": [
+    "116121",
+    "https://github.com/pytorch/pytorch/issues/116121",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
