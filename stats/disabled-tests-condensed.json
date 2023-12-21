@@ -321,6 +321,13 @@
       "linux"
     ]
   ],
+  "test_cond (__main__.TestPassInfra)": [
+    "116278",
+    "https://github.com/pytorch/pytorch/issues/116278",
+    [
+      "dynamo"
+    ]
+  ],
   "test_cond_nested_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "101512",
     "https://github.com/pytorch/pytorch/issues/101512",
@@ -571,6 +578,13 @@
       "rocm"
     ]
   ],
+  "test_div_upgrader_pass_return_new_op_after_retrace (__main__.TestUpgrade)": [
+    "116282",
+    "https://github.com/pytorch/pytorch/issues/116282",
+    [
+      "dynamo"
+    ]
+  ],
   "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
     "112887",
     "https://github.com/pytorch/pytorch/issues/112887",
@@ -602,11 +616,25 @@
       "dynamo"
     ]
   ],
+  "test_ep_verifier_basic (__main__.TestVerifier)": [
+    "116283",
+    "https://github.com/pytorch/pytorch/issues/116283",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
     [
       "linux"
+    ]
+  ],
+  "test_export_assume_static_by_default (__main__.TestDynamismExpression)": [
+    "116275",
+    "https://github.com/pytorch/pytorch/issues/116275",
+    [
+      "dynamo"
     ]
   ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
@@ -624,6 +652,13 @@
     "https://github.com/pytorch/pytorch/issues/99126",
     [
       "linux"
+    ]
+  ],
+  "test_fallback_binary_cpu (__main__.TestVmapNestedTensorCPU)": [
+    "116274",
+    "https://github.com/pytorch/pytorch/issues/116274",
+    [
+      "dynamo"
     ]
   ],
   "test_find_or_create_pg (__main__.TestPgTag)": [
@@ -726,6 +761,13 @@
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_functionalization_with_view_copy (__main__.TestPasses)": [
+    "116279",
+    "https://github.com/pytorch/pytorch/issues/116279",
     [
       "dynamo"
     ]
@@ -1718,6 +1760,13 @@
       "linux"
     ]
   ],
+  "test_out_dtype_op_functional (__main__.TestOutDtypeOp)": [
+    "116280",
+    "https://github.com/pytorch/pytorch/issues/116280",
+    [
+      "dynamo"
+    ]
+  ],
   "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
     "112142",
     "https://github.com/pytorch/pytorch/issues/112142",
@@ -2130,6 +2179,13 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
+    ]
+  ],
+  "test_unflatten_buffer_mutation (__main__.TestUnflatten)": [
+    "116281",
+    "https://github.com/pytorch/pytorch/issues/116281",
+    [
+      "dynamo"
     ]
   ],
   "test_variant_consistency_eager_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
