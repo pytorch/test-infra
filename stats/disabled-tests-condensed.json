@@ -690,6 +690,13 @@
       "inductor"
     ]
   ],
+  "test_foreach_matches_forloop_AdamW_cpu_float64 (__main__.TestOptimRenewedCPU)": [
+    "116314",
+    "https://github.com/pytorch/pytorch/issues/116314",
+    [
+      "dynamo"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
