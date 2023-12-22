@@ -114,9 +114,13 @@ function getTestName(failureCapture: string) {
   return null;
 }
 
-function formatDisableTestBody(failureCaptures: string[]) {
-  const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
-    failureCaptures.join(",")
+function formatDisableTestBody(job: JobData) {
+  const examplesURL = `http://torch-ci.com/failure?name=${encodeURIComponent(
+    job.name as string
+  )}&jobName=${encodeURIComponent(
+    job.jobName as string
+  )}&failureCaptures=${encodeURIComponent(
+    JSON.stringify(job.failureCaptures)
   )}`;
   return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
 
@@ -157,7 +161,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
   const issueTitle = `DISABLED ${testName}`;
-  const issueBody = formatDisableTestBody(job.failureCaptures!);
+  const issueBody = formatDisableTestBody(job);
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
