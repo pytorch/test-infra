@@ -115,11 +115,7 @@ function getTestName(failureCapture: string) {
 }
 
 function formatDisableTestBody(job: JobData) {
-  const examplesURL = `http://torch-ci.com/failure?name=${encodeURIComponent(
-    job.name as string
-  )}&jobName=${encodeURIComponent(
-    job.jobName as string
-  )}&failureCaptures=${encodeURIComponent(
+  const examplesURL = `https://torch-ci.com/failure?failureCaptures=${encodeURIComponent(
     JSON.stringify(job.failureCaptures)
   )}`;
   return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
