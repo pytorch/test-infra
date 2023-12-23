@@ -1718,6 +1718,13 @@
       "linux"
     ]
   ],
+  "test_optional_tensor (test_jit.TestScript)": [
+    "91494",
+    "https://github.com/pytorch/pytorch/issues/91494",
+    [
+      "linux"
+    ]
+  ],
   "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
     "112142",
     "https://github.com/pytorch/pytorch/issues/112142",
