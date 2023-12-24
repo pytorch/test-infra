@@ -1718,13 +1718,6 @@
       "linux"
     ]
   ],
-  "test_optional_tensor (test_jit.TestScript)": [
-    "91494",
-    "https://github.com/pytorch/pytorch/issues/91494",
-    [
-      "linux"
-    ]
-  ],
   "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
     "112142",
     "https://github.com/pytorch/pytorch/issues/112142",
@@ -1797,6 +1790,13 @@
   "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
     "110026",
     "https://github.com/pytorch/pytorch/issues/110026",
+    [
+      "linux"
+    ]
+  ],
+  "test_rand (test_jit.TestScript)": [
+    "91495",
+    "https://github.com/pytorch/pytorch/issues/91495",
     [
       "linux"
     ]
