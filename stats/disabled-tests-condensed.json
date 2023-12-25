@@ -711,13 +711,6 @@
       "linux"
     ]
   ],
-  "test_forward_mode_AD_linalg_lu_factor_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "115140",
-    "https://github.com/pytorch/pytorch/issues/115140",
-    [
-      "linux"
-    ]
-  ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
     "69659",
     "https://github.com/pytorch/pytorch/issues/69659",
@@ -967,13 +960,6 @@
       "mac"
     ]
   ],
-  "test_lgamma_cpu (__main__.CpuTests)": [
-    "113148",
-    "https://github.com/pytorch/pytorch/issues/113148",
-    [
-      "linux"
-    ]
-  ],
   "test_linear_cutlass_backend_cutlass_cuda_float32 (__main__.TestSparseSemiStructuredCUDA)": [
     "116045",
     "https://github.com/pytorch/pytorch/issues/116045",
@@ -1082,13 +1068,6 @@
   "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114211",
     "https://github.com/pytorch/pytorch/issues/114211",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114230",
-    "https://github.com/pytorch/pytorch/issues/114230",
     [
       "linux"
     ]
