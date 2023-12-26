@@ -1668,14 +1668,6 @@
       "macos"
     ]
   ],
-  "test_optim_state_dict_nested_state_dict_type1_use_multiple_param_groups_True_rank0_only_False_use_diff_optim_inputs_False (__main__.TestFSDPOptimState)": [
-    "116395",
-    "https://github.com/pytorch/pytorch/issues/116395",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
