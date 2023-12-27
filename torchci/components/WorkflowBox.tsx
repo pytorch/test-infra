@@ -5,7 +5,7 @@ import { Artifact, JobData } from "lib/types";
 import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
-import LogViewer2 from "./LogViewer2";
+import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
 import { useState, CSSProperties } from "react";
@@ -112,24 +112,37 @@ export default function WorkflowBox({
 
   const { artifacts, error } = useArtifacts(workflowId);
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
-  const [searchString, setSearchString] = useState("");
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
+
+  const [searchString, setSearchString] = useState("");
+  const { data: searchRes, error: searchError } = useLogSearch(
+    jobs,
+    searchString
+  );
 
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
-      <form
-        onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-          e.preventDefault();
-          // @ts-ignore
-          const searchString = e.target[0].value;
-          setSearchString(searchString)
-        }}
-      >
-        <input type="text"></input>
-        <input type="submit"></input>
-      </form>
-      <h4>Job Status</h4>
+      <div style={{ float: "left" }}>
+        <h4>Job Status</h4>
+      </div>
+      <div style={{ float: "right" }}>
+        <h4>
+          <form
+            onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              // @ts-ignore
+              const searchString = e.target[0].value;
+              setSearchString(searchString);
+            }}
+          >
+            <input type="text"></input>
+            <input type="submit" value="Search"></input>
+          </form>
+        </h4>
+        {searchString && <div>{searchError}</div>}
+      </div>
+      <div style={{ clear: "both" }}></div>
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
@@ -139,7 +152,13 @@ export default function WorkflowBox({
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
             />
-            {(isFailedJob(job) || searchString) && <LogViewer2 job={job} query={searchString}/>}
+            {(searchString && (
+              <SearchLogViewer
+                url={job.logUrl!}
+                lines={searchRes.get(job.id!)}
+              />
+            )) ||
+              (isFailedJob(job) && <LogViewer job={job} />)}
           </div>
         ))}
       </>
@@ -166,6 +185,39 @@ function useArtifacts(workflowId: string | undefined): {
     return { artifacts: [], error: "Error occured while fetching artifacts" };
   }
   return { artifacts: data, error };
+}
+
+function useLogSearch(
+  jobs: JobData[],
+  searchString: string
+): {
+  data: Map<string, [number[], string[]]>;
+  error: string;
+} {
+  const { data, error } = useSWR(
+    `/api/search_log?jobIds=${encodeURIComponent(
+      jobs.map((job) => job.id).join(",")
+    )}&query=${encodeURIComponent(searchString)}`,
+    fetcher,
+    {}
+  );
+  if (data == null) {
+    return {
+      data: new Map<string, [number[], string[]]>(),
+      error: "Loading... (this might take a while)",
+    };
+  }
+  if (error != null) {
+    return {
+      data: new Map<string, [number[], string[]]>(),
+      error: "Error occured while searching",
+    };
+  }
+  // Convert from javascript object(?) to map
+  return {
+    data: new Map(Object.keys(data).map((key) => [key, data[key]])),
+    error,
+  };
 }
 
 function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
