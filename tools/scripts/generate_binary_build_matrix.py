@@ -389,10 +389,7 @@ def generate_libtorch_matrix(
     if libtorch_variants is None:
         libtorch_variants = [
             "shared-with-deps",
-            "shared-without-deps",
-            "static-with-deps",
-            "static-without-deps",
-        ] if os not in [MACOS, MACOS_ARM64] else ["shared-with-deps"]
+        ]
 
     for abi_version in abi_versions:
         for arch_version in arches:
@@ -402,18 +399,6 @@ def generate_libtorch_matrix(
                 # matter
                 gpu_arch_type = arch_type(arch_version)
                 gpu_arch_version = "" if arch_version == CPU else arch_version
-                # ROCm builds without-deps failed even in ROCm runners; skip for now
-                if gpu_arch_type == ROCM and "without-deps" in libtorch_variant:
-                    continue
-
-                # For windows release we support only shared-with-deps variant
-                # see: https://github.com/pytorch/pytorch/issues/87782
-                if (
-                    os == WINDOWS
-                    and channel == RELEASE
-                    and libtorch_variant != "shared-with-deps"
-                ):
-                    continue
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
                 devtoolset = abi_version if os != WINDOWS else ""
