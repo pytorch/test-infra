@@ -123,11 +123,14 @@ export default function WorkflowBox({
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
-      <div style={{ float: "left" }}>
-        <h4>Job Status</h4>
-      </div>
-      <div style={{ float: "right" }}>
-        <h4>
+      <div>
+        <div
+          // Similar styling to an h4
+          style={{ float: "left", marginBottom: "1.33em", fontWeight: "bold" }}
+        >
+          Job Status
+        </div>
+        <div style={{ float: "right" }}>
           <form
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
@@ -139,10 +142,15 @@ export default function WorkflowBox({
             <input type="text"></input>
             <input type="submit" value="Search"></input>
           </form>
-        </h4>
-        {searchString && <div>{searchError}</div>}
+          {searchString && <div>{searchError}</div>}
+        </div>
+        <div
+          style={{
+            // Ensures elements after this div are actually below it (due to float)
+            clear: "both",
+          }}
+        ></div>
       </div>
-      <div style={{ clear: "both" }}></div>
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>

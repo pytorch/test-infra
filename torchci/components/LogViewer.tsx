@@ -153,8 +153,9 @@ function JumpToLineButton({
   line: number | undefined;
   currentLine: number | undefined;
 }) {
-  // This is the component that shows the failed line, and clicking it opens the
-  // log viewer
+  // This is the component that shows the failed line (or really whatever line
+  // you want it to show), and clicking it opens the log viewer and jumps to
+  // that line
   const isCurrentLine = currentLine == line;
 
   function setCurrentLineHelper() {
