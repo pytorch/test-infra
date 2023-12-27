@@ -5,8 +5,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // This might be expensive?  I do this server side since it was really slow
-  // client side
+  // This might be expensive?
   const query = req.query.query as string;
   const jobIds = (req.query.jobIds as string).split(",");
   if (query == "") {
