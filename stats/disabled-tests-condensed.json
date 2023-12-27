@@ -1323,13 +1323,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_masked_var_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112247",
-    "https://github.com/pytorch/pytorch/issues/112247",
-    [
-      "dynamo"
-    ]
-  ],
   "test_meta_outplace_nn_functional_alpha_dropout_cpu_bfloat16 (__main__.TestMetaCPU)": [
     "112273",
     "https://github.com/pytorch/pytorch/issues/112273",
