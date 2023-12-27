@@ -145,12 +145,14 @@ jobs:
             git clean -fd
 
             # print conflicts
-
             {
-              echo "### Found ${#CONFLICTING_COMMITS[@]} conflicts that prevent merging PR #$PR_NUMBER into main:"
-              echo "These are commits in the \`main\` branch that conflict with the PR and prevent it from being merged. \
-                    To merge this pr, these commits have to be reverted, or the PR has to be rebased onto \`main\` using \
+              echo "### Found ${#CONFLICTING_COMMITS[@]} conflicts:"
+              echo "These conflicts prevent merging PR #$PR_NUMBER into main / reverting it (if it is already merged)."
+              echo "These are commits in the \`main\` branch that conflict with the PR and prevent it from being \
+                    merged/reverted."
+              echo "To merge this pr, these commits have to be reverted, or the PR has to be rebased onto \`main\` using \
                     the manual conflict resolution."
+              echo "If the PR is already merged, then these commits have to be reverted to revert the PR."
               echo ""
             } >> "$GITHUB_STEP_SUMMARY"
 
@@ -168,7 +170,7 @@ jobs:
           # try merging pr-branch into main
           if ! git merge --no-commit --no-ff pr-branch; then
             # red
-            echo "::error::PR is not mergeable into main!"
+            echo "::error::PR is NOT mergeable into main / revertable (if it is already merged)!"
 
             git merge --abort
             find_conflicting_commits
@@ -176,7 +178,7 @@ jobs:
             echo "----"
           else
             # same as a github warning
-            echo "::notice::PR is mergeable into main."
+            echo "::notice::PR is mergeable into main / revertable (if it is already merged)."
           fi
           echo "pr_is_mergeable=${PR_IS_MERGEABLE}" >> "$GITHUB_OUTPUT"
           # reset main to MERGE_BASE
