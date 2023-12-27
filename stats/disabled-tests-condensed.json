@@ -27,13 +27,6 @@
       "rocm"
     ]
   ],
-  "test_activations_abs__cpu (__main__.TestNestedTensorDeviceTypeCPU)": [
-    "110198",
-    "https://github.com/pytorch/pytorch/issues/110198",
-    [
-      "dynamo"
-    ]
-  ],
   "test_addmm (__main__.ComputeBoundedTests)": [
     "115022",
     "https://github.com/pytorch/pytorch/issues/115022",
