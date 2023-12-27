@@ -132,6 +132,7 @@ export default function WorkflowBox({
         </div>
         <div style={{ float: "right" }}>
           <form
+            style={{ float: "right" }}
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               // @ts-ignore
