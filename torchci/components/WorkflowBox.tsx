@@ -147,8 +147,8 @@ export default function WorkflowBox({
               setSearchString(searchString);
             }}
           >
-            <input type="text"></input>
-            <input type="submit" value="Search"></input>
+            <input type="text" placeholder="Search raw logs"></input>
+            <input type="submit" value="Go"></input>
           </form>
           {searchString && <div>{searchRes.info}</div>}
         </div>
