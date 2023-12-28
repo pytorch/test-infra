@@ -5,7 +5,9 @@ export async function getSearchRes(
   query: string,
   setSearchRes: any
 ) {
-  // Helper to make sure the component reloads when it should (hopefully)
+  // Helper function to be called in useEffect to make sure the component
+  // reloads when it should (hopefully).  The actual searching is done in
+  // searchLogs
   if (query == "") {
     setSearchRes({
       results: new Map(),
@@ -47,6 +49,7 @@ async function searchLog(
   jobId: string,
   query: string
 ): Promise<[number[], string[]] | undefined> {
+  // Search indiividual log
   try {
     const result = await fetch(
       `https://ossci-raw-job-status.s3.amazonaws.com/log/${jobId}`
