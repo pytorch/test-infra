@@ -62,7 +62,7 @@ async function searchLog(
     const threshold = 100;
     for (const [index, line] of (await result.text()).split("\n").entries()) {
       if (RegExp(query).test(line)) {
-        lineNumbers.push(index);
+        lineNumbers.push(index + 1);
         lineTexts.push(
           line.length > 100 ? `${line.substring(0, 100)}...` : line
         );
