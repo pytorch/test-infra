@@ -8,7 +8,8 @@ import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState, CSSProperties } from "react";
+import { useState, CSSProperties, useEffect } from "react";
+import { getSearchRes } from "lib/searchLogs";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -115,10 +116,16 @@ export default function WorkflowBox({
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
   const [searchString, setSearchString] = useState("");
-  const { data: searchRes, error: searchError } = useLogSearch(
-    jobs,
-    searchString
-  );
+  const [searchRes, setSearchRes] = useState<{
+    results: Map<string, [number[], string[]] | undefined>;
+    info: undefined | string;
+  }>({
+    results: new Map(),
+    info: undefined,
+  });
+  useEffect(() => {
+    getSearchRes(jobs, searchString, setSearchRes);
+  }, [searchString]);
 
   return (
     <div id={anchorName} className={workflowClass}>
@@ -143,7 +150,7 @@ export default function WorkflowBox({
             <input type="text"></input>
             <input type="submit" value="Search"></input>
           </form>
-          {searchString && <div>{searchError}</div>}
+          {searchString && <div>{searchRes.info}</div>}
         </div>
         <div
           style={{
@@ -164,7 +171,7 @@ export default function WorkflowBox({
             {(searchString && (
               <SearchLogViewer
                 url={job.logUrl!}
-                lines={searchRes.get(job.id!)}
+                lines={searchRes.results.get(job.id!)}
               />
             )) ||
               (isFailedJob(job) && <LogViewer job={job} />)}
@@ -194,39 +201,6 @@ function useArtifacts(workflowId: string | undefined): {
     return { artifacts: [], error: "Error occured while fetching artifacts" };
   }
   return { artifacts: data, error };
-}
-
-function useLogSearch(
-  jobs: JobData[],
-  searchString: string
-): {
-  data: Map<string, [number[], string[]]>;
-  error: string;
-} {
-  const { data, error } = useSWR(
-    `/api/search_log?jobIds=${encodeURIComponent(
-      jobs.map((job) => job.id).join(",")
-    )}&query=${encodeURIComponent(searchString)}`,
-    fetcher,
-    {}
-  );
-  if (data == null) {
-    return {
-      data: new Map<string, [number[], string[]]>(),
-      error: "Loading... (this might take a while)",
-    };
-  }
-  if (error != null) {
-    return {
-      data: new Map<string, [number[], string[]]>(),
-      error: "Error occured while searching",
-    };
-  }
-  // Convert from javascript object(?) to map
-  return {
-    data: new Map(Object.keys(data).map((key) => [key, data[key]])),
-    error,
-  };
 }
 
 function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
