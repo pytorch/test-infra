@@ -218,7 +218,7 @@ function Log({
     extensions: [
       basicSetup, // standard text editor things
       EditorState.readOnly.of(true), // make the editor read-only
-      EditorView.theme({ "&": { height: "50vh" } }), // set height
+      EditorView.theme({ "&": { height: "90vh" } }), // set height
       EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
       oneDark, // set theme
       ansiColors, // properly render ansi colors in the logs
