@@ -534,6 +534,13 @@
       "dynamo"
     ]
   ],
+  "test_dispatch_symbolic_meta_outplace_all_strides_angle_cuda_float32 (__main__.TestMetaCUDA)": [
+    "116485",
+    "https://github.com/pytorch/pytorch/issues/116485",
+    [
+      "linux"
+    ]
+  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -1070,6 +1077,14 @@
       "macos"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_i1e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "116483",
+    "https://github.com/pytorch/pytorch/issues/116483",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_matmul_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
     "115002",
     "https://github.com/pytorch/pytorch/issues/115002",
@@ -1168,6 +1183,13 @@
     "https://github.com/pytorch/pytorch/issues/111561",
     [
       "dynamo"
+    ]
+  ],
+  "test_meta_outplace_all_cuda_int8 (__main__.TestMetaCUDA)": [
+    "116484",
+    "https://github.com/pytorch/pytorch/issues/116484",
+    [
+      "linux"
     ]
   ],
   "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
@@ -1334,13 +1356,6 @@
   "test_meta_outplace_linalg_pinv_cpu_complex128 (__main__.TestMetaCPU)": [
     "112236",
     "https://github.com/pytorch/pytorch/issues/112236",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_nn_functional_margin_ranking_loss_cpu_int16 (__main__.TestMetaCPU)": [
-    "112463",
-    "https://github.com/pytorch/pytorch/issues/112463",
     [
       "dynamo"
     ]
