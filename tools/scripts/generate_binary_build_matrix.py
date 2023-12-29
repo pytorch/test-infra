@@ -21,8 +21,8 @@ from typing import Dict, List, Optional, Tuple
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    # TODO (huydhn): 3.12 is only enabled in nightly for now, test and release
-    # will come later
+    # TODO (huydhn): 3.12 is only enabled in nightly and test.
+    # Release should be enabled after release is complete.
     "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "release": ["3.8", "3.9", "3.10", "3.11"],
@@ -360,8 +360,9 @@ def generate_libtorch_matrix(
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
 
-    # macos-arm64 does not have any libtorch builds
-    if os == MACOS_ARM64 and channel != "release":
+    # TODO: macos-arm64 have libtorch only in test and nightly now
+    # release will be enabled after release 2.2.0 is complete
+    if os == MACOS_ARM64 and channel == "release":
         return ret
 
     if arches is None:
