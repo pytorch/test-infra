@@ -241,7 +241,7 @@ def get_libtorch_install_command(
         arch = "x86_64" if os == MACOS else "arm64"
         build_name = f"libtorch-macos-{arch}-latest.zip"
         if channel in [RELEASE, TEST]:
-            build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
+            build_name = f"libtorch-macos-{arch}-{mod.CURRENT_VERSION}.zip"
 
     elif os == LINUX and (channel == RELEASE or channel == TEST):
         build_name = (
