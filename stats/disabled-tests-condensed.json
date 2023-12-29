@@ -1321,13 +1321,6 @@
       "dynamo"
     ]
   ],
-  "test_meta_outplace_std_mean_cpu_float64 (__main__.TestMetaCPU)": [
-    "112702",
-    "https://github.com/pytorch/pytorch/issues/112702",
-    [
-      "dynamo"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
