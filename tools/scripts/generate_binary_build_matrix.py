@@ -361,7 +361,7 @@ def generate_libtorch_matrix(
     ret: List[Dict[str, str]] = []
 
     # macos-arm64 does not have any libtorch builds
-    if os == MACOS_ARM64 and channel != "nightly":
+    if os == MACOS_ARM64 and channel != "release":
         return ret
 
     if arches is None:
