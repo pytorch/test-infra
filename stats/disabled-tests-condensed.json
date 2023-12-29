@@ -695,13 +695,6 @@
       "dynamo"
     ]
   ],
-  "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
-    "105254",
-    "https://github.com/pytorch/pytorch/issues/105254",
-    [
-      "rocm"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1691,13 +1684,6 @@
     "https://github.com/pytorch/pytorch/issues/107950",
     [
       "rocm"
-    ]
-  ],
-  "test_reference_numerics_large__refs_special_multigammaln_mvlgamma_p_1_cpu_float32 (__main__.TestUnaryUfuncsCPU)": [
-    "114456",
-    "https://github.com/pytorch/pytorch/issues/114456",
-    [
-      "dynamo"
     ]
   ],
   "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
