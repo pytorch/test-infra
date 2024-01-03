@@ -542,16 +542,6 @@
       "rocm"
     ]
   ],
-  "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
-    "112887",
-    "https://github.com/pytorch/pytorch/issues/112887",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "asan"
-    ]
-  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -886,13 +876,6 @@
   "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
     "113134",
     "https://github.com/pytorch/pytorch/issues/113134",
-    [
-      "linux"
-    ]
-  ],
-  "test_large_strided_reduction_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
-    "113146",
-    "https://github.com/pytorch/pytorch/issues/113146",
     [
       "linux"
     ]
@@ -1865,13 +1848,6 @@
   "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
     "86711",
     "https://github.com/pytorch/pytorch/issues/86711",
-    [
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_complex64 (__main__.TestJitCUDA)": [
-    "86887",
-    "https://github.com/pytorch/pytorch/issues/86887",
     [
       "linux"
     ]
