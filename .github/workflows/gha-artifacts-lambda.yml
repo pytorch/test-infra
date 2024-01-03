@@ -16,6 +16,9 @@ defaults:
   run:
     working-directory: aws/lambda/gha-artifacts/
 
+permissions:
+  id-token: read
+
 jobs:
   test:
     runs-on: ubuntu-22.04
