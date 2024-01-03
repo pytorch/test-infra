@@ -1,5 +1,10 @@
 import { JobData } from "./types";
 
+export interface LogSearchResult {
+  results: { lineNumber: number; lineText: string }[];
+  info: string;
+}
+
 export async function getSearchRes(
   jobs: JobData[],
   query: string,
@@ -19,10 +24,7 @@ export async function getSearchRes(
     results: new Map(),
     info: "Loading... (this might take a while)",
   });
-  const searchRes = await searchLogs(
-    jobs.map((job) => job.id!),
-    query
-  );
+  const searchRes = await searchLogs(jobs, query);
   setSearchRes({
     results: searchRes,
     info: undefined,
@@ -30,49 +32,67 @@ export async function getSearchRes(
 }
 
 async function searchLogs(
-  jobIds: string[],
+  jobs: JobData[],
   query: string
-): Promise<Map<string, [number[], string[]] | undefined>> {
+): Promise<Map<string, LogSearchResult>> {
   if (query == "") {
     return new Map();
   }
-  const results: [string, [number[], string[]] | undefined][] =
-    await Promise.all(
-      jobIds.map(async (jobId) => {
-        return [jobId, await searchLog(jobId, query)];
-      })
-    );
+  const results: [string, LogSearchResult][] = await Promise.all(
+    jobs.map(async (job) => {
+      return [job.id!, await searchLog(job, query)];
+    })
+  );
   return new Map(results);
 }
 
 async function searchLog(
-  jobId: string,
+  job: JobData,
   query: string
-): Promise<[number[], string[]] | undefined> {
-  // Search indiividual log
+): Promise<LogSearchResult> {
+  // Search individual log
   try {
-    const result = await fetch(
-      `https://ossci-raw-job-status.s3.amazonaws.com/log/${jobId}`
-    );
-    if (result.status != 200) {
-      return undefined;
+    if (job.conclusion == "pending") {
+      return {
+        results: [],
+        info: "Job is still running",
+      };
     }
-    const lineNumbers = [];
-    const lineTexts = [];
+
+    const log = await fetch(
+      `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id!}`
+    );
+    if (log.status != 200) {
+      return {
+        results: [],
+        info: `Error searching log ${log.statusText}`,
+      };
+    }
+    const result: LogSearchResult = {
+      results: [],
+      info: "",
+    };
     const threshold = 100;
-    for (const [index, line] of (await result.text()).split("\n").entries()) {
-      if (line.includes(query)) {
-        lineNumbers.push(index + 1);
-        lineTexts.push(
-          line.length > 100 ? `${line.substring(0, 100)}...` : line
-        );
-        if (lineNumbers.length >= threshold) {
+    for (const [index, line] of (await log.text()).split("\n").entries()) {
+      if (RegExp(query).test(line)) {
+        result.results.push({
+          lineNumber: index + 1,
+          lineText: line.length > 100 ? `${line.substring(0, 100)}...` : line,
+        });
+        if (result.results.length >= threshold) {
+          result.info = `Found ${threshold}+ matching lines, showing first ${threshold}`;
           break;
         }
       }
     }
-    return [lineNumbers, lineTexts];
+    if (result.info == "") {
+      result.info = `Found ${result.results.length} matching lines`;
+    }
+    return result;
   } catch (error) {
-    return undefined;
+    return {
+      results: [],
+      info: `Error searching log ${error}`,
+    };
   }
 }

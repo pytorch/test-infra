@@ -22,6 +22,7 @@ import { JobData, LogAnnotation } from "lib/types";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
 import LogAnnotationToggle from "./LogAnnotationToggle";
+import { LogSearchResult } from "lib/searchLogs";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
 // Based on the current editor view, produce a series of decorations that
@@ -324,31 +325,23 @@ export default function LogViewer({
 
 export function SearchLogViewer({
   url,
-  lines,
+  logSearchResult,
 }: {
   url: string;
-  lines: [number[], string[]] | undefined;
+  logSearchResult: LogSearchResult | undefined;
 }) {
-  // This is the search equivalent of LogVeiwer.  It is almost the same thing
+  // This is the search equivalent of LogViewer.  It is almost the same thing
   // but also displays info about how many matches there were for the search
 
-  let infoString = "";
-  let lineNumbers: number[] = [];
-  let lineTexts: string[] = [];
-  if (lines === undefined) {
-    lineNumbers = [];
-    lineTexts = [];
-    infoString = "Failed to retrieve log";
-  } else {
-    [lineNumbers, lineTexts] = lines;
-    let numLinesString = lineNumbers.length < 100 ? lineNumbers.length : "100+";
-    infoString = `Found ${numLinesString} lines with matches`;
-  }
+  let lineNumbers = logSearchResult?.results.map((v) => v.lineNumber) ?? [];
+  let lineTexts = logSearchResult?.results.map((v) => v.lineText) ?? [];
 
   return (
     <>
       <div>
-        <small>&nbsp;&nbsp;&nbsp;&nbsp;{infoString}</small>
+        <small>
+          &nbsp;&nbsp;&nbsp;&nbsp;{logSearchResult?.info ?? "Loading..."}
+        </small>
       </div>
       <LogWithLineSelector
         url={url}

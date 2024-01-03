@@ -9,7 +9,7 @@ import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
 import { useState, CSSProperties, useEffect } from "react";
-import { getSearchRes } from "lib/searchLogs";
+import { LogSearchResult, getSearchRes } from "lib/searchLogs";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -117,7 +117,7 @@ export default function WorkflowBox({
 
   const [searchString, setSearchString] = useState("");
   const [searchRes, setSearchRes] = useState<{
-    results: Map<string, [number[], string[]] | undefined>;
+    results: Map<string, LogSearchResult>;
     info: undefined | string;
   }>({
     results: new Map(),
@@ -147,8 +147,12 @@ export default function WorkflowBox({
               setSearchString(searchString);
             }}
           >
-            <input type="text" placeholder="Search raw logs"></input>
-            <input type="submit" value="Go"></input>
+            <input
+              type="text"
+              style={{ width: "15em" }}
+              placeholder="Search raw logs with regex"
+            ></input>
+            <input type="submit" value="Search"></input>
           </form>
           {searchString && <div>{searchRes.info}</div>}
         </div>
@@ -171,7 +175,7 @@ export default function WorkflowBox({
             {(searchString && (
               <SearchLogViewer
                 url={job.logUrl!}
-                lines={searchRes.results.get(job.id!)}
+                logSearchResult={searchRes.results.get(job.id!)}
               />
             )) ||
               (isFailedJob(job) && <LogViewer job={job} />)}
