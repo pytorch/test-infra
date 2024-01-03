@@ -1014,17 +1014,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114212",
-    "https://github.com/pytorch/pytorch/issues/114212",
-    [
-      "win",
-      "windows",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_i1e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "116483",
     "https://github.com/pytorch/pytorch/issues/116483",
@@ -1110,13 +1099,6 @@
     "https://github.com/pytorch/pytorch/issues/116484",
     [
       "linux"
-    ]
-  ],
-  "test_meta_outplace_fft_hfft_cpu_complex64 (__main__.TestMetaCPU)": [
-    "111571",
-    "https://github.com/pytorch/pytorch/issues/111571",
-    [
-      "dynamo"
     ]
   ],
   "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
