@@ -348,6 +348,13 @@
       "rocm"
     ]
   ],
+  "test_convert_np_dtypes_'bool_' (__main__.TestConvertDType)": [
+    "116716",
+    "https://github.com/pytorch/pytorch/issues/116716",
+    [
+      "dynamo"
+    ]
+  ],
   "test_cpp_frontend_module_has_same_output_as_python (__main__.TestCppExtensionJIT)": [
     "116105",
     "https://github.com/pytorch/pytorch/issues/116105",
@@ -997,6 +1004,18 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114212",
+    "https://github.com/pytorch/pytorch/issues/114212",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows",
+      "asan"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_i1e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "116483",
     "https://github.com/pytorch/pytorch/issues/116483",
@@ -1082,13 +1101,6 @@
     "https://github.com/pytorch/pytorch/issues/116484",
     [
       "linux"
-    ]
-  ],
-  "test_meta_outplace_fft_ifft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111638",
-    "https://github.com/pytorch/pytorch/issues/111638",
-    [
-      "dynamo"
     ]
   ],
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
