@@ -1,5 +1,5 @@
 This lambda is used to list all artifacts from a specific GitHub
-workflows
+workflows together with their size in bytes
 
 ### Deployment
 
