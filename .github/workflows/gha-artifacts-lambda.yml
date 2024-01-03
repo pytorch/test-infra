@@ -1,0 +1,46 @@
+name: Test and deploy gha-artifacts lambda
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/gha-artifacts-lambda.yml
+      - aws/lambda/gha-artifacts/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/gha-artifacts-lambda.yml
+      - aws/lambda/gha-artifacts/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/gha-artifacts/
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip3 install -r requirements.txt
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-22.04
+    # TODO: DEBUG TO TEST IF THE CI WORKS, TO BE UNCOMMENTED BEFORE COMMING
+    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_gha-artifacts-lambda
+          aws-region: us-east-1
+      - run: make deploy
