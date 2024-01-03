@@ -17,7 +17,8 @@ defaults:
     working-directory: aws/lambda/gha-artifacts/
 
 permissions:
-  id-token: read
+  id-token: write
+  contents: read
 
 jobs:
   test:
