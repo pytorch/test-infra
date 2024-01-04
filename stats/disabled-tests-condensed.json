@@ -1017,6 +1017,13 @@
       "linux"
     ]
   ],
+  "test_make_weak_keyed_dict_from_weak_keyed_dict (__main__.WeakTest)": [
+    "116765",
+    "https://github.com/pytorch/pytorch/issues/116765",
+    [
+      "dynamo"
+    ]
+  ],
   "test_matmul_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
     "115002",
     "https://github.com/pytorch/pytorch/issues/115002",
