@@ -490,6 +490,13 @@
       "linux"
     ]
   ],
+  "test_ddp_checkpointing_once_use_reentrant_False (__main__.DistributedDataParallelTest)": [
+    "116774",
+    "https://github.com/pytorch/pytorch/issues/116774",
+    [
+      "rocm"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
