@@ -1692,6 +1692,13 @@
       "windows"
     ]
   ],
+  "test_second_order_accurate (__main__.TestGradient)": [
+    "116746",
+    "https://github.com/pytorch/pytorch/issues/116746",
+    [
+      "dynamo"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
