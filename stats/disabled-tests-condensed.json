@@ -533,9 +533,44 @@
       "dynamo"
     ]
   ],
+  "test_dispatch_meta_inplace_bitwise_left_shift_cuda_uint8 (__main__.TestMetaCUDA)": [
+    "116813",
+    "https://github.com/pytorch/pytorch/issues/116813",
+    [
+      "linux"
+    ]
+  ],
+  "test_dispatch_meta_outplace___rmatmul___cuda_complex64 (__main__.TestMetaCUDA)": [
+    "116811",
+    "https://github.com/pytorch/pytorch/issues/116811",
+    [
+      "linux"
+    ]
+  ],
+  "test_dispatch_meta_outplace_bitwise_and_cuda_int8 (__main__.TestMetaCUDA)": [
+    "116816",
+    "https://github.com/pytorch/pytorch/issues/116816",
+    [
+      "linux"
+    ]
+  ],
+  "test_dispatch_symbolic_meta_inplace_bitwise_left_shift_cuda_int64 (__main__.TestMetaCUDA)": [
+    "116815",
+    "https://github.com/pytorch/pytorch/issues/116815",
+    [
+      "linux"
+    ]
+  ],
   "test_dispatch_symbolic_meta_outplace_all_strides_angle_cuda_float32 (__main__.TestMetaCUDA)": [
     "116485",
     "https://github.com/pytorch/pytorch/issues/116485",
+    [
+      "linux"
+    ]
+  ],
+  "test_dispatch_symbolic_meta_outplace_bitwise_left_shift_cuda_int16 (__main__.TestMetaCUDA)": [
+    "116814",
+    "https://github.com/pytorch/pytorch/issues/116814",
     [
       "linux"
     ]
@@ -566,6 +601,41 @@
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtypes___rmod___cuda (__main__.TestCommonCUDA)": [
+    "116821",
+    "https://github.com/pytorch/pytorch/issues/116821",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtypes___rxor___cuda (__main__.TestCommonCUDA)": [
+    "116818",
+    "https://github.com/pytorch/pytorch/issues/116818",
+    [
+      "inductor"
+    ]
+  ],
+  "test_dtypes__refs_bitwise_left_shift_cuda (__main__.TestCommonCUDA)": [
+    "116822",
+    "https://github.com/pytorch/pytorch/issues/116822",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtypes__refs_bitwise_not_cuda (__main__.TestCommonCUDA)": [
+    "116820",
+    "https://github.com/pytorch/pytorch/issues/116820",
+    [
+      "inductor"
+    ]
+  ],
+  "test_dtypes_bitwise_or_cuda (__main__.TestCommonCUDA)": [
+    "116819",
+    "https://github.com/pytorch/pytorch/issues/116819",
     [
       "linux"
     ]
@@ -1097,6 +1167,13 @@
       "linux"
     ]
   ],
+  "test_meta_outplace_bitwise_left_shift_cuda_uint8 (__main__.TestMetaCUDA)": [
+    "116812",
+    "https://github.com/pytorch/pytorch/issues/116812",
+    [
+      "linux"
+    ]
+  ],
   "test_meta_outplace_fft_ifft_cpu_int16 (__main__.TestMetaCPU)": [
     "111986",
     "https://github.com/pytorch/pytorch/issues/111986",
@@ -1480,6 +1557,13 @@
   "test_optional_tensor (test_jit.TestScript)": [
     "91494",
     "https://github.com/pytorch/pytorch/issues/91494",
+    [
+      "linux"
+    ]
+  ],
+  "test_out_warning__refs_bitwise_and_cuda (__main__.TestCommonCUDA)": [
+    "116817",
+    "https://github.com/pytorch/pytorch/issues/116817",
     [
       "linux"
     ]
