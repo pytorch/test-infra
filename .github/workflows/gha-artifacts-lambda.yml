@@ -34,8 +34,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-22.04
-    # TODO: DEBUG TO TEST IF THE CI WORKS, TO BE UNCOMMENTED BEFORE COMMING
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
