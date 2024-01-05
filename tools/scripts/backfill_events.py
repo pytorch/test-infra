@@ -5,6 +5,7 @@ import json
 import os
 from typing import Any
 from warnings import warn
+from urllib.request import urlopen
 
 import boto3
 from octokit import Octokit
@@ -38,6 +39,11 @@ def download_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion
             ContentType="text/plain",
             ContentEncoding="gzip",
             Metadata={"conclusion": conclusion},
+        )
+
+        # Invoke log classifier
+        urlopen(
+            f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={job_id}&repo={owner}/{repo}"
         )
     except Exception as error:
         warn(
