@@ -1116,13 +1116,6 @@
       "linux"
     ]
   ],
-  "test_lstm_packed (__main__.CPUReproTests)": [
-    "108824",
-    "https://github.com/pytorch/pytorch/issues/108824",
-    [
-      "asan"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113736",
     "https://github.com/pytorch/pytorch/issues/113736",
