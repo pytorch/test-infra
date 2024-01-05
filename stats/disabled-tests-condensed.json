@@ -682,9 +682,23 @@
       "inductor"
     ]
   ],
+  "test_dtypes__refs__conversions_complex_cuda (__main__.TestCommonCUDA)": [
+    "116885",
+    "https://github.com/pytorch/pytorch/issues/116885",
+    [
+      "inductor"
+    ]
+  ],
   "test_dtypes__refs__conversions_double_cuda (__main__.TestCommonCUDA)": [
     "116853",
     "https://github.com/pytorch/pytorch/issues/116853",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtypes__refs_amin_cuda (__main__.TestCommonCUDA)": [
+    "116884",
+    "https://github.com/pytorch/pytorch/issues/116884",
     [
       "linux"
     ]
@@ -704,9 +718,23 @@
       "linux"
     ]
   ],
+  "test_dtypes__refs_bitwise_right_shift_cuda (__main__.TestCommonCUDA)": [
+    "116883",
+    "https://github.com/pytorch/pytorch/issues/116883",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__refs_block_diag_cuda (__main__.TestCommonCUDA)": [
     "116840",
     "https://github.com/pytorch/pytorch/issues/116840",
+    [
+      "inductor"
+    ]
+  ],
+  "test_dtypes__refs_cat_cuda (__main__.TestCommonCUDA)": [
+    "116886",
+    "https://github.com/pytorch/pytorch/issues/116886",
     [
       "inductor"
     ]
@@ -721,6 +749,13 @@
   "test_dtypes_broadcast_tensors_cuda (__main__.TestCommonCUDA)": [
     "116852",
     "https://github.com/pytorch/pytorch/issues/116852",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtypes_conj_cuda (__main__.TestCommonCUDA)": [
+    "116887",
+    "https://github.com/pytorch/pytorch/issues/116887",
     [
       "linux"
     ]
@@ -1255,6 +1290,13 @@
   "test_meta_outplace_bitwise_not_cuda_int32 (__main__.TestMetaCUDA)": [
     "116851",
     "https://github.com/pytorch/pytorch/issues/116851",
+    [
+      "linux"
+    ]
+  ],
+  "test_meta_outplace_bitwise_or_cuda_int32 (__main__.TestMetaCUDA)": [
+    "116889",
+    "https://github.com/pytorch/pytorch/issues/116889",
     [
       "linux"
     ]
