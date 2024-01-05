@@ -29,14 +29,21 @@ def download_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion
 
     log_path = f"log/{job_id}"
     if repo != "pytorch":
-        log_path = f"log/owner/repo/{job_id}"
+        log_path = f"log/{owner}/{repo}/{job_id}"
 
-    S3.Object(BUCKET_NAME, log_path).put(
-        Body=gzip.compress(log.encode(encoding="UTF-8")),
-        ContentType="text/plain",
-        ContentEncoding="gzip",
-        Metadata={"conclusion": conclusion},
-    )
+    print(f"..Uploading log to {log_path}")
+    try:
+        S3.Object(BUCKET_NAME, log_path).put(
+            Body=gzip.compress(log.encode(encoding="UTF-8")),
+            ContentType="text/plain",
+            ContentEncoding="gzip",
+            Metadata={"conclusion": conclusion},
+        )
+    except Exception as error:
+        warn(
+            f"Failed to upload {log} for job {job_id} from repo {owner}/{repo}: " +
+            f"{error}, skipping..."
+        )
 
 
 def process_event(owner: str, repo: str, event: str, body: Any) -> None:
@@ -108,7 +115,7 @@ def process_workflow_run(
             return
 
         count += len(response["jobs"])
-        print(f" . Processing {count} jobs...")
+        print(f"..Processing {count} jobs...")
         for workflow_job in response.get("jobs", []):
             job_id = workflow_job["id"]
             conclusion = workflow_job["conclusion"]
