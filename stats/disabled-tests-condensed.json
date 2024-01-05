@@ -504,6 +504,13 @@
       "rocm"
     ]
   ],
+  "test_ddp_checkpointing_twice_use_reentrant_False (__main__.DistributedDataParallelTest)": [
+    "116863",
+    "https://github.com/pytorch/pytorch/issues/116863",
+    [
+      "rocm"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -578,6 +585,13 @@
   "test_dispatch_meta_outplace_bitwise_and_cuda_uint8 (__main__.TestMetaCUDA)": [
     "116845",
     "https://github.com/pytorch/pytorch/issues/116845",
+    [
+      "linux"
+    ]
+  ],
+  "test_dispatch_meta_outplace_bitwise_left_shift_cuda_int16 (__main__.TestMetaCUDA)": [
+    "116862",
+    "https://github.com/pytorch/pytorch/issues/116862",
     [
       "linux"
     ]
