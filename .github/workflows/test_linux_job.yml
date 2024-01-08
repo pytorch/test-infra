@@ -17,6 +17,7 @@ jobs:
       job-name: "test-secrets-no-filter-var"
 #      runner: linux.2xlarge
       runner: linux.2xlarge.arc
+
 #      test-infra-repository: ${{ github.repository }}
 #      test-infra-ref: ${{ github.ref }}
 #      gpu-arch-type: cpu

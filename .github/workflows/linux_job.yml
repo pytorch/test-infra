@@ -29,9 +29,9 @@ jobs:
       - name: Run a command inside the Docker container
         run: echo "Hello from the container!"
 
-#      - name: Check workplace
-#        run: |
-#          uname -a
-#          ls -lha
-#          pwd
-#          whoami
+      - name: Check workplace
+        run: |
+          uname -a
+          ls -lha
+          pwd
+          whoami
