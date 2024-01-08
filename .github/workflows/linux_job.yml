@@ -23,6 +23,9 @@ jobs:
     container:
       image: ${{ inputs.docker-image }}
     steps:
+      - name: Install Git
+        run: apt-get update && apt-get install -y git
+
       - name: Checkout code
         uses: actions/checkout@v3
 
