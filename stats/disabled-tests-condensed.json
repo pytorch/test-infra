@@ -186,13 +186,6 @@
       "mac"
     ]
   ],
-  "test_cat_addmm (__main__.TestMaxAutotune)": [
-    "109982",
-    "https://github.com/pytorch/pytorch/issues/109982",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_nhwc (__main__.TestQuantizedOps)": [
     "111619",
     "https://github.com/pytorch/pytorch/issues/111619",
@@ -386,13 +379,6 @@
   "test_cross_entropy_large_tensor_reduction_mean_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "105253",
     "https://github.com/pytorch/pytorch/issues/105253",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cross_entropy_large_tensor_reduction_none_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "105447",
-    "https://github.com/pytorch/pytorch/issues/105447",
     [
       "rocm"
     ]
@@ -935,16 +921,6 @@
     [
       "macos",
       "mac"
-    ]
-  ],
-  "test_linear_cutlass_backend_cutlass_cuda_float32 (__main__.TestSparseSemiStructuredCUDA)": [
-    "116045",
-    "https://github.com/pytorch/pytorch/issues/116045",
-    [
-      "linux",
-      "slow",
-      "win",
-      "windows"
     ]
   ],
   "test_lobpcg (__main__.TestAutograd)": [
