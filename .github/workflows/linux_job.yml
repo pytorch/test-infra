@@ -118,6 +118,12 @@ jobs:
     container:
       image: ${{ inputs.docker-image }}
     steps:
+      - name: Check workplace
+        run: |
+          uname -a
+          ls -lha
+          pwd
+          whoami
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -150,10 +156,10 @@ jobs:
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
 
-      - name: Setup SSH
-        uses: ./test-infra/.github/actions/setup-ssh
-        with:
-          github-secret: ${{ github.token }}
+#      - name: Setup SSH
+#        uses: ./test-infra/.github/actions/setup-ssh
+#        with:
+#          github-secret: ${{ github.token }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
