@@ -20,8 +20,8 @@ jobs:
   job:
     name: ${{ inputs.job-name }}
     runs-on: ${{ inputs.runner }}
-#    container:
-#      image: ${{ inputs.docker-image }}
+    container:
+      image: ${{ inputs.docker-image }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
