@@ -21,8 +21,10 @@ from typing import Dict, List, Optional, Tuple
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10", "3.11"],
-    "test": ["3.8", "3.9", "3.10", "3.11"],
+    # TODO (huydhn): 3.12 is only enabled in nightly and test.
+    # Release should be enabled after release is complete.
+    "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "release": ["3.8", "3.9", "3.10", "3.11"],
 }
 CUDA_ARCHES_DICT = {
@@ -32,7 +34,7 @@ CUDA_ARCHES_DICT = {
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.6", "5.7"],
-    "test": ["5.5", "5.6"],
+    "test": ["5.6", "5.7"],
     "release": ["5.5", "5.6"],
 }
 
@@ -239,7 +241,7 @@ def get_libtorch_install_command(
         arch = "x86_64" if os == MACOS else "arm64"
         build_name = f"libtorch-macos-{arch}-latest.zip"
         if channel in [RELEASE, TEST]:
-            build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
+            build_name = f"libtorch-macos-{arch}-{mod.CURRENT_VERSION}.zip"
 
     elif os == LINUX and (channel == RELEASE or channel == TEST):
         build_name = (
@@ -358,8 +360,9 @@ def generate_libtorch_matrix(
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
 
-    # macos-arm64 does not have any libtorch builds
-    if os == MACOS_ARM64 and channel != "nightly":
+    # TODO: macos-arm64 have libtorch only in test and nightly now
+    # release will be enabled after release 2.2.0 is complete
+    if os == MACOS_ARM64 and channel == "release":
         return ret
 
     if arches is None:
@@ -387,10 +390,7 @@ def generate_libtorch_matrix(
     if libtorch_variants is None:
         libtorch_variants = [
             "shared-with-deps",
-            "shared-without-deps",
-            "static-with-deps",
-            "static-without-deps",
-        ] if os not in [MACOS, MACOS_ARM64] else ["shared-with-deps"]
+        ]
 
     for abi_version in abi_versions:
         for arch_version in arches:
@@ -400,18 +400,6 @@ def generate_libtorch_matrix(
                 # matter
                 gpu_arch_type = arch_type(arch_version)
                 gpu_arch_version = "" if arch_version == CPU else arch_version
-                # ROCm builds without-deps failed even in ROCm runners; skip for now
-                if gpu_arch_type == ROCM and "without-deps" in libtorch_variant:
-                    continue
-
-                # For windows release we support only shared-with-deps variant
-                # see: https://github.com/pytorch/pytorch/issues/87782
-                if (
-                    os == WINDOWS
-                    and channel == RELEASE
-                    and libtorch_variant != "shared-with-deps"
-                ):
-                    continue
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
                 devtoolset = abi_version if os != WINDOWS else ""
@@ -463,12 +451,9 @@ def generate_wheels_matrix(
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
-    # Define default python version
-    if python_versions is None and channel == NIGHTLY:
-        # Python 3.12 is added to the nightly wheel matrix only
-        python_versions = list(mod.PYTHON_ARCHES) + ["3.12"]
-    elif python_versions is None:
-         python_versions = list(mod.PYTHON_ARCHES)
+    if python_versions is None:
+        # Define default python version
+        python_versions = list(mod.PYTHON_ARCHES)
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux

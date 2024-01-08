@@ -39,7 +39,7 @@ jobs:
 
           ./setup.sh
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish binary
+        name: Publish clang-tidy binary
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         with:
           name: clang-tidy
@@ -47,6 +47,17 @@ jobs:
           s3-prefix: macos-i386/17.0.6
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
+        name: Publish clang-format binary
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: clang-format
+          if-no-files-found: error
+          s3-prefix: macos-i386/17.0.6
+          s3-bucket: oss-clang-format
+          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   build-M1:
@@ -68,7 +79,7 @@ jobs:
 
           ./setup.sh
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish binary
+        name: Publish clang-tidy binary
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         with:
           name: clang-tidy
@@ -76,6 +87,17 @@ jobs:
           s3-prefix: macos-arm/17.0.6
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
+        name: Publish clang-format binary
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: clang-format
+          if-no-files-found: error
+          s3-prefix: macos-arm/17.0.6
+          s3-bucket: oss-clang-format
+          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 

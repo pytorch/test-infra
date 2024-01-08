@@ -289,6 +289,12 @@ describe("Test various job utils", () => {
     // Same error with same context
     expect(isSameContext(jobA, jobB)).toEqual(true);
     expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobA.failure_context = ["FOO --shard 1 2"];
+    jobB.failure_context = ["FOO --shard 2 2"];
+    // Same error with similar context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
   });
 
   test("test isFailureFromPrevMergeCommit", () => {

@@ -1,29 +1,36 @@
 import { Artifact } from "./types";
-import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
-import s3client from "./s3";
+import _ from "lodash";
+
+const GHA_ARTIFACTS_LAMBDA =
+  "https://np6xty2nm6jifkuuyb6wllx6ha0qtthb.lambda-url.us-east-1.on.aws";
+
 export default async function fetchS3Links(
   suiteId: string
 ): Promise<Artifact[]> {
-  const command = new ListObjectsV2Command({
-    Bucket: "gha-artifacts",
-    Prefix: `pytorch/pytorch/${suiteId}`,
+  const response = await fetch(GHA_ARTIFACTS_LAMBDA, {
+    method: "POST",
+    body: JSON.stringify({
+      workflow_id: suiteId,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
   });
-  const response = await s3client.send(command);
 
+  const results = await response.json();
   const artifacts =
-    response.Contents?.map((jobs) => {
-      const basename = jobs.Key?.split("/").slice(-1)[0];
+    _.keys(results).map((url: string) => {
+      const size = results[url];
+      const basename = url.split("/").slice(-1)[0];
       const name =
         basename !== "artifacts.zip"
           ? basename
-          : jobs.Key?.split("/").slice(-2).join("/");
+          : url.split("/").slice(-2).join("/");
       return {
         kind: "s3",
         name: name ?? "",
-        sizeInBytes: jobs.Size ?? 0,
-        url: `https://gha-artifacts.s3.amazonaws.com/${jobs.Key?.split("/")
-          .map((x) => encodeURIComponent(x))
-          .join("/")}`,
+        sizeInBytes: size ?? 0,
+        url: url,
         expired: false,
       };
     }) ?? [];
