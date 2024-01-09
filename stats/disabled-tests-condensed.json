@@ -1931,6 +1931,13 @@
       "linux"
     ]
   ],
+  "test_wo_annotate_conv_output_quantizer (__main__.TestQuantizePT2E)": [
+    "117012",
+    "https://github.com/pytorch/pytorch/issues/117012",
+    [
+      "linux"
+    ]
+  ],
   "test_wrap (__main__.TestTake)": [
     "116847",
     "https://github.com/pytorch/pytorch/issues/116847",
