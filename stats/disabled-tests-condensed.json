@@ -186,13 +186,6 @@
       "mac"
     ]
   ],
-  "test_cat_nhwc (__main__.TestQuantizedOps)": [
-    "111619",
-    "https://github.com/pytorch/pytorch/issues/111619",
-    [
-      "macos"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -1242,13 +1235,6 @@
       "macos"
     ]
   ],
-  "test_multilayer_var_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
-    "107705",
-    "https://github.com/pytorch/pytorch/issues/107705",
-    [
-      "macos"
-    ]
-  ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
@@ -1859,13 +1845,6 @@
     "https://github.com/pytorch/pytorch/issues/113824",
     [
       "rocm"
-    ]
-  ],
-  "test_vmapjvpall_linalg_det_singular_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "111583",
-    "https://github.com/pytorch/pytorch/issues/111583",
-    [
-      "macos"
     ]
   ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
