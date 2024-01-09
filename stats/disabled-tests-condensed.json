@@ -208,6 +208,13 @@
       "linux"
     ]
   ],
+  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
+    "100074",
+    "https://github.com/pytorch/pytorch/issues/100074",
+    [
+      "linux"
+    ]
+  ],
   "test_circular_dependencies (__main__.TestImports)": [
     "110040",
     "https://github.com/pytorch/pytorch/issues/110040",
