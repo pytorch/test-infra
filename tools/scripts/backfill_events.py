@@ -22,7 +22,7 @@ def json_dumps(body: Any) -> str:
     return json.dumps(body, sort_keys=True, indent=4, separators=(",", ": "))
 
 
-def download_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion: str) -> None:
+def upload_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion: str) -> None:
     # This logic is copied from github-status-test lambda function
     log = client.actions.download_job_logs_for_workflow_run(
         owner=owner, repo=repo, job_id=job_id
@@ -34,6 +34,7 @@ def download_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion
 
     print(f"..Uploading log to {log_path}")
     try:
+        # This needs to be in try catch because GitHub doesn't keep log older than 60 days I think
         S3.Object(BUCKET_NAME, log_path).put(
             Body=gzip.compress(log.encode(encoding="UTF-8")),
             ContentType="text/plain",
@@ -127,7 +128,7 @@ def process_workflow_run(
             conclusion = workflow_job["conclusion"]
 
             process_event(owner, repo, "workflow_job", workflow_job)
-            download_log(client, owner, repo, job_id, conclusion)
+            upload_log(client, owner, repo, job_id, conclusion)
 
         if not count or count >= total_count:
             # Finish processing all events
