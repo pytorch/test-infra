@@ -728,6 +728,13 @@
       "linux"
     ]
   ],
+  "test_gradgrad_nn_Transformer_cuda_float64 (__main__.TestModuleCUDA)": [
+    "117140",
+    "https://github.com/pytorch/pytorch/issues/117140",
+    [
+      "slow"
+    ]
+  ],
   "test_graph_breaks (__main__.LoggingTests)": [
     "104098",
     "https://github.com/pytorch/pytorch/issues/104098",
