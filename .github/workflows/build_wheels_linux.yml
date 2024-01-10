@@ -65,6 +65,7 @@ on:
         required: false
         type: boolean
         default: true
+    # TODO (huydhn): Remove them once all libraries using Nova has removed them
     secrets:
       AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
         description: "AWS Access Key passed from caller workflow"
@@ -72,6 +73,10 @@ on:
       AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
         description: "AWS Secret Access Ket passed from caller workflow"
         required: false
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build:
@@ -230,20 +235,28 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+      # TODO (huydhn): Move the following step to a separate build job
+      - name: Configure aws credentials (pytorch account)
+        # TODO (huydhn): Uncomment this after testing
+        # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_build_wheels_linux
+          aws-region: us-east-1
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        # TODO (huydhn): Uncomment this after testing
+        # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
             # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            # TODO (huydhn): Uncomment this after testing
+            # ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ${CONDA_RUN} aws s3 ls "${PYTORCH_S3_BUCKET_PATH}"
           done
 
 concurrency:
