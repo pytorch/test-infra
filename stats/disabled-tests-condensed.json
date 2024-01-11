@@ -27,6 +27,13 @@
       "rocm"
     ]
   ],
+  "test_TensorBase_T___get__ (__main__.TestTorchFunctionOverride)": [
+    "117212",
+    "https://github.com/pytorch/pytorch/issues/117212",
+    [
+      "dynamo"
+    ]
+  ],
   "test_addmm (__main__.ComputeBoundedTests)": [
     "115022",
     "https://github.com/pytorch/pytorch/issues/115022",
@@ -220,6 +227,13 @@
     "https://github.com/pytorch/pytorch/issues/110040",
     [
       "rocm"
+    ]
+  ],
+  "test_closure_out_of_scope_cell_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "117213",
+    "https://github.com/pytorch/pytorch/issues/117213",
+    [
+      "linux"
     ]
   ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
