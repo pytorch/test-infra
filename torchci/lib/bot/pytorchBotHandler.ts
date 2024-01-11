@@ -263,14 +263,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         "`-ic` flag is deprecated, please use `-i` instead for the same effect.";
     }
 
-    if (
-      ignore_current &&
-      !(await this.hasWorkflowRunningPermissions(
-        this.ctx.payload?.comment?.user?.login
-      ))
-    ) {
-      rejection_reason =
-        "`-i` flag is only allowed for users who have the ability to run workflows.";
+    if (ignore_current) {
+      if (
+        !(await this.hasWorkflowRunningPermissions(
+          this.ctx.payload?.comment?.user?.login
+        ))
+      ) {
+        rejection_reason =
+          "`-i` flag is only allowed for users with write permissions";
+      }
     }
 
     if (rejection_reason) {

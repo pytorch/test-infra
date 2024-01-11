@@ -345,6 +345,10 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "write" })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -360,6 +364,46 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("merge -i command on pull request triggers error without write permissions", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -i";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
+      )
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "only allowed for users with write permissions"
+        );
+        return true;
+      })
+      .reply(200);
     await probot.receive(event);
 
     handleScope(scope);
@@ -846,6 +890,10 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "write" })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
