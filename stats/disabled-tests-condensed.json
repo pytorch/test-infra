@@ -732,7 +732,7 @@
     "117140",
     "https://github.com/pytorch/pytorch/issues/117140",
     [
-      "slow"
+      "linux"
     ]
   ],
   "test_graph_breaks (__main__.LoggingTests)": [
