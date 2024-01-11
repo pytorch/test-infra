@@ -211,10 +211,16 @@ jobs:
           export PATH=${OLD_PATH}
       # TODO (huydhn): Move the following step to a separate build job
       - name: Configure aws credentials (pytorch account)
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_build_wheels
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+          aws-region: us-east-1
+      - name: Configure aws credentials (pytorch account)
+        if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/') }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
           aws-region: us-east-1
       - name: Upload package to pytorch.org
         if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
