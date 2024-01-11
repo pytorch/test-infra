@@ -162,11 +162,7 @@ runs:
 
         if [ "${DOCKER_PUSH:-false}" == "true" ]; then
           # Only push if docker image doesn't exist already
-          if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null; then
+          if [! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null] || [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
             docker push "${DOCKER_IMAGE}"
           fi
-        fi
-
-        if [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
-          docker push "${DOCKER_IMAGE}"
         fi
