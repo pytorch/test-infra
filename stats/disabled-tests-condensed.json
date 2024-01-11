@@ -986,6 +986,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113947",
+    "https://github.com/pytorch/pytorch/issues/113947",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_pca_lowrank_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "116671",
     "https://github.com/pytorch/pytorch/issues/116671",
@@ -1216,6 +1223,20 @@
     [
       "linux",
       "macos"
+    ]
+  ],
+  "test_module_forward_preforward_hook_removable (__main__.TestModuleGlobalHooks)": [
+    "117286",
+    "https://github.com/pytorch/pytorch/issues/117286",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_module_global_forward_preforward_hook_writeable (__main__.TestModuleGlobalHooks)": [
+    "117285",
+    "https://github.com/pytorch/pytorch/issues/117285",
+    [
+      "dynamo"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
