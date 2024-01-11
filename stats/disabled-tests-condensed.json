@@ -561,13 +561,6 @@
       "linux"
     ]
   ],
-  "test_dispatch_symbolic_meta_outplace_all_strides_angle_cuda_float32 (__main__.TestMetaCUDA)": [
-    "116485",
-    "https://github.com/pytorch/pytorch/issues/116485",
-    [
-      "linux"
-    ]
-  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -979,6 +972,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114925",
+    "https://github.com/pytorch/pytorch/issues/114925",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_pca_lowrank_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "116671",
     "https://github.com/pytorch/pytorch/issues/116671",
@@ -1031,14 +1031,6 @@
       "win",
       "windows",
       "asan"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_i1e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "116483",
-    "https://github.com/pytorch/pytorch/issues/116483",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_make_weak_keyed_dict_from_weak_keyed_dict (__main__.WeakTest)": [
@@ -1103,13 +1095,6 @@
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
-    [
-      "linux"
-    ]
-  ],
-  "test_meta_outplace_all_cuda_int8 (__main__.TestMetaCUDA)": [
-    "116484",
-    "https://github.com/pytorch/pytorch/issues/116484",
     [
       "linux"
     ]
@@ -1387,6 +1372,13 @@
     "https://github.com/pytorch/pytorch/issues/109362",
     [
       "inductor"
+    ]
+  ],
+  "test_np_argmin_argmax_keepdims_size0_axis0_method1 (__main__.TestArgmaxArgminCommon)": [
+    "117228",
+    "https://github.com/pytorch/pytorch/issues/117228",
+    [
+      "dynamo"
     ]
   ],
   "test_numpy_non_writeable_cpu (__main__.TestNumPyInteropCPU)": [
