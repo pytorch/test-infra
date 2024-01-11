@@ -1632,6 +1632,13 @@
       "dynamo"
     ]
   ],
+  "test_selecsls42b_misaligned_address (__main__.CudaReproTests)": [
+    "117216",
+    "https://github.com/pytorch/pytorch/issues/117216",
+    [
+      "rocm"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
