@@ -202,13 +202,13 @@ jobs:
       # TODO (huydhn): Move the following step to a separate build job
       - name: Configure aws credentials (pytorch account)
         if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
           aws-region: us-east-1
       - name: Configure aws credentials (pytorch account)
         if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/') }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
           aws-region: us-east-1
