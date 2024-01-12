@@ -11,6 +11,9 @@ on:
       - "tools/torchci/update_test_times.py"
       - ".github/workflows/update-test-times.yml"
 
+permissions:
+  contents: write
+
 defaults:
   run:
     working-directory: tools
