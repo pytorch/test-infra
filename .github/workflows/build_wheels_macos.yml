@@ -114,7 +114,7 @@ jobs:
       - name: Install delocate-wheel
         run: |
           set -euxo pipefail
-          ${CONDA_RUN} python3 -m pip install delocate
+          ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
         run: |
           set -euxo pipefail
@@ -212,7 +212,6 @@ jobs:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
       build-matrix: ${{ inputs.build-matrix }}
-      architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
 
 concurrency:

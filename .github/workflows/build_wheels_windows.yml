@@ -201,7 +201,6 @@ jobs:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
       build-matrix: ${{ inputs.build-matrix }}
-      architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
 
 concurrency:
