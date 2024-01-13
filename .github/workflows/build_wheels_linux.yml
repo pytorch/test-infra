@@ -65,14 +65,6 @@ on:
         required: false
         type: boolean
         default: true
-    # TODO (huydhn): Remove them once all libraries using Nova has removed them
-    secrets:
-      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
-        description: "AWS Access Key passed from caller workflow"
-        required: false
-      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
-        description: "AWS Secret Access Ket passed from caller workflow"
-        required: false
 
 permissions:
   id-token: write
@@ -238,77 +230,14 @@ jobs:
           fi
 
   upload:
-    runs-on: ubuntu-22.04
     needs: build
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(inputs.build-matrix) }}
-    timeout-minutes: 30
-    name: ${{ matrix.build_name }} / upload
-    steps:
-      - uses: actions/checkout@v3
-
-      # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
-      - uses: ./.github/actions/setup-binary-upload
-        with:
-          repository: ${{ inputs.repository }}
-          ref: ${{ inputs.ref }}
-          python-version: ${{ matrix.python_version }}
-          cuda-version: ${{ matrix.desired_cuda }}
-          arch: ${{ inputs.architecture }}
-          upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
-
-      - uses: ./.github/actions/set-channel
-
-      - name: Download the artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
-
-      # DEBUG
-      - name: Checkout actions-oidc-debugger
-        uses: actions/checkout@v3
-        with:
-          repository: github/actions-oidc-debugger
-          ref: main
-          path: ./.github/actions/actions-oidc-debugger
-      - name: Debug OIDC Claims
-        uses: ./.github/actions/actions-oidc-debugger
-        with:
-          audience: 'https://github.com/github'
-
-      - name: Configure aws credentials (pytorch account)
-        if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
-          aws-region: us-east-1
-
-      - name: Configure aws credentials (pytorch account)
-        if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/') }}
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
-          aws-region: us-east-1
-
-      - name: Upload package to pytorch.org
-        shell: bash
-        # TODO: uncomment this before committing
-        # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
-        run: |
-          set -ex
-
-          # shellcheck disable=SC1090
-          source "${BUILD_ENV_FILE}"
-
-          pip install awscli==1.32.18
-          for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            aws s3 cp --dryrun "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
-          done
+    uses: ./.github/workflows/_binary_upload.yml
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      architecture: ${{ inputs.architecture }}
+      trigger-event: ${{ inputs.trigger-event }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
