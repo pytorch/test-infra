@@ -54,6 +54,7 @@ runs:
         echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
 
     - name: Generate env variables from pytorch_pkg_helpers
+      shell: bash
       env:
         REPOSITORY: ${{ inputs.repository }}
         REF: ${{ inputs.ref }}
