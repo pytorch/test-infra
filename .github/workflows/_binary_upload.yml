@@ -93,5 +93,5 @@ jobs:
           fi
 
           for pkg in dist/*; do
-            "${AWS_CMD}" "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
