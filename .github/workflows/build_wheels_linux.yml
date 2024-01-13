@@ -245,12 +245,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     timeout-minutes: 30
-    shell: bash
     steps:
       - uses: actions/checkout@v3
 
       # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
-      - uses: ./.github/actions/setup-binary-upload
+      - uses: ./test-infra/.github/actions/setup-binary-upload
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -273,7 +272,6 @@ jobs:
         with:
           repository: github/actions-oidc-debugger
           ref: main
-          token: ${{ secrets.your-checkout-token }}
           path: ./.github/actions/actions-oidc-debugger
       - name: Debug OIDC Claims
         uses: ./.github/actions/actions-oidc-debugger
@@ -295,14 +293,17 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload package to pytorch.org
+        shell: bash
         # TODO: uncomment this before committing
         # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
         run: |
           set -ex
 
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
-          pip install awscli
+
+          pip install awscli==1.32.18
           for pkg in dist/*; do
             # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
             aws s3 cp --dryrun "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
