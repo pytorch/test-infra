@@ -929,6 +929,13 @@
       "linux"
     ]
   ],
+  "test_lazy_init (__main__.TestCuda)": [
+    "117430",
+    "https://github.com/pytorch/pytorch/issues/117430",
+    [
+      "rocm"
+    ]
+  ],
   "test_ldl_factor_cpu_complex128 (__main__.TestLinalgCPU)": [
     "115953",
     "https://github.com/pytorch/pytorch/issues/115953",
