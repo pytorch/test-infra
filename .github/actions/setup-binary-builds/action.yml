@@ -4,7 +4,7 @@ description: Clean workspace and check out PyTorch
 
 inputs:
   repository:
-    description: If set to any value, don't use sudo to clean the workspace
+    description: If set to any value, dont use sudo to clean the workspace
     required: false
     type: string
     default: ""
@@ -66,7 +66,7 @@ runs:
           set -euxo pipefail
           # Set artifact name here since github actions doesn't have string manipulation tools
           # and "/" is not allowed in artifact names
-          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Setup miniconda (for pytorch_pkg_helpers)
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2.1.1

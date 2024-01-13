@@ -93,7 +93,6 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
@@ -235,30 +234,76 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      # TODO (huydhn): Move the following step to a separate build job
+
+  upload:
+    runs-on: ubuntu-22.04
+    needs: build
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    timeout-minutes: 30
+    shell: bash
+    steps:
+      - uses: actions/checkout@v3
+
+      # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
+      - uses: ./.github/actions/setup-binary-upload
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          python-version: ${{ matrix.python_version }}
+          cuda-version: ${{ matrix.desired_cuda }}
+          arch: ${{ inputs.architecture }}
+          upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
+
+      - uses: ./test-infra/.github/actions/set-channel
+
+      - name: Download the artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
+
+      # DEBUG
+      - name: Checkout actions-oidc-debugger
+        uses: actions/checkout@v3
+        with:
+          repository: github/actions-oidc-debugger
+          ref: main
+          token: ${{ secrets.your-checkout-token }}
+          path: ./.github/actions/actions-oidc-debugger
+      - name: Debug OIDC Claims
+        uses: ./.github/actions/actions-oidc-debugger
+        with:
+          audience: 'https://github.com/github'
+
       - name: Configure aws credentials (pytorch account)
         if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
           aws-region: us-east-1
+
       - name: Configure aws credentials (pytorch account)
         if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/') }}
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
           aws-region: us-east-1
+
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        shell: bash -l {0}
+        # TODO: uncomment this before committing
+        # if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
         run: |
-          set -euxo pipefail
+          set -ex
+
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
+          pip install awscli
           for pkg in dist/*; do
             # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            aws s3 cp --dryrun "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:
