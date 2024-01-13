@@ -53,15 +53,15 @@ runs:
         # and "/" is not allowed in artifact names
         echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
 
-      - name: Generate env variables from pytorch_pkg_helpers
-        working-directory: ${{ inputs.repository }}
-        run: |
-          set -ex
+    - name: Generate env variables from pytorch_pkg_helpers
+      working-directory: ${{ inputs.repository }}
+      run: |
+        set -ex
 
-          python -m pip install tools/pkg-helpers
+        python -m pip install tools/pkg-helpers
 
-          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
-          python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+        BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+        python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
 
-          cat "${BUILD_ENV_FILE}"
-          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+        cat "${BUILD_ENV_FILE}"
+        echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"

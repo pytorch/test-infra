@@ -245,11 +245,12 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     timeout-minutes: 30
+    name: ${{ matrix.build_name }} / upload
     steps:
       - uses: actions/checkout@v3
 
       # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
-      - uses: ./test-infra/.github/actions/setup-binary-upload
+      - uses: ./.github/actions/setup-binary-upload
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -258,7 +259,7 @@ jobs:
           arch: ${{ inputs.architecture }}
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
 
-      - uses: ./test-infra/.github/actions/set-channel
+      - uses: ./.github/actions/set-channel
 
       - name: Download the artifact
         uses: actions/download-artifact@v3
