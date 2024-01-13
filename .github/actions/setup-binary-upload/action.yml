@@ -32,13 +32,6 @@ inputs:
 
 runs:
   using: composite
-  shell: bash
-  env:
-    REPOSITORY: ${{ inputs.repository }}
-    REF: ${{ inputs.ref }}
-    PYTHON_VERSION: ${{ inputs.python-version }}
-    CU_VERSION: ${{ inputs.cuda-version }}
-    ARCH: ${{ inputs.arch }}
   steps:
     - uses: actions/setup-python@v4
       with:
@@ -46,6 +39,13 @@ runs:
         cache: pip
 
     - name: Set the artifact name
+      shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        CU_VERSION: ${{ inputs.cuda-version }}
+        ARCH: ${{ inputs.arch }}
       run: |
         set -ex
 
@@ -54,7 +54,12 @@ runs:
         echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
 
     - name: Generate env variables from pytorch_pkg_helpers
-      working-directory: ${{ inputs.repository }}
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        CU_VERSION: ${{ inputs.cuda-version }}
+        ARCH: ${{ inputs.arch }}
       run: |
         set -ex
 
