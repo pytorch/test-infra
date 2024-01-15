@@ -31,8 +31,8 @@ jobs:
             set -ex
 
             # Create Conda Environment
-            conda create --quiet -y --prefix run_env python="3.8"
-            conda activate ./run_env
+            # conda create --quiet -y --prefix run_env python="3.8"
+            # conda activate ./run_env
 
             # Install requirements
             pip install -r s3_management/requirements.txt
