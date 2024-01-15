@@ -76,6 +76,7 @@ runs:
       run: |
         set -ex
 
+        pip install requests==2.31.0
         # put this here instead of the script to prevent accidentally changing the config when running the script locally
         git config --global user.name "PyTorch UpdateBot"
         git config --global user.email "pytorchupdatebot@users.noreply.github.com"
