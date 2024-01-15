@@ -42,6 +42,7 @@ def parse_args() -> Any:
     parser.add_argument("--repo-name", type=str)
     parser.add_argument("--branch", type=str)
     parser.add_argument("--pin-folder", type=str)
+    parser.add_argument("--source-repo", type=str)
     return parser.parse_args()
 
 
