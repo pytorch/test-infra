@@ -64,7 +64,7 @@ runs:
       run: |
         set -ex
 
-        python -m pip install tools/pkg-helpers
+        python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
 
         BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
         python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
