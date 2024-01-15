@@ -423,6 +423,13 @@
       "linux"
     ]
   ],
+  "test_cuda_stream_across_graph_break_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "117480",
+    "https://github.com/pytorch/pytorch/issues/117480",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_stream_context_manager1 (__main__.CtxManagerTests)": [
     "112117",
     "https://github.com/pytorch/pytorch/issues/112117",
@@ -989,6 +996,13 @@
   "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113947",
     "https://github.com/pytorch/pytorch/issues/113947",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_i0e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "117481",
+    "https://github.com/pytorch/pytorch/issues/117481",
     [
       "linux"
     ]
