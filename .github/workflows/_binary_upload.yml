@@ -11,6 +11,14 @@ on:
         description: 'Reference to checkout, defaults to "nightly"'
         default: 'nightly'
         type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
       build-matrix:
         description: "Build matrix to utilize"
         default: ''
@@ -36,9 +44,13 @@ jobs:
     name: ${{ matrix.build_name }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
 
       # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
-      - uses: ./.github/actions/setup-binary-upload
+      - uses: ./test-infra/.github/actions/setup-binary-upload
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -47,7 +59,7 @@ jobs:
           arch: ${{ inputs.architecture }}
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
 
-      - uses: ./.github/actions/set-channel
+      - uses: ./test-infra/.github/actions/set-channel
 
       - name: Download the artifact
         uses: actions/download-artifact@v3
