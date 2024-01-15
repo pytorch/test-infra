@@ -33,6 +33,7 @@ jobs:
           repository: pytorch/test-infra
           ref: ${{ github.ref }}
       - name: Update s3 html index
+        shell: bash
         run: |
             set -ex
 
