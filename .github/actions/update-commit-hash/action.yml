@@ -20,12 +20,12 @@ inputs:
     required: false
     default: .ci/docker/ci_commit_pins
   test-infra-repository:
-    description: "Test infra repository to use"
+    description: Test infra repository to use
     default: 'pytorch/test-infra'
     type: string
   test-infra-ref:
-    description: "Test infra reference to use"
-    default: ""
+    description: Test infra reference to use
+    default: ''
     type: string
   updatebot-token:
     required: true
@@ -74,6 +74,8 @@ runs:
         PYTORCHBOT_TOKEN: ${{ inputs.pytorchbot-token }}
         NEW_BRANCH_NAME: update-${{ inputs.repo-name }}-commit-hash/${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}
       run: |
+        set -ex
+
         # put this here instead of the script to prevent accidentally changing the config when running the script locally
         git config --global user.name "PyTorch UpdateBot"
         git config --global user.email "pytorchupdatebot@users.noreply.github.com"
