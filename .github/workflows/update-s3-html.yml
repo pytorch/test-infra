@@ -19,7 +19,7 @@ jobs:
         prefix: ["whl", "whl/test", "whl/nightly", "whl/lts/1.8"]
       fail-fast: False
     container:
-      image: continuumio/miniconda3:4.12.0
+      image: continuumio/miniconda3:23.10.0-1
     steps:
       - name: configure aws credentials
         id: aws_creds
