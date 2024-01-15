@@ -1,0 +1,73 @@
+name: Set up binary upload jobs
+
+description: Setup a GitHub ephemeral runner to upload binary wheel and conda artifacts
+
+inputs:
+  repository:
+    description: The repository name, i.e. pytorch/vision
+    required: true
+    type: string
+  ref:
+    description: Part of the artifact name
+    required: false
+    type: string
+    default: ''
+  python-version:
+    description: Part of the artifact name
+    required: true
+    type: string
+  cuda-version:
+    description: Part of the artifact name
+    required: true
+    type: string
+  arch:
+    description: Part of the artifact name
+    required: true
+    type: string
+  upload-to-base-bucket:
+    description: One of the parameter used by pkg-helpers
+    required: false
+    type: boolean
+    default: no
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: pip
+
+    - name: Set the artifact name
+      shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        CU_VERSION: ${{ inputs.cuda-version }}
+        ARCH: ${{ inputs.arch }}
+      run: |
+        set -ex
+
+        # Set artifact name here since github actions doesn't have string manipulation tools
+        # and "/" is not allowed in artifact names
+        echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+
+    - name: Generate env variables from pytorch_pkg_helpers
+      shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        CU_VERSION: ${{ inputs.cuda-version }}
+        ARCH: ${{ inputs.arch }}
+      run: |
+        set -ex
+
+        python -m pip install tools/pkg-helpers
+
+        BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+        python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+
+        cat "${BUILD_ENV_FILE}"
+        echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"

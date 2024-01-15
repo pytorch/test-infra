@@ -65,14 +65,6 @@ on:
         required: false
         type: boolean
         default: true
-    # TODO (huydhn): Remove them once all libraries using Nova has removed them
-    secrets:
-      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
-        description: "AWS Access Key passed from caller workflow"
-        required: false
-      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
-        description: "AWS Secret Access Ket passed from caller workflow"
-        required: false
 
 permissions:
   id-token: write
@@ -93,7 +85,6 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
@@ -153,6 +144,8 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
+          cuda-version: ${{ env.CU_VERSION }}
+          arch: ${{ env.ARCH }}
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
@@ -235,31 +228,16 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      # TODO (huydhn): Move the following step to a separate build job
-      - name: Configure aws credentials (pytorch account)
-        if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
-          aws-region: us-east-1
-      - name: Configure aws credentials (pytorch account)
-        if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/') }}
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
-          aws-region: us-east-1
-      - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
-          for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
-          done
+
+  upload:
+    needs: build
+    uses: ./.github/workflows/_binary_upload.yml
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      architecture: ${{ inputs.architecture }}
+      trigger-event: ${{ inputs.trigger-event }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
