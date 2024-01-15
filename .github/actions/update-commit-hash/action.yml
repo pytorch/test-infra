@@ -1,16 +1,16 @@
 name: Update commit hash
 
 inputs:
-  target-repo-owner:
+  repo-owner:
     required: false
     type: string
     description: Name of the owner of the target repository
     default: pytorch
-  target-repo-name:
+  repo-name:
     required: true
     type: string
     description: Name of the target repository we are updating commit hash for
-  target-branch:
+  branch:
     required: true
     type: string
     description: Branch to fetch commit of from the target repository
@@ -61,13 +61,13 @@ runs:
     - name: Checkout the target repo
       shell: bash
       run: |
-        git clone https://github.com/${{ inputs.target-repo-owner }}/${{ inputs.target-repo-name }}.git --quiet
+        git clone https://github.com/${{ inputs.repo-owner }}/${{ inputs.repo-name }}.git --quiet
 
     - name: Check if there already exists a PR
       shell: bash
       env:
         SOURCE_REPO: ${{ github.repository }}
-        TARGET_REPO_NAME: ${{ inputs.repo-name }}
+        REPO_NAME: ${{ inputs.repo-name }}
         BRANCH: ${{ inputs.branch }}
         PIN_FOLDER: ${{ inputs.pin-folder }}
         UPDATEBOT_TOKEN: ${{ inputs.updatebot-token }}
