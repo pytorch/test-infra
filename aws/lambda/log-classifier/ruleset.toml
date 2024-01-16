@@ -257,5 +257,11 @@ name = 'npm error'
 pattern = '^npm ERR! code .*'
 
 [[rule]]
+name = 'ghstack merge check error'
+pattern = '^Mergeability Error: .*'
+
+[[rule]]
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
