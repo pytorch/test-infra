@@ -1105,6 +1105,13 @@
       "linux"
     ]
   ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1753,6 +1760,13 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
