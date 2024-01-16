@@ -149,23 +149,19 @@ def main() -> None:
         # This is to handle the case where the repo has pinned commit in both file
         # and third-party. The latter should be removed, but the script could be
         # flexible here and handle both
-        has_third_party_path = False
+        has_submodule = False
 
         submodules = subprocess.run(
-            ["git", "submodule", "foreach", "--quiet", "'echo $name'"],
+            ["git", "submodule", "foreach", "--quiet", "echo $name"],
             capture_output=True,
         )
-        print(f"=== DEBUG {submodules.stdout.decode().strip()}")
         for submodule in submodules.stdout.decode().strip().splitlines():
             if f"/{args.repo_name}" in submodule:
-                has_third_party_path = True
+                has_submodule = True
                 break
 
-        print(f"=== DEBUG submodule: {submodule}")
-        print(f"=== DEBUG has_third_party_path: {has_third_party_path}")
-
-        if os.path.exists(submodule):
-            has_third_party_path = True
+        if submodule and os.path.exists(submodule):
+            has_submodule = True
             subprocess.run(["git", "fetch", "origin"], cwd=submodule)
             subprocess.run(
                 f"git checkout {hash}".split(), cwd=submodule, capture_output=True
@@ -174,7 +170,7 @@ def main() -> None:
         # if there was an update, push to branch
         subprocess.run(f"git checkout -b {branch_name}".split())
         subprocess.run(f"git add {args.pin_folder}/{args.repo_name}.txt".split())
-        if has_third_party_path:
+        if has_submodule:
             subprocess.run(f"git add {submodule}".split())
         subprocess.run(
             ["git", "commit", "-m"] + [f"update {args.repo_name} commit hash"]
