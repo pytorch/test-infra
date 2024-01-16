@@ -756,6 +756,16 @@
       "linux"
     ]
   ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "mac",
+      "rocm",
+      "macos"
+    ]
+  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -1722,13 +1732,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
