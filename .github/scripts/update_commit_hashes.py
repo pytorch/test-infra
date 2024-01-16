@@ -157,11 +157,13 @@ def main() -> None:
                 check=True,
                 capture_output=True,
             )
-            third_party_path = r.stdout.decode()
+            third_party_path = r.stdout.decode().strip()
 
             if os.path.exists(third_party_path):
                 has_third_party_path = True
+                subprocess.run(["git", "fetch", "origin"], cwd=third_party_path)
                 subprocess.run(f"git checkout {hash}".split(), cwd=third_party_path)
+
         except CalledProcessError:
             # This exception is thrown when the source repo has no third-party
             # setup for the target repo. So, we can skip this altogether
@@ -171,7 +173,7 @@ def main() -> None:
         subprocess.run(f"git checkout -b {branch_name}".split())
         subprocess.run(f"git add {args.pin_folder}/{args.repo_name}.txt".split())
         if has_third_party_path:
-            subprocess.run(f"git add {third_party_path}.txt".split())
+            subprocess.run(f"git add {third_party_path}".split())
         subprocess.run(
             ["git", "commit", "-m"] + [f"update {args.repo_name} commit hash"]
         )
