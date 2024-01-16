@@ -246,7 +246,7 @@ jobs:
           PR_NUMBER="${{ steps.extract_pr_number.outputs.pr_number }}"
           CONFLICTING_COMMITS="${{ steps.pr_merge_check.outputs.conflicting_commits }}"
           NUM_CONFLICTING_COMMITS="${{ steps.pr_merge_check.outputs.num_conflicting_commits }}"
-          echo "PR #$PR_NUMBER is NOT mergeable into main / revertable (if it is already merged) due to $NUM_CONFLICTING_COMMITS conflicting commits which are:"
+          echo "Mergeability Error: PR #$PR_NUMBER is NOT mergeable into main / revertable (if it is already merged) due to $NUM_CONFLICTING_COMMITS conflicting commits which are:"
           for CONFLICT in $CONFLICTING_COMMITS; do
             echo "- $(git show --oneline -s "$CONFLICT")"
           done
