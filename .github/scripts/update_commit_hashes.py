@@ -155,6 +155,7 @@ def main() -> None:
             ["git", "submodule", "foreach", "--quiet", "'echo $name'"],
             capture_output=True,
         )
+        print(f"=== DEBUG {submodules.stdout.decode().strip()}")
         for submodule in submodules.stdout.decode().strip().splitlines():
             if f"/{args.repo_name}" in submodule:
                 has_third_party_path = True
