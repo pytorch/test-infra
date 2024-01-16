@@ -1646,6 +1646,20 @@
       "linux"
     ]
   ],
+  "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_False_use_diff_optim_inputs_False (__main__.TestFSDPOptimState)": [
+    "117559",
+    "https://github.com/pytorch/pytorch/issues/117559",
+    [
+      "rocm"
+    ]
+  ],
+  "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_False_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
+    "117560",
+    "https://github.com/pytorch/pytorch/issues/117560",
+    [
+      "rocm"
+    ]
+  ],
   "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_True_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
     "117362",
     "https://github.com/pytorch/pytorch/issues/117362",
@@ -1706,6 +1720,13 @@
     "https://github.com/pytorch/pytorch/issues/115740",
     [
       "linux"
+    ]
+  ],
+  "test_shard_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_True_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
+    "117558",
+    "https://github.com/pytorch/pytorch/issues/117558",
+    [
+      "rocm"
     ]
   ],
   "test_silu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
