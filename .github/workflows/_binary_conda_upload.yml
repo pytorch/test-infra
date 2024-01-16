@@ -1,0 +1,111 @@
+name: upload conda
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ''
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: 'nightly'
+        type: string
+      test-infra-repository:
+        description: 'Test infra repository to use'
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: 'Test infra reference to use'
+        default: ""
+        type: string
+      build-matrix:
+        description: 'Build matrix to utilize'
+        default: ''
+        type: string
+      trigger-event:
+        description: 'Trigger Event in caller that determines whether or not to upload'
+        type: string
+        default: ''
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN:
+        description: 'Access Token needed to upload binaries to anaconda nightly channel'
+        required: false
+      CONDA_PYTORCHBOT_TOKEN_TEST:
+        description: 'Access Token needed to upload binaries to anaconda test channel'
+        required: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-22.04
+    environment: ${{(inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v'))) && 'pytorchbot-env' || ''}}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    timeout-minutes: 30
+    name: ${{ matrix.build_name }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
+      - uses: ./test-infra/.github/actions/setup-binary-upload
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          python-version: ${{ matrix.python_version }}
+          cuda-version: ${{ matrix.desired_cuda }}
+          upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
+
+      - uses: ./test-infra/.github/actions/set-channel
+
+      - name: Download the artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr
+
+      - name: Nightly or release RC
+        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        shell: bash
+        env:
+          CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+          CONDA_PYTORCHBOT_TOKEN_TEST: ${{ secrets.CONDA_PYTORCHBOT_TOKEN_TEST }}
+        run: |
+          set -ex
+          echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
+
+          if [[ "${CHANNEL}" = "nightly" ]]; then
+            echo "CONDA_TOKEN=${CONDA_PYTORCHBOT_TOKEN}" >> "${GITHUB_ENV}"
+          else
+            echo "CONDA_TOKEN=${CONDA_PYTORCHBOT_TOKEN_TEST}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Upload package to conda
+        working-directory: ${{ inputs.repository }}
+        run: |
+          set -ex
+
+          # shellcheck disable=SC1090
+          source "${BUILD_ENV_FILE}"
+          conda install --yes --quiet anaconda-client
+
+          if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
+            for pkg in distr/**/*.tar.bz2; do
+              anaconda \
+                -t "${CONDA_TOKEN}" \
+                upload "${pkg}" \
+                -u "pytorch-${CHANNEL}" \
+                --label main \
+                --no-progress \
+                --force
+            done
+          else
+            echo "Testing the upload of the following files to pytorch-${CHANNEL} conda channel:"
+            for pkg in distr/**/*.tar.bz2; do
+              ls -lah "${pkg}"
+            done
+          fi
