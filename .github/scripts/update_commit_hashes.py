@@ -158,13 +158,17 @@ def main() -> None:
                 capture_output=True,
             )
             third_party_path = r.stdout.decode().strip()
+            print(f"=== DEBUG third_party_path: {third_party_path}")
 
             if os.path.exists(third_party_path):
                 has_third_party_path = True
                 subprocess.run(["git", "fetch", "origin"], cwd=third_party_path)
-                subprocess.run(f"git checkout {hash}".split(), cwd=third_party_path)
+                debug = subprocess.run(f"git checkout {hash}".split(), cwd=third_party_path, capture_output=True)
 
+            print(f"=== DEBUG has_third_party_path: {has_third_party_path}")
+            print(f"=== DEBUG debug : {debug.stdout.decode()}")
         except CalledProcessError:
+            print(f"=== 3RD-PARTY NOT FOUND")
             # This exception is thrown when the source repo has no third-party
             # setup for the target repo. So, we can skip this altogether
             pass
