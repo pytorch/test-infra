@@ -250,5 +250,5 @@ jobs:
           for CONFLICT in $CONFLICTING_COMMITS; do
             echo "- $(git show --oneline -s "$CONFLICT")"
           done
-          echo "Please rebase your PR onto main and resolve and resolve the conflicts."
+          echo "Please rebase your PR onto main and resolve the conflicts."
           exit 1
