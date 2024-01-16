@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 from argparse import ArgumentParser
+from subprocess import CalledProcessError
 from typing import Any, Dict
 
 import requests
@@ -144,12 +145,35 @@ def main() -> None:
         f.seek(0)
         f.truncate()
         f.write(f"{hash}\n")
+
     if is_newer_hash(hash, old_hash, args.repo_name):
+        # This is to handle the case where the repo has pinned commit in both file
+        # and third-party. The latter should be removed, but the script could be
+        # flexible here and handle both
+        has_third_party_path = False
+        try:
+            r = subprocess.run(
+                f"git submodule | awk -F ' ' '{{print $2}}' | grep '/{args.repo_name}'".split(),
+                check=True,
+                capture_output=True,
+            )
+            third_party_path = r.stdout.decode()
+
+            if os.path.exists(third_party_path):
+                has_third_party_path = True
+                subprocess.run(f"git checkout {hash}".split(), cwd=third_party_path)
+        except CalledProcessError:
+            # This exception is thrown when the source repo has no third-party
+            # setup for the target repo. So, we can skip this altogether
+            pass
+
         # if there was an update, push to branch
         subprocess.run(f"git checkout -b {branch_name}".split())
         subprocess.run(f"git add {args.pin_folder}/{args.repo_name}.txt".split())
+        if has_third_party_path:
+            subprocess.run(f"git add {third_party_path}.txt".split())
         subprocess.run(
-            "git commit -m".split() + [f"update {args.repo_name} commit hash"]
+            ["git", "commit", "-m"] + [f"update {args.repo_name} commit hash"]
         )
         subprocess.run(f"git push --set-upstream origin {branch_name} -f".split())
         print(f"changes pushed to branch {branch_name}")
@@ -160,7 +184,8 @@ def main() -> None:
         make_comment(source_repo, pr_num, "@pytorchbot merge")
     else:
         print(
-            f"tried to update from old hash: {old_hash} to new hash: {hash} but the old hash seems to be newer, not creating pr"
+            f"tried to update from old hash: {old_hash} to new hash: {hash} but "
+            + "the old hash seems to be newer, not creating pr"
         )
         if pr_num is not None:
             make_comment(
