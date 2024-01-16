@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 from argparse import ArgumentParser
-from subprocess import CalledProcessError
 from typing import Any, Dict
 
 import requests
@@ -151,33 +150,31 @@ def main() -> None:
         # and third-party. The latter should be removed, but the script could be
         # flexible here and handle both
         has_third_party_path = False
-        try:
-            r = subprocess.run(
-                f"git submodule | awk -F ' ' '{{print $2}}' | grep '/{args.repo_name}'".split(),
-                check=True,
-                capture_output=True,
-            )
-            third_party_path = r.stdout.decode().strip()
-            print(f"=== DEBUG third_party_path: {third_party_path}")
 
-            if os.path.exists(third_party_path):
+        submodules = subprocess.run(
+            ["git", "submodule", "foreach", "--quiet", "'echo $name'"],
+            capture_output=True,
+        )
+        for submodule in submodules.stdout.decode().strip().splitlines():
+            if f"/{args.repo_name}" in submodule:
                 has_third_party_path = True
-                subprocess.run(["git", "fetch", "origin"], cwd=third_party_path)
-                debug = subprocess.run(f"git checkout {hash}".split(), cwd=third_party_path, capture_output=True)
+                break
 
-            print(f"=== DEBUG has_third_party_path: {has_third_party_path}")
-            print(f"=== DEBUG debug : {debug.stdout.decode()}")
-        except CalledProcessError:
-            print(f"=== 3RD-PARTY NOT FOUND")
-            # This exception is thrown when the source repo has no third-party
-            # setup for the target repo. So, we can skip this altogether
-            pass
+        print(f"=== DEBUG submodule: {submodule}")
+        print(f"=== DEBUG has_third_party_path: {has_third_party_path}")
+
+        if os.path.exists(submodule):
+            has_third_party_path = True
+            subprocess.run(["git", "fetch", "origin"], cwd=submodule)
+            subprocess.run(
+                f"git checkout {hash}".split(), cwd=submodule, capture_output=True
+            )
 
         # if there was an update, push to branch
         subprocess.run(f"git checkout -b {branch_name}".split())
         subprocess.run(f"git add {args.pin_folder}/{args.repo_name}.txt".split())
         if has_third_party_path:
-            subprocess.run(f"git add {third_party_path}".split())
+            subprocess.run(f"git add {submodule}".split())
         subprocess.run(
             ["git", "commit", "-m"] + [f"update {args.repo_name} commit hash"]
         )

@@ -44,6 +44,7 @@ runs:
     - name: Checkout the source repo with the pinned commit file
       uses: actions/checkout@v3
       with:
+        ref: 'main'
         submodules: true
         token: ${{ inputs.updatebot-token }}
 
