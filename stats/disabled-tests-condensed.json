@@ -584,6 +584,16 @@
       "rocm"
     ]
   ],
+  "test_do_not_skip_side_effects (__main__.SkipNonTensorTests)": [
+    "112887",
+    "https://github.com/pytorch/pytorch/issues/112887",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "asan"
+    ]
+  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -778,6 +788,13 @@
     "https://github.com/pytorch/pytorch/issues/105024",
     [
       "linux"
+    ]
+  ],
+  "test_ind (__main__.TestIsnan)": [
+    "117638",
+    "https://github.com/pytorch/pytorch/issues/117638",
+    [
+      "dynamo"
     ]
   ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
