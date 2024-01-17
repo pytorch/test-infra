@@ -4,9 +4,8 @@ import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
-import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
-import { Credentials } from "@aws-sdk/types";
 import { Client } from "@opensearch-project/opensearch";
+import { getOpenSearchClient } from "lib/opensearch";
 import {
   searchSimilarFailures,
   WORKFLOW_JOB_INDEX,
@@ -251,21 +250,7 @@ export async function querySimilarFailures(
   }
 
   if (client === undefined) {
-    // https://opensearch.org/docs/latest/clients/javascript/index
-    client = new Client({
-      ...AwsSigv4Signer({
-        region: process.env.OPENSEARCH_REGION as string,
-        service: "es",
-        getCredentials: () => {
-          const credentials: Credentials = {
-            accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID as string,
-            secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY as string,
-          };
-          return Promise.resolve(credentials);
-        },
-      }),
-      node: process.env.OPENSEARCH_ENDPOINT,
-    });
+    client = getOpenSearchClient();
   }
 
   // Search for all captured failure
