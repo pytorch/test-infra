@@ -176,18 +176,18 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python setup.py bdist_wheel
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
         with:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Smoke Test
         shell: bash -l {0}
         env:

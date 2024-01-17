@@ -171,13 +171,6 @@ jobs:
               rm -f "${pkg}"
             fi
           done
-
-      - name: Upload artifact to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/distr/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -185,6 +178,12 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
           is_windows: 'enabled'
+      - name: Upload artifact to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
