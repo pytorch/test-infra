@@ -50,5 +50,9 @@
   {
     "name": "macos",
     "captures": ["File doesn't exist"]
+  },
+  {
+    "name": "pr-dependencies-check",
+    "captures": ["Process completed with exit code 1"]
   }
 ]
