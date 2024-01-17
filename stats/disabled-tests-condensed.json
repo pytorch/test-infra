@@ -958,6 +958,14 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113757",
+    "https://github.com/pytorch/pytorch/issues/113757",
+    [
+      "linux",
+      "asan"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -1010,13 +1018,6 @@
   "test_make_fx_symbolic_exhaustive_out_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114339",
     "https://github.com/pytorch/pytorch/issues/114339",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_pca_lowrank_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "116671",
-    "https://github.com/pytorch/pytorch/issues/116671",
     [
       "linux"
     ]
