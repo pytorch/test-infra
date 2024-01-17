@@ -1,7 +1,8 @@
 import { Context, Probot } from "probot";
 import {
   CachedConfigTracker,
-  hasWorkflowRunningPermissions,
+  hasWritePermissions,
+  hasApprovedPullRuns,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -155,16 +156,27 @@ async function handleLabelEvent(
     );
     return;
   }
+  const prNum = context.payload.pull_request.number;
+  const owner = context.payload.repository.owner.login;
+  const repo = context.payload.repository.name;
+  const has_write_permissions = await hasWritePermissions(
+    context,
+    context.payload.pull_request.user.login
+  );
+  const has_ci_approved = has_write_permissions
+    ? true
+    : await hasApprovedPullRuns(
+        context.octokit,
+        owner,
+        repo,
+        context.payload.pull_request.head.sha
+      );
   if (!valid_labels.includes(label)) {
     let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
     valid_labels.forEach((l: string) => {
       body += ` - \`${l}\`\n`;
     });
-    let has_workflow_permissions = await hasWorkflowRunningPermissions(
-      context,
-      context.payload.pull_request.user.login
-    );
-    if (has_workflow_permissions) {
+    if (has_ci_approved) {
       body =
         "Warning: " +
         body +
@@ -173,17 +185,30 @@ async function handleLabelEvent(
     await context.octokit.issues.createComment(
       context.repo({
         body,
-        issue_number: context.payload.pull_request.number,
+        issue_number: prNum,
       })
     );
-    if (!has_workflow_permissions) {
+    if (!has_ci_approved) {
       return;
     }
   }
+  if (!has_ci_approved) {
+    let body = `Please seek CI approval before scheduling CIFlow labels`;
+    await context.octokit.issues.createComment(
+      context.repo({
+        body,
+        issue_number: prNum,
+      })
+    );
+    await context.octokit.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: prNum,
+      name: label,
+    });
+    return;
+  }
 
-  const prNum = context.payload.pull_request.number;
-  const owner = context.payload.repository.owner.login;
-  const repo = context.payload.repository.name;
   // https://github.com/pytorch/pytorch/pull/26921 is a special PR that should
   // never get ciflow tags
   if (prNum == 26921 && isPyTorchPyTorch(owner, repo)) {

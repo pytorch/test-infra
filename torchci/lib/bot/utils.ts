@@ -203,6 +203,26 @@ export async function hasWritePermissionsUsingOctokit(
   return permissions === "admin" || permissions === "write";
 }
 
+export async function hasApprovedPullRuns(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  sha: string
+): Promise<boolean> {
+  const res = await octokit.rest.actions.listWorkflowRunsForRepo({
+    owner: owner,
+    repo: repo,
+    head_sha: sha,
+  });
+  const pr_runs = res?.data?.workflow_runs?.filter(
+    (run) => run.event == "pull_request"
+  );
+  if (pr_runs == null || pr_runs?.length == 0) {
+    return false;
+  }
+  return pr_runs.every((run) => run.conclusion != "action_required");
+}
+
 export async function isFirstTimeContributor(
   ctx: any,
   username: string
