@@ -7,6 +7,14 @@
     "upload-wheel",
     ""
   ],
+  "Check mergeability and dependencies for ghstack prs / pr-dependencies-check / check": [
+    "izaitsevfb",
+    "117698",
+    "https://github.com/pytorch/pytorch/issues/117698",
+    "Check mergeability and dependencies for ghstack prs",
+    "pr-dependencies-check",
+    "check"
+  ],
   "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
     "jeanschmidt",
     "117642",
