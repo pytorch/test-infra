@@ -1261,6 +1261,13 @@
       "dynamo"
     ]
   ],
+  "test_module_global_hooks (__main__.TestModuleGlobalHooks)": [
+    "117613",
+    "https://github.com/pytorch/pytorch/issues/117613",
+    [
+      "dynamo"
+    ]
+  ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
     "108099",
     "https://github.com/pytorch/pytorch/issues/108099",
