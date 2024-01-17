@@ -92,11 +92,11 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           conda install --yes --quiet anaconda-client
-          conda run anaconda --version
+          conda run --no-capture-output anaconda --version
 
           if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
             for pkg in distr/**/*.tar.bz2; do
-              conda run anaconda \
+              conda run --no-capture-output anaconda \
                 -t "${CONDA_TOKEN}" \
                 upload "${pkg}" \
                 -u "pytorch-${CHANNEL}" \
