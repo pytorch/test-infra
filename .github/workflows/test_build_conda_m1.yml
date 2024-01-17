@@ -57,7 +57,7 @@ jobs:
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
-      runner-type: macos-m1-12
+      runner-type: macos-m1-stable
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
       cache-path: ${{ matrix.cache-path }}

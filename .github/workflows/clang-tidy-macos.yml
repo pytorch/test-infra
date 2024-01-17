@@ -61,7 +61,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   build-M1:
-    runs-on: macos-m1-12
+    runs-on: macos-m1-stable
     steps:
       - name: Checkout
         uses: actions/checkout@v3
