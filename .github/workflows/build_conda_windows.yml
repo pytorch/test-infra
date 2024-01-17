@@ -148,6 +148,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
           set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
@@ -163,6 +164,14 @@ jobs:
             --no-test  --python "${PYTHON_VERSION}" \
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
+
+          # This is to remove the vs20xx conda package that sneaks into distr
+          for pkg in distr/**/*.tar.bz2; do
+            if [[ "${pkg}" != *"${PACKAGE_NAME}"* ]]; then
+              rm -f "${pkg}"
+            fi
+          done
+
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
