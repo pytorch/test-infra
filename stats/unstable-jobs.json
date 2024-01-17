@@ -1,4 +1,12 @@
 {
+  "Build Triton wheels / upload-wheel": [
+    "jeanschmidt",
+    "117643",
+    "https://github.com/pytorch/pytorch/issues/117643",
+    "Build Triton wheels",
+    "upload-wheel",
+    ""
+  ],
   "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
     "jeanschmidt",
     "117642",
