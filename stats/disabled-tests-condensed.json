@@ -696,13 +696,6 @@
       "inductor"
     ]
   ],
-  "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "88469",
-    "https://github.com/pytorch/pytorch/issues/88469",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
