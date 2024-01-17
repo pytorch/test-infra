@@ -104,6 +104,7 @@ jobs:
                 --force
             done
           else
+            conda run anaconda --help
             echo "Testing the upload of the following files to pytorch-${CHANNEL} conda channel:"
             for pkg in distr/**/*.tar.bz2; do
               ls -lah "${pkg}"
