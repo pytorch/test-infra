@@ -997,6 +997,14 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113805",
+    "https://github.com/pytorch/pytorch/issues/113805",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -1346,6 +1354,13 @@
     "https://github.com/pytorch/pytorch/issues/104454",
     [
       "asan"
+    ]
+  ],
+  "test_no_dgemv_func0_dtype_d (__main__.TestMethods)": [
+    "117751",
+    "https://github.com/pytorch/pytorch/issues/117751",
+    [
+      "dynamo"
     ]
   ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
@@ -1717,6 +1732,13 @@
     "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
+    ]
+  ],
+  "test_rightmost_binedge (__main__.TestHistogramdd)": [
+    "117750",
+    "https://github.com/pytorch/pytorch/issues/117750",
+    [
+      "dynamo"
     ]
   ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
