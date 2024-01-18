@@ -243,6 +243,14 @@
       "linux"
     ]
   ],
+  "test_closure_out_of_scope_cell_with_cond_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "117731",
+    "https://github.com/pytorch/pytorch/issues/117731",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -304,6 +312,13 @@
     "https://github.com/pytorch/pytorch/issues/76962",
     [
       "linux"
+    ]
+  ],
+  "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
+    "117732",
+    "https://github.com/pytorch/pytorch/issues/117732",
+    [
+      "rocm"
     ]
   ],
   "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
@@ -1124,14 +1139,6 @@
     [
       "linux",
       "win"
-    ]
-  ],
-  "test_mem_leak (__main__.TestProfilerCUDA)": [
-    "110995",
-    "https://github.com/pytorch/pytorch/issues/110995",
-    [
-      "rocm",
-      "linux"
     ]
   ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
