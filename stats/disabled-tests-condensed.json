@@ -147,6 +147,13 @@
       "mac"
     ]
   ],
+  "test_basic (__main__.TestTile)": [
+    "117715",
+    "https://github.com/pytorch/pytorch/issues/117715",
+    [
+      "dynamo"
+    ]
+  ],
   "test_bitwise_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
     "116044",
     "https://github.com/pytorch/pytorch/issues/116044",
@@ -360,13 +367,6 @@
     "https://github.com/pytorch/pytorch/issues/105528",
     [
       "rocm"
-    ]
-  ],
-  "test_convert_np_dtypes_'bool_' (__main__.TestConvertDType)": [
-    "116716",
-    "https://github.com/pytorch/pytorch/issues/116716",
-    [
-      "dynamo"
     ]
   ],
   "test_cpp_frontend_module_has_same_output_as_python (__main__.TestCppExtensionJIT)": [
@@ -816,6 +816,18 @@
       "dynamo"
     ]
   ],
+  "test_inference_mode (__main__.TestAOTAutograd)": [
+    "117714",
+    "https://github.com/pytorch/pytorch/issues/117714",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -1032,6 +1044,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114352",
+    "https://github.com/pytorch/pytorch/issues/114352",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
@@ -1065,18 +1084,6 @@
       "macos",
       "win",
       "windows"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114212",
-    "https://github.com/pytorch/pytorch/issues/114212",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows",
-      "asan"
     ]
   ],
   "test_make_weak_keyed_dict_from_weak_keyed_dict (__main__.WeakTest)": [
@@ -1441,6 +1448,13 @@
       "inductor"
     ]
   ],
+  "test_none_names_refcount (__main__.TestNamedTensor)": [
+    "117716",
+    "https://github.com/pytorch/pytorch/issues/117716",
+    [
+      "dynamo"
+    ]
+  ],
   "test_np_argmin_argmax_keepdims_size0_axis0_method1 (__main__.TestArgmaxArgminCommon)": [
     "117228",
     "https://github.com/pytorch/pytorch/issues/117228",
@@ -1516,6 +1530,13 @@
     "https://github.com/pytorch/pytorch/issues/112142",
     [
       "dynamo"
+    ]
+  ],
+  "test_output_match_mm_cpu_float32 (__main__.TORCH_NN_MODULECPU)": [
+    "117718",
+    "https://github.com/pytorch/pytorch/issues/117718",
+    [
+      "linux"
     ]
   ],
   "test_param_invariants_base_tensor_tensor_requires_grad_False (__main__.TestSubclass)": [
@@ -1892,6 +1913,13 @@
   "test_variant_consistency_eager_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
     "114592",
     "https://github.com/pytorch/pytorch/issues/114592",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_eager_nn_functional_conv3d_cuda_float32 (__main__.TestCommonCUDA)": [
+    "117717",
+    "https://github.com/pytorch/pytorch/issues/117717",
     [
       "linux"
     ]
