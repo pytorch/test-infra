@@ -363,20 +363,6 @@
       "rocm"
     ]
   ],
-  "test_conv_weight_layout_convert_cuda (__main__.FreezingCudaTests)": [
-    "107925",
-    "https://github.com/pytorch/pytorch/issues/107925",
-    [
-      "rocm"
-    ]
-  ],
-  "test_conv_with_as_strided_cpu (__main__.FreezingCpuTests)": [
-    "107893",
-    "https://github.com/pytorch/pytorch/issues/107893",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_with_as_strided_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "105528",
     "https://github.com/pytorch/pytorch/issues/105528",
@@ -911,7 +897,7 @@
       "linux"
     ]
   ],
-  "test_large_block_sizes_cuda (__main__.CudaTests)": [
+  "test_large_block_sizes_cuda (__main__.GPUTests)": [
     "113140",
     "https://github.com/pytorch/pytorch/issues/113140",
     [
@@ -932,14 +918,14 @@
       "linux"
     ]
   ],
-  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "113136",
     "https://github.com/pytorch/pytorch/issues/113136",
     [
       "linux"
     ]
   ],
-  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
     "113132",
     "https://github.com/pytorch/pytorch/issues/113132",
     [
@@ -1697,13 +1683,6 @@
     "https://github.com/pytorch/pytorch/issues/117724",
     [
       "linux"
-    ]
-  ],
-  "test_redundant_clone_for_layout_convert_cuda (__main__.FreezingCudaTests)": [
-    "107950",
-    "https://github.com/pytorch/pytorch/issues/107950",
-    [
-      "rocm"
     ]
   ],
   "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
