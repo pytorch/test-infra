@@ -108,6 +108,7 @@ jobs:
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
+        shell: bash
         run: |
           set -euxo pipefail
           if [[ "${NO_SUDO}" == "false" ]]; then
