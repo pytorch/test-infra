@@ -94,8 +94,8 @@ on:
       no-sudo:
         description: If set to any value, don't use sudo to clean the workspace
         required: false
-#        default: true
-        default: false
+        default: true
+#        default: false
         type: boolean
 jobs:
   job:
