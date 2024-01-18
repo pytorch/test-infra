@@ -35,3 +35,4 @@ jobs:
           ls -lha
           pwd
           whoami
+          sleep 60
