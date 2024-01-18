@@ -526,13 +526,6 @@
       "linux"
     ]
   ],
-  "test_ddp_checkpointing_once_use_reentrant_False (__main__.DistributedDataParallelTest)": [
-    "116774",
-    "https://github.com/pytorch/pytorch/issues/116774",
-    [
-      "rocm"
-    ]
-  ],
   "test_ddp_checkpointing_twice_use_reentrant_False (__main__.DistributedDataParallelTest)": [
     "116863",
     "https://github.com/pytorch/pytorch/issues/116863",
@@ -1147,6 +1140,14 @@
     [
       "linux",
       "win"
+    ]
+  ],
+  "test_mem_leak (__main__.TestProfilerCUDA)": [
+    "110995",
+    "https://github.com/pytorch/pytorch/issues/110995",
+    [
+      "rocm",
+      "linux"
     ]
   ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
