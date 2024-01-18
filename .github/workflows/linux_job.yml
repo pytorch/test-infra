@@ -3,18 +3,99 @@ name: Build / Test on Linux
 on:
   workflow_call:
     inputs:
+      script:
+        description: 'Script to utilize'
+        default: "python setup.py bdist_wheel"
+        type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 30
+        type: number
+      runner:
+        description: 'Runner type to utilize'
+        default: "linux.2xlarge"
+        type: string
+      upload-artifact:
+        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      download-artifact:
+        description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      fetch-depth:
+        description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
+        default: 1
+        type: number
+      submodules:
+        description:
+          Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
+          recursively checkout everything
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: ""
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      docker-image:
+        description: Identifies the Docker image by name.
+#        default: "pytorch/conda-builder"
+        default: "ubuntu:latest"
+        type: string
+      docker-build-dir:
+        description: |
+          The directory containing the build.sh shell script to build the docker image.
+          The script parameters can be passed to docker build similar to how it is used
+          in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
+        default: ".ci/docker"
+        type: string
+      gpu-arch-type:
+        description: "GPU arch type to use"
+        default: "cpu"
+        type: string
+      gpu-arch-version:
+        description: "GPU arch version to use"
+        default: ""
+        type: string
       job-name:
         description: "Name for the job, which is displayed in the GitHub UI"
         default: "linux-job"
         type: string
-      runner:
-        description: 'Runner type to utilize.'
-        default: "linux.2xlarge"
+      continue-on-error:
+        description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
+      binary-matrix:
+        description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
+        required: false
+        default: ''
         type: string
-      docker-image:
-        description: Identifies the Docker image by name.
-        default: "ubuntu:latest"
+      run-with-docker:
+        description: "Whether the provided script should run inside a docker container"
+        required: false
+        default: true
+        type: boolean
+      secrets-env:
+        description: "List of secrets to be exported to environment variables"
         type: string
+        default: ''
+      no-sudo:
+        description: If set to any value, don't use sudo to clean the workspace
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   job:
@@ -25,14 +106,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Run a command inside the Docker container
-        run: echo "Hello from the container!"
-
-      - name: Check workplace
+      - name: Clean workspace
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
         run: |
-          uname -a
-          ls -lha
-          pwd
-          whoami
-          sleep 60
+          set -euxo pipefail
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            echo "::group::Cleanup with-sudo debug output"
+            sudo rm -rfv "${GITHUB_WORKSPACE}"
+          else
+            echo "::group::Cleanup no-sudo debug output"
+            rm -rfv "${GITHUB_WORKSPACE}"
+          fi
+
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
