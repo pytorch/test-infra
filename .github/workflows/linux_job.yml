@@ -107,6 +107,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Check workplace
+        run: |
+          uname -a
+          pwd
+          whoami
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
