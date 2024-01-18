@@ -1,12 +1,4 @@
 {
-  "Build Triton wheels / upload-wheel": [
-    "jeanschmidt",
-    "117643",
-    "https://github.com/pytorch/pytorch/issues/117643",
-    "Build Triton wheels",
-    "upload-wheel",
-    ""
-  ],
   "Check mergeability and dependencies for ghstack prs / pr-dependencies-check / check": [
     "izaitsevfb",
     "117698",
