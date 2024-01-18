@@ -825,7 +825,8 @@
       "macos",
       "rocm",
       "win",
-      "windows"
+      "windows",
+      "slow"
     ]
   ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
@@ -1084,6 +1085,16 @@
       "macos",
       "win",
       "windows"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114211",
+    "https://github.com/pytorch/pytorch/issues/114211",
+    [
+      "linux",
+      "asan",
+      "mac",
+      "macos"
     ]
   ],
   "test_make_weak_keyed_dict_from_weak_keyed_dict (__main__.WeakTest)": [
@@ -1532,6 +1543,13 @@
       "dynamo"
     ]
   ],
+  "test_output_match_mm_cpu_float16 (__main__.TORCH_NN_MODULECPU)": [
+    "117725",
+    "https://github.com/pytorch/pytorch/issues/117725",
+    [
+      "linux"
+    ]
+  ],
   "test_output_match_mm_cpu_float32 (__main__.TORCH_NN_MODULECPU)": [
     "117718",
     "https://github.com/pytorch/pytorch/issues/117718",
@@ -1641,6 +1659,13 @@
     "https://github.com/pytorch/pytorch/issues/75168",
     [
       "mac"
+    ]
+  ],
+  "test_reduce_scatter_contiguous (__main__.DeviceMeshCollectiveTest)": [
+    "117724",
+    "https://github.com/pytorch/pytorch/issues/117724",
+    [
+      "linux"
     ]
   ],
   "test_redundant_clone_for_layout_convert_cuda (__main__.FreezingCudaTests)": [
