@@ -8,7 +8,7 @@ on:
         default: "linux-job"
         type: string
       runner:
-        description: 'Runner type to utilize'
+        description: 'Runner type to utilize.'
         default: "linux.2xlarge"
         type: string
       docker-image:
