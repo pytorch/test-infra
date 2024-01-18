@@ -96,7 +96,6 @@ on:
         required: false
         default: false
         type: boolean
-
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -121,3 +120,12 @@ jobs:
 
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+          # submodules: 'recursive' # TODO
+      - name: Setup Linux
+        uses: ./test-infra/.github/actions/setup-linux
