@@ -639,6 +639,13 @@
       "linux"
     ]
   ],
+  "test_fallback_atan2 (__main__.TestVmapAPILegacy)": [
+    "117722",
+    "https://github.com/pytorch/pytorch/issues/117722",
+    [
+      "dynamo"
+    ]
+  ],
   "test_fft (__main__.TestFFT1D)": [
     "117241",
     "https://github.com/pytorch/pytorch/issues/117241",
