@@ -76,6 +76,13 @@
       "linux"
     ]
   ],
+  "test_annotation_with_future (__main__.TestFX)": [
+    "117785",
+    "https://github.com/pytorch/pytorch/issues/117785",
+    [
+      "dynamo"
+    ]
+  ],
   "test_aot_autograd_exhaustive_as_strided_scatter_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
     "85879",
     "https://github.com/pytorch/pytorch/issues/85879",
@@ -946,6 +953,14 @@
       "linux"
     ]
   ],
+  "test_large_sampler_indices (__main__.TestDataLoaderPersistentWorkers)": [
+    "117784",
+    "https://github.com/pytorch/pytorch/issues/117784",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_lazy_init (__main__.TestCuda)": [
     "117430",
     "https://github.com/pytorch/pytorch/issues/117430",
@@ -1054,6 +1069,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_log_ndtr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114719",
+    "https://github.com/pytorch/pytorch/issues/114719",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_round_decimals_0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113478",
     "https://github.com/pytorch/pytorch/issues/113478",
@@ -1107,6 +1129,14 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114332",
+    "https://github.com/pytorch/pytorch/issues/114332",
+    [
+      "linux",
+      "asan"
+    ]
+  ],
   "test_make_weak_keyed_dict_from_weak_keyed_dict (__main__.WeakTest)": [
     "116765",
     "https://github.com/pytorch/pytorch/issues/116765",
@@ -1119,6 +1149,13 @@
     "https://github.com/pytorch/pytorch/issues/115002",
     [
       "rocm"
+    ]
+  ],
+  "test_mean_values (__main__.TestStats)": [
+    "117787",
+    "https://github.com/pytorch/pytorch/issues/117787",
+    [
+      "dynamo"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
@@ -1283,6 +1320,13 @@
     [
       "linux",
       "macos"
+    ]
+  ],
+  "test_module_forward_forward_hook_removable (__main__.TestModuleGlobalHooks)": [
+    "117783",
+    "https://github.com/pytorch/pytorch/issues/117783",
+    [
+      "dynamo"
     ]
   ],
   "test_module_forward_preforward_hook_removable (__main__.TestModuleGlobalHooks)": [
@@ -1650,6 +1694,13 @@
       "macos"
     ]
   ],
+  "test_pytree (__main__.TestFX)": [
+    "117786",
+    "https://github.com/pytorch/pytorch/issues/117786",
+    [
+      "dynamo"
+    ]
+  ],
   "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
     "110026",
     "https://github.com/pytorch/pytorch/issues/110026",
@@ -1829,6 +1880,13 @@
     "https://github.com/pytorch/pytorch/issues/105121",
     [
       "rocm"
+    ]
+  ],
+  "test_sort_float_N_48 (__main__.TestSortFloatMisc)": [
+    "117788",
+    "https://github.com/pytorch/pytorch/issues/117788",
+    [
+      "dynamo"
     ]
   ],
   "test_step_is_noop_for_zero_grads_Rprop_cpu_float32 (__main__.TestOptimRenewedCPU)": [
