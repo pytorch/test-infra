@@ -880,6 +880,13 @@
       "rocm"
     ]
   ],
+  "test_jvp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "117833",
+    "https://github.com/pytorch/pytorch/issues/117833",
+    [
+      "linux"
+    ]
+  ],
   "test_jvpvjp_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "114654",
     "https://github.com/pytorch/pytorch/issues/114654",
@@ -1748,6 +1755,13 @@
     "https://github.com/pytorch/pytorch/issues/117724",
     [
       "linux"
+    ]
+  ],
+  "test_register_functional_op_no_returns (__main__.TestPythonRegistration)": [
+    "117834",
+    "https://github.com/pytorch/pytorch/issues/117834",
+    [
+      "dynamo"
     ]
   ],
   "test_register_functional_op_one_return (__main__.TestPythonRegistration)": [
