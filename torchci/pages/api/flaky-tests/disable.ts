@@ -409,7 +409,12 @@ export async function getTestOwnerLabels(
     labels.push("module: unknown");
   }
 
-  if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
+  if (
+    labels.some((x) => x.startsWith("module: ") && x !== "module: unknown") &&
+    !labels.includes("oncall: pt2")
+  ) {
+    // Add triaged if there is a module label and none of labels are oncall: pt2
+    // (see https://github.com/pytorch/pytorch/issues/117846)
     labels.push("triaged");
   }
   return { labels, additionalErrMessage };
