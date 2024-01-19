@@ -94,8 +94,7 @@ on:
       no-sudo:
         description: If set to any value, don't use sudo to clean the workspace
         required: false
-        default: true
-#        default: false
+        default: false
         type: boolean
 jobs:
   job:
@@ -134,6 +133,6 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
-          # submodules: 'recursive' # TODO
+          submodules: 'recursive'
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
