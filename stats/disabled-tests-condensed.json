@@ -562,13 +562,6 @@
       "dynamo"
     ]
   ],
-  "test_dispatch_meta_outplace___rmatmul___cuda_complex64 (__main__.TestMetaCUDA)": [
-    "116811",
-    "https://github.com/pytorch/pytorch/issues/116811",
-    [
-      "linux"
-    ]
-  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -1755,6 +1748,13 @@
     "https://github.com/pytorch/pytorch/issues/117724",
     [
       "linux"
+    ]
+  ],
+  "test_register_functional_op_one_return (__main__.TestPythonRegistration)": [
+    "117816",
+    "https://github.com/pytorch/pytorch/issues/117816",
+    [
+      "dynamo"
     ]
   ],
   "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
