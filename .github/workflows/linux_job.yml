@@ -51,8 +51,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-#        default: "pytorch/conda-builder"
-        default: "ubuntu:latest"
+        default: "pytorch/conda-builder"
         type: string
       docker-build-dir:
         description: |
