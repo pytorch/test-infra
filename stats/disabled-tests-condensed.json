@@ -519,13 +519,6 @@
       "linux"
     ]
   ],
-  "test_ddp_checkpointing_twice_use_reentrant_False (__main__.DistributedDataParallelTest)": [
-    "116863",
-    "https://github.com/pytorch/pytorch/issues/116863",
-    [
-      "rocm"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -876,13 +869,6 @@
       "windows"
     ]
   ],
-  "test_large_block_sizes_cpu (__main__.CpuTests)": [
-    "113139",
-    "https://github.com/pytorch/pytorch/issues/113139",
-    [
-      "linux"
-    ]
-  ],
   "test_large_block_sizes_cuda (__main__.CudaTests)": [
     "117810",
     "https://github.com/pytorch/pytorch/issues/117810",
@@ -893,6 +879,13 @@
   "test_large_block_sizes_cuda (__main__.GPUTests)": [
     "113140",
     "https://github.com/pytorch/pytorch/issues/113140",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113135",
+    "https://github.com/pytorch/pytorch/issues/113135",
     [
       "linux"
     ]
@@ -1634,6 +1627,13 @@
   "test_register_functional_op_one_return (__main__.TestPythonRegistration)": [
     "117816",
     "https://github.com/pytorch/pytorch/issues/117816",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_register_functional_op_with_optional (__main__.TestPythonRegistration)": [
+    "117871",
+    "https://github.com/pytorch/pytorch/issues/117871",
     [
       "dynamo"
     ]
