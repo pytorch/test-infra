@@ -222,9 +222,24 @@ jobs:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
 
-      - name: Chown repository directory
-        if: always()
-        uses: ./test-infra/.github/actions/chown-directory
-        with:
-          directory: ${{ github.workspace }}/${{ env.repository }}
-          ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
+      - name: Check directory owner
+        run: |
+          ls -la ${{ github.workspace }}/${{ env.repository }}
+
+            - name: Teardown Linux
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-linux
+
+      - name: Clean workspace after tear down
+        if: ${{ always() }}
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
+          REPOSITORY: ${{ inputs.repository || github.repository }}
+        run: |
+          set +e
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            sudo rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
+          else
+            rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
+          fi
+          set -e
