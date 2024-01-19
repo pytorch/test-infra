@@ -222,13 +222,40 @@ jobs:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
 
-#      - name: Check directory owner
-#        run: |
-#          ls -la ${{ github.workspace }}/${{ env.repository }}
+      - name: Prepare artifacts for upload
+        working-directory: ${{ inputs.repository }}
+        id: check-artifacts
+        env:
+          UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
+        run: |
+          # Only do these steps if we actually want to upload an artifact
+          if [[ -n "${UPLOAD_ARTIFACT_NAME}" ]]; then
+            # If the default execution path is followed then we should get a wheel in the dist/ folder
+            # attempt to just grab whatever is in there and scoop it all up
+            if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+              mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            # Set to fail upload step if there are no files for upload and expected files for upload
+            echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
+          fi
 
-#      - name: Teardown Linux
-#        if: ${{ always() }}
-#        uses: ./test-infra/.github/actions/teardown-linux
+          upload_docs=0
+          # Check if there are files in the documentation folder to upload, note that
+          # empty folders do not count
+          if find "${RUNNER_DOCS_DIR}" -mindepth 1 -maxdepth 1 -type f | read -r; then
+            # TODO: Add a check here to test if on ec2 because if we're not on ec2 then this
+            # upload will probably not work correctly
+            upload_docs=1
+          fi
+          echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload artifacts to GitHub (if any)
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.upload-artifact != '' }}
+        with:
+          name: ${{ inputs.upload-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}s
 
       - name: Clean workspace after tear down
         if: ${{ always() }}
