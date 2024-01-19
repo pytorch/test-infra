@@ -156,3 +156,10 @@ jobs:
         with:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
+
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
+        if: ${{ inputs.binary-matrix != '' }}
+        with:
+          binary-matrix: ${{ inputs.binary-matrix }}
+          target-os: "linux"
