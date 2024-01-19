@@ -163,3 +163,23 @@ jobs:
         with:
           binary-matrix: ${{ inputs.binary-matrix }}
           target-os: "linux"
+
+      - name: Run script in container
+#        if: ${{ inputs.run-with-docker == true }}
+        continue-on-error: ${{ inputs.continue-on-error }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+#          DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
+        run: |
+          set -ex
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail"; 
+            # shellcheck disable=SC2016
+            echo 'eval "$(conda shell.bash hook)"';
+            echo "set -x";
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          chmod +x "${RUNNER_TEMP}/exec_script"
+          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
