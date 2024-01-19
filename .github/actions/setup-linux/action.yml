@@ -10,3 +10,15 @@ runs:
       run: |
         set -euo pipefail
         echo "system info $(uname -a)"
+
+    - name: Log in to ECR
+      shell: bash
+      env:
+        AWS_RETRY_MODE: standard
+        AWS_MAX_ATTEMPTS: "5"
+        AWS_DEFAULT_REGION: us-east-1
+      run: |
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity|grep Account|cut -f4 -d\")
+        retry () { "$@"  || (sleep 1 && "$@") || (sleep 2 && "$@") }
+        retry aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS \
+            --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
