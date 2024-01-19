@@ -869,13 +869,6 @@
       "windows"
     ]
   ],
-  "test_large_block_sizes_cpu (__main__.CpuTests)": [
-    "113139",
-    "https://github.com/pytorch/pytorch/issues/113139",
-    [
-      "linux"
-    ]
-  ],
   "test_large_block_sizes_cuda (__main__.CudaTests)": [
     "117810",
     "https://github.com/pytorch/pytorch/issues/117810",
@@ -886,6 +879,13 @@
   "test_large_block_sizes_cuda (__main__.GPUTests)": [
     "113140",
     "https://github.com/pytorch/pytorch/issues/113140",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113135",
+    "https://github.com/pytorch/pytorch/issues/113135",
     [
       "linux"
     ]
