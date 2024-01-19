@@ -541,20 +541,6 @@
       "dynamo"
     ]
   ],
-  "test_disable_fwd_grad_inside_cpu (__main__.TestJvpCPU)": [
-    "113220",
-    "https://github.com/pytorch/pytorch/issues/113220",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_disable_fwd_grad_mixed_cpu (__main__.TestJvpCPU)": [
-    "113221",
-    "https://github.com/pytorch/pytorch/issues/113221",
-    [
-      "dynamo"
-    ]
-  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -852,13 +838,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "inductor"
-    ]
-  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -953,6 +932,13 @@
       "linux"
     ]
   ],
+  "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "113137",
+    "https://github.com/pytorch/pytorch/issues/113137",
+    [
+      "linux"
+    ]
+  ],
   "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
     "113134",
     "https://github.com/pytorch/pytorch/issues/113134",
@@ -973,13 +959,6 @@
     "https://github.com/pytorch/pytorch/issues/117430",
     [
       "rocm"
-    ]
-  ],
-  "test_ldl_factor_cpu_complex128 (__main__.TestLinalgCPU)": [
-    "115953",
-    "https://github.com/pytorch/pytorch/issues/115953",
-    [
-      "dynamo"
     ]
   ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
@@ -1215,83 +1194,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_bool (__main__.TestMetaCPU)": [
-    "111768",
-    "https://github.com/pytorch/pytorch/issues/111768",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_float32 (__main__.TestMetaCPU)": [
-    "111784",
-    "https://github.com/pytorch/pytorch/issues/111784",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_float64 (__main__.TestMetaCPU)": [
-    "111799",
-    "https://github.com/pytorch/pytorch/issues/111799",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_int16 (__main__.TestMetaCPU)": [
-    "111825",
-    "https://github.com/pytorch/pytorch/issues/111825",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_int64 (__main__.TestMetaCPU)": [
-    "111849",
-    "https://github.com/pytorch/pytorch/issues/111849",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft2_cpu_int8 (__main__.TestMetaCPU)": [
-    "111897",
-    "https://github.com/pytorch/pytorch/issues/111897",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft_cpu_float64 (__main__.TestMetaCPU)": [
-    "111909",
-    "https://github.com/pytorch/pytorch/issues/111909",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft_cpu_int32 (__main__.TestMetaCPU)": [
-    "111968",
-    "https://github.com/pytorch/pytorch/issues/111968",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft_cpu_int8 (__main__.TestMetaCPU)": [
-    "111987",
-    "https://github.com/pytorch/pytorch/issues/111987",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_fft_ihfft_cpu_uint8 (__main__.TestMetaCPU)": [
-    "112003",
-    "https://github.com/pytorch/pytorch/issues/112003",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_meta_outplace_linalg_lu_solve_cpu_complex64 (__main__.TestMetaCPU)": [
-    "112220",
-    "https://github.com/pytorch/pytorch/issues/112220",
-    [
-      "dynamo"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
@@ -1541,13 +1443,6 @@
       "dynamo"
     ]
   ],
-  "test_numpy_non_writeable_cpu (__main__.TestNumPyInteropCPU)": [
-    "112567",
-    "https://github.com/pytorch/pytorch/issues/112567",
-    [
-      "dynamo"
-    ]
-  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
@@ -1602,13 +1497,6 @@
     "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
-    ]
-  ],
-  "test_out_warning__refs_clamp_cpu (__main__.TestCommonCPU)": [
-    "112142",
-    "https://github.com/pytorch/pytorch/issues/112142",
-    [
-      "dynamo"
     ]
   ],
   "test_output_match_mm_cpu_float16 (__main__.TORCH_NN_MODULECPU)": [
