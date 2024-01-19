@@ -953,13 +953,6 @@
       "linux"
     ]
   ],
-  "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
-    "113137",
-    "https://github.com/pytorch/pytorch/issues/113137",
-    [
-      "linux"
-    ]
-  ],
   "test_large_offset_pointwise_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
     "113134",
     "https://github.com/pytorch/pytorch/issues/113134",
