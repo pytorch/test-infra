@@ -105,11 +105,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Check workplace
         run: |
           uname -a
           pwd
           whoami
+
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -126,6 +128,7 @@ jobs:
 
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
@@ -133,8 +136,10 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
           submodules: 'recursive'
+
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
@@ -144,3 +149,10 @@ jobs:
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
+
+      - name: Download artifacts (if any)
+        uses: actions/download-artifact@v3
+        if: ${{ inputs.download-artifact != '' }}
+        with:
+          name: ${{ inputs.download-artifact }}
+          path: ${{ runner.temp }}/artifacts/
