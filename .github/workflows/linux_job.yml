@@ -135,4 +135,5 @@ jobs:
           path: test-infra
           submodules: 'recursive'
       - name: Setup Linux
-        uses: ./test-infra/.github/actions/setup-linux
+#        uses: ./test-infra/.github/actions/setup-linux
+        uses: ./.github/actions/setup-linux
