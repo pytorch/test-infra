@@ -890,13 +890,6 @@
       "linux"
     ]
   ],
-  "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
-    "113135",
-    "https://github.com/pytorch/pytorch/issues/113135",
-    [
-      "linux"
-    ]
-  ],
   "test_large_block_sizes_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
     "113133",
     "https://github.com/pytorch/pytorch/issues/113133",
