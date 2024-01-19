@@ -363,6 +363,13 @@
       "rocm"
     ]
   ],
+  "test_conv_with_as_strided_cpu (__main__.FreezingCpuTests)": [
+    "107893",
+    "https://github.com/pytorch/pytorch/issues/107893",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv_with_as_strided_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "105528",
     "https://github.com/pytorch/pytorch/issues/105528",
