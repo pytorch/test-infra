@@ -732,7 +732,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
-    expect(labels).toEqual(["module: fft", "oncall: pt2", "triaged"]);
+    expect(labels).toEqual(["module: fft", "oncall: pt2"]);
 
     handleScope(scope);
   });
