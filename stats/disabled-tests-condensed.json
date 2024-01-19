@@ -904,6 +904,13 @@
       "linux"
     ]
   ],
+  "test_large_block_sizes_cuda (__main__.CudaTests)": [
+    "117810",
+    "https://github.com/pytorch/pytorch/issues/117810",
+    [
+      "linux"
+    ]
+  ],
   "test_large_block_sizes_cuda (__main__.GPUTests)": [
     "113140",
     "https://github.com/pytorch/pytorch/issues/113140",
@@ -925,9 +932,23 @@
       "linux"
     ]
   ],
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
+    "117809",
+    "https://github.com/pytorch/pytorch/issues/117809",
+    [
+      "linux"
+    ]
+  ],
   "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "113136",
     "https://github.com/pytorch/pytorch/issues/113136",
+    [
+      "linux"
+    ]
+  ],
+  "test_large_block_sizes_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+    "117808",
+    "https://github.com/pytorch/pytorch/issues/117808",
     [
       "linux"
     ]
