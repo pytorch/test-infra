@@ -226,9 +226,9 @@ jobs:
 #        run: |
 #          ls -la ${{ github.workspace }}/${{ env.repository }}
 
-      - name: Teardown Linux
-        if: ${{ always() }}
-        uses: ./test-infra/.github/actions/teardown-linux
+#      - name: Teardown Linux
+#        if: ${{ always() }}
+#        uses: ./test-infra/.github/actions/teardown-linux
 
       - name: Clean workspace after tear down
         if: ${{ always() }}
