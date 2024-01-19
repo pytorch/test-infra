@@ -222,9 +222,9 @@ jobs:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
 
-#      - name: Check directory owner
-#        run: |
-#          ls -la ${{ github.workspace }}/${{ env.repository }}
+      - name: Check directory owner
+        run: |
+          ls -la ${{ github.workspace }}/${{ env.repository }}
 
 #      - name: Teardown Linux
 #        if: ${{ always() }}
