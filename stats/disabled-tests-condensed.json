@@ -41,13 +41,6 @@
       "rocm"
     ]
   ],
-  "test_all_any (__main__.TestBoolArray)": [
-    "116842",
-    "https://github.com/pytorch/pytorch/issues/116842",
-    [
-      "dynamo"
-    ]
-  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -2185,13 +2178,6 @@
     "https://github.com/pytorch/pytorch/issues/107425",
     [
       "linux"
-    ]
-  ],
-  "test_wrap (__main__.TestTake)": [
-    "116847",
-    "https://github.com/pytorch/pytorch/issues/116847",
-    [
-      "dynamo"
     ]
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
