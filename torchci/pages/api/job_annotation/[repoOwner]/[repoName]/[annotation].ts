@@ -63,7 +63,7 @@ export default async function handler(
     return res.status(401).end();
   }
 
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
   // The request body contains an optional list of similar failures. If the list
   // exists, the API will annotate all failures in the list with the same annotation
   const jobIds = JSON.parse(req.body) ?? [];

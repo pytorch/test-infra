@@ -5,7 +5,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
   const { jobIds, repoOwner, repoName } = req.query;
   const jobIdsArr = JSON.parse(jobIds as string);
   const queries = jobIdsArr.map((jobId: any) => {

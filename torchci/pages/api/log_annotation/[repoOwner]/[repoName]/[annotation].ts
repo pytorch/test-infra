@@ -33,7 +33,7 @@ export default async function handler(
     return res.status(401).end();
   }
   const log_metadata = JSON.parse(req.body) ?? [];
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
   const jobId = log_metadata[0].job_id;
   const dynamoKey = `${repoOwner}/${repoName}/${jobId}`;
 

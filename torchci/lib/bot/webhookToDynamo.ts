@@ -41,7 +41,7 @@ async function handleWorkflowJob(
     table = "torchci-workflow-run";
   }
 
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
   await client.put({
     TableName: table,
     Item: {
@@ -53,7 +53,7 @@ async function handleWorkflowJob(
 
 async function handleIssues(event: WebhookEvent<"issues">) {
   const key_prefix = event.payload.repository.full_name + "/";
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-issues",
@@ -66,7 +66,7 @@ async function handleIssues(event: WebhookEvent<"issues">) {
 
 async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
   const key_prefix = event.payload.repository.full_name;
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-issue-comment",
@@ -79,7 +79,7 @@ async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
 
 async function handlePullRequest(event: WebhookEvent<"pull_request">) {
   const key_prefix = event.payload.repository.full_name + "/";
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-pull-request",
@@ -92,7 +92,7 @@ async function handlePullRequest(event: WebhookEvent<"pull_request">) {
 
 async function handlePush(event: WebhookEvent<"push">) {
   const key_prefix = event.payload.repository.full_name + "/";
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-push",
@@ -107,7 +107,7 @@ async function handlePullRequestReview(
   event: WebhookEvent<"pull_request_review">
 ) {
   const key_prefix = event.payload.repository.full_name;
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-pull-request-review",
@@ -122,7 +122,7 @@ async function handlePullRequestReviewComment(
   event: WebhookEvent<"pull_request_review_comment">
 ) {
   const key_prefix = event.payload.repository.full_name;
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
 
   await client.put({
     TableName: "torchci-pull-request-review-comment",

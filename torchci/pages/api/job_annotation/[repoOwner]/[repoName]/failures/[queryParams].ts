@@ -24,7 +24,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const client = getDynamoClient();
+  const client = await getDynamoClient();
   const { queryParams, repoOwner, repoName } = req.query;
 
   if (queryParams === undefined) {
