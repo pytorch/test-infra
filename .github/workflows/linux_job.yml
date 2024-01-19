@@ -135,4 +135,4 @@ jobs:
           path: test-infra
           submodules: 'recursive'
       - name: Setup Linux
-        uses: pytorch/test-infra/.github/actions/setup-linux@Fix-Linux-Job-for-ARC
+        uses: ./test-infra/.github/actions/setup-linux@Fix-Linux-Job-for-ARC
