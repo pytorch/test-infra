@@ -11,14 +11,27 @@ runs:
         set -euo pipefail
         echo "system info $(uname -a)"
 
-    - name: Log in to ECR
+    - name: Preserve github env variables for use in docker
       shell: bash
-      env:
-        AWS_RETRY_MODE: standard
-        AWS_MAX_ATTEMPTS: "5"
-        AWS_DEFAULT_REGION: us-east-1
       run: |
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity|grep Account|cut -f4 -d\")
-        retry () { "$@"  || (sleep 1 && "$@") || (sleep 2 && "$@") }
-        retry aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS \
-            --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+        env | grep '^GITHUB' >> "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+        env | grep '^CI' >> "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+
+    - name: Setup useful environment variables
+      shell: bash
+      working-directory: ${{ inputs.repository }}
+      run: |
+        RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
+        sudo rm -rf "${RUNNER_ARTIFACT_DIR}"
+        mkdir -p "${RUNNER_ARTIFACT_DIR}"
+        echo "RUNNER_ARTIFACT_DIR=${RUNNER_ARTIFACT_DIR}" >> "${GITHUB_ENV}"
+
+        RUNNER_TEST_RESULTS_DIR="${RUNNER_TEMP}/test-results"
+        sudo rm -rf "${RUNNER_TEST_RESULTS_DIR}"
+        mkdir -p "${RUNNER_TEST_RESULTS_DIR}"
+        echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
+
+        RUNNER_DOCS_DIR="${RUNNER_TEMP}/docs"
+        sudo rm -rf "${RUNNER_DOCS_DIR}"
+        mkdir -p "${RUNNER_DOCS_DIR}"
+        echo "RUNNER_DOCS_DIR=${RUNNER_DOCS_DIR}" >> "${GITHUB_ENV}"
