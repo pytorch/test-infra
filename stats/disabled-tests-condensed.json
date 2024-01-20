@@ -1680,6 +1680,13 @@
       "linux"
     ]
   ],
+  "test_retracibility_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "117914",
+    "https://github.com/pytorch/pytorch/issues/117914",
+    [
+      "linux"
+    ]
+  ],
   "test_rightmost_binedge (__main__.TestHistogramdd)": [
     "117750",
     "https://github.com/pytorch/pytorch/issues/117750",
