@@ -1680,6 +1680,11 @@
       "linux"
     ]
   ],
+  "test_retracibility_dict_container_inp_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "117918",
+    "https://github.com/pytorch/pytorch/issues/117918",
+    []
+  ],
   "test_retracibility_dynamic_shapes (__main__.DynamicShapesExportTests)": [
     "117914",
     "https://github.com/pytorch/pytorch/issues/117914",
