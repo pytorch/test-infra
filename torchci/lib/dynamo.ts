@@ -1,5 +1,9 @@
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
-import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
+import {
+  STSClient,
+  AssumeRoleCommand,
+  GetCallerIdentityCommand,
+} from "@aws-sdk/client-sts";
 import { DynamoDBDocument, TranslateConfig } from "@aws-sdk/lib-dynamodb";
 import { v4 } from "uuid";
 
