@@ -229,13 +229,6 @@
       "linux"
     ]
   ],
-  "test_circular_dependencies (__main__.TestImports)": [
-    "110040",
-    "https://github.com/pytorch/pytorch/issues/110040",
-    [
-      "rocm"
-    ]
-  ],
   "test_closure_out_of_scope_cell_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "117213",
     "https://github.com/pytorch/pytorch/issues/117213",
@@ -595,6 +588,13 @@
       "dynamo"
     ]
   ],
+  "test_dynamic_stride_nobreak_cuda (__main__.TestInductorDynamicCUDA)": [
+    "117954",
+    "https://github.com/pytorch/pytorch/issues/117954",
+    [
+      "linux"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -721,13 +721,6 @@
   "test_grad_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "114834",
     "https://github.com/pytorch/pytorch/issues/114834",
-    [
-      "linux"
-    ]
-  ],
-  "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
-    "98678",
-    "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
     ]
@@ -996,13 +989,6 @@
     "https://github.com/pytorch/pytorch/issues/113805",
     [
       "asan",
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113837",
-    "https://github.com/pytorch/pytorch/issues/113837",
-    [
       "linux"
     ]
   ],
