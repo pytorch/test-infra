@@ -1001,6 +1001,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113806",
+    "https://github.com/pytorch/pytorch/issues/113806",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114925",
     "https://github.com/pytorch/pytorch/issues/114925",
@@ -1561,6 +1568,17 @@
     "https://github.com/pytorch/pytorch/issues/106027",
     [
       "rocm"
+    ]
+  ],
+  "test_public_api_surface (__main__.TestFXAPIBackwardCompatibility)": [
+    "104012",
+    "https://github.com/pytorch/pytorch/issues/104012",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "asan"
     ]
   ],
   "test_python_ir_utils (__main__.TestJit)": [
