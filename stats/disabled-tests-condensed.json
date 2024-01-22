@@ -727,6 +727,13 @@
       "linux"
     ]
   ],
+  "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
+    "98678",
+    "https://github.com/pytorch/pytorch/issues/98678",
+    [
+      "linux"
+    ]
+  ],
   "test_gradgrad_nn_Transformer_cuda_float64 (__main__.TestModuleCUDA)": [
     "117140",
     "https://github.com/pytorch/pytorch/issues/117140",
