@@ -593,7 +593,8 @@
     "https://github.com/pytorch/pytorch/issues/117954",
     [
       "linux",
-      "slow"
+      "slow",
+      "rocm"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
