@@ -1275,13 +1275,6 @@
       "dynamo"
     ]
   ],
-  "test_multidim (__main__.TestInsert)": [
-    "118052",
-    "https://github.com/pytorch/pytorch/issues/118052",
-    [
-      "dynamo"
-    ]
-  ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
     "108099",
     "https://github.com/pytorch/pytorch/issues/108099",
@@ -1733,13 +1726,6 @@
     "https://github.com/pytorch/pytorch/issues/117914",
     [
       "linux"
-    ]
-  ],
-  "test_returned (__main__.TestAverage)": [
-    "118050",
-    "https://github.com/pytorch/pytorch/issues/118050",
-    [
-      "dynamo"
     ]
   ],
   "test_rightmost_binedge (__main__.TestHistogramdd)": [
