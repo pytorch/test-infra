@@ -14,13 +14,5 @@
     "pull",
     "linux-focal-py3_8-clang9-xla",
     "test (xla)"
-  ],
-  "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
-    "jeanschmidt",
-    "117642",
-    "https://github.com/pytorch/pytorch/issues/117642",
-    "rocm",
-    "linux-focal-rocm5.7-py3.8",
-    "test (default)"
   ]
 }
