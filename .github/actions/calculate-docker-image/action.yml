@@ -29,6 +29,7 @@ inputs:
   force-push:
     description: If set to true, always push the image to ECR even if it exists.
     required: false
+    default: false
 
 outputs:
   docker-image:
