@@ -784,6 +784,13 @@
       "dynamo"
     ]
   ],
+  "test_inductor_all_to_all_single (__main__.C10DFunctionalNativeTest)": [
+    "118109",
+    "https://github.com/pytorch/pytorch/issues/118109",
+    [
+      "rocm"
+    ]
+  ],
   "test_inference_mode (__main__.TestAOTAutograd)": [
     "117714",
     "https://github.com/pytorch/pytorch/issues/117714",
