@@ -1,8 +1,9 @@
-import { FlakyTestData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import LogViewer from "components/LogViewer";
-import { getFlakyTestCapture } from "./api/flaky-tests/flakytest";
+import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
+import JobLinks from "components/JobLinks";
+import JobSummary from "components/JobSummary";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -20,71 +21,42 @@ export default function Page() {
 
   return (
     <div>
-      <h1>PyTorch CI Flaky Tests</h1>
+      <h1>PyTorch CI Test Failures and Flaky Tests</h1>
+      <div>
+        This shows the most recent 100 failures in CI from after March 22nd,
+        2023. Data prior to this date still exists, but can only be obtained by
+        parsing test report xmls. If the job was successful, it might have
+        succeeded on retry. Search through the logs for the test name.
+      </div>
       <h3>
         Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> | Test
         Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> | Test File
         Filter: <code>{file === "%" ? "<any>" : file}</code>
       </h3>
-      <em>Showing last 30 days of data.</em>
       {data === undefined ? (
         <div>Loading...</div>
       ) : (
-        (data.flakyTests as FlakyTestData[]).map((test) => {
-          const samples = data.flakySamples[getFlakyTestCapture(test)];
-          console.log(samples);
+        (data as FlakyTestInfoHUD[]).map((test) => {
           return (
-            <div key={`${test.name} ${test.suite} ${test.file}`}>
+            <div key={`${test.name} ${test.classname} ${test.file}`}>
               <h1>
-                <code>{`${test.name}, ${test.suite}`}</code>
+                <code>{`${test.name}, ${test.classname}`}</code>
               </h1>
-              from file <code>{`${test.file}`}</code>
-              <h4>Debugging instructions:</h4>
-              <p>
-                DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield
-                flaky tests from developers so CI will thus be green but it will
-                be harder to parse the logs.
-              </p>
-              <p>To find relevant log snippets:</p>
-              <ol>
-                <li>
-                  Click on any of the workflow job links below, for example{" "}
-                  <a
-                    href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
-                  >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a>
-                </li>
-                <li>
-                  Click on the Test step of the job so that it is expanded.
-                  Otherwise, the grepping will not work.
-                </li>
-                <li>
-                  Grep for <code>{test.name}</code>
-                </li>
-                <li>
-                  There should be several instances run (as flaky tests are
-                  rerun in CI) from which you can study the logs.
-                </li>
-              </ol>
-              <div>
-                <h4> Test workflow job URLs: </h4>
-                <ul>
-                  {test.workflowNames.map((value, index) => {
-                    return (
-                      <li key={index}>
-                        <a
-                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
-                        >{`${value} / ${test.jobNames[index]}`}</a>{" "}
-                        on branch {test.branches[index]}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              {samples?.length > 0 && (
-                <div>
-                  <p>Example logs: </p> <LogViewer job={samples[0]} />
-                </div>
-              )}
+              from file <code>{`${test.invoking_file}`}</code>
+              <div>Jobs:</div>
+              <ul>
+                {test.jobs.map((job) => {
+                  return (
+                    <li key={job.id} id={job.id}>
+                      <JobSummary job={job} />
+                      <div>
+                        <JobLinks job={job} />
+                      </div>
+                      <LogViewer job={job} />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           );
         })
