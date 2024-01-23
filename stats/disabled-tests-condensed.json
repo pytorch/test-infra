@@ -140,6 +140,13 @@
       "linux"
     ]
   ],
+  "test_barrier_cuda (__main__.TestDistBackendWithSpawn)": [
+    "118051",
+    "https://github.com/pytorch/pytorch/issues/118051",
+    [
+      "linux"
+    ]
+  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -427,6 +434,13 @@
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
+    [
+      "linux"
+    ]
+  ],
+  "test_cuda_stream_across_graph_break (__main__.CtxManagerTests)": [
+    "118048",
+    "https://github.com/pytorch/pytorch/issues/118048",
     [
       "linux"
     ]
@@ -1008,6 +1022,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113857",
+    "https://github.com/pytorch/pytorch/issues/113857",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114925",
     "https://github.com/pytorch/pytorch/issues/114925",
@@ -1243,6 +1264,13 @@
   "test_module_global_hooks (__main__.TestModuleGlobalHooks)": [
     "117613",
     "https://github.com/pytorch/pytorch/issues/117613",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_multidim (__main__.TestInsert)": [
+    "118052",
+    "https://github.com/pytorch/pytorch/issues/118052",
     [
       "dynamo"
     ]
@@ -1698,6 +1726,13 @@
     "https://github.com/pytorch/pytorch/issues/117914",
     [
       "linux"
+    ]
+  ],
+  "test_returned (__main__.TestAverage)": [
+    "118050",
+    "https://github.com/pytorch/pytorch/issues/118050",
+    [
+      "dynamo"
     ]
   ],
   "test_rightmost_binedge (__main__.TestHistogramdd)": [
