@@ -154,13 +154,6 @@
       "mac"
     ]
   ],
-  "test_basic (__main__.TestTile)": [
-    "117715",
-    "https://github.com/pytorch/pytorch/issues/117715",
-    [
-      "dynamo"
-    ]
-  ],
   "test_bitwise_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
     "116044",
     "https://github.com/pytorch/pytorch/issues/116044",
@@ -635,13 +628,6 @@
       "linux"
     ]
   ],
-  "test_fft (__main__.TestFFT1D)": [
-    "117241",
-    "https://github.com/pytorch/pytorch/issues/117241",
-    [
-      "dynamo"
-    ]
-  ],
   "test_find_or_create_pg (__main__.TestPgTag)": [
     "107278",
     "https://github.com/pytorch/pytorch/issues/107278",
@@ -777,13 +763,6 @@
     "https://github.com/pytorch/pytorch/issues/105024",
     [
       "linux"
-    ]
-  ],
-  "test_ind (__main__.TestIsnan)": [
-    "117638",
-    "https://github.com/pytorch/pytorch/issues/117638",
-    [
-      "dynamo"
     ]
   ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
@@ -1153,13 +1132,6 @@
       "rocm"
     ]
   ],
-  "test_mean_values (__main__.TestStats)": [
-    "117787",
-    "https://github.com/pytorch/pytorch/issues/117787",
-    [
-      "dynamo"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1247,34 +1219,6 @@
       "macos"
     ]
   ],
-  "test_module_forward_forward_hook_removable (__main__.TestModuleGlobalHooks)": [
-    "117783",
-    "https://github.com/pytorch/pytorch/issues/117783",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_module_forward_preforward_hook_removable (__main__.TestModuleGlobalHooks)": [
-    "117286",
-    "https://github.com/pytorch/pytorch/issues/117286",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_module_global_forward_preforward_hook_writeable (__main__.TestModuleGlobalHooks)": [
-    "117285",
-    "https://github.com/pytorch/pytorch/issues/117285",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_module_global_hooks (__main__.TestModuleGlobalHooks)": [
-    "117613",
-    "https://github.com/pytorch/pytorch/issues/117613",
-    [
-      "dynamo"
-    ]
-  ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
     "108099",
     "https://github.com/pytorch/pytorch/issues/108099",
@@ -1309,13 +1253,6 @@
     "https://github.com/pytorch/pytorch/issues/104454",
     [
       "asan"
-    ]
-  ],
-  "test_no_dgemv_func0_dtype_d (__main__.TestMethods)": [
-    "117751",
-    "https://github.com/pytorch/pytorch/issues/117751",
-    [
-      "dynamo"
     ]
   ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
@@ -1448,13 +1385,6 @@
   "test_none_names_refcount (__main__.TestNamedTensor)": [
     "117716",
     "https://github.com/pytorch/pytorch/issues/117716",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_np_argmin_argmax_keepdims_size0_axis0_method1 (__main__.TestArgmaxArgminCommon)": [
-    "117228",
-    "https://github.com/pytorch/pytorch/issues/117228",
     [
       "dynamo"
     ]
@@ -1728,13 +1658,6 @@
       "linux"
     ]
   ],
-  "test_rightmost_binedge (__main__.TestHistogramdd)": [
-    "117750",
-    "https://github.com/pytorch/pytorch/issues/117750",
-    [
-      "dynamo"
-    ]
-  ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
@@ -1844,13 +1767,6 @@
     "https://github.com/pytorch/pytorch/issues/105121",
     [
       "rocm"
-    ]
-  ],
-  "test_sort_float_N_48 (__main__.TestSortFloatMisc)": [
-    "117788",
-    "https://github.com/pytorch/pytorch/issues/117788",
-    [
-      "dynamo"
     ]
   ],
   "test_step_is_noop_for_zero_grads_Rprop_cpu_float32 (__main__.TestOptimRenewedCPU)": [
