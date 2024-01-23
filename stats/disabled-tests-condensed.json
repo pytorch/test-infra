@@ -1459,20 +1459,6 @@
       "linux"
     ]
   ],
-  "test_param_invariants_base_tensor_tensor_requires_grad_False (__main__.TestSubclass)": [
-    "117337",
-    "https://github.com/pytorch/pytorch/issues/117337",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_param_invariants_base_tensor_tensor_requires_grad_True (__main__.TestSubclass)": [
-    "117339",
-    "https://github.com/pytorch/pytorch/issues/117339",
-    [
-      "dynamo"
-    ]
-  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
