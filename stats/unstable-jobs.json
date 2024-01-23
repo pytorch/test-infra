@@ -6,13 +6,5 @@
     "Check mergeability and dependencies for ghstack prs",
     "pr-dependencies-check",
     "check"
-  ],
-  "pull / linux-focal-py3_8-clang9-xla / test (xla)": [
-    "clee2000",
-    "113251",
-    "https://github.com/pytorch/pytorch/issues/113251",
-    "pull",
-    "linux-focal-py3_8-clang9-xla",
-    "test (xla)"
   ]
 }
