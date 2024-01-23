@@ -410,13 +410,6 @@
     "https://github.com/pytorch/pytorch/issues/106308",
     []
   ],
-  "test_cuda_event_method (__main__.CtxManagerTests)": [
-    "112462",
-    "https://github.com/pytorch/pytorch/issues/112462",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_event_method_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
     "112791",
     "https://github.com/pytorch/pytorch/issues/112791",
