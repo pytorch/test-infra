@@ -144,12 +144,10 @@ def main() -> None:
     args = parse_args()
 
     commits = get_latest_commits()
-    import json
-    print(json.dumps(commits))
-    # results = query_commits(commits)
+    results = query_commits(commits)
 
-    # latest_viable_commit = get_latest_green_commit(commits, args.requires, results)
-    # print(latest_viable_commit)
+    latest_viable_commit = get_latest_green_commit(commits, args.requires, results)
+    print(latest_viable_commit)
 
 
 if __name__ == "__main__":
