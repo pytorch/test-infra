@@ -1225,13 +1225,6 @@
       "macos"
     ]
   ],
-  "test_nadam (__main__.TestOptim)": [
-    "68171",
-    "https://github.com/pytorch/pytorch/issues/68171",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105120",
     "https://github.com/pytorch/pytorch/issues/105120",
@@ -1633,13 +1626,6 @@
     "https://github.com/pytorch/pytorch/issues/117914",
     [
       "linux"
-    ]
-  ],
-  "test_rmsprop (optim.test_optim.TestOptim)": [
-    "86433",
-    "https://github.com/pytorch/pytorch/issues/86433",
-    [
-      "dynamo"
     ]
   ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
