@@ -161,23 +161,6 @@
       "linux"
     ]
   ],
-  "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "102071",
-    "https://github.com/pytorch/pytorch/issues/102071",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
-    "102157",
-    "https://github.com/pytorch/pytorch/issues/102157",
-    [
-      "linux",
-      "mac"
-    ]
-  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
