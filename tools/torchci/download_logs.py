@@ -1,9 +1,9 @@
 import argparse
+import glob
 import multiprocessing as mp
 import os
-from pathlib import Path
-import glob
 import zipfile
+from pathlib import Path
 
 import requests
 from torchci.rockset_utils import query_rockset
@@ -13,11 +13,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 def get_s3():
     import boto3
+
     return boto3.resource("s3")
 
 
 def unzip(from_file, to_folder):
-    with zipfile.ZipFile(from_file, 'r') as zip_ref:
+    with zipfile.ZipFile(from_file, "r") as zip_ref:
         zip_ref.extractall(to_folder)
 
 
@@ -63,22 +64,26 @@ def download_artifacts_from_sha(commit):
     s3 = get_s3()
     bucket = s3.Bucket("gha-artifacts")
     folder = REPO_ROOT / "_logs" / "artifacts" / commit
-    workflow_ids = query_rockset(f"select id from workflow_run where head_sha = '{commit}'")
+    workflow_ids = query_rockset(
+        f"select id from workflow_run where head_sha = '{commit}'"
+    )
 
     zipped_path = folder / "zipped"
     os.makedirs(zipped_path, exist_ok=True)
 
     for row in workflow_ids:
-        workflow_id = row['id']
+        workflow_id = row["id"]
         for obj in bucket.objects.filter(Prefix=f"pytorch/pytorch/{workflow_id}"):
             if "test-reports" not in obj.key:
                 continue
-            s3.Object(bucket.name, obj.key).download_file(str(zipped_path / obj.key.replace("/", "_")))
+            s3.Object(bucket.name, obj.key).download_file(
+                str(zipped_path / obj.key.replace("/", "_"))
+            )
 
     unzipped_path = REPO_ROOT / "_logs" / "artifacts" / commit / "unzipped"
     os.makedirs(unzipped_path, exist_ok=True)
 
-    for file in glob.glob(str(zipped_path) + '/**/*.zip', recursive=True):
+    for file in glob.glob(str(zipped_path) + "/**/*.zip", recursive=True):
         unzip(file, unzipped_path / Path(file).stem)
 
 
