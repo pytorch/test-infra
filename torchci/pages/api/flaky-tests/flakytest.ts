@@ -43,7 +43,8 @@ select
   j.torchci_classification.line,
   j.torchci_classification.line_num,
   j.torchci_classification.captures,
-  w.head_branch
+  w.head_branch,
+  j.head_sha
 from
   workflow_job j
   join commons.failed_tests_run t on j.id = t.job_id HINT(join_strategy = lookup)
@@ -116,6 +117,7 @@ limit
         failureLineNumbers: [row.line_num],
         failureCaptures: [row.captures],
         branch: row.head_branch,
+        sha: row.head_sha,
       });
     }
     res.push(info);

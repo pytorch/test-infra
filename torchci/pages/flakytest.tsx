@@ -55,7 +55,7 @@ export default function Page() {
                     <li key={job.id} id={job.id}>
                       <JobSummary job={job} highlight={job.branch == "main"} />
                       <div>
-                        <JobLinks job={job} />
+                        <JobLinks job={job} showCommitLink={true} />
                       </div>
                       <LogViewer job={job} />
                     </li>
