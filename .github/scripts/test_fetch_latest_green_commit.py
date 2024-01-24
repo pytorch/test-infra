@@ -19,12 +19,7 @@ workflowNames = [
     "Create Release",
 ]
 
-requires = [
-    "pull",
-    "trunk",
-    "lint",
-    "linux-binary"
-]
+requires = ["pull", "trunk", "lint", "linux-binary"]
 
 
 def set_workflow_job_status(

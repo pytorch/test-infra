@@ -15,6 +15,12 @@ inputs:
     required: false
     default: 'viable/strict'
     type: string
+  requires:
+    description: |
+      The list of required jobs that need to pass before the commit can be
+      considered stable
+    required: true
+    type: string
   secret-bot-token:
     description: The token to use to push to the stable protected branch
     required: true
@@ -66,7 +72,9 @@ runs:
       env:
         ROCKSET_API_KEY: ${{ inputs.rockset-api-key }}
       run: |
-        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py)
+        set -ex
+
+        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py --requires "${{ inputs.requires }}")
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
 
     - name: Push SHA to viable/strict branch

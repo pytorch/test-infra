@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -134,8 +135,7 @@ def parse_args() -> Any:
         "--requires",
         type=str,
         required=True,
-        help="the list of required jobs that need to pass for the commit to be considered green",
-        nargs="*",
+        help="the JSON list of required jobs that need to pass for the commit to be green",
     )
     return parser.parse_args()
 
@@ -146,7 +146,9 @@ def main() -> None:
     commits = get_latest_commits()
     results = query_commits(commits)
 
-    latest_viable_commit = get_latest_green_commit(commits, args.requires, results)
+    latest_viable_commit = get_latest_green_commit(
+        commits, json.loads(args.requires), results
+    )
     print(latest_viable_commit)
 
 
