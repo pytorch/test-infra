@@ -6,13 +6,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
-    "77317",
-    "https://github.com/pytorch/pytorch/issues/77317",
-    [
-      "linux"
-    ]
-  ],
   "test_RNN_dropout_state (__main__.TestNN)": [
     "107183",
     "https://github.com/pytorch/pytorch/issues/107183",
@@ -1403,14 +1396,6 @@
     "https://github.com/pytorch/pytorch/issues/75139",
     [
       "rocm"
-    ]
-  ],
-  "test_predispatch_with_for_out_dtype_nested_dynamic_shapes (__main__.DynamicShapesExportTests)": [
-    "107980",
-    "https://github.com/pytorch/pytorch/issues/107980",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
