@@ -6,6 +6,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
+    "77317",
+    "https://github.com/pytorch/pytorch/issues/77317",
+    [
+      "linux"
+    ]
+  ],
   "test_RNN_dropout_state (__main__.TestNN)": [
     "107183",
     "https://github.com/pytorch/pytorch/issues/107183",
