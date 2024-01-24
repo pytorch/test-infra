@@ -44,7 +44,6 @@ runs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        cache: pip
 
     - name: Checkout test-infra for the fetch_latest_green_commit scripts
       uses: actions/checkout@v3
