@@ -60,7 +60,7 @@ def download_logs_to_dir(commit):
     return folder
 
 
-def download_artifacts_from_sha(commit):
+def download_artifacts_from_sha(commit, repo):
     s3 = get_s3()
     bucket = s3.Bucket("gha-artifacts")
     folder = REPO_ROOT / "_logs" / "artifacts" / commit
@@ -73,7 +73,7 @@ def download_artifacts_from_sha(commit):
 
     for row in workflow_ids:
         workflow_id = row["id"]
-        for obj in bucket.objects.filter(Prefix=f"pytorch/pytorch/{workflow_id}"):
+        for obj in bucket.objects.filter(Prefix=f"pytorch/{repo}/{workflow_id}"):
             if "test-reports" not in obj.key:
                 continue
             s3.Object(bucket.name, obj.key).download_file(
@@ -93,13 +93,14 @@ def get_parser():
     )
     parser.add_argument("commit", type=str)
     parser.add_argument("--artifacts", action="store_true")
+    parser.add_argument("--repo", type=str, default="pytorch")
     return parser
 
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
     if args.artifacts:
-        download_artifacts_from_sha(args.commit)
+        download_artifacts_from_sha(args.commit, args.repo)
         print(f"Saved to {REPO_ROOT / '_logs' / 'artifacts' / args.commit}")
     else:
         download_log(args.commit)
