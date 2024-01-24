@@ -27,13 +27,6 @@
       "rocm"
     ]
   ],
-  "test_TensorBase_T___get__ (__main__.TestTorchFunctionOverride)": [
-    "117212",
-    "https://github.com/pytorch/pytorch/issues/117212",
-    [
-      "dynamo"
-    ]
-  ],
   "test_addmm (__main__.ComputeBoundedTests)": [
     "115022",
     "https://github.com/pytorch/pytorch/issues/115022",
@@ -242,13 +235,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
-    "89395",
-    "https://github.com/pytorch/pytorch/issues/89395",
-    [
-      "dynamo"
     ]
   ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
@@ -1392,13 +1378,6 @@
     "https://github.com/pytorch/pytorch/issues/109362",
     [
       "inductor"
-    ]
-  ],
-  "test_none_names_refcount (__main__.TestNamedTensor)": [
-    "117716",
-    "https://github.com/pytorch/pytorch/issues/117716",
-    [
-      "dynamo"
     ]
   ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
