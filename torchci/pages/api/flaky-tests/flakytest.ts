@@ -10,8 +10,9 @@ export default async function handler(
   const name = req.query.name as string;
   const suite = req.query.suite as string;
   const file = req.query.file as string;
+  const limit = parseInt(req.query.limit as string) || 100;
 
-  res.status(200).json(await getFlakyTestInfo(name, suite, file));
+  res.status(200).json(await getFlakyTestInfo(name, suite, file, limit));
 }
 
 export interface FlakyTestInfoHUD {
@@ -25,10 +26,11 @@ export interface FlakyTestInfoHUD {
 async function getFlakyTestInfo(
   name: string,
   suite: string,
-  file: string
+  file: string,
+  limit: number
 ): Promise<FlakyTestInfoHUD[]> {
   const query = `
-  select
+select
   t.name,
   t.classname,
   t.file,
@@ -40,10 +42,12 @@ async function getFlakyTestInfo(
   j.started_at as job_started_at,
   j.torchci_classification.line,
   j.torchci_classification.line_num,
-  j.torchci_classification.captures
+  j.torchci_classification.captures,
+  w.head_branch
 from
   workflow_job j
   join commons.failed_tests_run t on j.id = t.job_id HINT(join_strategy = lookup)
+  join workflow_run w on w.id = j.run_id
 where
   t.name like :name
   and t.classname like :suite
@@ -52,7 +56,8 @@ where
 order by
   PARSE_TIMESTAMP_ISO8601(j.started_at) desc
 limit
-  100
+  :limit
+
   `;
   const rocksetClient = getRocksetClient();
   const flakyTestQuery = await rocksetClient.queries.query({
@@ -73,6 +78,11 @@ limit
           name: "file",
           type: "string",
           value: `%${file}%`,
+        },
+        {
+          name: "limit",
+          type: "number",
+          value: limit.toString(),
         },
       ],
     },
@@ -105,6 +115,7 @@ limit
         failureLines: [row.line],
         failureLineNumbers: [row.line_num],
         failureCaptures: [row.captures],
+        branch: row.head_branch,
       });
     }
     res.push(info);
