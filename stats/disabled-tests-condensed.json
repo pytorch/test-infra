@@ -91,13 +91,6 @@
       "windows"
     ]
   ],
-  "test_autocast_flash_attention (__main__.ActivationCheckpointingViaTagsTests)": [
-    "108030",
-    "https://github.com/pytorch/pytorch/issues/108030",
-    [
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -1163,15 +1156,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
-    "88475",
-    "https://github.com/pytorch/pytorch/issues/88475",
-    [
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
