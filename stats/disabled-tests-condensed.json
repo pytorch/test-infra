@@ -1480,13 +1480,6 @@
       "macos"
     ]
   ],
-  "test_pytree (__main__.TestFX)": [
-    "117786",
-    "https://github.com/pytorch/pytorch/issues/117786",
-    [
-      "dynamo"
-    ]
-  ],
   "test_raises_mesh_dim_less_than_2 (__main__.TestDeviceMeshGetItem)": [
     "110026",
     "https://github.com/pytorch/pytorch/issues/110026",
