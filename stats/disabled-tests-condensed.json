@@ -744,6 +744,13 @@
       "linux"
     ]
   ],
+  "test_incorrect_schema_view_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118183",
+    "https://github.com/pytorch/pytorch/issues/118183",
+    [
+      "dynamo"
+    ]
+  ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
     "68643",
     "https://github.com/pytorch/pytorch/issues/68643",
