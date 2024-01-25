@@ -166,4 +166,6 @@ runs:
           if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null || [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
             docker push "${DOCKER_IMAGE}"
           fi
+          # Check that upload was successfull or that image already exists
+          docker manifest inspect "${DOCKER_IMAGE}"
         fi
