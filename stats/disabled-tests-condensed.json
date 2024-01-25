@@ -993,13 +993,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_entr_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114925",
-    "https://github.com/pytorch/pytorch/issues/114925",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113910",
     "https://github.com/pytorch/pytorch/issues/113910",
@@ -1188,6 +1181,16 @@
       "linux",
       "macos",
       "mac"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
+    "88466",
+    "https://github.com/pytorch/pytorch/issues/88466",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
