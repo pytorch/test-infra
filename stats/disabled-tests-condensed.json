@@ -1341,13 +1341,6 @@
       "inductor"
     ]
   ],
-  "test_none_names_refcount (__main__.TestNamedTensor)": [
-    "117716",
-    "https://github.com/pytorch/pytorch/issues/117716",
-    [
-      "dynamo"
-    ]
-  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
