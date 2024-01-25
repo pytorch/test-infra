@@ -1636,13 +1636,6 @@
       "rocm"
     ]
   ],
-  "test_step_is_noop_for_zero_grads_Rprop_cpu_float32 (__main__.TestOptimRenewedCPU)": [
-    "117338",
-    "https://github.com/pytorch/pytorch/issues/117338",
-    [
-      "dynamo"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
