@@ -993,13 +993,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113910",
-    "https://github.com/pytorch/pytorch/issues/113910",
-    [
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113947",
     "https://github.com/pytorch/pytorch/issues/113947",
