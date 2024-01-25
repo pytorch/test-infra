@@ -1142,34 +1142,6 @@
       "dynamo"
     ]
   ],
-  "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
-    "88468",
-    "https://github.com/pytorch/pytorch/issues/88468",
-    [
-      "linux",
-      "macos",
-      "mac"
-    ]
-  ],
-  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
-    "88475",
-    "https://github.com/pytorch/pytorch/issues/88475",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
-    "88466",
-    "https://github.com/pytorch/pytorch/issues/88466",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
     "88467",
     "https://github.com/pytorch/pytorch/issues/88467",
