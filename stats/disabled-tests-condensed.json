@@ -472,6 +472,14 @@
       "rocm"
     ]
   ],
+  "test_dropout_errors (__main__.DistElementwiseOpsTest)": [
+    "118321",
+    "https://github.com/pytorch/pytorch/issues/118321",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
@@ -920,6 +928,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113862",
+    "https://github.com/pytorch/pytorch/issues/113862",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113806",
     "https://github.com/pytorch/pytorch/issues/113806",
@@ -930,6 +945,13 @@
   "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113857",
     "https://github.com/pytorch/pytorch/issues/113857",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113910",
+    "https://github.com/pytorch/pytorch/issues/113910",
     [
       "linux"
     ]
@@ -1046,6 +1068,14 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114461",
+    "https://github.com/pytorch/pytorch/issues/114461",
+    [
+      "linux",
+      "asan"
+    ]
+  ],
   "test_matmul_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
     "115002",
     "https://github.com/pytorch/pytorch/issues/115002",
@@ -1138,6 +1168,21 @@
       "mac",
       "macos",
       "rocm"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
+    "88467",
+    "https://github.com/pytorch/pytorch/issues/88467",
+    [
+      "linux",
+      "macos"
+    ]
+  ],
+  "test_mul_out (__main__.DistElementwiseOpsTest)": [
+    "118322",
+    "https://github.com/pytorch/pytorch/issues/118322",
+    [
+      "linux"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
@@ -1914,6 +1959,13 @@
   "test_wait_i_6 (__main__.TestMultiThreadedWait)": [
     "107425",
     "https://github.com/pytorch/pytorch/issues/107425",
+    [
+      "linux"
+    ]
+  ],
+  "test_world_size_1_sharding_strategy_warning (__main__.TestFSDPMiscWorldSize1)": [
+    "118323",
+    "https://github.com/pytorch/pytorch/issues/118323",
     [
       "linux"
     ]
