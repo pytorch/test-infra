@@ -2,7 +2,7 @@ import json
 import os
 import re
 import sys
-from typing import Any, cast, Dict, List, NamedTuple, Tuple
+from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
 import rockset  # type: ignore[import]
 from gitutils import _check_output
@@ -115,7 +115,7 @@ def is_green(
 
 def get_latest_green_commit(
     commits: List[str], requires: List[str], results: List[Dict[str, Any]]
-) -> Any:
+) -> Optional[str]:
     for commit in commits:
         eprint(f"Checking {commit}")
         green, msg = is_green(commit, requires, results)
