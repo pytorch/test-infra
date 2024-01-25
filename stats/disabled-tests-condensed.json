@@ -380,25 +380,11 @@
       "linux"
     ]
   ],
-  "test_cuda_stream_method_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
-    "114665",
-    "https://github.com/pytorch/pytorch/issues/114665",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
     [
       "rocm"
-    ]
-  ],
-  "test_custom_op_cpu_dynamic_shapes_cpp_wrapper (__main__.DynamicShapesCppWrapperCpuTests)": [
-    "104854",
-    "https://github.com/pytorch/pytorch/issues/104854",
-    [
-      "linux"
     ]
   ],
   "test_custom_op_cuda (__main__.CudaTests)": [
@@ -1117,6 +1103,15 @@
       "mac"
     ]
   ],
+  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
+    "88475",
+    "https://github.com/pytorch/pytorch/issues/88475",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
     "88466",
     "https://github.com/pytorch/pytorch/issues/88466",
@@ -1356,6 +1351,13 @@
   "test_output_match_mm_cpu_float32 (__main__.TORCH_NN_MODULECPU)": [
     "117718",
     "https://github.com/pytorch/pytorch/issues/117718",
+    [
+      "linux"
+    ]
+  ],
+  "test_partial_mul_failure (__main__.DistElementwiseOpsTest)": [
+    "118285",
+    "https://github.com/pytorch/pytorch/issues/118285",
     [
       "linux"
     ]
@@ -1752,6 +1754,14 @@
     "105119",
     "https://github.com/pytorch/pytorch/issues/105119",
     [
+      "rocm"
+    ]
+  ],
+  "test_unsafe_setattr (__main__.TestFSDPMiscWorldSize1)": [
+    "118286",
+    "https://github.com/pytorch/pytorch/issues/118286",
+    [
+      "linux",
       "rocm"
     ]
   ],
