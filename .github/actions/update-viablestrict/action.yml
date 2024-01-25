@@ -1,0 +1,96 @@
+name: Update viable/strict to the latest green commit from a PyTorch repo
+
+description: |
+  The latest green commit is the newest commit that have passed all the required
+  test in trunk and can be consider stable. This GHA only works for repos that
+  have been onboard to PyTorch Dev Infra.
+
+inputs:
+  repository:
+    description: The repository name, i.e. pytorch/pytorch
+    required: true
+    type: string
+  stable-branch:
+    description: The name of the stable branch to push to
+    required: false
+    default: 'viable/strict'
+    type: string
+  requires:
+    description: |
+      The list of required jobs that need to pass before the commit can be
+      considered stable
+    required: true
+    type: string
+  secret-bot-token:
+    description: The token to use to push to the stable protected branch
+    required: true
+    type: string
+  rockset-api-key:
+    description: The API key to query Rockset, read-only
+    required: true
+    type: string
+  test-infra-repository:
+    description: Test infra repository to use
+    default: 'pytorch/test-infra'
+    type: string
+  test-infra-ref:
+    description: Test infra reference to use
+    default: ''
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Checkout test-infra for the fetch_latest_green_commit scripts
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.test-infra-repository }}
+        ref: ${{ inputs.test-infra-ref }}
+        path: test-infra
+
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.repository }}
+        token: ${{ inputs.secret-bot-token }}
+        path: ${{ inputs.repository }}
+        # Need the whole history here to get the lastest green commit, which is
+        # usually few hours behind main
+        fetch-depth: 0
+
+    - name: Install Python Packages
+      shell: bash
+      run: |
+        pip install rockset==1.0.3 boto3==1.19.12
+
+    - name: Get latest viable commit
+      id: get-latest-commit
+      working-directory: ${{ inputs.repository }}
+      env:
+        ROCKSET_API_KEY: ${{ inputs.rockset-api-key }}
+      shell: bash
+      run: |
+        set -ex
+
+        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py --requires "${{ inputs.requires }}")
+        echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
+
+    - name: Push SHA to viable/strict branch
+      if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
+      working-directory: ${{ inputs.repository }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.secret-bot-token }}
+        STABLE_BRANCH: ${{ inputs.stable-branch }}
+        LATEST_VIABLE_SHA: ${{ steps.get-latest-commit.outputs.latest_viable_sha }}
+      shell: bash
+      run: |
+        git config --global user.email "pytorchmergebot@users.noreply.github.com"
+        git config --global user.name "PyTorch MergeBot"
+
+        echo "Set the latest sha variable to be ${LATEST_VIABLE_SHA}"
+        # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
+        # to ignore because we already have the later green commit in visable/strict
+        git push origin "${LATEST_VIABLE_SHA}":"${STABLE_BRANCH}" || true
