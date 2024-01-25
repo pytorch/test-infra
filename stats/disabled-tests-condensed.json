@@ -27,6 +27,13 @@
       "rocm"
     ]
   ],
+  "test_activations (__main__.DistElementwiseOpsTest)": [
+    "103736",
+    "https://github.com/pytorch/pytorch/issues/103736",
+    [
+      "linux"
+    ]
+  ],
   "test_addmm (__main__.ComputeBoundedTests)": [
     "115022",
     "https://github.com/pytorch/pytorch/issues/115022",
@@ -1156,6 +1163,22 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
+    ]
+  ],
+  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118253",
+    "https://github.com/pytorch/pytorch/issues/118253",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
+    "88468",
+    "https://github.com/pytorch/pytorch/issues/88468",
+    [
+      "linux",
+      "macos",
+      "mac"
     ]
   ],
   "test_multilayer_var_cpu (__main__.CpuTests)": [
