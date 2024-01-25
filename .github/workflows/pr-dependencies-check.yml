@@ -159,8 +159,8 @@ jobs:
             for CONFLICT in "${CONFLICTING_COMMITS[@]}"; do
               echo "- $(git show --oneline -s "$CONFLICT")" >> "$GITHUB_STEP_SUMMARY"
             done
-            echo "::set-output name=conflicting_commits::${CONFLICTING_COMMITS[*]}"
-            echo "::set-output name=num_conflicting_commits::${#CONFLICTING_COMMITS[*]}"
+            echo "conflicting_commits=${CONFLICTING_COMMITS[*]}" >> $GITHUB_OUTPUT
+            echo "num_conflicting_commits=${#CONFLICTING_COMMITS[*]}" >> $GITHUB_OUTPUT
             {
               echo ""
               echo "---"
