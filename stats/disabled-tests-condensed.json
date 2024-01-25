@@ -199,13 +199,6 @@
       "linux"
     ]
   ],
-  "test_closure_out_of_scope_cell_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "117213",
-    "https://github.com/pytorch/pytorch/issues/117213",
-    [
-      "linux"
-    ]
-  ],
   "test_closure_out_of_scope_cell_with_cond_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "117731",
     "https://github.com/pytorch/pytorch/issues/117731",
@@ -542,6 +535,14 @@
     "https://github.com/pytorch/pytorch/issues/98259",
     [
       "linux"
+    ]
+  ],
+  "test_dropout_backward (__main__.DistElementwiseOpsTest)": [
+    "118270",
+    "https://github.com/pytorch/pytorch/issues/118270",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
@@ -1343,6 +1344,13 @@
     "https://github.com/pytorch/pytorch/issues/109362",
     [
       "inductor"
+    ]
+  ],
+  "test_none_names_refcount (__main__.TestNamedTensor)": [
+    "117716",
+    "https://github.com/pytorch/pytorch/issues/117716",
+    [
+      "dynamo"
     ]
   ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
