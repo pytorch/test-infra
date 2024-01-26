@@ -1328,20 +1328,6 @@
       "linux"
     ]
   ],
-  "test_output_match_mm_cpu_float16 (__main__.TORCH_NN_MODULECPU)": [
-    "117725",
-    "https://github.com/pytorch/pytorch/issues/117725",
-    [
-      "linux"
-    ]
-  ],
-  "test_output_match_mm_cpu_float32 (__main__.TORCH_NN_MODULECPU)": [
-    "117718",
-    "https://github.com/pytorch/pytorch/issues/117718",
-    [
-      "linux"
-    ]
-  ],
   "test_partial_mul_failure (__main__.DistElementwiseOpsTest)": [
     "118285",
     "https://github.com/pytorch/pytorch/issues/118285",
