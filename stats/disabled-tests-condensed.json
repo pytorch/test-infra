@@ -78,13 +78,6 @@
       "macos"
     ]
   ],
-  "test_aot_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
-    "118356",
-    "https://github.com/pytorch/pytorch/issues/118356",
-    [
-      "rocm"
-    ]
-  ],
   "test_as_strided_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
     "115796",
     "https://github.com/pytorch/pytorch/issues/115796",
@@ -402,14 +395,6 @@
     "https://github.com/pytorch/pytorch/issues/104856",
     [
       "inductor"
-    ]
-  ],
-  "test_custom_op_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
-    "104878",
-    "https://github.com/pytorch/pytorch/issues/104878",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_ddp_apply_optim_in_backward_ignored_params (__main__.TestDistBackendWithSpawn)": [
