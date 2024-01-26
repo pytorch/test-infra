@@ -1602,13 +1602,6 @@
       "rocm"
     ]
   ],
-  "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_True_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
-    "117362",
-    "https://github.com/pytorch/pytorch/issues/117362",
-    [
-      "rocm"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
