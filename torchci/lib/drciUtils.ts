@@ -43,7 +43,7 @@ export const FLAKY_RULES_JSON =
 export const EXCLUDED_FROM_FLAKINESS = [
   "lint",
   "linux-docs",
-  "pr-dependencies-check",
+  "ghstack-mergeability-check",
 ];
 
 export function formDrciHeader(
