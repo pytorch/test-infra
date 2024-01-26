@@ -78,13 +78,6 @@
       "macos"
     ]
   ],
-  "test_as_strided_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
-    "115796",
-    "https://github.com/pytorch/pytorch/issues/115796",
-    [
-      "rocm"
-    ]
-  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -134,13 +127,6 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
-    ]
-  ],
-  "test_bitwise_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
-    "116044",
-    "https://github.com/pytorch/pytorch/issues/116044",
-    [
-      "rocm"
     ]
   ],
   "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
@@ -1496,13 +1482,6 @@
     "https://github.com/pytorch/pytorch/issues/117871",
     [
       "dynamo"
-    ]
-  ],
-  "test_relu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
-    "115797",
-    "https://github.com/pytorch/pytorch/issues/115797",
-    [
-      "rocm"
     ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
