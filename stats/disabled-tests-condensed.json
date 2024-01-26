@@ -1018,6 +1018,18 @@
       "windows"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "102775",
+    "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows",
+      "asan"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114211",
     "https://github.com/pytorch/pytorch/issues/114211",
@@ -1128,6 +1140,22 @@
     "https://github.com/pytorch/pytorch/issues/118253",
     [
       "dynamo"
+    ]
+  ],
+  "test_mm_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
+    "118346",
+    "https://github.com/pytorch/pytorch/issues/118346",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
+    "88467",
+    "https://github.com/pytorch/pytorch/issues/88467",
+    [
+      "linux",
+      "macos"
     ]
   ],
   "test_mul_out (__main__.DistElementwiseOpsTest)": [
