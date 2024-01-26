@@ -706,6 +706,13 @@
       "rocm"
     ]
   ],
+  "test_inductor_all_reduce_coalesced (__main__.C10DFunctionalNativeTest)": [
+    "118403",
+    "https://github.com/pytorch/pytorch/issues/118403",
+    [
+      "rocm"
+    ]
+  ],
   "test_inductor_all_to_all_single (__main__.C10DFunctionalNativeTest)": [
     "118109",
     "https://github.com/pytorch/pytorch/issues/118109",
