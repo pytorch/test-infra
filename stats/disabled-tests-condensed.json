@@ -78,6 +78,13 @@
       "macos"
     ]
   ],
+  "test_aot_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
+    "118356",
+    "https://github.com/pytorch/pytorch/issues/118356",
+    [
+      "rocm"
+    ]
+  ],
   "test_as_strided_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
     "115796",
     "https://github.com/pytorch/pytorch/issues/115796",
@@ -265,6 +272,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_nn_functional_nll_loss_cuda_float64 (__main__.TestDecompCUDA)": [
+    "118355",
+    "https://github.com/pytorch/pytorch/issues/118355",
+    [
+      "rocm"
+    ]
+  ],
   "test_compute_local_shape_and_global_offset_1D (__main__.UtilTest)": [
     "109379",
     "https://github.com/pytorch/pytorch/issues/109379",
@@ -365,6 +379,14 @@
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
     [
+      "linux"
+    ]
+  ],
+  "test_cuda_stream_context_manager1_dynamic_shapes (__main__.DynamicShapesCtxManagerTests)": [
+    "112694",
+    "https://github.com/pytorch/pytorch/issues/112694",
+    [
+      "rocm",
       "linux"
     ]
   ],
@@ -944,16 +966,16 @@
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_i0e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "117481",
-    "https://github.com/pytorch/pytorch/issues/117481",
+  "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113947",
+    "https://github.com/pytorch/pytorch/issues/113947",
     [
       "linux"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114339",
-    "https://github.com/pytorch/pytorch/issues/114339",
+  "test_make_fx_symbolic_exhaustive_out_special_i0e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "117481",
+    "https://github.com/pytorch/pytorch/issues/117481",
     [
       "linux"
     ]
@@ -1486,6 +1508,13 @@
   "test_reduce_scatter_contiguous (__main__.DeviceMeshCollectiveTest)": [
     "117724",
     "https://github.com/pytorch/pytorch/issues/117724",
+    [
+      "linux"
+    ]
+  ],
+  "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
+    "98024",
+    "https://github.com/pytorch/pytorch/issues/98024",
     [
       "linux"
     ]
