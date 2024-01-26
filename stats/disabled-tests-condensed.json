@@ -157,14 +157,6 @@
       "mac"
     ]
   ],
-  "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
-    "102034",
-    "https://github.com/pytorch/pytorch/issues/102034",
-    [
-      "linux",
-      "mac"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -192,14 +184,6 @@
     "https://github.com/pytorch/pytorch/issues/100074",
     [
       "linux"
-    ]
-  ],
-  "test_closure_out_of_scope_cell_with_cond_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "117731",
-    "https://github.com/pytorch/pytorch/issues/117731",
-    [
-      "mac",
-      "macos"
     ]
   ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
