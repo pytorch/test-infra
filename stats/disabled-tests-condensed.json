@@ -651,13 +651,6 @@
       "windows"
     ]
   ],
-  "test_index_put_accumulate_large_tensor_cpu (__main__.TestIndexingCPU)": [
-    "88472",
-    "https://github.com/pytorch/pytorch/issues/88472",
-    [
-      "dynamo"
-    ]
-  ],
   "test_index_put_with_none_index_abi_compatible_cuda (__main__.AOTInductorTestABICompatibleCuda)": [
     "118307",
     "https://github.com/pytorch/pytorch/issues/118307",
