@@ -352,6 +352,13 @@
       "rocm"
     ]
   ],
+  "test_cumsum_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "118540",
+    "https://github.com/pytorch/pytorch/issues/118540",
+    [
+      "rocm"
+    ]
+  ],
   "test_custom_op_cuda (__main__.CudaTests)": [
     "104856",
     "https://github.com/pytorch/pytorch/issues/104856",
