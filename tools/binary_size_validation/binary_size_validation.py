@@ -37,6 +37,7 @@ def parse_index(
         if (not include_regex or re.search(include_regex, wheel_name)) and (
             not exclude_regex or not re.search(exclude_regex, wheel_name)
         ):
+            print(f"Adding {wheel_name}")
             wheels.append(Wheel(name=wheel_name, url=wheel_url))
 
     # filter out the wheels that are not the latest version
@@ -95,6 +96,7 @@ def get_binary_size(file_url: str) -> int:
 )
 def main(url, include, exclude, threshold, only_latest_version):
     page = requests.get(url)
+    print(f"Validating {url}...")
     wheels = parse_index(page.text, url, include, exclude, only_latest_version)
     for wheel in wheels:
         print(f"Validating {wheel.url}...")
