@@ -352,6 +352,13 @@
       "rocm"
     ]
   ],
+  "test_cumprod_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "118541",
+    "https://github.com/pytorch/pytorch/issues/118541",
+    [
+      "rocm"
+    ]
+  ],
   "test_cumsum_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "118540",
     "https://github.com/pytorch/pytorch/issues/118540",
@@ -675,6 +682,13 @@
   "test_inductor_inplace_op_on_view (__main__.C10DFunctionalNativeTest)": [
     "118510",
     "https://github.com/pytorch/pytorch/issues/118510",
+    [
+      "rocm"
+    ]
+  ],
+  "test_inductor_reuse_buffer_after_inplace_collective (__main__.C10DFunctionalNativeTest)": [
+    "118543",
+    "https://github.com/pytorch/pytorch/issues/118543",
     [
       "rocm"
     ]
@@ -1698,6 +1712,20 @@
   "test_trace_while_active (__main__.NCCLTraceTest)": [
     "112815",
     "https://github.com/pytorch/pytorch/issues/112815",
+    [
+      "rocm"
+    ]
+  ],
+  "test_triton_kernel_extern_kernel_arg_abi_compatible_cuda (__main__.AOTInductorTestABICompatibleCuda)": [
+    "118544",
+    "https://github.com/pytorch/pytorch/issues/118544",
+    [
+      "rocm"
+    ]
+  ],
+  "test_triton_kernel_extern_kernel_arg_non_abi_compatible_cuda (__main__.AOTInductorTestNonABICompatibleCuda)": [
+    "118545",
+    "https://github.com/pytorch/pytorch/issues/118545",
     [
       "rocm"
     ]
