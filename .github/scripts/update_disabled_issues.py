@@ -12,7 +12,7 @@ import os
 import re
 import urllib
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.request import Request, urlopen
 
 
@@ -26,83 +26,82 @@ REPO = "pytorch"
 
 PERMISSIONS_TO_DISABLE_JOBS = {"admin", "write"}
 
+GRAPHQL_QUERY = """
+query ($q: String!, $cursor: String) {
+  search(query: $q, type: ISSUE, first: 100, after: $cursor) {
+    issueCount
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      ... on Issue {
+        number
+        title
+        body
+        url
+        author {
+          login
+        }
+      }
+    }
+  }
+}
+"""
 
-def _read_url(url: Any) -> Any:
-    with urlopen(url) as r:
-        return r.headers, r.read().decode(r.headers.get_content_charset("utf-8"))
-
-
-def github_api_request(url: str, token: Optional[str] = "") -> Any:
+def github_api_request(
+    url: str,
+    data: Optional[Dict[str, Any]] = None,
+    token: Optional[str] = None,
+) -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
-
-    if token:
+    if token is not None:
         headers["Authorization"] = f"token {token}"
 
-    return _read_url(Request(url, headers=headers))
+    _data = json.dumps(data).encode() if data is not None else None
+    try:
+        with urlopen(Request(url, headers=headers, data=_data)) as conn:
+            return json.load(conn)
+    except Exception as err:
+        print(f"Failed to get {url}: {err}")
 
 
-def get_last_page(header: Any) -> int:
-    # Link info looks like:
-    # Link: <https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo%3Apytorch%2Fpytorch+in%3Atitle+
-    # DISABLED&per_page=30&page=2>; rel="next", <https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+
-    # repo%3Apytorch%2Fpytorch+in%3Atitle+DISABLED&per_page=30&page=4>; rel="last"
-    link_info = header["link"]
-    if link_info is None:
-        print(
-            "WARNING: Link information missing, most likely because there is only one page of results."
-        )
-        return 1
-    prefix = "&page="
-    suffix = ">;"
-    return int(
-        link_info[link_info.rindex(prefix) + len(prefix) : link_info.rindex(suffix)]
+def gh_graphql(query: str, token: str, **kwargs: Any) -> Dict[str, Any]:
+    rc = github_api_request(
+        "https://api.github.com/graphql",
+        data={"query": query, "variables": kwargs},
+        token=token,
     )
-
-
-def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
-    more_issues = json.loads(info)
-    issues_json["items"].extend(more_issues["items"])
-    issues_json["incomplete_results"] |= more_issues["incomplete_results"]
-
+    if "errors" in rc:
+        raise RuntimeError(
+            f"GraphQL query {query}, args {kwargs} failed: {rc['errors']}"
+        )
+    return cast(Dict[str, Any], rc)
 
 @lru_cache()
-def get_disable_issues(prefix: str = DISABLED_PREFIX) -> Dict[Any, Any]:
-    prefix = (
-        f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+{prefix}&"
-        "&per_page=100"
-    )
-    header, info = github_api_request(prefix + "&page=1")
-    issues_json = json.loads(info)
-    last_page = get_last_page(header)
-    assert (
-        last_page > 0
-    ), "Error reading header info to determine total number of pages of labels"
-    for page_number in range(2, last_page + 1):  # skip page 1
-        _, info = github_api_request(prefix + f"&page={page_number}")
-        update_issues(issues_json, info)
+def get_disable_issues(token: str, prefix: str = DISABLED_PREFIX) -> List[Dict[str, Any]]:
+    q = f"is:issue is:open repo:{OWNER}/{REPO} in:title {prefix}"
+    cursor = None
+    has_next_page = True
+    res = []
+    total_count = None
+    while has_next_page:
+        rc = gh_graphql(GRAPHQL_QUERY, token, q=q, cursor=cursor)
+        has_next_page = rc["data"]["search"]["pageInfo"]["hasNextPage"]
+        cursor = rc["data"]["search"]["pageInfo"]["endCursor"]
+        if total_count is None:
+            total_count = rc["data"]["search"]["issueCount"]
+        else:
+            assert total_count == rc["data"]["search"]["issueCount"], "total_count changed"
+        res.extend(rc["data"]["search"]["nodes"])
 
-    return issues_json
-
-
-def validate_and_sort(issues_json: Dict[str, Any]) -> None:
-    assert issues_json["total_count"] == len(issues_json["items"]), (
-        f"The number of issues does not equal the total count. Received {len(issues_json['items'])}, "
-        f"while the total count is {issues_json['total_count']}."
-    )
-    assert not issues_json[
-        "incomplete_results"
-    ], "Results were incomplete. There may be missing issues."
-
-    # score changes every request, so we strip it out to avoid creating a commit every time we query.
-    for issue in issues_json["items"]:
-        if "score" in issue:
-            issue["score"] = 0.0
-
-    issues_json["items"].sort(key=lambda x: x["url"])
+    assert len(res) == total_count, f"len(items)={len(res)} but total_count={total_count}"
+    res = sorted(res, key=lambda x: x["url"])
+    return res
 
 
 def filter_disable_issues(
-    issues_json: Dict[str, Any], prefix: str = DISABLED_PREFIX
+    issues: List[Dict[str, Any]], prefix: str = DISABLED_PREFIX
 ) -> Tuple[List[Any], List[Any]]:
     """
     Return the list of disabled test and disabled job issues
@@ -110,8 +109,8 @@ def filter_disable_issues(
     disable_test_issues = []
     disable_job_issues = []
 
-    for issue in issues_json.get("items", []):
-        title = issue.get("title", "")
+    for issue in issues:
+        title = issue["title"]
         if not title or not title.startswith(prefix):
             continue
 
@@ -124,29 +123,27 @@ def filter_disable_issues(
 
 
 @lru_cache()
-def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
-    token = os.getenv("GH_PYTORCHBOT_TOKEN", "")
+def can_disable_jobs(owner: str, repo: str, username: str, token: str) -> bool:
     url = f"https://api.github.com/repos/{owner}/{repo}/collaborators/{username}/permission"
 
     try:
-        _, r = github_api_request(url=url, token=token)
+        perm = github_api_request(url=url, token=token)
     except urllib.error.HTTPError as error:
         print(f"Failed to get {owner}/{repo} permission for {username}: {error}")
         return False
 
-    if not r:
+    if not perm:
         return False
-    perm = json.loads(r)
 
     return perm and perm.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
 
 
 def condense_disable_tests(
-    disable_issues: List[Any],
+    disable_issues: List[Dict[str, Any]],
 ) -> Dict[str, Tuple]:
     disabled_test_from_issues = {}
     for item in disable_issues:
-        issue_url = item["html_url"]
+        issue_url = item["url"]
         issue_number = issue_url.split("/")[-1]
 
         title = item["title"]
@@ -177,11 +174,12 @@ def condense_disable_jobs(
     disable_issues: List[Any],
     owner: str,
     repo: str,
+    token: str,
     prefix: str = DISABLED_PREFIX,
 ) -> Dict[str, Tuple]:
     disabled_job_from_issues = {}
     for item in disable_issues:
-        issue_url = item["html_url"]
+        issue_url = item["url"]
         issue_number = issue_url.split("/")[-1]
 
         title = item["title"]
@@ -190,11 +188,11 @@ def condense_disable_jobs(
         if not job_name:
             continue
 
-        username = item.get("user", {}).get("login", "")
+        username = item["author"]["login"]
         # To keep the CI safe, we will only allow author with write permission
         # to the repo to disable jobs
         if not username or not can_disable_jobs(
-            owner=owner, repo=repo, username=username
+            owner=owner, repo=repo, username=username, token=token
         ):
             continue
 
@@ -237,10 +235,12 @@ def main() -> None:
         help="Set the repo to query the issues from",
     )
     args = parser.parse_args()
+    token = os.getenv("GH_PYTORCHBOT_TOKEN")
+    if not token:
+        raise RuntimeError("The GITHUB_TOKEN environment variable is required")
 
     # Get the list of disabled issues and sort them
-    disable_issues = get_disable_issues()
-    validate_and_sort(disable_issues)
+    disable_issues = get_disable_issues(token)
 
     disable_test_issues, disable_job_issues = filter_disable_issues(disable_issues)
     # Create the list of disabled tests taken into account the list of disabled issues
@@ -249,20 +249,19 @@ def main() -> None:
         condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
     )
     dump_json(
-        condense_disable_jobs(disable_job_issues, args.owner, args.repo),
+        condense_disable_jobs(disable_job_issues, args.owner, args.repo, token),
         "disabled-jobs.json",
     )
 
     # Also handle UNSTABLE issues that mark CI jobs as unstable
-    unstable_issues = get_disable_issues(prefix=UNSTABLE_PREFIX)
-    validate_and_sort(unstable_issues)
+    unstable_issues = get_disable_issues(token, prefix=UNSTABLE_PREFIX)
 
     _, unstable_job_issues = filter_disable_issues(
         unstable_issues, prefix=UNSTABLE_PREFIX
     )
     dump_json(
         condense_disable_jobs(
-            unstable_job_issues, args.owner, args.repo, prefix=UNSTABLE_PREFIX
+            unstable_job_issues, args.owner, args.repo, token, prefix=UNSTABLE_PREFIX,
         ),
         "unstable-jobs.json",
     )
