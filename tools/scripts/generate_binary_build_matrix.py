@@ -25,7 +25,7 @@ PYTHON_ARCHES_DICT = {
     # Release should be enabled after release is complete.
     "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "release": ["3.8", "3.9", "3.10", "3.11"],
+    "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1"],
@@ -35,7 +35,7 @@ CUDA_ARCHES_DICT = {
 ROCM_ARCHES_DICT = {
     "nightly": ["5.6", "5.7"],
     "test": ["5.6", "5.7"],
-    "release": ["5.5", "5.6"],
+    "release": ["5.6", "5.7"],
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -61,7 +61,7 @@ ROCM = "rocm"
 
 
 CURRENT_CANDIDATE_VERSION = "2.2.0"
-CURRENT_STABLE_VERSION = "2.1.2"
+CURRENT_STABLE_VERSION = "2.2.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
