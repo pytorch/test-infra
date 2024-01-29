@@ -611,13 +611,6 @@
       "linux"
     ]
   ],
-  "test_incorrect_schema_view_cpu (__main__.TestCustomOpTestingCPU)": [
-    "118183",
-    "https://github.com/pytorch/pytorch/issues/118183",
-    [
-      "dynamo"
-    ]
-  ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
     "68643",
     "https://github.com/pytorch/pytorch/issues/68643",
@@ -1116,13 +1109,6 @@
       "linux"
     ]
   ],
-  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
-    "118253",
-    "https://github.com/pytorch/pytorch/issues/118253",
-    [
-      "dynamo"
-    ]
-  ],
   "test_mm_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
     "118346",
     "https://github.com/pytorch/pytorch/issues/118346",
@@ -1469,27 +1455,6 @@
     "https://github.com/pytorch/pytorch/issues/107950",
     [
       "rocm"
-    ]
-  ],
-  "test_register_functional_op_no_returns (__main__.TestPythonRegistration)": [
-    "117834",
-    "https://github.com/pytorch/pytorch/issues/117834",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_register_functional_op_one_return (__main__.TestPythonRegistration)": [
-    "117816",
-    "https://github.com/pytorch/pytorch/issues/117816",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_register_functional_op_with_optional (__main__.TestPythonRegistration)": [
-    "117871",
-    "https://github.com/pytorch/pytorch/issues/117871",
-    [
-      "dynamo"
     ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
