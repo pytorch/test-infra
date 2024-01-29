@@ -484,6 +484,13 @@
       "linux"
     ]
   ],
+  "test_find_mutations (__main__.MutationTests)": [
+    "118585",
+    "https://github.com/pytorch/pytorch/issues/118585",
+    [
+      "rocm"
+    ]
+  ],
   "test_find_or_create_pg (__main__.TestPgTag)": [
     "107278",
     "https://github.com/pytorch/pytorch/issues/107278",
