@@ -672,6 +672,13 @@
       "rocm"
     ]
   ],
+  "test_inductor_inplace_op_on_view (__main__.C10DFunctionalNativeTest)": [
+    "118510",
+    "https://github.com/pytorch/pytorch/issues/118510",
+    [
+      "rocm"
+    ]
+  ],
   "test_inference_mode (__main__.TestAOTAutograd)": [
     "117714",
     "https://github.com/pytorch/pytorch/issues/117714",
