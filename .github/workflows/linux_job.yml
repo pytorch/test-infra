@@ -255,7 +255,7 @@ jobs:
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
-          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}s
+          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
 
       - name: Clean workspace after tear down
         if: ${{ always() }}
