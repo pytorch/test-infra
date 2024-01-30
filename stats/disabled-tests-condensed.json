@@ -1730,6 +1730,13 @@
       "rocm"
     ]
   ],
+  "test_triton_kernel_multi_output_arg_non_abi_compatible_cuda (__main__.AOTInductorTestNonABICompatibleCuda)": [
+    "118632",
+    "https://github.com/pytorch/pytorch/issues/118632",
+    [
+      "rocm"
+    ]
+  ],
   "test_type_promotion__foreach_sub (__main__.ForeachTests)": [
     "110610",
     "https://github.com/pytorch/pytorch/issues/110610",
