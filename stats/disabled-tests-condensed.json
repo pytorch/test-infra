@@ -1009,6 +1009,15 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107114",
+    "https://github.com/pytorch/pytorch/issues/107114",
+    [
+      "linux",
+      "win",
+      "windows"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_chebyshev_polynomial_t_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114211",
     "https://github.com/pytorch/pytorch/issues/114211",
