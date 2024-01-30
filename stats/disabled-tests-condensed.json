@@ -157,6 +157,13 @@
       "rocm"
     ]
   ],
+  "test_causal_variants_compile_causal_variant_CausalVariant_UPPER_LEFT_shape0_cuda (__main__.TestAttnBiasCUDA)": [
+    "118672",
+    "https://github.com/pytorch/pytorch/issues/118672",
+    [
+      "rocm"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
