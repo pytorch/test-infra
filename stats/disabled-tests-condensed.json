@@ -352,6 +352,13 @@
       "rocm"
     ]
   ],
+  "test_cumprod_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "118541",
+    "https://github.com/pytorch/pytorch/issues/118541",
+    [
+      "rocm"
+    ]
+  ],
   "test_cumsum_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "118540",
     "https://github.com/pytorch/pytorch/issues/118540",
@@ -861,6 +868,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_lazy_init (__main__.TestCuda)": [
+    "117430",
+    "https://github.com/pytorch/pytorch/issues/117430",
+    [
+      "rocm"
     ]
   ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
