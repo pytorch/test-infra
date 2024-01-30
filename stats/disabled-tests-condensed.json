@@ -20,13 +20,6 @@
       "rocm"
     ]
   ],
-  "test_RNN_input_size_zero (__main__.TestNN)": [
-    "107219",
-    "https://github.com/pytorch/pytorch/issues/107219",
-    [
-      "rocm"
-    ]
-  ],
   "test_activations (__main__.DistElementwiseOpsTest)": [
     "103736",
     "https://github.com/pytorch/pytorch/issues/103736",
