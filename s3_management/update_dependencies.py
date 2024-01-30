@@ -17,7 +17,6 @@ PACKAGES = [
     "fsspec",
     "typing-extensions",
 ]
-SUBFOLDERS = ["whl/test", "whl", "whl/nightly"]
 
 
 def download(url: str) -> bytes:
@@ -49,7 +48,9 @@ def get_wheels_of_version(idx: Dict[str, str], version: str) -> Dict[str, str]:
     }
 
 
-def upload_missing_whls(pkg_name: str = "numpy", prefix="whl/test") -> None:
+def upload_missing_whls(
+    pkg_name: str = "numpy", prefix="whl/test", *, dry_run: bool = False
+) -> None:
     pypi_idx = parse_simple_idx(f"https://pypi.org/simple/{pkg_name}")
     download_idx = parse_simple_idx(f"https://download.pytorch.org/{prefix}/{pkg_name}")
     pypi_versions = get_whl_versions(pypi_idx)
@@ -69,6 +70,9 @@ def upload_missing_whls(pkg_name: str = "numpy", prefix="whl/test") -> None:
         if "-musllinux" in pkg:
             continue
         print(f"Downloading {pkg}")
+        if dry_run:
+            has_updates = True
+            continue
         data = download(pypi_idx[pkg])
         print(f"Uplodating {pkg} to s3://pytorch/{prefix}/")
         BUCKET.Object(key=f"{prefix}/{pkg}").put(
@@ -82,9 +86,20 @@ def upload_missing_whls(pkg_name: str = "numpy", prefix="whl/test") -> None:
 
 
 def main() -> None:
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser("Upload dependent packages to s3://pytorch")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--include-stable", action="store_true")
+    args = parser.parse_args()
+
+    SUBFOLDERS = ["whl/nightly", "whl/test"]
+    if args.include_stable:
+        SUBFOLDERS.append("whl")
+
     for prefix in SUBFOLDERS:
         for package in PACKAGES:
-            upload_missing_whls(package, prefix)
+            upload_missing_whls(package, prefix, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
