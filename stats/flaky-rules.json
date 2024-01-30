@@ -58,5 +58,9 @@
   {
     "name": "ghstack-mergeability-check",
     "captures": ["returned non-zero exit code 128"]
+  },
+  {
+    "name": "ghstack-mergeability-check",
+    "captures": ["returned non-zero exit code 1"]
   }
 ]
