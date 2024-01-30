@@ -1036,6 +1036,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_erfcx_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "118601",
+    "https://github.com/pytorch/pytorch/issues/118601",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114332",
     "https://github.com/pytorch/pytorch/issues/114332",
