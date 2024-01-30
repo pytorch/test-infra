@@ -150,6 +150,13 @@
       "rocm"
     ]
   ],
+  "test_causal_variants_compile_causal_variant_CausalVariant_LOWER_RIGHT_shape1_cuda (__main__.TestAttnBiasCUDA)": [
+    "118651",
+    "https://github.com/pytorch/pytorch/issues/118651",
+    [
+      "rocm"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -355,13 +362,6 @@
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cumprod_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
-    "118541",
-    "https://github.com/pytorch/pytorch/issues/118541",
     [
       "rocm"
     ]
@@ -1768,6 +1768,13 @@
   "test_triton_kernel_reinterpret_view_mem_leak_abi_compatible_cuda (__main__.AOTInductorTestABICompatibleCuda)": [
     "118640",
     "https://github.com/pytorch/pytorch/issues/118640",
+    [
+      "rocm"
+    ]
+  ],
+  "test_triton_kernel_reinterpret_view_mem_leak_non_abi_compatible_cuda (__main__.AOTInductorTestNonABICompatibleCuda)": [
+    "118652",
+    "https://github.com/pytorch/pytorch/issues/118652",
     [
       "rocm"
     ]
