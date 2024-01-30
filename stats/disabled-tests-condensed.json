@@ -352,6 +352,13 @@
       "rocm"
     ]
   ],
+  "test_cumsum_zero_dim_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "118540",
+    "https://github.com/pytorch/pytorch/issues/118540",
+    [
+      "rocm"
+    ]
+  ],
   "test_custom_op_cuda (__main__.CudaTests)": [
     "104856",
     "https://github.com/pytorch/pytorch/issues/104856",
@@ -740,6 +747,13 @@
       "linux"
     ]
   ],
+  "test_inplace_triton_kernel_v3 (__main__.InplacingTests)": [
+    "118636",
+    "https://github.com/pytorch/pytorch/issues/118636",
+    [
+      "rocm"
+    ]
+  ],
   "test_intra_node_comm_all_reduce (__main__.CommTest)": [
     "115859",
     "https://github.com/pytorch/pytorch/issues/115859",
@@ -918,13 +932,6 @@
   "test_make_fx_symbolic_exhaustive_out_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113947",
     "https://github.com/pytorch/pytorch/issues/113947",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_i0e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "117481",
-    "https://github.com/pytorch/pytorch/issues/117481",
     [
       "linux"
     ]
