@@ -363,11 +363,6 @@ def generate_libtorch_matrix(
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
 
-    # TODO: macos-arm64 have libtorch only in test and nightly now
-    # release will be enabled after release 2.2.0 is complete
-    if os == MACOS_ARM64 and channel == "release":
-        return ret
-
     if arches is None:
         arches = []
 
