@@ -143,6 +143,13 @@
       "mac"
     ]
   ],
+  "test_causal_variants_compile_causal_variant_CausalVariant_LOWER_RIGHT_shape0_cuda (__main__.TestAttnBiasCUDA)": [
+    "118641",
+    "https://github.com/pytorch/pytorch/issues/118641",
+    [
+      "rocm"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -1754,6 +1761,13 @@
   "test_triton_kernel_multi_output_arg_non_abi_compatible_cuda (__main__.AOTInductorTestNonABICompatibleCuda)": [
     "118632",
     "https://github.com/pytorch/pytorch/issues/118632",
+    [
+      "rocm"
+    ]
+  ],
+  "test_triton_kernel_reinterpret_view_mem_leak_abi_compatible_cuda (__main__.AOTInductorTestABICompatibleCuda)": [
+    "118640",
+    "https://github.com/pytorch/pytorch/issues/118640",
     [
       "rocm"
     ]
