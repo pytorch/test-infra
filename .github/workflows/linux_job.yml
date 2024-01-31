@@ -186,6 +186,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
+        shell: bash
         run: |
           {
             echo "#!/usr/bin/env bash";
