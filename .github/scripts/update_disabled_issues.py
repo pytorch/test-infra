@@ -80,7 +80,6 @@ def gh_graphql(query: str, token: str, **kwargs: Any) -> Dict[str, Any]:
 
 @lru_cache()
 def get_disable_issues(token: str, prefix: str = DISABLED_PREFIX) -> List[Dict[str, Any]]:
-    print('didnt get mocked')
     q = f"is:issue is:open repo:{OWNER}/{REPO} in:title {prefix}"
     cursor = None
     has_next_page = True
@@ -238,7 +237,7 @@ def main() -> None:
     args = parser.parse_args()
     token = os.getenv("GH_PYTORCHBOT_TOKEN")
     if not token:
-        raise RuntimeError("The GITHUB_TOKEN environment variable is required")
+        raise RuntimeError("The GH_PYTORCHBOT_TOKEN environment variable is required")
 
     # Get the list of disabled issues and sort them
     disable_issues = get_disable_issues(token)
