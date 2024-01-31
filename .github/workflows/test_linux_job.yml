@@ -23,7 +23,8 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+#        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        [[ "${NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-secrets-filter-var:
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
@@ -36,7 +37,8 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+#        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        [[ "${NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
 #  test-cpu:
 #    uses: ./.github/workflows/linux_job.yml
 #    with:
