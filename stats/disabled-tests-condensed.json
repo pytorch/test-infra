@@ -1399,6 +1399,13 @@
       "linux"
     ]
   ],
+  "test_output_match_nn_functional_poisson_nll_loss_cpu_int64 (__main__.TORCH_NN_MODULECPU)": [
+    "118804",
+    "https://github.com/pytorch/pytorch/issues/118804",
+    [
+      "linux"
+    ]
+  ],
   "test_partial_mul_failure (__main__.DistElementwiseOpsTest)": [
     "118285",
     "https://github.com/pytorch/pytorch/issues/118285",
