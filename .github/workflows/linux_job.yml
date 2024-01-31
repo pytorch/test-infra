@@ -108,15 +108,6 @@ jobs:
       image: ${{ inputs.docker-image }}
       options: --user 0
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Check workplace
-        run: |
-          uname -a
-          pwd
-          whoami
-
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -137,9 +128,14 @@ jobs:
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
+          # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+
+          # PyTorch, the primary target for this job template, heavily
+          # relies on submodules. Clone them by default to avoid
+          # surprises.
           submodules: 'recursive'
 
       - name: Setup Linux
@@ -256,6 +252,17 @@ jobs:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
+      - name: Upload documentation to S3 (if any)
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
+        with:
+          retention-days: 14
+          s3-bucket: doc-previews
+          if-no-files-found: error
+          path: ${{ env.RUNNER_DOCS_DIR }}
+          # ${{ env.repository }} is $OWNER/$REPO
+          s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Clean workspace after tear down
         if: ${{ always() }}
