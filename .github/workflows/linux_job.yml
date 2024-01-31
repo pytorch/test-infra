@@ -108,23 +108,21 @@ jobs:
       image: ${{ inputs.docker-image }}
       options: --user 0
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
         shell: bash
         run: |
           set -euxo pipefail
-          echo GITHUB_WORKSPACE: "${GITHUB_WORKSPACE}"
 
-          if [[ "${NO_SUDO}" == "false" ]]; then
-            echo "::group::Cleanup with-sudo debug output"
-            sudo rm -rfv "${GITHUB_WORKSPACE}"
-          else
-            echo "::group::Cleanup no-sudo debug output"
-            rm -rfv "${GITHUB_WORKSPACE}"
+          if [[ -d "${GITHUB_WORKSPACE}" ]]; then
+            if [[ "${NO_SUDO}" == "false" ]]; then
+              echo "::group::Cleanup with-sudo debug output"
+              sudo rm -rf "${GITHUB_WORKSPACE}"
+            else
+              echo "::group::Cleanup no-sudo debug output"
+              rm -rf "${GITHUB_WORKSPACE}"
+            fi
           fi
 
           mkdir -p "${GITHUB_WORKSPACE}"
