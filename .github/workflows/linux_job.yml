@@ -116,16 +116,6 @@ jobs:
           set -euxo pipefail
           echo GITHUB_WORKSPACE: "${GITHUB_WORKSPACE}"
 
-#          if [[ -d "${GITHUB_WORKSPACE}" ]]; then
-#            if [[ "${NO_SUDO}" == "false" ]]; then
-#              echo "::group::Cleanup with-sudo debug output"
-#              sudo rm -rf "${GITHUB_WORKSPACE}"
-#            else
-#              echo "::group::Cleanup no-sudo debug output"
-#              rm -rf "${GITHUB_WORKSPACE}"
-#            fi
-#          fi
-
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
 
