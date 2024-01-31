@@ -465,6 +465,13 @@
       "linux"
     ]
   ],
+  "test_dtypes__refs_fft_fft_cuda (__main__.TestCommonCUDA)": [
+    "118709",
+    "https://github.com/pytorch/pytorch/issues/118709",
+    [
+      "linux"
+    ]
+  ],
   "test_dunder_round_edgecases_val_2147483647_ndigits_-1 (__main__.TestNonarrayArgs)": [
     "116121",
     "https://github.com/pytorch/pytorch/issues/116121",
@@ -1548,13 +1555,6 @@
       "linux"
     ]
   ],
-  "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_False_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
-    "117560",
-    "https://github.com/pytorch/pytorch/issues/117560",
-    [
-      "rocm"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
@@ -1641,13 +1641,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
