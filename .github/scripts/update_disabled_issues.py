@@ -12,7 +12,7 @@ import os
 import re
 import urllib
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, cast, Dict, List, Optional, Tuple
 from urllib.request import Request, urlopen
 
 
@@ -49,6 +49,7 @@ query ($q: String!, $cursor: String) {
 }
 """
 
+
 def github_api_request(
     url: str,
     data: Optional[Dict[str, Any]] = None,
@@ -78,8 +79,11 @@ def gh_graphql(query: str, token: str, **kwargs: Any) -> Dict[str, Any]:
         )
     return cast(Dict[str, Any], rc)
 
+
 @lru_cache()
-def get_disable_issues(token: str, prefix: str = DISABLED_PREFIX) -> List[Dict[str, Any]]:
+def get_disable_issues(
+    token: str, prefix: str = DISABLED_PREFIX
+) -> List[Dict[str, Any]]:
     q = f"is:issue is:open repo:{OWNER}/{REPO} in:title {prefix}"
     cursor = None
     has_next_page = True
@@ -92,10 +96,14 @@ def get_disable_issues(token: str, prefix: str = DISABLED_PREFIX) -> List[Dict[s
         if total_count is None:
             total_count = rc["data"]["search"]["issueCount"]
         else:
-            assert total_count == rc["data"]["search"]["issueCount"], "total_count changed"
+            assert (
+                total_count == rc["data"]["search"]["issueCount"]
+            ), "total_count changed"
         res.extend(rc["data"]["search"]["nodes"])
 
-    assert len(res) == total_count, f"len(items)={len(res)} but total_count={total_count}"
+    assert (
+        len(res) == total_count
+    ), f"len(items)={len(res)} but total_count={total_count}"
     res = sorted(res, key=lambda x: x["url"])
     return res
 
@@ -261,7 +269,11 @@ def main() -> None:
     )
     dump_json(
         condense_disable_jobs(
-            unstable_job_issues, args.owner, args.repo, token, prefix=UNSTABLE_PREFIX,
+            unstable_job_issues,
+            args.owner,
+            args.repo,
+            token,
+            prefix=UNSTABLE_PREFIX,
         ),
         "unstable-jobs.json",
     )
