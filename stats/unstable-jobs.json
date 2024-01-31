@@ -1,12 +1,4 @@
 {
-  "Check mergeability of ghstack PR / ghstack-mergeability-check": [
-    "izaitsevfb",
-    "118549",
-    "https://github.com/pytorch/pytorch/issues/118549",
-    "Check mergeability of ghstack PR",
-    "ghstack-mergeability-check",
-    ""
-  ],
   "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
     "huydhn",
     "115312",
