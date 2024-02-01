@@ -193,6 +193,13 @@
       "linux"
     ]
   ],
+  "test_circular_dependencies (__main__.TestImports)": [
+    "110040",
+    "https://github.com/pytorch/pytorch/issues/110040",
+    [
+      "rocm"
+    ]
+  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
@@ -287,6 +294,13 @@
   "test_conv_stride_constraints (__main__.CPUReproTests)": [
     "107774",
     "https://github.com/pytorch/pytorch/issues/107774",
+    [
+      "rocm"
+    ]
+  ],
+  "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
+    "105124",
+    "https://github.com/pytorch/pytorch/issues/105124",
     [
       "rocm"
     ]
@@ -1105,6 +1119,13 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114408",
+    "https://github.com/pytorch/pytorch/issues/114408",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114461",
     "https://github.com/pytorch/pytorch/issues/114461",
@@ -1207,6 +1228,13 @@
     "https://github.com/pytorch/pytorch/issues/104454",
     [
       "asan"
+    ]
+  ],
+  "test_non_blocking_with_eager_init (__main__.ProcessGroupNCCLTest)": [
+    "118827",
+    "https://github.com/pytorch/pytorch/issues/118827",
+    [
+      "linux"
     ]
   ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
