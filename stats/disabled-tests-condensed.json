@@ -256,13 +256,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
-    "117732",
-    "https://github.com/pytorch/pytorch/issues/117732",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float64 (__main__.TestDecompCUDA)": [
     "118355",
     "https://github.com/pytorch/pytorch/issues/118355",
@@ -588,13 +581,6 @@
       "dynamo"
     ]
   ],
-  "test_fsdp (__main__.TestStateDict)": [
-    "117316",
-    "https://github.com/pytorch/pytorch/issues/117316",
-    [
-      "linux"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -914,14 +900,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_out_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113805",
-    "https://github.com/pytorch/pytorch/issues/113805",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -974,6 +952,13 @@
   "test_make_fx_symbolic_exhaustive_out_special_i1e_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "118738",
     "https://github.com/pytorch/pytorch/issues/118738",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_laguerre_polynomial_l_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114352",
+    "https://github.com/pytorch/pytorch/issues/114352",
     [
       "linux"
     ]
@@ -1119,13 +1104,6 @@
       "asan"
     ]
   ],
-  "test_matmul_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
-    "115002",
-    "https://github.com/pytorch/pytorch/issues/115002",
-    [
-      "rocm"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1139,14 +1117,6 @@
     [
       "linux",
       "win"
-    ]
-  ],
-  "test_mem_leak (__main__.TestProfilerCUDA)": [
-    "110995",
-    "https://github.com/pytorch/pytorch/issues/110995",
-    [
-      "rocm",
-      "linux"
     ]
   ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
