@@ -291,13 +291,6 @@
       "rocm"
     ]
   ],
-  "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
-    "105124",
-    "https://github.com/pytorch/pytorch/issues/105124",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_weight_layout_convert_cuda (__main__.FreezingCudaTests)": [
     "107925",
     "https://github.com/pytorch/pytorch/issues/107925",
