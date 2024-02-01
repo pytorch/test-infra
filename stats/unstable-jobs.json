@@ -1,10 +1,1 @@
-{
-  "rocm / linux-focal-rocm5.7-py3.8 / test (default)": [
-    "huydhn",
-    "115312",
-    "https://github.com/pytorch/pytorch/issues/115312",
-    "rocm",
-    "linux-focal-rocm5.7-py3.8",
-    "test (default)"
-  ]
-}
+{}
