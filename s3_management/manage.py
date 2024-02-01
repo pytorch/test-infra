@@ -252,7 +252,7 @@ class S3Index:
         )
 
     def obj_to_package_name(self, obj: S3Object) -> str:
-        return path.basename(obj.key).split('-', 1)[0]
+        return path.basename(obj.key).split('-', 1)[0].lower()
 
     def to_legacy_html(
         self,
