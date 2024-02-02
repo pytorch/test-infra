@@ -630,6 +630,13 @@
       "linux"
     ]
   ],
+  "test_incorrect_schema_view_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118183",
+    "https://github.com/pytorch/pytorch/issues/118183",
+    [
+      "dynamo"
+    ]
+  ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
     "68643",
     "https://github.com/pytorch/pytorch/issues/68643",
@@ -1047,6 +1054,14 @@
     "https://github.com/pytorch/pytorch/issues/118601",
     [
       "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_h_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "114332",
+    "https://github.com/pytorch/pytorch/issues/114332",
+    [
+      "linux",
+      "asan"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
