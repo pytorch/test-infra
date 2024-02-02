@@ -18,26 +18,35 @@ jobs:
   get-tutorials-stats:
     if: ${{ github.repository == 'pytorch/test-infra' }}
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
+      - name: Configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_upload-tutorials-stats
+          aws-region: us-east-1
+
       - name: Checkout the tutorials repo
         uses: actions/checkout@v3
         with:
           repository: 'pytorch/tutorials'
           path: './tutorials'
           fetch-depth: 0
+
       - name: Checkout the test-infra repo
         uses: actions/checkout@v3
         with:
           path: test-infra
+
       - name: Install dependencies
         run: |
           python3 -m pip install boto3==1.26.69 typing==3.7.4.3
 
       - name: Run the script
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.TORCHCI_TUTORIAL_DYNAMODB_READ_WRITE_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.TORCHCI_TUTORIAL_DYNAMODB_READ_WRITE_AWS_SECRET_ACCESS_KEY }}
+        # if: ${{ github.event_name == 'schedule' }}
         run: |
           set -x
           python3 test-infra/.github/scripts/get_tutorials_stats.py
