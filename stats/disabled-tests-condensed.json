@@ -256,6 +256,15 @@
       "linux"
     ]
   ],
+  "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
+    "117732",
+    "https://github.com/pytorch/pytorch/issues/117732",
+    [
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float64 (__main__.TestDecompCUDA)": [
     "118355",
     "https://github.com/pytorch/pytorch/issues/118355",
@@ -705,19 +714,6 @@
       "rocm"
     ]
   ],
-  "test_inference_mode (__main__.TestAOTAutograd)": [
-    "117714",
-    "https://github.com/pytorch/pytorch/issues/117714",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows",
-      "slow"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -863,6 +859,11 @@
       "macos",
       "mac"
     ]
+  ],
+  "test_lift_basic (__main__.TestLiftUnlift)": [
+    "119074",
+    "https://github.com/pytorch/pytorch/issues/119074",
+    []
   ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
