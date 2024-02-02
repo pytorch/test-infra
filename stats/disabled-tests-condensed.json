@@ -775,13 +775,6 @@
       "rocm"
     ]
   ],
-  "test_jvp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "117833",
-    "https://github.com/pytorch/pytorch/issues/117833",
-    [
-      "linux"
-    ]
-  ],
   "test_jvpvjp_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "114654",
     "https://github.com/pytorch/pytorch/issues/114654",
@@ -874,6 +867,13 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_out_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113736",
+    "https://github.com/pytorch/pytorch/issues/113736",
     [
       "linux"
     ]
@@ -1104,6 +1104,13 @@
     [
       "linux",
       "win"
+    ]
+  ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
     ]
   ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
