@@ -20,6 +20,11 @@
       "rocm"
     ]
   ],
+  "test_abi_compatible (__main__.TestMemoryPlanning)": [
+    "119075",
+    "https://github.com/pytorch/pytorch/issues/119075",
+    []
+  ],
   "test_activations (__main__.DistElementwiseOpsTest)": [
     "103736",
     "https://github.com/pytorch/pytorch/issues/103736",
