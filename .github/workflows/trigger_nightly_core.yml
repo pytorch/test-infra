@@ -1,4 +1,4 @@
-name: Trigger nightly builds for pytorch core
+name: Trigger nightly builds for pytorch-canary core
 
 on:
   schedule:
@@ -17,6 +17,6 @@ jobs:
         uses: ./.github/actions/trigger-nightly
         with:
           ref: viable/strict
-          repository: pytorch/pytorch
+          repository: pytorch/pytorch-canary
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: pytorch
