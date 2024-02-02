@@ -46,7 +46,7 @@ jobs:
           python3 -m pip install boto3==1.26.69 typing==3.7.4.3
 
       - name: Run the script
-        # if: ${{ github.event_name == 'schedule' }}
+        if: ${{ github.event_name == 'schedule' }}
         run: |
           set -x
           python3 test-infra/.github/scripts/get_tutorials_stats.py
