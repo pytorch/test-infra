@@ -40,7 +40,7 @@ const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
 // A help link to explain the metrics used in the dashboard
 export const HELP_LINK =
-  "https://pytorch.org/docs/main/compile/performance-dashboard.html";
+  "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
 
 export const SHA_DISPLAY_LENGTH = 10;
 export const LAST_N_DAYS = 7;
