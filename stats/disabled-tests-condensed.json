@@ -865,11 +865,6 @@
       "mac"
     ]
   ],
-  "test_lift_basic (__main__.TestLiftUnlift)": [
-    "119074",
-    "https://github.com/pytorch/pytorch/issues/119074",
-    []
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
