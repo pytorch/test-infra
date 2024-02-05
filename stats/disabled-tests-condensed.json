@@ -662,6 +662,13 @@
       "win"
     ]
   ],
+  "test_index (__main__.TestPythonBuiltinOP)": [
+    "119160",
+    "https://github.com/pytorch/pytorch/issues/119160",
+    [
+      "dynamo"
+    ]
+  ],
   "test_index_add_correctness (__main__.TestTorch)": [
     "91184",
     "https://github.com/pytorch/pytorch/issues/91184",
@@ -1356,6 +1363,13 @@
     "https://github.com/pytorch/pytorch/issues/82340",
     [
       "linux"
+    ]
+  ],
+  "test_opcheck_fails_basic_cpu (__main__.TestCustomOpTestingCPU)": [
+    "119159",
+    "https://github.com/pytorch/pytorch/issues/119159",
+    [
+      "dynamo"
     ]
   ],
   "test_open_device_registration (__main__.TestCppExtensionOpenRgistration)": [
