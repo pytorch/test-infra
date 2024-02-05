@@ -611,6 +611,13 @@
       "linux"
     ]
   ],
+  "test_grad_scaling_autocast_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "119154",
+    "https://github.com/pytorch/pytorch/issues/119154",
+    [
+      "inductor"
+    ]
+  ],
   "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98678",
     "https://github.com/pytorch/pytorch/issues/98678",
@@ -712,6 +719,19 @@
     "https://github.com/pytorch/pytorch/issues/118543",
     [
       "rocm"
+    ]
+  ],
+  "test_inference_mode (__main__.TestAOTAutograd)": [
+    "117714",
+    "https://github.com/pytorch/pytorch/issues/117714",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows",
+      "slow"
     ]
   ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
@@ -1595,13 +1615,6 @@
     "https://github.com/pytorch/pytorch/issues/115740",
     [
       "linux"
-    ]
-  ],
-  "test_shard_full_optim_state_dict_nested_use_multiple_param_groups_False_wrap_alt_True_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
-    "117558",
-    "https://github.com/pytorch/pytorch/issues/117558",
-    [
-      "rocm"
     ]
   ],
   "test_silu_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
