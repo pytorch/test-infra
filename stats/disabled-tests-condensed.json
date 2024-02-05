@@ -488,6 +488,15 @@
       "dynamo"
     ]
   ],
+  "test_dynamic_stride_nobreak_cuda (__main__.TestInductorDynamicCUDA)": [
+    "117954",
+    "https://github.com/pytorch/pytorch/issues/117954",
+    [
+      "linux",
+      "slow",
+      "rocm"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1805,6 +1814,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_unwrap_storage_didnt_work_repro_cuda (__main__.TestInductorDynamicCUDA)": [
+    "119231",
+    "https://github.com/pytorch/pytorch/issues/119231",
+    [
+      "linux"
     ]
   ],
   "test_variant_consistency_eager_nn_functional_conv3d_cuda_complex64 (__main__.TestCommonCUDA)": [
