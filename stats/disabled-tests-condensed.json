@@ -618,6 +618,20 @@
       "inductor"
     ]
   ],
+  "test_grad_scaling_autocast_foreach_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "119184",
+    "https://github.com/pytorch/pytorch/issues/119184",
+    [
+      "inductor"
+    ]
+  ],
+  "test_grad_scaling_clipping_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "119185",
+    "https://github.com/pytorch/pytorch/issues/119185",
+    [
+      "inductor"
+    ]
+  ],
   "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98678",
     "https://github.com/pytorch/pytorch/issues/98678",
