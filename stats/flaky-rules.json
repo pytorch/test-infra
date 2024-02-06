@@ -53,14 +53,6 @@
   },
   {
     "name": "ghstack-mergeability-check",
-    "captures": ["Process completed with exit code 1"]
-  },
-  {
-    "name": "ghstack-mergeability-check",
-    "captures": ["returned non-zero exit code 128"]
-  },
-  {
-    "name": "ghstack-mergeability-check",
-    "captures": ["returned non-zero exit code 1"]
+    "captures": ["fatal: ambiguous argument 'origin/gh.*"]
   }
 ]
