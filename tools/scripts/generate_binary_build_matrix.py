@@ -21,9 +21,11 @@ from typing import Dict, List, Optional, Tuple
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10", "3.11"],
-    "test": ["3.8", "3.9", "3.10", "3.11"],
-    "release": ["3.8", "3.9", "3.10", "3.11"],
+    # TODO (huydhn): 3.12 is only enabled in nightly and test.
+    # Release should be enabled after release is complete.
+    "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1"],
@@ -33,7 +35,7 @@ CUDA_ARCHES_DICT = {
 ROCM_ARCHES_DICT = {
     "nightly": ["5.6", "5.7"],
     "test": ["5.6", "5.7"],
-    "release": ["5.5", "5.6"],
+    "release": ["5.6", "5.7"],
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -59,7 +61,7 @@ ROCM = "rocm"
 
 
 CURRENT_CANDIDATE_VERSION = "2.2.0"
-CURRENT_STABLE_VERSION = "2.1.2"
+CURRENT_STABLE_VERSION = "2.2.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -72,7 +74,7 @@ LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
-MACOS_M1_RUNNER = "macos-m1-12"
+MACOS_M1_RUNNER = "macos-m1-stable"
 MACOS_RUNNER = "macos-12"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
@@ -239,7 +241,7 @@ def get_libtorch_install_command(
         arch = "x86_64" if os == MACOS else "arm64"
         build_name = f"libtorch-macos-{arch}-latest.zip"
         if channel in [RELEASE, TEST]:
-            build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
+            build_name = f"libtorch-macos-{arch}-{mod.CURRENT_VERSION}.zip"
 
     elif os == LINUX and (channel == RELEASE or channel == TEST):
         build_name = (
@@ -270,10 +272,11 @@ def get_wheel_install_command(
     gpu_arch_version: str,
     desired_cuda: str,
     python_version: str,
+    use_only_dl_pytorch_org: bool,
 ) -> str:
 
     index_url_option = "--index-url" if os != LINUX_AARCH64 else "--extra-index-url"
-    if channel == RELEASE and (
+    if  channel == RELEASE and (not use_only_dl_pytorch_org) and (
         (gpu_arch_version == "12.1" and os == LINUX)
         or (
             gpu_arch_type == CPU
@@ -298,6 +301,7 @@ def generate_conda_matrix(
     with_rocm: str,
     with_cpu: str,
     limit_pr_builds: bool,
+    use_only_dl_pytorch_org: bool,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     python_versions = list(mod.PYTHON_ARCHES)
@@ -351,16 +355,13 @@ def generate_libtorch_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
-    limit_pr_builds: str,
+    limit_pr_builds: bool,
+    use_only_dl_pytorch_org: bool,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
-
-    # macos-arm64 does not have any libtorch builds
-    if os == MACOS_ARM64 and channel != "nightly":
-        return ret
 
     if arches is None:
         arches = []
@@ -387,10 +388,7 @@ def generate_libtorch_matrix(
     if libtorch_variants is None:
         libtorch_variants = [
             "shared-with-deps",
-            "shared-without-deps",
-            "static-with-deps",
-            "static-without-deps",
-        ] if os not in [MACOS, MACOS_ARM64] else ["shared-with-deps"]
+        ]
 
     for abi_version in abi_versions:
         for arch_version in arches:
@@ -400,18 +398,6 @@ def generate_libtorch_matrix(
                 # matter
                 gpu_arch_type = arch_type(arch_version)
                 gpu_arch_version = "" if arch_version == CPU else arch_version
-                # ROCm builds without-deps failed even in ROCm runners; skip for now
-                if gpu_arch_type == ROCM and "without-deps" in libtorch_variant:
-                    continue
-
-                # For windows release we support only shared-with-deps variant
-                # see: https://github.com/pytorch/pytorch/issues/87782
-                if (
-                    os == WINDOWS
-                    and channel == RELEASE
-                    and libtorch_variant != "shared-with-deps"
-                ):
-                    continue
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
                 devtoolset = abi_version if os != WINDOWS else ""
@@ -458,17 +444,15 @@ def generate_wheels_matrix(
     with_rocm: str,
     with_cpu: str,
     limit_pr_builds: bool,
+    use_only_dl_pytorch_org: bool,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
-    # Define default python version
-    if python_versions is None and channel == NIGHTLY:
-        # Python 3.12 is added to the nightly wheel matrix only
-        python_versions = list(mod.PYTHON_ARCHES) + ["3.12"]
-    elif python_versions is None:
-         python_versions = list(mod.PYTHON_ARCHES)
+    if python_versions is None:
+        # Define default python version
+        python_versions = list(mod.PYTHON_ARCHES)
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
@@ -529,6 +513,7 @@ def generate_wheels_matrix(
                         gpu_arch_version,
                         desired_cuda,
                         python_version,
+                        use_only_dl_pytorch_org,
                     ),
                     "channel": channel,
                     "upload_to_base_bucket": upload_to_base_bucket,
@@ -553,6 +538,7 @@ def generate_build_matrix(
     with_rocm: str,
     with_cpu: str,
     limit_pr_builds: str,
+    use_only_dl_pytorch_org: str,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -573,6 +559,7 @@ def generate_build_matrix(
                     with_rocm,
                     with_cpu,
                     limit_pr_builds == "true",
+                    use_only_dl_pytorch_org == "true",
                 )
             )
 
@@ -631,6 +618,15 @@ def main(args) -> None:
         choices=["true", "false"],
         default=os.getenv("LIMIT_PR_BUILDS", "false"),
     )
+    # This is used when testing release builds to test release binaries
+    # only from download.pytorch.org. When pipy binaries are not released yet.
+    parser.add_argument(
+        "--use-only-dl-pytorch-org",
+        help="Use only download.pytorch.org when gen wheel install command?",
+        type=str,
+        choices=["true", "false"],
+        default=os.getenv("USE_ONLY_DL_PYTORCH_ORG", "false"),
+    )
 
     options = parser.parse_args(args)
 
@@ -646,6 +642,7 @@ def main(args) -> None:
         options.with_rocm,
         options.with_cpu,
         options.limit_pr_builds,
+        options.use_only_dl_pytorch_org,
     )
 
     print(json.dumps(build_matrix))

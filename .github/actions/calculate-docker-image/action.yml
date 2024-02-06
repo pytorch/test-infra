@@ -26,6 +26,10 @@ inputs:
   push:
     description: If set to true, push the image to ECR.
     required: false
+  force-push:
+    description: If set to true, always push the image to ECR even if it exists.
+    required: false
+    default: false
 
 outputs:
   docker-image:
@@ -129,6 +133,7 @@ runs:
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_PUSH: ${{ inputs.push }}
+        DOCKER_FORCE_PUSH: ${{ inputs.force-push }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
@@ -158,7 +163,9 @@ runs:
 
         if [ "${DOCKER_PUSH:-false}" == "true" ]; then
           # Only push if docker image doesn't exist already
-          if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null; then
+          if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null || [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
             docker push "${DOCKER_IMAGE}"
           fi
+          # Check that upload was successfull or that image already exists
+          docker manifest inspect "${DOCKER_IMAGE}"
         fi

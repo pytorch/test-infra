@@ -186,7 +186,7 @@ const failedH = {
 
 // Match with failure line string instead of failure capture array
 const failedI = {
-  name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-12)",
+  name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-stable)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
   html_url: "a",

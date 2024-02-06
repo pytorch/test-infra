@@ -11,6 +11,9 @@ on:
       - .github/workflows/update_disabled_tests.yml
       - .github/scripts/update_disabled_issues.py
 
+permissions:
+  contents: write
+
 jobs:
   update-disabled-tests:
     runs-on: ubuntu-latest

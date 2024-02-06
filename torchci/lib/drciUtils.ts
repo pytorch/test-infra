@@ -4,9 +4,8 @@ import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
-import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
-import { Credentials } from "@aws-sdk/types";
 import { Client } from "@opensearch-project/opensearch";
+import { getOpenSearchClient } from "lib/opensearch";
 import {
   searchSimilarFailures,
   WORKFLOW_JOB_INDEX,
@@ -41,7 +40,11 @@ export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
-export const EXCLUDED_FROM_FLAKINESS = ["lint", "linux-docs"];
+export const EXCLUDED_FROM_FLAKINESS = [
+  "lint",
+  "linux-docs",
+  "ghstack-mergeability-check",
+];
 
 export function formDrciHeader(
   owner: string,
@@ -247,21 +250,7 @@ export async function querySimilarFailures(
   }
 
   if (client === undefined) {
-    // https://opensearch.org/docs/latest/clients/javascript/index
-    client = new Client({
-      ...AwsSigv4Signer({
-        region: process.env.OPENSEARCH_REGION as string,
-        service: "es",
-        getCredentials: () => {
-          const credentials: Credentials = {
-            accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID as string,
-            secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY as string,
-          };
-          return Promise.resolve(credentials);
-        },
-      }),
-      node: process.env.OPENSEARCH_ENDPOINT,
-    });
+    client = getOpenSearchClient();
   }
 
   // Search for all captured failure

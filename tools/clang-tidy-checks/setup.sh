@@ -103,6 +103,7 @@ function build() {
 
   cmake "${cmake_common_args[@]}" "${cmake_os_args[@]}" ../llvm
   cmake --build . --target clang-tidy
+  cmake --build . --target clang-format
   success
 }
 
@@ -116,6 +117,7 @@ function check_if_static() {
   case $(uname) in
     Linux)
       ldd ./bin/clang-tidy 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
+      ldd ./bin/clang-format 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
       ;;
     Darwin)
       # No static link check for MacOS

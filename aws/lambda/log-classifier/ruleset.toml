@@ -208,6 +208,23 @@ pattern = '^\s*(test.*) failed - num_retries_left:'
 name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
+# TODO (huydhn): Update ET test script to include the model name in the error message
+[[rule]]
+name = 'ExecuTorch portable model test - failed'
+pattern = 'Portable fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized portable model test - failed'
+pattern = 'Portable q8 error'
+
+[[rule]]
+name = 'ExecuTorch delegation model test - failed'
+pattern = 'Delegation fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized delegation model test - failed'
+pattern = 'Delegation q8 error'
+
 [[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
@@ -255,6 +272,10 @@ pattern = 'IMPROVED:\s+graph_breaks='
 [[rule]]
 name = 'npm error'
 pattern = '^npm ERR! code .*'
+
+[[rule]]
+name = 'ghstack merge check error'
+pattern = '^Mergeability Error: .*'
 
 [[rule]]
 name = 'GHA error'

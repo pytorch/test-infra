@@ -41,7 +41,7 @@ job AS (
 class_duration_per_job AS (
     SELECT
         test_run.invoking_file as file,
-        test_run.classname as class,
+        test_run.classname as classname,
         SUM(time) as time,
         REGEXP_EXTRACT(job.name, '^(.*) /', 1) as base_name,
         REGEXP_EXTRACT(job.name, '/ test \((\w*),', 1) as test_config,
@@ -62,7 +62,7 @@ class_duration_per_job AS (
 )
 SELECT
     REPLACE(file, '.', '/') AS file,
-    class,
+    classname,
     base_name,
     test_config,
     AVG(time) as time
@@ -70,11 +70,11 @@ FROM
     class_duration_per_job
 GROUP BY
     file,
-    class,
+    classname,
     base_name,
     test_config
 ORDER BY
     base_name,
     test_config,
     file,
-    class
+    classname

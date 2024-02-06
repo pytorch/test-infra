@@ -1,24 +1,15 @@
-import { randomBytes } from "crypto";
-export function track(router: any, type: string, info: any) {
-  // Gets cleared when local storage is cleared but I think that's ok.
-  if (window.localStorage.getItem("session_tracking_id") === null) {
-    localStorage.setItem(
-      "session_tracking_id",
-      `${randomBytes(20).toString("hex")}-${Date.now()}`
-    );
-  }
-  const sessionIDFromStorage = localStorage.getItem("session_tracking_id");
+import ReactGA from "react-ga4";
 
-  fetch(`/api/track`, {
-    method: "POST",
-    body: JSON.stringify({
-      info: info,
-      type: type,
+export function track(router: any, type: string, info: any) {
+  if (window.location.href.startsWith("https://hud.pytorch.org")) {
+    // TODO: I think there better ways to make sure it doesn't send dev data but
+    // for now this is easy to read.
+    ReactGA.event(type, {
+      ...info,
       url: window.location.href,
       windowPathname: window.location.pathname,
       routerPathname: router.pathname,
       routerPath: router.asPath,
-      sessionID: sessionIDFromStorage,
-    }),
-  });
+    });
+  }
 }

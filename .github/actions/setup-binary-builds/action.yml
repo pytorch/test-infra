@@ -7,9 +7,9 @@ inputs:
     description: If set to any value, don't use sudo to clean the workspace
     required: false
     type: string
-    default: ""
+    default: ''
   ref:
-    description: Works as stated in actions/checkout, but the default value is recursive
+    description: Works as stated in actions/checkout
     required: false
     type: string
     default: nightly
@@ -19,15 +19,27 @@ inputs:
     type: string
     default: recursive
   setup-miniconda:
-    description: Works as stated in actions/checkout, but the default value is recursive
+    description: Set to true if setup-miniconda is needed
     required: false
     type: boolean
     default: false
   python-version:
-    description: Works as stated in actions/checkout, but the default value is recursive
+    description: The target Python version
+    required: true
+    type: string
+  cuda-version:
+    description: The target CUDA version
+    required: true
+    type: string
+  arch:
+    description: The target ARCH
+    required: true
+    type: string
+  upload-to-base-bucket:
+    description: One of the parameter used by pkg-helpers
     required: false
     type: boolean
-    default: false
+    default: no
 
 runs:
   using: composite
@@ -62,11 +74,13 @@ runs:
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
+          CU_VERSION: ${{ inputs.cuda-version }}
+          ARCH: ${{ inputs.arch }}
         run: |
           set -euxo pipefail
           # Set artifact name here since github actions doesn't have string manipulation tools
           # and "/" is not allowed in artifact names
-          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Setup miniconda (for pytorch_pkg_helpers)
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2.1.1

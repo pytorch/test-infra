@@ -1,0 +1,45 @@
+name: Update S3 HTML indices for download.pytorch.org
+
+on:
+  schedule:
+    # Update the indices every 30 minutes
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-22.04
+    environment: pytorchbot-env
+    strategy:
+      matrix:
+        prefix: ["whl", "whl/test", "whl/nightly", "whl/lts/1.8"]
+      fail-fast: False
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+      - name: Checkout repository test-infra
+        uses: actions/checkout@v3
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ github.ref }}
+      - name: Update s3 html index
+        shell: bash
+        run: |
+            set -ex
+
+            # Output info on default conda env
+            conda info
+
+            # Install requirements
+            pip install -r s3_management/requirements.txt
+            python s3_management/manage.py --generate-pep503 ${{ matrix.prefix }}

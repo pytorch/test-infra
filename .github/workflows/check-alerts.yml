@@ -37,6 +37,8 @@ jobs:
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
     runs-on: ubuntu-22.04
+    permissions:
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -55,6 +57,8 @@ jobs:
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
       ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
     runs-on: ubuntu-22.04
+    permissions:
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3

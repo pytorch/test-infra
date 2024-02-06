@@ -6,10 +6,13 @@ import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
 import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
 import { getAuthors } from "lib/getAuthors";
+import { jaroWinkler } from "jaro-winkler-typescript";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
+
+export const STRING_SIMILARITY_THRESHOLD = 0.95;
 
 export function isFailedJob(job: JobData) {
   return (
@@ -297,7 +300,12 @@ export function isSameContext(
   const jobALastCmd = jobA.failure_context![0] ?? "";
   const jobBLastCmd = jobB.failure_context![0] ?? "";
 
-  return isEqual(jobALastCmd, jobBLastCmd);
+  // Use fuzzy string matching here because context commands could vary
+  // slightly, for example, run_test command on different shards
+  return (
+    jaroWinkler(jobALastCmd, jobBLastCmd, { caseSensitive: false }) >=
+    STRING_SIMILARITY_THRESHOLD
+  );
 }
 
 export function removeCancelledJobAfterRetry<T extends BasicJobData>(
