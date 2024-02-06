@@ -1626,13 +1626,6 @@
       "linux"
     ]
   ],
-  "test_scatter_using_atomic_add (__main__.CPUReproTests)": [
-    "118518",
-    "https://github.com/pytorch/pytorch/issues/118518",
-    [
-      "linux"
-    ]
-  ],
   "test_schema_correctness_nn_functional_conv3d_cuda_complex128 (__main__.TestSchemaCheckModeOpInfoCUDA)": [
     "114573",
     "https://github.com/pytorch/pytorch/issues/114573",
