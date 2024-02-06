@@ -19,7 +19,7 @@ runnerConfig:
     memory: 32Gi
     minRunners: 1
     nodeType: compute-amd64
-    partDocker: 20Gi
+    partDocker: 60Gi
     partTmp: 50Gi
     partWork: 150Gi
     runnerLabel: linux.2xlarge.arc
