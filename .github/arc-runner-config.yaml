@@ -16,10 +16,10 @@ runnerConfig:
   - cpu: 8.0
     isEphemeral: true
     maxRunners: 150
-    memory: 32Gi
+    memory: 64Gi
     minRunners: 1
     nodeType: compute-amd64
-    partDocker: 60Gi
+    partDocker: 80Gi
     partTmp: 50Gi
     partWork: 150Gi
     runnerLabel: linux.2xlarge.arc
