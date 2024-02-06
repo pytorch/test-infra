@@ -578,6 +578,13 @@
       "rocm"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_factor_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "115140",
+    "https://github.com/pytorch/pytorch/issues/115140",
+    [
+      "linux"
+    ]
+  ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
     "69659",
     "https://github.com/pytorch/pytorch/issues/69659",
@@ -635,6 +642,13 @@
   "test_grad_scaling_clipping_separate_unscale_cuda (__main__.TestTorchDeviceTypeCUDA)": [
     "119193",
     "https://github.com/pytorch/pytorch/issues/119193",
+    [
+      "inductor"
+    ]
+  ],
+  "test_grad_scaling_multiple_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "119254",
+    "https://github.com/pytorch/pytorch/issues/119254",
     [
       "inductor"
     ]
@@ -930,6 +944,14 @@
       "asan"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_out_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "113805",
+    "https://github.com/pytorch/pytorch/issues/113805",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113837",
     "https://github.com/pytorch/pytorch/issues/113837",
@@ -940,13 +962,6 @@
   "test_make_fx_symbolic_exhaustive_out_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "113862",
     "https://github.com/pytorch/pytorch/issues/113862",
-    [
-      "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_out_special_chebyshev_polynomial_u_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "113857",
-    "https://github.com/pytorch/pytorch/issues/113857",
     [
       "linux"
     ]
@@ -1472,6 +1487,17 @@
     "https://github.com/pytorch/pytorch/issues/106027",
     [
       "rocm"
+    ]
+  ],
+  "test_public_api_surface (__main__.TestFXAPIBackwardCompatibility)": [
+    "104012",
+    "https://github.com/pytorch/pytorch/issues/104012",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "asan"
     ]
   ],
   "test_python_ir_utils (__main__.TestJit)": [
