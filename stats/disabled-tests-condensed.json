@@ -1130,18 +1130,6 @@
       "asan"
     ]
   ],
-  "test_make_fx_symbolic_exhaustive_special_hermite_polynomial_he_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "114212",
-    "https://github.com/pytorch/pytorch/issues/114212",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows",
-      "asan"
-    ]
-  ],
   "test_make_fx_symbolic_exhaustive_special_i1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "114408",
     "https://github.com/pytorch/pytorch/issues/114408",
