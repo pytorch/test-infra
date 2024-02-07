@@ -456,6 +456,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await this.dispatchEvent("try-cherry-pick", {
       branch: branch,
       fixes: fixes,
+      classification: classification,
       requiresIssue: classificationData.requiresIssue,
       classificationHelp: classificationData.help,
     });
