@@ -222,13 +222,10 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
-<<<<<<< HEAD
-## cherry-pick 
+## cherry-pick
 \`\`\`
 ${cherryPick.format_help()}\`\`\`
-=======
 ## Close
 ${close.format_help()}
->>>>>>> main
 `;
 }
