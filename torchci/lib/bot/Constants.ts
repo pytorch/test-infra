@@ -11,20 +11,19 @@ interface CherryPickClassification {
   requiresIssue: boolean;
 }
 
-// TODO: Find a way to mark which ones require issues vs. not
 export const cherryPickClassifications: Record<
   string,
   CherryPickClassification
 > = {
   regression: {
-    help: "Fixes a regression",
+    help: "Fixes a regression against the most recent release",
     requiresIssue: true,
   },
   critical: {
     help: "Fixes a critical bug (generally low risk)",
     requiresIssue: true,
   },
-  newfeature: {
+  fixnewfeature: {
     help: "Fixes a new feature introduced in the current release",
     requiresIssue: true,
   },
