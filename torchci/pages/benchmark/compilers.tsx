@@ -99,6 +99,10 @@ export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
+// This will highlight the regression if peak memory usage increases more than
+// 20% (copy from D51336330)
+export const PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD = 0.2;
+
 // The number of digit after decimal to display on the summary page
 const SCALE = 2;
 
@@ -468,6 +472,78 @@ function computeMemoryCompressionRatio(
               suite: suite,
               compiler: compiler,
               compression_ratio: m.toFixed(SCALE),
+            });
+          }
+        );
+      });
+    });
+  });
+
+  return returnedMemory;
+}
+
+function computePeakMemoryUsage(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
+  const memory: { [k: string]: any } = {};
+  const returnedMemory: any[] = [];
+
+  data.forEach((record: CompilerPerformanceData) => {
+    const bucket = record.granularity_bucket;
+    const workflowId = record.workflow_id;
+    const suite = record.suite;
+    const model = record.name;
+    // NB: Only need dynamo peak memory usage here to supplement the compression
+    // ratio metric
+    const dynamoPeakMem = record.dynamo_peak_mem;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    if (BLOCKLIST_COMPILERS.includes(compiler)) {
+      return;
+    }
+
+    if (!(bucket in memory)) {
+      memory[bucket] = {};
+    }
+
+    if (!(workflowId in memory[bucket])) {
+      memory[bucket][workflowId] = {};
+    }
+
+    if (!(suite in memory[bucket][workflowId])) {
+      memory[bucket][workflowId][suite] = {};
+    }
+
+    if (!(compiler in memory[bucket][workflowId][suite])) {
+      memory[bucket][workflowId][suite][compiler] = [];
+    }
+
+    if (isPass(bucket, workflowId, suite, compiler, model, passingModels)) {
+      memory[bucket][workflowId][suite][compiler].push(dynamoPeakMem);
+    }
+  });
+
+  Object.keys(memory).forEach((bucket: string) => {
+    Object.keys(memory[bucket]).forEach((workflowId: string) => {
+      Object.keys(memory[bucket][workflowId]).forEach((suite: string) => {
+        Object.keys(memory[bucket][workflowId][suite]).forEach(
+          (compiler: string) => {
+            const l = memory[bucket][workflowId][suite][compiler].length;
+            const m =
+              memory[bucket][workflowId][suite][compiler].reduce(
+                (total: number, v: number) => total + v,
+                0
+              ) / l;
+
+            returnedMemory.push({
+              granularity_bucket: bucket,
+              workflow_id: workflowId,
+              suite: suite,
+              compiler: compiler,
+              dynamo_peak_mem: m.toFixed(SCALE),
             });
           }
         );
@@ -990,6 +1066,7 @@ function SummaryPanel({
     geomean: computeGeomean,
     compilation_latency: computeCompilationTime,
     compression_ratio: computeMemoryCompressionRatio,
+    dynamo_peak_mem: computePeakMemoryUsage,
   };
   // The left
   const [lPassrate, lGeomean, lCompTime, lMemory] = processSummaryData(
@@ -1602,6 +1679,25 @@ function SuiteGraphPanel({
     false
   );
 
+  // Dynamo peak memory usage
+  const peakMemory = computePeakMemoryUsage(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
+  const peakMemorySeries = seriesWithInterpolatedTimes(
+    peakMemory,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "dynamo_peak_mem",
+    false
+  );
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
@@ -1685,6 +1781,31 @@ function SuiteGraphPanel({
           series={memorySeries}
           title={`Peak memory footprint compression ratio / ${SUITES[suite]}`}
           groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return r.value[1];
+              },
+            },
+          }}
+        />
+      </Grid>
+
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={peakMemory}
+          series={peakMemorySeries}
+          title={`Peak dynamo memory usage / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisLabel={"GB"}
           yAxisRenderer={(unit) => {
             return `${unit}`;
           }}

@@ -5,10 +5,11 @@ import { Artifact, JobData } from "lib/types";
 import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
-import LogViewer from "./LogViewer";
+import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState, CSSProperties } from "react";
+import { useState, CSSProperties, useEffect } from "react";
+import { LogSearchResult, getSearchRes } from "lib/searchLogs";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -114,10 +115,54 @@ export default function WorkflowBox({
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
+  const [searchString, setSearchString] = useState("");
+  const [searchRes, setSearchRes] = useState<{
+    results: Map<string, LogSearchResult>;
+    info: undefined | string;
+  }>({
+    results: new Map(),
+    info: undefined,
+  });
+  useEffect(() => {
+    getSearchRes(jobs, searchString, setSearchRes);
+  }, [searchString]);
+
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
-      <h4>Job Status</h4>
+      <div>
+        <div
+          // Similar styling to an h4
+          style={{ float: "left", marginBottom: "1.33em", fontWeight: "bold" }}
+        >
+          Job Status
+        </div>
+        <div style={{ float: "right" }}>
+          <form
+            style={{ float: "right" }}
+            onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              // @ts-ignore
+              const searchString = e.target[0].value;
+              setSearchString(searchString);
+            }}
+          >
+            <input
+              type="text"
+              style={{ width: "15em" }}
+              placeholder="Search raw logs with regex"
+            ></input>
+            <input type="submit" value="Search"></input>
+          </form>
+          {searchString && <div>{searchRes.info}</div>}
+        </div>
+        <div
+          style={{
+            // Ensures elements after this div are actually below it (due to float)
+            clear: "both",
+          }}
+        ></div>
+      </div>
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
@@ -127,7 +172,13 @@ export default function WorkflowBox({
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
             />
-            {isFailedJob(job) && <LogViewer job={job} />}
+            {(searchString && (
+              <SearchLogViewer
+                url={job.logUrl!}
+                logSearchResult={searchRes.results.get(job.id!)}
+              />
+            )) ||
+              (isFailedJob(job) && <LogViewer job={job} />)}
           </div>
         ))}
       </>

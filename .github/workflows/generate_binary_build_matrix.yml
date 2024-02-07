@@ -13,7 +13,7 @@ on:
         type: string
       channel:
         description: "Channel to use (nightly, test, release, all)"
-        default: "nightly"
+        default: ""
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
@@ -34,6 +34,10 @@ on:
       with-cpu:
         description: "Build with CPU?"
         default: "enable"
+        type: string
+      use-only-dl-pytorch-org:
+        description: "Use only download.pytorch.org when generating wheel install command?"
+        default: "false"
         type: string
     outputs:
       matrix:
@@ -60,13 +64,16 @@ jobs:
         env:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
-          CHANNEL: ${{ inputs.channel }}
+          CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_ROCM: ${{ inputs.with-rocm }}
           WITH_CPU: ${{ inputs.with-cpu }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}
+          # This is used when testing release binaries only from download.pytorch.org.
+          # In cases when pipy binaries are not published yet.
+          USE_ONLY_DL_PYTORCH_ORG: ${{ inputs.use-only-dl-pytorch-org }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"

@@ -66,6 +66,11 @@ on:
         description: "List of secrets to be exported to environment variables"
         type: string
         default: ''
+      python-version:
+        description: Set the python version used in the job
+        required: false
+        type: string
+        default: "3.9"
 
 jobs:
   job:
@@ -93,6 +98,8 @@ jobs:
 
       - name: Setup miniconda
         uses: ./test-infra/.github/actions/setup-miniconda
+        with:
+          python-version: ${{ inputs.python-version }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3

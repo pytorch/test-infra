@@ -7,6 +7,8 @@ export const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 // about which is a reasonable value here and how to tune it
 export const MIN_SCORE = 1.0;
 export const MAX_SIZE = 20;
+export const NEWEST_FIRST = "desc";
+export const OLDEST_FIRST = "asc";
 
 export async function searchSimilarFailures(
   client: Client,
@@ -17,7 +19,8 @@ export async function searchSimilarFailures(
   startDate: string,
   endDate: string,
   minScore: number,
-  maxSize: number = MAX_SIZE
+  maxSize: number = MAX_SIZE,
+  sortByTimeStamp: string = OLDEST_FIRST
 ): Promise<{ jobs: JobData[] }> {
   const must: any[] = [
     {
@@ -75,7 +78,7 @@ export async function searchSimilarFailures(
     sort: [
       "_score",
       {
-        completed_at: "desc",
+        completed_at: sortByTimeStamp,
       },
     ],
   };
@@ -117,6 +120,7 @@ export async function searchSimilarFailures(
       failureLines: [data.torchci_classification.line],
       failureLineNumbers: [data.torchci_classification.line_num],
       failureCaptures: data.torchci_classification.captures,
+      failureContext: data.torchci_classification.context,
       logUrl: `https://ossci-raw-job-status.s3.amazonaws.com/log/${data.id}`,
       // NB: The author information, unfortunately, is not available atm in
       // torchci-workflow-job DynamoDB table. We might be able to update the

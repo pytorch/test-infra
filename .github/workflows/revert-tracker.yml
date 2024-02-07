@@ -9,6 +9,8 @@ on:
 jobs:
   revert_printer:
     runs-on: ubuntu-20.04
+    permissions:
+      contents: write
     steps:
       - name: checkout
         uses: actions/checkout@v3

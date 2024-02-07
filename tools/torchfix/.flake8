@@ -1,5 +1,0 @@
-[flake8]
-exclude = ./tests/fixtures/
-
-# Match black tool's default.
-max-line-length = 88

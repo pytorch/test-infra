@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Client } from "@opensearch-project/opensearch";
-import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
-import { defaultProvider } from "@aws-sdk/credential-provider-node";
+import { getOpenSearchClient } from "lib/opensearch";
 import { JobData } from "lib/types";
 import {
   searchSimilarFailures,
@@ -24,20 +23,7 @@ export default async function handler(
   const minScore = (req.query.minScore as unknown as number) ?? MIN_SCORE;
 
   // https://opensearch.org/docs/latest/clients/javascript/index
-  const client = new Client({
-    ...AwsSigv4Signer({
-      region: process.env.OPENSEARCH_REGION as string,
-      service: "es",
-      getCredentials: () => {
-        const credentials: Credentials = {
-          accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID as string,
-          secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY as string,
-        };
-        return Promise.resolve(credentials);
-      },
-    }),
-    node: process.env.OPENSEARCH_ENDPOINT,
-  });
+  const client = getOpenSearchClient();
 
   res
     .status(200)

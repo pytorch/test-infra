@@ -42,6 +42,7 @@ import {
   useGroupingPreference,
   usePreference,
 } from "lib/useGroupingPreference";
+import { track } from "lib/track";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -477,6 +478,14 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
+
+  const router = useRouter();
+  useEffect(() => {
+    // Only run on component mount, this assumes that the user's preference is
+    // the value in local storage
+    track(router, "groupingPreference", { useGrouping: useGrouping });
+  }, []);
+
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 
   const groupNames = Array.from(groupNameMapping.keys());

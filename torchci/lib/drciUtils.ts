@@ -4,17 +4,24 @@ import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
-import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
-import { Credentials } from "@aws-sdk/types";
 import { Client } from "@opensearch-project/opensearch";
+import { getOpenSearchClient } from "lib/opensearch";
 import {
   searchSimilarFailures,
   WORKFLOW_JOB_INDEX,
   MIN_SCORE,
   MAX_SIZE,
+  NEWEST_FIRST,
+  OLDEST_FIRST,
 } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
-import { isSameAuthor, isSameFailure, hasS3Log } from "lib/jobUtils";
+import {
+  isSameAuthor,
+  isSameFailure,
+  hasS3Log,
+  isFailureFromPrevMergeCommit,
+  getPRMergeCommits,
+} from "lib/jobUtils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -33,7 +40,11 @@ export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
-export const EXCLUDED_FROM_FLAKINESS = ["lint", "linux-docs"];
+export const EXCLUDED_FROM_FLAKINESS = [
+  "lint",
+  "linux-docs",
+  "ghstack-mergeability-check",
+];
 
 export function formDrciHeader(
   owner: string,
@@ -217,6 +228,7 @@ export async function querySimilarFailures(
   baseCommitDate: string,
   lookbackPeriodInHours: number = 24,
   maxSize: number = MAX_SIZE,
+  sortByTimeStamp: string = OLDEST_FIRST,
   client?: Client
 ): Promise<JobData[]> {
   // This function queries HUD to find all similar failures during a period of time
@@ -238,21 +250,7 @@ export async function querySimilarFailures(
   }
 
   if (client === undefined) {
-    // https://opensearch.org/docs/latest/clients/javascript/index
-    client = new Client({
-      ...AwsSigv4Signer({
-        region: process.env.OPENSEARCH_REGION as string,
-        service: "es",
-        getCredentials: () => {
-          const credentials: Credentials = {
-            accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID as string,
-            secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY as string,
-          };
-          return Promise.resolve(credentials);
-        },
-      }),
-      node: process.env.OPENSEARCH_ENDPOINT,
-    });
+    client = getOpenSearchClient();
   }
 
   // Search for all captured failure
@@ -276,7 +274,8 @@ export async function querySimilarFailures(
     startDate.toISOString(),
     endDate.toISOString(),
     MIN_SCORE,
-    maxSize
+    maxSize,
+    sortByTimeStamp
   );
 
   return "jobs" in results ? results["jobs"] : [];
@@ -292,16 +291,25 @@ export async function hasSimilarFailures(
     return false;
   }
 
+  // NB: It's important to sort the oldest matching results in the search window
+  // first here because that can be used to verify if the failure came from one
+  // of the previous merge commits of a reverted PR. The first record is the most
+  // relevant one and also the first time the failure is observed in the search
+  // window
   const records = await querySimilarFailures(
     job,
     baseCommitDate,
     lookbackPeriodInHours,
     MAX_SIZE,
+    OLDEST_FIRST,
     client
   );
   if (records.length === 0) {
     return false;
   }
+
+  // Find the merge commits of the PR if it has already been merged before
+  const mergeCommits = await getPRMergeCommits(job);
 
   for (const record of records) {
     // Convert the result in JobData to RecentWorkflowsData used by Dr.CI
@@ -317,8 +325,23 @@ export async function hasSimilarFailures(
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
       failure_lines: record.failureLines,
+      failure_context: record.failureContext,
       authorEmail: record.authorEmail,
     };
+
+    // When a PR is committed, it could break trunk even when the PR was ok due to
+    // land race or no signal, i.e. lacking periodic jobs. The SOP is to revert the
+    // offending PR and reland it.
+    //
+    // The problem here w.r.t reverted PR and detecting similar failures is that
+    // legit failures from the reverted PR could find similar failures from trunk.
+    //
+    // The fix here is to do another round of verification for the reverted PR in
+    // which its flaky failures is double checked that they didn't appear in trunk
+    // for the first time in a reverted merge commit of the same PR
+    if (isFailureFromPrevMergeCommit(failure, mergeCommits)) {
+      return false;
+    }
 
     // Only count different jobs with the same failure. To avoid FP, PRs from the
     // same author are treated as the same till we could figure out a better way
