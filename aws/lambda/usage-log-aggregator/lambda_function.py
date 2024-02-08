@@ -108,7 +108,12 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
         stop_time = 0
 
         for line in usage_log.splitlines():
-            datapoint = json.loads(line)
+            try:
+                datapoint = json.loads(line)
+            except json.decoder.JSONDecodeError as error:
+                # This is to handle invalid lines on the log, it's ok to ingore them
+                warn(f"Failed to load {line}: {error}")
+                continue
 
             if (
                 "time" not in datapoint
@@ -259,12 +264,12 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "jobName": "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-12)",
+        "jobName": "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge.nonephemeral)",
         "workflowIds": [
-            "7823281540",
+            "7824285997",
         ],
         "jobIds": [
-            21344164554,
+            21347334930,
         ],
     }
     # For local development
