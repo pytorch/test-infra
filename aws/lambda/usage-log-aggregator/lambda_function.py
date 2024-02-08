@@ -4,6 +4,7 @@ Aggregate usage logs on S3 GHA artifacts bucket for fun and profit!
 import asyncio
 import io
 
+from warnings import warn
 import json
 import os
 import re
@@ -17,8 +18,6 @@ from aiobotocore.session import get_session
 ARTIFACTS_S3_BUCKET = "gha-artifacts"
 USAGE_LOG_FILENAME = "usage_log.txt"
 PYTORCH = "pytorch"
-# TODO: It looks like the lambda is fast enough to process more artifacts, but we can figure out
-#  the exact number later
 MAX_ARTIFACTS = 50
 JOB_NAME_REGEX = re.compile(
     r"^(?P<job>.+)\s/\s.+\((?P<s_name>[^,]+),\s(?P<s_id>[^,]+),\s(?P<s_count>[^,]+),\s(?P<platform>[^,]+)\)$"
@@ -26,10 +25,8 @@ JOB_NAME_REGEX = re.compile(
 # One minute according to the rule https://pandas.pydata.org/docs/reference/api/pandas.Series.resample.html
 RESAMPLING_WINDOW = "1T"
 DATETIME_FORMAT = "%Y-%m-%d %X"
-
-# TODO: Need to understand the implication of this when retrying is supported because the rockset
-#  query only deals with the first attempt at the moment
-RUN_ATTEMPT = 1
+# NB: This is a work around to handle the case where requested job is retried
+MAX_RUN_ATTEMPT_TO_SCAN = 10
 
 
 async def get_usage_log(
@@ -48,27 +45,34 @@ async def get_usage_log(
         workflow_id = workflow_ids[i]
         job_id = job_ids[i]
 
-        s3_path = (
-            f"{owner}/{repo}/{workflow_id}/{RUN_ATTEMPT}/artifact/{prefix}_{job_id}.zip"
-        )
-        print(s3_path)
-
-        try:
-            content = await s3_client.get_object(
-                Bucket=ARTIFACTS_S3_BUCKET, Key=s3_path
+        content = {}
+        for run_attempt in range(1, MAX_RUN_ATTEMPT_TO_SCAN):
+            s3_path = (
+                f"{owner}/{repo}/{workflow_id}/{run_attempt}/artifact/{prefix}_{job_id}.zip"
             )
+            print(f"Checking {s3_path}")
 
-            if not content:
-                yield workflow_id, job_id, ""
-            else:
+            try:
+                content = await s3_client.get_object(
+                    Bucket=ARTIFACTS_S3_BUCKET, Key=s3_path
+                )
+            except s3_client.exceptions.NoSuchKey as error:
+                warn(f"Fail to find the artifact at {s3_path}: {error}")
+                continue
+
+            if content:
+                break
+
+        if not content:
+            yield workflow_id, job_id, ""
+        else:
+            try:
                 zip_data = await content["Body"].read()
-                # TODO: Figure out a way to do this async. This is ugly in term of performance
                 with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
                     yield workflow_id, job_id, z.read(name=USAGE_LOG_FILENAME).decode()
-
-        except RuntimeError as error:
-            print(f"Fail to find the artifact at {s3_path}: {error}")
-            yield workflow_id, job_id, ""
+            except Exception as error:
+                warn(f"Fail to extract the usage log from {s3_path}: {error}")
+                yield workflow_id, job_id, ""
 
 
 async def _get_usage_log_prefix(job_name: str) -> str:
@@ -133,8 +137,6 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
                     s += v
                 total_mem_usage.append(s)
 
-            # TODO: Remove this logic once https://github.com/pytorch/pytorch/pull/86250 has been running for a while.
-            #  In the meantime, both keys can be presented in usage log
             gpu_key = (
                 "total_gpu_utilization"
                 if "total_gpu_utilization" in datapoint
@@ -257,12 +259,12 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "jobName": "linux-focal-cuda12.1-py3.10-gcc9-sm86 / test (default, 2, 5, linux.g5.4xlarge.nvidia.gpu)",
+        "jobName": "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-12)",
         "workflowIds": [
-            "7823281538",
+            "7823281540",
         ],
         "jobIds": [
-            21344846871,
+            21344164554,
         ],
     }
     # For local development
