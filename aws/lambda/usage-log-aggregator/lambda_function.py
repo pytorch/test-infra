@@ -85,7 +85,7 @@ async def _get_usage_log_prefix(job_name: str) -> str:
     shard_count = m.group("s_count")
     platform = m.group("platform")
 
-    return f"usage-log-test-{shard_name}-{shard_id}-{shard_count}-{platform}"
+    return f"logs-test-{shard_name}-{shard_id}-{shard_count}-{platform}"
 
 
 async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, str]:

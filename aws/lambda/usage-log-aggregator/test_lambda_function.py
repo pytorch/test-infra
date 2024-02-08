@@ -21,7 +21,7 @@ async def test_get_usage_log_prefix():
     cases = [
         {
             "job_name": "win-vs2019-cpu-py3 / test (functorch, 2, 4, windows.4xlarge)",
-            "expected": "usage-log-test-functorch-2-4-windows.4xlarge",
+            "expected": "logs-test-functorch-2-4-windows.4xlarge",
         },
         {
             "job_name": "not matched",

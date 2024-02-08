@@ -1,0 +1,49 @@
+name: Test and deploy usage-log-aggregator lambda
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/usage-log-aggregator-lambda.yml
+      - aws/lambda/usage-log-aggregator/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/usage-log-aggregator-lambda.yml
+      - aws/lambda/usage-log-aggregator/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/usage-log-aggregator/
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -v test_lambda_function.py
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_usage-log-aggregator-lambda
+          aws-region: us-east-1
+      - run: make deploy
