@@ -124,14 +124,14 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
             if "per_process_cpu_info" not in datapoint:
                 total_mem_usage.append(0)
             else:
-                total_mem_usage.append(
-                    sum(
-                        [
-                            e.get("rss_memory", 0)
-                            for e in datapoint["per_process_cpu_info"]
-                        ]
-                    )
-                )
+                s = 0
+                for e in datapoint["per_process_cpu_info"]:
+                    v = e.get("rss_memory", 0)
+                    # The value can be None
+                    if not v:
+                        v = 0
+                    s += v
+                total_mem_usage.append(s)
 
             # TODO: Remove this logic once https://github.com/pytorch/pytorch/pull/86250 has been running for a while.
             #  In the meantime, both keys can be presented in usage log
@@ -145,14 +145,14 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
             if "per_process_gpu_info" not in datapoint:
                 total_gpu_mem_usage.append(0)
             else:
-                total_gpu_mem_usage.append(
-                    sum(
-                        [
-                            e.get("gpu_memory", 0)
-                            for e in datapoint["per_process_gpu_info"]
-                        ]
-                    )
-                )
+                s = 0
+                for e in datapoint["per_process_gpu_info"]:
+                    v = e.get("gpu_memory", 0)
+                    # The value can be None
+                    if not v:
+                        v = 0
+                    s += v
+                total_gpu_mem_usage.append(s)
 
         uniq_id = f"{workflow_id} / {job_id}"
         # Let's also keep the starting time and ending time of the job run, so the usage can be mapped to
@@ -257,50 +257,12 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "jobName": "win-vs2019-cpu-py3 / test (functorch, 1, 1, windows.4xlarge)",
+        "jobName": "linux-focal-cuda12.1-py3.10-gcc9-sm86 / test (default, 2, 5, linux.g5.4xlarge.nvidia.gpu)",
         "workflowIds": [
-            "3190793389",
-            "3190721571",
-            "3190637266",
-            "3190634736",
-            "3190506239",
-            "3190443293",
-            "3189983758",
-            "3189709206",
-            "3189651768",
-            "3189512294",
-            "3189428641",
-            "3189345038",
-            "3189314334",
-            "3189282022",
-            "3189125171",
-            "3189013497",
-            "3188150968",
-            "3188140050",
-            "3188068038",
-            "3188079769",
+            "7823281538",
         ],
         "jobIds": [
-            8725009912,
-            8724904966,
-            8724811861,
-            8724762262,
-            8724298558,
-            8724203742,
-            8722636066,
-            8721853447,
-            8721609722,
-            8721288973,
-            8720825008,
-            8720594880,
-            8720515505,
-            8720468097,
-            8720016748,
-            8719644525,
-            8717292485,
-            8717237728,
-            8716982768,
-            8717015257,
+            21344846871,
         ],
     }
     # For local development
