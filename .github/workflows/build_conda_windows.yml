@@ -140,7 +140,7 @@ jobs:
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
           source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
-          conda install -yq conda-build "conda-package-handling!=1.5.0" conda=23.7.3
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
 
           conda build \
             -c defaults \
@@ -219,8 +219,9 @@ jobs:
             CONSTRAINT_BUILD="=${BUILD_VERSION}"
           fi
 
+          # keep verbose install here for details
           ${CONDA_RUN_SMOKE} conda install \
-            --quiet \
+            --verbose \
             --yes \
             -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
