@@ -1,5 +1,7 @@
 nodeConfig:
   - nodeType: compute-amd64
+    provider:
+      launchTemplate: "gh-ci-k8s-node"
     requirements:
       - key: "karpenter.k8s.aws/instance-category"
         operator: In
