@@ -13,7 +13,6 @@ import {
   getGroupingData,
   groups,
   sortGroupNamesForHUD,
-  isPersistentGroup,
   isUnstableGroup,
 } from "lib/JobClassifierUtil";
 import {
@@ -31,13 +30,11 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
-import useSWR from "swr";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { fetcher } from "lib/GeneralUtils";
 import {
   useGroupingPreference,
   usePreference,
