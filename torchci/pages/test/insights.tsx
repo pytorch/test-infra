@@ -153,7 +153,7 @@ function GetUsage({
   if (data["timestamp"] === undefined || data["timestamp"].length === 0) {
     return (
       <>
-        The job didn't generate any usage stats, so there is nothing to analyze.
+        The job didn&apos;t generate any usage stats, so there is nothing to analyze.
         Please submit an issue to PyTorch Dev Infra team.
         <a
           target="_blank" rel="noreferrer"
