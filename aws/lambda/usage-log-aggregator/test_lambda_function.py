@@ -8,7 +8,6 @@ from lambda_function import (
     ARTIFACTS_S3_BUCKET,
     get_usage_log,
     PYTORCH,
-    RUN_ATTEMPT,
 )
 
 TEST_SAMPLES_DIR = "test_samples"
@@ -21,7 +20,7 @@ async def test_get_usage_log_prefix():
     cases = [
         {
             "job_name": "win-vs2019-cpu-py3 / test (functorch, 2, 4, windows.4xlarge)",
-            "expected": "usage-log-test-functorch-2-4-windows.4xlarge",
+            "expected": "logs-test-functorch-2-4-windows.4xlarge",
         },
         {
             "job_name": "not matched",
@@ -112,5 +111,5 @@ async def test_get_usage_log():
                 assert content == f.read()
 
     for i in range(NUMBER_OF_SAMPLES):
-        key = f"{PYTORCH}/{PYTORCH}/{i}/{RUN_ATTEMPT}/artifact/{TEST_PREFIX}_{i}.zip"
+        key = f"{PYTORCH}/{PYTORCH}/{i}/1/artifact/{TEST_PREFIX}_{i}.zip"
         m.get_object.assert_any_call(Bucket=ARTIFACTS_S3_BUCKET, Key=key)

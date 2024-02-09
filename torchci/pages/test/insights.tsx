@@ -147,6 +147,25 @@ function GetUsage({
     return <></>;
   }
 
+  // When the returning data is empty, we know that the lambda has failed to find the
+  // usage log. This is expected to happend on MacOS and ROCm where the monitor script
+  // isn't run
+  if (data["timestamp"] === undefined || data["timestamp"].length === 0) {
+    return (
+      <>
+        The job didn&apos;t generate any usage stats, so there is nothing to
+        analyze. Please submit an issue to PyTorch Dev Infra team.
+        <a
+          target="_blank"
+          rel="noreferrer"
+          href="https://github.com/pytorch/pytorch/issues/new/choose"
+        >
+          Create an issue
+        </a>
+      </>
+    );
+  }
+
   const transformedData = [];
   // Transform the data a bit to fit into the same rockset schema
   for (const idx in data["timestamp"]) {
