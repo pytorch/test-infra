@@ -7,6 +7,8 @@ on:
       - '**.py'
       - '**requirements.txt'
       - .github/scripts/**
+      - tools/tests/assets/**
+      - .github/workflows/tests.yml
   push:
     branches:
       - main
@@ -15,6 +17,8 @@ on:
       - '**.py'
       - '**requirements.txt'
       - .github/scripts/**
+      - tools/tests/assets/**
+      - .github/workflows/tests.yml
 
 jobs:
   test-tools:
