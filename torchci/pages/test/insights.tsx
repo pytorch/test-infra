@@ -156,7 +156,7 @@ function GetUsage({
         The job didn't generate any usage stats, so there is nothing to analyze.
         Please submit an issue to PyTorch Dev Infra team.
         <a
-          target="_blank"
+          target="_blank" rel="noreferrer"
           href="https://github.com/pytorch/pytorch/issues/new/choose"
         >
           Create an issue
