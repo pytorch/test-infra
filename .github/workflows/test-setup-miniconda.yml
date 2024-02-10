@@ -14,7 +14,7 @@ jobs:
       matrix:
         runner-type:
           - macos-12
-          - macos-m1-12
+          - macos-m1-stable
           - linux.2xlarge
         # Only testing minimum and maximum versions here
         python-version:
@@ -48,6 +48,9 @@ jobs:
 
       - name: Can use ${CONDA_RUN}, outputs correct python version
         run: |
+          env
+
+          ${CONDA_RUN} which python
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
 

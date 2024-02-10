@@ -1,0 +1,5 @@
+setuptools==61.2.0
+requests
+rockset==1.0.3
+boto3==1.19.12
+pytest==7.2.0

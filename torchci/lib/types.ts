@@ -6,6 +6,7 @@ export interface BasicJobData {
   time?: string;
   conclusion?: string;
   runnerName?: string;
+  authorEmail?: string;
 }
 
 // Used by HUD
@@ -21,9 +22,10 @@ export interface JobData extends BasicJobData {
   logUrl?: string;
   durationS?: number;
   queueTimeS?: number;
-  failureLine?: string;
-  failureLineNumber?: number;
+  failureLines?: string[];
+  failureLineNumbers?: number[];
   failureCaptures?: string[];
+  failureContext?: string[];
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
@@ -41,7 +43,8 @@ export interface RecentWorkflowsData extends BasicJobData {
   head_branch?: string | null;
   pr_number?: number;
   failure_captures: string[];
-  failure_line?: string | null;
+  failure_lines?: string[] | null;
+  failure_context?: string[] | null;
 }
 
 export interface Artifact {
@@ -161,6 +164,8 @@ export interface CompilerPerformanceData {
   compilation_latency: number;
   compiler: string;
   compression_ratio: number;
+  dynamo_peak_mem: number;
+  eager_peak_mem: number;
   granularity_bucket: string;
   name: string;
   speedup: number;
@@ -177,6 +182,14 @@ export enum JobAnnotation {
   INFRA_FLAKE = "Infra Flake",
   NETWORK = "Network Error",
   OTHER = "Other",
+}
+
+export enum LogAnnotation {
+  NULL = "None",
+  PREFER_TOP_LOG = "Prefer Top Log",
+  PREFER_BOTTOM_LOG = "Prefer Bottom Log",
+  PREFER_NEITHER = "Prefer Neither",
+  SIMILAR_LOGS = "Similar Logs",
 }
 
 export function packHudParams(input: any) {

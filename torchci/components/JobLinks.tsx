@@ -8,7 +8,26 @@ import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
 
-export default function JobLinks({ job }: { job: JobData }) {
+export default function JobLinks({
+  job,
+  showCommitLink = false,
+}: {
+  job: JobData;
+  showCommitLink?: boolean;
+}) {
+  const commitLink = showCommitLink ? (
+    <span>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={`/pytorch/pytorch/commit/${job.sha}`}
+      >
+        Commit
+      </a>
+      {` | `}
+    </span>
+  ) : null;
+
   const rawLogs =
     job.conclusion !== "pending" ? (
       <span>
@@ -43,7 +62,13 @@ export default function JobLinks({ job }: { job: JobData }) {
         <a
           target="_blank"
           rel="noreferrer"
-          href={`/failure/${encodeURIComponent(job.failureCaptures.join(","))}`}
+          href={`/failure?name=${encodeURIComponent(
+            job.name as string
+          )}&jobName=${encodeURIComponent(
+            job.jobName as string
+          )}&failureCaptures=${encodeURIComponent(
+            JSON.stringify(job.failureCaptures)
+          )}`}
         >
           more like this
         </a>
@@ -53,6 +78,7 @@ export default function JobLinks({ job }: { job: JobData }) {
   const authenticated = useSession().status === "authenticated";
   return (
     <span>
+      {commitLink}
       {rawLogs}
       {failureCaptures}
       {queueTimeS}
@@ -61,11 +87,11 @@ export default function JobLinks({ job }: { job: JobData }) {
       <TestInsightsLink job={job} separator={" | "} />
       <DisableTest job={job} label={"skipped"} />
       {authenticated && <UnstableJob job={job} label={"unstable"} />}
-      {authenticated && job.failureLine && (
+      {authenticated && job.failureLines && (
         <ReproductionCommand
           job={job}
           separator={" | "}
-          testName={getTestName(job.failureLine, true)}
+          testName={getTestName(job.failureLines[0] ?? "", true)}
         />
       )}
     </span>
@@ -73,7 +99,6 @@ export default function JobLinks({ job }: { job: JobData }) {
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
 function getTestName(failureCapture: string, reproduction: boolean = false) {
@@ -91,9 +116,9 @@ function getTestName(failureCapture: string, reproduction: boolean = false) {
   return null;
 }
 
-function formatDisableTestBody(failureCaptures: string[]) {
-  const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
-    failureCaptures.join(",")
+function formatDisableTestBody(job: JobData) {
+  const examplesURL = `https://torch-ci.com/failure?failureCaptures=${encodeURIComponent(
+    JSON.stringify(job.failureCaptures)
   )}`;
   return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
 
@@ -101,7 +126,8 @@ This test was disabled because it is failing on main branch ([recent examples]($
 }
 
 function DisableTest({ job, label }: { job: JobData; label: string }) {
-  const hasFailureClassification = job.failureLine != null;
+  const hasFailureClassification =
+    job.failureLines != null && job.failureLines.every((line) => line !== null);
   const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
   const { data } = useSWR(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
@@ -117,7 +143,10 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
     return null;
   }
 
-  const testName = getTestName(job.failureLine!);
+  const testName =
+    job.failureLines && job.failureLines[0]
+      ? getTestName(job.failureLines[0] ?? "")
+      : null;
   // - The failure classification is not a python unittest or pytest failure.
   if (testName === null) {
     return null;
@@ -130,7 +159,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
   const issueTitle = `DISABLED ${testName}`;
-  const issueBody = formatDisableTestBody(job.failureCaptures!);
+  const issueBody = formatDisableTestBody(job);
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);

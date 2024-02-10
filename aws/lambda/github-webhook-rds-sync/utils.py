@@ -1,8 +1,8 @@
 import datetime
 import json
 import os
-from typing import *
-
+from contextlib import suppress
+from typing import Any, Dict, List, Tuple, Union
 
 from sqlalchemy import (
     Boolean,
@@ -387,10 +387,8 @@ def transform_data(obj: Dict[str, Any]) -> Dict[str, Any]:
                 date = None
 
                 for format in formats:
-                    try:
+                    with suppress(ValueError):
                         date = datetime.datetime.strptime(value, format)
-                    except ValueError:
-                        pass
 
                 if date is None:
                     raise RuntimeError(value)

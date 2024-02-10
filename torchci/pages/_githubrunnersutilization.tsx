@@ -45,6 +45,7 @@ export function RunnerTypePicker({
         >
           <MenuItem value={"macos-12"}>MacOS 12</MenuItem>
           <MenuItem value={"macos-12-xl"}>MacOS 12 XL</MenuItem>
+          <MenuItem value={"macos-13-xlarge"}>MacOS 13 XLarge (M1)</MenuItem>
           <MenuItem value={"ubuntu-20.04"}>Ubuntu 20.04</MenuItem>
           <MenuItem value={"ubuntu-22.04"}>Ubuntu 22.04</MenuItem>
           <MenuItem value={"ubuntu-latest"}>Ubuntu Latest</MenuItem>

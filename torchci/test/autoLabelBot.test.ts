@@ -58,7 +58,9 @@ describe("auto-label-bot", () => {
       .post(
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
         (body) => {
-          expect(body).toMatchObject({ labels: ["module: rocm"] });
+          expect(body).toMatchObject({
+            labels: ["module: rocm"],
+          });
           return true;
         }
       )
@@ -84,7 +86,7 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["module: rocm"] });
+        expect(body).toMatchObject({ labels: ["module: rocm", "ciflow/rocm"] });
         return true;
       })
       .reply(200);
@@ -774,29 +776,54 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("Review adds ciflow/trunk label", async () => {
-    // TODO: Revert me
-    return;
+  test("Review adds ciflow/trunk label for codev pr", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.review.state = "approved";
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.pull_request.number;
+    event.payload.pull_request.body = "Differential Revision: D12345678";
 
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
     const scope = nock("https://api.github.com")
-      .get(
-        `/repos/${owner}/${repo}/collaborators/${event.payload.review.user.login}/permission`
-      )
-      .reply(200, { permission: "write" })
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`"labels":["ciflow/trunk"]`);
+        expect(JSON.stringify(body)).toContain(`"ciflow/trunk"`);
         return true;
       })
       .reply(200, {});
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label if it is not approving", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "CHANGES_REQUESTED";
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label for non-codev pr", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    event.payload.pull_request.body = "Definitely not a codev pr";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
     await probot.receive(event);
 
     scope.done();

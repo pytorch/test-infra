@@ -5,6 +5,12 @@ export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchaudio}"
 if [[ ${MATRIX_PACKAGE_TYPE} = "conda" ]]; then
     export MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install --yes --quiet"}
 fi
+# if RELESE version is passed as parameter - install speific version
+if [[ ! -z ${RELEASE_VERSION} ]]; then
+    MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"torch "/"torch==${RELEASE_VERSION} "}
+    MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"-y pytorch "/"-y pytorch==${RELEASE_VERSION} "}
+    MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"::pytorch "/"::pytorch==${RELEASE_VERSION} "}
+fi
 eval $MATRIX_INSTALLATION
 
 export PYTORCH_PIP_PREFIX=""

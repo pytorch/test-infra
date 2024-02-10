@@ -48,14 +48,14 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-15.0.6 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-17.0.6 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
 function apply_patches() {
   info "applying patches"
   pushd llvm-project
-  for check in ../15.x-patches/*.diff; do
+  for check in ../17.x-patches/*.diff; do
     patch -p1 -N -d . < "$check"
   done
   popd
@@ -103,6 +103,7 @@ function build() {
 
   cmake "${cmake_common_args[@]}" "${cmake_os_args[@]}" ../llvm
   cmake --build . --target clang-tidy
+  cmake --build . --target clang-format
   success
 }
 
@@ -116,6 +117,7 @@ function check_if_static() {
   case $(uname) in
     Linux)
       ldd ./bin/clang-tidy 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
+      ldd ./bin/clang-format 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
       ;;
     Darwin)
       # No static link check for MacOS

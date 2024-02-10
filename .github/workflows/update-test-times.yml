@@ -8,13 +8,15 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "torchci/scripts/test_update_test_times.yml"
-      - "torchci/scripts/update_test_times.py"
+      - "tools/torchci/update_test_times.py"
       - ".github/workflows/update-test-times.yml"
+
+permissions:
+  contents: write
 
 defaults:
   run:
-    working-directory: torchci
+    working-directory: tools
 jobs:
   update-test-time-stats:
     runs-on: ubuntu-latest
@@ -22,26 +24,35 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Dependencies
-        run: |
-          pip3 install boto3==1.19.12
-          pip3 install rockset==1.0.3
-
-      - name: Run tests
-        run: python3 scripts/test_update_test_times.py
+        run: pip3 install boto3==1.19.12 rockset==1.0.3
 
       - name: Update test times
         run: |
-          python3 scripts/update_test_times.py
+          python3 -m torchci.update_test_times
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
-      - name: Push file to this repository
+      - name: Push test file times file to this repository
         if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
            API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: 'torchci/test-times.json'
+          source_file: 'tools/test-times.json'
+          destination_repo: 'pytorch/test-infra'
+          destination_folder: 'stats'
+          destination_branch: generated-stats
+          user_email: 'test-infra@pytorch.org'
+          user_name: 'PyTorch Test Infra'
+          commit_message: 'Updating test time stats'
+
+      - name: Push test class times file to this repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        env:
+            API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: 'tools/test-class-times.json'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
           destination_branch: generated-stats

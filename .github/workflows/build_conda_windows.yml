@@ -81,7 +81,6 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     defaults:
       run:
         shell: bash -l {0}
@@ -96,6 +95,12 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - name: Set PYTORCH_VERSION
+        if: ${{ env.CHANNEL == 'test' }}
+        run: |
+          # When building RC, set the version to be the current candidate version,
+          # otherwise, leave it alone so nightly will pick up the latest
+          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
         with:
@@ -111,6 +116,7 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+          cuda-version: ${{ env.CU_VERSION }}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -148,16 +154,13 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
           set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
           source "${BUILD_ENV_FILE}"
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
-
-          #conda install -yq conda-build "conda-package-handling!=1.5.0"
-          #bash packaging/build_conda.sh
-
 
           conda build \
             -c defaults \
@@ -167,12 +170,13 @@ jobs:
             --no-test  --python "${PYTHON_VERSION}" \
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
-      - name: Upload artifact to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/distr/
+
+          # This is to remove the vs20xx conda package that sneaks into distr
+          for pkg in distr/**/*.tar.bz2; do
+            if [[ "${pkg}" != *"${PACKAGE_NAME}"* ]]; then
+              rm -f "${pkg}"
+            fi
+          done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -180,6 +184,12 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
           is_windows: 'enabled'
+      - name: Upload artifact to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -204,14 +214,30 @@ jobs:
             CONSTRAINTS="cpuonly"
           fi
 
+          CONSTRAINT_BUILD=""
+          if [[ "${CHANNEL}" = "test" ]]; then
+            CONSTRAINT_BUILD="=${BUILD_VERSION}"
+          fi
+
+          # keep verbose install here for details
           ${CONDA_RUN_SMOKE} conda install \
-            --quiet \
+            --verbose \
             --yes \
+            -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
-            -c "${CONDA_LOCAL_CHANNEL}" \
-            distr::"${PACKAGE_NAME}" \
-            ${CONSTRAINTS}
+            -c defaults \
+            "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
+            ${CONSTRAINTS} \
+            --override-channels
+
+          # fow windows we use BUILD_VERSION to validate the package
+          CONDA_PKG=$(${CONDA_RUN_SMOKE} conda list | grep "${PACKAGE_NAME}" | grep "${BUILD_VERSION}")
+          if [[ -z "${CONDA_PKG}" ]]; then
+            ${CONDA_RUN_SMOKE} conda list | grep "${BUILD_VERSION}"
+            echo "${PACKAGE_NAME} is not installed with a correct version"
+            exit 1
+          fi
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
@@ -222,30 +248,20 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      - name: Upload package to conda
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
-        env:
-          PACKAGE_NAME: ${{ inputs.package-name }}
-          CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
-          CONDA_PYTORCHBOT_TOKEN_TEST: ${{ secrets.CONDA_PYTORCHBOT_TOKEN_TEST }}
-        run: |
-          if [[ "${CHANNEL}" = "nightly" ]]; then
-            export CONDA_TOKEN="${CONDA_PYTORCHBOT_TOKEN}"
-          else
-            export CONDA_TOKEN="${CONDA_PYTORCHBOT_TOKEN_TEST}"
-          fi
 
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install --yes --quiet anaconda-client
-          ${CONDA_RUN} anaconda \
-            -t "${CONDA_TOKEN}" \
-            upload "distr/win-64/${PACKAGE_NAME}*.tar.bz2" \
-            -u "pytorch-${CHANNEL}" \
-            --label main \
-            --no-progress \
-            --force
+  upload:
+    needs: build
+    uses: ./.github/workflows/_binary_conda_upload.yml
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      test-infra-repository: ${{ inputs.test-infra-repository }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      trigger-event: ${{ inputs.trigger-event }}
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+      CONDA_PYTORCHBOT_TOKEN_TEST: ${{ secrets.CONDA_PYTORCHBOT_TOKEN_TEST }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

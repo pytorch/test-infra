@@ -9,6 +9,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {Octokit} from '@octokit/rest'
 import {install} from 'source-map-support'
+import fetch from 'node-fetch'
 
 install()
 
@@ -38,18 +39,27 @@ async function run(): Promise<void> {
         return
       }
     }
-    const octokit = new Octokit({auth: github_token})
+    const octokit = new Octokit({auth: github_token, request: {fetch}})
     if (activateWithLabel) {
-      const labels = await octokit.issues.listLabelsOnIssue({
-        owner: github.context.repo.owner,
-        repo: github.context.repo.repo,
-        issue_number: prNumber
-      })
       let sshLabelSet = false
-      for (const label of labels.data) {
-        if (label.name === sshLabel) {
-          sshLabelSet = true
+      const owner = github.context.repo.owner
+      const repo = github.context.repo.repo
+      try {
+        const labels = await octokit.issues.listLabelsOnIssue({
+          owner,
+          repo,
+          issue_number: prNumber
+        })
+        for (const label of labels.data) {
+          if (label.name === sshLabel) {
+            sshLabelSet = true
+          }
         }
+      } catch (error) {
+        core.warning(
+          `Failed ot fetch labels for https://github.com/${owner}/${repo}/pull/${prNumber}: ${error}`
+        )
+        return
       }
       if (!sshLabelSet) {
         core.info(`Label ${sshLabel} not set, skipping adding ssh keys`)
@@ -93,7 +103,11 @@ async function run(): Promise<void> {
       return
     }
   } catch (error) {
-    core.setFailed(error.message)
+    if (error instanceof Error) {
+      core.setFailed(error.message)
+    } else {
+      core.setFailed(`Failed due to unexpected error ${error}`)
+    }
   }
 }
 

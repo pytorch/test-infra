@@ -3,6 +3,7 @@ import { addLabels, isPyTorchPyTorch } from "./utils";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
+  [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
   [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
@@ -128,6 +129,8 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
 };
 
+const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+
 function getRepoSpecificLabels(
   owner: string,
   repo: string
@@ -195,11 +198,14 @@ function myBot(app: Probot): void {
     }
   });
 
-  function getLabelsToAddFromTitle(title: string): string[] {
+  function getLabelsToAddFromTitle(
+    title: string,
+    labelFilter: RegExp = /.*/
+  ): string[] {
     const labelsToAdd: string[] = [];
 
     for (const [regex, label] of titleRegexToLabel) {
-      if (title.match(regex)) {
+      if (title.match(regex) && label.match(labelFilter)) {
         labelsToAdd.push(label);
       }
     }
@@ -314,7 +320,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ labels, title });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title);
+    const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
     await addNewLabels(labels, labelsToAdd, context);
   });
 
@@ -370,17 +376,28 @@ function myBot(app: Probot): void {
   });
 
   app.on("pull_request_review.submitted", async (context) => {
-    // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed
+    // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed a
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+
     if (context.payload.review.state !== "approved") {
       return;
     }
-    const owner = context.payload.repository.owner.login;
-    const repo = context.payload.repository.name;
+
     if (!isPyTorchPyTorch(owner, repo)) {
       return;
     }
-    // TEMP disable for 24 hours to see if it affects number of reverts / queueing
-    // await addLabels(context, [CIFLOW_TRUNK_LABEL]);
+
+    // only applies label to codev diffs.
+    if (
+      !JSON.stringify(context.payload.pull_request.body).includes(
+        "Differential Revision: D"
+      )
+    ) {
+      return;
+    }
+
+    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
   });
 }
 

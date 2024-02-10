@@ -3,18 +3,18 @@ on:
   pull_request:
     paths:
       - "torchci/**"
+      - "tools/torchci/**"
       - ".github/workflows/torchci.yml"
   push:
     branches:
       - main
 
-defaults:
-  run:
-    working-directory: torchci
-
 jobs:
   test:
     runs-on: ubuntu-20.04
+    defaults:
+      run:
+        working-directory: torchci
     steps:
       - uses: actions/checkout@v3
       - run: yarn install --frozen-lockfile
@@ -27,3 +27,16 @@ jobs:
       - run: yarn node scripts/checkRockset.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+  python-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/torchci
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          pip3 install --upgrade pip
+          pip3 install -r requirements.txt
+          pip3 install -e .
+          pytest tests

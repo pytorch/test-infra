@@ -56,6 +56,8 @@ export default function Page() {
       ? "TorchVision"
       : repoOwner === "pytorch" && repoName === "audio"
       ? "TorchAudio"
+      : repoOwner === "pytorch" && repoName === "executorch"
+      ? "ExecuTorch"
       : `${repoOwner}/${repoName}`;
 
   return (

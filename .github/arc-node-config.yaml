@@ -1,0 +1,21 @@
+nodeConfig:
+  - nodeType: compute-amd64
+    requirements:
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["c"]
+      - key: "karpenter.k8s.aws/instance-cpu"
+        operator: In
+        values: ["16", "32", "64"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: kubernetes.io/os
+        operator: In
+        values: ["linux"]
+      # - key: node.kubernetes.io/instance-type
+      #   operator: In
+      #   values: ["p3.8xlarge", "p3.16xlarge"]

@@ -2,12 +2,16 @@ import {
   hasSimilarFailures,
   querySimilarFailures,
   isInfraFlakyJob,
+  isExcludedFromFlakiness,
+  isLogClassifierFailed,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
+import * as jobUtils from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
 import { Client } from "@opensearch-project/opensearch";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 
@@ -39,8 +43,8 @@ describe("Test various utils used by Dr.CI", () => {
       time: mockEndDate,
       conclusion: "failure",
       htmlUrl: "Anything goes",
-      failureLine: "ERROR",
-      failureLineNumber: 0,
+      failureLines: ["ERROR"],
+      failureLineNumbers: [0],
       failureCaptures: ["ERROR"],
     };
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
@@ -62,6 +66,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -74,6 +80,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -86,6 +94,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -98,6 +108,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         emptyBaseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -107,10 +119,13 @@ describe("Test various utils used by Dr.CI", () => {
           "TESTING",
           job.failure_captures.join(" "),
           "",
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           mockStartDate,
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );
@@ -124,6 +139,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         baseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -133,12 +150,15 @@ describe("Test various utils used by Dr.CI", () => {
           "TESTING",
           job.failure_captures.join(" "),
           "",
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           dayjs(baseCommitDate)
             .subtract(lookbackPeriodInHours, "hour")
             .toISOString(),
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );
@@ -154,6 +174,8 @@ describe("Test various utils used by Dr.CI", () => {
         job,
         baseCommitDate,
         lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -163,12 +185,15 @@ describe("Test various utils used by Dr.CI", () => {
           "TESTING",
           job.failure_captures.join(" "),
           workflowName,
+          "",
           searchUtils.WORKFLOW_JOB_INDEX,
           dayjs(baseCommitDate)
             .subtract(lookbackPeriodInHours, "hour")
             .toISOString(),
           mockEndDate,
           searchUtils.MIN_SCORE,
+          searchUtils.MAX_SIZE,
+          searchUtils.OLDEST_FIRST,
         ],
       ])
     );
@@ -191,6 +216,9 @@ describe("Test various utils used by Dr.CI", () => {
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
+    const mockJobUtils = jest.spyOn(jobUtils, "isSameAuthor");
+    mockJobUtils.mockImplementation(() => Promise.resolve(false));
+
     // Found no similar job
     expect(
       await hasSimilarFailures(
@@ -214,8 +242,8 @@ describe("Test various utils used by Dr.CI", () => {
       time: "2023-08-01T00:00:00Z",
       conclusion: "failure",
       htmlUrl: "Anything goes",
-      failureLine: "ERROR",
-      failureLineNumber: 0,
+      failureLines: ["ERROR"],
+      failureLineNumbers: [0],
       failureCaptures: ["ERROR"],
     };
     mock.mockImplementation(() => Promise.resolve({ jobs: [mockJobData] }));
@@ -310,7 +338,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "ERROR",
+      failure_lines: ["ERROR"],
       failure_captures: ["ERROR"],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
@@ -324,7 +352,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "",
+      failure_lines: [""],
       failure_captures: [],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
@@ -338,7 +366,7 @@ describe("Test various utils used by Dr.CI", () => {
       name: "A",
       html_url: "A",
       head_sha: "A",
-      failure_line: "",
+      failure_lines: [""],
       failure_captures: [],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
@@ -346,5 +374,90 @@ describe("Test various utils used by Dr.CI", () => {
       runnerName: "",
     };
     expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
+  });
+
+  test("test isLogClassifierFailed", async () => {
+    const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
+    mockJobUtils.mockImplementation(() => Promise.resolve(true));
+
+    // Has log and failure lines
+    const validFailure: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: ["ERROR"],
+      failure_captures: ["ERROR"],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(await isLogClassifierFailed(validFailure)).toEqual(false);
+
+    // Has log but not failure lines (log classifier not triggered)
+    const logClassifierNotTriggered: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: [],
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(await isLogClassifierFailed(logClassifierNotTriggered)).toEqual(
+      true
+    );
+
+    // No S3 log
+    mockJobUtils.mockImplementation(() => Promise.resolve(false));
+    expect(await isLogClassifierFailed(validFailure)).toEqual(true);
+  });
+
+  test("test isExcludedFromFlakiness", () => {
+    const excludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "LinT / quick-checks / linux-job",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: ["ERROR"],
+      failure_captures: ["ERROR"],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(excludedJob)).toEqual(true);
+
+    const anotherExcludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "pull / linux-docs / build-docs-python-false",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: [""],
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(anotherExcludedJob)).toEqual(true);
+
+    const notExcludedJob: RecentWorkflowsData = {
+      id: "A",
+      name: "A",
+      html_url: "A",
+      head_sha: "A",
+      failure_lines: [""],
+      failure_captures: [],
+      conclusion: "failure",
+      completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
+      runnerName: "dummy",
+    };
+    expect(isExcludedFromFlakiness(notExcludedJob)).toEqual(false);
   });
 });

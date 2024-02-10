@@ -1,12 +1,15 @@
 import {
   removeJobNameSuffix,
   isSameFailure,
-  isSameHeadBranch,
+  isSameAuthor,
+  isSameContext,
   removeCancelledJobAfterRetry,
+  isFailureFromPrevMergeCommit,
 } from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
+import * as getAuthors from "../lib/getAuthors";
 
 nock.disableNetConnect();
 
@@ -55,30 +58,126 @@ describe("Test various job utils", () => {
     ).toStrictEqual("Test `run_test.py` is usable without boto3/rockset");
   });
 
-  test("test isSameHeadBranch", () => {
-    expect(isSameHeadBranch("", "")).toEqual(false);
+  test("test isSameAuthor", async () => {
+    const job: RecentWorkflowsData = {
+      head_sha: "123",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
+    const failure: RecentWorkflowsData = {
+      head_sha: "456",
+      // The rest doesn't matter
+      id: "",
+      completed_at: "",
+      html_url: "",
+      failure_captures: [],
+    };
 
-    expect(isSameHeadBranch("mock-branch", "")).toEqual(false);
+    const mock = jest.spyOn(getAuthors, "getAuthors");
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+        "456": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+      })
+    );
+    // Same email
+    expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    expect(isSameHeadBranch("", "mock-branch")).toEqual(false);
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
+        "456": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
+      })
+    );
+    // Same commit username
+    expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    expect(isSameHeadBranch("mock-branch", "mock-branch")).toEqual(true);
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
+        "456": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
+      })
+    );
+    // Same PR username
+    expect(await isSameAuthor(job, failure)).toEqual(true);
 
-    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/2")).toEqual(false);
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "mock@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+        "456": {
+          email: "diff@user.com",
+          commit_username: "",
+          pr_username: "",
+        },
+      })
+    );
+    // Different email
+    expect(await isSameAuthor(job, failure)).toEqual(false);
 
-    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/1")).toEqual(true);
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "",
+          commit_username: "mock",
+          pr_username: "",
+        },
+        "456": {
+          email: "",
+          commit_username: "diff",
+          pr_username: "",
+        },
+      })
+    );
+    // Different commit username
+    expect(await isSameAuthor(job, failure)).toEqual(false);
 
-    expect(isSameHeadBranch("gh/user/1/head", "gh/user/2/head")).toEqual(true);
-
-    expect(isSameHeadBranch("gh/user/1/head", "gh/user/1/head")).toEqual(true);
-
-    expect(
-      isSameHeadBranch("gh/user/1/head", "gh/another-user/2/head")
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch("gh/user/1/head", "gh/another-user/1/head")
-    ).toEqual(false);
+    mock.mockImplementation((records: RecentWorkflowsData[]) =>
+      Promise.resolve({
+        "123": {
+          email: "",
+          commit_username: "",
+          pr_username: "mock",
+        },
+        "456": {
+          email: "",
+          commit_username: "",
+          pr_username: "diff",
+        },
+      })
+    );
+    // Different pr username
+    expect(await isSameAuthor(job, failure)).toEqual(false);
   });
 
   test("test isSameFailure", () => {
@@ -141,6 +240,88 @@ describe("Test various job utils", () => {
     jobB.failure_captures = ["ERROR"];
     // Same failure
     expect(isSameFailure(jobA, jobB)).toEqual(true);
+  });
+
+  test("test isSameContext", () => {
+    const jobA: RecentWorkflowsData = {
+      id: "A",
+      name: "Testing",
+      html_url: "A",
+      head_sha: "A",
+      failure_captures: ["Process completed with exit code 1"],
+      failure_context: null,
+      conclusion: "failure",
+      completed_at: "A",
+    };
+    const jobB: RecentWorkflowsData = {
+      id: "B",
+      name: "Testing",
+      html_url: "B",
+      head_sha: "B",
+      failure_captures: ["Process completed with exit code 1"],
+      failure_context: null,
+      conclusion: "failure",
+      completed_at: "B",
+    };
+
+    // If both jobs don't have any context, consider them the same
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobB.failure_context = [];
+    // Empty context is the same as having no context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobB.failure_context = ["FOOBAR"];
+    // If only one job has context, the other doesn't, they are not the same
+    expect(isSameContext(jobA, jobB)).toEqual(false);
+    expect(isSameFailure(jobA, jobB)).toEqual(false);
+
+    jobA.failure_context = ["FOO"];
+    jobB.failure_context = ["BAR"];
+    // Same error but have different context
+    expect(isSameContext(jobA, jobB)).toEqual(false);
+    expect(isSameFailure(jobA, jobB)).toEqual(false);
+
+    jobA.failure_context = ["FOO"];
+    jobB.failure_context = ["FOO"];
+    // Same error with same context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+
+    jobA.failure_context = ["FOO --shard 1 2"];
+    jobB.failure_context = ["FOO --shard 2 2"];
+    // Same error with similar context
+    expect(isSameContext(jobA, jobB)).toEqual(true);
+    expect(isSameFailure(jobA, jobB)).toEqual(true);
+  });
+
+  test("test isFailureFromPrevMergeCommit", () => {
+    const failure: RecentWorkflowsData = {
+      id: "B",
+      name: "Testing",
+      html_url: "B",
+      head_sha: "B",
+      failure_captures: ["whatever"],
+      conclusion: "failure",
+      completed_at: "B",
+    };
+
+    failure.head_branch = "whatever";
+    // Not a failure from trunk, it couldn't come from a previous merge commit
+    // of a reverted PR
+    expect(isFailureFromPrevMergeCommit(failure, [])).toEqual(false);
+
+    failure.head_branch = "main";
+    // No merge commit, PR is not yet merged
+    expect(isFailureFromPrevMergeCommit(failure, [])).toEqual(false);
+
+    // No matching commit SHA
+    expect(isFailureFromPrevMergeCommit(failure, ["NO MATCH"])).toEqual(false);
+
+    // Matching SHA, this is a failure from a merge commit
+    expect(isFailureFromPrevMergeCommit(failure, ["B"])).toEqual(true);
   });
 
   test("test removeCancelledJobAfterRetry", async () => {

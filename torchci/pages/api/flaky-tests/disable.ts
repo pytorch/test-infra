@@ -6,7 +6,10 @@ import fetchFlakyTests, {
 } from "lib/fetchFlakyTests";
 import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
 import { FlakyTestData, IssueData, DisabledNonFlakyTestData } from "lib/types";
-import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
+import {
+  parseBody,
+  supportedPlatforms,
+} from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { retryRequest } from "lib/bot/utils";
 import { Octokit } from "octokit";
@@ -36,21 +39,17 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     octokit,
     flakyTests,
     flakyTestsAcrossFileReruns,
-    flakyTestsAcrossJobs,
     issues,
     disabledNonFlakyTests,
   ] = await Promise.all([
     getOctokit(owner, repo),
     fetchFlakyTests(`${NUM_HOURS}`),
     fetchFlakyTestsAcrossFileReruns(`${NUM_HOURS}`),
-    fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
     fetchIssuesByLabel("skipped"),
     fetchDisabledNonFlakyTests(),
   ]);
 
-  const allFlakyTests = flakyTests
-    .concat(flakyTestsAcrossJobs)
-    .concat(flakyTestsAcrossFileReruns);
+  const allFlakyTests = flakyTests.concat(flakyTestsAcrossFileReruns);
   // If the test is flaky only on PRs, we should not disable it yet.
   const flakyTestsOnTrunk = filterThreshold(
     filterOutPRFlakyTests(allFlakyTests)
@@ -88,6 +87,63 @@ export function filterThreshold(
   return tests.filter((test) => new Set(test.jobIds).size > threshold);
 }
 
+export async function updateExistingIssueForFlakyTest(
+  octokit: Octokit,
+  matchingIssue: IssueData,
+  test: FlakyTestData
+) {
+  const platformsAffected = getPlatformsAffected(getWorkflowJobNames(test));
+  const { platformsToSkip: platformsInIssue, bodyWithoutPlatforms } = parseBody(
+    matchingIssue.body
+  );
+  const platformsNotInIssue = platformsAffected.filter(
+    (p) => platformsInIssue.length !== 0 && !platformsInIssue.includes(p)
+  );
+  const latestTrunkJobURL = getLatestTrunkJobURL(test);
+
+  // Pre define strings in order to make the yarn format look slightly nicer
+  const platformsInIssueStr =
+    platformsInIssue.length == 0 ? "all" : platformsInIssue.join(", ");
+  const platformsAffectedStr = platformsAffected.join(", ");
+  const platformsNotInIssueStr = platformsNotInIssue.join(", ");
+
+  let comment = `Another case of trunk flakiness has been found [here](${latestTrunkJobURL}). `;
+  if (matchingIssue.state !== "open") {
+    comment += `Reopening issue. `;
+  }
+  let newBody = undefined;
+
+  if (platformsNotInIssue.length === 0) {
+    comment += `The list of platforms [${platformsInIssueStr}] appears to contain all the recently affected platforms [${platformsAffectedStr}]. `;
+    if (matchingIssue.state === "open") {
+      comment += `Either the change didn't propogate fast enough or disable bot might be broken. `;
+    }
+  } else {
+    const allPlatformsStr = platformsInIssue
+      .concat(platformsNotInIssue)
+      .join(", ");
+    comment +=
+      `The list of platforms [${platformsInIssueStr}] does not appear to contain all the recently affected platforms [${platformsAffectedStr}]. ` +
+      `Adding [${platformsNotInIssueStr}]. `;
+    newBody = `Platforms: ${allPlatformsStr}\n\n${bodyWithoutPlatforms}`;
+  }
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: matchingIssue.number,
+    body: comment,
+  });
+  if (newBody !== undefined || matchingIssue.state !== "open") {
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: matchingIssue.number,
+      body: newBody,
+      state: "open",
+    });
+  }
+}
+
 export async function handleFlakyTest(
   test: FlakyTestData,
   issues: IssueData[],
@@ -103,41 +159,7 @@ export async function handleFlakyTest(
     if (!wasRecent(test)) {
       return;
     }
-    if (matchingIssue.state === "open") {
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Please verify the issue was opened after this instance, that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(
-              ", "
-            )}], or disable bot might not be working as expected.`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
-    } else {
-      // Re-open the issue
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        state: "open",
-      });
-
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Reopening the issue to disable. Please verify that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(", ")}].`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
-    }
+    await updateExistingIssueForFlakyTest(octokit, matchingIssue, test);
   } else {
     await createIssueFromFlakyTest(test, octokit);
   }
@@ -306,7 +328,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
+  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}&limit=100`;
   let numRedGreen = `Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.`;
   let debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
 DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
@@ -373,6 +395,7 @@ export async function getTestOwnerLabels(
         break;
       }
     }
+    console.log(labels);
   } catch (err) {
     console.warn(err);
     additionalErrMessage = `${err}`;
@@ -386,7 +409,12 @@ export async function getTestOwnerLabels(
     labels.push("module: unknown");
   }
 
-  if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
+  if (
+    labels.some((x) => x.startsWith("module: ") && x !== "module: unknown") &&
+    !labels.includes("oncall: pt2")
+  ) {
+    // Add triaged if there is a module label and none of labels are oncall: pt2
+    // (see https://github.com/pytorch/pytorch/issues/117846)
     labels.push("triaged");
   }
   return { labels, additionalErrMessage };

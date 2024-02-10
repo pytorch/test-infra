@@ -16,6 +16,7 @@ import {
   HUD_URL,
   hasSimilarFailures,
   isInfraFlakyJob,
+  isLogClassifierFailed,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -24,6 +25,7 @@ import {
   removeJobNameSuffix,
   isSameFailure,
   removeCancelledJobAfterRetry,
+  backfillMissingLog,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 
@@ -33,6 +35,8 @@ interface PRandJobs {
   jobs: RecentWorkflowsData[];
   merge_base: string;
   merge_base_date: string;
+  owner: string;
+  repo: string;
 }
 
 export interface FlakyRule {
@@ -79,7 +83,7 @@ export async function updateDrciComments(
     NUM_MINUTES + ""
   );
 
-  const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+  const workflowsByPR = reorganizeWorkflows(OWNER, repo, recentWorkflows);
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
@@ -141,6 +145,23 @@ export async function updateDrciComments(
       owner: OWNER,
       repo: repo,
       comment_id: id,
+    });
+
+    // Also update the check run status. As this is run under pytorch-bot,
+    // the check run will show up under that GitHub app
+    await octokit.rest.checks.create({
+      owner: OWNER,
+      repo: repo,
+      name: "Dr.CI",
+      head_sha: pr_info.head_sha,
+      status: "completed",
+      conclusion: "neutral",
+      output: {
+        title: "Dr.CI classification results",
+        // NB: the summary contains the classification result from Dr.CI,
+        // so that it can be queried elsewhere
+        summary: JSON.stringify(failures[pr_info.pr_number]),
+      },
     });
   });
 
@@ -355,6 +376,9 @@ function constructResultsJobsSections(
   const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
+    if (job.failure_captures) {
+      output += `    \`${job.failure_captures[0]}\`\n`;
+    }
   }
   output += "</p></details>";
   return output;
@@ -520,8 +544,9 @@ function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
             failureCapture.match(captureRegex)
           );
         const matchFailureLine: boolean =
-          job.failure_line != null &&
-          job.failure_line.match(captureRegex) != null;
+          job.failure_lines != null &&
+          job.failure_lines[0] != null &&
+          job.failure_lines[0].match(captureRegex) != null;
 
         // Accept both failure captures array and failure line string to make sure
         // that nothing is missing
@@ -581,6 +606,9 @@ export async function getWorkflowJobsStatuses(
         (await hasSimilarFailures(job, prInfo.merge_base_date))
       ) {
         flakyJobs.push(job);
+      } else if (await isLogClassifierFailed(job)) {
+        flakyJobs.push(job);
+        await backfillMissingLog(prInfo.owner, prInfo.repo, job);
       } else {
         failedJobs.push(job);
       }
@@ -590,6 +618,8 @@ export async function getWorkflowJobsStatuses(
 }
 
 export function reorganizeWorkflows(
+  owner: string,
+  repo: string,
   recentWorkflows: RecentWorkflowsData[]
 ): Map<number, PRandJobs> {
   const workflowsByPR: Map<number, PRandJobs> = new Map();
@@ -603,6 +633,8 @@ export function reorganizeWorkflows(
         jobs: [],
         merge_base: "",
         merge_base_date: "",
+        owner: owner,
+        repo: repo,
       });
     }
     workflowsByPR.get(pr_number)!.jobs.push(workflow);

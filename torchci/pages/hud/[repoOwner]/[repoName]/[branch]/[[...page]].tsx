@@ -13,7 +13,6 @@ import {
   getGroupingData,
   groups,
   sortGroupNamesForHUD,
-  isPersistentGroup,
   isUnstableGroup,
 } from "lib/JobClassifierUtil";
 import {
@@ -31,17 +30,16 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
-import useSWR from "swr";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { fetcher } from "lib/GeneralUtils";
 import {
   useGroupingPreference,
   usePreference,
 } from "lib/useGroupingPreference";
+import { track } from "lib/track";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -477,6 +475,14 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
+
+  const router = useRouter();
+  useEffect(() => {
+    // Only run on component mount, this assumes that the user's preference is
+    // the value in local storage
+    track(router, "groupingPreference", { useGrouping: useGrouping });
+  }, []);
+
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 
   const groupNames = Array.from(groupNameMapping.keys());

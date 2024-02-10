@@ -14,12 +14,15 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import { parse } from "ansicolor";
+import { search } from "@codemirror/search";
 
 import { oneDark } from "@codemirror/theme-one-dark";
 import { isFailure } from "lib/JobClassifierUtil";
-import { JobData } from "lib/types";
-import { useEffect, useRef, useState } from "react";
+import { JobData, LogAnnotation } from "lib/types";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
+import LogAnnotationToggle from "./LogAnnotationToggle";
+import { LogSearchResult } from "lib/searchLogs";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
 // Based on the current editor view, produce a series of decorations that
@@ -139,59 +142,126 @@ const ansiColors = ViewPlugin.fromClass(
 );
 
 const fetcher = (url: string) => fetch(url).then((res) => res.text());
-function Log({ url, line }: { url: string; line: number | null }) {
-  const { data } = useSWRImmutable(url, fetcher);
-  const viewer = useRef<HTMLDivElement>(null!);
 
-  useEffect(() => {
-    const state = EditorState.create({
-      doc: data ?? "loading...",
-      extensions: [
-        basicSetup, // standard text editor things
-        EditorState.readOnly.of(true), // make the editor read-only
-        EditorView.theme({ "&": { height: "90vh" } }), // set height
-        EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
-        oneDark, // set theme
-        ansiColors, // properly render ansi colors in the logs
-        foldUninteresting, // Fold the uninteresting parts of the log to clean up the view.
-        codeFolding({
-          placeholderText:
-            "<probably uninteresting folded group, click to show>",
-        }),
-      ],
-    });
+function JumpToLineButton({
+  lineText,
+  line,
+  setCurrentLine,
+  currentLine,
+}: {
+  setCurrentLine: Dispatch<SetStateAction<number | undefined>>;
+  lineText: string | undefined;
+  line: number | undefined;
+  currentLine: number | undefined;
+}) {
+  // This is the component that shows the failed line (or really whatever line
+  // you want it to show), and clicking it opens the log viewer and jumps to
+  // that line
+  const isCurrentLine = currentLine == line;
 
-    const view = new EditorView({ state, parent: viewer.current });
-
-    foldAll(view);
-    if (data !== undefined) {
-      if (line != null) {
-        // Select and center the failure line
-        const focusLine = state.doc.line(line);
-        view.dispatch({
-          selection: EditorSelection.cursor(focusLine.from),
-          effects: EditorView.scrollIntoView(focusLine.from, { y: "center" }),
-        });
-      } else {
-        // If we don't have a failure line, just scroll to the bottom.
-        view.dispatch({
-          effects: EditorView.scrollIntoView(
-            state.doc.line(state.doc.lines).from,
-            {}
-          ),
-        });
-      }
+  function setCurrentLineHelper() {
+    if (isCurrentLine) {
+      // Toggle off the log viewer
+      setCurrentLine(undefined);
+    } else {
+      setCurrentLine(line);
     }
-    return () => {
-      view.destroy();
-    };
-  }, [data, line]);
+  }
 
-  return <div ref={viewer}></div>;
+  return (
+    <div>
+      <button
+        style={{ background: "none", cursor: "pointer", textAlign: "left" }}
+        onClick={setCurrentLineHelper}
+      >
+        <div>
+          {isCurrentLine ? "▼ " : "▶ "}
+          <code onDoubleClick={(e) => e.stopPropagation()}>
+            {lineText ?? "Show log"}
+          </code>
+        </div>
+      </button>
+    </div>
+  );
 }
 
-export default function LogViewer({ job }: { job: JobData }) {
-  const [showLogViewer, setShowLogViewer] = useState(false);
+function scrollToLine(state: EditorState, view: EditorView, line: number) {
+  if (line != 0 && state.doc.length > line) {
+    // Select and center the failure line
+    const focusLine = state.doc.line(line);
+    view.dispatch({
+      selection: EditorSelection.cursor(focusLine.from),
+      effects: EditorView.scrollIntoView(focusLine.from, { y: "center" }),
+    });
+  } else {
+    // If we don't have a failure line, just scroll to the bottom.
+    view.dispatch({
+      effects: EditorView.scrollIntoView(
+        state.doc.line(state.doc.lines).from,
+        {}
+      ),
+    });
+  }
+}
+
+function Log({
+  url,
+  currentLine,
+}: {
+  url: string;
+  currentLine: number | undefined;
+}) {
+  // Only download the log and generate the log viewer if the log is open.  This
+  // is only used in one component but needs to be separate due to hooks rules,
+  // as useSWR cannot be called behind an if statement.
+
+  const { data } = useSWRImmutable(url, fetcher);
+  const state = EditorState.create({
+    doc: data ?? "Loading...",
+    extensions: [
+      basicSetup, // standard text editor things
+      EditorState.readOnly.of(true), // make the editor read-only
+      EditorView.theme({ "&": { height: "90vh" } }), // set height
+      EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
+      oneDark, // set theme
+      ansiColors, // properly render ansi colors in the logs
+      foldUninteresting, // Fold the uninteresting parts of the log to clean up the view.
+      codeFolding({
+        placeholderText: "<probably uninteresting folded group, click to show>",
+      }),
+      search({ top: true }),
+    ],
+  });
+
+  const viewer = useRef<HTMLDivElement>(null!);
+  useEffect(() => {
+    if (state.doc) {
+      const view = new EditorView({ state, parent: viewer.current });
+      foldAll(view);
+      // I wish I could pull this out into a different useEffect, but I couldn't
+      // figure out how to get the view to update
+      scrollToLine(state, view, currentLine ?? 0);
+      return () => {
+        view.destroy();
+      };
+    }
+  }, [currentLine, data]);
+
+  return <div ref={viewer} onDoubleClick={(e) => e.stopPropagation()}></div>;
+}
+
+function LogWithLineSelector({
+  url,
+  lineNumbers,
+  lineTexts,
+}: {
+  url: string;
+  lineNumbers: number[];
+  lineTexts: string[];
+}) {
+  // The base log viewer with a line selector.  To open the log viewer, select
+  // any of the lines.  If another line is selected, the log viewer will jump to
+  // that line.  To close it, select currently open line.
 
   useEffect(() => {
     document.addEventListener("copy", (e) => {
@@ -203,25 +273,83 @@ export default function LogViewer({ job }: { job: JobData }) {
       e.preventDefault();
     });
   });
+  // undefined means that no line is selected, so the log viewer is closed
+  const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);
+  return (
+    <>
+      {lineNumbers.map((line, index) => (
+        <JumpToLineButton
+          lineText={lineTexts[index]}
+          line={line}
+          setCurrentLine={setCurrentLine}
+          currentLine={currentLine}
+          key={`line-${line}`}
+        />
+      ))}
+      {currentLine !== undefined && <Log url={url} currentLine={currentLine} />}
+    </>
+  );
+}
 
-  if (!job.failureLine && !isFailure(job.conclusion)) {
+export default function LogViewer({
+  job,
+  logRating = LogAnnotation.NULL,
+  showAnnotationToggle = process.env.DEBUG_LOG_CLASSIFIER === "true",
+}: {
+  job: JobData;
+  logRating?: LogAnnotation;
+  showAnnotationToggle?: boolean;
+}) {
+  if (!job.failureLines && !isFailure(job.conclusion)) {
     return null;
-  }
-
-  function handleClick() {
-    setShowLogViewer(!showLogViewer);
   }
 
   return (
     <div>
-      <button
-        style={{ background: "none", cursor: "pointer" }}
-        onClick={handleClick}
-      >
-        {showLogViewer ? "▼ " : "▶ "}
-        <code>{job.failureLine ?? "Show log"}</code>
-      </button>
-      {showLogViewer && <Log url={job.logUrl!} line={job.failureLineNumber!} />}
+      <LogWithLineSelector
+        url={job.logUrl!}
+        lineNumbers={job.failureLineNumbers?.map((x) => (x ? x : 0)) ?? []} // Convert undefined/null to 0
+        lineTexts={job.failureLines ?? []}
+      />
+      {showAnnotationToggle && (
+        <div>
+          <LogAnnotationToggle
+            job={job}
+            // send in real metadata later
+            log_metadata={{ job_id: "1" }}
+            annotation={logRating}
+          />
+        </div>
+      )}
     </div>
+  );
+}
+
+export function SearchLogViewer({
+  url,
+  logSearchResult,
+}: {
+  url: string;
+  logSearchResult: LogSearchResult | undefined;
+}) {
+  // This is the search equivalent of LogViewer.  It is almost the same thing
+  // but also displays info about how many matches there were for the search
+
+  let lineNumbers = logSearchResult?.results.map((v) => v.lineNumber) ?? [];
+  let lineTexts = logSearchResult?.results.map((v) => v.lineText) ?? [];
+
+  return (
+    <>
+      <div>
+        <small>
+          &nbsp;&nbsp;&nbsp;&nbsp;{logSearchResult?.info ?? "Loading..."}
+        </small>
+      </div>
+      <LogWithLineSelector
+        url={url}
+        lineNumbers={lineNumbers}
+        lineTexts={lineTexts}
+      />
+    </>
   );
 }

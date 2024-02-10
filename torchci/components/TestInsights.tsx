@@ -21,15 +21,19 @@ export default function TestInsightsLink({
     return <></>;
   }
 
-  const workflowId = job.htmlUrl?.match(
-    // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
-    new RegExp("^.+/(?<workflowId>\\d+)/jobs/.+$")
-  )?.groups?.workflowId;
+  const workflowId =
+    job.workflowId ??
+    job.htmlUrl?.match(
+      // https://github.com/pytorch/pytorch/actions/runs/3228501114/job/5284857665
+      new RegExp("^.+/(?<workflowId>\\d+)/job/.+$")
+    )?.groups?.workflowId;
 
-  const jobId = job.logUrl?.match(
-    // https://ossci-raw-job-status.s3.amazonaws.com/log/9018026324
-    new RegExp("^.+/log/(?<jobId>\\d+)$")
-  )?.groups?.jobId;
+  const jobId =
+    job.id ??
+    job.logUrl?.match(
+      // https://ossci-raw-job-status.s3.amazonaws.com/log/9018026324
+      new RegExp("^.+/log/(?<jobId>\\d+)$")
+    )?.groups?.jobId;
 
   if (workflowId === null || jobId === null) {
     return <></>;

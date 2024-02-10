@@ -20,8 +20,8 @@ SELECT
         PARSE_TIMESTAMP_ISO8601(job.started_at),
         PARSE_TIMESTAMP_ISO8601(job.completed_at)
     ) AS durationS,
-    job.torchci_classification.line AS failureLine,
-    job.torchci_classification.line_num AS failureLineNumber,
+    ARRAY_CREATE(job.torchci_classification.line) AS failureLines,
+    ARRAY_CREATE(job.torchci_classification.line_num) AS failureLineNumbers,
     job.torchci_classification.context AS failureContext,
     job.torchci_classification.captures AS failureCaptures,
 FROM

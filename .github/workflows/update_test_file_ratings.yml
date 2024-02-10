@@ -4,8 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/update_test_file_ratings.yml"
-      - "torchci/scripts/calculate_file_test_rating.py"
-      - "torchci/scripts/get_merge_base_info.py"
+      - "tools/torchci/td"
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
@@ -31,21 +30,24 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip3 install boto3==1.19.12
-          pip3 install rockset==1.0.3
-
-      - name: Run tests
-        run: python3 test-infra/torchci/scripts/test_calculate_file_test_rating.py
+          pip3 install --upgrade pip
+          pip3 install boto3==1.19.12 rockset==1.0.3
+          cd test-infra/tools/torchci
+          pip3 install -e .
 
       - name: Get merge base info
         run: |
-          python3 test-infra/torchci/scripts/get_merge_base_info.py
+          python3 test-infra/tools/torchci/td/get_merge_base_info.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
       - name: Generate file test ratings
         run: |
-          python3 test-infra/torchci/scripts/calculate_file_test_rating.py
+          python3 test-infra/tools/torchci/td/calculate_file_test_rating.py
+          python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
+          # Do not run this one, it won't change
+          # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
+
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
@@ -76,3 +78,17 @@ jobs:
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
           commit_message: "Updating file to test class correlations"
+
+      - name: Push historical edited files heuristic to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "td_heuristic_historical_edited_files.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating TD heuristic: historical edited files"

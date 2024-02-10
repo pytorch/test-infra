@@ -11,13 +11,18 @@ export async function getGithubKeys(
   octokit: Octokit,
   actor: string
 ): Promise<string> {
-  const keys = await octokit.users.listPublicKeysForUser({
-    username: actor
-  })
-  if (keys.data.length === 0) {
+  try {
+    const keys = await octokit.users.listPublicKeysForUser({
+      username: actor
+    })
+    if (keys.data.length === 0) {
+      return ''
+    }
+    return keys.data.map(e => e.key).join('\n')
+  } catch (error) {
+    core.warning(`Failed to get geys for ${actor}: ${error}`)
     return ''
   }
-  return keys.data.map(e => e.key).join('\n')
 }
 
 export async function writeAuthorizedKeys(

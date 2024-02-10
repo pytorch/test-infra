@@ -50,8 +50,9 @@ def download_log(full_name, conclusion, job_id):
 def lambda_handler(event, context):
     event_type = event["headers"]["X-GitHub-Event"]
     body = json.loads(event["body"])
+    action = body.get("action", "")
 
-    if event_type == "workflow_job" and body["action"] == "completed":
+    if event_type == "workflow_job" and (action == "completed" or action == "backfill"):
         try:
             full_name = body["repository"]["full_name"]
             conclusion = body[event_type]["conclusion"]
@@ -61,6 +62,12 @@ def lambda_handler(event, context):
             # Just eat the error as logs are optional.
             print("ERROR", err)
             pass
+
+        if action == "backfill":
+            return {
+                "statusCode": 200,
+                "body": f"Backfill {event_type} processed: {body}",
+            }
 
     if event_type == "workflow_job" or event_type == "workflow_run":
         obj = body[event_type]

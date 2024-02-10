@@ -12,10 +12,6 @@ import { request } from "urllib";
 function getDynamoClient() {
   return DynamoDBDocument.from(
     new DynamoDB({
-      credentials: {
-        accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY,
-      },
       region: "us-east-1",
     })
   );
@@ -24,7 +20,6 @@ function getDynamoClient() {
 async function getOctokit(owner, repo) {
   let privateKey = process.env.PRIVATE_KEY;
   privateKey = Buffer.from(privateKey, "base64").toString();
-
   const app = new App({
     appId: process.env.APP_ID,
     privateKey,
@@ -57,31 +52,67 @@ async function backfillWorkflowJob(
 ) {
   console.log(`Checking job ${id}`);
 
-  let job = await octokit.rest.actions.getJobForWorkflowRun({
-    owner: owner,
-    repo: repo_name,
-    job_id: id,
-  });
-  job = job.data;
-
-  if (skipBackfill(job)) {
-    console.log(`Skipping backfill for job ${id}`);
-    return;
-  }
-
-  const payload = job;
   const table = "torchci-workflow-job";
 
-  const thing = {
-    TableName: table,
-    Item: {
-      dynamoKey: dynamo_key,
-      ...payload,
-    },
-  };
-  console.log(`Writing job ${id} to DynamoDB`);
-  console.log(thing);
-  await dClient.put(thing);
+  try {
+    let job = await octokit.rest.actions.getJobForWorkflowRun({
+      owner: owner,
+      repo: repo_name,
+      job_id: id,
+    });
+    job = job.data;
+
+    if (skipBackfill(job)) {
+      console.log(`Skipping backfill for job ${id}`);
+      return;
+    }
+
+    const payload = job;
+
+    const thing = {
+      TableName: table,
+      Item: {
+        dynamoKey: dynamo_key,
+        ...payload,
+      },
+    };
+    console.log(`Writing job ${id} to DynamoDB`);
+    console.log(thing);
+    await dClient.put(thing);
+  } catch (error) {
+    console.log(`Failed to find job id ${id}: ${error}`);
+    console.log(`Marking job id ${id} as incomplete`);
+    console.log(`Querying dynamo entry for job id ${id}`);
+    const dynamoEntry = await client.queries.query({
+      sql: {
+        query: `
+SELECT
+    *
+FROM
+    workflow_job j
+WHERE
+    j.dynamoKey = '${dynamo_key}'
+`,
+      },
+    });
+    if (dynamoEntry.results.length === 0) {
+      console.log(`No dynamo entry found for job id ${id}`);
+      return;
+    }
+    const result = dynamoEntry.results[0];
+    console.log(`Writing job ${id} to DynamoDB:`);
+    const thing = {
+      TableName: table,
+      Item: {
+        ...result,
+        data_quality: "incomplete",
+        backfill: "not-found",
+      },
+    };
+    console.log(thing);
+    await dClient.put(thing);
+    return;
+  }
 }
 
 console.log("::group::Backfilling jobs without a conclusion...");
@@ -92,7 +123,7 @@ SELECT
     j.id,
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -101,6 +132,7 @@ WHERE
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
     AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -141,7 +173,7 @@ SELECT
     j.id,
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -150,6 +182,7 @@ WHERE
     AND w.status != 'completed'
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
     AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -187,6 +220,7 @@ where
     and w.event != 'workflow_run'
     and w.event != 'repository_dispatch'
     and w.head_repository.full_name = 'pytorch/pytorch'
+    AND j.backfill IS NULL
 `,
   },
 });

@@ -60,6 +60,10 @@ function NavBar() {
       name: "Failures Classifier",
       href: "/failedjobs/pytorch/pytorch/main",
     },
+    {
+      name: "TorchBench",
+      href: "/torchbench/userbenchmark",
+    },
     // uncomment after some eyeballs are on this
     // {
     //   name: "Testing Overhead",
@@ -79,6 +83,11 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/minihud">
               MiniHUD
+            </Link>
+          </li>
+          <li>
+            <Link prefetch={false} href="/hud/pytorch/executorch/main">
+              ExecuTorch
             </Link>
           </li>
           <li>

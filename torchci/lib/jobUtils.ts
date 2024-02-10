@@ -5,11 +5,14 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
 import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
+import { getAuthors } from "lib/getAuthors";
+import { jaroWinkler } from "jaro-winkler-typescript";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
-export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
+
+export const STRING_SIMILARITY_THRESHOLD = 0.95;
 
 export function isFailedJob(job: JobData) {
   return (
@@ -105,23 +108,140 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
-export function isSameHeadBranch(
-  branchA: string | null | undefined,
-  branchB: string | null | undefined
+export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
+  // This is to handle the infra flaky issue where the log is not available on
+  // S3 and no failure is found
+  const url = `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id}`;
+  const res = await fetch(url, { method: "HEAD" });
+  return res.status !== 404;
+}
+
+export async function backfillMissingLog(
+  owner: string,
+  repo: string,
+  job: RecentWorkflowsData
+): Promise<boolean> {
+  // This creates a mock GitHub workflow_job completion event to reupload the log
+  // to S3 and trigger log classifier. The action is set to backfill to tell the
+  // lambda code that this is a mock event body. Note that backfill is not a GitHub
+  // event actions
+  const body = {
+    action: "backfill",
+    repository: {
+      full_name: `${owner}/${repo}`,
+    },
+    workflow_job: {
+      conclusion: job.conclusion,
+      id: job.id,
+    },
+  };
+  const res = await fetch(
+    "https://jqogootqqe.execute-api.us-east-1.amazonaws.com/default/github-status-test",
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-GitHub-Event": "workflow_job",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return res.status === 200;
+}
+
+export async function isSameAuthor(
+  job: RecentWorkflowsData,
+  failure: RecentWorkflowsData
+): Promise<boolean> {
+  const authors = await getAuthors([job, failure]);
+  // Extract the authors for each job
+  const jobAuthor =
+    job.head_sha in authors
+      ? authors[job.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+  const failureAuthor =
+    failure.head_sha in authors
+      ? authors[failure.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+
+  const isSameEmail =
+    jobAuthor.email !== "" &&
+    failureAuthor.email !== "" &&
+    jobAuthor.email === failureAuthor.email;
+  const isSameCommitUsername =
+    jobAuthor.commit_username !== "" &&
+    failureAuthor.commit_username !== "" &&
+    jobAuthor.commit_username === failureAuthor.commit_username;
+  const isSamePrUsername =
+    jobAuthor.pr_username !== "" &&
+    failureAuthor.pr_username !== "" &&
+    jobAuthor.pr_username === failureAuthor.pr_username;
+
+  // This function exists because we don't want to wrongly count similar failures
+  // from commits of the same author as flaky. Some common cases include:
+  // * ghstack
+  // * Draft commit
+  // * Cherry picking
+  return isSameEmail || isSameCommitUsername || isSamePrUsername;
+}
+
+export async function getPRMergeCommits(
+  job: RecentWorkflowsData
+): Promise<String[]> {
+  // No a PR job
+  if (!job.pr_number) {
+    return [];
+  }
+
+  // Sort by comment ID desc because we don't want to depend on _event_time in
+  // general
+  const query = `
+SELECT
+  merge_commit_sha,
+FROM
+  commons.merges
+WHERE
+  pr_num = :pr_num
+ORDER BY
+  comment_id DESC
+  `;
+
+  const rocksetClient = getRocksetClient();
+  const results = (
+    await rocksetClient.queries.query({
+      sql: {
+        query: query,
+        parameters: [
+          {
+            name: "pr_num",
+            type: "int",
+            value: job.pr_number.toString(),
+          },
+        ],
+      },
+    })
+  ).results;
+
+  // The PR hasn't been merged yet
+  return results !== undefined
+    ? _.map(results, (record) => record.merge_commit_sha)
+    : [];
+}
+
+export function isFailureFromPrevMergeCommit(
+  failure: RecentWorkflowsData,
+  mergeCommits: String[]
 ): boolean {
-  if (!branchA || !branchB) {
+  // Not coming from main, it couldn't be a failure coming from the merge commit
+  if (!failure.head_branch || failure.head_branch !== "main") {
     return false;
   }
 
-  const replaceWith = "";
-  // This function exists because we want to treat all ghstack head branches
-  // as one branch when it comes to finding similar failures. A legit failure
-  // coming from the same job but different commits in the stack shouldn't be
-  // treated as a flaky similar failure
-  const branchANoGhstack = branchA.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
-  const branchBNoGhstack = branchB.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
-
-  return branchANoGhstack === branchBNoGhstack;
+  return _.find(mergeCommits, (commit) => commit === failure.head_sha) !==
+    undefined
+    ? true
+    : false;
 }
 
 export function isSameFailure(
@@ -148,7 +268,43 @@ export function isSameFailure(
 
   return (
     jobA.conclusion === jobB.conclusion &&
-    isEqual(jobA.failure_captures, jobB.failure_captures)
+    isEqual(jobA.failure_captures, jobB.failure_captures) &&
+    isSameContext(jobA, jobB)
+  );
+}
+
+export function isSameContext(
+  jobA: RecentWorkflowsData,
+  jobB: RecentWorkflowsData
+): boolean {
+  const jobAHasFailureContext =
+    jobA.failure_context !== null &&
+    jobA.failure_context !== undefined &&
+    jobA.failure_context.length !== 0;
+  const jobBHasFailureContext =
+    jobB.failure_context !== null &&
+    jobB.failure_context !== undefined &&
+    jobB.failure_context.length !== 0;
+
+  if (!jobAHasFailureContext && !jobBHasFailureContext) {
+    return true;
+  }
+
+  if (!jobAHasFailureContext || !jobBHasFailureContext) {
+    return false;
+  }
+
+  // NB: The failure context is a few experiment feature showing the last
+  // N bash commands before the failure occurs. So, let's check only the
+  // last command for now and see how it goes
+  const jobALastCmd = jobA.failure_context![0] ?? "";
+  const jobBLastCmd = jobB.failure_context![0] ?? "";
+
+  // Use fuzzy string matching here because context commands could vary
+  // slightly, for example, run_test command on different shards
+  return (
+    jaroWinkler(jobALastCmd, jobBLastCmd, { caseSensitive: false }) >=
+    STRING_SIMILARITY_THRESHOLD
   );
 }
 
@@ -210,7 +366,10 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
       }
     }
 
-    if (currentMatch !== undefined && !processedJobName.has(job.name)) {
+    if (
+      currentMatch !== undefined &&
+      !processedJobName.has(currentMatch.name!)
+    ) {
       processedJobName.add(currentMatch.name!);
       filteredJobs.push(currentMatch);
     }

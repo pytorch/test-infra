@@ -42,6 +42,7 @@ import {
   DEFAULT_BRANCHES,
   SPEEDUP_THRESHOLD,
   COMPRESSION_RATIO_THRESHOLD,
+  PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD,
   PASSING_ACCURACY,
   DIFF_HEADER,
   AugmentData,
@@ -68,10 +69,11 @@ const MIN_ENTRIES = 10;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
-const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
+const SPEEDUP_HEADER = `Perf. speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
+const ABS_LATENCY_HEADER = `Abs. execution time (millisecond)`;
 const COMPILATION_LATENCY_HEADER = `Compilation latency (seconds)`;
-const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+const MEMORY_HEADER = `Peak mem compress ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+const PEAK_MEMORY_USAGE_HEADER = `Peak dynamo mem usage (GB)`;
 
 // The number of digit after decimal to display on the detail page
 const SCALE = 4;
@@ -262,6 +264,12 @@ function ModelPanel({
       compression_ratio: {
         l: hasL ? record["l"]["compression_ratio"] : 0,
         r: hasR ? record["r"]["compression_ratio"] : 0,
+      },
+
+      // Peak memory usage
+      dynamo_peak_mem: {
+        l: hasL ? record["l"]["dynamo_peak_mem"] : 0,
+        r: hasR ? record["r"]["dynamo_peak_mem"] : 0,
       },
 
       // Absolute execution time
@@ -618,6 +626,56 @@ function ModelPanel({
                 }
               },
             },
+            {
+              field: "dynamo_peak_mem",
+              headerName: PEAK_MEMORY_USAGE_HEADER,
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined || v.r === 0) {
+                  return "";
+                }
+
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return "";
+                } else {
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
+                    return "";
+                  }
+
+                  // Decreasing more than x%
+                  if (r - l > PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD * r) {
+                    return styles.ok;
+                  }
+
+                  // Increasing more than x%
+                  if (l - r > PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD * r) {
+                    return styles.error;
+                  }
+                }
+
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                const l = Number(v.l).toFixed(2);
+                const r = Number(v.r).toFixed(2);
+
+                if (lCommit === rCommit || l === r || v.r === 0) {
+                  return l;
+                } else {
+                  return `${r} → ${l}`;
+                }
+              },
+            },
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
@@ -747,6 +805,16 @@ function GraphPanel({
     "abs_latency",
     false
   );
+  const peakMemoryUsageTimeSeries = seriesWithInterpolatedTimes(
+    chartData,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "dynamo_peak_mem",
+    false
+  );
 
   return (
     <>
@@ -850,6 +918,31 @@ function GraphPanel({
               }}
             />
           </Grid>
+
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={peakMemoryUsageTimeSeries}
+              title={"Dynamo peak mem usage"}
+              groupByFieldName={groupByFieldName}
+              yAxisLabel={"GB"}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(SCALE)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(SCALE);
+                  },
+                },
+              }}
+            />
+          </Grid>
         </Grid>
       </div>
       <div>
@@ -861,8 +954,9 @@ function GraphPanel({
               <th>Accuracy</th>
               <th>Speedup</th>
               <th>Comptime</th>
-              <th>Memory</th>
+              <th>MemoryCompression</th>
               <th>AbsLatency</th>
+              <th>DynamoPeakMemory</th>
             </tr>
           </thead>
           <tbody>
@@ -886,6 +980,7 @@ function GraphPanel({
                   <td>{entry.compilation_latency}</td>
                   <td>{entry.compression_ratio}</td>
                   <td>{entry.abs_latency}</td>
+                  <td>{entry.dynamo_peak_mem}</td>
                 </tr>
               );
             })}

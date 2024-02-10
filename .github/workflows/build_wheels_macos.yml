@@ -59,13 +59,10 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
-    secrets:
-      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
-        description: "AWS Access Key passed from caller workflow"
-        required: false
-      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
-        description: "AWS Secret Access Ket passed from caller workflow"
-        required: false
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build:
@@ -77,9 +74,9 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -98,12 +95,20 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - name: Set PYTORCH_VERSION
+        if: ${{ env.CHANNEL == 'test' }}
+        run: |
+          # When building RC, set the version to be the current candidate version,
+          # otherwise, leave it alone so nightly will pick up the latest
+          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+          cuda-version: ${{ env.CU_VERSION }}
+          arch: ${{ env.ARCH }}
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
@@ -112,7 +117,7 @@ jobs:
       - name: Install delocate-wheel
         run: |
           set -euxo pipefail
-          ${CONDA_RUN} python3 -m pip install delocate
+          ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
         run: |
           set -euxo pipefail
@@ -154,18 +159,18 @@ jobs:
         run: |
           set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
         with:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Smoke Test
         shell: bash -l {0}
         env:
@@ -198,22 +203,21 @@ jobs:
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           export PATH=${OLD_PATH}
-      - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
-        run: |
-          set -euxo pipefail
-          # shellcheck disable=SC1090
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
-          for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
-          done
+      - name: Clean up disk space
+        if: always()
+        continue-on-error: true
+        uses: ./test-infra/.github/actions/check-disk-space
+
+  upload:
+    needs: build
+    uses: ./.github/workflows/_binary_upload.yml
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      test-infra-repository: ${{ inputs.test-infra-repository }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      trigger-event: ${{ inputs.trigger-event }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

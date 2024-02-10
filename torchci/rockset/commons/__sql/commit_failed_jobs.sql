@@ -5,13 +5,15 @@ SELECT
   j.name AS jobName,
   CONCAT(w.name, ' / ', j.name) AS name,
   j.runner_name AS runnerName,
+  w.head_commit.author.email as authorEmail,
   j.conclusion,
   j.completed_at,
   j.html_url,
   j.head_sha,
   j.head_branch,
   j.torchci_classification.captures AS failure_captures,
-  j.torchci_classification.line AS failure_line,
+  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
+  j.torchci_classification.context AS failure_context,
   j._event_time AS time,
 FROM
   commons.workflow_job j

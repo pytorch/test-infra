@@ -71,7 +71,7 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"Time to Red Signal - (Weekly, 2 week rolling avg)"}
+          title={"Time to Red Signal - (Weekly)"}
           queryName={"ttrs_percentiles"}
           queryCollection={"pytorch_dev_infra_kpis"}
           queryParams={[...timeParams]}
@@ -204,6 +204,19 @@ export default function Kpis() {
           yAxisFieldName={"num_commits"}
           yAxisRenderer={(duration) => duration}
           groupByFieldName={"percentile"}
+        />
+      </Grid>
+
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Total number of open disabled tests (Daily)"}
+          queryName={"disabled_test_historical"}
+          queryCollection={"metrics"}
+          queryParams={[...timeParams]}
+          granularity={"day"}
+          timeFieldName={"granularity_bucket"}
+          yAxisFieldName={"number_of_open_disabled_tests"}
+          yAxisRenderer={(duration) => duration}
         />
       </Grid>
     </Grid>

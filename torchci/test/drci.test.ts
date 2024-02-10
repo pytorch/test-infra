@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import * as drciUtils from "lib/drciUtils";
+import * as jobUtils from "lib/jobUtils";
 
 nock.disableNetConnect();
 
@@ -26,7 +27,8 @@ export const successfulA = {
   head_sha: "abcdefg",
   pr_number: 1000,
   id: "1",
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: ["Doc build successful"],
 };
 
 const pendingA = {
@@ -37,7 +39,8 @@ const pendingA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: [],
   runnerName: "dummy",
 };
 
@@ -49,7 +52,8 @@ const failedA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: ["mind blown", "ha ha"],
   runnerName: "dummy",
 };
 
@@ -73,7 +77,8 @@ const failedAFailedRetry = {
   head_sha: "abcdefg",
   id: "3",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: ["Retired but mind still blown", "ha ha ha"],
   runnerName: "dummy",
 };
 
@@ -85,7 +90,8 @@ const failedB = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: ["cde"],
   runnerName: "dummy",
 };
 
@@ -97,7 +103,8 @@ const failedC = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_lines: ["a"],
+  failure_captures: ["bababa"],
   runnerName: "dummy",
 };
 
@@ -109,6 +116,7 @@ const failedD = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -122,6 +130,7 @@ const failedE = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -135,6 +144,7 @@ const failedF = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -148,6 +158,9 @@ const failedG = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: [
+    "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
+  ],
   failure_captures: [
     "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
   ],
@@ -162,6 +175,9 @@ const failedH = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: [
+    "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+  ],
   failure_captures: [
     "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
   ],
@@ -170,7 +186,7 @@ const failedH = {
 
 // Match with failure line string instead of failure capture array
 const failedI = {
-  name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-12)",
+  name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-stable)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
   html_url: "a",
@@ -178,8 +194,9 @@ const failedI = {
   id: "1",
   pr_number: 1001,
   failure_captures: [],
-  failure_line:
+  failure_lines: [
     "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
+  ],
   runnerName: "dummy",
 };
 
@@ -191,6 +208,7 @@ const unstableA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
 };
@@ -263,6 +281,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   beforeEach(() => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() => Promise.resolve(false));
+
+    const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
+    mockJobUtils.mockImplementation(() => Promise.resolve(true));
   });
 
   afterEach(() => {
@@ -279,6 +300,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedC,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -298,14 +321,19 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
     const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
+    \`mind blown\`
 * [something](hudlink#1) ([gh](a))
-* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))`;
+    \`cde\`
+* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))
+    \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
   });
 
   test("Check that reorganizeWorkflows works correctly", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -319,6 +347,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("Check that getWorkflowJobsStatuses works correctly", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -348,6 +378,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("Make dr ci comment with failures", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -387,6 +419,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test form dr ci comment with sevs", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -423,6 +457,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedASuccessfulRetry,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -453,6 +489,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedAFailedRetry,
     ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -474,6 +512,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
     const originalWorkflows = [failedA, failedB, unstableA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -492,6 +532,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test(" test flaky rule regex", async () => {
     const originalWorkflows = [failedA, failedG, failedH, failedI];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -525,6 +567,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test shard id and suffix in job name are handled correctly", async () => {
     const originalWorkflows = [failedA, failedD, failedF];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -637,6 +681,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test getBaseCommitJobs", async () => {
     const originalWorkflows = [failedA, failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const mock = jest.spyOn(fetchRecentWorkflows, "fetchFailedJobsFromCommits");
@@ -668,6 +714,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const originalWorkflows = [failedA, failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
@@ -676,6 +724,37 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(2);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test jobs excluded from flaky detection", async () => {
+    const excludedFailure = {
+      id: "1",
+      runnerName: "dummy",
+      name: "Lint / lintrunner / linux-job",
+      conclusion: "failure",
+      completed_at: "2023-10-13T15:00:48Z",
+      html_url: "a",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      failure_captures: [">>> Lint for torch/_dynamo/output_graph.py:"],
+      failure_lines: [">>> Lint for torch/_dynamo/output_graph.py:"],
+    };
+
+    const originalWorkflows = [excludedFailure];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
     expect(unstableJobs.length).toBe(0);
   });
 });

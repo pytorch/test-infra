@@ -37,6 +37,7 @@ include_patterns = [
     'stats/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
+    '.github/scripts/*.py',
 ]
 command = [
     'python3',
@@ -241,16 +242,14 @@ init_command = [
 [[linter]]
 code = 'UFMT'
 include_patterns = [
-    '**/*.py',
+    'tools/torchci/**/*.py',
+    '.github/scripts/*.py',
 ]
 command = [
     'python3',
     'tools/linter/adapters/ufmt_linter.py',
     '--',
     '@{{PATHSFILE}}'
-]
-exclude_patterns = [
-    'tools/torchfix/**',
 ]
 init_command = [
     'python3',

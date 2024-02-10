@@ -39,14 +39,15 @@ describe("verify-disable-test-issue", () => {
     title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "Platforms:linux,macos";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
 
     comment = bot.formValidationComment(
       "mock-user",
       false,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
 
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
@@ -60,16 +61,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:win\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(["win"]), new Set()]);
+    expect(platformsToSkip).toMatchObject(["win"]);
+    expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -86,19 +89,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:windows, ROCm, ASAN\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([
-      new Set(["windows", "rocm", "asan"]),
-      new Set(),
-    ]);
+    expect(platformsToSkip).toMatchObject(["asan", "rocm", "windows"]);
+    expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -117,16 +119,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever yay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(), new Set()]);
+    expect(platformsToSkip).toMatchObject([]);
+    expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -143,16 +147,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:everything\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(), new Set(["everything"])]);
+    expect(platformsToSkip).toMatchObject([]);
+    expect(invalidPlatforms).toMatchObject(["everything"]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -175,9 +181,10 @@ describe("verify-disable-test-issue", () => {
       "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)";
     const body = "whatever\nPlatforms:\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(), new Set()]);
+    expect(platformsToSkip).toMatchObject([]);
+    expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual(
       "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)"
     );
@@ -186,7 +193,8 @@ describe("verify-disable-test-issue", () => {
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeTruthy();
@@ -198,16 +206,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName   cuz it borked  ";
     const body = "whatever\nPlatforms:\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(), new Set()]);
+    expect(platformsToSkip).toMatchObject([]);
+    expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();
@@ -219,16 +229,18 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName   cuz it borked  ";
     const body = "whatever\nPlatforms:all of them\nyay";
 
-    const platforms = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
-    expect(platforms).toMatchObject([new Set(), new Set(["all of them"])]);
+    expect(platformsToSkip).toMatchObject([]);
+    expect(invalidPlatforms).toMatchObject(["all of them"]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
     const comment = bot.formValidationComment(
       "mock-user",
       true,
       testName,
-      platforms
+      platformsToSkip,
+      invalidPlatforms
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();

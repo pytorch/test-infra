@@ -84,6 +84,8 @@ venv/
 .installed.cfg
 *.egg
 
+!torchci/lib
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -125,3 +127,5 @@ docs/_build/
 
 # Pyenv
 .python-version
+
+/_logs
