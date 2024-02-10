@@ -136,16 +136,31 @@ export async function updateDrciComments(
     const { id, body } =
       existingDrCiComments.get(pr_info.pr_number) ||
       (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
-    if (id === 0 || body === comment) {
+
+    // The comment is there and remains unchanged, so there is no need to do anything
+    if (body === comment) {
       return;
     }
 
-    await octokit.rest.issues.updateComment({
-      body: comment,
-      owner: OWNER,
-      repo: repo,
-      comment_id: id,
-    });
+    // If the id is 0, it means that the bot has failed to create the comment, so we
+    // are free to create a new one here
+    if (id === 0) {
+      await octokit.rest.issues.createComment({
+        body: comment,
+        owner: OWNER,
+        repo: repo,
+        issue_number: pr_info.pr_number,
+      });
+    }
+    // Otherwise, update the existing comment
+    else {
+      await octokit.rest.issues.updateComment({
+        body: comment,
+        owner: OWNER,
+        repo: repo,
+        comment_id: id,
+      });
+    }
 
     // Also update the check run status. As this is run under pytorch-bot,
     // the check run will show up under that GitHub app

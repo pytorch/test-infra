@@ -91,7 +91,7 @@ export default function JobLinks({
         <ReproductionCommand
           job={job}
           separator={" | "}
-          testName={getTestName(job.failureLines[0] ?? "")}
+          testName={getTestName(job.failureLines[0] ?? "", true)}
         />
       )}
     </span>
@@ -101,14 +101,16 @@ export default function JobLinks({
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
-
-function getTestName(failureCapture: string) {
+function getTestName(failureCapture: string, reproduction: boolean = false) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
     return unittestMatch[1];
   }
   const pytestMatch = failureCapture.match(pytestFailureRe);
   if (pytestMatch !== null) {
+    if (reproduction) {
+      return `python ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
+    }
     return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
   }
   return null;
