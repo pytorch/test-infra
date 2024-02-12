@@ -75,6 +75,12 @@ runner_types:
     is_ephemeral: false
     max_available: 50
     os: linux
+  linux.g4dn.metal.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.metal
+    is_ephemeral: false
+    max_available: 30
+    os: linux
   linux.g5.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.12xlarge

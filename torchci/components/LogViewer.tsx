@@ -176,7 +176,9 @@ function JumpToLineButton({
       >
         <div>
           {isCurrentLine ? "▼ " : "▶ "}
-          <code>{lineText ?? "Show log"}</code>
+          <code onDoubleClick={(e) => e.stopPropagation()}>
+            {lineText ?? "Show log"}
+          </code>
         </div>
       </button>
     </div>
@@ -245,7 +247,7 @@ function Log({
     }
   }, [currentLine, data]);
 
-  return <div ref={viewer}></div>;
+  return <div ref={viewer} onDoubleClick={(e) => e.stopPropagation()}></div>;
 }
 
 function LogWithLineSelector({

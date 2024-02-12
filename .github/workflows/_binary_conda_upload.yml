@@ -51,6 +51,8 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+      - uses: ./test-infra/.github/actions/set-channel
+
       # For pytorch_pkg_helpers which we need to run to generate the artifact name and target S3 buckets
       - uses: ./test-infra/.github/actions/setup-binary-upload
         with:
@@ -59,8 +61,6 @@ jobs:
           python-version: ${{ matrix.python_version }}
           cuda-version: ${{ matrix.desired_cuda }}
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
-
-      - uses: ./test-infra/.github/actions/set-channel
 
       - name: Download the artifact
         uses: actions/download-artifact@v3
