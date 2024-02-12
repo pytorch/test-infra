@@ -96,6 +96,12 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - name: Set PYTORCH_VERSION
+        if: ${{ env.CHANNEL == 'test' }}
+        run: |
+          # When building RC, set the version to be the current candidate version,
+          # otherwise, leave it alone so nightly will pick up the latest
+          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
         with:
@@ -200,6 +206,11 @@ jobs:
             CONSTRAINTS="cpuonly"
           fi
 
+          CONSTRAINT_BUILD=""
+          if [[ "${CHANNEL}" = "test" ]]; then
+            CONSTRAINT_BUILD="=${BUILD_VERSION}"
+          fi
+
           ${CONDA_RUN_SMOKE} conda install \
             --quiet \
             --yes \
@@ -207,7 +218,7 @@ jobs:
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
             -c defaults \
-            "${PACKAGE_NAME}" \
+            "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
             ${CONSTRAINTS} \
             --override-channels
 
