@@ -21,8 +21,6 @@ from typing import Dict, List, Optional, Tuple
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    # TODO (huydhn): 3.12 is only enabled in nightly and test.
-    # Release should be enabled after release is complete.
     "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
@@ -60,7 +58,7 @@ CUDA = "cuda"
 ROCM = "rocm"
 
 
-CURRENT_CANDIDATE_VERSION = "2.2.0"
+CURRENT_CANDIDATE_VERSION = "2.2.1"
 CURRENT_STABLE_VERSION = "2.2.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
