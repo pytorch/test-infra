@@ -343,6 +343,7 @@ function Report({
           <TablePanelWithData
             title={"Metrics"}
             data={metrics}
+            showFooter={true}
             columns={[
               {
                 field: "metadata",

@@ -22,6 +22,8 @@ export default function TablePanel({
   dataGridProps,
   // An optional help link to display in the title
   helpLink,
+  // An optional flag to show the table footer
+  showFooter,
 }: {
   title: string;
   queryCollection?: string;
@@ -30,6 +32,7 @@ export default function TablePanel({
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
+  showFooter?: boolean;
 }) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -46,6 +49,7 @@ export default function TablePanel({
       columns={columns}
       dataGridProps={dataGridProps}
       helpLink={helpLink}
+      showFooter={showFooter}
     />
   );
 }
@@ -61,12 +65,15 @@ export function TablePanelWithData({
   dataGridProps,
   // An optional help link to display in the title
   helpLink,
+  // An optional flag to show the table footer
+  showFooter,
 }: {
   title: string;
   data: any;
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
+  showFooter?: boolean;
 }) {
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -95,6 +102,7 @@ export function TablePanelWithData({
       density={"compact"}
       rows={data}
       columns={columns}
+      hideFooter={!showFooter}
       autoPageSize
       components={{
         Toolbar: Header,
