@@ -308,7 +308,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
     const failureInfo = constructResultsCommentHelper({
       pending,
@@ -355,7 +356,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
 
     expect(pending).toBe(1);
@@ -386,7 +388,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
 
     const failureInfo = constructResultsCommentHelper({
@@ -427,7 +430,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
 
     const failureInfo = constructResultsCommentHelper({
@@ -465,7 +469,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
     const failureInfo = constructResultsCommentHelper({
       pending,
@@ -497,7 +502,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
-      new Map()
+      new Map(),
+      []
     );
     const failureInfo = constructResultsCommentHelper({
       pending,
@@ -521,7 +527,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, [failedA])
+        new Map().set(failedA.name, [failedA]),
+        []
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
@@ -556,7 +563,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
             captures: ["test_torchinductor_opinfo .+ Received signal: SIGSEGV"],
           },
         ],
-        new Map()
+        new Map(),
+        []
       );
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);
@@ -578,7 +586,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
 
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
-      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs, []);
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(2);
     expect(flakyJobs.length).toBe(0);
@@ -700,7 +708,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       await updateDrciBot.getWorkflowJobsStatuses(
         workflowsByPR.get(1001)!,
         [],
-        baseCommitJobs.get(failedA.head_sha)!
+        baseCommitJobs.get(failedA.head_sha)!,
+        []
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(2);
@@ -720,7 +729,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     );
     const pr_1001 = workflowsByPR.get(1001)!;
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
-      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map(), []);
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(2);
@@ -750,7 +759,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const pr_1001 = workflowsByPR.get(1001)!;
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
-      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map(), []);
 
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);

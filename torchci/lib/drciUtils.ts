@@ -45,6 +45,10 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "linux-docs",
   "ghstack-mergeability-check",
 ];
+// Mapping the job to the list of suppressed labels
+export const SUPPRESSED_JOB_BY_LABELS: { [job: string]: string[] } = {
+  bc_linter: ["suppress-bc-linter", "suppress-api-compatibility-check"],
+};
 
 export function formDrciHeader(
   owner: string,
@@ -398,5 +402,41 @@ export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
       (exclude: string) =>
         job.name !== undefined && job.name.toLowerCase().includes(exclude)
     ) !== undefined
+  );
+}
+
+export async function fetchIssueLabels(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<string[]> {
+  const res = await octokit.rest.issues.listLabelsOnIssue({
+    owner: owner,
+    repo: repo,
+    issue_number: issueNumber,
+  });
+
+  if (res.data === undefined || res.data == null) {
+    return [];
+  }
+
+  return _.map(res.data, (label) => label.name);
+}
+
+export function isSuppressedByLabels(
+  job: RecentWorkflowsData,
+  labels: string[]
+): boolean {
+  if (
+    job.jobName === undefined ||
+    job.jobName === null ||
+    !(job.jobName in SUPPRESSED_JOB_BY_LABELS)
+  ) {
+    return false;
+  }
+
+  return (
+    _.intersection(SUPPRESSED_JOB_BY_LABELS[job.jobName], labels).length !== 0
   );
 }

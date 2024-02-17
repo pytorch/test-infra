@@ -17,6 +17,8 @@ import {
   hasSimilarFailures,
   isInfraFlakyJob,
   isLogClassifierFailed,
+  fetchIssueLabels,
+  isSuppressedByLabels,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -99,11 +101,19 @@ export async function updateDrciComments(
     {};
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
+    const labels = await fetchIssueLabels(
+      octokit,
+      pr_info.owner,
+      pr_info.repo,
+      pr_info.pr_number
+    );
+
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
       await getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
-        baseCommitJobs.get(pr_info.merge_base) || new Map()
+        baseCommitJobs.get(pr_info.merge_base) || new Map(),
+        labels || []
       );
 
     failures[pr_info.pr_number] = {
@@ -590,7 +600,8 @@ function isBrokenTrunk(
 export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
-  baseJobs: Map<string, RecentWorkflowsData[]>
+  baseJobs: Map<string, RecentWorkflowsData[]>,
+  labels: string[]
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -615,6 +626,8 @@ export async function getWorkflowJobsStatuses(
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
+      } else if (await isSuppressedByLabels(job, labels)) {
+        flakyJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
         isInfraFlakyJob(job) ||
