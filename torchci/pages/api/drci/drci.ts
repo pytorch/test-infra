@@ -601,7 +601,7 @@ export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>,
-  labels: string[]
+  labels: string[] = []
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -626,7 +626,10 @@ export async function getWorkflowJobsStatuses(
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
-      } else if (await isSuppressedByLabels(job, labels)) {
+      } else if (
+        prInfo.repo === "pytorch" &&
+        (await isSuppressedByLabels(job, labels))
+      ) {
         flakyJobs.push(job);
       } else if (
         isFlaky(job, flakyRules) ||
