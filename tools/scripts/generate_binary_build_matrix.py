@@ -314,7 +314,7 @@ def generate_conda_matrix(
             arches += mod.CUDA_ARCHES
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        python_versions = [python_versions[0], python_versions[-1]]
 
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
@@ -479,7 +479,7 @@ def generate_wheels_matrix(
                 arches += mod.ROCM_ARCHES
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        python_versions = [python_versions[0], python_versions[-1]]
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
