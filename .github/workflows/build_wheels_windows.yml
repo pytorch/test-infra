@@ -199,6 +199,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
