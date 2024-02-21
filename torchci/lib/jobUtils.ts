@@ -12,6 +12,10 @@ export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
 
+export const EXTRACT_REPO_NAME_REGEX = new RegExp(
+  "^.+/github\\.com/(?<repo>.+)/actions/runs/.+$"
+);
+
 export const STRING_SIMILARITY_THRESHOLD = 0.95;
 
 export function isFailedJob(job: JobData) {
@@ -110,8 +114,19 @@ export function removeJobNameSuffix(
 
 export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
   // This is to handle the infra flaky issue where the log is not available on
-  // S3 and no failure is found
-  const url = `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id}`;
+  // S3 and no failure is found.
+  // NB: PyTorch uses the shortcut /log/JOB_ID path while other repos require
+  // the path to be set explicitly, i.e. /log/pytorch/executorch/JOB_ID
+  const m =
+    job.html_url !== undefined
+      ? job.html_url.match(EXTRACT_REPO_NAME_REGEX)
+      : null;
+  // Default to pytorch/pytorch
+  const repo =
+    m !== null && m.groups !== undefined ? m.groups.repo : "pytorch/pytorch";
+  const path = repo === "pytorch/pytorch" ? "/" : `/${repo}/`;
+  const url = `https://ossci-raw-job-status.s3.amazonaws.com/log${path}${job.id}`;
+
   const res = await fetch(url, { method: "HEAD" });
   return res.status !== 404;
 }
