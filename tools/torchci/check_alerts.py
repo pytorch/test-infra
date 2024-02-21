@@ -639,7 +639,7 @@ def parse_args() -> argparse.Namespace:
 def main():
     args = parse_args()
     check_for_recurrently_failing_jobs_alert(
-        args.repo, args.branch, args.job_name_regex, False
+        args.repo, args.branch, args.job_name_regex, args.dry_run
     )
     # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
     if args.with_flaky_test_alert:
