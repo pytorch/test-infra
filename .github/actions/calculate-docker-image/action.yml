@@ -165,11 +165,7 @@ runs:
         IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
 
         # Build new image
-        if [ "${IS_ARC}" = "true" ]; then
-          ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}" ARC
-        else
-          ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
-        fi
+        ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
 
         if [ "${DOCKER_PUSH:-false}" == "true" ]; then
           # Only push if docker image doesn't exist already
