@@ -20,6 +20,9 @@ MAX_CONCURRENT_ALERTS = 1
 FAILED_JOB_PATTERN = (
     r"^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$"
 )
+# Max number of comments on a Github issue is 2500, so we stop early to avoid
+# hitting that limit
+SOFT_COMMENT_THRESHOLD = 2400
 
 PENDING = "pending"
 NEUTRAL = "neutral"
@@ -39,11 +42,8 @@ query ($owner: String!, $name: String!, $labels: [String!]) {
         number
         body
         createdAt
-        comments(first: 100) {
-          nodes {
-            bodyText
-            databaseId
-          }
+        comments(first: 0) {
+          totalCount
         }
       }
     }
@@ -218,6 +218,29 @@ def fetch_alerts_filter(repo: str, branch: str, labels: List[str]) -> List[Any]:
         for alert in alerts
         if f"Recurrently Failing Jobs on {repo} {branch}" in alert["title"]
     ]
+
+
+def close_if_too_many_comments(issue: Dict[str, Any], dry_run: bool) -> bool:
+    """Close the issue if it has too many comments. Return True if the issue was closed."""
+    if not issue["closed"] and issue["comments"]["totalCount"] > SOFT_COMMENT_THRESHOLD:
+        print(f"Closing issue #{issue['number']} due to too many comments")
+        if dry_run:
+            print("NOTE: Dry run, not doing any real work")
+            return True
+        r = requests.post(
+            f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
+            data=json.dumps({"body": "Closing due to too many comments"}),
+            headers=headers,
+        )
+        r.raise_for_status()
+        r = requests.patch(
+            UPDATE_ISSUE_URL + str(issue["number"]),
+            json={"state": "closed"},
+            headers=headers,
+        )
+        r.raise_for_status()
+        return True
+    return False
 
 
 def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str) -> int:
@@ -541,6 +564,11 @@ def check_for_recurrently_failing_jobs_alert(
         print(f"Didn't find anything to alert on for {repo} {branch}")
         clear_alerts(existing_alerts, dry_run=dry_run)
         return
+
+    # If the issue has too many comments, we should close it and open a new one
+    existing_alerts = [
+        x for x in existing_alerts if not close_if_too_many_comments(x, dry_run)
+    ]
 
     if len(existing_alerts) == 0:
         # Generate a blank issue if there are no issues so we can post an update
