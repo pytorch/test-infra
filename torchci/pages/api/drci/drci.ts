@@ -634,7 +634,8 @@ export async function getWorkflowJobsStatuses(
       } else if (
         isFlaky(job, flakyRules) ||
         isInfraFlakyJob(job) ||
-        (await hasSimilarFailures(job, prInfo.merge_base_date))
+        (prInfo.repo === "pytorch" &&
+          (await hasSimilarFailures(job, prInfo.merge_base_date)))
       ) {
         flakyJobs.push(job);
       } else if (await isLogClassifierFailed(job)) {
