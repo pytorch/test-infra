@@ -221,24 +221,25 @@ def fetch_alerts_filter(repo: str, branch: str, labels: List[str]) -> List[Any]:
 
 
 def close_if_too_many_comments(issue: Dict[str, Any], dry_run: bool) -> bool:
-    """Close the issue if it has too many comments. Return True if the issue was closed."""
-    if not issue["closed"] and issue["comments"]["totalCount"] > SOFT_COMMENT_THRESHOLD:
-        print(f"Closing issue #{issue['number']} due to too many comments")
-        if dry_run:
-            print("NOTE: Dry run, not doing any real work")
-            return True
-        r = requests.post(
-            f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
-            data=json.dumps({"body": "Closing due to too many comments"}),
-            headers=headers,
-        )
-        r.raise_for_status()
-        r = requests.patch(
-            UPDATE_ISSUE_URL + str(issue["number"]),
-            json={"state": "closed"},
-            headers=headers,
-        )
-        r.raise_for_status()
+    """Close the issue if it has too many comments. Return True if there are too many comments."""
+    if issue["comments"]["totalCount"] > SOFT_COMMENT_THRESHOLD:
+        if not issue["closed"]:
+            print(f"Closing issue #{issue['number']} due to too many comments")
+            if dry_run:
+                print("NOTE: Dry run, not doing any real work")
+                return True
+            r = requests.post(
+                f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
+                data=json.dumps({"body": "Closing due to too many comments"}),
+                headers=headers,
+            )
+            r.raise_for_status()
+            r = requests.patch(
+                UPDATE_ISSUE_URL + str(issue["number"]),
+                json={"state": "closed"},
+                headers=headers,
+            )
+            r.raise_for_status()
         return True
     return False
 
@@ -638,7 +639,7 @@ def parse_args() -> argparse.Namespace:
 def main():
     args = parse_args()
     check_for_recurrently_failing_jobs_alert(
-        args.repo, args.branch, args.job_name_regex, args.dry_run
+        args.repo, args.branch, args.job_name_regex, False
     )
     # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
     if args.with_flaky_test_alert:
