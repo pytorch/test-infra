@@ -4,8 +4,9 @@ import gzip
 import json
 import os
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import urlopen
 from uuid import uuid4
+import requests
 
 import boto3
 
@@ -24,8 +25,8 @@ def download_log(full_name, conclusion, job_id):
         "Accept": "application/vnd.github.v3+json",
         "Authorization": f"token {GITHUB_TOKEN}",
     }
-    with urlopen(Request(url, headers=headers)) as data:
-        log_data = data.read()
+    r = requests.get(url, headers=headers)
+    log_data = r.text
 
     object_path = f"log/{job_id}"
     if full_name != "pytorch/pytorch":
