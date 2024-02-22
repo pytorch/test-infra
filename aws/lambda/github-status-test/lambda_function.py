@@ -26,7 +26,7 @@ def download_log(full_name, conclusion, job_id):
         "Authorization": f"token {GITHUB_TOKEN}",
     }
     r = requests.get(url, headers=headers)
-    log_data = r.text
+    log_data = r.content
 
     object_path = f"log/{job_id}"
     if full_name != "pytorch/pytorch":
