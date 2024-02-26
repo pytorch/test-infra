@@ -48,7 +48,7 @@ jobs:
       script: |
         conda create --yes --quiet -n test python=3.8
         conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
         python3 -c 'import torch'
   test-gpu:
@@ -57,24 +57,24 @@ jobs:
       matrix:
         runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
     with:
-      job-name: "linux-py3.8-cu116"
+      job-name: "linux-py3.8-cu121"
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: ${{ 'true' }}
       gpu-arch-type: cuda
-      gpu-arch-version: "11.6"
+      gpu-arch-version: "12.1"
       timeout: 60
       script: |
         conda create --yes --quiet -n test python=3.8
         conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
         # Can import pytorch, cuda is available
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
         nvidia-smi
-        nvcc --version | grep "cuda_11.6"
-        [[ "${CUDA_HOME}" == "/usr/local/cuda-11.6" ]] || exit 1
+        nvcc --version | grep "cuda_12.1"
+        [[ "${CUDA_HOME}" == "/usr/local/cuda-12.1" ]] || exit 1
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
