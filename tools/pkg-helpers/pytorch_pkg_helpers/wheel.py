@@ -24,7 +24,7 @@ def get_pytorch_pip_install_command(
     if channel == "nightly":
         pip_install += " --pre"
     extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
-    return [f"export PIP_INSTALL_TORCH='{pip_install} --extra-index-url {extra_index}'"]
+    return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index}'"]
 
 
 def get_pytorch_s3_bucket_path(
