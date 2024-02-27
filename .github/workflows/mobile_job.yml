@@ -1,62 +1,6 @@
 name: Run mobile tests on devices
 
 on:
-  workflow_dispatch:
-    inputs:
-      job-name:
-        description: Name for the job, which is displayed in the GitHub UI
-        default: mobile-job
-        type: string
-      device-type:
-        description: The type of devices to test against
-        type: choice
-        options:
-          - ios
-      timeout:
-        description: Timeout for the job (in minutes)
-        required: false
-        default: 60
-        type: string
-      runner:
-        description: The runner to run the test on
-        type: choice
-        options:
-          - macos-latest
-      python-version:
-        description: Set the python version used in the job
-        required: false
-        type: string
-        default: '3.11'
-
-      # AWS Device Farm, this can be copied from AWS console and it's default to
-      # PyTorch project
-      project-arn:
-        description: The AWS Device Farm project where the test runs
-        default: 'arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0'
-        type: string
-
-      # Pulling test-infra itself for device farm runner script
-      test-infra-repository:
-        description: Test infra repository to use
-        default: 'pytorch/test-infra'
-        type: string
-      test-infra-ref:
-        description: Test infra reference to use
-        default: main
-        type: string
-
-      # iOS-specific inputs
-      ios-ipa-archive:
-        description: The link to the iOS app IPA archive to run the tests
-        required: false
-        type: string
-        default: ''
-      ios-xctest-zip:
-        description: The link to the iOS test suite itself
-        required: false
-        type: string
-        default: ''
-
   workflow_call:
     inputs:
       job-name:
@@ -64,7 +8,7 @@ on:
         default: mobile-job
         type: string
       device-type:
-        description: The type of devices to test against
+        description: The type of device (iOS or Android) to test against
         type: string
       runner:
         description: The runner to run the test on

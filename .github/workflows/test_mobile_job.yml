@@ -8,9 +8,11 @@ on:
       - tools/device-farm-runner/**
   workflow_dispatch:
 
-
 jobs:
   test-mobile-job:
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/mobile_job.yml
     with:
       device-type: ios
