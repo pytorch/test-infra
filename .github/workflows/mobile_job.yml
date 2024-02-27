@@ -17,11 +17,6 @@ on:
         type: choice
         options:
           - macos-latest
-      timeout:
-        description: Timeout for the job (in minutes)
-        required: false
-        default: 30
-        type: number
       python-version:
         description: Set the python version used in the job
         required: false
@@ -60,18 +55,14 @@ on:
         type: string
       device-type:
         description: The type of devices to test against
-        type: choice
-        options:
-          - ios
+        type: string
       runner:
         description: The runner to run the test on
-        type: choice
-        options:
-          - macos-latest
+        type: string
       timeout:
         description: Timeout for the job (in minutes)
         required: false
-        default: 30
+        default: 60
         type: number
       python-version:
         description: Set the python version used in the job
@@ -93,7 +84,7 @@ on:
         type: string
       test-infra-ref:
         description: Test infra reference to use
-        default: main
+        default: ''
         type: string
 
       # iOS-specific inputs
