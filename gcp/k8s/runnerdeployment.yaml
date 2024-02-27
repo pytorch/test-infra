@@ -1,0 +1,80 @@
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: gha-gcp-a100-runner
+spec:
+  template:
+    spec:
+#       image: summerwind/actions-runner-dind
+      image: xzhao9/gcp-a100-runner-dind
+      dockerdWithinRunnerContainer: true
+      env: []
+      repository: xuzhao9/benchmark
+      labels:
+        - a100-runner
+      volumes:
+        - name: nvidia-lib
+          hostPath:
+            path: /home/kubernetes/bin/nvidia/lib64
+            type: Directory
+        - name: nvidia-bin
+          hostPath:
+            path: /home/kubernetes/bin/nvidia/bin
+            type: Directory
+        - name: nvidia-card
+          hostPath:
+            path: /dev/nvidia0
+            type: CharDevice
+        - name: nvidia-uvm
+          hostPath:
+            path: /dev/nvidia-uvm
+            type: CharDevice
+        - name: nvidia-ctl
+          hostPath:
+            path: /dev/nvidiactl
+            type: CharDevice
+        - name: dshm
+          emptyDir:
+            medium: Memory
+      volumeMounts:
+        - mountPath: /usr/local/nvidia/lib64
+          name: nvidia-lib
+        - mountPath: /usr/local/nvidia/bin
+          name: nvidia-bin
+        - mountPath: /dev/nvidia0
+          name: nvidia-card
+        - mountPath: /dev/nvidia-uvm
+          name: nvidia-uvm
+        - mountPath: /dev/nvidiactl
+          name: nvidia-ctl
+        - mountPath: /dev/shm
+          name: dshm
+      resources:
+        limits:
+          nvidia.com/gpu: 1 # requesting 1 GPU
+---
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: gha-gcp-a100-autoscaler
+spec:
+  minReplicas: 0
+  maxReplicas: 5
+  # Runners in the targeted RunnerDeployment won't be scaled down
+  # for 5 minutes instead of the default 10 minutes now
+  scaleDownDelaySecondsAfterScaleOut: 300
+  scaleTargetRef:
+    kind: RunnerDeployment
+    # # In case the scale target is RunnerSet:
+    # kind: RunnerSet
+    name: gha-gcp-a100-runner
+  # use pull-based scaling trigger
+  metrics:
+    - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
+      repositoryNames:
+      - benchmark
+  # use webhook based scaling trigger
+  # scaleUpTriggers:
+  #   - githubEvent:
+  #       workflowJob: {}
+  #     duration: "10m"
