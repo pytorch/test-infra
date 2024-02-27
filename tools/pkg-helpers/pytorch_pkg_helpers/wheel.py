@@ -1,11 +1,11 @@
 from typing import List
-
+from packaging import version
 
 def get_python_path_variables(python_version: str) -> List[str]:
     m = ""
     # For some reason python versions <= 3.7 require an m
     # probably better not to ask why
-    if float(python_version) <= 3.7:
+    if version.parse(python_version) <= version.parse(3.7):
         m = "m"
     python_nodot = python_version.replace(".", "")
     python_abi = f"cp{python_nodot}-cp{python_nodot}{m}"
