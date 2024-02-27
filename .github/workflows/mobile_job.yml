@@ -110,8 +110,9 @@ jobs:
             exit 1
           fi
 
+          # NP: The suffix needs to be exact, otherwise, AWS will reject them
           wget -q "${IPA_ARCHIVE}" -O ci.ipa
-          wget -q "${XCTEST_ZIP}" -O ci.xctest
+          wget -q "${XCTEST_ZIP}" -O ci.xctest.zip
 
           # Print the artifacts for debugging
           ls -lah ci.ipa ci.xctest
