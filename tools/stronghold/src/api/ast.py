@@ -83,8 +83,8 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     ]
     return api.Parameters(
         parameters=params,
-        variadic_args=args.vararg is not None,
-        variadic_kwargs=args.kwarg is not None,
+        variadic_args=args.vararg.lineno if args.vararg is not None else None,
+        variadic_kwargs=args.kwarg.lineno if args.kwarg is not None else None,
         line=node.lineno,
     )
 
