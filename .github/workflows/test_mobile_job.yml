@@ -10,7 +10,7 @@ on:
 
 
 jobs:
-  test-secrets-no-filter-var:
+  test-mobile-job:
     uses: ./.github/workflows/mobile_job.yml
     with:
       device-type: ios

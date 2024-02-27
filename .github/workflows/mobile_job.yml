@@ -109,6 +109,9 @@ jobs:
     name: ${{ inputs.job-name }} (${{ inputs.device-type }})
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout }}
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Clean workspace
         run: |
