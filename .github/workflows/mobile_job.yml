@@ -43,10 +43,14 @@ on:
       # iOS-specific inputs
       ios-ipa-archive:
         description: The link to the iOS app IPA archive to run the tests
+        required: false
         type: string
+        default: ''
       ios-xctest-zip:
         description: The link to the iOS test suite itself
+        required: false
         type: string
+        default: ''
 
   workflow_call:
     inputs:
@@ -91,9 +95,14 @@ on:
       # iOS-specific inputs
       ios-ipa-archive:
         description: The link to the iOS app IPA archive to run the tests
+        required: false
         type: string
+        default: ''
       ios-xctest-zip:
         description: The link to the iOS test suite itself
+        required: false
+        type: string
+        default: ''
 
 jobs:
   job:
