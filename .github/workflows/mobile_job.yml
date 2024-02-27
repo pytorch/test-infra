@@ -46,6 +46,7 @@ on:
         type: string
       ios-xctest-zip:
         description: The link to the iOS test suite itself
+        type: string
 
   workflow_call:
     inputs:
