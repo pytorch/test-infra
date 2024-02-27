@@ -12,6 +12,11 @@ on:
         type: choice
         options:
           - ios
+      timeout:
+        description: Timeout for the job (in minutes)
+        required: false
+        default: 60
+        type: string
       runner:
         description: The runner to run the test on
         type: choice
