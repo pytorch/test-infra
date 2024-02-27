@@ -1,0 +1,184 @@
+name: Run mobile tests on devices
+
+on:
+  workflow_dispatch:
+    inputs:
+      job-name:
+        description: Name for the job, which is displayed in the GitHub UI
+        default: mobile-job
+        type: string
+      device-type:
+        description: The type of devices to test against
+        type: choice
+        options:
+          - ios
+      runner:
+        description: The runner to run the test on
+        type: choice
+        options:
+          - macos-latest
+      timeout:
+        description: Timeout for the job (in minutes)
+        required: false
+        default: 30
+        type: number
+      python-version:
+        description: Set the python version used in the job
+        required: false
+        type: string
+        default: '3.11'
+
+      # AWS Device Farm, this can be copied from AWS console and it's default to
+      # PyTorch project
+      project-arn:
+        description: The AWS Device Farm project where the test runs
+        default: 'arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0'
+        type: string
+
+      # Pulling test-infra itself for device farm runner script
+      test-infra-repository:
+        description: Test infra repository to use
+        default: 'pytorch/test-infra'
+        type: string
+      test-infra-ref:
+        description: Test infra reference to use
+        default: main
+        type: string
+
+      # iOS-specific inputs
+      ios-ipa-archive:
+        description: The link to the iOS app IPA archive to run the tests
+        type: string
+      ios-xctest-zip:
+        description: The link to the iOS test suite itself
+
+  workflow_call:
+    inputs:
+      job-name:
+        description: Name for the job, which is displayed in the GitHub UI
+        default: mobile-job
+        type: string
+      device-type:
+        description: The type of devices to test against
+        type: choice
+        options:
+          - ios
+      runner:
+        description: The runner to run the test on
+        type: choice
+        options:
+          - macos-latest
+      timeout:
+        description: Timeout for the job (in minutes)
+        required: false
+        default: 30
+        type: number
+      python-version:
+        description: Set the python version used in the job
+        required: false
+        type: string
+        default: '3.11'
+
+      # AWS Device Farm, this can be copied from AWS console and it's default to
+      # PyTorch project
+      project-arn:
+        description: The AWS Device Farm project where the test runs
+        default: 'arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0'
+        type: string
+
+      # Pulling test-infra itself for device farm runner script
+      test-infra-repository:
+        description: Test infra repository to use
+        default: 'pytorch/test-infra'
+        type: string
+      test-infra-ref:
+        description: Test infra reference to use
+        default: main
+        type: string
+
+      # iOS-specific inputs
+      ios-ipa-archive:
+        description: The link to the iOS app IPA archive to run the tests
+        type: string
+      ios-xctest-zip:
+        description: The link to the iOS test suite itself
+
+jobs:
+  job:
+    name: ${{ inputs.job-name }} (${{ inputs.device-type }})
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout }}
+    steps:
+      - name: Clean workspace
+        run: |
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
+
+      - name: Authenticate with AWS
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          # TODO: Replace with an actual role from pytorch-gha-infra
+          role-to-assume: arn:aws:iam::308535385114:role/DEBUG-DEVICE-FARM-ROLE
+          aws-region: us-east-1
+
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - name: Setup miniconda
+        uses: ./test-infra/.github/actions/setup-miniconda
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install pip dependencies
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        run: |
+          ${CONDA_RUN} pip install -r requirements.txt
+
+      # NB: GitHub artifacts work too, but we use S3 for now to make it easier to test the workflow
+      - name: Download iOS artifacts
+        if: ${{ inputs.device-type == 'ios' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          IPA_ARCHIVE: ${{ inputs.ios-ipa-archive }}
+          XCTEST_ZIP: ${{ inputs.ios-xctest-zip }}
+        run: |
+          set -ex
+
+          if [ -z "${IPA_ARCHIVE}" ] || [ -z "${XCTEST_ZIP}" ]; then
+            echo "Missing IPA archive or xctest zip"
+            exit 1
+          fi
+
+          wget -q "${IPA_ARCHIVE}" -O ci.ipa
+          wget -q "${XCTEST_ZIP}" -O ci.xctest
+
+          # Print the artifacts for debugging
+          ls -lah ci.ipa ci.xctest
+
+      - name: Run iOS tests on devices
+        if: ${{ inputs.device-type == 'ios' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          PROJECT_ARN: ${{ inputs.project-arn }}
+          # For record keeping
+          JOB_NAME: ${{ inputs.job-name }}
+          DEVICE_TYPE: ${{ inputs.device-type }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -ex
+
+          ${CONDA_RUN} python run_on_aws_devicefarm.py \
+            --project-arn "${PROJECT_ARN}" \
+            --app-file ci.ipa \
+            --xctest-file ci.xctest \
+            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}-${RUN_ID}-${RUN_ATTEMPT}"
