@@ -109,7 +109,8 @@ def upload_file(
 def main() -> None:
     args = parse_args()
 
-    client = boto3.client("devicefarm")
+    # NB: Device Farm is only available in us-west-2 region atm
+    client = boto3.client("devicefarm", region_name="us-west-2")
     unique_prefix = f"{args.name_prefix}-{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
 
     # Upload the test app
