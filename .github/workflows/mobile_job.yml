@@ -134,5 +134,5 @@ jobs:
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --app-file ci.ipa \
-            --xctest-file ci.xctest \
+            --xctest-file ci.xctest.zip \
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}-${RUN_ID}-${RUN_ATTEMPT}"
