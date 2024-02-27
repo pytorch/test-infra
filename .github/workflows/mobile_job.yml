@@ -115,7 +115,7 @@ jobs:
           wget -q "${XCTEST_ZIP}" -O ci.xctest.zip
 
           # Print the artifacts for debugging
-          ls -lah ci.ipa ci.xctest
+          ls -lah ci.ipa ci.xctest.zip
 
       - name: Run iOS tests on devices
         if: ${{ inputs.device-type == 'ios' }}
