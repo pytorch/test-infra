@@ -20,7 +20,7 @@ def get_pytorch_pip_install_command(
     torch_pkg = "torch"
     if pytorch_version != "":
         torch_pkg += f"=={pytorch_version}"
-    pip_install = f"pip install -v {torch_pkg}"
+    pip_install = f"pip3 install {torch_pkg}"
     if channel == "nightly":
         pip_install += " --pre"
     extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
