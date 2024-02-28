@@ -43,12 +43,12 @@ on:
 
       # iOS-specific inputs
       ios-ipa-archive:
-        description: The link to the iOS app IPA archive to run the tests
+        description: The name of the iOS app IPA archive to run the tests
         required: false
         type: string
         default: ''
       ios-xctest-zip:
-        description: The link to the iOS test suite itself
+        description: The name of the iOS test suite itself
         required: false
         type: string
         default: ''
@@ -93,8 +93,21 @@ jobs:
         run: |
           ${CONDA_RUN} pip install -r requirements.txt
 
-      # NB: GitHub artifacts work too, but we use S3 for now to make it easier to test the workflow
-      - name: Download iOS artifacts
+      - name: Download iOS app
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-ipa-archive != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.ios-ipa-archive }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Download iOS test suite
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-xctest-zip != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.ios-xctest-zip }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Verify iOS artifacts
         if: ${{ inputs.device-type == 'ios' }}
         shell: bash
         working-directory: test-infra/tools/device-farm-runner
@@ -110,10 +123,10 @@ jobs:
           fi
 
           # NP: The suffix needs to be exact, otherwise, AWS will reject them
-          wget -q "${IPA_ARCHIVE}" -O ci.ipa
-          wget -q "${XCTEST_ZIP}" -O ci.xctest.zip
+          mv "${IPA_ARCHIVE}" ci.ipa
+          mv "${XCTEST_ZIP}" ci.xctest.zip
 
-          # Print the artifacts for debugging
+          # Print the artifacts to manually verify them if needed
           ls -lah ci.ipa ci.xctest.zip
 
       - name: Run iOS tests on devices
