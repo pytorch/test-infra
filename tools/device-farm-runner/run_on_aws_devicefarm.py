@@ -328,7 +328,7 @@ def main() -> None:
             client, r.get("run"), ReportType.RUN, workflow_id, workflow_attempt
         )
 
-    if not result or result == "FAILED":
+    if not is_success(result):
         sys.exit(1)
 
 
