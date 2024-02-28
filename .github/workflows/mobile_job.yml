@@ -16,7 +16,7 @@ on:
       timeout:
         description: Timeout for the job (in minutes)
         required: false
-        default: 120
+        default: 60
         type: number
       python-version:
         description: Set the python version used in the job
@@ -135,4 +135,6 @@ jobs:
             --project-arn "${PROJECT_ARN}" \
             --app-file ci.ipa \
             --xctest-file ci.xctest.zip \
-            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}-${RUN_ID}-${RUN_ATTEMPT}"
+            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+            --workflow-id "${RUN_ID}" \
+            --workflow-attempt "${RUN_ATTEMPT}"
