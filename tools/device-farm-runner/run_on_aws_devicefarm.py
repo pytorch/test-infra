@@ -19,11 +19,11 @@ import requests
 POLLING_DELAY_IN_SECOND = 5
 MAX_UPLOAD_WAIT_IN_SECOND = 600
 
+AWS_REGION = "us-west-2"
 # NB: This is the curated top devices from AWS. We could create our own device
 # pool if we want to
-DEFAULT_DEVICE_POOL_ARN = (
-    "arn:aws:devicefarm:us-west-2::devicepool:082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
-)
+AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
+DEFAULT_DEVICE_POOL_ARN = f"arn:aws:devicefarm:{AWS_REGION}::devicepool:{AWS_GUID}"
 
 
 # Device Farm report type
@@ -110,9 +110,10 @@ def upload_file(
         if not r.ok:
             raise Exception(f"Couldn't upload {filename}: {r.reason}")
 
+    status = ""
     start_time = datetime.datetime.now()
     # Polling AWS till the uploaded file is ready
-    while True:
+    while status != "SUCCEEDED":
         waiting_time = datetime.datetime.now() - start_time
         if waiting_time > datetime.timedelta(seconds=MAX_UPLOAD_WAIT_IN_SECOND):
             raise Exception(
@@ -126,16 +127,13 @@ def upload_file(
 
         if status == "FAILED":
             raise Exception(f"Couldn't upload {filename}: {r}")
-        if status == "SUCCEEDED":
-            break
-
         time.sleep(POLLING_DELAY_IN_SECOND)
 
     return upload_arn
 
 
 def is_success(result: Optional[str]) -> bool:
-    return bool(result and result == "PASSED")
+    return result == "PASSED"
 
 
 def download_artifact(artifact_url: str, local_filename: str) -> str:
@@ -268,7 +266,7 @@ def main() -> None:
     workflow_attempt = args.workflow_attempt
 
     # NB: Device Farm is only available in us-west-2 region atm
-    client = boto3.client("devicefarm", region_name="us-west-2")
+    client = boto3.client("devicefarm", region_name=AWS_REGION)
     unique_prefix = (
         f"{name_prefix}-{workflow_id}-{workflow_attempt}-"
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
