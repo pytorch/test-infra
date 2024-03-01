@@ -1,0 +1,152 @@
+name: Run mobile tests on devices
+
+on:
+  workflow_call:
+    inputs:
+      job-name:
+        description: Name for the job, which is displayed in the GitHub UI
+        default: mobile-job
+        type: string
+      device-type:
+        description: The type of device (iOS or Android) to test against
+        type: string
+      runner:
+        description: The runner to run the test on
+        type: string
+      timeout:
+        description: Timeout for the job (in minutes)
+        required: false
+        default: 60
+        type: number
+      python-version:
+        description: Set the python version used in the job
+        required: false
+        type: string
+        default: '3.11'
+
+      # AWS Device Farm, this can be copied from AWS console and it's default to
+      # PyTorch project
+      project-arn:
+        description: The AWS Device Farm project where the test runs
+        default: 'arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0'
+        type: string
+
+      # Pulling test-infra itself for device farm runner script
+      test-infra-repository:
+        description: Test infra repository to use
+        default: 'pytorch/test-infra'
+        type: string
+      test-infra-ref:
+        description: Test infra reference to use
+        default: ''
+        type: string
+
+      # iOS-specific inputs
+      ios-ipa-archive:
+        description: The name of the iOS app IPA archive to run the tests
+        required: false
+        type: string
+        default: ''
+      ios-xctest-zip:
+        description: The name of the iOS test suite itself
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  job:
+    name: ${{ inputs.job-name }} (${{ inputs.device-type }})
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Clean workspace
+        run: |
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
+
+      - name: Authenticate with AWS
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_mobile_job
+          aws-region: us-east-1
+
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - name: Setup miniconda
+        uses: ./test-infra/.github/actions/setup-miniconda
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install pip dependencies
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        run: |
+          ${CONDA_RUN} pip install -r requirements.txt
+
+      - name: Download iOS app
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-ipa-archive != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.ios-ipa-archive }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Download iOS test suite
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-xctest-zip != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.ios-xctest-zip }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Verify iOS artifacts
+        if: ${{ inputs.device-type == 'ios' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          IPA_ARCHIVE: ${{ inputs.ios-ipa-archive }}
+          XCTEST_ZIP: ${{ inputs.ios-xctest-zip }}
+        run: |
+          set -ex
+
+          if [ -z "${IPA_ARCHIVE}" ] || [ -z "${XCTEST_ZIP}" ]; then
+            echo "Missing IPA archive or xctest zip"
+            exit 1
+          fi
+
+          # NP: The suffix needs to be exact, otherwise, AWS will reject them
+          mv "${IPA_ARCHIVE}" ci.ipa
+          mv "${XCTEST_ZIP}" ci.xctest.zip
+
+          # Print the artifacts to manually verify them if needed
+          ls -lah ci.ipa ci.xctest.zip
+
+      - name: Run iOS tests on devices
+        if: ${{ inputs.device-type == 'ios' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          PROJECT_ARN: ${{ inputs.project-arn }}
+          # For record keeping
+          JOB_NAME: ${{ inputs.job-name }}
+          DEVICE_TYPE: ${{ inputs.device-type }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -ex
+
+          ${CONDA_RUN} python run_on_aws_devicefarm.py \
+            --project-arn "${PROJECT_ARN}" \
+            --app-file ci.ipa \
+            --xctest-file ci.xctest.zip \
+            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+            --workflow-id "${RUN_ID}" \
+            --workflow-attempt "${RUN_ATTEMPT}"
