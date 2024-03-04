@@ -59,3 +59,18 @@ runnerConfig:
     scaleUpFactor: 1.20
     scaleUpThreshold: 0.80
     containerMode: k8s
+  - cpu: 4.0
+    isEphemeral: true
+    maxRunners: 150
+    memory: 16Gi
+    minRunners: 1
+    nodeType: compute-gpu
+    partDocker: 20Gi
+    partTmp: 50Gi
+    partWork: 150Gi
+    runnerLabel: linux-gpu.large.arc
+    scaleDownFactor: 0.80
+    scaleDownThreshold: 0.60
+    scaleUpFactor: 1.20
+    scaleUpThreshold: 0.80
+    containerMode: dind-rootless
