@@ -1876,6 +1876,7 @@ export function AugmentData(data: CompilerPerformanceData[]) {
         "llama",
         "llama_v2_7b_16h",
         "sam",
+        "sam_fast",
         "clip",
         "stable_diffusion_text_encoder",
         "hf_Whisper",
