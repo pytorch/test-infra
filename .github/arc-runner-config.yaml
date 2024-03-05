@@ -13,22 +13,7 @@ runnerConfig:
     scaleDownThreshold: 0.60
     scaleUpFactor: 1.20
     scaleUpThreshold: 0.80
-    containerMode: dind
-  - cpu: 8.0
-    isEphemeral: true
-    maxRunners: 150
-    memory: 32Gi
-    minRunners: 1
-    nodeType: compute-amd64
-    partDocker: 20Gi
-    partTmp: 50Gi
-    partWork: 150Gi
-    runnerLabel: linux.2xlarge.arc
-    scaleDownFactor: 0.80
-    scaleDownThreshold: 0.60
-    scaleUpFactor: 1.20
-    scaleUpThreshold: 0.80
-    containerMode: dind
+    containerMode: dind-rootless
   - cpu: 8.0
     isEphemeral: true
     maxRunners: 150
@@ -44,21 +29,6 @@ runnerConfig:
     scaleUpFactor: 1.20
     scaleUpThreshold: 0.80
     containerMode: dind-rootless
-  - cpu: 8.0
-    isEphemeral: true
-    maxRunners: 150
-    memory: 32Gi
-    minRunners: 1
-    nodeType: compute-amd64
-    partDocker: 20Gi
-    partTmp: 50Gi
-    partWork: 150Gi
-    runnerLabel: linux.2xlarge.arc-k8s
-    scaleDownFactor: 0.80
-    scaleDownThreshold: 0.60
-    scaleUpFactor: 1.20
-    scaleUpThreshold: 0.80
-    containerMode: k8s
   - cpu: 4.0
     isEphemeral: true
     maxRunners: 150
