@@ -97,7 +97,6 @@ on:
         type: boolean
 jobs:
   job:
-    environment: ${{ 'pytorchbot-env' }}
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
