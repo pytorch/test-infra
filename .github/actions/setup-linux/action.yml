@@ -31,6 +31,7 @@ runs:
         fi
 
     - name: Log in to ECR
+      if: false
       shell: bash
       env:
         AWS_RETRY_MODE: standard
