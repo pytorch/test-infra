@@ -96,10 +96,6 @@ on:
         default: false
         type: boolean
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -120,6 +116,11 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Configure aws credentials (pytorch account)
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
+          aws-region: us-east-1
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -148,12 +149,6 @@ jobs:
           # relies on submodules. Clone them by default to avoid
           # surprises.
           submodules: 'recursive'
-
-      - name: Configure aws credentials (pytorch account)
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
-          aws-region: us-east-1
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux

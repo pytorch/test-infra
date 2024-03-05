@@ -9,10 +9,6 @@ on:
       - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   test-secrets-no-filter-var:
     uses: ./.github/workflows/linux_job.yml
@@ -41,6 +37,9 @@ jobs:
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-gh-gpu:
     uses: ./.github/workflows/linux_gh_job.yml
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       matrix:
         runner_type: ["4-core-ubuntu-gpu-t4"]
