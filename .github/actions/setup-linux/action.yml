@@ -6,6 +6,7 @@ runs:
   using: composite
   steps:
     - name: Display EC2 information
+      if: false
       shell: bash
       run: |
         set -euo pipefail
