@@ -42,7 +42,7 @@ jobs:
       contents: read
     with:
       job-name: "linux-py3.8-cu121"
-      runner: ubuntu-22.04
+      runner: 4-core-ubuntu-gpu-t4
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: ${{ 'true' }}
