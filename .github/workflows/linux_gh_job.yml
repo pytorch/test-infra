@@ -96,9 +96,7 @@ on:
         default: false
         type: boolean
 
-permissions:
-  id-token: write
-  contents: read
+
 
 jobs:
   job:
@@ -114,6 +112,9 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
+    permissions:
+      id-token: write
+      contents: read
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
     #       user in a container will make it so that the directories will need to be chowned to the
