@@ -88,7 +88,7 @@ runs:
 
                   if [ "$HAS_NVIDIA_DRIVER" -eq 0 ]; then
                       # CAUTION: this may need to be updated in future
-                      if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
+                      if [ "${DISTRIBUTION}" != ubuntu20.04 && "${DISTRIBUTION}" != ubuntu22.04 ]; then
                             sudo yum groupinstall -y "Development Tools"
                             # ensure our kernel install is the same as our underlying kernel,
                             # groupinstall "Development Tools" has a habit of mismatching kernel headers
@@ -233,6 +233,9 @@ runs:
                   install_nvidia_docker2_amzn2
                   ;;
               ubuntu20.04)
+                  install_nvidia_docker2_ubuntu20
+                  ;;
+              ubuntu22.04)
                   install_nvidia_docker2_ubuntu20
                   ;;
               *)
