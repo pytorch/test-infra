@@ -79,7 +79,7 @@ runs:
         echo "does=${needs}" >> $GITHUB_OUTPUT
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      uses: pytorch/test-infra/.github/actions/setup-nvidia@main
+      uses: ../setup-nvidia
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
 
     - name: Kill any existing containers, clean up images
