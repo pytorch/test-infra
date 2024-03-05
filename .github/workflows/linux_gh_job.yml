@@ -99,6 +99,10 @@ on:
 jobs:
   job:
     name: ${{ inputs.job-name }}
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      id-token: write
+      contents: read
     env:
       DOCKER_IMAGE: >-
         ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
@@ -109,10 +113,6 @@ jobs:
       # Will be blank outside of this
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
-    runs-on: ${{ inputs.runner }}
-    permissions:
-      id-token: write
-      contents: read
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
     #       user in a container will make it so that the directories will need to be chowned to the

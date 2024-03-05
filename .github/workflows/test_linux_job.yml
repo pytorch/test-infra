@@ -42,7 +42,7 @@ jobs:
       contents: read
     with:
       job-name: "linux-py3.8-cu121"
-      runner: ubuntu-latest
+      runner: ubuntu-22.04
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: ${{ 'true' }}
