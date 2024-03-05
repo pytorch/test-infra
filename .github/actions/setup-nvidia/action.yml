@@ -43,12 +43,13 @@ runs:
               (
                   set -x
                   # Install nvidia-driver package if not installed
-                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
-                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
-                    sudo apt-get updatesudo apt-get update
-                    sudo apt-get install -y nvidia-docker2
-                    sudo systemctl restart docker
-                  fi
+                  # status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  # if [ ! "$status" = installed ]; then
+                  echo "Installing using apt-get"
+                  sudo apt-get update -y
+                  sudo apt-get install -y nvidia-docker2
+                  sudo systemctl restart docker
+                  #fi
               )
           }
 
@@ -216,6 +217,9 @@ runs:
                   install_nvidia_driver_amzn2
                   ;;
               ubuntu20.04)
+                  install_nvidia_driver_ubuntu20
+                  ;;
+              ubuntu22.04)
                   install_nvidia_driver_ubuntu20
                   ;;
               *)

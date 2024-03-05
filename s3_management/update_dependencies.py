@@ -15,6 +15,8 @@ PACKAGES = [
     "jinja2",
     "filelock",
     "fsspec",
+    "nvidia-cudnn-cu11",
+    "nvidia-cudnn-cu12",
     "typing-extensions",
 ]
 

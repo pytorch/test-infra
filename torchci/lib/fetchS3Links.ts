@@ -34,5 +34,5 @@ export default async function fetchS3Links(
         expired: false,
       };
     }) ?? [];
-  return artifacts;
+  return artifacts.sort((a, b) => a.name.localeCompare(b.name));
 }
