@@ -6,6 +6,7 @@ runs:
   using: composite
   steps:
     - name: Display EC2 information
+      if: false
       shell: bash
       run: |
         set -euo pipefail
@@ -77,7 +78,7 @@ runs:
         echo "does=${needs}" >> $GITHUB_OUTPUT
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      uses: pytorch/test-infra/.github/actions/setup-nvidia@main
+      uses: pytorch/test-infra/.github/actions/setup-nvidia@atalman-test
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
 
     - name: Kill any existing containers, clean up images
