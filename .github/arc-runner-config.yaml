@@ -1,13 +1,9 @@
 runnerConfig:
   - cpu: 4.0
-    isEphemeral: true
     maxRunners: 150
     memory: 16Gi
     minRunners: 1
     nodeType: compute-amd64
-    partDocker: 20Gi
-    partTmp: 50Gi
-    partWork: 150Gi
     runnerLabel: linux.large
     scaleDownFactor: 0.80
     scaleDownThreshold: 0.60
@@ -15,14 +11,10 @@ runnerConfig:
     scaleUpThreshold: 0.80
     containerMode: dind-rootless
   - cpu: 8.0
-    isEphemeral: true
     maxRunners: 150
     memory: 32Gi
     minRunners: 1
     nodeType: compute-amd64
-    partDocker: 20Gi
-    partTmp: 50Gi
-    partWork: 150Gi
     runnerLabel: linux.2xlarge
     scaleDownFactor: 0.80
     scaleDownThreshold: 0.60
@@ -30,14 +22,10 @@ runnerConfig:
     scaleUpThreshold: 0.80
     containerMode: dind-rootless
   - cpu: 4.0
-    isEphemeral: true
     maxRunners: 150
     memory: 16Gi
     minRunners: 1
     nodeType: compute-gpu
-    partDocker: 20Gi
-    partTmp: 50Gi
-    partWork: 150Gi
     runnerLabel: linux-gpu.large
     scaleDownFactor: 0.80
     scaleDownThreshold: 0.60
