@@ -22,4 +22,5 @@ runs:
         ALPINE_IMAGE: ${{ inputs.ALPINE_IMAGE }}
         DIRECTORY: ${{ inputs.directory }}
       run: |
+        echo "using ${DIRECTORY} current runner temp: ${RUNNER_TEMP}"
         docker run --rm -v "${DIRECTORY}":/v -w /v "${ALPINE_IMAGE}" chown -R "$(id -u):$(id -g)" .
