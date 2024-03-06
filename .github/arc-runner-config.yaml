@@ -5,10 +5,6 @@ runnerConfig:
     minRunners: 1
     nodeType: compute-amd64
     runnerLabel: linux.large
-    scaleDownFactor: 0.80
-    scaleDownThreshold: 0.60
-    scaleUpFactor: 1.20
-    scaleUpThreshold: 0.80
     containerMode: dind-rootless
   - cpu: 8.0
     maxRunners: 150
@@ -16,10 +12,6 @@ runnerConfig:
     minRunners: 1
     nodeType: compute-amd64
     runnerLabel: linux.2xlarge
-    scaleDownFactor: 0.80
-    scaleDownThreshold: 0.60
-    scaleUpFactor: 1.20
-    scaleUpThreshold: 0.80
     containerMode: dind-rootless
   - cpu: 4.0
     maxRunners: 150
@@ -27,8 +19,4 @@ runnerConfig:
     minRunners: 1
     nodeType: compute-gpu
     runnerLabel: linux-gpu.large
-    scaleDownFactor: 0.80
-    scaleDownThreshold: 0.60
-    scaleUpFactor: 1.20
-    scaleUpThreshold: 0.80
     containerMode: dind-rootless
