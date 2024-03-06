@@ -263,11 +263,15 @@ jobs:
           directory: ${{ github.workspace }}/${{ env.repository }}
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
+      - name: Workaround Set Runner Temp
+        run: |
+          echo "RUNNER_TEMP_DIRECTORY=$RUNNER_TEMP" >> $GITHUB_ENV
+          
       - name: Chown runner temp
         if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
-          directory: ${{ env.RUNNER_TEMP }}
+          directory: ${{ env.RUNNER_TEMP_DIRECTORY }}
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
