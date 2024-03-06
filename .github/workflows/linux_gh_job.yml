@@ -267,7 +267,7 @@ jobs:
         if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
-          directory: "${RUNNER_TEMP}"
+          directory: ${{ env.RUNNER_TEMP }}
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
