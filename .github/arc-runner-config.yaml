@@ -6,7 +6,7 @@ runnerConfig:
     nodeType: compute-amd64
     runnerLabel: linux.large
     containerMode: dind-rootless
-    partDocker: 300Gi
+    workingDiskSpace: 300Gi
   - cpu: 8.0
     maxRunners: 150
     memory: 32Gi
@@ -14,7 +14,7 @@ runnerConfig:
     nodeType: compute-amd64
     runnerLabel: linux.2xlarge
     containerMode: dind-rootless
-    partDocker: 300Gi
+    workingDiskSpace: 300Gi
   - cpu: 4.0
     maxRunners: 150
     memory: 16Gi
@@ -22,4 +22,4 @@ runnerConfig:
     nodeType: compute-gpu
     runnerLabel: linux-gpu.large
     containerMode: dind-rootless
-    partDocker: 300Gi
+    workingDiskSpace: 300Gi
