@@ -13,27 +13,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Login to Amazon ECR Public
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: public
+
     - name: Pull Docker image
       shell: bash
       env:
         DOCKER_IMAGE: ${{ inputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
-        set -x
-        set +e
+        set -xe
 
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
-        trap 'docker logout "${DOCKER_REGISTRY}"' EXIT
-
-        set -e
         # ignore output since only exit code is used for conditional
         # only pull docker image if it's not available locally
         if ! docker inspect --type=image "${DOCKER_IMAGE}" >/dev/null 2>/dev/null; then

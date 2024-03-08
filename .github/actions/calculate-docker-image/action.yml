@@ -39,6 +39,12 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Login to Amazon ECR Public
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: public
+
     - name: Calculate docker image
       id: calculate-image
       shell: bash
@@ -91,17 +97,6 @@ runs:
         set +e
         set -x
 
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
-        trap 'docker logout "${DOCKER_REGISTRY}"' EXIT
-
         # Check if image already exists, if it does then skip building it
         if docker manifest inspect "${DOCKER_IMAGE}"; then
           exit 0
@@ -149,21 +144,7 @@ runs:
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
-        set -x
-        set +e
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
-        trap 'docker logout "${DOCKER_REGISTRY}"' EXIT
-
-        set -e
+        set -xe
 
         IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
         # Build new image
