@@ -76,16 +76,11 @@ runs:
           echo "docker-image=${DOCKER_REGISTRY}/${REPO_NAME}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
         fi
 
-    - name: Check if image should be built
-      id: check-image
+    - name: Login to registry
+      id: registry-login
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
       env:
-        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
-        BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
-        DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
-        DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
         set +e
@@ -99,10 +94,21 @@ runs:
           $*  || (sleep 1 && $*) || (sleep 2 && $*)
         }
 
-        # Only run these steps if not on github actions
         retry login "${DOCKER_REGISTRY}"
-        # Logout on exit
-        trap "docker logout ${DOCKER_REGISTRY}" EXIT
+
+    - name: Check if image should be built
+      id: check-image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
+      env:
+        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
+        BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
+        DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
+        DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
+      run: |
+        set +e
+        set -x
 
         # Check if image already exists, if it does then skip building it
         if docker manifest inspect "${DOCKER_IMAGE}"; then
@@ -151,23 +157,7 @@ runs:
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
-        set -x
-        set +e
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        # Only run these steps if not on github actions
-        retry login "${DOCKER_REGISTRY}"
-        # Logout on exit
-        trap "docker logout ${DOCKER_REGISTRY}" EXIT
-
-        set -e
+        set -xe
 
         IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
         # Build new image
