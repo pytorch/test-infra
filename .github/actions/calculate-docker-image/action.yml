@@ -86,6 +86,7 @@ runs:
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
         set +e
         set -x
