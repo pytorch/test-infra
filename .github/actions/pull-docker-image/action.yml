@@ -6,9 +6,9 @@ inputs:
   docker-image:
     description: the image to pull
     required: true
-  docker-registry-account:
-    description: The account number of the registry to store the image after it is built.
-    default: 308535385114
+  docker-registry:
+    description: The registry to store the image after it is built.
+    default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
 
 runs:
   using: composite
@@ -17,7 +17,7 @@ runs:
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        registries: ${{ inputs.docker-registry-account }}
+        registries: ${{ inputs.docker-registry }}
 
     - name: Pull Docker image
       shell: bash
