@@ -43,7 +43,7 @@ runs:
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        registries: ${{ inputs.docker-registry }}
+        registry-type: public
 
     - name: Calculate docker image
       id: calculate-image
