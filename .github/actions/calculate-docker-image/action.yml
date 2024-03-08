@@ -17,6 +17,9 @@ inputs:
   working-directory:
     description: The working directory where the repo is checked out.
     default: .
+  docker-registry-account:
+    description: The account number of the registry to store the image after it is built.
+    default: 308535385114
   docker-registry:
     description: The registry to store the image after it is built.
     default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
@@ -43,7 +46,7 @@ runs:
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        registries: ${{ inputs.docker-registry }}
+        registries: ${{ inputs.docker-registry-account }}
 
     - name: Calculate docker image
       id: calculate-image
