@@ -7,14 +7,33 @@ import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();
 
+function mockHasApprovedWorkflowRun(repoFullName: string) {
+  nock("https://api.github.com")
+    .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
+    .reply(200, {
+      workflow_runs: [
+        {
+          event: "pull_request",
+          conclusion: "success",
+        },
+      ],
+    });
+}
+
 describe("auto-label-bot", () => {
   let probot: Probot;
+  function emptyMockConfig(repoFullName: string) {
+    utils.mockConfig("labeler.yml", "", repoFullName);
+  }
 
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
+    // zhouzhuojie/gha-ci-playground is the repo used in almost all the tests
+    mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
+    emptyMockConfig("zhouzhuojie/gha-ci-playground");
   });
 
   afterEach(() => {
@@ -340,6 +359,8 @@ describe("auto-label-bot", () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
+    emptyMockConfig("pytorch/fake-test-repo");
+    mockHasApprovedWorkflowRun("pytorch/fake-test-repo");
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
@@ -827,5 +848,162 @@ describe("auto-label-bot", () => {
     await probot.receive(event);
 
     scope.done();
+  });
+});
+
+describe("auto-label-bot: labeler.yml config", () => {
+  let probot: Probot;
+
+  function mockChangedFiles(
+    changedFiles: string[],
+    prNumber: number,
+    repoFullName: string
+  ) {
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/pulls/${prNumber}/files?per_page=100`)
+      .reply(200, changedFiles, {
+        Link: `<https://api.github.com/repos/${repoFullName}/pulls/${prNumber}/files?per_page=100&page=1>; rel='last'`,
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    return scope;
+  }
+
+  function defaultMockConfig(repoFullName: string) {
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+- torch/csrc/dynamo/**
+
+"ciflow/inductor":
+- torch/_decomp/**
+- torch/_dynamo/**
+`;
+    utils.mockConfig("labeler.yml", config, repoFullName);
+  }
+
+  function mockLabelAdded(
+    labels: string[],
+    repoFullName: string,
+    prNumber: number
+  ) {
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${repoFullName}/issues/${prNumber}/labels`, (body) => {
+        expect(body).toMatchObject({ labels: labels });
+        return true;
+      })
+      .reply(200, {});
+    return scope;
+  }
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("getLabelFromLabelerConfig no matches", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    await probot.receive(event);
+    scope.done();
+  });
+
+  test("getLabelFromLabelerConfig one match", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/csrc/dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = mockLabelAdded(["module: dynamo"], repoFullName, prNumber);
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+  });
+
+  test("getLabelFromLabelerConfig multiple match for single file", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = mockLabelAdded(
+      ["module: dynamo", "ciflow/inductor"],
+      repoFullName,
+      prNumber
+    );
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+  });
+
+  test("getLabelFromLabelerConfig multiple match with multiple file", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [
+      { filename: "torch/csrc/dynamo/blah.py" },
+      { filename: "torch/_decomp/blah.py" },
+    ];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = mockLabelAdded(
+      ["module: dynamo", "ciflow/inductor"],
+      repoFullName,
+      prNumber
+    );
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+  });
+
+  test("getLabelFromLabelerConfig multiple match but no workflow permissions", async () => {
+    // Matches both module: dynamo and ciflow/inductor, but removes ciflow due to lacking perms
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    defaultMockConfig(repoFullName);
+    nock("https://api.github.com")
+      .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
+      .reply(200, {
+        workflow_runs: [
+          {
+            event: "pull_request",
+            conclusion: "action_required",
+          },
+        ],
+      })
+      .get(`/repos/${repoFullName}/collaborators/zzj-bot/permission`)
+      .reply(200, {
+        permission: "read",
+      });
+    const scope2 = mockLabelAdded(["module: dynamo"], repoFullName, prNumber);
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
   });
 });
