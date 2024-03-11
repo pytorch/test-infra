@@ -38,6 +38,7 @@ describe("auto-label-bot", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    nock.cleanAll();
   });
 
   test("add triage review when issue is labeled high priority", async () => {
@@ -907,9 +908,10 @@ describe("auto-label-bot: labeler.yml config", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    nock.cleanAll();
   });
 
-  test("getLabelFromLabelerConfig no matches", async () => {
+  test("getLabelsFromLabelerConfig no matches", async () => {
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");
     prFiles["items"] = [{ filename: "torch/blah.py" }];
@@ -922,7 +924,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope.done();
   });
 
-  test("getLabelFromLabelerConfig one match", async () => {
+  test("getLabelsFromLabelerConfig one match", async () => {
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");
     prFiles["items"] = [{ filename: "torch/csrc/dynamo/blah.py" }];
@@ -937,7 +939,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope2.done();
   });
 
-  test("getLabelFromLabelerConfig multiple match for single file", async () => {
+  test("getLabelsFromLabelerConfig multiple match for single file", async () => {
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");
     prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
@@ -956,7 +958,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope2.done();
   });
 
-  test("getLabelFromLabelerConfig multiple match with multiple file", async () => {
+  test("getLabelsFromLabelerConfig multiple match with multiple file", async () => {
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");
     prFiles["items"] = [
@@ -978,7 +980,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope2.done();
   });
 
-  test("getLabelFromLabelerConfig multiple match but no workflow permissions", async () => {
+  test("getLabelsFromLabelerConfig multiple match but no workflow permissions", async () => {
     // Matches both module: dynamo and ciflow/inductor, but removes ciflow due to lacking perms
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");

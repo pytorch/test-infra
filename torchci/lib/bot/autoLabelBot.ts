@@ -138,7 +138,7 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
 
 const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
-export async function getLabelFromLabelerConfig(
+export async function getLabelsFromLabelerConfig(
   context: Context,
   changed_files: string[]
 ): Promise<string[]> {
@@ -397,7 +397,7 @@ function myBot(app: Probot): void {
       // Add a repo specific labels (if any)
       var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
 
-      var labelsFromLabelerConfig = await getLabelFromLabelerConfig(
+      var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
         context,
         filesChanged
       );
