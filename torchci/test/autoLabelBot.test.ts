@@ -23,7 +23,7 @@ function mockHasApprovedWorkflowRun(repoFullName: string) {
 describe("auto-label-bot", () => {
   let probot: Probot;
   function emptyMockConfig(repoFullName: string) {
-    utils.mockConfig("labeler.yml", "", repoFullName);
+    utils.mockConfig("pytorch-probot.yml", "", repoFullName);
   }
 
   beforeEach(() => {
@@ -879,6 +879,11 @@ describe("auto-label-bot: labeler.yml config", () => {
 - torch/_decomp/**
 - torch/_dynamo/**
 `;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
     utils.mockConfig("labeler.yml", config, repoFullName);
   }
 

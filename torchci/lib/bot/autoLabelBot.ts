@@ -1,5 +1,6 @@
 import { Context, Probot } from "probot";
 import {
+  CachedLabelerConfigTracker,
   addLabels,
   hasApprovedPullRuns,
   hasWritePermissions,
@@ -140,14 +141,10 @@ const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
 export async function getLabelsFromLabelerConfig(
   context: Context,
+  labelerConfigTracker: CachedLabelerConfigTracker,
   changed_files: string[]
 ): Promise<string[]> {
-  const config: Map<string, string[]> = (await context.config(
-    "labeler.yml"
-  )) as Map<string, string[]>;
-  if (config === null) {
-    return [];
-  }
+  const config = await labelerConfigTracker.loadLabelsConfig(context);
 
   const labels = [];
 
@@ -176,6 +173,7 @@ function getRepoSpecificLabels(
 }
 
 function myBot(app: Probot): void {
+  const labelerConfigTracker = new CachedLabelerConfigTracker(app);
   function addLabel(
     labelSet: Set<string>,
     newLabels: string[],
@@ -399,6 +397,7 @@ function myBot(app: Probot): void {
 
       var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
         context,
+        labelerConfigTracker,
         filesChanged
       );
       for (const label of labelsFromLabelerConfig) {

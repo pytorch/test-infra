@@ -107,6 +107,35 @@ export class CachedIssueTracker extends CachedConfigTracker {
   }
 }
 
+export class CachedLabelerConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "labeler_config" in config) {
+        this.repoLabels[key] = context.config(config["labeler_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
+  }
+}
+
 // returns undefined if the request fails
 export async function fetchJSON(path: string): Promise<any> {
   const result = await retryRequest(path);
