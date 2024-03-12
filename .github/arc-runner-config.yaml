@@ -8,9 +8,9 @@ runnerConfig:
     containerMode: dind-rootless
     workingDiskSpace: 300Gi
   - cpu: 8.0
-    maxRunners: 150
+    maxRunners: 300
     memory: 32Gi
-    minRunners: 0
+    minRunners: 20
     nodeType: compute-amd64
     runnerLabel: linux.2xlarge
     containerMode: dind-rootless
