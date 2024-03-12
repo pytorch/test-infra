@@ -79,11 +79,9 @@ async function retryCurrentWorkflow(
       return true;
     }
 
-    // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
+    // don't rerun linter
     if (workflowName.toLocaleLowerCase() === "lint") {
-      return !doesLookLikeUserFailure(job, (step) =>
-        step.name.toLowerCase().includes("(nonretryable)")
-      );
+      return false;
     }
 
     // for builds, don't rerun if it failed on the actual build step
