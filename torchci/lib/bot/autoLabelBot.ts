@@ -1,5 +1,13 @@
 import { Context, Probot } from "probot";
-import { addLabels, isPyTorchPyTorch } from "./utils";
+import {
+  CachedLabelerConfigTracker,
+  addLabels,
+  hasApprovedPullRuns,
+  hasWritePermissions,
+  isPyTorchPyTorch,
+  repoKey,
+} from "./utils";
+import { minimatch } from "minimatch";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -131,6 +139,27 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
 
 const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
+export async function getLabelsFromLabelerConfig(
+  context: Context,
+  labelerConfigTracker: CachedLabelerConfigTracker,
+  changed_files: string[]
+): Promise<string[]> {
+  const config = await labelerConfigTracker.loadLabelsConfig(context);
+
+  const labels = [];
+
+  for (const [label, globs] of Object.entries(config)) {
+    if (
+      globs.some((glob: string) =>
+        changed_files.some((file: string) => minimatch(file, glob))
+      )
+    ) {
+      labels.push(label);
+    }
+  }
+  return labels;
+}
+
 function getRepoSpecificLabels(
   owner: string,
   repo: string
@@ -144,6 +173,7 @@ function getRepoSpecificLabels(
 }
 
 function myBot(app: Probot): void {
+  const labelerConfigTracker = new CachedLabelerConfigTracker(app);
   function addLabel(
     labelSet: Set<string>,
     newLabels: string[],
@@ -324,56 +354,84 @@ function myBot(app: Probot): void {
     await addNewLabels(labels, labelsToAdd, context);
   });
 
-  app.on(["pull_request.opened", "pull_request.edited"], async (context) => {
-    const labels: string[] = context.payload.pull_request.labels.map(
-      (e) => e["name"]
-    );
-    const owner = context.payload.repository.owner.login;
-    const repo = context.payload.repository.name;
-    const title = context.payload.pull_request.title;
-    const filesChangedRes = await context.octokit.paginate(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
-      {
-        owner,
-        repo,
-        pull_number: context.payload.pull_request.number,
-        per_page: 100,
-      }
-    );
-    const filesChanged = filesChangedRes.map((f: any) => f.filename);
-    context.log({ labels, title, filesChanged });
-
-    const labelsToAdd = getLabelsToAddFromTitle(title);
-
-    // only categorize for release notes for prs in pytorch/pytorch
-    if (isPyTorchPyTorch(owner, repo)) {
-      const [category, topic] = getReleaseNotesCategoryAndTopic(
-        title,
-        labels,
-        filesChanged
+  app.on(
+    ["pull_request.opened", "pull_request.edited", "pull_request.synchronize"],
+    async (context) => {
+      const labels: string[] = context.payload.pull_request.labels.map(
+        (e) => e["name"]
       );
-      if (category !== "uncategorized" && category !== "skip") {
-        labelsToAdd.push(category);
-      }
-      if (topic !== "untopiced" && topic !== "skip") {
-        labelsToAdd.push(topic);
-      }
-    }
+      const owner = context.payload.repository.owner.login;
+      const repo = context.payload.repository.name;
+      const title = context.payload.pull_request.title;
+      const filesChangedRes = await context.octokit.paginate(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+        {
+          owner,
+          repo,
+          pull_number: context.payload.pull_request.number,
+          per_page: 100,
+        }
+      );
+      const filesChanged = filesChangedRes.map((f: any) => f.filename);
+      context.log({ labels, title, filesChanged });
 
-    // Add a repo specific labels (if any)
-    var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
+      var labelsToAdd = getLabelsToAddFromTitle(title);
 
-    for (const file of filesChanged) {
-      // check for typical matches
-      for (const [regex, label] of repoSpecificLabels) {
-        if (file.match(regex)) {
-          labelsToAdd.push(label);
+      // only categorize for release notes for prs in pytorch/pytorch
+      if (isPyTorchPyTorch(owner, repo)) {
+        const [category, topic] = getReleaseNotesCategoryAndTopic(
+          title,
+          labels,
+          filesChanged
+        );
+        if (category !== "uncategorized" && category !== "skip") {
+          labelsToAdd.push(category);
+        }
+        if (topic !== "untopiced" && topic !== "skip") {
+          labelsToAdd.push(topic);
         }
       }
-    }
 
-    await addNewLabels(labels, labelsToAdd, context);
-  });
+      // Add a repo specific labels (if any)
+      var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
+
+      var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
+        context,
+        labelerConfigTracker,
+        filesChanged
+      );
+      for (const label of labelsFromLabelerConfig) {
+        labelsToAdd.push(label);
+      }
+
+      for (const file of filesChanged) {
+        // check for typical matches
+        for (const [regex, label] of repoSpecificLabels) {
+          if (file.match(regex)) {
+            labelsToAdd.push(label);
+          }
+        }
+      }
+
+      // Filter ciflow/* labels if the PR author does not have write permissions
+      if (
+        !(await hasApprovedPullRuns(
+          context.octokit,
+          owner,
+          repo,
+          context.payload.pull_request.head.sha
+        )) &&
+        !(await hasWritePermissions(
+          context,
+          context.payload.pull_request.user.login
+        ))
+      ) {
+        labelsToAdd = labelsToAdd.filter((l) => !l.startsWith("ciflow/"));
+      }
+
+      await addNewLabels(labels, labelsToAdd, context);
+    }
+  );
 
   app.on("pull_request_review.submitted", async (context) => {
     // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed a
