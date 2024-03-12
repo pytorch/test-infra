@@ -130,6 +130,7 @@ jobs:
 
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
+        shell: bash
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
@@ -209,6 +210,7 @@ jobs:
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+        shell: bash
 
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
@@ -234,6 +236,7 @@ jobs:
             fi
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
+        shell: bash
 
       - name: Surface failing tests
         if: always()
@@ -282,6 +285,7 @@ jobs:
             upload_docs=1
           fi
           echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
+        shell: bash
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
@@ -319,3 +323,4 @@ jobs:
             rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
           fi
           set -e
+        shell: bash
