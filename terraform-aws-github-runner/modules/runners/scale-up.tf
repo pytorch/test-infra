@@ -180,15 +180,17 @@ resource "aws_iam_role_policy" "scale_up" {
 resource "aws_iam_role_policy" "scale_up_logging" {
   name = "${var.environment}-lambda-logging"
   role = aws_iam_role.scale_up.name
+
   policy = templatefile("${path.module}/policies/lambda-cloudwatch.json", {
     log_group_arn = aws_cloudwatch_log_group.scale_up.arn
   })
 }
 
 resource "aws_iam_role_policy" "service_linked_role" {
-  count  = var.create_service_linked_role_spot ? 1 : 0
-  name   = "${var.environment}-service_linked_role"
-  role   = aws_iam_role.scale_up.name
+  count = var.create_service_linked_role_spot ? 1 : 0
+  name  = "${var.environment}-service_linked_role"
+  role  = aws_iam_role.scale_up.name
+
   policy = templatefile("${path.module}/policies/service-linked-role-create-policy.json", {})
 }
 
@@ -199,8 +201,10 @@ resource "aws_iam_role_policy_attachment" "scale_up_vpc_execution_role" {
 }
 
 resource "aws_iam_role_policy" "scale_up_secretsmanager_access" {
-  count = var.secretsmanager_secrets_id != null ? 1 : 0
-  role  = aws_iam_role.scale_up.name
+  count       = var.secretsmanager_secrets_id != null ? 1 : 0
+  role        = aws_iam_role.scale_up.name
+  name_prefix = "terraform-"
+
   policy = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
     secretsmanager_arn = data.aws_secretsmanager_secret_version.app_creds.arn
   })
