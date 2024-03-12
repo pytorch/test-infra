@@ -334,6 +334,7 @@ describe("Test various utils used by Dr.CI", () => {
   });
 
   test("test isInfraFlakyJob", () => {
+    // Not a workflow job
     const notInfraFlakyFailure: RecentWorkflowsData = {
       id: "A",
       name: "A",
@@ -348,8 +349,13 @@ describe("Test various utils used by Dr.CI", () => {
     };
     expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
 
+    // Set the workflow ID to mark this as a workflow job
+    notInfraFlakyFailure.workflowId = "A";
+    expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
+
     const notInfraFlakyFailureAgain: RecentWorkflowsData = {
       id: "A",
+      workflowId: "A",
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -364,6 +370,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     const isInfraFlakyFailure: RecentWorkflowsData = {
       id: "A",
+      workflowId: "A",
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -381,8 +388,8 @@ describe("Test various utils used by Dr.CI", () => {
     const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
     mockJobUtils.mockImplementation(() => Promise.resolve(true));
 
-    // Has log and failure lines
-    const validFailure: RecentWorkflowsData = {
+    // Not a workflow job
+    const mockFailure: RecentWorkflowsData = {
       id: "A",
       name: "A",
       html_url: "A",
@@ -394,11 +401,16 @@ describe("Test various utils used by Dr.CI", () => {
       head_branch: "whatever",
       runnerName: "dummy",
     };
-    expect(await isLogClassifierFailed(validFailure)).toEqual(false);
+    expect(await isLogClassifierFailed(mockFailure)).toEqual(false);
+
+    // Has log and failure lines and is a workflow job
+    mockFailure.workflowId = "A";
+    expect(await isLogClassifierFailed(mockFailure)).toEqual(false);
 
     // Has log but not failure lines (log classifier not triggered)
     const logClassifierNotTriggered: RecentWorkflowsData = {
       id: "A",
+      workflowId: "A",
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -415,7 +427,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     // No S3 log
     mockJobUtils.mockImplementation(() => Promise.resolve(false));
-    expect(await isLogClassifierFailed(validFailure)).toEqual(true);
+    expect(await isLogClassifierFailed(mockFailure)).toEqual(true);
   });
 
   test("test isExcludedFromFlakiness", () => {
