@@ -100,7 +100,6 @@ runs:
         }
 
         retry login "${DOCKER_REGISTRY}"
-        trap 'docker logout "${DOCKER_REGISTRY}"' EXIT
 
         # Check if image already exists, if it does then skip building it
         if docker manifest inspect "${DOCKER_IMAGE}"; then
@@ -161,7 +160,6 @@ runs:
         }
 
         retry login "${DOCKER_REGISTRY}"
-        trap 'docker logout "${DOCKER_REGISTRY}"' EXIT
 
         set -e
 
