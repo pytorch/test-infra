@@ -1,20 +1,20 @@
 runnerConfig:
-  - cpu: 4.0
+  - cpu: 2.0
     maxRunners: 150
-    memory: 16Gi
+    memory: 3840Mi
     minRunners: 0
     nodeType: compute-amd64
     runnerLabel: linux.large
     containerMode: dind-rootless
-    workingDiskSpace: 300Gi
+    workingDiskSpace: 150Gi
   - cpu: 8.0
     maxRunners: 300
-    memory: 32Gi
+    memory: 16128Mi
     minRunners: 20
     nodeType: compute-amd64
     runnerLabel: linux.2xlarge
     containerMode: dind-rootless
-    workingDiskSpace: 300Gi
+    workingDiskSpace: 150Gi
   - cpu: 4.0
     maxRunners: 150
     memory: 16Gi
@@ -22,4 +22,4 @@ runnerConfig:
     nodeType: compute-gpu
     runnerLabel: linux-gpu.large
     containerMode: dind-rootless
-    workingDiskSpace: 300Gi
+    workingDiskSpace: 150Gi
