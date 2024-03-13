@@ -286,7 +286,8 @@ where
     } catch (e) {
       console.log("Failed to retrieve merge base for PR", pr_info.pr_number, e);
       // Insert dummy values if merge base can't be found
-      pr_info.merge_base = "failed to retrieve merge base, please contact dev infra";
+      pr_info.merge_base =
+        "failed to retrieve merge base, please contact dev infra";
       pr_info.merge_base_date = "0";
     }
   });
