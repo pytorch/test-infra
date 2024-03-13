@@ -100,106 +100,117 @@ export async function updateDrciComments(
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
 
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const labels = await fetchIssueLabels(
-      octokit,
-      pr_info.owner,
-      pr_info.repo,
-      pr_info.pr_number
-    );
-
-    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
-      await getWorkflowJobsStatuses(
-        pr_info,
-        flakyRules,
-        baseCommitJobs.get(pr_info.merge_base) || new Map(),
-        labels || []
+  await forAllPRs(
+    workflowsByPR,
+    async (pr_info: PRandJobs) => {
+      const labels = await fetchIssueLabels(
+        octokit,
+        pr_info.owner,
+        pr_info.repo,
+        pr_info.pr_number
       );
 
-    failures[pr_info.pr_number] = {
-      FAILED: failedJobs,
-      FLAKY: flakyJobs,
-      BROKEN_TRUNK: brokenTrunkJobs,
-      UNSTABLE: unstableJobs,
-    };
+      const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+        await getWorkflowJobsStatuses(
+          pr_info,
+          flakyRules,
+          baseCommitJobs.get(pr_info.merge_base) || new Map(),
+          labels || []
+        );
 
-    const failureInfo = constructResultsComment(
-      pending,
-      failedJobs,
-      flakyJobs,
-      brokenTrunkJobs,
-      unstableJobs,
-      pr_info.head_sha,
-      pr_info.merge_base,
-      pr_info.merge_base_date,
-      `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
-    );
+      failures[pr_info.pr_number] = {
+        FAILED: failedJobs,
+        FLAKY: flakyJobs,
+        BROKEN_TRUNK: brokenTrunkJobs,
+        UNSTABLE: unstableJobs,
+      };
 
-    const comment = formDrciComment(
-      pr_info.pr_number,
-      OWNER,
-      repo,
-      failureInfo,
-      formDrciSevBody(sevs)
-    );
+      const failureInfo = constructResultsComment(
+        pending,
+        failedJobs,
+        flakyJobs,
+        brokenTrunkJobs,
+        unstableJobs,
+        pr_info.head_sha,
+        pr_info.merge_base,
+        pr_info.merge_base_date,
+        `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
+      );
 
-    const { id, body } =
-      existingDrCiComments.get(pr_info.pr_number) ||
-      (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
+      const comment = formDrciComment(
+        pr_info.pr_number,
+        OWNER,
+        repo,
+        failureInfo,
+        formDrciSevBody(sevs)
+      );
 
-    // The comment is there and remains unchanged, so there is no need to do anything
-    if (body === comment) {
-      return;
-    }
+      const { id, body } =
+        existingDrCiComments.get(pr_info.pr_number) ||
+        (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
 
-    // If the id is 0, it means that the bot has failed to create the comment, so we
-    // are free to create a new one here
-    if (id === 0) {
-      await octokit.rest.issues.createComment({
-        body: comment,
+      // The comment is there and remains unchanged, so there is no need to do anything
+      if (body === comment) {
+        return;
+      }
+
+      // If the id is 0, it means that the bot has failed to create the comment, so we
+      // are free to create a new one here
+      if (id === 0) {
+        await octokit.rest.issues.createComment({
+          body: comment,
+          owner: OWNER,
+          repo: repo,
+          issue_number: pr_info.pr_number,
+        });
+      }
+      // Otherwise, update the existing comment
+      else {
+        await octokit.rest.issues.updateComment({
+          body: comment,
+          owner: OWNER,
+          repo: repo,
+          comment_id: id,
+        });
+      }
+
+      // Also update the check run status. As this is run under pytorch-bot,
+      // the check run will show up under that GitHub app
+      await octokit.rest.checks.create({
         owner: OWNER,
         repo: repo,
-        issue_number: pr_info.pr_number,
+        name: "Dr.CI",
+        head_sha: pr_info.head_sha,
+        status: "completed",
+        conclusion: "neutral",
+        output: {
+          title: "Dr.CI classification results",
+          // NB: the summary contains the classification result from Dr.CI,
+          // so that it can be queried elsewhere
+          summary: JSON.stringify(failures[pr_info.pr_number]),
+        },
       });
+    },
+    async (pr_info: PRandJobs, e: Error) => {
+      console.log("Failed to update PR", pr_info.pr_number, e);
     }
-    // Otherwise, update the existing comment
-    else {
-      await octokit.rest.issues.updateComment({
-        body: comment,
-        owner: OWNER,
-        repo: repo,
-        comment_id: id,
-      });
-    }
-
-    // Also update the check run status. As this is run under pytorch-bot,
-    // the check run will show up under that GitHub app
-    await octokit.rest.checks.create({
-      owner: OWNER,
-      repo: repo,
-      name: "Dr.CI",
-      head_sha: pr_info.head_sha,
-      status: "completed",
-      conclusion: "neutral",
-      output: {
-        title: "Dr.CI classification results",
-        // NB: the summary contains the classification result from Dr.CI,
-        // so that it can be queried elsewhere
-        summary: JSON.stringify(failures[pr_info.pr_number]),
-      },
-    });
-  });
+  );
 
   return failures;
 }
 
 async function forAllPRs(
   workflowsByPR: Map<number, PRandJobs>,
-  func: CallableFunction
+  func: CallableFunction,
+  errorFunc: CallableFunction
 ) {
   await Promise.all(
     Array.from(workflowsByPR.values()).map(async (pr_info) => {
-      await func(pr_info);
+      try {
+        await func(pr_info);
+      } catch (e) {
+        await errorFunc(pr_info, e);
+      }
     })
   );
 }
@@ -253,32 +264,42 @@ where
   );
   const newData: any[] = [];
 
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
-    if (rocksetMergeBase === undefined) {
-      // Not found in rockset, ask github instead, then put into rockset
-      const diff = await octokit.rest.repos.compareCommits({
-        owner: OWNER,
-        repo: repo,
-        base: pr_info.head_sha,
-        head: head,
-      });
-      pr_info.merge_base = diff.data.merge_base_commit.sha;
-      pr_info.merge_base_date =
-        diff.data.merge_base_commit.commit.committer?.date ?? "";
+  await forAllPRs(
+    workflowsByPR,
+    async (pr_info: PRandJobs) => {
+      const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
+      if (rocksetMergeBase === undefined) {
+        // Not found in rockset, ask github instead, then put into rockset
+        const diff = await octokit.rest.repos.compareCommits({
+          owner: OWNER,
+          repo: repo,
+          base: pr_info.head_sha,
+          head: head,
+        });
+        pr_info.merge_base = diff.data.merge_base_commit.sha;
+        pr_info.merge_base_date =
+          diff.data.merge_base_commit.commit.committer?.date ?? "";
 
-      newData.push({
-        sha: pr_info.head_sha,
-        merge_base: pr_info.merge_base,
-        changed_files: diff.data.files?.map((e) => e.filename),
-        merge_base_commit_date: pr_info.merge_base_date ?? "",
-        repo: `${OWNER}/${repo}`,
-      });
-    } else {
-      pr_info.merge_base = rocksetMergeBase.merge_base;
-      pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
+        newData.push({
+          sha: pr_info.head_sha,
+          merge_base: pr_info.merge_base,
+          changed_files: diff.data.files?.map((e) => e.filename),
+          merge_base_commit_date: pr_info.merge_base_date ?? "",
+          repo: `${OWNER}/${repo}`,
+        });
+      } else {
+        pr_info.merge_base = rocksetMergeBase.merge_base;
+        pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
+      }
+    },
+    async (pr_info: PRandJobs, e: Error) => {
+      console.log("Failed to retrieve merge base for PR", pr_info.pr_number, e);
+      // Insert dummy values if merge base can't be found
+      pr_info.merge_base =
+        "failed to retrieve merge base, please contact dev infra";
+      pr_info.merge_base_date = "0";
     }
-  });
+  );
   rocksetClient.documents.addDocuments("commons", "merge_bases", {
     data: newData,
   });
