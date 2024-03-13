@@ -100,8 +100,9 @@ export async function updateDrciComments(
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
 
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    try {
+  await forAllPRs(
+    workflowsByPR,
+    async (pr_info: PRandJobs) => {
       const labels = await fetchIssueLabels(
         octokit,
         pr_info.owner,
@@ -189,21 +190,27 @@ export async function updateDrciComments(
           summary: JSON.stringify(failures[pr_info.pr_number]),
         },
       });
-    } catch (e) {
-      console.log("Failed to update comment for PR", pr_info.pr_number, e);
+    },
+    async (pr_info: PRandJobs, e: Error) => {
+      console.log("Failed to update PR", pr_info.pr_number, e);
     }
-  });
+  );
 
   return failures;
 }
 
 async function forAllPRs(
   workflowsByPR: Map<number, PRandJobs>,
-  func: CallableFunction
+  func: CallableFunction,
+  errorFunc: CallableFunction
 ) {
   await Promise.all(
     Array.from(workflowsByPR.values()).map(async (pr_info) => {
-      await func(pr_info);
+      try {
+        await func(pr_info);
+      } catch (e) {
+        await errorFunc(pr_info, e);
+      }
     })
   );
 }
@@ -257,9 +264,10 @@ where
   );
   const newData: any[] = [];
 
-  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
-    try {
+  await forAllPRs(
+    workflowsByPR,
+    async (pr_info: PRandJobs) => {
+      const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
       if (rocksetMergeBase === undefined) {
         // Not found in rockset, ask github instead, then put into rockset
         const diff = await octokit.rest.repos.compareCommits({
@@ -283,14 +291,15 @@ where
         pr_info.merge_base = rocksetMergeBase.merge_base;
         pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
       }
-    } catch (e) {
+    },
+    async (pr_info: PRandJobs, e: Error) => {
       console.log("Failed to retrieve merge base for PR", pr_info.pr_number, e);
       // Insert dummy values if merge base can't be found
       pr_info.merge_base =
         "failed to retrieve merge base, please contact dev infra";
       pr_info.merge_base_date = "0";
     }
-  });
+  );
   rocksetClient.documents.addDocuments("commons", "merge_bases", {
     data: newData,
   });
