@@ -11,6 +11,10 @@ on:
         description: 'Reference to checkout, defaults to "nightly"'
         default: "nightly"
         type: string
+      runner:
+        description: "Instance to run the workflow on"
+        default: ""
+        type: string
       test-infra-repository:
         description: "Test infra repository to use"
         default: "pytorch/test-infra"
@@ -84,7 +88,8 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ matrix.validation_runner }}
+    runs-on: ${{ inputs.runner == "" && matrix.validation_runner || inputs.runner }}
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
