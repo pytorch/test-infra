@@ -58,7 +58,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (true || authorization === process.env.DRCI_BOT_KEY) {
+  if (authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
