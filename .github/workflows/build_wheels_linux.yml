@@ -89,7 +89,6 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner == "" && matrix.validation_runner || inputs.runner }}
-    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
