@@ -2,11 +2,11 @@
 -- classified into new failures and unrelated failures such as broken trunk, flaky, unstable, etc.
 WITH recent_shas AS (
   SELECT
-    p.head.sha AS sha,
+    distinct p.head.sha AS sha,
     p.number AS number
   FROM
     workflow_job j
-    JOIN commons.pull_request p ON j.head_sha = p.head.sha HINT(join_strategy = lookup)
+    JOIN commons.pull_request p ON j.head_sha = p.head.sha HINT(join_broadcast = true)
   WHERE
     (
       (
@@ -33,15 +33,19 @@ SELECT
   recent_shas.number AS pr_number,
   recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
-  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
+  IF(
+    j.torchci_classification.line IS NULL,
+    null,
+    ARRAY_CREATE(j.torchci_classification.line)
+  ) AS failure_lines,
   j.torchci_classification.context AS failure_context,
   j._event_time AS time
 FROM
   commons.workflow_run w
   JOIN (
     commons.workflow_job j
-    JOIN recent_shas ON j.head_sha = recent_shas.sha HINT(join_strategy = lookup)
-  ) ON w.id = j.run_id HINT(join_strategy = lookup)
+    JOIN recent_shas ON j.head_sha = recent_shas.sha HINT(join_broadcast = true)
+  ) ON w.id = j.run_id HINT(join_broadcast = true)
 UNION
 SELECT
   null AS workflowId,
@@ -62,6 +66,6 @@ SELECT
   w._event_time as time
 FROM
   commons.workflow_run w
-  JOIN recent_shas ON w.head_sha = recent_shas.sha HINT(join_strategy = lookup)
+  JOIN recent_shas ON w.head_sha = recent_shas.sha HINT(join_broadcast = true)
 ORDER BY
   time DESC
