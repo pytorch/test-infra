@@ -20,6 +20,7 @@ runnerConfig:
     memory: 16Gi
     minRunners: 0
     nodeType: compute-gpu
+    nvidiaGpus: 1
     runnerLabel: linux-gpu.large
     containerMode: dind-rootless
     workingDiskSpace: 150Gi
