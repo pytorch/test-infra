@@ -106,6 +106,7 @@ PACKAGE_ALLOW_LIST = {
     "typing_extensions",
     "urllib3",
     "xformers",
+    "executorch",
 }
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
