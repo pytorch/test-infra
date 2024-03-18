@@ -7,7 +7,7 @@ import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();
 
-function mockHasApprovedWorkflowRun(repoFullName: string) {
+export function mockHasApprovedWorkflowRun(repoFullName: string) {
   nock("https://api.github.com")
     .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
     .reply(200, {

@@ -109,6 +109,61 @@ describe("merge-bot", () => {
       .reply(200, {})
       .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
+    utils.mockPermissions(
+      `${owner}/${repo}`,
+      event.payload.issue.user.login,
+      "write"
+    );
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("merge command on pytorch/pytorch pull request does not trigger dispatch if no write permissions for label", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"))
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}`)
+      .reply(200, {
+        head: {
+          sha: "randomsha",
+        },
+      })
+      .get((uri) =>
+        uri.startsWith(
+          `/repos/${owner}/${repo}/actions/runs?head_sha=randomsha`
+        )
+      )
+      .reply(200, {
+        workflow_runs: [
+          {
+            event: "pull_request",
+            conclusion: "action_required",
+          },
+        ],
+      })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `You don't have permissions to run the required trunk workflow`
+        );
+        return true;
+      })
+      .reply(200, {});
+    utils.mockPermissions(
+      `${owner}/${repo}`,
+      event.payload.issue.user.login,
+      "read"
+    );
 
     await probot.receive(event);
     handleScope(scope);

@@ -44,3 +44,15 @@ export function mockAccessToken(): void {
     .post("/app/installations/2/access_tokens")
     .reply(200, { token: "test" });
 }
+
+export function mockPermissions(
+  repoFullName: string,
+  user: string,
+  permission: string = "write"
+): void {
+  nock("https://api.github.com")
+    .get(`/repos/${repoFullName}/collaborators/${user}/permission`)
+    .reply(200, {
+      permission: permission,
+    });
+}
