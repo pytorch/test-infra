@@ -19,7 +19,7 @@ runnerConfig:
     maxRunners: 150
     memory: 16Gi
     minRunners: 0
-    nodeType: compute-gpu
+    nodeType: compute-amd64-nvidia-v100
     nvidiaGpus: 1
     runnerLabel: linux-gpu.large
     containerMode: dind-rootless

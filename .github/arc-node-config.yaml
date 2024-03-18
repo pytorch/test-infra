@@ -16,7 +16,7 @@ nodeConfig:
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
-  - nodeType: compute-gpu
+  - nodeType: compute-amd64-nvidia-v100
     requirements:
       - key: "karpenter.k8s.aws/instance-category"
         operator: In
