@@ -12,6 +12,7 @@ import {
   hasWritePermissions as _hasWP,
   reactOnComment,
   hasApprovedPullRuns,
+  isFirstTimeContributor,
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
@@ -267,7 +268,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (ignore_current) {
       if (
-        !(await this.hasWorkflowRunningPermissions(
+        !(await this.hasWritePermissions(
           this.ctx.payload?.comment?.user?.login
         ))
       ) {
@@ -284,7 +285,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (
       rebase &&
-      !(await this.hasWorkflowRunningPermissions(
+      !(await this.hasRebasePermissions(
         this.ctx.payload?.comment?.user?.login
       ))
     ) {
@@ -314,7 +315,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           ))
         ) {
           await this.addComment(
-            "The author does't have permissions to run the required trunk workflow since they do not have approvals, aborting merge.  " +
+            "The author doesn't have permissions to run the required trunk workflow since they do not have approvals, aborting merge.  " +
               "Please get/give approval for the workflows before merging again.  " +
               "If you think this is a mistake, please contact PyTorch Dev Infra."
           );
@@ -342,7 +343,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await this.logger.log("rebase", { branch });
     const { ctx } = this;
     if (
-      await this.hasWorkflowRunningPermissions(
+      await this.hasRebasePermissions(
         ctx.payload?.comment?.user?.login
       )
     ) {
@@ -369,6 +370,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async hasWritePermissions(username: string): Promise<boolean> {
     return _hasWP(this.ctx, username);
+  }
+
+  async hasRebasePermissions(username: string): Promise<boolean> {
+    return (
+      (await _hasWP(this.ctx, username)) ||
+      !(await isFirstTimeContributor(this.ctx, username))
+    );
   }
 
   async hasWorkflowRunningPermissions(username: string): Promise<boolean> {

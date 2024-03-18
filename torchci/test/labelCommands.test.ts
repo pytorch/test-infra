@@ -156,17 +156,8 @@ describe("label-bot", () => {
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
-    const default_branch = event.payload.repository.default_branch;
 
     const scope = nock("https://api.github.com")
-      .get(
-        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
-      )
-      .reply(200, { permission: "read" })
-      .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
-      )
-      .reply(200, [])
       .get(`/repos/${owner}/${repo}/labels`)
       .reply(200, existingRepoLabelsResponse)
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
@@ -176,9 +167,23 @@ describe("label-bot", () => {
         return true;
       })
       .reply(200, {});
+    const scopes = [scope];
+    scopes.push(utils.mockPermissions(
+      `${owner}/${repo}`,
+      event.payload.comment.user.login,
+      "read"
+    ));
+    scopes.push(utils.mockGetPR(`${owner}/${repo}`, pr_number, {
+      head: { sha: "randomsha" },
+    }));
+    scopes.push(
+      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", false)
+    );
 
     await probot.receive(event);
-    handleScope(scope);
+    for (const scope of scopes) {
+      handleScope(scope);
+    }
   });
 
   test("label with ciflow good permissions", async () => {
@@ -193,14 +198,6 @@ describe("label-bot", () => {
     const default_branch = event.payload.repository.default_branch;
 
     const scope = nock("https://api.github.com")
-      .get(
-        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
-      )
-      .reply(200, { permission: "read" })
-      .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
-      )
-      .reply(200, [{}])
       .get(`/repos/${owner}/${repo}/labels`)
       .reply(200, existingRepoLabelsResponse)
       .post(
@@ -216,9 +213,24 @@ describe("label-bot", () => {
         return true;
       })
       .reply(200, {});
+    const scopes = [scope];
+    scopes.push(utils.mockPermissions(
+      `${owner}/${repo}`,
+      event.payload.comment.user.login,
+      "read"
+    ));
+    scopes.push(utils.mockGetPR(`${owner}/${repo}`, pr_number, {
+      head: { sha: "randomsha" },
+    }));
+    scopes.push(
+      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", true)
+    );
 
     await probot.receive(event);
-    handleScope(scope);
+    for (const scope of scopes) {
+      handleScope(scope);
+    }
+
   });
 
   test("label with ciflow on issue should have no event", async () => {

@@ -154,7 +154,7 @@ describe("merge-bot", () => {
       })
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `You don't have permissions to run the required trunk workflow`
+          `The author doesn't have permissions to run the required trunk workflow`
         );
         return true;
       })
@@ -440,10 +440,6 @@ describe("merge-bot", () => {
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
-      .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
-      )
-      .reply(200, [])
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
