@@ -167,23 +167,21 @@ describe("label-bot", () => {
         return true;
       })
       .reply(200, {});
-    const scopes = [scope];
-    scopes.push(utils.mockPermissions(
-      `${owner}/${repo}`,
-      event.payload.comment.user.login,
-      "read"
-    ));
-    scopes.push(utils.mockGetPR(`${owner}/${repo}`, pr_number, {
-      head: { sha: "randomsha" },
-    }));
-    scopes.push(
-      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", false)
-    );
+    const additionalScopes = [
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.comment.user.login,
+        "read"
+      ),
+      utils.mockGetPR(`${owner}/${repo}`, pr_number, {
+        head: { sha: "randomsha" },
+      }),
+      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", false),
+    ];
 
     await probot.receive(event);
-    for (const scope of scopes) {
-      handleScope(scope);
-    }
+    handleScope(scope);
+    handleScope(additionalScopes);
   });
 
   test("label with ciflow good permissions", async () => {
@@ -213,24 +211,21 @@ describe("label-bot", () => {
         return true;
       })
       .reply(200, {});
-    const scopes = [scope];
-    scopes.push(utils.mockPermissions(
-      `${owner}/${repo}`,
-      event.payload.comment.user.login,
-      "read"
-    ));
-    scopes.push(utils.mockGetPR(`${owner}/${repo}`, pr_number, {
-      head: { sha: "randomsha" },
-    }));
-    scopes.push(
-      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", true)
-    );
+    const additionalScopes = [
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.comment.user.login,
+        "read"
+      ),
+      utils.mockGetPR(`${owner}/${repo}`, pr_number, {
+        head: { sha: "randomsha" },
+      }),
+      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", true),
+    ];
 
     await probot.receive(event);
-    for (const scope of scopes) {
-      handleScope(scope);
-    }
-
+    handleScope(scope);
+    handleScope(additionalScopes);
   });
 
   test("label with ciflow on issue should have no event", async () => {
