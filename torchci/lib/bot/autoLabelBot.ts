@@ -437,6 +437,7 @@ function myBot(app: Probot): void {
     // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed a
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
+    const prAuthor = context.payload.pull_request.user.login;
 
     if (context.payload.review.state !== "approved") {
       return;
@@ -452,6 +453,31 @@ function myBot(app: Probot): void {
         "Differential Revision: D"
       )
     ) {
+      return;
+    }
+
+    // Is codev but doesn't have approvals means the author is a metamate but
+    // doesn't have write permissions, so post link to get write access
+    // I think only one of these checks is really needed
+    if (
+      !(await hasApprovedPullRuns(
+        context.octokit,
+        owner,
+        repo,
+        context.payload.pull_request.head.sha
+      )) &&
+      !(await hasWritePermissions(context, prAuthor))
+    ) {
+      const wikiLink =
+        "https://www.internalfb.com/intern/wiki/PyTorch/PyTorchDev/Workflow/develop/#setup-your-github-accoun";
+      await context.octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: context.payload.pull_request.number,
+        body:
+          "This appears to be a codev diff but the PR author doesn't have write permissions.  " +
+          `@${prAuthor}, please do step 2 of [internal wiki](${wikiLink}) to get write access so you do not need to get approvals in the future.`,
+      });
       return;
     }
 

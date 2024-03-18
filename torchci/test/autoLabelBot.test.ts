@@ -805,6 +805,7 @@ describe("auto-label-bot", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.pull_request.number;
     event.payload.pull_request.body = "Differential Revision: D12345678";
+    mockHasApprovedWorkflowRun(`${owner}/${repo}`);
 
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -846,6 +847,48 @@ describe("auto-label-bot", () => {
       .reply(200, { token: "test" });
 
     const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label for codev pr without write permissions", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    event.payload.repository.owner.login = "random";
+    event.payload.repository.name = "random";
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+    const pr_number = event.payload.pull_request.number;
+    const author = event.payload.pull_request.user.login;
+    const repoFullName = `${event.payload.repository.owner.login}/${event.payload.repository.name}`;
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" })
+      // Nocks for not having permissions
+      .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
+      .reply(200, {
+        workflow_runs: [
+          {
+            event: "pull_request",
+            conclusion: "action_required",
+          },
+        ],
+      })
+      .get(`/repos/${repoFullName}/collaborators/${author}/permission`)
+      .reply(200, {
+        permission: "read",
+      });
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${repoFullName}/issues/${pr_number}/comments`, (body) => {
+        console.log(body);
+        expect(JSON.stringify(body)).toContain(
+          `a codev diff but the PR author doesn't have write permissions`
+        );
+        return true;
+      })
+      .reply(200, {});
     await probot.receive(event);
 
     scope.done();
