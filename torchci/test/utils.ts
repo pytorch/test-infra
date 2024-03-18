@@ -50,7 +50,7 @@ export function mockPermissions(
   user: string,
   permission: string = "write"
 ) {
- return nock("https://api.github.com")
+  return nock("https://api.github.com")
     .get(`/repos/${repoFullName}/collaborators/${user}/permission`)
     .reply(200, {
       permission: permission,
@@ -74,11 +74,7 @@ export function mockApprovedWorkflowRuns(
     });
 }
 
-export function mockGetPR(
-  repoFullName: string,
-  prNumber: number,
-  body: any
-) {
+export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
   return nock("https://api.github.com")
     .get(`/repos/${repoFullName}/pulls/${prNumber}`)
     .reply(200, body);

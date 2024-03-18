@@ -115,7 +115,7 @@ describe("merge-bot", () => {
         `${owner}/${repo}`,
         event.payload.issue.user.login,
         "write"
-      )
+      ),
     ];
 
     await probot.receive(event);

@@ -285,9 +285,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (
       rebase &&
-      !(await this.hasRebasePermissions(
-        this.ctx.payload?.comment?.user?.login
-      ))
+      !(await this.hasRebasePermissions(this.ctx.payload?.comment?.user?.login))
     ) {
       await this.addComment(
         "You don't have permissions to rebase this PR since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra."
@@ -342,11 +340,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async handleRebase(branch: string) {
     await this.logger.log("rebase", { branch });
     const { ctx } = this;
-    if (
-      await this.hasRebasePermissions(
-        ctx.payload?.comment?.user?.login
-      )
-    ) {
+    if (await this.hasRebasePermissions(ctx.payload?.comment?.user?.login)) {
       await this.dispatchEvent("try-rebase", { branch: branch });
       await this.ackComment();
     } else {
