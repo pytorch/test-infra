@@ -79,3 +79,18 @@ export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
     .get(`/repos/${repoFullName}/pulls/${prNumber}`)
     .reply(200, body);
 }
+
+export function mockPostComment(
+  repoFullName: string,
+  prNumber: number,
+  containedStrings: string[]
+) {
+  return nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues/${prNumber}/comments`, (body) => {
+      for (const containedString of containedStrings) {
+        expect(JSON.stringify(body)).toContain(containedString);
+      }
+      return true;
+    })
+    .reply(200);
+}
