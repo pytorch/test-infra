@@ -61,7 +61,7 @@ describe("codevNoWritePermBot", () => {
     const scopes = [
       utils.mockPermissions(repoFullName, author, "read"),
       utils.mockPostComment(repoFullName, 31, [
-        `Hi there, this appears to be a diff that was exported from phabricator`,
+        `This appears to be a diff that was exported from phabricator`,
       ]),
     ];
     await probot.receive(payload);

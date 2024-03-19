@@ -1,9 +1,19 @@
 import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 import { Probot } from "probot";
 
-const CODEV_INDICATOR = "Differential Revision: D";
-const WIKI_LINK =
+export const CODEV_INDICATOR = "Differential Revision: D";
+const CODEV_WIKI_LINK =
   "https://www.internalfb.com/intern/wiki/PyTorch/PyTorchDev/Workflow/develop/#setup-your-github-accoun";
+
+export function genCodevNoWritePermComment(author: string) {
+  return (
+    "This appears to be a diff that was exported from phabricator, " +
+    `but the PR author does not have sufficient permissions to run CI. ` +
+    `@${author}, please do step 2 of [internal wiki](${CODEV_WIKI_LINK}) to get write access so ` +
+    `you do not need to get CI approvals in the future. ` +
+    "If you think this is a mistake, please contact the Pytorch Dev Infra team."
+  );
+}
 
 // If a pytorch/pytorch codev PR is created but the author doesn't have write
 // permissions, the bot will comment on the PR to inform the author to get write
@@ -20,17 +30,11 @@ export default function codevNoWritePerm(app: Probot): void {
       body?.includes(CODEV_INDICATOR) &&
       !(await hasWritePermissions(context, author))
     ) {
-      const body =
-        "Hi there, this appears to be a diff that was exported from phabricator, " +
-        `but the PR author does not have sufficient permissions to run CI. ` +
-        `@${author}, please do step 2 of [internal wiki](${WIKI_LINK}) to get write access so ` +
-        `you do not need to get CI approvals in the future. ` +
-        "If you think this is a mistake, please contact the Pytorch Dev Infra team.";
       await context.octokit.rest.issues.createComment({
         owner,
         repo,
         issue_number: prNumber,
-        body,
+        body: genCodevNoWritePermComment(author),
       });
     }
   });
