@@ -266,13 +266,3 @@ export async function isFirstTimeContributor(
   });
   return commits?.data?.length === 0;
 }
-
-export async function hasWorkflowRunningPermissions(
-  ctx: any,
-  username: string
-): Promise<boolean> {
-  return (
-    (await hasWritePermissions(ctx, username)) ||
-    !(await isFirstTimeContributor(ctx, username))
-  );
-}

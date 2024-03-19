@@ -11,7 +11,8 @@ import {
   addLabels,
   hasWritePermissions as _hasWP,
   reactOnComment,
-  hasWorkflowRunningPermissions as _hasWRP,
+  hasApprovedPullRuns,
+  isFirstTimeContributor,
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
@@ -43,6 +44,7 @@ class PytorchBotHandler {
   commentId: number;
   login: string;
   commentBody: string;
+  headSha: string | undefined;
 
   forceMergeMessagePat = new RegExp("^\\s*\\S+\\s+\\S+.*");
 
@@ -266,7 +268,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (ignore_current) {
       if (
-        !(await this.hasWorkflowRunningPermissions(
+        !(await this.hasWritePermissions(
           this.ctx.payload?.comment?.user?.login
         ))
       ) {
@@ -283,9 +285,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (
       rebase &&
-      !(await this.hasWorkflowRunningPermissions(
-        this.ctx.payload?.comment?.user?.login
-      ))
+      !(await this.hasRebasePermissions(this.ctx.payload?.comment?.user?.login))
     ) {
       await this.addComment(
         "You don't have permissions to rebase this PR since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra."
@@ -303,14 +303,22 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           (e: any) => e["name"]
         );
       }
-      const pr_body =
-        JSON.stringify(this.ctx.payload?.pull_request?.body) || "";
       if (
         labels !== undefined &&
-        !labels.find((x) => x === CIFLOW_TRUNK_LABEL) &&
-        // skip applying label to codev diffs
-        !pr_body.includes("Differential Revision: D")
+        !labels.find((x) => x === CIFLOW_TRUNK_LABEL)
       ) {
+        if (
+          !(await this.hasWorkflowRunningPermissions(
+            this.ctx.payload?.issue?.user?.login
+          ))
+        ) {
+          await this.addComment(
+            "The author doesn't have permissions to run the required trunk workflow since they do not have approvals, aborting merge.  " +
+              "Please get/give approval for the workflows before merging again.  " +
+              "If you think this is a mistake, please contact PyTorch Dev Infra."
+          );
+          return;
+        }
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
     }
@@ -332,11 +340,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async handleRebase(branch: string) {
     await this.logger.log("rebase", { branch });
     const { ctx } = this;
-    if (
-      await this.hasWorkflowRunningPermissions(
-        ctx.payload?.comment?.user?.login
-      )
-    ) {
+    if (await this.hasRebasePermissions(ctx.payload?.comment?.user?.login)) {
       await this.dispatchEvent("try-rebase", { branch: branch });
       await this.ackComment();
     } else {
@@ -362,9 +366,34 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return _hasWP(this.ctx, username);
   }
 
-  async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
-    return _hasWRP(this.ctx, username);
+  async hasRebasePermissions(username: string): Promise<boolean> {
+    return (
+      (await _hasWP(this.ctx, username)) ||
+      !(await isFirstTimeContributor(this.ctx, username))
+    );
   }
+
+  async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
+    if (await _hasWP(this.ctx, username)) {
+      return true;
+    }
+    if (this.headSha === undefined) {
+      const pullRequest = await this.ctx.octokit.pulls.get({
+        owner: this.owner,
+        repo: this.repo,
+        pull_number: this.prNum,
+      });
+      this.headSha = pullRequest.data.head.sha;
+    }
+
+    return await hasApprovedPullRuns(
+      this.ctx.octokit,
+      this.ctx.payload.repository.owner.login,
+      this.ctx.payload.repository.name,
+      this.headSha!
+    );
+  }
+
   async handleClose() {
     if (
       this.ctx.payload?.issue?.author_association == "FIRST_TIME_CONTRIBUTOR"

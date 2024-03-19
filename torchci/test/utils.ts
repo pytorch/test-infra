@@ -44,3 +44,38 @@ export function mockAccessToken(): void {
     .post("/app/installations/2/access_tokens")
     .reply(200, { token: "test" });
 }
+
+export function mockPermissions(
+  repoFullName: string,
+  user: string,
+  permission: string = "write"
+) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullName}/collaborators/${user}/permission`)
+    .reply(200, {
+      permission: permission,
+    });
+}
+
+export function mockApprovedWorkflowRuns(
+  repoFullname: string,
+  headSha: string,
+  approved: boolean
+) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullname}/actions/runs?head_sha=${headSha}`)
+    .reply(200, {
+      workflow_runs: [
+        {
+          event: "pull_request",
+          conclusion: approved ? "success" : "action_required",
+        },
+      ],
+    });
+}
+
+export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullName}/pulls/${prNumber}`)
+    .reply(200, body);
+}
