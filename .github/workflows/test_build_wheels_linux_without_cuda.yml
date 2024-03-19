@@ -24,7 +24,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
-  test:
+  test_default_runner:
     needs: generate-matrix
     strategy:
       fail-fast: false
@@ -47,4 +47,20 @@ jobs:
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"
+  test_github_runner:
+    needs: generate-matrix
+    uses: ./.github/workflows/build_wheels_linux.yml
+    name: pytorch/text
+    with:
+      repository: pytorch/text
+      ref: nightly
+      runner: ubuntu-latest
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: packaging/install_torchdata.sh
+      post-script: ""
+      smoke-test-script: test/smoke_tests/smoke_tests.py
+      package-name: torchtext
       trigger-event: "${{ github.event_name }}"
