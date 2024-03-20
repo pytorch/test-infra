@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  generate-matrix:
+  generate-matrix-default:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel
@@ -25,7 +25,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
   test_default_runner:
-    needs: generate-matrix
+    needs: generate-matrix-default
     strategy:
       fail-fast: false
       matrix:
@@ -48,14 +48,22 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+  generate-matrix-github-hosted:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
+      use-github-hosted-runners: enable
   test_github_runner:
-    needs: generate-matrix
+    needs: generate-matrix-github-hosted
     uses: ./.github/workflows/build_wheels_linux.yml
     name: pytorch/text
     with:
       repository: pytorch/text
       ref: nightly
-      runner: ubuntu-latest
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
