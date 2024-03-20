@@ -1,7 +1,7 @@
 import nock from "nock";
 import { Probot } from "probot";
 import * as utils from "./utils";
-import { requireDeepCopy } from "./common";
+import { handleScope, requireDeepCopy } from "./common";
 import myProbotApp from "../lib/bot/autoLabelBot";
 import * as botUtils from "lib/bot/utils";
 
@@ -861,37 +861,22 @@ describe("auto-label-bot", () => {
     const pr_number = event.payload.pull_request.number;
     const author = event.payload.pull_request.user.login;
     const repoFullName = `${event.payload.repository.owner.login}/${event.payload.repository.name}`;
+    const headSha = event.payload.pull_request.head.sha;
 
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" })
-      // Nocks for not having permissions
-      .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
-      .reply(200, {
-        workflow_runs: [
-          {
-            event: "pull_request",
-            conclusion: "action_required",
-          },
-        ],
-      })
-      .get(`/repos/${repoFullName}/collaborators/${author}/permission`)
-      .reply(200, {
-        permission: "read",
-      });
+      .reply(200, { token: "test" });
 
-    const scope = nock("https://api.github.com")
-      .post(`/repos/${repoFullName}/issues/${pr_number}/comments`, (body) => {
-        console.log(body);
-        expect(JSON.stringify(body)).toContain(
-          `a codev diff but the PR author doesn't have write permissions`
-        );
-        return true;
-      })
-      .reply(200, {});
+    const scope = [
+      utils.mockPermissions(repoFullName, author, "read"),
+      utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
+      utils.mockPostComment(repoFullName, pr_number, [
+        "This appears to be a diff that was exported from phabricator, ",
+      ]),
+    ];
     await probot.receive(event);
 
-    scope.done();
+    handleScope(scope);
   });
 });
 

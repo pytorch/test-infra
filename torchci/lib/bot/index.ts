@@ -10,6 +10,7 @@ import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import webhookToDynamo from "./webhookToDynamo";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import stripApprovalBot from "./stripApprovalBot";
+import codevNoWritePerm from "./codevNoWritePermBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
@@ -23,4 +24,5 @@ export default function bot(app: Probot) {
   drciBot(app);
   retryBot(app);
   cancelWorkflowsOnCloseBot(app);
+  codevNoWritePerm(app);
 }

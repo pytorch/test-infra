@@ -5,9 +5,12 @@ import {
   hasApprovedPullRuns,
   hasWritePermissions,
   isPyTorchPyTorch,
-  repoKey,
 } from "./utils";
 import { minimatch } from "minimatch";
+import {
+  CODEV_INDICATOR,
+  genCodevNoWritePermComment,
+} from "./codevNoWritePermBot";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -438,6 +441,7 @@ function myBot(app: Probot): void {
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     const prAuthor = context.payload.pull_request.user.login;
+    const body = context.payload.pull_request.body;
 
     if (context.payload.review.state !== "approved") {
       return;
@@ -448,11 +452,7 @@ function myBot(app: Probot): void {
     }
 
     // only applies label to codev diffs.
-    if (
-      !JSON.stringify(context.payload.pull_request.body).includes(
-        "Differential Revision: D"
-      )
-    ) {
+    if (!body?.match(CODEV_INDICATOR)) {
       return;
     }
 
@@ -468,15 +468,11 @@ function myBot(app: Probot): void {
       )) &&
       !(await hasWritePermissions(context, prAuthor))
     ) {
-      const wikiLink =
-        "https://www.internalfb.com/intern/wiki/PyTorch/PyTorchDev/Workflow/develop/#setup-your-github-accoun";
       await context.octokit.issues.createComment({
         owner,
         repo,
         issue_number: context.payload.pull_request.number,
-        body:
-          "This appears to be a codev diff but the PR author doesn't have write permissions.  " +
-          `@${prAuthor}, please do step 2 of [internal wiki](${wikiLink}) to get write access so you do not need to get approvals in the future.`,
+        body: genCodevNoWritePermComment(prAuthor),
       });
       return;
     }
