@@ -14,6 +14,7 @@ s3 = boto3.resource("s3")
 GITHUB_TOKENS = os.environ.get("GITHUB_TOKENS")
 BUCKET_NAME = "ossci-raw-job-status"
 
+
 def json_dumps(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(",", ": "))
 
