@@ -7,6 +7,7 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 from uuid import uuid4
 import requests
+import random
 
 import boto3
 
@@ -23,13 +24,10 @@ def download_log(full_name, conclusion, job_id):
     url = f"https://api.github.com/repos/{full_name}/actions/jobs/{job_id}/logs"
     headers = {
         "Accept": "application/vnd.github.v3+json",
+        "Authorization": "token " + random.choice(GITHUB_TOKENS.split(",")),
     }
-    for token in GITHUB_TOKENS.split(","):
-        headers["Authorization"] = f"token {token}"
-        r = requests.get(url, headers=headers)
-        log_data = r.content
-        if not log_data.startswith(b'{"message":"API rate limit exceeded for user ID '):
-            break
+    r = requests.get(url, headers=headers)
+    log_data = r.content
 
     object_path = f"log/{job_id}"
     if full_name != "pytorch/pytorch":
