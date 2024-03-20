@@ -42,7 +42,7 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      build-matrix: ${{ needs.generate-matrix-default.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
@@ -66,7 +66,7 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      build-matrix: ${{ needs.generate-matrix-github-hosted.outputs.matrix }}
       pre-script: packaging/install_torchdata.sh
       post-script: ""
       smoke-test-script: test/smoke_tests/smoke_tests.py

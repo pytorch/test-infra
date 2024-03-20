@@ -650,7 +650,7 @@ def main(args) -> None:
         default=os.getenv("USE_ONLY_DL_PYTORCH_ORG", "false"),
     )
     parser.add_argument(
-        "--use-github-runners",
+        "--use-github-hosted-runners",
         help="Use GitHub Hosted Runners?",
         type=str,
         choices=[ENABLE, DISABLE],
