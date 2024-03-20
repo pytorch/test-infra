@@ -261,13 +261,13 @@ def get_libtorch_install_command(
         if channel in [RELEASE, TEST]:
             build_name = f"libtorch-macos-{arch}-{mod.CURRENT_VERSION}.zip"
 
-    elif os == LINUX and (channel == RELEASE or channel == TEST):
+    elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-{devtoolset}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
             if devtoolset == "cxx11-abi"
             else f"{prefix}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
-    elif os == WINDOWS and (channel == RELEASE or channel == TEST):
+    elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-shared-with-deps-debug-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
             if libtorch_config == "debug"
@@ -330,7 +330,7 @@ def generate_conda_matrix(
         arches += [CPU]
 
     if with_cuda == ENABLE:
-        if os == LINUX or os == WINDOWS:
+        if os in (LINUX, WINDOWS):
             arches += mod.CUDA_ARCHES
 
     if limit_pr_builds:
@@ -389,7 +389,7 @@ def generate_libtorch_matrix(
             arches += [CPU]
 
         if with_cuda == ENABLE:
-            if os == LINUX or os == WINDOWS:
+            if os in (LINUX, WINDOWS):
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
@@ -493,7 +493,7 @@ def generate_wheels_matrix(
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
-            if os == LINUX or os == WINDOWS:
+            if os in (LINUX, WINDOWS):
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
