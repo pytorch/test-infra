@@ -1,7 +1,7 @@
 import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 import { Probot } from "probot";
 
-export const CODEV_INDICATOR = "Differential Revision: D";
+export const CODEV_INDICATOR = /Differential Revision: \[?D/;
 const CODEV_WIKI_LINK =
   "https://www.internalfb.com/intern/wiki/PyTorch/PyTorchDev/Workflow/develop/#setup-your-github-accoun";
 
@@ -27,7 +27,7 @@ export default function codevNoWritePerm(app: Probot): void {
     const repo = context.payload.repository.name;
     if (
       isPyTorchPyTorch(owner, repo) &&
-      body?.includes(CODEV_INDICATOR) &&
+      body?.match(CODEV_INDICATOR) &&
       !(await hasWritePermissions(context, author))
     ) {
       await context.octokit.rest.issues.createComment({

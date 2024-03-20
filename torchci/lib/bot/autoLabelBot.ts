@@ -452,7 +452,7 @@ function myBot(app: Probot): void {
     }
 
     // only applies label to codev diffs.
-    if (!body?.includes(CODEV_INDICATOR)) {
+    if (!body?.match(CODEV_INDICATOR)) {
       return;
     }
 

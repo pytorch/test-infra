@@ -67,4 +67,22 @@ describe("codevNoWritePermBot", () => {
     await probot.receive(payload);
     handleScope(scopes);
   });
+
+  test("comment if no write perms, alternate magic string", async () => {
+    // Same as the previous test, but with a different body
+    const payload = requireDeepCopy("./fixtures/pull_request.opened");
+    payload.payload.pull_request.body =
+      "Differential Revision: [D123123123](Link)";
+    const repoFullName = payload.payload.repository.full_name;
+    const author = payload.payload.pull_request.user.login;
+    mockIsPytorchPytorch(true);
+    const scopes = [
+      utils.mockPermissions(repoFullName, author, "read"),
+      utils.mockPostComment(repoFullName, 31, [
+        `This appears to be a diff that was exported from phabricator`,
+      ]),
+    ];
+    await probot.receive(payload);
+    handleScope(scopes);
+  });
 });
