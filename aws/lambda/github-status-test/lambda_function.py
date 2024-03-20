@@ -12,8 +12,8 @@ import boto3
 
 s3 = boto3.resource("s3")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN2 = os.environ.get("GITHUB_TOKEN2")
 BUCKET_NAME = "ossci-raw-job-status"
-
 
 def json_dumps(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(",", ": "))
@@ -27,6 +27,10 @@ def download_log(full_name, conclusion, job_id):
     }
     r = requests.get(url, headers=headers)
     log_data = r.content
+
+    if log_data.startswith(b'{"message":"API rate limit exceeded for user ID '):
+        headers["Authorization"] = f"token {GITHUB_TOKEN2}"
+        log_data = requests.get(url, headers=headers).content
 
     object_path = f"log/{job_id}"
     if full_name != "pytorch/pytorch":
