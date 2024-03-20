@@ -30,7 +30,7 @@
     "test_insights_latest_runs": "1871833a91cb8b1b",
     "master_commit_red_jobs": "4869b467679a616a",
     "weekly_force_merge_stats": "d2264131599bcf6e",
-    "pr_commits": "7ef5e3d100a56edc",
+    "pr_commits": "cc14c0d3a5091636",
     "test_time_per_class": "630fa1ba72a3222b",
     "test_time_per_class_periodic_jobs": "c91054c7a10b377e"
   },
@@ -43,7 +43,7 @@
     "time_to_signal": "ff332d025976c103",
     "strict_lag_historical": "d2a09d13caf8b76a",
     "ci_wait_time": "b1080f26b20ea142",
-    "ttrs_percentiles": "cb34ea79098652f2"
+    "ttrs_percentiles": "ea95e9b56ab6900f"
   },
   "metrics": {
     "correlation_matrix": "35c05e04047123f0",

@@ -1,6 +1,6 @@
 -- This query is used by the HUD's /pull page to populate the list of historical commits
 -- made against a given PR.
--- This improves upon the default github commits view because it allows HUD to show jobs 
+-- This improves upon the default github commits view because it allows HUD to show jobs
 -- that ran on a PR before it was rebased
 
 WITH
@@ -26,9 +26,11 @@ pr_shas AS (
     ) AS pr_url,
     p.head_commit.url AS commit_url,
   FROM
-    commons.workflow_job j
-    INNER JOIN commons.workflow_run r ON j.run_id = r.id
-    JOIN commons.push p ON p.head_commit.id = j.head_sha
+    commons.push p
+    JOIN (
+      commons.workflow_job j
+      INNER JOIN commons.workflow_run r ON j.run_id = r.id HINT(join_strategy = lookup)
+    ) ON p.head_commit.id = j.head_sha HINT(join_strategy = lookup)
   WHERE
     1 = 1
     AND LENGTH(r.pull_requests) = 1
