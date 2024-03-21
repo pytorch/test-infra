@@ -139,7 +139,7 @@ describe("merge-bot", () => {
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"))
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `The author doesn't have permissions to run the required trunk workflow`
+          `author doesn't have permissions to run those`
         );
         return true;
       })
