@@ -292,12 +292,16 @@ where
         pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
       }
     },
+    // NB (huydhn): This function couldn't find merge base for ghstack PR and
+    // always throw an error in that case, so I decide to not print anything
+    // here to void confusion when seeing this error in the log
     async (pr_info: PRandJobs, e: Error) => {
-      console.log("Failed to retrieve merge base for PR", pr_info.pr_number, e);
       // Insert dummy values if merge base can't be found
       pr_info.merge_base =
         "failed to retrieve merge base, please contact dev infra";
-      pr_info.merge_base_date = "0";
+      // NB: Leave the merge base date empty or undefined here, any mock value
+      // like 0 is treated as a timestamp to use when quering similar failures
+      pr_info.merge_base_date = "";
     }
   );
   rocksetClient.documents.addDocuments("commons", "merge_bases", {
