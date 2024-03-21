@@ -261,7 +261,9 @@ export async function querySimilarFailures(
   const failure = job.failure_captures.join(" ");
   const endDate = dayjs(job.completed_at);
   const startDate = dayjs(
-    baseCommitDate !== "" ? baseCommitDate : job.completed_at
+    baseCommitDate !== "" && baseCommitDate !== "0"
+      ? baseCommitDate
+      : job.completed_at
   ).subtract(lookbackPeriodInHours, "hour");
 
   // Get the workflow name if possible
