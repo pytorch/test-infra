@@ -313,8 +313,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           ))
         ) {
           await this.addComment(
-            "The author doesn't have permissions to run the required trunk workflow since they do not have approvals, aborting merge.  " +
-              "Please get/give approval for the workflows before merging again.  " +
+            "Pull workflow has not been scheduled for the PR yet. It could be because author doesn't have permissions to run those or skip-checks keywords were added to PR/commits, aborting merge.  " +
+              "Please get/give approval for the workflows and/or remove skip ci decorators before next merge attempt.  " +
               "If you think this is a mistake, please contact PyTorch Dev Infra."
           );
           return;
