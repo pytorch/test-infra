@@ -53,7 +53,8 @@ async function upload(workspace, queryName, queryLambdas) {
   }
 
   if (
-    queryLambda.description == config.description &&
+    (queryLambda.description == config.description ||
+      (queryLambda.description == null && config.description == "")) &&
     equalParametersList(
       queryLambda.default_parameters,
       config.default_parameters
