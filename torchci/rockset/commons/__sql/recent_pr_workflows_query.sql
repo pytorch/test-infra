@@ -21,6 +21,7 @@ WITH recent_shas AS (
 )
 SELECT
   w.id AS workflowId,
+  w.workflow_id as workflowUniqueId,
   j.id,
   j.runner_name AS runnerName,
   w.head_commit.author.email as authorEmail,
@@ -49,6 +50,7 @@ FROM
 UNION
 SELECT
   null AS workflowId,
+  w.workflow_id as workflowUniqueId,
   w.id,
   null AS runnerName,
   w.head_commit.author.email as authorEmail,

@@ -19,7 +19,25 @@ import * as jobUtils from "lib/jobUtils";
 
 nock.disableNetConnect();
 
-export const successfulA = {
+function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
+  // Use this function to create a dummy job with default values
+  return {
+    workflowUniqueId: 1,
+    jobName: "dummy job name",
+    name: "dummy name",
+    id: "1",
+    workflowId: "1",
+    completed_at: "2022-07-13T19:34:03Z",
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    conclusion: "success",
+    failure_captures: [],
+    ...nonDefaultInputs,
+  };
+}
+
+export const successfulA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",
   conclusion: "success",
   completed_at: "2022-07-13T19:34:03Z",
@@ -29,9 +47,9 @@ export const successfulA = {
   id: "1",
   failure_lines: ["a"],
   failure_captures: ["Doc build successful"],
-};
+});
 
-const pendingA = {
+const pendingA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",
   conclusion: undefined,
   completed_at: null,
@@ -42,9 +60,9 @@ const pendingA = {
   failure_lines: ["a"],
   failure_captures: [],
   runnerName: "dummy",
-};
+});
 
-const failedA = {
+const failedA = getDummyJob({
   name: "Lint",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -55,9 +73,9 @@ const failedA = {
   failure_lines: ["a"],
   failure_captures: ["mind blown", "ha ha"],
   runnerName: "dummy",
-};
+});
 
-const failedASuccessfulRetry = {
+const failedASuccessfulRetry = getDummyJob({
   name: "Lint",
   conclusion: "success",
   completed_at: "2022-07-14T19:34:03Z",
@@ -67,9 +85,9 @@ const failedASuccessfulRetry = {
   pr_number: 1001,
   failure_captures: ["a"],
   runnerName: "dummy",
-};
+});
 
-const failedAFailedRetry = {
+const failedAFailedRetry = getDummyJob({
   name: "Lint",
   conclusion: "failure",
   completed_at: "2022-07-15T19:34:03Z",
@@ -80,9 +98,9 @@ const failedAFailedRetry = {
   failure_lines: ["a"],
   failure_captures: ["Retired but mind still blown", "ha ha ha"],
   runnerName: "dummy",
-};
+});
 
-const failedB = {
+const failedB = getDummyJob({
   name: "something",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -93,9 +111,9 @@ const failedB = {
   failure_lines: ["a"],
   failure_captures: ["cde"],
   runnerName: "dummy",
-};
+});
 
-const failedC = {
+const failedC = getDummyJob({
   name: "z-docs / build-docs (cpp)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -106,9 +124,9 @@ const failedC = {
   failure_lines: ["a"],
   failure_captures: ["bababa"],
   runnerName: "dummy",
-};
+});
 
-const failedD = {
+const failedD = getDummyJob({
   name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -119,10 +137,10 @@ const failedD = {
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
-};
+});
 
 // Same as failedD but has a different shard ID
-const failedE = {
+const failedE = getDummyJob({
   name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -133,10 +151,10 @@ const failedE = {
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
-};
+});
 
 // Same as unstable A but without the unstable suffix
-const failedF = {
+const failedF = getDummyJob({
   name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -147,10 +165,10 @@ const failedF = {
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
-};
+});
 
 // Some additional mock samples for flaky rules regex match
-const failedG = {
+const failedG = getDummyJob({
   name: "win-vs2019-cpu-py3 / build",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -165,9 +183,9 @@ const failedG = {
     "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
   ],
   runnerName: "dummy",
-};
+});
 
-const failedH = {
+const failedH = getDummyJob({
   name: "cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks / test (dynamo_eager_huggingface, 1, 1, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -182,10 +200,10 @@ const failedH = {
     "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
   ],
   runnerName: "dummy",
-};
+});
 
 // Match with failure line string instead of failure capture array
-const failedI = {
+const failedI = getDummyJob({
   name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-stable)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -198,9 +216,9 @@ const failedI = {
     "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
   ],
   runnerName: "dummy",
-};
+});
 
-const unstableA = {
+const unstableA = getDummyJob({
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
   completed_at: "2022-07-13T19:34:03Z",
@@ -211,7 +229,7 @@ const unstableA = {
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
   runnerName: "dummy",
-};
+});
 
 const sev: IssueData = {
   number: 85362,
@@ -316,7 +334,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       sha: pr_1001.head_sha,
       hud_pr_url: "hudlink",
     });
-    const failedJobName = failedA.name;
+    const failedJobName = failedA.name!;
 
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
@@ -363,7 +381,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("Check that dr ci comment is correctly formed", async () => {
-    const comment = formDrciComment(successfulA.pr_number);
+    const comment = formDrciComment(successfulA.pr_number!);
     expect(comment.includes(DRCI_COMMENT_START)).toBeTruthy();
     expect(
       comment.includes("See artifacts and rendered test results")
@@ -520,7 +538,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
       await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
-        [{ name: failedB.name, captures: failedB.failure_captures }],
+        [{ name: failedB.name!, captures: failedB.failure_captures }],
         new Map().set(failedA.name, [failedA])
       );
     expect(failedJobs.length).toBe(0);
@@ -574,8 +592,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const pr_1001 = workflowsByPR.get(1001)!;
 
     const baseJobs = new Map();
-    baseJobs.set(removeJobNameSuffix(failedD.name), [failedE]);
-    baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
+    baseJobs.set(removeJobNameSuffix(failedD.name!), [failedE]);
+    baseJobs.set(removeJobNameSuffix(failedF.name!), [unstableA]);
 
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
       await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
@@ -606,7 +624,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       unstableA.name,
     ];
     expect(
-      expectToContain.every((s) => failureInfoComment.includes(s))
+      expectToContain.every((s) => failureInfoComment.includes(s!))
     ).toBeTruthy();
   });
 
@@ -626,7 +644,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       unstableA.name,
     ];
     expect(
-      expectToContain.every((s) => failureInfoComment.includes(s))
+      expectToContain.every((s) => failureInfoComment.includes(s!))
     ).toBeTruthy();
   });
 
@@ -752,6 +770,84 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
       await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
 
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test failed workflows go away if theres a new one", async () => {
+    const failedWorkflow = getDummyJob({
+      workflowId: undefined,
+      id: "1",
+      name: "weird name",
+      conclusion: "failure",
+    });
+    const newWorkflow = getDummyJob({
+      workflowId: undefined,
+      id: "2",
+      name: "correct name",
+    });
+
+    const originalWorkflows = [failedWorkflow, newWorkflow];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+
+    expect(pending).toBe(0);
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test new failed workflow overrides old succeeding workflow", async () => {
+    const newFailedWorkflow = getDummyJob({
+      workflowId: undefined,
+      id: "2",
+      name: "weird name",
+      conclusion: "failure",
+    });
+    const oldSuccessfulWorkflow = getDummyJob({
+      workflowId: undefined,
+      id: "1",
+      name: "correct name",
+    });
+    const oldSuccessfulWorkflowsJobs = [
+      getDummyJob({
+        workflowId: 1,
+        id: "3",
+        name: "correct name",
+      }),
+      getDummyJob({
+        workflowId: 1,
+        id: "4",
+        name: "correct name",
+      }),
+    ];
+
+    const originalWorkflows = [
+      newFailedWorkflow,
+      oldSuccessfulWorkflow,
+      ...oldSuccessfulWorkflowsJobs,
+    ];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+
+    expect(pending).toBe(0);
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(0);

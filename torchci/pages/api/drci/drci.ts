@@ -30,6 +30,7 @@ import {
   backfillMissingLog,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
+import _ from "lodash";
 
 interface PRandJobs {
   head_sha: string;
@@ -700,27 +701,52 @@ export function reorganizeWorkflows(
   // clean up the workflows - remove retries, remove workflows that have jobs,
   // remove cancelled jobs with weird names
   for (const [, prInfo] of workflowsByPR) {
+    const [workflows, jobs] = _.partition(
+      prInfo.jobs,
+      (job) => job.workflowId === null || job.workflowId === undefined
+    );
+
+    // Get most recent workflow run based on workflowUniqueId (workflow_id in rockset)
+    const recentWorkflows: Map<number, RecentWorkflowsData> = new Map();
+    for (const workflow of workflows) {
+      // Check that this is a workflow, not a job
+      const workflowUniqueId = workflow.workflowUniqueId!;
+      const existingWorkflowId = recentWorkflows.get(workflowUniqueId)?.id;
+      if (!existingWorkflowId || existingWorkflowId! < workflow.id!) {
+        recentWorkflows.set(workflowUniqueId, workflow);
+      }
+    }
+
     // Remove retries
     const removeRetries = new Map();
-    for (const job of prInfo.jobs) {
+    for (const job of jobs) {
+      if (
+        job.workflowUniqueId &&
+        recentWorkflows.get(job.workflowUniqueId) &&
+        job.workflowId !== recentWorkflows.get(job.workflowUniqueId)!.id
+      ) {
+        // This belongs to an older run of the workflow
+        continue;
+      }
       const key = job.name!;
       const existing_job = removeRetries.get(key);
       if (!existing_job || existing_job.id < job.id!) {
         removeRetries.set(key, job);
       }
     }
-    // Remove workflows that have jobs
-    const workflowIds = Array.from(removeRetries.values()).map(
-      (jobInfo: RecentWorkflowsData) => jobInfo.workflowId
+
+    const workflowIdsWithJobs = new Set(
+      Array.from(removeRetries.values()).map((job) => job.workflowId)
     );
-    const newJobs = [];
-    for (const jobInfo of removeRetries.values()) {
-      if (!workflowIds.includes(jobInfo.id)) {
-        newJobs.push(jobInfo);
-      }
-    }
+
+    // Keep only workflows with no jobs
+    const goodWorkflows = Array.from(recentWorkflows.values()).filter(
+      (workflow: RecentWorkflowsData) => !workflowIdsWithJobs.has(workflow.id)
+    );
+
+    const allJobs = Array.from(removeRetries.values()).concat(goodWorkflows);
     // Remove cancelled jobs with weird names
-    prInfo.jobs = removeCancelledJobAfterRetry<RecentWorkflowsData>(newJobs);
+    prInfo.jobs = removeCancelledJobAfterRetry<RecentWorkflowsData>(allJobs);
   }
   return workflowsByPR;
 }
