@@ -35,8 +35,10 @@ export interface JobData extends BasicJobData {
 export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
   workflowId?: string;
-  // Each workflow file has an id.  This can be used to group normal workflows
-  // and those that failed to run
+  // Each workflow file has an id. In rockset this is workflow_run.workflow_id.
+  // This can be used to group normal workflows (ex trunk) and those that failed
+  // to run (ex .github/workflows/trunk.yml) together even when they have
+  // different names.
   workflowUniqueId?: number;
   jobName?: string;
   id: string;
