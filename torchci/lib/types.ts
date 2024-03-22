@@ -35,6 +35,9 @@ export interface JobData extends BasicJobData {
 export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
   workflowId?: string;
+  // Each workflow file has an id.  This can be used to group normal workflows
+  // and those that failed to run
+  workflowUniqueId?: number;
   jobName?: string;
   id: string;
   completed_at: string | null;
