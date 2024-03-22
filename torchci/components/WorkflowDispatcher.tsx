@@ -11,6 +11,7 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     inductor: "Run inductor jobs",
     periodic: "Run periodic jobs",
     slow: "Run slow jobs",
+    rocm: "Run rocm jobs",
   },
 };
 
