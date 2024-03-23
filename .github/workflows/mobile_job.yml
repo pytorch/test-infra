@@ -47,8 +47,13 @@ on:
         required: false
         type: string
         default: ''
-      ios-xctest-zip:
-        description: The name of the iOS test suite itself
+      ios-xctestrun-zip:
+        description: The name of the iOS xctestrun zip archive
+        required: false
+        type: string
+        default: ''
+      ios-test-spec:
+        description: Specify how the test should be run on device
         required: false
         type: string
         default: ''
@@ -108,10 +113,10 @@ jobs:
           path: test-infra/tools/device-farm-runner/
 
       - name: Download iOS test suite
-        if: ${{ inputs.device-type == 'ios' && inputs.ios-xctest-zip != '' }}
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-xctestrun-zip != '' }}
         uses: actions/download-artifact@v3
         with:
-          name: ${{ inputs.ios-xctest-zip }}
+          name: ${{ inputs.ios-xctestrun-zip }}
           path: test-infra/tools/device-farm-runner/
 
       - name: Verify iOS artifacts
@@ -120,21 +125,21 @@ jobs:
         working-directory: test-infra/tools/device-farm-runner
         env:
           IPA_ARCHIVE: ${{ inputs.ios-ipa-archive }}
-          XCTEST_ZIP: ${{ inputs.ios-xctest-zip }}
+          XCTESTRUN_ZIP: ${{ inputs.ios-xctestrun-zip }}
         run: |
           set -ex
 
-          if [ -z "${IPA_ARCHIVE}" ] || [ -z "${XCTEST_ZIP}" ]; then
-            echo "Missing IPA archive or xctest zip"
+          if [ -z "${IPA_ARCHIVE}" ] || [ -z "${XCTESTRUN_ZIP}" ]; then
+            echo "Missing IPA archive or xctestrun zip"
             exit 1
           fi
 
           # NP: The suffix needs to be exact, otherwise, AWS will reject them
           mv "${IPA_ARCHIVE}" ci.ipa
-          mv "${XCTEST_ZIP}" ci.xctest.zip
+          mv "${XCTESTRUN_ZIP}" ci.xctestrun.zip
 
           # Print the artifacts to manually verify them if needed
-          ls -lah ci.ipa ci.xctest.zip
+          ls -lah ci.ipa ci.xctestrun.zip
 
       - name: Run iOS tests on devices
         if: ${{ inputs.device-type == 'ios' }}
@@ -153,7 +158,7 @@ jobs:
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --app-file ci.ipa \
-            --xctest-file ci.xctest.zip \
+            --xctestrun-file ci.xctestrun.zip \
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
             --workflow-attempt "${RUN_ATTEMPT}"

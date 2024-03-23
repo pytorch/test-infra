@@ -12,16 +12,19 @@ jobs:
   setup-ios-job:
     runs-on: ubuntu-latest
     env:
-      IPA_ARCHIVE: TestApp.ipa
-      XCTEST_ZIP: TestAppTests.xctest.zip
+      IPA_ARCHIVE: DeviceFarm.ipa
+      XCTESTRUN_ZIP: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
+      IOS_TEST_SPEC: default-ios-device-farm-appium-test-spec.yml
     steps:
       - name: Download the prebuilt PyTorch iOS app and test suite from S3
         run: |
           set -ex
           wget -q "https://ossci-assets.s3.amazonaws.com/${IPA_ARCHIVE}"
-          wget -q "https://ossci-assets.s3.amazonaws.com/${XCTEST_ZIP}"
+          wget -q "https://ossci-assets.s3.amazonaws.com/${XCTESTRUN_ZIP}"
+          wget -q "https://ossci-assets.s3.amazonaws.com/${IOS_TEST_SPEC}"
+
           # Print the artifacts to manually verify them if needed
-          ls -lah "${IPA_ARCHIVE}" "${XCTEST_ZIP}"
+          ls -lah "${IPA_ARCHIVE}" "${XCTESTRUN_ZIP}" "${IOS_TEST_SPEC}"
 
       - name: Upload the iOS app
         uses: actions/upload-artifact@v3
@@ -32,8 +35,14 @@ jobs:
       - name: Upload the test suite
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.XCTEST_ZIP }}
-          path: ${{ env.XCTEST_ZIP }}
+          name: ${{ env.XCTESTRUN_ZIP }}
+          path: ${{ env.XCTESTRUN_ZIP }}
+
+      - name: Upload the test spec
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.IOS_TEST_SPEC }}
+          path: ${{ env.IOS_TEST_SPEC }}
 
   test-ios-job:
     needs: setup-ios-job
@@ -46,5 +55,6 @@ jobs:
       # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
       runner: ubuntu-latest
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
-      ios-ipa-archive: TestApp.ipa
-      ios-xctest-zip: TestAppTests.xctest.zip
+      ios-ipa-archive: DeviceFarm.ipa
+      ios-xctestrun-zip: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
+      ios-test-spec: default-ios-device-farm-appium-test-spec.yml
