@@ -150,8 +150,8 @@ jobs:
           ls -lah ci.ipa ci.xctestrun.zip
 
           if [ -n "${IOS_TEST_SPEC}" ]; then
-            mv "${IOS_TEST_SPEC}" ci.spec
-            cat ci.spec
+            mv "${IOS_TEST_SPEC}" ci.yml
+            cat ci.yml
           fi
 
       - name: Run iOS tests on devices
@@ -168,12 +168,12 @@ jobs:
         run: |
           set -ex
 
-          if [ -f "ci.spec" ]; then
+          if [ -f ci.yml ]; then
             ${CONDA_RUN} python run_on_aws_devicefarm.py \
               --project-arn "${PROJECT_ARN}" \
               --app-file ci.ipa \
               --xctestrun-file ci.xctestrun.zip \
-              --appium-test-spec ci.spec \
+              --appium-test-spec ci.yml \
               --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}"
