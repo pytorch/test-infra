@@ -119,6 +119,13 @@ jobs:
           name: ${{ inputs.ios-xctestrun-zip }}
           path: test-infra/tools/device-farm-runner/
 
+      - name: Download iOS test spec
+        if: ${{ inputs.device-type == 'ios' && inputs.ios-test-spec != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.ios-test-spec }}
+          path: test-infra/tools/device-farm-runner/
+
       - name: Verify iOS artifacts
         if: ${{ inputs.device-type == 'ios' }}
         shell: bash
@@ -126,6 +133,7 @@ jobs:
         env:
           IPA_ARCHIVE: ${{ inputs.ios-ipa-archive }}
           XCTESTRUN_ZIP: ${{ inputs.ios-xctestrun-zip }}
+          IOS_TEST_SPEC: ${{ inputs.ios-test-spec }}
         run: |
           set -ex
 
@@ -141,6 +149,11 @@ jobs:
           # Print the artifacts to manually verify them if needed
           ls -lah ci.ipa ci.xctestrun.zip
 
+          if [ -n "${IOS_TEST_SPEC}" ]; then
+            mv "${IOS_TEST_SPEC}" ci.spec
+            cat ci.spec
+          fi
+
       - name: Run iOS tests on devices
         if: ${{ inputs.device-type == 'ios' }}
         shell: bash
@@ -155,10 +168,21 @@ jobs:
         run: |
           set -ex
 
-          ${CONDA_RUN} python run_on_aws_devicefarm.py \
-            --project-arn "${PROJECT_ARN}" \
-            --app-file ci.ipa \
-            --xctestrun-file ci.xctestrun.zip \
-            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
-            --workflow-id "${RUN_ID}" \
-            --workflow-attempt "${RUN_ATTEMPT}"
+          if [ -f "ci.spec" ]; then
+            ${CONDA_RUN} python run_on_aws_devicefarm.py \
+              --project-arn "${PROJECT_ARN}" \
+              --app-file ci.ipa \
+              --xctestrun-file ci.xctestrun.zip \
+              --appium-test-spec ci.spec \
+              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+              --workflow-id "${RUN_ID}" \
+              --workflow-attempt "${RUN_ATTEMPT}"
+          else
+            ${CONDA_RUN} python run_on_aws_devicefarm.py \
+              --project-arn "${PROJECT_ARN}" \
+              --app-file ci.ipa \
+              --xctestrun-file ci.xctestrun.zip \
+              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+              --workflow-id "${RUN_ID}" \
+              --workflow-attempt "${RUN_ATTEMPT}"
+          fi
