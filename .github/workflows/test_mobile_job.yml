@@ -54,7 +54,7 @@ jobs:
       device-type: ios
       # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
       runner: ubuntu-latest
-      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
       ios-ipa-archive: DeviceFarm.ipa
       ios-xctestrun-zip: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
       ios-test-spec: default-ios-device-farm-appium-test-spec.yml
