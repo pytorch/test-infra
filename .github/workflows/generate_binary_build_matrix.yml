@@ -39,6 +39,10 @@ on:
         description: "Use only download.pytorch.org when generating wheel install command?"
         default: "false"
         type: string
+      use-github-hosted-runners:
+        description: "Use GitHub-Hosted Runners for your build jobs?"
+        default: "disable"
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -68,6 +72,7 @@ jobs:
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_ROCM: ${{ inputs.with-rocm }}
           WITH_CPU: ${{ inputs.with-cpu }}
+          USE_GITHUB_HOSTED_RUNNERS: ${{ inputs.use-github-hosted-runners }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}
