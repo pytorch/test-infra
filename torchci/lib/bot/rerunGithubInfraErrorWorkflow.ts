@@ -4,7 +4,7 @@ function acceptBot(app: Probot): void {
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
   app.on("workflow_run.completed", async (ctx) => {
-    const tagPrefix = "fightGithubFailures/";
+    const tagPrefix = "rerunGithubInfraFailure/";
     // Only run this if pytorch/pytorch, failed, is a weird infra error, and is
     // not a previous run of this bot
     if (
@@ -16,7 +16,8 @@ function acceptBot(app: Probot): void {
       return;
     }
     // Create a new tag instead of using something like ciflow/ since some
-    // workflows might have been successfully triggered
+    // workflows might have been successfully triggered and we don't want to
+    // rerun those
     const tagName = `${tagPrefix}${ctx.payload.workflow_run.id}`;
     await ctx.octokit.git.createRef({
       owner: ctx.payload.repository.owner.login,
