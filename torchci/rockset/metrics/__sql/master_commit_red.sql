@@ -21,8 +21,10 @@ with commit_overall_conclusion as (
                 push.head_commit.id as sha,
             FROM
                 commons.workflow_job job
-                JOIN commons.workflow_run workflow on workflow.id = job.run_id
-                JOIN push on workflow.head_commit.id = push.head_commit.id
+                JOIN (
+                    commons.workflow_run workflow
+                    JOIN push on workflow.head_commit.id = push.head_commit.id
+                ) on workflow.id = job.run_id HINT(join_strategy = lookup)
             WHERE
                 job.name != 'ciflow_should_run'
                 AND job.name != 'generate-test-matrix'

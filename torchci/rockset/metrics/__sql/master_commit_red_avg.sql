@@ -4,15 +4,17 @@ WITH all_jobs AS (
         push.head_commit.id AS sha,
         ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
     FROM
-        push
-        JOIN commons.workflow_run workflow ON workflow.head_commit.id = push.head_commit.id
-        JOIN commons.workflow_job job ON workflow.id = job.run_id
+        commons.workflow_job job
+        JOIN (
+            push
+            JOIN commons.workflow_run workflow ON workflow.head_commit.id = push.head_commit.id
+        ) ON workflow.id = job.run_id HINT(join_strategy = lookup)
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
         AND ( -- Limit it to workflows which block viable/strict upgrades
             ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-            OR workflow.name like 'linux-binary%'            
+            OR workflow.name like 'linux-binary%'
         )
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%mem_leak_check%'
