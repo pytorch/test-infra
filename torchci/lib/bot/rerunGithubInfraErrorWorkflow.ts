@@ -11,8 +11,9 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       `Failed workflow_id: ${ctx.payload.workflow_run.id} ` +
         `with conclusion: ${ctx.payload.workflow_run.conclusion} and ` +
         `head_branch: ${ctx.payload.workflow_run.head_branch} and ` +
-        `name: ${ctx.payload.workflow_run.name}` +
-        `repository: ${ctx.payload.repository.full_name}`
+        `name: ${ctx.payload.workflow_run.name} and ` +
+        `repository: ${ctx.payload.repository.full_name} and ` +
+        `event: ${ctx.payload.action} and ` +
     );
     if (
       ctx.payload.repository.full_name !== "pytorch/pytorch" ||
