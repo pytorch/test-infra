@@ -13,7 +13,7 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
         `head_branch: ${ctx.payload.workflow_run.head_branch} and ` +
         `name: ${ctx.payload.workflow_run.name} and ` +
         `repository: ${ctx.payload.repository.full_name} and ` +
-        `event: ${ctx.payload.action} and ` +
+        `event: ${ctx.payload.action}`
     );
     if (
       ctx.payload.repository.full_name !== "pytorch/pytorch" ||
