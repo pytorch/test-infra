@@ -1,4 +1,4 @@
-setuptools==61.2.0
+setuptools==65.5.1
 requests
 rockset==1.0.3
 boto3==1.19.12
