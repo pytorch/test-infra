@@ -26,7 +26,7 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
     await ctx.octokit.git.createRef({
       owner: ctx.payload.repository.owner.login,
       repo: ctx.payload.repository.name,
-      ref: tagName,
+      ref: `refs/tags/${tagName}`,
       sha: ctx.payload.workflow_run.head_sha,
     });
     ctx.log(
