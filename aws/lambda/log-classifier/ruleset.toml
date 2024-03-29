@@ -73,6 +73,10 @@ name = 'Windows PyLong API usage check'
 pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
 
 [[rule]]
+name = 'Bazel build failure (specific)'
+pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
+
+[[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
