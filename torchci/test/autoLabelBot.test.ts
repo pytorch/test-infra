@@ -915,20 +915,6 @@ describe("auto-label-bot: labeler.yml config", () => {
     utils.mockConfig("labeler.yml", config, repoFullName);
   }
 
-  function mockLabelAdded(
-    labels: string[],
-    repoFullName: string,
-    prNumber: number
-  ) {
-    const scope = nock("https://api.github.com")
-      .post(`/repos/${repoFullName}/issues/${prNumber}/labels`, (body) => {
-        expect(body).toMatchObject({ labels: labels });
-        return true;
-      })
-      .reply(200, {});
-    return scope;
-  }
-
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
@@ -966,7 +952,11 @@ describe("auto-label-bot: labeler.yml config", () => {
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
     mockHasApprovedWorkflowRun(repoFullName);
-    const scope2 = mockLabelAdded(["module: dynamo"], repoFullName, prNumber);
+    const scope2 = utils.mockAddLabels(
+      ["module: dynamo"],
+      repoFullName,
+      prNumber
+    );
     await probot.receive(event);
     scope.done();
     scope2.done();
@@ -981,7 +971,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
     mockHasApprovedWorkflowRun(repoFullName);
-    const scope2 = mockLabelAdded(
+    const scope2 = utils.mockAddLabels(
       ["module: dynamo", "ciflow/inductor"],
       repoFullName,
       prNumber
@@ -1003,7 +993,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
     mockHasApprovedWorkflowRun(repoFullName);
-    const scope2 = mockLabelAdded(
+    const scope2 = utils.mockAddLabels(
       ["module: dynamo", "ciflow/inductor"],
       repoFullName,
       prNumber
@@ -1036,9 +1026,100 @@ describe("auto-label-bot: labeler.yml config", () => {
       .reply(200, {
         permission: "read",
       });
-    const scope2 = mockLabelAdded(["module: dynamo"], repoFullName, prNumber);
+    const scope2 = utils.mockAddLabels(
+      ["module: dynamo"],
+      repoFullName,
+      prNumber
+    );
     await probot.receive(event);
     scope.done();
     scope2.done();
+  });
+});
+
+describe("test TD rollout labeling", () => {
+  let probot: Probot;
+
+  function mockNoChangedFiles(prNumber: number, repoFullName: string) {
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/pulls/${prNumber}/files?per_page=100`)
+      .reply(200, [], {
+        Link: `<https://api.github.com/repos/${repoFullName}/pulls/${prNumber}/files?per_page=100&page=1>; rel='last'`,
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    return scope;
+  }
+
+  function defaultMockConfig(repoFullName: string) {
+    const issue = `
+adfadsfasd
+* @clee2000
+*@huydo
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "TD_rollout_issue: 123",
+      repoFullName
+    );
+    const payload = require("./fixtures/issue.json");
+    payload["body"] = issue;
+    nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/issues/123`)
+      .reply(200, payload);
+  }
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  test("Add label if author on list", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = event.payload.pull_request.number;
+    event.payload.pull_request.user.login = "clee2000";
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    mockNoChangedFiles(prNumber, repoFullName);
+    const scope = utils.mockAddLabels(
+      ["ci-td-distributed"],
+      repoFullName,
+      prNumber
+    );
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("Do not add label if author on list", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = event.payload.pull_request.number;
+    event.payload.pull_request.user.login = "random";
+    defaultMockConfig(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    mockNoChangedFiles(prNumber, repoFullName);
+    await probot.receive(event);
+  });
+
+  test("Don't do anything if no config", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = event.payload.pull_request.number;
+    event.payload.pull_request.user.login = "random";
+    utils.mockConfig("pytorch-probot.yml", "", repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
+    mockNoChangedFiles(prNumber, repoFullName);
+    await probot.receive(event);
   });
 });

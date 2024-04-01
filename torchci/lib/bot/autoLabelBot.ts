@@ -1,5 +1,6 @@
 import { Context, Probot } from "probot";
 import {
+  CachedIssueTracker,
   CachedLabelerConfigTracker,
   addLabels,
   hasApprovedPullRuns,
@@ -175,7 +176,28 @@ function getRepoSpecificLabels(
   return repoSpecificAutoLabels[repoKey];
 }
 
+function TDRolloutIssueParser(rawSubsText: string): object {
+  const subsText = rawSubsText.replace("\r", "");
+  const subsRows = subsText.match(/^\*.+/gm);
+  const authors: any = new Set();
+  if (subsRows == null) {
+    return authors;
+  }
+  subsRows.forEach((row: string) => {
+    const users = row.match(/@[a-zA-Z0-9-/]+/g);
+    if (users) {
+      users.forEach((u) => authors.add(u.substring(1)));
+    }
+  });
+  return authors;
+}
+
 function myBot(app: Probot): void {
+  const TDRolloutTracker = new CachedIssueTracker(
+    app,
+    "TD_rollout_issue",
+    TDRolloutIssueParser
+  );
   const labelerConfigTracker = new CachedLabelerConfigTracker(app);
   function addLabel(
     labelSet: Set<string>,
@@ -413,6 +435,20 @@ function myBot(app: Probot): void {
           if (file.match(regex)) {
             labelsToAdd.push(label);
           }
+        }
+      }
+
+      if (
+        isPyTorchPyTorch(owner, repo) &&
+        context.payload.action === "opened"
+      ) {
+        // Add the ciflow/trunk label to PRs opened by authors listed in the TD
+        // rollout issue
+        const authors = (await TDRolloutTracker.loadIssue(
+          context
+        )) as Set<string>;
+        if (authors.has(context.payload.pull_request.user.login)) {
+          labelsToAdd.push("ci-td-distributed");
         }
       }
 
