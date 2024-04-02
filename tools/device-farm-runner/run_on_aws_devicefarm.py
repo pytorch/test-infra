@@ -50,10 +50,16 @@ def parse_args() -> Any:
         "--app-file", type=str, required=True, help="the iOS ipa app archive"
     )
     parser.add_argument(
-        "--xctest-file",
+        "--xctestrun-file",
         type=str,
         required=True,
         help="the XCTest suite to run",
+    )
+    parser.add_argument(
+        "--appium-test-spec",
+        type=str,
+        required=False,
+        help="the optional specfile to drive the test",
     )
     parser.add_argument(
         "--name-prefix",
@@ -92,7 +98,7 @@ def upload_file(
     mime: str = "application/octet-stream",
 ) -> str:
     """
-    Upload the app file and XCTest suite to AWS
+    Upload the app file and xctestrun to AWS
     """
     r = client.create_upload(
         projectArn=project_arn,
@@ -281,15 +287,27 @@ def main() -> None:
         filetype="IOS_APP",
     )
     info(f"Uploaded app: {appfile_arn}")
-    # Upload the XCTest suite
+    # Upload the xctestrun file as an appium node test package, this allows us
+    # to customize the run later using a test spec
     xctest_arn = upload_file(
         client=client,
         project_arn=args.project_arn,
         prefix=unique_prefix,
-        filename=args.xctest_file,
-        filetype="XCTEST_TEST_PACKAGE",
+        filename=args.xctestrun_file,
+        filetype="APPIUM_NODE_TEST_PACKAGE",
     )
-    info(f"Uploaded XCTest: {xctest_arn}")
+    info(f"Uploaded xctestrun: {xctest_arn}")
+
+    test_to_run = {"type": "APPIUM_NODE", "testPackageArn": xctest_arn}
+    if args.appium_test_spec:
+        appium_test_spec_arn = upload_file(
+            client=client,
+            project_arn=args.project_arn,
+            prefix=unique_prefix,
+            filename=args.appium_test_spec,
+            filetype="APPIUM_NODE_TEST_SPEC",
+        )
+        test_to_run["testSpecArn"] = appium_test_spec_arn
 
     # Schedule the test
     r = client.schedule_run(
@@ -297,7 +315,7 @@ def main() -> None:
         name=unique_prefix,
         appArn=appfile_arn,
         devicePoolArn=args.device_pool_arn,
-        test={"type": "XCTEST", "testPackageArn": xctest_arn},
+        test=test_to_run,
     )
     run_arn = r["run"]["arn"]
 
