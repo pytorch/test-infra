@@ -100,6 +100,7 @@ PACKAGE_ALLOW_LIST = {
     "torchmetrics",
     "torchrec",
     "torchtext",
+    "torchtune",
     "torchvision",
     "triton",
     "tqdm",
