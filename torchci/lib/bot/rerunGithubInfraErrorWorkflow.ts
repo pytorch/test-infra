@@ -1,19 +1,19 @@
 import { Probot } from "probot";
 
+const tagPrefix = "rerunGithubInfraFailure/";
+
 function rerunGithubInfraErrorWorkflow(app: Probot): void {
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
-  app.on("workflow_run", async (ctx) => {
-    const tagPrefix = "rerunGithubInfraFailure/";
+  app.on("workflow_run.requested", async (ctx) => {
     // Only run this if pytorch/pytorch, failed, is a weird infra error, and is
     // not a previous run of this bot
     ctx.log(
-      `Failed workflow_id: ${ctx.payload.workflow_run.id} ` +
+      `Workflow_id: ${ctx.payload.workflow_run.id} ` +
         `with conclusion: ${ctx.payload.workflow_run.conclusion} and ` +
         `head_branch: ${ctx.payload.workflow_run.head_branch} and ` +
         `name: ${ctx.payload.workflow_run.name} and ` +
-        `repository: ${ctx.payload.repository.full_name} and ` +
-        `event: ${ctx.payload.action}`
+        `repository: ${ctx.payload.repository.full_name} `
     );
     if (
       ctx.payload.repository.full_name !== "pytorch/pytorch" ||
@@ -43,6 +43,36 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       workflow_id: ctx.payload.workflow_run.workflow_id,
       ref: tagName,
     });
+  });
+
+  app.on("workflow_run.completed", async (ctx) => {
+    // Delete tag on workflow completion
+    if (
+      ctx.payload.repository.full_name == "pytorch/pytorch" &&
+      ctx.payload.workflow_run.head_branch.startsWith(tagPrefix)
+    ) {
+      await ctx.octokit.git.deleteRef({
+        owner: ctx.payload.repository.owner.login,
+        repo: ctx.payload.repository.name,
+        ref: `refs/tags/${ctx.payload.workflow_run.head_branch}`,
+      });
+    }
+  });
+
+  app.on("workflow_run.requested", async (ctx) => {
+    // Delete tag on failure to rerun
+    if (
+      ctx.payload.repository.full_name == "pytorch/pytorch" &&
+      ctx.payload.workflow_run.conclusion == "failure" &&
+      ctx.payload.workflow_run.name.startsWith(".github/workflows") &&
+      ctx.payload.workflow_run.head_branch.startsWith(tagPrefix)
+    ) {
+      await ctx.octokit.git.deleteRef({
+        owner: ctx.payload.repository.owner.login,
+        repo: ctx.payload.repository.name,
+        ref: `refs/tags/${ctx.payload.workflow_run.head_branch}`,
+      });
+    }
   });
 }
 
