@@ -33,7 +33,10 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
     ) {
       return;
     }
-    if (reruns.has(ctx.payload.workflow_run.head_sha) && reruns.get(ctx.payload.workflow_run.head_sha)! > 10) {
+    if (
+      reruns.has(ctx.payload.workflow_run.head_sha) &&
+      reruns.get(ctx.payload.workflow_run.head_sha)! > 10
+    ) {
       ctx.log(
         `Not rerunning ${ctx.payload.workflow_run.id} as sha ${ctx.payload.workflow_run.head_sha} has been rerun too many times`
       );
