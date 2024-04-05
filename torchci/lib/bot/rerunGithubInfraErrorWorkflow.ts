@@ -9,9 +9,9 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
   app.on("workflow_run.requested", async (ctx) => {
-    if (day > new Date().getDate()) {
+    if (day > new Date().getDay()) {
       // Reset reruns info every week ish
-      day = new Date().getDate();
+      day = new Date().getDay();
       reruns = new Map();
     }
     // Only run this if pytorch/pytorch, failed, is a weird infra error, and is
