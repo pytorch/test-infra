@@ -1,0 +1,50 @@
+name: Generates the docker release matrix
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Channel to use (nightly, test, release, all)"
+        default: ""
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: "main"
+        type: string
+    outputs:
+      matrix:
+        description: "Generated build matrix"
+        value: ${{ jobs.generate.outputs.matrix }}
+
+jobs:
+  generate:
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+      - uses: ./.github/actions/set-channel
+      - name: Generate docker release matrix
+        id: generate
+        env:
+          CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
+        run: |
+          set -eou pipefail
+          MATRIX_BLOB="$(python3 tools/scripts/generate_docker_release_matrix.py)"
+          echo "${MATRIX_BLOB}"
+          echo "matrix=${MATRIX_BLOB}" >> "${GITHUB_OUTPUT}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.package-type }}-${{ inputs.os }}-${{ inputs.test-infra-repository }}-${{ inputs.test-infra-ref }}
+  cancel-in-progress: true
