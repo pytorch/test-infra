@@ -54,7 +54,7 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       await ctx.octokit.git.deleteRef({
         owner: ctx.payload.repository.owner.login,
         repo: ctx.payload.repository.name,
-        ref: `refs/tags/${ctx.payload.workflow_run.head_branch}`,
+        ref: `tags/${ctx.payload.workflow_run.head_branch}`,
       });
     }
   });
@@ -70,7 +70,7 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       await ctx.octokit.git.deleteRef({
         owner: ctx.payload.repository.owner.login,
         repo: ctx.payload.repository.name,
-        ref: `refs/tags/${ctx.payload.workflow_run.head_branch}`,
+        ref: `tags/${ctx.payload.workflow_run.head_branch}`,
       });
     }
   });
