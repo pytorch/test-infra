@@ -40,7 +40,7 @@ def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
     return {"include": ret}
 
 
-def main(args) -> None:
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--channel",
@@ -49,10 +49,10 @@ def main(args) -> None:
         choices=["nightly", "test", "release", "all"],
         default=os.getenv("CHANNEL", "nightly"),
     )
-    options = parser.parse_args(args)
+    options = parser.parse_args()
 
     build_matrix = generate_docker_matrix(options.channel)
     print(json.dumps(build_matrix))
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
