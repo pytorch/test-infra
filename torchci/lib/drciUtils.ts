@@ -165,7 +165,6 @@ export async function upsertDrCiComment(
   context: any,
   prUrl: string
 ) {
-  // Dr.CI only supports [pytorch/pytorch, pytorch/vision] at the moment
   if (!isDrCIEnabled(owner, repo)) {
     context.log(
       `Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`
