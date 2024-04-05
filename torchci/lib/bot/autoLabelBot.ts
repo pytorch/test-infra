@@ -442,8 +442,8 @@ function myBot(app: Probot): void {
         isPyTorchPyTorch(owner, repo) &&
         context.payload.action === "opened"
       ) {
-        // Add the ciflow/trunk label to PRs opened by authors listed in the TD
-        // rollout issue
+        // Add the ci-td-distributed label to PRs opened by authors listed in
+        // the TD rollout issue
         const authors = (await TDRolloutTracker.loadIssue(
           context
         )) as Set<string>;
