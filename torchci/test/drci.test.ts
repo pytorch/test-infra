@@ -231,6 +231,19 @@ const unstableA = getDummyJob({
   runnerName: "dummy",
 });
 
+const cancelledA = getDummyJob({
+  name: "win-vs2019-cpu-py3 / test (default, 3, 3, windows.4xlarge)",
+  conclusion: "cancelled",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_lines: ["a", "b"],
+  failure_captures: ["a", "b"],
+  runnerName: "dummy",
+});
+
 const sev: IssueData = {
   number: 85362,
   title: "docker pulls failing with no space left on disk",
@@ -267,6 +280,7 @@ function constructResultsCommentHelper({
   flakyJobs = [],
   brokenTrunkJobs = [],
   unstableJobs = [],
+  cancelledJobs = [],
   sha = "random sha",
   merge_base = "random_merge_base_sha",
   merge_base_date = "2023-08-08T06:03:21Z",
@@ -277,6 +291,7 @@ function constructResultsCommentHelper({
   flakyJobs?: RecentWorkflowsData[];
   brokenTrunkJobs?: RecentWorkflowsData[];
   unstableJobs?: RecentWorkflowsData[];
+  cancelledJobs?: RecentWorkflowsData[];
   sha?: string;
   merge_base?: string;
   merge_base_date?: string;
@@ -288,6 +303,7 @@ function constructResultsCommentHelper({
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    cancelledJobs,
     sha,
     merge_base,
     merge_base_date,
@@ -527,15 +543,15 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
   });
 
-  test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
-    const originalWorkflows = [failedA, failedB, unstableA];
+  test("test flaky, broken trunk, unstable, and cancelled jobs are filtered out", async () => {
+    const originalWorkflows = [failedA, failedB, unstableA, cancelledA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs, cancelledJobs } =
       await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name!, captures: failedB.failure_captures }],
@@ -545,6 +561,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(1);
+    expect(cancelledJobs.length).toBe(1);
   });
 
   test(" test flaky rule regex", async () => {
@@ -603,29 +620,32 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(unstableJobs.length).toBe(0);
   });
 
-  test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
+  test("test flaky, broken trunk, unstable, and cancelled jobs are included in the comment", async () => {
     const failureInfoComment = constructResultsCommentHelper({
       pending: 1,
       failedJobs: [failedA],
       flakyJobs: [failedB],
       brokenTrunkJobs: [failedC],
       unstableJobs: [unstableA],
+      cancelledJobs: [cancelledA],
       merge_base: "random base sha",
     });
     const expectToContain = [
-      "1 New Failure, 1 Pending, 3 Unrelated Failures",
+      "1 New Failure, 1 Pending, 1 Job Cancelled, 3 Unrelated Failures",
       "The following job has failed",
       "The following job failed but was likely due to flakiness present on trunk",
       "The following job failed but was present on the merge base",
       "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
+      "The following job was cancelled",
       failedA.name,
       failedB.name,
       failedC.name,
       unstableA.name,
+      cancelledA.name,
     ];
-    expect(
-      expectToContain.every((s) => failureInfoComment.includes(s!))
-    ).toBeTruthy();
+    for (const s of expectToContain) {
+      expect(failureInfoComment).toContain(s);
+    }
   });
 
   test("test flaky, broken trunk, unstable jobs don't affect the Dr. CI icon", async () => {

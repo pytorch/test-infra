@@ -111,7 +111,7 @@ export async function updateDrciComments(
         pr_info.pr_number
       );
 
-      const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs, cancelledJobs } =
         await getWorkflowJobsStatuses(
           pr_info,
           flakyRules,
@@ -124,6 +124,7 @@ export async function updateDrciComments(
         FLAKY: flakyJobs,
         BROKEN_TRUNK: brokenTrunkJobs,
         UNSTABLE: unstableJobs,
+        CANCELLED: cancelledJobs,
       };
 
       const failureInfo = constructResultsComment(
@@ -132,6 +133,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        cancelledJobs,
         pr_info.head_sha,
         pr_info.merge_base,
         pr_info.merge_base_date,
@@ -453,6 +455,7 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
+  cancelledJobs: RecentWorkflowsData[],
   sha: string,
   merge_base: string,
   merge_base_date: string,
@@ -470,6 +473,7 @@ export function constructResultsComment(
   const pendingIcon = `:hourglass_flowing_sand:`;
   const successIcon = `:white_check_mark:`;
   const failuresIcon = `:x:`;
+  const cancelledIcon = ':no_entry_sign:';
   const noneFailing = `No Failures`;
   const significantFailures = `${failedJobs.length} New ${pluralize(
     "Failure",
@@ -479,6 +483,10 @@ export function constructResultsComment(
     "Failure",
     unrelatedFailureCount
   )}`;
+  const cancelledJobsHeader = `${cancelledJobs.length} ${pluralize(
+    "Job",
+    cancelledJobs.length
+  )} Cancelled`;
   const pendingJobs = `${pending} Pending`;
 
   const hasAnyFailing = failing > 0;
@@ -486,12 +494,15 @@ export function constructResultsComment(
   const hasPending = pending > 0;
   const hasUnrelatedFailures =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const hasCancelledJobs = cancelledJobs.length > 0;
 
   let icon = "";
   if (hasSignificantFailures) {
     icon = failuresIcon;
   } else if (hasPending) {
     icon = pendingIcon;
+  } else if (hasCancelledJobs) {
+    icon = cancelledIcon;
   } else {
     icon = successIcon;
   }
@@ -505,6 +516,9 @@ export function constructResultsComment(
   }
   if (hasPending) {
     title_messages.push(pendingJobs);
+  }
+  if (hasCancelledJobs) {
+    title_messages.push(cancelledJobsHeader);
   }
   if (hasUnrelatedFailures) {
     let unrelatedFailuresMsg = unrelatedFailures;
@@ -527,7 +541,7 @@ export function constructResultsComment(
   }
   output += ":";
 
-  if (!hasAnyFailing) {
+  if (!hasAnyFailing && !hasCancelledJobs) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
   output += constructResultsJobsSections(
@@ -575,6 +589,18 @@ export function constructResultsComment(
       "were"
     )} likely due to flakiness present on trunk and has been marked as unstable`,
     unstableJobs,
+    "",
+    true
+  );
+  output += constructResultsJobsSections(
+    hud_pr_url,
+    "CANCELLED",
+    `The following ${pluralize("job", cancelledJobs.length)} ${pluralize(
+      "was",
+      cancelledJobs.length,
+      "were"
+    )} cancelled`,
+    cancelledJobs,
     "",
     true
   );
@@ -634,12 +660,14 @@ export async function getWorkflowJobsStatuses(
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
+  cancelledJobs: RecentWorkflowsData[];
 }> {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
+  const cancelledJobs: RecentWorkflowsData[] = [];
 
   for (const job of prInfo.jobs) {
     if (
@@ -667,12 +695,14 @@ export async function getWorkflowJobsStatuses(
       } else if (await isLogClassifierFailed(job)) {
         flakyJobs.push(job);
         await backfillMissingLog(prInfo.owner, prInfo.repo, job);
+      } else if (job.conclusion === "cancelled") {
+        cancelledJobs.push(job);
       } else {
         failedJobs.push(job);
       }
     }
   }
-  return { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs };
+  return { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs, cancelledJobs };
 }
 
 export function reorganizeWorkflows(
