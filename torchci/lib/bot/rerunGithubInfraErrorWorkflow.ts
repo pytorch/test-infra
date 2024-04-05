@@ -4,14 +4,15 @@ const tagPrefix = "rerunGithubInfraFailure/";
 
 function rerunGithubInfraErrorWorkflow(app: Probot): void {
   let reruns: Map<string, number> = new Map();
-  let day = 0;
+  let week = 0;
 
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
   app.on("workflow_run.requested", async (ctx) => {
-    if (day > new Date().getDay()) {
+    const currentWeek = Math.floor(new Date().getDate() / 7);
+    if (currentWeek != week) {
       // Reset reruns info every week ish
-      day = new Date().getDay();
+      week = currentWeek;
       reruns = new Map();
     }
     // Only run this if pytorch/pytorch, failed, is a weird infra error, and is
