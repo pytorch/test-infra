@@ -3,6 +3,16 @@ import { Probot } from "probot";
 const tagPrefix = "rerunGithubInfraFailure/";
 
 function rerunGithubInfraErrorWorkflow(app: Probot): void {
+  let reruns: Map<string, number> = new Map();
+  app.on("push", async (ctx) => {
+    if (
+      ctx.payload.ref === "refs/heads/master" ||
+      ctx.payload.ref === "refs/heads/main"
+    ) {
+      reruns = new Map();
+    }
+  });
+
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
   app.on("workflow_run.requested", async (ctx) => {
@@ -21,6 +31,12 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       !ctx.payload.workflow_run.name.startsWith(".github/workflows") ||
       ctx.payload.workflow_run.head_branch.startsWith(tagPrefix)
     ) {
+      return;
+    }
+    if (reruns.has(ctx.payload.workflow_run.head_sha) && reruns.get(ctx.payload.workflow_run.head_sha)! > 10) {
+      ctx.log(
+        `Not rerunning ${ctx.payload.workflow_run.id} as sha ${ctx.payload.workflow_run.head_sha} has been rerun too many times`
+      );
       return;
     }
     // Create a new tag instead of using something like ciflow/ since some
@@ -43,6 +59,10 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       workflow_id: ctx.payload.workflow_run.workflow_id,
       ref: tagName,
     });
+    reruns.set(
+      ctx.payload.workflow_run.head_sha,
+      (reruns.get(ctx.payload.workflow_run.head_sha) || 0) + 1
+    );
   });
 
   app.on("workflow_run.completed", async (ctx) => {
