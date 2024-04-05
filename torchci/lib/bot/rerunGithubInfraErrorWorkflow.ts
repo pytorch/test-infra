@@ -4,10 +4,7 @@ const tagPrefix = "rerunGithubInfraFailure/";
 
 function rerunGithubInfraErrorWorkflow(app: Probot): void {
   let reruns: Map<string, number> = new Map();
-<<<<<<< Updated upstream
-=======
   let day = 0;
->>>>>>> Stashed changes
 
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
