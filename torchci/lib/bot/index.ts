@@ -12,6 +12,7 @@ import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import stripApprovalBot from "./stripApprovalBot";
 import codevNoWritePerm from "./codevNoWritePermBot";
 import rerunGithubInfraErrorWorkflow from "./rerunGithubInfraErrorWorkflow";
+import isTheBotStateful from "./statefulBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
@@ -27,4 +28,5 @@ export default function bot(app: Probot) {
   cancelWorkflowsOnCloseBot(app);
   codevNoWritePerm(app);
   rerunGithubInfraErrorWorkflow(app);
+  isTheBotStateful(app);
 }
