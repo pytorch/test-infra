@@ -3,18 +3,9 @@ import { Probot } from "probot";
 const tagPrefix = "rerunGithubInfraFailure/";
 
 function rerunGithubInfraErrorWorkflow(app: Probot): void {
-  let reruns: Map<string, number> = new Map();
-  let week = 0;
-
   // This bot is used to rerun failed workflows on pytorch/pytorch that look
   // like https://github.com/pytorch/pytorch/actions/runs/8454565307
   app.on("workflow_run.requested", async (ctx) => {
-    const currentWeek = Math.floor(new Date().getDate() / 7);
-    if (currentWeek != week) {
-      // Reset reruns info every week ish
-      week = currentWeek;
-      reruns = new Map();
-    }
     // Only run this if pytorch/pytorch, failed, is a weird infra error, and is
     // not a previous run of this bot
     ctx.log(
@@ -33,11 +24,17 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       return;
     }
     if (
-      reruns.has(ctx.payload.workflow_run.head_sha) &&
-      reruns.get(ctx.payload.workflow_run.head_sha)! > 10
+      (
+        await ctx.octokit.actions.listWorkflowRunsForRepo({
+          owner: ctx.payload.repository.owner.login,
+          repo: ctx.payload.repository.name,
+          head_sha: ctx.payload.workflow_run.head_sha,
+          per_page: 1,
+        })
+      ).data.total_count >= 50
     ) {
       ctx.log(
-        `Not rerunning ${ctx.payload.workflow_run.id} as sha ${ctx.payload.workflow_run.head_sha} has been rerun too many times`
+        `Not rerunning ${ctx.payload.workflow_run.id} as sha ${ctx.payload.workflow_run.head_sha} has too many workflows already`
       );
       return;
     }
@@ -61,10 +58,6 @@ function rerunGithubInfraErrorWorkflow(app: Probot): void {
       workflow_id: ctx.payload.workflow_run.workflow_id,
       ref: tagName,
     });
-    reruns.set(
-      ctx.payload.workflow_run.head_sha,
-      (reruns.get(ctx.payload.workflow_run.head_sha) || 0) + 1
-    );
   });
 
   app.on("workflow_run.completed", async (ctx) => {
