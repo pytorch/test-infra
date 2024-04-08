@@ -167,13 +167,13 @@ jobs:
           cache-key: ${{ inputs.cache-key }}
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
-      - name: Build clean
-        working-directory: ${{ inputs.repository }}
-        shell: bash -l {0}
+      - name: Install python build dependency
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} python setup.py clean
+          # shellcheck disable=SC2086
+          ${CONDA_RUN} python -m pip install build
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
@@ -181,7 +181,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python setup.py bdist_wheel
+          ${CONDA_RUN} python -m build --wheel
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
