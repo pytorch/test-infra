@@ -36,6 +36,7 @@ export function mockConfig(
     .get(
       `/repos/${repoKey}/contents/${encodeURIComponent(`.github/${fileName}`)}`
     )
+    .times(2)
     .reply(200, content);
 }
 
@@ -93,4 +94,18 @@ export function mockPostComment(
       return true;
     })
     .reply(200);
+}
+
+export function mockAddLabels(
+  labels: string[],
+  repoFullName: string,
+  prNumber: number
+) {
+  const scope = nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues/${prNumber}/labels`, (body) => {
+      expect(body).toMatchObject({ labels: labels });
+      return true;
+    })
+    .reply(200, {});
+  return scope;
 }
