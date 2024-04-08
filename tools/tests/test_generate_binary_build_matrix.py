@@ -27,6 +27,7 @@ class GenerateBuildMatrixTest(TestCase):
             "enable" if cpu else "disable",
             "false",
             "false",
+            "false",
         )
 
         expected_json_filename = os.path.join(ASSETS_DIR, reference_output_file)

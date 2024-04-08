@@ -72,6 +72,7 @@ mod.CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
 mod.ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
+# Default Runners (A mix of self-hosted runners on AWS and GH-hosted)
 LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
@@ -79,6 +80,13 @@ WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-stable"
 MACOS_RUNNER = "macos-12"
+
+# GitHub-Hosted Alternatives to some of the above
+# Note that a Linux aarch64 runner is not available through GitHub
+LINUX_GPU_GITHUB_RUNNER = "4-core-ubuntu-gpu-t4"
+LINUX_CPU_GITHUB_RUNNER = "ubuntu-latest"
+WIN_GPU_GITHUB_RUNNER = "4-core-windows-gpu-t4"
+WIN_CPU_GITHUB_RUNNER = "windows-latest"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
 
@@ -102,19 +110,31 @@ def arch_type(arch_version: str) -> str:
         return CPU
 
 
-def validation_runner(arch_type: str, os: str) -> str:
+def validation_runner(arch_type: str, os: str, use_github_hosted_runners: str) -> str:
     if os == LINUX:
         if arch_type == CUDA:
-            return LINUX_GPU_RUNNER
+            if use_github_hosted_runners:
+                return LINUX_GPU_GITHUB_RUNNER
+            else:
+                return LINUX_GPU_RUNNER
         else:
-            return LINUX_CPU_RUNNER
+            if use_github_hosted_runners:
+                return LINUX_CPU_GITHUB_RUNNER
+            else:
+                return LINUX_CPU_RUNNER
     elif os == LINUX_AARCH64:
         return LINUX_AARCH64_RUNNER
     elif os == WINDOWS:
         if arch_type == CUDA:
-            return WIN_GPU_RUNNER
+            if use_github_hosted_runners:
+                return WIN_GPU_GITHUB_RUNNER
+            else:
+                return WIN_GPU_RUNNER
         else:
-            return WIN_CPU_RUNNER
+            if use_github_hosted_runners:
+                return WIN_CPU_GITHUB_RUNNER
+            else:
+                return WIN_CPU_RUNNER
     elif os == MACOS_ARM64:
         return MACOS_M1_RUNNER
     elif os == MACOS:
@@ -246,13 +266,13 @@ def get_libtorch_install_command(
         if channel in [RELEASE, TEST]:
             build_name = f"libtorch-macos-{arch}-{mod.CURRENT_VERSION}.zip"
 
-    elif os == LINUX and (channel == RELEASE or channel == TEST):
+    elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-{devtoolset}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
             if devtoolset == "cxx11-abi"
             else f"{prefix}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
-    elif os == WINDOWS and (channel == RELEASE or channel == TEST):
+    elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-shared-with-deps-debug-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
             if libtorch_config == "debug"
@@ -302,6 +322,7 @@ def generate_conda_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    use_github_hosted_runners: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
 ) -> List[Dict[str, str]]:
@@ -314,7 +335,7 @@ def generate_conda_matrix(
         arches += [CPU]
 
     if with_cuda == ENABLE:
-        if os == LINUX or os == WINDOWS:
+        if os in (LINUX, WINDOWS):
             arches += mod.CUDA_ARCHES
 
     if limit_pr_builds:
@@ -339,7 +360,7 @@ def generate_conda_matrix(
                     "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
-                    "validation_runner": validation_runner(gpu_arch_type, os),
+                    "validation_runner": validation_runner(gpu_arch_type, os, use_github_hosted_runners),
                     "channel": channel,
                     "stable_version": mod.CURRENT_VERSION,
                     "installation": get_conda_install_command(
@@ -357,6 +378,7 @@ def generate_libtorch_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    use_github_hosted_runners: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     abi_versions: Optional[List[str]] = None,
@@ -372,7 +394,7 @@ def generate_libtorch_matrix(
             arches += [CPU]
 
         if with_cuda == ENABLE:
-            if os == LINUX or os == WINDOWS:
+            if os in (LINUX, WINDOWS):
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
@@ -422,7 +444,7 @@ def generate_libtorch_matrix(
                             ".", "_"
                         ),
                         # Please noe since libtorch validations are minimal, we use CPU runners
-                        "validation_runner": validation_runner(CPU, os),
+                        "validation_runner": validation_runner(CPU, os, use_github_hosted_runners),
                         "installation": get_libtorch_install_command(
                             os,
                             channel,
@@ -445,6 +467,7 @@ def generate_wheels_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    use_github_hosted_runners: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     arches: Optional[List[str]] = None,
@@ -475,7 +498,7 @@ def generate_wheels_matrix(
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
-            if os == LINUX or os == WINDOWS:
+            if os in (LINUX, WINDOWS):
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
@@ -507,7 +530,7 @@ def generate_wheels_matrix(
                     "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
-                    "validation_runner": validation_runner(gpu_arch_type, os),
+                    "validation_runner": validation_runner(gpu_arch_type, os, use_github_hosted_runners),
                     "installation": get_wheel_install_command(
                         os,
                         channel,
@@ -541,6 +564,7 @@ def generate_build_matrix(
     with_cpu: str,
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
+    use_github_hosted_runners: str,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -560,6 +584,7 @@ def generate_build_matrix(
                     with_cuda,
                     with_rocm,
                     with_cpu,
+                    use_github_hosted_runners,
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
                 )
@@ -629,6 +654,13 @@ def main(args) -> None:
         choices=["true", "false"],
         default=os.getenv("USE_ONLY_DL_PYTORCH_ORG", "false"),
     )
+    parser.add_argument(
+        "--use-github-hosted-runners",
+        help="Use GitHub Hosted Runners?",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("USE_GITHUB_HOSTED_RUNNERS", DISABLE),
+    )
 
     options = parser.parse_args(args)
 
@@ -645,6 +677,7 @@ def main(args) -> None:
         options.with_cpu,
         options.limit_pr_builds,
         options.use_only_dl_pytorch_org,
+        options.use_github_hosted_runners,
     )
 
     print(json.dumps(build_matrix))
