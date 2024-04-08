@@ -181,7 +181,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python -m build
+          ${CONDA_RUN} python -m build --wheel -x
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
