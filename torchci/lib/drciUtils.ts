@@ -45,6 +45,11 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "linux-docs",
   "ghstack-mergeability-check",
 ];
+// If the base commit is too old, don't query for similar failures because
+// it increases the risk of getting misclassification. This guardrail can
+// be relaxed once we achieve better accuracy from the log classifier. This
+// sets the limit to 7 days
+export const MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES = 7 * 24;
 // Mapping the job to the list of suppressed labels
 export const SUPPRESSED_JOB_BY_LABELS: { [job: string]: string[] } = {
   bc_linter: ["suppress-bc-linter", "suppress-api-compatibility-check"],
@@ -264,6 +269,15 @@ export async function querySimilarFailures(
       ? baseCommitDate
       : job.completed_at
   ).subtract(lookbackPeriodInHours, "hour");
+
+  if (
+    endDate.diff(startDate, "hour") >
+    MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES
+  ) {
+    // The base commit is too old, given the current accuracy of the log classifier, it
+    // increases the risk of getting an FP when searching for similar failures
+    return [];
+  }
 
   // Get the workflow name if possible
   const jobNameIndex = job.name.indexOf(` / ${job.jobName}`);

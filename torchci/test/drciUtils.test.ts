@@ -5,6 +5,7 @@ import {
   isExcludedFromFlakiness,
   isLogClassifierFailed,
   isSuppressedByLabels,
+  MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
 import * as jobUtils from "../lib/jobUtils";
@@ -132,7 +133,7 @@ describe("Test various utils used by Dr.CI", () => {
     );
 
     mock.mockClear();
-    const baseCommitDate = "2023-07-01T00:00:00Z";
+    const baseCommitDate = "2023-07-31T00:00:00Z";
 
     // Use base commit date
     expect(
@@ -198,6 +199,23 @@ describe("Test various utils used by Dr.CI", () => {
         ],
       ])
     );
+
+    mock.mockClear();
+    // The base commit date is too old, and flaky detection doesn't apply to avoid FPs
+    const oldBaseCommitDate = dayjs(mockEndDate)
+      .subtract(MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES - 23, "hour")
+      .toISOString();
+
+    expect(
+      await querySimilarFailures(
+        job,
+        oldBaseCommitDate,
+        lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
+        "TESTING" as unknown as Client
+      )
+    ).toStrictEqual([]);
   });
 
   test("test hasSimilarFailures", async () => {
