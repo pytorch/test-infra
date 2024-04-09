@@ -214,7 +214,7 @@ runs:
               amzn*)
                   install_nvidia_driver_amzn2
                   ;;
-              ubuntu20.04)
+              ubuntu*)
                   install_nvidia_driver_ubuntu20
                   ;;
               *)
@@ -229,7 +229,7 @@ runs:
               amzn*)
                   install_nvidia_docker2_amzn2
                   ;;
-              ubuntu20.04)
+              ubuntu*)
                   install_nvidia_docker2_ubuntu20
                   ;;
               *)
