@@ -47,7 +47,8 @@ export const EXCLUDED_FROM_FLAKINESS = [
 ];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
-// be relaxed once we achieve better accuracy from the log classifier
+// be relaxed once we achieve better accuracy from the log classifier. This
+// sets the limit to 7 days
 export const MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES = 7 * 24;
 // Mapping the job to the list of suppressed labels
 export const SUPPRESSED_JOB_BY_LABELS: { [job: string]: string[] } = {
