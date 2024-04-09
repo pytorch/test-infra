@@ -7,6 +7,7 @@ runs:
   steps:
     - name: Display EC2 information
       shell: bash
+      id: aws-check
       run: |
         set -euo pipefail
         function get_ec2_metadata() {
@@ -15,10 +16,15 @@ runs:
           category=$1
           curl -fsSL "http://169.254.169.254/latest/meta-data/${category}"
         }
-        echo "ami-id: $(get_ec2_metadata ami-id)"
-        echo "instance-id: $(get_ec2_metadata instance-id)"
-        echo "instance-type: $(get_ec2_metadata instance-type)"
-        echo "system info $(uname -a)"
+        on_ec2=0
+        if get_ec2_metadata instance-id >/dev/null 2>/dev/null; then
+          echo "ami-id: $(get_ec2_metadata ami-id)"
+          echo "instance-id: $(get_ec2_metadata instance-id)"
+          echo "instance-type: $(get_ec2_metadata instance-type)"
+          echo "system info $(uname -a)"
+          on_ec2=1
+        fi
+        echo "is-on-ec2=${on_ec2}" >> "${GITHUB_OUTPUT}"
 
     - name: Start docker if docker deamon is not running
       shell: bash
@@ -31,6 +37,7 @@ runs:
 
     - name: Log in to ECR
       shell: bash
+      if: ${{ steps.aws-check.outputs.is-on-ec2 == 1 }}
       env:
         AWS_RETRY_MODE: standard
         AWS_MAX_ATTEMPTS: "5"
