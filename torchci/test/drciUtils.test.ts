@@ -132,7 +132,7 @@ describe("Test various utils used by Dr.CI", () => {
     );
 
     mock.mockClear();
-    const baseCommitDate = "2023-07-01T00:00:00Z";
+    const baseCommitDate = "2023-07-31T00:00:00Z";
 
     // Use base commit date
     expect(
@@ -198,6 +198,21 @@ describe("Test various utils used by Dr.CI", () => {
         ],
       ])
     );
+
+    mock.mockClear();
+    // The base commit date is too old, and flaky detection doesn't apply to avoid FPs
+    const oldBaseCommitDate = "2023-07-01T00:00:00Z";
+
+    expect(
+      await querySimilarFailures(
+        job,
+        oldBaseCommitDate,
+        lookbackPeriodInHours,
+        searchUtils.MAX_SIZE,
+        searchUtils.OLDEST_FIRST,
+        "TESTING" as unknown as Client
+      )
+    ).toStrictEqual([]);
   });
 
   test("test hasSimilarFailures", async () => {
