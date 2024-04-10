@@ -212,6 +212,26 @@ pattern = '^\s*(test.*) failed - num_retries_left:'
 name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
+[[rule]]
+name = 'Python RuntimeError'
+pattern = '^RuntimeError: .*'
+
+[[rule]]
+name = 'Python ModuleNotFoundError'
+pattern = '^ModuleNotFoundError: .*'
+
+[[rule]]
+name = 'Python ImportError'
+pattern = '^ImportError: .*'
+
+[[rule]]
+name = 'Python ValueErrors'
+pattern = '^ValueError: .*'
+
+[[rule]]
+name = 'Python TypeErrors'
+pattern = '^TypeError: .*'
+
 # TODO (huydhn): Update ET test script to include the model name in the error message
 [[rule]]
 name = 'ExecuTorch portable model test - failed'
@@ -228,18 +248,6 @@ pattern = 'Delegation fp32 error'
 [[rule]]
 name = 'ExecuTorch quantized delegation model test - failed'
 pattern = 'Delegation q8 error'
-
-[[rule]]
-name = 'Python RuntimeError'
-pattern = '^RuntimeError: .*'
-
-[[rule]]
-name = 'Python ModuleNotFoundError'
-pattern = '^ModuleNotFoundError: .*'
-
-[[rule]]
-name = 'Python ImportError'
-pattern = '^ImportError: .*'
 
 [[rule]]
 name = 'Docker login failure'
