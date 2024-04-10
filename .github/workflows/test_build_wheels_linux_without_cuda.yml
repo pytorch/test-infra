@@ -43,3 +43,4 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+      build-platform: 'python-build-package'
