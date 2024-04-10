@@ -32,8 +32,6 @@ jobs:
       matrix:
         include:
           - repository: pytorch/torchtune
-            pre-script: ""
-            post-script: ""
             package-name: torchtune
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
@@ -43,8 +41,5 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
-      pre-script: ${{ matrix.pre-script }}
-      post-script: ${{ matrix.post-script }}
-      smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
