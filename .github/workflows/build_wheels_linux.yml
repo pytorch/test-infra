@@ -65,11 +65,11 @@ on:
         required: false
         type: boolean
         default: true
-      build-command:
-        description: Python command to build package.
+      use-python-build-package:
+        description: Utilize the standard build package from PyPA.
         required: false
-        type: string
-        default: "python setup.py bdist_wheel"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -173,13 +173,21 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
       - name: Install python build dependency
-        if: contains( ${{ inputs.build-command }}, 'python -m build')
+        if: ${{ inputs.use-python-build-package }}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} python -m pip install build
+      - name: Build clean
+        if: ${{ !inputs.use-python-build-package }} 
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
@@ -187,7 +195,11 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} ${{ inputs.build-command }}
+          if [[ ${{ inputs.use-python-build-package }} == 'true' ]]; then
+            ${CONDA_RUN} python -m build --wheel
+          else
+            ${CONDA_RUN} python setup.py bdist_wheel
+          fi
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
