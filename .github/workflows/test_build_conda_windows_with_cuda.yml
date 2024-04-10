@@ -29,6 +29,8 @@ jobs:
             smoke-test-script: test/smoke_test/smoke_test.py
             conda-package-directory: packaging/torchaudio
             package-name: torchaudio
+            post-script: ""
+            pre-script: ""
           - repository: pytorch/vision
             pre-script: packaging/pre_build_script.sh
             env-script: packaging/windows/internal/vc_env_helper.bat

@@ -26,12 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/text
-            pre-script: packaging/install_torchdata.sh
-            post-script: ""
-            package-name: torchtext
-            conda-package-directory: packaging/torchtext
-            smoke-test-script: test/smoke_tests/smoke_tests.py
+          - repository: pytorch/audio
+            smoke-test-script: test/smoke_test/smoke_test.py
+            conda-package-directory: packaging/torchaudio
+            package-name: torchaudio
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_windows.yml
     with:
@@ -42,8 +40,5 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
-      smoke-test-script: ${{ matrix.smoke-test-script }}
-      pre-script: ${{ matrix.pre-script }}
-      post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
