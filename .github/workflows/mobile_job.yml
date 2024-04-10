@@ -41,7 +41,7 @@ on:
         default: ''
         type: string
 
-      # iOS-specific inputs
+      # iOS-specific inputs, TODO (huydhn): Support S3 links here
       ios-ipa-archive:
         description: The name of the iOS app IPA archive to run the tests
         required: false
@@ -52,8 +52,30 @@ on:
         required: false
         type: string
         default: ''
-      ios-test-spec:
+
+      # Android-specific inputs, TODO (huydhn): Support S3 links here
+      android-app-archive:
+        description: The name of the Android app APK archive to run
+        required: false
+        type: string
+        default: ''
+      android-test-archive:
+        description: The name of the Android instrumention tests APK archive to run
+        required: false
+        type: string
+        default: ''
+
+      # Some share test inputs, TODO (huydhn): Support S3 links for the test spec here
+      test-spec:
         description: Specify how the test should be run on device
+        required: false
+        type: string
+        default: ''
+      # The extra data archive could be large, so it's better to keep them on S3
+      extra-data:
+        description: |
+          Either a link to a zip archive on S3 to be uploaded to the test device or
+          an existing ARN, for example, exported models
         required: false
         type: string
         default: ''
@@ -112,11 +134,25 @@ jobs:
           name: ${{ inputs.ios-xctestrun-zip }}
           path: test-infra/tools/device-farm-runner/
 
-      - name: Download iOS test spec
-        if: ${{ inputs.device-type == 'ios' && inputs.ios-test-spec != '' }}
+      - name: Download Android app
+        if: ${{ inputs.device-type == 'android' && inputs.android-app-archive != '' }}
         uses: actions/download-artifact@v3
         with:
-          name: ${{ inputs.ios-test-spec }}
+          name: ${{ inputs.android-app-archive }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Download Android test suite
+        if: ${{ inputs.device-type == 'android' && inputs.android-test-archive != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.android-test-archive }}
+          path: test-infra/tools/device-farm-runner/
+
+      - name: Download the test spec
+        if: ${{ inputs.test-spec != '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.test-spec }}
           path: test-infra/tools/device-farm-runner/
 
       - name: Verify iOS artifacts
@@ -126,7 +162,6 @@ jobs:
         env:
           IPA_ARCHIVE: ${{ inputs.ios-ipa-archive }}
           XCTESTRUN_ZIP: ${{ inputs.ios-xctestrun-zip }}
-          IOS_TEST_SPEC: ${{ inputs.ios-test-spec }}
         run: |
           set -ex
 
@@ -142,10 +177,65 @@ jobs:
           # Print the artifacts to manually verify them if needed
           ls -lah ci.ipa ci.xctestrun.zip
 
-          if [ -n "${IOS_TEST_SPEC}" ]; then
-            mv "${IOS_TEST_SPEC}" ci.yml
+      - name: Verify Android artifacts
+        if: ${{ inputs.device-type == 'android' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          APP_ARCHIVE: ${{ inputs.android-app-archive }}
+          TEST_ARCHIVE: ${{ inputs.android-test-archive }}
+          TEST_SPEC: ${{ inputs.test-spec }}
+        run: |
+          set -ex
+
+          if [ -z "${APP_ARCHIVE}" ] || [ -z "${TEST_ARCHIVE}" ]; then
+            echo "Missing the app or test archives"
+            exit 1
+          fi
+
+          # NP: The suffix needs to be exact, otherwise, AWS will reject them
+          mv "${APP_ARCHIVE}" ci.apk
+          mv "${TEST_ARCHIVE}" ci.test.apk
+
+          # Print the artifacts to manually verify them if needed
+          ls -lah ci.apk ci.test.apk
+
+      - name: Verify test spec
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          TEST_SPEC: ${{ inputs.test-spec }}
+        run: |
+          set -ex
+
+          if [ -n "${TEST_SPEC}" ]; then
+            mv "${TEST_SPEC}" ci.yml
             cat ci.yml
           fi
+
+      - name: Verify extra data archive
+        id: verify-extra-data
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          EXTRA_DATA: ${{ inputs.extra-data }}
+        run: |
+          set -ex
+
+          if [ -n "${EXTRA_DATA}" ]; then
+            if [ "${EXTRA_DATA}" == http* ]; then
+              EXTRA_DATA_OUTPUT="extra-data.zip"
+
+              curl -s "${EXTRA_DATA}" -o "${EXTRA_DATA_OUTPUT}"
+              ls -lah "${EXTRA_DATA_OUTPUT}"
+            else
+              EXTRA_DATA_OUTPUT="${EXTRA_DATA}"
+            fi
+          else
+            EXTRA_DATA_OUTPUT=""
+          fi
+
+          echo "extra-data-output=${EXTRA_DATA_OUTPUT}" >> "${GITHUB_OUTPUT}"
 
       - name: Run iOS tests on devices
         if: ${{ inputs.device-type == 'ios' }}
@@ -153,6 +243,7 @@ jobs:
         working-directory: test-infra/tools/device-farm-runner
         env:
           PROJECT_ARN: ${{ inputs.project-arn }}
+          EXTRA_DATA: ${{ steps.verify-extra-data.outputs.extra-data-output }}
           # For record keeping
           JOB_NAME: ${{ inputs.job-name }}
           DEVICE_TYPE: ${{ inputs.device-type }}
@@ -161,21 +252,37 @@ jobs:
         run: |
           set -ex
 
-          if [ -f ci.yml ]; then
-            ${CONDA_RUN} python run_on_aws_devicefarm.py \
-              --project-arn "${PROJECT_ARN}" \
-              --app-file ci.ipa \
-              --xctestrun-file ci.xctestrun.zip \
-              --appium-test-spec ci.yml \
-              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
-              --workflow-id "${RUN_ID}" \
-              --workflow-attempt "${RUN_ATTEMPT}"
-          else
-            ${CONDA_RUN} python run_on_aws_devicefarm.py \
-              --project-arn "${PROJECT_ARN}" \
-              --app-file ci.ipa \
-              --xctestrun-file ci.xctestrun.zip \
-              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
-              --workflow-id "${RUN_ID}" \
-              --workflow-attempt "${RUN_ATTEMPT}"
-          fi
+          ${CONDA_RUN} python run_on_aws_devicefarm.py \
+            --project-arn "${PROJECT_ARN}" \
+            --app-file ci.ipa \
+            --ios-xctestrun-file ci.xctestrun.zip \
+            --extra-data "${EXTRA_DATA}" \
+            --test-spec ci.yml \
+            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+            --workflow-id "${RUN_ID}" \
+            --workflow-attempt "${RUN_ATTEMPT}"
+
+      - name: Run Android tests on devices
+        if: ${{ inputs.device-type == 'android' }}
+        shell: bash
+        working-directory: test-infra/tools/device-farm-runner
+        env:
+          PROJECT_ARN: ${{ inputs.project-arn }}
+          EXTRA_DATA: ${{ steps.verify-extra-data.outputs.extra-data-output }}
+          # For record keeping
+          JOB_NAME: ${{ inputs.job-name }}
+          DEVICE_TYPE: ${{ inputs.device-type }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -ex
+
+          ${CONDA_RUN} python run_on_aws_devicefarm.py \
+            --project-arn "${PROJECT_ARN}" \
+            --app-file ci.apk \
+            --android-instrumention-test-file ci.test.apk \
+            --extra-data "${EXTRA_DATA}" \
+            --test-spec ci.yml \
+            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+            --workflow-id "${RUN_ID}" \
+            --workflow-attempt "${RUN_ATTEMPT}"

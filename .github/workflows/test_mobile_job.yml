@@ -57,4 +57,54 @@ jobs:
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
       ios-ipa-archive: DeviceFarm.ipa
       ios-xctestrun-zip: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
-      ios-test-spec: default-ios-device-farm-appium-test-spec.yml
+      test-spec: default-ios-device-farm-appium-test-spec.yml
+
+  setup-android-job:
+    runs-on: ubuntu-latest
+    env:
+      APP_ARCHIVE: app-debug.apk
+      TEST_ARCHIVE: app-debug-androidTest.apk
+      ANDROID_TEST_SPEC: android-llama2-device-farm-test-spec.yml
+    steps:
+      - name: Download the prebuilt PyTorch Android app and test suite from S3
+        run: |
+          set -ex
+          wget -q "https://ossci-assets.s3.amazonaws.com/${APP_ARCHIVE}"
+          wget -q "https://ossci-assets.s3.amazonaws.com/${TEST_ARCHIVE}"
+          wget -q "https://ossci-assets.s3.amazonaws.com/${ANDROID_TEST_SPEC}"
+
+          # Print the artifacts to manually verify them if needed
+          ls -lah "${APP_ARCHIVE}" "${TEST_ARCHIVE}" "${ANDROID_TEST_SPEC}"
+
+      - name: Upload the iOS app
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.APP_ARCHIVE }}
+          path: ${{ env.APP_ARCHIVE }}
+
+      - name: Upload the test suite
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.TEST_ARCHIVE }}
+          path: ${{ env.TEST_ARCHIVE }}
+
+      - name: Upload the test spec
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ANDROID_TEST_SPEC }}
+          path: ${{ env.ANDROID_TEST_SPEC }}
+
+  test-android-job:
+    needs: setup-android-job
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/mobile_job.yml
+    with:
+      device-type: android
+      runner: ubuntu-latest
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
+      android-app-archive: app-debug.apk
+      android-test-archive: app-debug-androidTest.apk
+      test-spec: android-llama2-device-farm-test-spec.yml
+      extra-data: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/bd15825b-ddab-4e47-9fef-a9c8935778dd

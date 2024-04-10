@@ -7,6 +7,7 @@ import random
 import string
 import sys
 import time
+from argparse import Action, ArgumentParser
 from enum import Enum
 from logging import info
 from typing import Any, Dict, List, Optional
@@ -39,27 +40,93 @@ DEVICE_FARM_BUCKET = "gha-artifacts"
 logging.basicConfig(level=logging.INFO)
 
 
-def parse_args() -> Any:
-    from argparse import ArgumentParser
+class ValidateArchive(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not os.path.isfile(values) or not values.endswith(".zip"):
+            parser.error(f"{values} is not a valid zip archive")
+        setattr(namespace, self.dest, values)
 
-    parser = ArgumentParser("Run iOS tests on AWS Device Farm")
+
+class ValidateExtraDataArchive(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        # This parameter is optional and can accept an empty string, or it can be
+        # an existing ARN, or a local zip archive to be uploaded to AWS
+        if (
+            not values
+            or values.startswith("arn:aws:devicefarm:")
+            or (os.path.isfile(values) and values.endswith(".zip"))
+        ):
+            setattr(namespace, self.dest, values)
+            return
+
+        parser.error(
+            f"{values} is not a valid extra data zip archive or an existing ARN"
+        )
+
+
+class ValidateApp(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not os.path.isfile(values) or (
+            not values.endswith(".apk") and not values.endswith(".ipa")
+        ):
+            parser.error(
+                f"{values} is not a valid Android (*.apk) or iOS app name (*.ipa)"
+            )
+        setattr(namespace, self.dest, values)
+
+
+class ValidateTestSpec(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not os.path.isfile(values) or (
+            not values.endswith(".yml") and not values.endswith(".yaml")
+        ):
+            parser.error(f"{values} is not a valid test spec (*.yml, *.yaml)")
+        setattr(namespace, self.dest, values)
+
+
+def parse_args() -> Any:
+    parser = ArgumentParser("Run Android and iOS tests on AWS Device Farm")
     parser.add_argument(
         "--project-arn", type=str, required=True, help="the ARN of the project on AWS"
     )
     parser.add_argument(
-        "--app-file", type=str, required=True, help="the iOS ipa app archive"
-    )
-    parser.add_argument(
-        "--xctestrun-file",
+        "--app-file",
         type=str,
         required=True,
-        help="the XCTest suite to run",
+        action=ValidateApp,
+        help="the Android apk or iOS ipa app",
     )
-    parser.add_argument(
-        "--appium-test-spec",
+
+    # One way or the other
+    test_group = parser.add_mutually_exclusive_group()
+    test_group.add_argument(
+        "--ios-xctestrun-file",
         type=str,
         required=False,
-        help="the optional specfile to drive the test",
+        action=ValidateArchive,
+        help="the iOS XCTest suite to run",
+    )
+    test_group.add_argument(
+        "--android-instrumention-test-file",
+        type=str,
+        required=False,
+        action=ValidateApp,
+        help="the Android instrumention test suite to run",
+    )
+
+    parser.add_argument(
+        "--extra-data",
+        type=str,
+        required=False,
+        action=ValidateExtraDataArchive,
+        help="the optional extra zip archive to upload to the device, i.e. exported models",
+    )
+    parser.add_argument(
+        "--test-spec",
+        type=str,
+        required=True,
+        action=ValidateTestSpec,
+        help="the specfile to drive the test",
     )
     parser.add_argument(
         "--name-prefix",
@@ -263,7 +330,6 @@ def print_report(
     return artifacts
 
 
-# TODO(huydhn): Extend this to support Android
 def main() -> None:
     args = parse_args()
 
@@ -278,36 +344,85 @@ def main() -> None:
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
     )
 
+    # Only Android and iOS app are supported atm
+    app_type = "ANDROID_APP" if args.app_file.endswith(".apk") else "IOS_APP"
     # Upload the test app
     appfile_arn = upload_file(
         client=client,
         project_arn=args.project_arn,
         prefix=unique_prefix,
         filename=args.app_file,
-        filetype="IOS_APP",
+        filetype=app_type,
     )
     info(f"Uploaded app: {appfile_arn}")
-    # Upload the xctestrun file as an appium node test package, this allows us
-    # to customize the run later using a test spec
-    xctest_arn = upload_file(
-        client=client,
-        project_arn=args.project_arn,
-        prefix=unique_prefix,
-        filename=args.xctestrun_file,
-        filetype="APPIUM_NODE_TEST_PACKAGE",
-    )
-    info(f"Uploaded xctestrun: {xctest_arn}")
 
-    test_to_run = {"type": "APPIUM_NODE", "testPackageArn": xctest_arn}
-    if args.appium_test_spec:
-        appium_test_spec_arn = upload_file(
+    if args.ios_xctestrun_file:
+        # Upload the xctestrun file as an appium node test package, this allows us
+        # to customize the run later using a test spec
+        xctest_arn = upload_file(
             client=client,
             project_arn=args.project_arn,
             prefix=unique_prefix,
-            filename=args.appium_test_spec,
+            filename=args.ios_xctestrun_file,
+            filetype="APPIUM_NODE_TEST_PACKAGE",
+        )
+        info(f"Uploaded xctestrun: {xctest_arn}")
+
+        test_spec_arn = upload_file(
+            client=client,
+            project_arn=args.project_arn,
+            prefix=unique_prefix,
+            filename=args.test_spec,
             filetype="APPIUM_NODE_TEST_SPEC",
         )
-        test_to_run["testSpecArn"] = appium_test_spec_arn
+        test_to_run = {
+            "type": "APPIUM_NODE",
+            "testPackageArn": xctest_arn,
+            "testSpecArn": test_spec_arn,
+        }
+
+    if args.android_instrumention_test_file:
+        # Upload the instrumention test suite archive
+        instrumention_test_arn = upload_file(
+            client=client,
+            project_arn=args.project_arn,
+            prefix=unique_prefix,
+            filename=args.android_instrumention_test_file,
+            filetype="INSTRUMENTATION_TEST_PACKAGE",
+        )
+        info(f"Uploaded instrumention test suite: {instrumention_test_arn}")
+
+        test_spec_arn = upload_file(
+            client=client,
+            project_arn=args.project_arn,
+            prefix=unique_prefix,
+            filename=args.test_spec,
+            filetype="INSTRUMENTATION_TEST_SPEC",
+        )
+        test_to_run = {
+            "type": "INSTRUMENTATION",
+            "testPackageArn": instrumention_test_arn,
+            "testSpecArn": test_spec_arn,
+        }
+
+    configuration = {}
+    if args.extra_data:
+        if args.extra_data.startswith("arn:aws:devicefarm:"):
+            extra_data_arn = args.extra_data
+            info(f"Use the existing extra data: {extra_data_arn}")
+        else:
+            # Upload the extra data used by the test
+            extra_data_arn = upload_file(
+                client=client,
+                project_arn=args.project_arn,
+                prefix=unique_prefix,
+                filename=args.extra_data,
+                filetype="EXTERNAL_DATA",
+            )
+            info(f"Uploaded extra data used by the test: {extra_data_arn}")
+
+        # See https://docs.aws.amazon.com/cli/latest/reference/devicefarm/schedule-run.html
+        configuration["extraDataPackageArn"] = extra_data_arn
 
     # Schedule the test
     r = client.schedule_run(
@@ -316,6 +431,7 @@ def main() -> None:
         appArn=appfile_arn,
         devicePoolArn=args.device_pool_arn,
         test=test_to_run,
+        configuration=configuration,
     )
     run_arn = r["run"]["arn"]
 
