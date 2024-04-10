@@ -65,11 +65,11 @@ on:
         required: false
         type: boolean
         default: true
-      use-python-build-package:
-        description: Utilize the standard build package from PyPA.
+      build-platform:
+        description: Platform to build wheels, choose from 'python-build-package' or 'setup-py' 
         required: false
-        type: boolean
-        default: false
+        type: string
+        default: 'setup-py'
 
 permissions:
   id-token: write
@@ -173,7 +173,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
       - name: Install python build dependency
-        if: ${{ inputs.use-python-build-package }}
+        if: ${{ inputs.build-platform == 'python-build-package' }}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
@@ -181,7 +181,7 @@ jobs:
           # shellcheck disable=SC2086
           ${CONDA_RUN} python -m pip install build
       - name: Build clean
-        if: ${{ !inputs.use-python-build-package }} 
+        if: ${{ inputs.build-platform == 'setup-py' }} 
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
@@ -195,7 +195,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          if [[ ${{ inputs.use-python-build-package }} == 'true' ]]; then
+          if [[ ${{ inputs.build-platform }} == 'python-build-package' ]]; then
             ${CONDA_RUN} python -m build --wheel
           else
             ${CONDA_RUN} python setup.py bdist_wheel
