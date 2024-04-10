@@ -16,9 +16,6 @@ const prodVersions = await readJSON("./rockset/prodVersions.json");
 Object.keys(prodVersions).forEach((workspace) => {
   Object.entries(prodVersions[workspace]).forEach(
     async ([queryName, jsonVersion]) => {
-      if (queryName != "recent_pr_workflows_query") {
-        return;
-      }
       const versions = await client.queryLambdas.listQueryLambdaVersions(
         workspace,
         queryName
