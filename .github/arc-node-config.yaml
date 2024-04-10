@@ -6,7 +6,7 @@ nodeConfig:
         values: ["c"]
       - key: "karpenter.k8s.aws/instance-cpu"
         operator: In
-        values: ["16", "32", "64"]
+        values: ["32", "48", "64", "72", "96", "128", "192"]
       - key: "kubernetes.io/arch"
         operator: In
         values: ["amd64"]
@@ -16,6 +16,26 @@ nodeConfig:
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
+  - nodeType: compute-amd64-avx512
+    requirements:
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["c"]
+      - key: "karpenter.k8s.aws/instance-cpu"
+        operator: In
+        values: ["32", "48", "64", "72", "96", "128", "192"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: kubernetes.io/os
+        operator: In
+        values: ["linux"]
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["c6i.8xlarge", "c7i.8xlarge", "c5.9xlarge", "c6id.8xlarge", "c5d.9xlarge", "c6in.8xlarge", "c5n.9xlarge", "c5.12xlarge", "c6i.12xlarge", "c7i.12xlarge", "c5d.12xlarge", "c6id.12xlarge", "c6i.16xlarge", "c6in.12xlarge", "c7i.16xlarge", "c5.18xlarge", "c6id.16xlarge", "c5d.18xlarge", "c6in.16xlarge", "c5n.18xlarge", "c5n.metal", "c5.metal", "c5.24xlarge", "c6i.24xlarge", "c7i.metal-24xl", "c7i.24xlarge", "c5d.24xlarge", "c5d.metal", "c6id.24xlarge", "c6i.32xlarge", "c6i.metal", "c6in.24xlarge"]
   - nodeType: compute-amd64-nvidia-v100
     requirements:
       - key: "karpenter.k8s.aws/instance-category"
