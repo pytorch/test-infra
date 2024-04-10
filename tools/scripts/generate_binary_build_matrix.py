@@ -124,7 +124,7 @@ def validation_runner(arch_type: str, os: str) -> str:
         return LINUX_CPU_RUNNER
 
 
-def initialize_globals(channel: str):
+def initialize_globals(channel: str, build_python_only: bool):
     if channel == TEST:
         mod.CURRENT_VERSION = CURRENT_CANDIDATE_VERSION
     else:
@@ -132,7 +132,11 @@ def initialize_globals(channel: str):
 
     mod.CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
     mod.ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
-    mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
+    if build_python_only:
+        # Only select the oldest version of python if building a python only package
+        mod.PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
+    else:
+        mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
@@ -542,6 +546,7 @@ def generate_build_matrix(
     with_cpu: str,
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
+    build_python_only: str,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -553,7 +558,7 @@ def generate_build_matrix(
 
     for channel in channels:
         for package in package_types:
-            initialize_globals(channel)
+            initialize_globals(channel, build_python_only == ENABLE)
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](
                     operating_system,
@@ -630,6 +635,17 @@ def main(args) -> None:
         choices=["true", "false"],
         default=os.getenv("USE_ONLY_DL_PYTORCH_ORG", "false"),
     )
+    # Generates a single version python for building python packages only
+    # This basically makes it so that we only generate a matrix including the oldest
+    # version of python that we support
+    # For packages that look similar to torchtune-0.0.1-py3-none-any.whl
+    parser.add_argument(
+        "--build-python-only",
+        help="Build python only",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("BUILD_PYTHON_ONLY", ENABLE),
+    )
 
     options = parser.parse_args(args)
 
@@ -646,6 +662,7 @@ def main(args) -> None:
         options.with_cpu,
         options.limit_pr_builds,
         options.use_only_dl_pytorch_org,
+        options.build_python_only,
     )
 
     print(json.dumps(build_matrix))
