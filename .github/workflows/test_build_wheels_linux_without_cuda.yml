@@ -25,6 +25,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
       with-rocm: disable
+      build-python-only: enable
   test:
     needs: generate-matrix
     strategy:
@@ -33,7 +34,6 @@ jobs:
         include:
           - repository: pytorch/torchtune
             package-name: torchtune
-            build-python-only: enable
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
@@ -45,4 +45,3 @@ jobs:
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
       build-platform: 'python-build-package'
-      build-python-only: ${{ matrix.build-python-only }}
