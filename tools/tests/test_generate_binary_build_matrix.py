@@ -17,6 +17,7 @@ class GenerateBuildMatrixTest(TestCase):
         rocm: bool,
         cpu: bool,
         reference_output_file: str,
+        build_python_only: bool = False,
     ) -> None:
         out = generate_build_matrix(
             package_type,
@@ -27,6 +28,8 @@ class GenerateBuildMatrixTest(TestCase):
             "enable" if cpu else "disable",
             "false",
             "false",
+            "enable" if build_python_only else "disable",
+
         )
 
         expected_json_filename = os.path.join(ASSETS_DIR, reference_output_file)
@@ -36,6 +39,17 @@ class GenerateBuildMatrixTest(TestCase):
 
         self.maxDiff = None
         self.assertEqual(out, expected)
+
+    def test_linux_wheel_cpu_python_only(self):
+        self.matrix_compare_helper(
+            package_type="wheel",
+            operating_system="linux",
+            cuda=True,
+            rocm=True,
+            cpu=True,
+            reference_output_file="build_matrix_linux_wheel_cuda.json",
+            build_python_only=True,
+        )
 
     def test_linux_wheel_cuda(self):
         self.matrix_compare_helper(
