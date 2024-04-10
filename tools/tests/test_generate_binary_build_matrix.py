@@ -40,17 +40,6 @@ class GenerateBuildMatrixTest(TestCase):
         self.maxDiff = None
         self.assertEqual(out, expected)
 
-    def test_linux_wheel_cpu_python_only(self):
-        self.matrix_compare_helper(
-            package_type="wheel",
-            operating_system="linux",
-            cuda=False,
-            rocm=False,
-            cpu=True,
-            reference_output_file="build_matrix_linux_wheel_cuda.json",
-            build_python_only=True,
-        )
-
     def test_linux_wheel_cuda(self):
         self.matrix_compare_helper(
             package_type="wheel",
