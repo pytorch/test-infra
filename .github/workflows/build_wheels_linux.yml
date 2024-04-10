@@ -65,6 +65,11 @@ on:
         required: false
         type: boolean
         default: true
+      build-command:
+        description: Python command to build package.
+        required: false
+        type: string
+        default: "python setup.py bdist_wheel"
 
 permissions:
   id-token: write
@@ -168,6 +173,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
       - name: Install python build dependency
+        if: contains( ${{ inputs.build-command }}, 'python -m build')
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
@@ -181,7 +187,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python -m build --wheel -n
+          ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
