@@ -25,6 +25,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
       with-rocm: disable
+      build-python-only: enable
   test:
     needs: generate-matrix
     strategy:
