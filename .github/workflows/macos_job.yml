@@ -112,7 +112,7 @@ jobs:
           submodules: ${{ inputs.submodules }}
 
       - name: Setup useful environment variables
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         run: |
           RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${RUNNER_ARTIFACT_DIR}"
@@ -139,7 +139,7 @@ jobs:
       - name: Run script
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
@@ -164,7 +164,7 @@ jobs:
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         if: ${{ inputs.upload-artifact != '' }}
         env:

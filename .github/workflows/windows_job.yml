@@ -131,7 +131,7 @@ jobs:
       - name: Run script
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         run: |
           EXEC_SCRIPT="${RUNNER_TEMP}/exec_script"
           {
@@ -166,7 +166,7 @@ jobs:
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         if: ${{ inputs.upload-artifact != '' }}
         env:
