@@ -193,7 +193,7 @@ jobs:
       - name: Run script in container
         if: ${{ inputs.run-with-docker == true }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
@@ -213,7 +213,7 @@ jobs:
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
@@ -257,7 +257,7 @@ jobs:
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
