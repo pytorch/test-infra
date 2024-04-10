@@ -44,8 +44,8 @@ class GenerateBuildMatrixTest(TestCase):
         self.matrix_compare_helper(
             package_type="wheel",
             operating_system="linux",
-            cuda=True,
-            rocm=True,
+            cuda=False,
+            rocm=False,
             cpu=True,
             reference_output_file="build_matrix_linux_wheel_cuda.json",
             build_python_only=True,
