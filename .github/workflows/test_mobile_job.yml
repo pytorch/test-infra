@@ -9,41 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup-ios-job:
-    runs-on: ubuntu-latest
-    env:
-      IPA_ARCHIVE: DeviceFarm.ipa
-      XCTESTRUN_ZIP: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
-      IOS_TEST_SPEC: default-ios-device-farm-appium-test-spec.yml
-    steps:
-      - name: Download the prebuilt PyTorch iOS app and test suite from S3
-        run: |
-          set -ex
-          wget -q "https://ossci-assets.s3.amazonaws.com/${IPA_ARCHIVE}"
-          wget -q "https://ossci-assets.s3.amazonaws.com/${XCTESTRUN_ZIP}"
-          wget -q "https://ossci-assets.s3.amazonaws.com/${IOS_TEST_SPEC}"
-
-          # Print the artifacts to manually verify them if needed
-          ls -lah "${IPA_ARCHIVE}" "${XCTESTRUN_ZIP}" "${IOS_TEST_SPEC}"
-
-      - name: Upload the iOS app
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.IPA_ARCHIVE }}
-          path: ${{ env.IPA_ARCHIVE }}
-
-      - name: Upload the test suite
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.XCTESTRUN_ZIP }}
-          path: ${{ env.XCTESTRUN_ZIP }}
-
-      - name: Upload the test spec
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.IOS_TEST_SPEC }}
-          path: ${{ env.IOS_TEST_SPEC }}
-
   test-ios-job:
     needs: setup-ios-job
     permissions:
@@ -54,48 +19,13 @@ jobs:
       device-type: ios
       # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
       runner: ubuntu-latest
+      # There values are prepared beforehand for the test
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
-      ios-ipa-archive: DeviceFarm.ipa
-      ios-xctestrun-zip: MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
-      test-spec: default-ios-device-farm-appium-test-spec.yml
+      ios-ipa-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/56b109f3-64b4-48c0-b1c8-b19dafc80647
+      ios-xctestrun-zip: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/8aeaf73f-3a42-4304-8eda-7a8d6b5a770c
+      test-spec: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/68677456-2999-47ec-a3a1-722db2b69b69
 
-  setup-android-job:
-    runs-on: ubuntu-latest
-    env:
-      APP_ARCHIVE: app-debug.apk
-      TEST_ARCHIVE: app-debug-androidTest.apk
-      ANDROID_TEST_SPEC: android-llama2-device-farm-test-spec.yml
-    steps:
-      - name: Download the prebuilt PyTorch Android app and test suite from S3
-        run: |
-          set -ex
-          wget -q "https://ossci-assets.s3.amazonaws.com/${APP_ARCHIVE}"
-          wget -q "https://ossci-assets.s3.amazonaws.com/${TEST_ARCHIVE}"
-          wget -q "https://ossci-assets.s3.amazonaws.com/${ANDROID_TEST_SPEC}"
-
-          # Print the artifacts to manually verify them if needed
-          ls -lah "${APP_ARCHIVE}" "${TEST_ARCHIVE}" "${ANDROID_TEST_SPEC}"
-
-      - name: Upload the iOS app
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.APP_ARCHIVE }}
-          path: ${{ env.APP_ARCHIVE }}
-
-      - name: Upload the test suite
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.TEST_ARCHIVE }}
-          path: ${{ env.TEST_ARCHIVE }}
-
-      - name: Upload the test spec
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ANDROID_TEST_SPEC }}
-          path: ${{ env.ANDROID_TEST_SPEC }}
-
-  test-android-job:
-    needs: setup-android-job
+  test-android-llama2-job:
     permissions:
       id-token: write
       contents: read
@@ -103,8 +33,10 @@ jobs:
     with:
       device-type: android
       runner: ubuntu-latest
+      # There values are prepared beforehand for the test
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
-      android-app-archive: app-debug.apk
-      android-test-archive: app-debug-androidTest.apk
-      test-spec: android-llama2-device-farm-test-spec.yml
+      device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/e59f866a-30aa-4aa1-87b7-4510e5820dfa
+      android-app-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/8a7276b7-03ac-4053-8b09-1305c429f59d
+      android-test-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/528113d6-2003-420b-aedb-4242b6d14254
+      test-spec: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/414cb54d-4d83-4576-8317-93244e4dc50e
       extra-data: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/bd15825b-ddab-4e47-9fef-a9c8935778dd
