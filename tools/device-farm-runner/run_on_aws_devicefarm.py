@@ -105,7 +105,7 @@ def parse_args() -> Any:
         "--project-arn", type=str, required=True, help="the ARN of the project on AWS"
     )
     parser.add_argument(
-        "--app-file",
+        "--app",
         type=str,
         required=True,
         action=ValidateApp,
@@ -115,14 +115,14 @@ def parse_args() -> Any:
     # One way or the other
     test_group = parser.add_mutually_exclusive_group()
     test_group.add_argument(
-        "--ios-xctestrun-file",
+        "--ios-xctestrun",
         type=str,
         required=False,
         action=ValidateArchive,
         help="the iOS XCTest suite to run",
     )
     test_group.add_argument(
-        "--android-instrumentation-test-file",
+        "--android-instrumentation-test",
         type=str,
         required=False,
         action=ValidateApp,
@@ -365,13 +365,13 @@ def print_report(
 
 
 def generate_ios_xctestrun(
-    client: Any, project_arn: str, prefix: str, ios_xctestrun_file: str, test_spec: str
+    client: Any, project_arn: str, prefix: str, ios_xctestrun: str, test_spec: str
 ) -> Dict[str, str]:
     """
     A helper function to generate the iOS test run
     """
-    if ios_xctestrun_file.startswith(AWS_ARN_PREFIX):
-        xctest_arn = ios_xctestrun_file
+    if ios_xctestrun.startswith(AWS_ARN_PREFIX):
+        xctest_arn = ios_xctestrun
         info(f"Use the existing xctestrun: {xctest_arn}")
     else:
         # Upload the xctestrun file as an appium node test package, this allows us
@@ -380,7 +380,7 @@ def generate_ios_xctestrun(
             client=client,
             project_arn=project_arn,
             prefix=prefix,
-            filename=ios_xctestrun_file,
+            filename=ios_xctestrun,
             filetype="APPIUM_NODE_TEST_PACKAGE",
         )
         info(f"Uploaded xctestrun: {xctest_arn}")
@@ -409,14 +409,14 @@ def generate_android_instrumentation_test(
     client: Any,
     project_arn: str,
     prefix: str,
-    android_instrumentation_test_file: str,
+    android_instrumentation_test: str,
     test_spec: str,
 ) -> Dict[str, str]:
     """
     A helper function to generate the Android test run
     """
-    if android_instrumentation_test_file.startswith(AWS_ARN_PREFIX):
-        instrumentation_test_arn = android_instrumentation_test_file
+    if android_instrumentation_test.startswith(AWS_ARN_PREFIX):
+        instrumentation_test_arn = android_instrumentation_test
         info(f"Use the existing instrumentation test: {instrumentation_test_arn}")
     else:
         # Upload the instrumentation test suite archive
@@ -424,7 +424,7 @@ def generate_android_instrumentation_test(
             client=client,
             project_arn=project_arn,
             prefix=prefix,
-            filename=android_instrumentation_test_file,
+            filename=android_instrumentation_test,
             filetype="INSTRUMENTATION_TEST_PACKAGE",
         )
         info(f"Uploaded instrumentation test: {instrumentation_test_arn}")
@@ -488,33 +488,33 @@ def main() -> None:
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
     )
 
-    if args.app_file.startswith(AWS_ARN_PREFIX):
-        appfile_arn = args.app_file
+    if args.app.startswith(AWS_ARN_PREFIX):
+        appfile_arn = args.app
         info(f"Use the existing app: {appfile_arn}")
     else:
         # Only Android and iOS app are supported atm
-        app_type = "ANDROID_APP" if args.app_file.endswith(".apk") else "IOS_APP"
+        app_type = "ANDROID_APP" if args.app.endswith(".apk") else "IOS_APP"
         # Upload the test app
         appfile_arn = upload_file(
             client=client,
             project_arn=project_arn,
             prefix=unique_prefix,
-            filename=args.app_file,
+            filename=args.app,
             filetype=app_type,
         )
         info(f"Uploaded app: {appfile_arn}")
 
-    if args.ios_xctestrun_file:
+    if args.ios_xctestrun:
         test_to_run = generate_ios_xctestrun(
-            client, project_arn, unique_prefix, args.ios_xctestrun_file, args.test_spec
+            client, project_arn, unique_prefix, args.ios_xctestrun, args.test_spec
         )
 
-    if args.android_instrumentation_test_file:
+    if args.android_instrumentation_test:
         test_to_run = generate_android_instrumentation_test(
             client,
             project_arn,
             unique_prefix,
-            args.android_instrumentation_test_file,
+            args.android_instrumentation_test,
             args.test_spec,
         )
 

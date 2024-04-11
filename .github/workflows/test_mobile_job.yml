@@ -10,7 +10,6 @@ on:
 
 jobs:
   test-ios-job:
-    needs: setup-ios-job
     permissions:
       id-token: write
       contents: read
