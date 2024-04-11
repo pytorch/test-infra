@@ -32,7 +32,7 @@ on:
         type: string
       device-pool-arn:
         description: The device pool associated with the project
-        default: 'arn:aws:devicefarm:us-west-2:308535385114:devicepool:082d10e5-d7d7-48a5-ba5c-b33d66efa1f5'
+        default: 'arn:aws:devicefarm:us-west-2::devicepool:082d10e5-d7d7-48a5-ba5c-b33d66efa1f5'
         type: string
 
       # Pulling test-infra itself for device farm runner script
