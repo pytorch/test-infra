@@ -36,6 +36,10 @@ Object.keys(prodVersions).forEach((workspace) => {
           )
         ).data.version.version;
 
+        console.log(
+          `Checking ${workspace}.${queryName}, with prod version ${prodVersion}, latest version ${latest}, and json version ${jsonVersion}`
+        );
+
         for (const versionInfo of versions.data) {
           const version = versionInfo.version;
           const lastExecutedAt = versionInfo.last_executed_at;
