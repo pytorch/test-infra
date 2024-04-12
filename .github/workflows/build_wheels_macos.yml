@@ -59,6 +59,11 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
+      submodules:
+        description: "Works as stated in actions/checkout, but the default value is recursive"
+        required: false
+        type: string
+        default: recursive
 
 permissions:
   id-token: write
@@ -105,6 +110,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
