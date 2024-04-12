@@ -60,8 +60,13 @@ on:
         required: false
         type: string
         default: x86_64
-      setup-miniconda:
+      submodules:
         description: Works as stated in actions/checkout, but the default value is recursive
+        required: false
+        type: string
+        default: recursive
+      setup-miniconda:
+        description: Set to true if setup-miniconda is needed
         required: false
         type: boolean
         default: true
@@ -142,6 +147,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
           setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
