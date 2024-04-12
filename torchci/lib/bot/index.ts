@@ -11,7 +11,6 @@ import webhookToDynamo from "./webhookToDynamo";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import stripApprovalBot from "./stripApprovalBot";
 import codevNoWritePerm from "./codevNoWritePermBot";
-import rerunGithubInfraErrorWorkflow from "./rerunGithubInfraErrorWorkflow";
 import isTheBotStateful from "./statefulBot";
 
 export default function bot(app: Probot) {
@@ -27,6 +26,5 @@ export default function bot(app: Probot) {
   retryBot(app);
   cancelWorkflowsOnCloseBot(app);
   codevNoWritePerm(app);
-  rerunGithubInfraErrorWorkflow(app);
   isTheBotStateful(app);
 }
