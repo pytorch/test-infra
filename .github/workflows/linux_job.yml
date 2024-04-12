@@ -16,7 +16,9 @@ on:
         default: "linux.2xlarge"
         type: string
       upload-artifact:
-        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        description: |
+          Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}, all the wheel files
+          under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
         default: ''
         type: string
       download-artifact:
@@ -268,6 +270,9 @@ jobs:
             # attempt to just grab whatever is in there and scoop it all up
             if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
               mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            if [[ -d "artifacts-to-be-uploaded" ]]; then
+              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
             # Set to fail upload step if there are no files for upload and expected files for upload
             echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
