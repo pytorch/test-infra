@@ -1,4 +1,9 @@
-import { Context, Probot } from "probot";
+/*
+A github bot that automatically approves workflow runs for first time contributors
+if the PR only changes safe, non-workflow related files.
+*/
+
+import { Probot } from "probot";
 import {
   approveWorkflowRun,
   getFilesChangedByPr,

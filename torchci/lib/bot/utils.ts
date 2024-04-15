@@ -297,7 +297,6 @@ export async function approveWorkflowRun(
     run_id: run_id,
   });
 
-  // Check if failure status code using a generic function that checks for a wide range of status codes
   if (response.status >= 400) {
     var run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`
     console.log(
