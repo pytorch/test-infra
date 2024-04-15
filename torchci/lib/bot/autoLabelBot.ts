@@ -6,6 +6,7 @@ import {
   hasApprovedPullRuns,
   hasWritePermissions,
   isPyTorchPyTorch,
+  getFilesChangedByPr,
 } from "./utils";
 import { minimatch } from "minimatch";
 import {
@@ -388,16 +389,12 @@ function myBot(app: Probot): void {
       const owner = context.payload.repository.owner.login;
       const repo = context.payload.repository.name;
       const title = context.payload.pull_request.title;
-      const filesChangedRes = await context.octokit.paginate(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
-        {
-          owner,
-          repo,
-          pull_number: context.payload.pull_request.number,
-          per_page: 100,
-        }
+      const filesChanged = await getFilesChangedByPr(
+        context.octokit,
+        owner,
+        repo,
+        context.payload.pull_request.number
       );
-      const filesChanged = filesChangedRes.map((f: any) => f.filename);
       context.log({ labels, title, filesChanged });
 
       var labelsToAdd = getLabelsToAddFromTitle(title);

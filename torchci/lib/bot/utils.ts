@@ -266,3 +266,21 @@ export async function isFirstTimeContributor(
   });
   return commits?.data?.length === 0;
 }
+
+export async function getFilesChangedByPr(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
+  const filesChangedRes = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+    {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }
+  );
+  return filesChangedRes.map((f: any) => f.filename);
+}
