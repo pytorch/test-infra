@@ -298,7 +298,7 @@ export async function approveWorkflowRun(
   });
 
   if (response.status >= 400) {
-    var run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`
+    var run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`;
     console.error(
       `Failed to approve workflow run for '${run_url}'. Received status code '${response.status}'`
     );

@@ -40,10 +40,10 @@ function myBot(app: Probot): void {
       }
 
       if (
-        !await isFirstTimeContributor(
+        !(await isFirstTimeContributor(
           context,
           context.payload.pull_request.user.login
-        )
+        ))
       ) {
         // Only needed for first time contributors
         return;

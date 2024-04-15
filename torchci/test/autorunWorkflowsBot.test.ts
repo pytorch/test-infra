@@ -7,10 +7,7 @@ import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();
 
-const nonWorkflowFiles = [
-  "somedir/foo",
-  "someotherdir/bar",
-];
+const nonWorkflowFiles = ["somedir/foo", "someotherdir/bar"];
 
 const mixedWorkflowNonWorkflowFiles = [
   "somedir/foo",
@@ -56,10 +53,16 @@ describe("autorun-safe-workflows-bot", () => {
 
   test("approve workflow run when is first time user", async () => {
     // PR should only change files in non-workflow related directories
-    jest.spyOn(botUtils, "getFilesChangedByPr").mockReturnValue(Promise.resolve(nonWorkflowFiles));
-    jest.spyOn(botUtils, "isFirstTimeContributor").mockReturnValue(Promise.resolve(true));
+    jest
+      .spyOn(botUtils, "getFilesChangedByPr")
+      .mockReturnValue(Promise.resolve(nonWorkflowFiles));
+    jest
+      .spyOn(botUtils, "isFirstTimeContributor")
+      .mockReturnValue(Promise.resolve(true));
 
-    const mockRunApproval = jest.spyOn(botUtils, "approveWorkflowRun").mockReturnValue(Promise.resolve(true));
+    const mockRunApproval = jest
+      .spyOn(botUtils, "approveWorkflowRun")
+      .mockReturnValue(Promise.resolve(true));
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
@@ -73,10 +76,16 @@ describe("autorun-safe-workflows-bot", () => {
 
   test("no workflow run approval requested when is not a first time user", async () => {
     // PR should only change files in non-workflow related directories
-    jest.spyOn(botUtils, "getFilesChangedByPr").mockReturnValue(Promise.resolve(nonWorkflowFiles));
-    jest.spyOn(botUtils, "isFirstTimeContributor").mockReturnValue(Promise.resolve(false));
+    jest
+      .spyOn(botUtils, "getFilesChangedByPr")
+      .mockReturnValue(Promise.resolve(nonWorkflowFiles));
+    jest
+      .spyOn(botUtils, "isFirstTimeContributor")
+      .mockReturnValue(Promise.resolve(false));
 
-    const mockRunApproval = jest.spyOn(botUtils, "approveWorkflowRun").mockReturnValue(Promise.resolve(true));
+    const mockRunApproval = jest
+      .spyOn(botUtils, "approveWorkflowRun")
+      .mockReturnValue(Promise.resolve(true));
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
@@ -90,10 +99,16 @@ describe("autorun-safe-workflows-bot", () => {
 
   test("no workflow run approval requested when is workflow files are modified", async () => {
     // PR should only change files in non-workflow related directories
-    jest.spyOn(botUtils, "getFilesChangedByPr").mockReturnValue(Promise.resolve(mixedWorkflowNonWorkflowFiles));
-    jest.spyOn(botUtils, "isFirstTimeContributor").mockReturnValue(Promise.resolve(true));
+    jest
+      .spyOn(botUtils, "getFilesChangedByPr")
+      .mockReturnValue(Promise.resolve(mixedWorkflowNonWorkflowFiles));
+    jest
+      .spyOn(botUtils, "isFirstTimeContributor")
+      .mockReturnValue(Promise.resolve(true));
 
-    const mockRunApproval = jest.spyOn(botUtils, "approveWorkflowRun").mockReturnValue(Promise.resolve(true));
+    const mockRunApproval = jest
+      .spyOn(botUtils, "approveWorkflowRun")
+      .mockReturnValue(Promise.resolve(true));
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
