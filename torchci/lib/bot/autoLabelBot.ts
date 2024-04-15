@@ -13,6 +13,7 @@ import {
   CODEV_INDICATOR,
   genCodevNoWritePermComment,
 } from "./codevNoWritePermBot";
+import { notUserFacingPatterns } from "./Constants";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -87,41 +88,6 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/.azure_pipelines/gi, "release notes: releng"],
   // cpp_frontend
   [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"],
-];
-
-const notUserFacingPatterns: RegExp[] = [
-  /\.azure_pipelines/g,
-  /\.circleci/g,
-  /\.github/g,
-  /\.jenkins/g,
-  /\.vscode/g,
-  /docker/g,
-  /Dockerfile/g,
-  /Makefile/g,
-  /mypy_plugins/g,
-  /mypy(-strict)?\.ini/g,
-  /scripts/g,
-  /setup\.py/g,
-  /test\//g,
-  /third_party/g,
-  /tools/g,
-  /torchgen/g,
-  /CODEOWNERS/g,
-  /\.bazel(rc|version)/g,
-  /\.buck/g,
-  /\.ctags\.d/g,
-  /\.git/g,
-  /\.clang/g,
-  /\.cmakelintrc/g,
-  /\.coveragerc/g,
-  /\.dockerignore/g,
-  /\.flake8/g,
-  /\.gdbinit/g,
-  /\.isort\.cfg/g,
-  /lintrunner/g,
-  /[a-zA-Z]+.md/gi,
-  /\.(ini|toml|txt)/g,
-  /\.gdbinit/g,
 ];
 
 const notUserFacingPatternExceptions: RegExp[] = [/tools\/autograd/g];

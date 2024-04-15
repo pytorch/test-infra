@@ -284,3 +284,27 @@ export async function getFilesChangedByPr(
   );
   return filesChangedRes.map((f: any) => f.filename);
 }
+
+export async function approveWorkflowRun(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  run_id: number
+) {
+  var response = await octokit.rest.actions.approveWorkflowRun({
+    owner: owner,
+    repo: repo,
+    run_id: run_id,
+  });
+
+  // Check if failure status code using a generic function that checks for a wide range of status codes
+  if (response.status >= 400) {
+    var run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`
+    console.log(
+      `Failed to approve workflow run for '${run_url}'. Received status code '${response.status}'`
+    );
+    return false;
+  }
+
+  return true;
+}

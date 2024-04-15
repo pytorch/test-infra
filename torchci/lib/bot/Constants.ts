@@ -36,3 +36,42 @@ export const cherryPickClassifications: Record<
     requiresIssue: false,
   },
 };
+
+export const workflowRelatedPatterns: RegExp[] = [
+  /\.azure_pipelines/g,
+  /\.circleci/g,
+  /\.github/g,
+  /\.jenkins/g,
+  /docker/g,
+  /Dockerfile/g,
+  /Makefile/g,
+  /mypy_plugins/g,
+  /mypy(-strict)?\.ini/g,
+  /scripts/g,
+  /setup\.py/g,
+  /third_party/g,
+  /tools/g,
+  /torchgen/g,
+  /CODEOWNERS/g,
+  /\.bazel(rc|version)/g,
+  /\.buck/g,
+  /\.ctags\.d/g,
+  /\.git/g,
+  /\.clang/g,
+  /\.cmakelintrc/g,
+  /\.coveragerc/g,
+  /\.dockerignore/g,
+  /\.flake8/g,
+  /\.gdbinit/g,
+  /lintrunner/g,
+];
+
+// All workflowRelatedPatterns, with /foo/g and /bar/g added on
+export const notUserFacingPatterns: RegExp[] = workflowRelatedPatterns.concat([
+  /\.vscode/g,
+  /test\//g,
+  /[a-zA-Z]+.md/gi,
+  /\.(ini|toml|txt)/g,
+  /\.isort\.cfg/g,
+  /\.gdbinit/g,
+]);
