@@ -2,7 +2,7 @@ import nock from "nock";
 import { Probot } from "probot";
 import * as utils from "./utils";
 import { handleScope, requireDeepCopy } from "./common";
-import myProbotApp from "../lib/bot/autorunSafeWorkflowsBot";
+import myProbotApp from "../lib/bot/autorunWorkflowsBot";
 import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();

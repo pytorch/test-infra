@@ -66,7 +66,6 @@ export const workflowRelatedPatterns: RegExp[] = [
   /lintrunner/g,
 ];
 
-// All workflowRelatedPatterns, with /foo/g and /bar/g added on
 export const notUserFacingPatterns: RegExp[] = workflowRelatedPatterns.concat([
   /\.vscode/g,
   /test\//g,
