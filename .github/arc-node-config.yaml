@@ -12,7 +12,7 @@ nodeConfig:
         values: ["amd64"]
       - key: "karpenter.sh/capacity-type"
         operator: In
-        values: ["spot", "on-demand"]
+        values: ["on-demand"]
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
@@ -29,7 +29,7 @@ nodeConfig:
         values: ["amd64"]
       - key: "karpenter.sh/capacity-type"
         operator: In
-        values: ["spot", "on-demand"]
+        values: ["on-demand"]
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
@@ -49,7 +49,7 @@ nodeConfig:
         values: ["amd64"]
       - key: "karpenter.sh/capacity-type"
         operator: In
-        values: ["spot", "on-demand"]
+        values: ["on-demand"]
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
