@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: recursive
+      delocate-wheel:
+        description: "Whether to run delocate-wheel after building."
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   id-token: write
@@ -121,6 +126,7 @@ jobs:
         run: |
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install delocate-wheel
+        if: ${{ inputs.delocate-wheel }}
         run: |
           set -euxo pipefail
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
@@ -161,6 +167,7 @@ jobs:
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
+        if: ${{ inputs.delocate-wheel }}
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
