@@ -19,6 +19,7 @@ import {
   isLogClassifierFailed,
   fetchIssueLabels,
   isSuppressedByLabels,
+  isExcludedFromFlakiness,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -664,7 +665,10 @@ export async function getWorkflowJobsStatuses(
           (await hasSimilarFailures(job, prInfo.merge_base_date)))
       ) {
         flakyJobs.push(job);
-      } else if (await isLogClassifierFailed(job)) {
+      } else if (
+        (await isLogClassifierFailed(job)) &&
+        !isExcludedFromFlakiness(job)
+      ) {
         flakyJobs.push(job);
         await backfillMissingLog(prInfo.owner, prInfo.repo, job);
       } else {
