@@ -23,12 +23,48 @@ runnerConfig:
     runnerLabel: linux.2xlarge.avx512
     containerMode: dind-rootless
     workingDiskSpace: 150Gi
-  - cpu: 4.0
+  - cpu: 16.0
+    maxRunners: 150
+    memory: 64Gi
+    minRunners: 0
+    nodeType: compute-amd64-nvidia-a10g
+    nvidiaGpus: 1
+    runnerLabel: linux.4xlarge.nvidiaa10g
+    containerMode: dind-rootless
+    workingDiskSpace: 150Gi
+  - cpu: 48.0
+    maxRunners: 150
+    memory: 192Gi
+    minRunners: 0
+    nodeType: compute-amd64-nvidia-a10g
+    nvidiaGpus: 1
+    runnerLabel: linux.12xlarge.nvidiaa10g
+    containerMode: dind-rootless
+    workingDiskSpace: 150Gi
+  - cpu: 16.0
+    maxRunners: 150
+    memory: 122Gi
+    minRunners: 0
+    nodeType: compute-amd64-nvidia-m60
+    nvidiaGpus: 4
+    runnerLabel: linux.4xlarge.nvidiam60
+    containerMode: dind-rootless
+    workingDiskSpace: 150Gi
+  - cpu: 32.0
+    maxRunners: 150
+    memory: 244Gi
+    minRunners: 0
+    nodeType: compute-amd64-nvidia-m60
+    nvidiaGpus: 1
+    runnerLabel: linux.8xlarge.nvidiam60
+    containerMode: dind-rootless
+    workingDiskSpace: 150Gi
+  - cpu: 8.0
     maxRunners: 150
     memory: 16Gi
     minRunners: 0
     nodeType: compute-amd64-nvidia-v100
     nvidiaGpus: 1
-    runnerLabel: linux.large.nvidiav100
+    runnerLabel: linux.2xlarge.nvidiav100
     containerMode: dind-rootless
     workingDiskSpace: 150Gi
