@@ -6,19 +6,61 @@ S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
 
-PACKAGES = [
-    "sympy",
-    "mpmath",
-    "pillow",
-    "networkx",
-    "numpy",
-    "jinja2",
-    "filelock",
-    "fsspec",
-    "nvidia-cudnn-cu11",
-    "nvidia-cudnn-cu12",
-    "typing-extensions",
-]
+PACKAGES_PER_PROJECT = {
+    "torch": [
+        "sympy",
+        "mpmath",
+        "pillow",
+        "networkx",
+        "numpy",
+        "jinja2",
+        "filelock",
+        "fsspec",
+        "nvidia-cudnn-cu11",
+        "nvidia-cudnn-cu12",
+        "typing-extensions",
+    ],
+    "torchtune": [
+        "aiohttp",
+        "aiosignal",
+        "antlr4-python3-runtime",
+        "attrs",
+        "blobfile",
+        "certifi",
+        "charset-normalizer",
+        "datasets",
+        "dill",
+        "frozenlist",
+        "huggingface-hub",
+        "idna",
+        "lxml",
+        "markupsafe",
+        "multidict",
+        "multiprocess",
+        "omegaconf",
+        "pandas",
+        "pyarrow",
+        "pyarrow-hotfix",
+        "pycryptodomex",
+        "python-dateutil",
+        "pytz",
+        "pyyaml",
+        "regex",
+        "requests",
+        "safetensors",
+        "sentencepiece",
+        "six",
+        "tiktoken",
+        "torch",
+        "torchao",
+        "tqdm",
+        "triton",
+        "tzdata",
+        "urllib3",
+        "xxhash",
+        "yarl",
+    ]
+}
 
 
 def download(url: str) -> bytes:
@@ -91,6 +133,7 @@ def main() -> None:
     from argparse import ArgumentParser
 
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
+    parser.add_argument("--package", choices=PACKAGES_PER_PROJECT.keys(), default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
     args = parser.parse_args()
@@ -100,8 +143,13 @@ def main() -> None:
         SUBFOLDERS.append("whl")
 
     for prefix in SUBFOLDERS:
-        for package in PACKAGES:
-            upload_missing_whls(package, prefix, dry_run=args.dry_run)
+        for package in PACKAGES_PER_PROJECT[args.package]:
+            # If `torch` itself is a dependency, upload those too
+            if package == "torch":
+                for package in PACKAGES_PER_PROJECT[args.package]:
+                    upload_missing_whls(package, prefix, dry_run=args.dry_run)
+            else:
+                upload_missing_whls(package, prefix, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
