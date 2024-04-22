@@ -51,10 +51,7 @@ PACKAGES_PER_PROJECT = {
         "sentencepiece",
         "six",
         "tiktoken",
-        "torch",
-        "torchao",
         "tqdm",
-        "triton",
         "tzdata",
         "urllib3",
         "xxhash",
@@ -144,12 +141,7 @@ def main() -> None:
 
     for prefix in SUBFOLDERS:
         for package in PACKAGES_PER_PROJECT[args.package]:
-            # If `torch` itself is a dependency, upload those too
-            if package == "torch":
-                for package in PACKAGES_PER_PROJECT[args.package]:
-                    upload_missing_whls(package, prefix, dry_run=args.dry_run)
-            else:
-                upload_missing_whls(package, prefix, dry_run=args.dry_run)
+            upload_missing_whls(package, prefix, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
