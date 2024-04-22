@@ -90,16 +90,20 @@ def get_wheels_of_version(idx: Dict[str, str], version: str) -> Dict[str, str]:
 
 
 def upload_missing_whls(
-    pkg_name: str = "numpy", prefix="whl/test", *, dry_run: bool = False
+    pkg_name: str = "numpy", prefix: str = "whl/test", *, dry_run: bool = False, only_pypi: bool = False
 ) -> None:
     pypi_idx = parse_simple_idx(f"https://pypi.org/simple/{pkg_name}")
-    download_idx = parse_simple_idx(f"https://download.pytorch.org/{prefix}/{pkg_name}")
     pypi_versions = get_whl_versions(pypi_idx)
     pypi_latest_packages = get_wheels_of_version(pypi_idx, pypi_versions[-1])
-    downlod_latest_packages = get_wheels_of_version(download_idx, pypi_versions[-1])
+
+    download_latest_packages = []
+    if not only_pypi:
+        download_idx = parse_simple_idx(f"https://download.pytorch.org/{prefix}/{pkg_name}")
+        download_latest_packages = get_wheels_of_version(download_idx, pypi_versions[-1])
+
     has_updates = False
     for pkg in pypi_latest_packages:
-        if pkg in downlod_latest_packages:
+        if pkg in download_latest_packages:
             continue
         # Skip pp packages
         if "-pp3" in pkg:
@@ -115,7 +119,7 @@ def upload_missing_whls(
             has_updates = True
             continue
         data = download(pypi_idx[pkg])
-        print(f"Uplodating {pkg} to s3://pytorch/{prefix}/")
+        print(f"Uploading {pkg} to s3://pytorch/{prefix}/")
         BUCKET.Object(key=f"{prefix}/{pkg}").put(
             ACL="public-read", ContentType="binary/octet-stream", Body=data
         )
@@ -132,6 +136,7 @@ def main() -> None:
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     parser.add_argument("--package", choices=PACKAGES_PER_PROJECT.keys(), default="torch")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--only-pypi", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
     args = parser.parse_args()
 
@@ -141,7 +146,7 @@ def main() -> None:
 
     for prefix in SUBFOLDERS:
         for package in PACKAGES_PER_PROJECT[args.package]:
-            upload_missing_whls(package, prefix, dry_run=args.dry_run)
+            upload_missing_whls(package, prefix, dry_run=args.dry_run, only_pypi=args.only_pypi)
 
 
 if __name__ == "__main__":
