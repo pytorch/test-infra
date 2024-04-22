@@ -1,6 +1,8 @@
 from typing import Dict, List
 
 import boto3
+import re
+
 
 S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
@@ -67,9 +69,11 @@ def download(url: str) -> bytes:
         return conn.read()
 
 
-def parse_simple_idx(url: str) -> Dict[str, str]:
-    import re
+def is_stable(package_version: str) -> bool:
+    return bool(re.match(r'^([0-9]+\.)+[0-9]+$', package_version))
 
+
+def parse_simple_idx(url: str) -> Dict[str, str]:
     html = download(url).decode("ascii")
     return {
         name: url
@@ -78,7 +82,7 @@ def parse_simple_idx(url: str) -> Dict[str, str]:
 
 
 def get_whl_versions(idx: Dict[str, str]) -> List[str]:
-    return [k.split("-")[1] for k in idx.keys() if k.endswith(".whl")]
+    return [k.split("-")[1] for k in idx.keys() if k.endswith(".whl") and is_stable(k.split("-")[1])]
 
 
 def get_wheels_of_version(idx: Dict[str, str], version: str) -> Dict[str, str]:
@@ -137,7 +141,6 @@ def main() -> None:
     parser.add_argument("--package", choices=PACKAGES_PER_PROJECT.keys(), default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
-    parser.add_argument("--include-stable", action="store_true")
     args = parser.parse_args()
 
     SUBFOLDERS = ["whl/nightly", "whl/test"]
