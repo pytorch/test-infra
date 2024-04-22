@@ -8,6 +8,14 @@
         "Service": "ec2.amazonaws.com"
       },
       "Action": "sts:AssumeRole"
+    },
+    {
+      "Sid": "Allow LF 391835788720 to assume role",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::391835788720:root"
+      },
+      "Action": "sts:AssumeRole"
     }
   ]
 }
