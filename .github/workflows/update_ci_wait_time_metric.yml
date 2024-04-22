@@ -6,6 +6,9 @@ on:
   # Enable triggering this job manually using the API as well
   workflow_dispatch:
 
+permissions:
+  id-token: write
+
 jobs:
   update-kpi:
     runs-on: ubuntu-22.04
