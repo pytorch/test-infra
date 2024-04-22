@@ -141,6 +141,7 @@ def main() -> None:
     parser.add_argument("--package", choices=PACKAGES_PER_PROJECT.keys(), default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
+    parser.add_argument("--include-stable", action="store_true")
     args = parser.parse_args()
 
     SUBFOLDERS = ["whl/nightly", "whl/test"]
