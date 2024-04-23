@@ -75,4 +75,4 @@ jobs:
           curl --request POST \
           --url 'https://www.torch-ci.com/api/drci/drci' \
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=torchao' 
+          --data 'repo=ao' 
