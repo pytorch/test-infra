@@ -342,7 +342,7 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   const [workflows, jobs] = _.partition(
     allJobs,
     (job) => job.workflowId === null || job.workflowId === undefined
-  )
+  );
 
   const trie: TrieSearch<T> = new TrieSearch<T>("name", {
     splitOnRegEx: /\s\/\s/g,
