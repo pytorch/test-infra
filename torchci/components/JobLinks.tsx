@@ -7,6 +7,7 @@ import TestInsightsLink from "./TestInsights";
 import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
+import { transformJobName } from "../lib/jobUtils";
 
 export default function JobLinks({
   job,
@@ -174,21 +175,6 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
       isDisabledTest={true}
     />
   );
-}
-
-const jobNameRe = /^(.*) \(([^,]*),.*\)/;
-function transformJobName(jobName?: string) {
-  if (jobName == undefined) {
-    return null;
-  }
-
-  // We want to have the job name in the following format WORKFLOW / JOB (CONFIG)
-  const jobNameMatch = jobName.match(jobNameRe);
-  if (jobNameMatch !== null) {
-    return `${jobNameMatch[1]} (${jobNameMatch[2]})`;
-  }
-
-  return jobName;
 }
 
 function formatUnstableJobBody() {

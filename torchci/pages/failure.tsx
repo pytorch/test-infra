@@ -236,6 +236,7 @@ function FailureInfo({
                 highlight={
                   sample.branch ? highlighted.has(sample.branch) : false
                 }
+                unstableIssues={[]}
               />
               <div>
                 <JobLinks job={sample} showCommitLink={true} />

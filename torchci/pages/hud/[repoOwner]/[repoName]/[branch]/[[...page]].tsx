@@ -40,6 +40,8 @@ import {
   usePreference,
 } from "lib/useGroupingPreference";
 import { track } from "lib/track";
+import useSWR from "swr";
+import { fetcher } from "lib/GeneralUtils";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -466,9 +468,17 @@ function GroupedHudTable({
   params: HudParams;
   data: HudData;
 }) {
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
+
+  console.log(unstableIssuesData);
+
   const { shaGrid, groupNameMapping } = getGroupingData(
     data.shaGrid,
-    data.jobNames
+    data.jobNames,
+    unstableIssuesData ? unstableIssuesData.issues : []
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 

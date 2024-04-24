@@ -4,7 +4,12 @@ import TrieSearch from "trie-search";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isEqual } from "lodash";
-import { RecentWorkflowsData, JobData, BasicJobData } from "lib/types";
+import {
+  RecentWorkflowsData,
+  JobData,
+  BasicJobData,
+  IssueData,
+} from "lib/types";
 import { getAuthors } from "lib/getAuthors";
 import { jaroWinkler } from "jaro-winkler-typescript";
 
@@ -39,14 +44,63 @@ export function isMatchingJobByName(job: JobData, name: string) {
   );
 }
 
+const jobNameRe = /^(.*) \(([^,]*),.*\)/;
+export function transformJobName(jobName?: string) {
+  if (jobName == undefined) {
+    return null;
+  }
+
+  // We want to have the job name in the following format WORKFLOW / JOB (CONFIG)
+  const jobNameMatch = jobName.match(jobNameRe);
+  if (jobNameMatch !== null) {
+    return `${jobNameMatch[1]} (${jobNameMatch[2]})`;
+  }
+
+  return jobName;
+}
+
 export function isRerunDisabledTestsJob(job: JobData) {
   // Rerunning disabled tests are expected to fail from time to time depending
   // on the nature of the disabled tests, so we don't want to count them sometimes
   return isMatchingJobByName(job, "rerun_disabled_tests");
 }
 
-export function isUnstableJob(job: JobData) {
-  return isMatchingJobByName(job, "unstable");
+export function isUnstableJob(job: JobData, unstableIssues?: IssueData[]) {
+  // The name has the unstable keywork, the job is unstable
+  if (isMatchingJobByName(job, "unstable")) {
+    return true;
+  }
+
+  return hasOpenUnstableIssue(job.name, unstableIssues);
+}
+
+export function hasOpenUnstableIssue(
+  jobName?: string,
+  unstableIssues?: IssueData[]
+) {
+  if (!jobName) {
+    return false;
+  }
+
+  if (unstableIssues === undefined || unstableIssues === null) {
+    return false;
+  }
+
+  // For PT build jobs and Nova jobs from other repos, there is no clear way to change
+  // their names to include the unstable keywork atm. So, we need to double check the
+  // list of unstable jobs
+  const transformedJobName = transformJobName(jobName);
+  // Ignore invalid job name
+  if (transformedJobName === null) {
+    return false;
+  }
+
+  const issueTitle = `UNSTABLE ${transformedJobName}`;
+  const matchingIssues = unstableIssues.filter(
+    (issue) => issueTitle.includes(issue.title) && issue.state === "open"
+  );
+
+  return matchingIssues.length !== 0;
 }
 
 export async function getFlakyJobsFromPreviousWorkflow(

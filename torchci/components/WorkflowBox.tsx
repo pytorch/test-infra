@@ -1,7 +1,7 @@
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
-import { Artifact, JobData } from "lib/types";
+import { Artifact, JobData, IssueData } from "lib/types";
 import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
@@ -29,11 +29,13 @@ function WorkflowJobSummary({
   artifacts,
   artifactsToShow,
   setArtifactsToShow,
+  unstableIssues,
 }: {
   job: JobData;
   artifacts?: Artifact[];
   artifactsToShow: Set<string>;
   setArtifactsToShow: any;
+  unstableIssues: IssueData[];
 }) {
   var queueTimeInfo = null;
   if (job.queueTimeS != null) {
@@ -72,7 +74,7 @@ function WorkflowJobSummary({
 
   return (
     <>
-      <JobSummary job={job} />
+      <JobSummary job={job} unstableIssues={unstableIssues} />
       <br />
       <small>
         &nbsp;&nbsp;&nbsp;&nbsp;
@@ -99,9 +101,11 @@ function WorkflowJobSummary({
 export default function WorkflowBox({
   workflowName,
   jobs,
+  unstableIssues,
 }: {
   workflowName: string;
   jobs: JobData[];
+  unstableIssues: IssueData[];
 }) {
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
@@ -171,6 +175,7 @@ export default function WorkflowBox({
               artifacts={groupedArtifacts?.get(job.id)}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
+              unstableIssues={unstableIssues}
             />
             {(searchString && (
               <SearchLogViewer
