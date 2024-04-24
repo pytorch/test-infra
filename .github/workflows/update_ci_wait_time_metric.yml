@@ -19,7 +19,7 @@ jobs:
         id: aws_creds
         uses: aws-actions/configure-aws-credentials@v3
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_update_ci_wait_time_metric
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
           aws-region: us-east-1
 
       - name: Checkout repo
