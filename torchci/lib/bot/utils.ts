@@ -167,7 +167,6 @@ export class LabelToLabelConfigTracker extends CachedConfigTracker {
   }
 }
 
-
 // returns undefined if the request fails
 export async function fetchJSON(path: string): Promise<any> {
   const result = await retryRequest(path);
