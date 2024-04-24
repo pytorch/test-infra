@@ -106,8 +106,8 @@ WITH
         SELECT
             workflow._event_time AS time,
             workflow.head_sha AS sha,
-            'Workflow Startup Failure' AS job_name,
-            workflow.name AS workflow_name,
+            workflow.name AS job_name,
+            'Workflow Startup Failure' AS workflow_name,
             workflow.id,
             null AS workflow_id,
             workflow.artifacts_url AS github_artifact_url,
