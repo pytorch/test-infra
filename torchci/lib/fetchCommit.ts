@@ -47,8 +47,24 @@ export default async function fetchCommit(
   // Now sort alphabetically by name.
   jobs = _.sortBy(jobs, "name");
 
+  // Handle workflow start up failures by handling jobs and workflows separately
+  // and then merging them back together
+  const [workflows, onlyJobs] = _.partition(
+    jobs,
+    (job) => job.workflowId === null || job.workflowId === undefined
+  );
+
+  const filteredJobs = removeCancelledJobAfterRetry<JobData>(onlyJobs);
+
+  const workflowIdsWithJobs = _.map(filteredJobs, (job) => job.workflowId);
+
+  const badWorkflows = _.filter(
+    workflows,
+    (workflow) => !workflowIdsWithJobs.includes(workflow.id)
+  );
+
   return {
     commit: commitDataFromResponse(githubResponse.data),
-    jobs: removeCancelledJobAfterRetry<JobData>(jobs),
+    jobs: _.concat(filteredJobs, badWorkflows),
   };
 }
