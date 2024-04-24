@@ -473,8 +473,6 @@ function GroupedHudTable({
     refreshInterval: 300 * 1000, // refresh every 5 minutes
   });
 
-  console.log(unstableIssuesData);
-
   const { shaGrid, groupNameMapping } = getGroupingData(
     data.shaGrid,
     data.jobNames,
