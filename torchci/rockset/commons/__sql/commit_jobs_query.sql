@@ -114,7 +114,7 @@ WITH
             IF(
                 workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',
                 'failure',
-                null
+                workflow.conclusion
             ) as conclusion,
             workflow.html_url,
             null AS log_url,
