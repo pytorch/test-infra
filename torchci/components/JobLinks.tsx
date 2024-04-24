@@ -163,9 +163,11 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
@@ -229,9 +231,11 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const matchingIssues = issues.filter((issue) =>
     issueTitle.includes(issue.title)
   );
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
@@ -241,17 +245,19 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
 }
 
 function DisableIssue({
+  repo,
   matchingIssues,
   issueTitle,
   issueBody,
   isDisabledTest,
 }: {
+  repo: string;
   matchingIssues: IssueData[];
   issueTitle: string;
   issueBody: string;
   isDisabledTest: boolean;
 }) {
-  let issueLink = `https://github.com/pytorch/pytorch/issues/new?title=${issueTitle}&body=${issueBody}`;
+  let issueLink = `https://github.com/${repo}/issues/new?title=${issueTitle}&body=${issueBody}`;
   let linkText = isDisabledTest
     ? "Disable test"
     : issueTitle.includes("UNSTABLE")
