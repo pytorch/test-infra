@@ -78,6 +78,8 @@ export function hasOpenUnstableIssue(
   jobName?: string,
   unstableIssues?: IssueData[]
 ) {
+  // Passing job name as a string here so that this function can be reused by functions in JobClassifierUtil
+  // which only have the job name to group jobs
   if (!jobName) {
     return false;
   }
