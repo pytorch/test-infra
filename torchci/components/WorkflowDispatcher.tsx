@@ -2,8 +2,11 @@ import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { fetcherWithToken } from "lib/GeneralUtils";
+import { fetcher, fetcherWithToken } from "lib/GeneralUtils";
 import { Octokit } from "octokit";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
+import { WithCommitData } from "./WithCommitData";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
@@ -27,7 +30,6 @@ function hasWorkflow(jobs: JobData[], workflow: string) {
 
 function Workflow({
   accessToken,
-  userName,
   repoOwner,
   repoName,
   workflow,
@@ -35,7 +37,6 @@ function Workflow({
   jobs,
 }: {
   accessToken: string;
-  userName: string;
   repoOwner: string;
   repoName: string;
   workflow: string;
@@ -119,7 +120,6 @@ export default function WorkflowDispatcher({
   }
 
   const supportedWorkflows = SUPPORTED_WORKFLOWS[repo];
-  const userName = session["user"]["name"];
   const accessToken = session["accessToken"];
 
   return (
@@ -128,7 +128,6 @@ export default function WorkflowDispatcher({
       {Object.keys(supportedWorkflows).map((workflow) => (
         <Workflow
           key={workflow}
-          userName={userName}
           accessToken={accessToken}
           repoOwner={repoOwner}
           repoName={repoName}
@@ -138,6 +137,75 @@ export default function WorkflowDispatcher({
         />
       ))}
       <br />
+    </div>
+  );
+}
+
+export function SingleWorkflowDispatcher({
+  sha,
+  jobName,
+}: {
+  sha: string;
+  jobName: string;
+}) {
+  let [runMoreJobsClicked, setRunMoreJobsClicked] = useState(false);
+
+  let session: any = useSession();
+  const router = useRouter();
+
+  let { repoOwner, repoName } = router.query;
+
+  if (!repoOwner) {
+    repoOwner = "pytorch";
+    repoName = "pytorch";
+  }
+
+  // extract workflow key from the jobName
+  const workflow = jobName.split(new RegExp("[/-]"))[0]?.toLowerCase()?.trim();
+
+  const repo = `${repoOwner}/${repoName}`;
+  if (
+    !session ||
+    !session.data ||
+    !session.data["accessToken"] ||
+    !(repo in SUPPORTED_WORKFLOWS) ||
+    !workflow ||
+    !(workflow in SUPPORTED_WORKFLOWS[repo])
+  ) {
+    return <></>;
+  }
+
+  const accessToken = session.data["accessToken"];
+
+  // avoid commit data fetching if the user hasn't clicked the button
+  if (!runMoreJobsClicked) {
+    return (
+      <div>
+        <button onClick={() => setRunMoreJobsClicked(true)}>
+          Run more jobs?
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <WithCommitData
+        sha={sha}
+        repoOwner={repoOwner as string}
+        repoName={repoName as string}
+      >
+        {({ commit, jobs }) => (
+          <Workflow
+            accessToken={accessToken}
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            workflow={workflow}
+            sha={sha}
+            jobs={jobs}
+          />
+        )}
+      </WithCommitData>
     </div>
   );
 }

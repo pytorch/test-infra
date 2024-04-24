@@ -13,6 +13,7 @@ import {
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
+import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
 
 export enum JobStatus {
   Success = "success",
@@ -99,6 +100,7 @@ export default function HudGroupedCell({
               erroredJobs={erroredJobs}
               pendingJobs={pendingJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
+              sha={sha}
             />
           }
         >
@@ -126,12 +128,14 @@ function GroupTooltip({
   erroredJobs,
   pendingJobs,
   failedPreviousRunJobs,
+  sha,
 }: {
   conclusion: GroupedJobStatus;
   groupName: string;
   erroredJobs: JobData[];
   pendingJobs: JobData[];
   failedPreviousRunJobs: JobData[];
+  sha?: string;
 }) {
   if (conclusion === GroupedJobStatus.Failure) {
     return (
@@ -164,7 +168,10 @@ function GroupTooltip({
     return (
       <div>
         {`[${conclusion}] ${groupName}`}
-        <div>All jobs were skipped</div>
+        <div>
+          All jobs were skipped
+          {sha && <SingleWorkflowDispatcher sha={sha} jobName={groupName} />}
+        </div>
       </div>
     );
   }
