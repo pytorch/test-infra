@@ -339,7 +339,6 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   //
   // So the fix here is to check if a cancelled job has been retried successfully and
   // keep or remove it from the list accordingly.
-
   const trie: TrieSearch<T> = new TrieSearch<T>("name", {
     splitOnRegEx: /\s\/\s/g,
   });
