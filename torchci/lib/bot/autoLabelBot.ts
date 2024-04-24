@@ -7,6 +7,7 @@ import {
   hasWritePermissions,
   isPyTorchPyTorch,
   getFilesChangedByPr,
+  LabelToLabelConfigTracker,
 } from "./utils";
 import { minimatch } from "minimatch";
 import {
@@ -165,6 +166,28 @@ export async function getLabelsFromLabelerConfig(
   return labels;
 }
 
+export async function getLabelsFromLabelToLabelConfig(
+  context: Context,
+  labelToLabelConfigTracker: LabelToLabelConfigTracker,
+  labelsOnIssue: string[]
+): Promise<string[]> {
+  const config = await labelToLabelConfigTracker.loadLabelsConfig(context);
+  const newLabels: string[] = []
+
+  for (const rule of Object.values(config)) {
+    if (rule.contains("any")) {
+      if (rule["any"].some((label: string) => labelsOnIssue.includes(label))) {
+        newLabels.concat(rule["then"]);
+      }
+    } else if (rule.contains("all")) {
+      if (rule["all"].every((label: string) => labelsOnIssue.includes(label))) {
+        newLabels.concat(rule["then"])
+      }
+    }
+  }
+  return newLabels;
+}
+
 function getRepoSpecificLabels(
   owner: string,
   repo: string
@@ -200,6 +223,8 @@ function myBot(app: Probot): void {
     TDRolloutIssueParser
   );
   const labelerConfigTracker = new CachedLabelerConfigTracker(app);
+  const labelToLabelConfigTracker = new LabelToLabelConfigTracker(app);
+
   function addLabel(
     labelSet: Set<string>,
     newLabels: string[],
@@ -247,6 +272,43 @@ function myBot(app: Probot): void {
       case "critical":
         addLabel(labelSet, newLabels, "triage review");
         break;
+    }
+
+    const newLabelsFromLabelToLabelConfig =
+      await getLabelsFromLabelToLabelConfig(
+        context,
+        labelToLabelConfigTracker,
+        labels
+      );
+    for (const label of newLabelsFromLabelToLabelConfig) {
+      addLabel(labelSet, newLabels, label);
+    }
+
+    if (newLabels.length) {
+      await addLabels(context, newLabels);
+    }
+  });
+
+  app.on("pull_request.labeled", async (context) => {
+    // Careful!  Read the above comments about label addition
+
+    const label = context.payload.label!.name;
+    const labels: string[] = context.payload.pull_request.labels!.map(
+      (e) => e["name"]
+    );
+    context.log({ label, labels });
+
+    const labelSet = new Set(labels);
+    const newLabels: string[] = [];
+
+    const newLabelsFromLabelToLabelConfig =
+      await getLabelsFromLabelToLabelConfig(
+        context,
+        labelToLabelConfigTracker,
+        labels
+      );
+    for (const label of newLabelsFromLabelToLabelConfig) {
+      addLabel(labelSet, newLabels, label);
     }
 
     if (newLabels.length) {
@@ -447,6 +509,15 @@ function myBot(app: Probot): void {
         if (authors.has(context.payload.pull_request.user.login)) {
           labelsToAdd.push("ci-td-distributed");
         }
+      }
+
+      if (context.payload.action === "opened") {
+        const labelsToAddFromExistingLabels = await getLabelsFromLabelToLabelConfig(
+          context,
+          labelToLabelConfigTracker,
+          labels
+        );
+        labelsToAdd.push(...labelsToAddFromExistingLabels);
       }
 
       // Filter ciflow/* labels if the PR author does not have write permissions
