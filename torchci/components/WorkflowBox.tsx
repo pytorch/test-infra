@@ -91,7 +91,6 @@ function WorkflowJobSummary({
     );
   }
 
-
   return (
     <>
       <JobSummary job={job} unstableIssues={unstableIssues} />
