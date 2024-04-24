@@ -11,6 +11,7 @@ import TestInsightsLink from "./TestInsights";
 import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
 import { renderToStaticMarkup } from "react-dom/server";
+import React from "react";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
