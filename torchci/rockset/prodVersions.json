@@ -2,7 +2,7 @@
   "commons": {
     "annotated_flaky_jobs": "bd991c8c9782f339",
     "hud_query": "69f0bc9a618c82b1",
-    "commit_jobs_query": "30d926969b4bea9b",
+    "commit_jobs_query": "10d4a302d49906bb",
     "disabled_non_flaky_tests": "f909abf9eec15b56",
     "commit_failed_jobs": "2884aac8948770e4",
     "filter_forced_merge_pr": "a28350c863e36239",
