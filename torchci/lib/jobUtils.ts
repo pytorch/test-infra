@@ -324,7 +324,7 @@ export function isSameContext(
 }
 
 export function removeCancelledJobAfterRetry<T extends BasicJobData>(
-  jobs: T[]
+  allJobs: T[]
 ): T[] {
   // When a worlflow is manually cancelled and retried, the leftover cancel signals from
   // the previous workflow run are poluting HUD and Dr.CI. For example, the pull request
@@ -339,6 +339,11 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   //
   // So the fix here is to check if a cancelled job has been retried successfully and
   // keep or remove it from the list accordingly.
+  const [workflows, jobs] = _.partition(
+    allJobs,
+    (job) => job.workflowId === null || job.workflowId === undefined
+  )
+
   const trie: TrieSearch<T> = new TrieSearch<T>("name", {
     splitOnRegEx: /\s\/\s/g,
   });
@@ -390,5 +395,14 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
     }
   }
 
-  return filteredJobs;
+  const workflowIdsWithJobs = _.map(filteredJobs, (job) => job.workflowId);
+
+  const goodWorkflows = _.filter(
+    workflows,
+    (workflow) => !workflowIdsWithJobs.includes(workflow.id)
+  );
+
+  const newAllJobs = _.concat(filteredJobs, goodWorkflows);
+
+  return newAllJobs;
 }

@@ -102,6 +102,41 @@ WITH
         WHERE
             job.pipeline.vcs.revision =: sha
             AND CONCAT(job.organization.name, '/', job.project.name) =: repo
+        UNION
+        SELECT
+            workflow._event_time AS time,
+            workflow.head_sha AS sha,
+            'Workflow Startup Failure' AS job_name,
+            workflow.name AS workflow_name,
+            workflow.id,
+            null AS workflow_id,
+            workflow.artifacts_url AS github_artifact_url,
+            IF(
+                workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',
+                'failure',
+                null
+            ) as conclusion,
+            workflow.html_url,
+            null AS log_url,
+            DATE_DIFF(
+                'SECOND',
+                workflow._event_time,
+                PARSE_TIMESTAMP_ISO8601(workflow.run_started_at)
+            ) AS queue_time_s,
+            null AS duration_s,
+            null as line,
+            null as captures,
+            null as line_num,
+            null as context,
+            null AS runner_name,
+            workflow.head_commit.author.email AS authorEmail,
+        FROM
+            workflow_run workflow
+        WHERE
+            workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+            AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+            AND workflow.head_sha =: sha
+            AND workflow.repository.full_name =: repo
     )
 SELECT
     sha,
