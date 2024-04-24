@@ -55,6 +55,12 @@ function WorkflowJobSummary({
     );
   }
 
+  const testInsightsLink = <TestInsightsLink job={job} separator={""} />;
+  if (renderToStaticMarkup(testInsightsLink) != "") {
+    // Convert the element to a string to see if there's actually content
+    subInfo.push(testInsightsLink);
+  }
+
   const hasArtifacts = artifacts && artifacts.length > 0;
 
   function setArtifactsToShowHelper() {
@@ -85,11 +91,6 @@ function WorkflowJobSummary({
     );
   }
 
-  const testInsightsLink = <TestInsightsLink job={job} separator={""} />;
-  if (renderToStaticMarkup(testInsightsLink) != "") {
-    // Convert the element to a string to see if there's actually content
-    subInfo.push(testInsightsLink);
-  }
 
   return (
     <>
