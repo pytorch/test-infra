@@ -84,7 +84,6 @@ def gh_graphql(query: str, token: str, **kwargs: Any) -> Dict[str, Any]:
 def get_disable_issues(
     token: str, prefix: str = DISABLED_PREFIX
 ) -> List[Dict[str, Any]]:
-    # q = f"is:issue is:open org:{OWNER} in:title {prefix}"
     q = f"is:issue is:open org:{OWNER} in:title {prefix}"
     cursor = None
     has_next_page = True
