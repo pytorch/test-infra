@@ -14,12 +14,13 @@ jobs:
   update-kpi:
     runs-on: ubuntu-22.04
     if: ${{ github.repository == 'pytorch/test-infra' }}
+    environment: pytorchbot-env
     steps:
       - name: configure aws credentials
         id: aws_creds
         uses: aws-actions/configure-aws-credentials@v3
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_update_ci_wait_time_metric
           aws-region: us-east-1
 
       - name: Checkout repo
