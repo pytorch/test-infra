@@ -49,6 +49,7 @@ describe("auto-label-bot", () => {
     const payload = requireDeepCopy("./fixtures/issues.labeled");
     payload["label"] = { name: "high priority" };
     payload["issue"]["labels"] = [{ name: "high priority" }];
+    emptyMockConfig(payload.repository.full_name);
 
     const scope = nock("https://api.github.com")
       .post(
@@ -1034,6 +1035,194 @@ describe("auto-label-bot: labeler.yml config", () => {
     await probot.receive(event);
     scope.done();
     scope2.done();
+  });
+});
+
+describe("auto-label-bot: label-to-label.yml config", () => {
+  let probot: Probot;
+
+  function defaultMockConfig(repoFullName: string) {
+    const config = `
+- any:
+  - "module: custom operators"
+  - "module: aotdispatch"
+  then:
+  - "module: pt2-dispatcher"
+- any:
+  - "module: dynamo"
+  - "module: pt2-dispatcher"
+  - "module: inductor"
+  - "module: custom operators"
+  then:
+  - "oncall: pt2"
+- all:
+  - "allif1"
+  - "allif2"
+  then:
+  - "allthen1"
+- all:
+  - "module: custom operators"
+  - "allif3"
+  then:
+  - "allthen2"
+- any:
+  - "testciflow1"
+  then:
+  - "ciflow/2"
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "label_to_label_config: label-to-label.yml",
+      repoFullName
+    );
+    utils.mockConfig("label-to-label.yml", config, repoFullName);
+  }
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  test("getLabelsFromLabelerConfig pr any", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label.name = "module: dynamo";
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["oncall: pt2"],
+      event.repository.full_name,
+      event.pull_request.number
+    );
+    await probot.receive({ name: "pull_request", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig issue any", async () => {
+    const event = requireDeepCopy("./fixtures/issues.labeled");
+    event.label.name = "module: dynamo";
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["oncall: pt2"],
+      event.repository.full_name,
+      event.issue.number
+    );
+    await probot.receive({ name: "issues", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig pr all", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label.name = "allif1";
+    event.pull_request.labels = [{ name: "allif2" }, { name: "allif1" }];
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["allthen1"],
+      event.repository.full_name,
+      event.pull_request.number
+    );
+    await probot.receive({ name: "pull_request", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig issue all", async () => {
+    const event = requireDeepCopy("./fixtures/issues.labeled");
+    event.label.name = "allif1";
+    event.issue.labels = [{ name: "allif2" }, { name: "allif1" }];
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["allthen1"],
+      event.repository.full_name,
+      event.issue.number
+    );
+    await probot.receive({ name: "issues", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig multiple any rules", async () => {
+    const event = requireDeepCopy("./fixtures/issues.labeled");
+    event.label.name = "module: custom operators";
+    event.issue.labels = [
+      { name: "allif2" },
+      { name: "allif1" },
+      { name: "module: custom operators" },
+    ];
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["module: pt2-dispatcher", "oncall: pt2"],
+      event.repository.full_name,
+      event.issue.number
+    );
+    await probot.receive({ name: "issues", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig any and all", async () => {
+    const event = requireDeepCopy("./fixtures/issues.labeled");
+    event.label.name = "module: custom operators";
+    event.issue.labels = [
+      { name: "allif2" },
+      { name: "allif3" },
+      { name: "module: custom operators" },
+    ];
+    defaultMockConfig(event.repository.full_name);
+    const scope = utils.mockAddLabels(
+      ["module: pt2-dispatcher", "oncall: pt2", "allthen2"],
+      event.repository.full_name,
+      event.issue.number
+    );
+    await probot.receive({ name: "issues", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig all but label already there", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label.name = "allif1";
+    event.pull_request.labels = [
+      { name: "allif2" },
+      { name: "allif1" },
+      { name: "allthen1" },
+    ];
+    defaultMockConfig(event.repository.full_name);
+
+    await probot.receive({ name: "pull_request", id: "2", payload: event });
+  });
+
+  test("getLabelsFromLabelerConfig filter ciflow labels", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label.name = "testciflow1";
+    event.pull_request.labels = [{ name: "testciflow1" }];
+    const repoFullName = event.repository.full_name;
+    const headSha = event.pull_request.head.sha;
+    const author = event.pull_request.user.login;
+    defaultMockConfig(event.repository.full_name);
+    const scope = [
+      utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
+      utils.mockPermissions(repoFullName, author, "read"),
+    ];
+
+    await probot.receive({ name: "pull_request", id: "2", payload: event });
+    handleScope(scope);
+  });
+
+  test("getLabelsFromLabelerConfig no config", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label.name = "allif1";
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "not_config: random",
+      event.repository.full_name
+    );
+    event.pull_request.labels = [{ name: "allif2" }, { name: "allif1" }];
+    await probot.receive({ name: "pull_request", id: "2", payload: event });
   });
 });
 
