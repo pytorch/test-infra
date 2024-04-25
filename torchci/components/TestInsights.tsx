@@ -13,12 +13,12 @@ export default function TestInsightsLink({
   separator: string;
 }) {
   if (job === null) {
-    return <></>;
+    return null;
   }
 
   if (job.conclusion === "pending") {
     // If the job is pending, there is no test insights available yet
-    return <></>;
+    return null;
   }
 
   const workflowId =
@@ -36,18 +36,18 @@ export default function TestInsightsLink({
     )?.groups?.jobId;
 
   if (workflowId === null || jobId === null) {
-    return <></>;
+    return null;
   }
 
   for (const name of NOT_SUPPORTED_JOBS) {
     if (job.jobName?.includes(name)) {
-      return <></>;
+      return null;
     }
   }
 
   // Only show test insight link for test jobs
   if (!job.jobName?.includes("test")) {
-    return <></>;
+    return null;
   }
 
   return (

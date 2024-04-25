@@ -8,7 +8,6 @@ import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { transformJobName } from "../lib/jobUtils";
-import { renderToStaticMarkup } from "react-dom/server";
 
 export default function JobLinks({
   job,
@@ -76,33 +75,31 @@ export default function JobLinks({
     );
   }
 
-  const testInsightsLink = <TestInsightsLink job={job} separator={""} />;
-  if (renderToStaticMarkup(testInsightsLink) != "") {
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
     subInfo.push(testInsightsLink);
   }
 
-  const disableTestButton = <DisableTest job={job} label={"disable"} />;
-  if (renderToStaticMarkup(disableTestButton) != "") {
+  const disableTestButton = DisableTest({ job: job, label: "disable" });
+  if (disableTestButton != null) {
     subInfo.push(disableTestButton);
   }
   const authenticated = useSession().status === "authenticated";
 
   if (authenticated) {
-    const unstableJobButton = <UnstableJob job={job} label={"unstable"} />;
-    if (renderToStaticMarkup(unstableJobButton) != "") {
+    const unstableJobButton = UnstableJob({ job: job, label: "unstable" });
+    if (unstableJobButton != null) {
       subInfo.push(unstableJobButton);
     }
   }
 
   if (authenticated && job.failureLines) {
-    const reproComamnd = (
-      <ReproductionCommand
-        job={job}
-        separator={""}
-        testName={getTestName(job.failureLines[0] ?? "", true)}
-      />
-    );
-    if (renderToStaticMarkup(reproComamnd) != "") {
+    const reproComamnd = ReproductionCommand({
+      job: job,
+      separator: "",
+      testName: getTestName(job.failureLines[0] ?? "", true),
+    });
+    if (reproComamnd != null) {
       subInfo.push(reproComamnd);
     }
   }

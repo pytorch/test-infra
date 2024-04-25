@@ -10,7 +10,6 @@ import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
 import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
-import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
@@ -56,9 +55,8 @@ function WorkflowJobSummary({
     );
   }
 
-  const testInsightsLink = <TestInsightsLink job={job} separator={""} />;
-  if (renderToStaticMarkup(testInsightsLink) != "") {
-    // Convert the element to a string to see if there's actually content
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
     subInfo.push(testInsightsLink);
   }
 
