@@ -54,8 +54,21 @@ export default async function fetchCommit(
     (job) => job.workflowId === null || job.workflowId === undefined
   );
 
+  for (const debug of onlyJobs) {
+    if (debug["jobName"] === "linux-jammy-py3.8-gcc11 / build") {
+      console.log(JSON.stringify(debug));
+    }
+  }
+  console.log("DONE");
+
   const filteredJobs = removeCancelledJobAfterRetry<JobData>(onlyJobs);
 
+  // for (const debug of filteredJobs) {
+  //   if (debug["jobName"] === "linux-jammy-py3.8-gcc11 / build") {
+  //     console.log(JSON.stringify(debug));
+  //   }
+  // }
+  console.log("REALLY");
   const workflowIdsWithJobs = _.map(filteredJobs, (job) => job.workflowId);
 
   const badWorkflows = _.filter(
