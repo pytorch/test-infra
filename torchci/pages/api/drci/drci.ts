@@ -13,7 +13,6 @@ import {
   getActiveSEVs,
   formDrciSevBody,
   FLAKY_RULES_JSON,
-  UNSTABLE_JOBS_JSON,
   HUD_URL,
   hasSimilarFailures,
   isInfraFlakyJob,
@@ -21,7 +20,6 @@ import {
   fetchIssueLabels,
   isSuppressedByLabels,
   isExcludedFromFlakiness,
-  isUnstableJob,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -31,6 +29,7 @@ import {
   isSameFailure,
   removeCancelledJobAfterRetry,
   backfillMissingLog,
+  isUnstableJob,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
@@ -48,15 +47,6 @@ interface PRandJobs {
 export interface FlakyRule {
   name: string;
   captures: string[];
-}
-
-export interface UnstableIssue {
-  author: string;
-  issue_number: string;
-  issue_url: string;
-  workflow_name: string;
-  platform_name: string;
-  job_cfg_name: string;
 }
 
 export interface UpdateCommentBody {
@@ -103,15 +93,12 @@ export async function updateDrciComments(
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
+  const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
     workflowsByPR
   );
-
-  const unstableIssues: IssueData[] = [];
-  const debug = await fetchJSON(UNSTABLE_JOBS_JSON);
-  console.log(debug);
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -133,7 +120,7 @@ export async function updateDrciComments(
           flakyRules,
           baseCommitJobs.get(pr_info.merge_base) || new Map(),
           labels || [],
-          unstableIssues || [],
+          unstableIssues || []
         );
 
       failures[pr_info.pr_number] = {
@@ -645,7 +632,7 @@ export async function getWorkflowJobsStatuses(
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>,
   labels: string[] = [],
-  unstableIssues: IssueData[] = [],
+  unstableIssues: IssueData[] = []
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];

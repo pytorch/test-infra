@@ -41,8 +41,6 @@ export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
-export const UNSTABLE_JOBS_JSON =
-  "https://ossci-metrics.s3.amazonaws.com/unstable-jobs-debug.json";
 
 export const EXCLUDED_FROM_FLAKINESS = [
   "lint",
@@ -404,22 +402,6 @@ export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
       job.runnerName === undefined ||
       job.runnerName === "")
   );
-}
-
-export async function isUnstableJob(
-  job: RecentWorkflowsData,
-  unstableIssues: IssueData[],
-): Promise<boolean> {
-  if (job.name === undefined || job.name === null) {
-    return false;
-  }
-
-  // The job name has the unstable keyword
-  if (job.name.includes("unstable")) {
-    return true;
-  }
-
-  return false;
 }
 
 export async function isLogClassifierFailed(
