@@ -310,17 +310,12 @@ export async function hasSimilarFailures(
     // which its flaky failures is double checked that they didn't appear in trunk
     // for the first time in a reverted merge commit of the same PR
     if (isFailureFromPrevMergeCommit(failure, mergeCommits)) {
-      console.log("Failure is from a previous merge commit");
       return false;
     }
 
     // Only count different jobs with the same failure. To avoid FP, PRs from the
     // same author are treated as the same till we could figure out a better way
     // to separate them
-    // console.log(isSameFailure(job, failure))
-    // console.log(await isSameAuthor(job, failure))
-    // console.log(job.id !== failure.id)
-    // console.log(job.head_sha !== failure.head_sha)
     if (
       job.id !== failure.id &&
       job.head_sha !== failure.head_sha &&
