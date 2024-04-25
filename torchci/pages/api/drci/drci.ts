@@ -4,7 +4,7 @@ import {
   fetchRecentWorkflows,
   fetchFailedJobsFromCommits,
 } from "lib/fetchRecentWorkflows";
-import { RecentWorkflowsData } from "lib/types";
+import { RecentWorkflowsData, IssueData } from "lib/types";
 import {
   NUM_MINUTES,
   formDrciComment,
@@ -13,6 +13,7 @@ import {
   getActiveSEVs,
   formDrciSevBody,
   FLAKY_RULES_JSON,
+  UNSTABLE_JOBS_JSON,
   HUD_URL,
   hasSimilarFailures,
   isInfraFlakyJob,
@@ -20,6 +21,7 @@ import {
   fetchIssueLabels,
   isSuppressedByLabels,
   isExcludedFromFlakiness,
+  isUnstableJob,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -46,6 +48,15 @@ interface PRandJobs {
 export interface FlakyRule {
   name: string;
   captures: string[];
+}
+
+export interface UnstableIssue {
+  author: string;
+  issue_number: string;
+  issue_url: string;
+  workflow_name: string;
+  platform_name: string;
+  job_cfg_name: string;
 }
 
 export interface UpdateCommentBody {
@@ -98,6 +109,8 @@ export async function updateDrciComments(
     workflowsByPR
   );
 
+  const unstableIssues: IssueData[] = [];
+
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
@@ -117,7 +130,8 @@ export async function updateDrciComments(
           pr_info,
           flakyRules,
           baseCommitJobs.get(pr_info.merge_base) || new Map(),
-          labels || []
+          labels || [],
+          unstableIssues || [],
         );
 
       failures[pr_info.pr_number] = {
@@ -628,7 +642,8 @@ export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>,
-  labels: string[] = []
+  labels: string[] = [],
+  unstableIssues: IssueData[] = [],
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -649,7 +664,7 @@ export async function getWorkflowJobsStatuses(
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
-      if (job.name !== undefined && job.name.includes("unstable")) {
+      if (await isUnstableJob(job, unstableIssues)) {
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
