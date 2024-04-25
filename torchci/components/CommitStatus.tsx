@@ -99,7 +99,7 @@ export default function CommitStatus({
         pred={(job) =>
           isFailedJob(job) &&
           !isRerunDisabledTestsJob(job) &&
-          !isUnstableJob(job)
+          !isUnstableJob(job, unstableIssues)
         }
         showClassification
         unstableIssues={unstableIssues}
