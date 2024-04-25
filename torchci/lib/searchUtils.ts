@@ -1,5 +1,11 @@
 import { Client } from "@opensearch-project/opensearch";
 import { JobData } from "lib/types";
+import { getOpenSearchClient } from "./opensearch";
+import dayjs from "dayjs";
+// Import itself to ensure that mocks can be applied, see
+// https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
+// https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
+import * as thisModule from "./searchUtils";
 
 export const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 // https://www.elastic.co/guide/en/elasticsearch/reference/7.17/similarity.html#similarity
@@ -130,4 +136,64 @@ export async function searchSimilarFailures(
   });
 
   return { jobs: jobs };
+}
+
+export async function querySimilarFailures({
+  name,
+  jobName,
+  failure_captures,
+  startDate,
+  endDate,
+  maxSize = MAX_SIZE,
+  sortByTimeStamp = OLDEST_FIRST,
+  client,
+}: {
+  name?: string;
+  jobName?: string;
+  failure_captures?: string[];
+  startDate: dayjs.Dayjs;
+  endDate: dayjs.Dayjs;
+  maxSize: number;
+  sortByTimeStamp: string;
+  client?: Client;
+}): Promise<JobData[]> {
+  // This function queries opensearch to find all similar failures during a
+  // period of time. Basically a wrapper around searchSimilarFailures
+  // TODO: see if they can be merged
+  if (
+    name === undefined ||
+    name === "" ||
+    failure_captures === undefined ||
+    failure_captures === null ||
+    failure_captures.length === 0
+  ) {
+    return [];
+  }
+
+  if (client === undefined) {
+    client = getOpenSearchClient();
+  }
+
+  // Search for all captured failure
+  const failure = failure_captures.join(" ");
+
+  // Get the workflow name if possible
+  const jobNameIndex = name.indexOf(` / ${jobName}`);
+  const workflowName =
+    jobNameIndex !== -1 ? name.substring(0, jobNameIndex) : "";
+
+  const results = await thisModule.searchSimilarFailures(
+    client,
+    failure,
+    workflowName,
+    "",
+    WORKFLOW_JOB_INDEX,
+    startDate.toISOString(),
+    endDate.toISOString(),
+    MIN_SCORE,
+    maxSize,
+    sortByTimeStamp
+  );
+
+  return "jobs" in results ? results["jobs"] : [];
 }
