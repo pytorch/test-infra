@@ -6,24 +6,26 @@ import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
-import { JobAnnotation } from "lib/types";
+import { JobAnnotation, IssueData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
 
 function FailedJobInfo({
   job,
   showClassification,
   annotation,
+  unstableIssues,
 }: {
   job: JobData;
   showClassification: boolean;
   annotation: JobAnnotation;
+  unstableIssues: IssueData[];
 }) {
   const router = useRouter();
   useScrollTo();
   const { repoOwner, repoName } = router.query;
   return (
     <li key={job.id} id={job.id}>
-      <JobSummary job={job} />
+      <JobSummary job={job} unstableIssues={unstableIssues} />
       <div>
         <JobLinks job={job} />
       </div>
@@ -44,11 +46,13 @@ export default function FilteredJobList({
   jobs,
   pred,
   showClassification = false,
+  unstableIssues,
 }: {
   filterName: string;
   jobs: JobData[];
   pred: (job: JobData) => boolean;
   showClassification?: boolean;
+  unstableIssues: IssueData[];
 }) {
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
@@ -84,6 +88,7 @@ export default function FilteredJobList({
                 data[job?.id ?? ""]["annotation"]) ??
               JobAnnotation.NULL
             }
+            unstableIssues={unstableIssues}
           />
         ))}
       </ul>
