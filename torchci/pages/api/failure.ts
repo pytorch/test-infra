@@ -1,9 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import fetchFailureSamples from "lib/fetchFailureSamples";
-import { querySimilarFailures } from "lib/drciUtils";
-import { NEWEST_FIRST } from "lib/searchUtils";
+import { NEWEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import dayjs from "dayjs";
-import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import { isEqual } from "lodash";
 
@@ -11,6 +8,7 @@ interface Data {}
 
 // The maximum number of records to be returned by `more like this` failure search
 const MAX_SIZE = 1000;
+const LOOKBACK_PERIOD_IN_HOURS = 14 * 24;
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,29 +19,17 @@ export default async function handler(
   const failureCaptures = JSON.parse(req.query.failureCaptures as string);
   const useFuzzySearch = req.query.useFuzzySearch as string;
 
-  // Create a mock record to use as the input for querySimilarFailures.
-  const failure: RecentWorkflowsData = {
-    jobName: jobName,
-    name: name,
-    completed_at: dayjs().toString(),
-    failure_captures: failureCaptures,
-    failure_lines: failureCaptures,
-    // Anything goes here, it doesn't matter in this use case
-    id: "1",
-    html_url: "",
-    head_sha: "",
-  };
-
   // The current HUD page shows the last 14 days. Newer results are preferred
   // here, thus NEWEST_FIRST
-  const lookbackPeriodInHours = 14 * 24;
-  const samples = await querySimilarFailures(
-    failure,
-    "",
-    lookbackPeriodInHours,
-    MAX_SIZE,
-    NEWEST_FIRST
-  );
+  const samples = await querySimilarFailures({
+    name,
+    jobName,
+    failure_captures: failureCaptures,
+    startDate: dayjs().subtract(LOOKBACK_PERIOD_IN_HOURS, "hour"),
+    endDate: dayjs(),
+    maxSize: MAX_SIZE,
+    sortByTimeStamp: NEWEST_FIRST,
+  });
 
   // NB: This filter step keeps only exact matchs of the failure, this is the current
   // behavior. However, we could consider remove this so that "slightly" different
