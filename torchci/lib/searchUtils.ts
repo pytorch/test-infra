@@ -157,11 +157,9 @@ export async function querySimilarFailures({
   sortByTimeStamp: string;
   client?: Client;
 }): Promise<JobData[]> {
-  // This function queries HUD to find all similar failures during a period of time
-  // before the current job. If a pre-existing job is found with exactly the same
-  // failure and job name, the failure will be considered flaky. The end date is the
-  // when the job finishes while the start date is either the time when the base commit
-  // finishes minus a look-back period of 24 hours.
+  // This function queries opensearch to find all similar failures during a
+  // period of time. Basically a wrapper around searchSimilarFailures
+  // TODO: see if they can be merged
   if (
     name === undefined ||
     name === "" ||
