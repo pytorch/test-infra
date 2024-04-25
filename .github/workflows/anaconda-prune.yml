@@ -31,4 +31,4 @@ jobs:
       packages: "pytorch torchvision torchaudio torchtext torchdata ignite torchcsprng"
       channel: pytorch-test
     secrets:
-     conda-pytorchbot-token: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+     conda-pytorchbot-token: ${{ secrets.CONDA_PYTORCHBOT_TOKEN_TEST }}
