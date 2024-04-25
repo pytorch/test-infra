@@ -107,7 +107,7 @@ export default function CommitStatus({
       <FilteredJobList
         filterName="Failed unstable jobs"
         jobs={jobs}
-        pred={(job) => isFailedJob(job) && isUnstableJob(job)}
+        pred={(job) => isFailedJob(job) && isUnstableJob(job, unstableIssues)}
         unstableIssues={unstableIssues}
       />
       <FilteredJobList

@@ -5,6 +5,7 @@ import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -93,7 +94,10 @@ export default async function fetchHud(params: HudParams): Promise<{
     results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));
   }
   if (params.filter_unstable) {
-    results = results?.filter((job: JobData) => !isUnstableJob(job));
+    const unstableIssues = await fetchIssuesByLabel("unstable");
+    results = results?.filter(
+      (job: JobData) => !isUnstableJob(job, unstableIssues ?? [])
+    );
   }
 
   const namesSet: Set<string> = new Set();

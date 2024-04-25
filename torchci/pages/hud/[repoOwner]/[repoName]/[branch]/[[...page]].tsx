@@ -532,14 +532,25 @@ function GroupedHudTable({
       ];
     });
     if (hideUnstable) {
-      names = names.filter((name) => !isUnstableGroup(name));
+      names = names.filter(
+        (name) =>
+          !isUnstableGroup(
+            name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          )
+      );
     }
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
       if (
         groupNames.includes(group.name) &&
-        (group.persistent || (isUnstableGroup(group.name) && hideUnstable))
+        (group.persistent ||
+          (isUnstableGroup(
+            group.name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          ) &&
+            hideUnstable))
       ) {
         // Add group name, take out all the jobs that belong to that group
         // unless the group is expanded

@@ -325,6 +325,9 @@ export function isPersistentGroup(name: string) {
   );
 }
 
-export function isUnstableGroup(name: string) {
-  return name.toLocaleLowerCase().includes("unstable");
+export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
+  return (
+    name.toLocaleLowerCase().includes("unstable") ||
+    hasOpenUnstableIssue(name, unstableIssues)
+  );
 }
