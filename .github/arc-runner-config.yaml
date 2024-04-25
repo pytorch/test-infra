@@ -46,7 +46,7 @@ runnerConfig:
     memory: 122Gi
     minRunners: 0
     nodeType: compute-amd64-nvidia-m60
-    nvidiaGpus: 4
+    nvidiaGpus: 1
     runnerLabel: linux.4xlarge.nvidiam60
     containerMode: dind-rootless
     workingDiskSpace: 150Gi
