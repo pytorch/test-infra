@@ -36,7 +36,7 @@ jobs:
       - name: Install Python Packages
         run: |
           pip3 install rockset==1.0.3
-          pip3 install boto3==1.19.12
+          pip3 install boto3==1.34.92
           pip3 install pandas==1.5
 
       - name: Compute kpi and upload to RDS
