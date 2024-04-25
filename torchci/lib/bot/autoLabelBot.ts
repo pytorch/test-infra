@@ -334,24 +334,24 @@ function myBot(app: Probot): void {
   app.on("pull_request.labeled", async (context) => {
     // Careful! Read the above comments about label addition
 
-    const label = context.payload.label!.name;
-    const labels: string[] = context.payload.pull_request.labels!.map(
+    const addedLabel = context.payload.label!.name;
+    const existingLabels: string[] = context.payload.pull_request.labels!.map(
       (e) => e["name"]
     );
-    context.log({ label, labels });
+    context.log({ addedLabel, existingLabels });
 
-    const labelSet = new Set(labels);
+    const existingLabelsSet = new Set(existingLabels);
     const newLabels: string[] = [];
 
     const newLabelsFromLabelToLabelConfig =
       await getLabelsFromLabelToLabelConfig(
         context,
         labelToLabelConfigTracker,
-        labels,
-        label
+        existingLabels,
+        addedLabel
       );
     for (const label of newLabelsFromLabelToLabelConfig) {
-      addLabel(labelSet, newLabels, label);
+      addLabel(existingLabelsSet, newLabels, label);
     }
 
     const filtered = await filterCIFlowLabels(
