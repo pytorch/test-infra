@@ -1,6 +1,4 @@
 function handler(event) {
-    // NOTE: This example function is for a viewer request event trigger.
-    // Choose viewer request for event trigger when you associate this function with a distribution.
     var request = event.request;
     var uri = request.uri;
     var CDN_TEST_PATH = '/whl/cdntest/';
