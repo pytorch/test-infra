@@ -1,6 +1,6 @@
 import CommitStatus from "components/CommitStatus";
 import ErrorBoundary from "components/ErrorBoundary";
-import { PRData } from "lib/types";
+import { PRData, IssueData } from "lib/types";
 import { useRouter } from "next/router";
 import React, { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -16,7 +16,7 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data, error } = useSWR(
+  const { data: commitData, error } = useSWR(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
@@ -26,14 +26,20 @@ function CommitInfo({
       refreshWhenHidden: true,
     }
   );
+
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
+
   if (error != null) {
     return <div>Error occurred</div>;
   }
 
-  if (data === undefined) {
+  if (commitData === undefined) {
     return <div>Loading...</div>;
   }
-  const { commit, jobs } = data;
+  const { commit, jobs } = commitData;
 
   return (
     <CommitStatus
@@ -42,6 +48,7 @@ function CommitInfo({
       commit={commit}
       jobs={jobs}
       isCommitPage={false}
+      unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
     />
   );
 }

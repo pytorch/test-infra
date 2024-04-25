@@ -53,7 +53,11 @@ export default function Page() {
                 {test.jobs.map((job) => {
                   return (
                     <li key={job.id} id={job.id}>
-                      <JobSummary job={job} highlight={job.branch == "main"} />
+                      <JobSummary
+                        job={job}
+                        highlight={job.branch == "main"}
+                        unstableIssues={[]}
+                      />
                       <div>
                         <JobLinks job={job} showCommitLink={true} />
                       </div>

@@ -1,5 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
-import { GroupData, RowData } from "./types";
+import { GroupData, RowData, IssueData } from "./types";
+import { hasOpenUnstableIssue } from "lib/jobUtils";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
@@ -179,7 +180,16 @@ export function sortGroupNamesForHUD(groupNames: string[]): string[] {
   return result;
 }
 
-export function classifyGroup(jobName: string): string {
+export function classifyGroup(
+  jobName: string,
+  unstableIssues?: IssueData[]
+): string {
+  // Double check first if the job has been marked as unstable but doesn't include
+  // the unstable keyword
+  if (hasOpenUnstableIssue(jobName, unstableIssues)) {
+    return GROUP_UNSTABLE;
+  }
+
   for (const group of groups) {
     if (jobName.match(group.regex)) {
       return group.name;
@@ -276,12 +286,16 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
   }
 }
 
-export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
+export function getGroupingData(
+  shaGrid: RowData[],
+  jobNames: string[],
+  unstableIssues?: IssueData[]
+) {
   // Construct Job Groupping Mapping
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
   const jobToGroupName = new Map<string, string>(); // job -> group
   for (const name of jobNames) {
-    const groupName = classifyGroup(name);
+    const groupName = classifyGroup(name, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
@@ -311,6 +325,9 @@ export function isPersistentGroup(name: string) {
   );
 }
 
-export function isUnstableGroup(name: string) {
-  return name.toLocaleLowerCase().includes("unstable");
+export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
+  return (
+    name.toLocaleLowerCase().includes("unstable") ||
+    hasOpenUnstableIssue(name, unstableIssues)
+  );
 }

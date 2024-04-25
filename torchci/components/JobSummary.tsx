@@ -1,4 +1,4 @@
-import { JobData } from "lib/types";
+import { JobData, IssueData } from "lib/types";
 import JobConclusion from "./JobConclusion";
 import {
   isFailedJob,
@@ -26,9 +26,11 @@ function BranchName({
 export default function JobSummary({
   job,
   highlight,
+  unstableIssues,
 }: {
   job: JobData;
   highlight: boolean;
+  unstableIssues: IssueData[];
 }) {
   return (
     <>
@@ -36,7 +38,7 @@ export default function JobSummary({
         conclusion={job.conclusion}
         warningOnly={
           isFailedJob(job) &&
-          (isRerunDisabledTestsJob(job) || isUnstableJob(job))
+          (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues))
         }
       />
       <a href={job.htmlUrl}> {job.jobName} </a>
