@@ -110,6 +110,8 @@ export async function updateDrciComments(
   );
 
   const unstableIssues: IssueData[] = [];
+  const debug = await fetchJSON(UNSTABLE_JOBS_JSON);
+  console.log(debug);
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
