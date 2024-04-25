@@ -134,6 +134,7 @@ export interface FlakyTestData {
   jobNames: string[];
   branches: string[];
   eventTimes?: string[];
+  sampleTraceback?: string;
 }
 
 export interface DisabledNonFlakyTestData {
