@@ -69,7 +69,11 @@ function Workflow({
 
   return (
     <div>
-      {!alreadyRun && (
+      {(alreadyRun && (
+        <>
+          <strong>{workflow}</strong> jobs already exist.
+        </>
+      )) || (
         <div
           key={workflow}
           onClick={() => {
