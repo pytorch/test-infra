@@ -174,6 +174,8 @@ describe("verify-drci-functionality", () => {
       .reply(200, { results: [] })
       .post((url) => url.includes("commit_failed_jobs"))
       .reply(200, { results: [] })
+      .post((url) => url.includes("issue_query"))
+      .reply(200, { results: [] })
       .post(
         (url) => url.includes("self/queries"),
         (body) => JSON.stringify(body).includes("merge_base_commit_date")

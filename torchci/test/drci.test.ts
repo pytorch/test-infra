@@ -231,6 +231,20 @@ const unstableA = getDummyJob({
   runnerName: "dummy",
 });
 
+// From the list of mock unstable jobs
+const unstableB = getDummyJob({
+  name: "trunk / test-coreml-delegate / macos-job",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_lines: ["a", "b"],
+  failure_captures: ["a", "b"],
+  runnerName: "dummy",
+});
+
 const sev: IssueData = {
   number: 85362,
   title: "docker pulls failing with no space left on disk",
@@ -528,23 +542,37 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
-    const originalWorkflows = [failedA, failedB, unstableA];
+    const originalWorkflows = [failedA, failedB, unstableA, unstableB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
       originalWorkflows
     );
+    const mockUnstableIssues: IssueData[] = [
+      {
+        number: 3264,
+        title: "UNSTABLE trunk / test-coreml-delegate / macos-job",
+        html_url: "https://github.com/pytorch/executorch/issues/3264",
+        state: "open",
+        body: "",
+        updated_at: "2024-04-24T00:44:19Z",
+        author_association: "CONTRIBUTOR",
+      },
+    ];
     const pr_1001 = workflowsByPR.get(1001)!;
+
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
       await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name!, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, [failedA])
+        new Map().set(failedA.name, [failedA]),
+        [],
+        mockUnstableIssues
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
-    expect(unstableJobs.length).toBe(1);
+    expect(unstableJobs.length).toBe(2);
   });
 
   test(" test flaky rule regex", async () => {
