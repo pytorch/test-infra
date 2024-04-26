@@ -15,6 +15,7 @@ FROM
     join workflow_job j on t.job_id = j.id
 where
     t.file is not null
+    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
 """
 
 # See get_merge_base_info for structure, should have sha, merge_base, and

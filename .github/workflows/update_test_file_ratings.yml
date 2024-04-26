@@ -46,6 +46,7 @@ jobs:
 
       - name: Generate file test ratings
         run: |
+          set -ex
           python3 test-infra/tools/torchci/td/calculate_file_test_rating.py
           python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
           # Do not run this one, it won't change
