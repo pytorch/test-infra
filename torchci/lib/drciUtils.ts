@@ -41,7 +41,6 @@ export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
-
 export const EXCLUDED_FROM_FLAKINESS = [
   "lint",
   "linux-docs",
