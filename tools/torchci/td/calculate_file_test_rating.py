@@ -15,6 +15,7 @@ FROM
     join workflow_job j on t.job_id = j.id
 where
     t.file is not null
+    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
 """
 
 # See get_merge_base_info for structure, should have sha, merge_base, and
@@ -67,7 +68,7 @@ def evaluate(failing_tests, merge_bases, rev_mapping, get_test_name_fn):
     all_failing_tests = {get_test_name_fn(test) for test in failing_tests}
 
     scores = []
-    for test in failing_tests:
+    for test in failing_tests[::10]:
         changed_files = merge_bases[test["head_sha"]]["changed_files"]
 
         prediction = defaultdict(int)
