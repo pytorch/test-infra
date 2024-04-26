@@ -21,7 +21,6 @@ import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
   getPRMergeCommits,
-  hasOpenUnstableIssue,
 } from "lib/jobUtils";
 
 export const NUM_MINUTES = 30;
