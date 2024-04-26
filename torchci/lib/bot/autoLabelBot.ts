@@ -7,12 +7,14 @@ import {
   hasWritePermissions,
   isPyTorchPyTorch,
   getFilesChangedByPr,
+  LabelToLabelConfigTracker,
 } from "./utils";
 import { minimatch } from "minimatch";
 import {
   CODEV_INDICATOR,
   genCodevNoWritePermComment,
 } from "./codevNoWritePermBot";
+import assert from "assert";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -165,6 +167,32 @@ export async function getLabelsFromLabelerConfig(
   return labels;
 }
 
+export async function getLabelsFromLabelToLabelConfig(
+  context: Context,
+  labelToLabelConfigTracker: LabelToLabelConfigTracker,
+  existingLabels: string[],
+  addedLabel: string
+): Promise<string[]> {
+  const config = await labelToLabelConfigTracker.loadLabelsConfig(context);
+  const newLabels: string[] = [];
+
+  for (const rule of Object.values(config)) {
+    if (Object.hasOwn(rule, "any")) {
+      if (rule["any"].some((label: string) => addedLabel == label)) {
+        newLabels.push(...rule["then"]);
+      }
+    } else if (Object.hasOwn(rule, "all")) {
+      if (
+        rule["all"].some((label: string) => addedLabel == label) &&
+        rule["all"].every((label: string) => existingLabels.includes(label))
+      ) {
+        newLabels.push(...rule["then"]);
+      }
+    }
+  }
+  return newLabels;
+}
+
 function getRepoSpecificLabels(
   owner: string,
   repo: string
@@ -193,6 +221,41 @@ function TDRolloutIssueParser(rawSubsText: string): object {
   return authors;
 }
 
+async function filterCIFlowLabels(
+  isIssue: boolean,
+  labels: string[],
+  context?: Context<"pull_request">,
+  owner?: string,
+  repo?: string
+) {
+  const noCIFlowLabels = labels.filter((l) => !l.startsWith("ciflow/"));
+  if (noCIFlowLabels.length === labels.length) {
+    return labels;
+  }
+
+  if (isIssue) {
+    return noCIFlowLabels;
+  }
+
+  assert(context && owner && repo, "context, owner, and repo must be provided");
+
+  if (
+    !(await hasApprovedPullRuns(
+      context.octokit,
+      owner,
+      repo,
+      context.payload.pull_request.head.sha
+    )) &&
+    !(await hasWritePermissions(
+      context,
+      context.payload.pull_request.user.login
+    ))
+  ) {
+    return noCIFlowLabels;
+  }
+  return labels;
+}
+
 function myBot(app: Probot): void {
   const TDRolloutTracker = new CachedIssueTracker(
     app,
@@ -200,6 +263,8 @@ function myBot(app: Probot): void {
     TDRolloutIssueParser
   );
   const labelerConfigTracker = new CachedLabelerConfigTracker(app);
+  const labelToLabelConfigTracker = new LabelToLabelConfigTracker(app);
+
   function addLabel(
     labelSet: Set<string>,
     newLabels: string[],
@@ -249,8 +314,55 @@ function myBot(app: Probot): void {
         break;
     }
 
-    if (newLabels.length) {
-      await addLabels(context, newLabels);
+    const newLabelsFromLabelToLabelConfig =
+      await getLabelsFromLabelToLabelConfig(
+        context,
+        labelToLabelConfigTracker,
+        labels,
+        label
+      );
+    for (const label of newLabelsFromLabelToLabelConfig) {
+      addLabel(labelSet, newLabels, label);
+    }
+
+    const filtered = await filterCIFlowLabels(true, newLabels);
+    if (filtered.length) {
+      await addLabels(context, filtered);
+    }
+  });
+
+  app.on("pull_request.labeled", async (context) => {
+    // Careful! Read the above comments about label addition
+
+    const addedLabel = context.payload.label!.name;
+    const existingLabels: string[] = context.payload.pull_request.labels!.map(
+      (e) => e["name"]
+    );
+    context.log({ addedLabel, existingLabels });
+
+    const existingLabelsSet = new Set(existingLabels);
+    const newLabels: string[] = [];
+
+    const newLabelsFromLabelToLabelConfig =
+      await getLabelsFromLabelToLabelConfig(
+        context,
+        labelToLabelConfigTracker,
+        existingLabels,
+        addedLabel
+      );
+    for (const label of newLabelsFromLabelToLabelConfig) {
+      addLabel(existingLabelsSet, newLabels, label);
+    }
+
+    const filtered = await filterCIFlowLabels(
+      false,
+      newLabels,
+      context,
+      context.payload.repository.owner.login,
+      context.payload.repository.name
+    );
+    if (filtered.length) {
+      await addLabels(context, filtered);
     }
   });
 
@@ -450,20 +562,13 @@ function myBot(app: Probot): void {
       }
 
       // Filter ciflow/* labels if the PR author does not have write permissions
-      if (
-        !(await hasApprovedPullRuns(
-          context.octokit,
-          owner,
-          repo,
-          context.payload.pull_request.head.sha
-        )) &&
-        !(await hasWritePermissions(
-          context,
-          context.payload.pull_request.user.login
-        ))
-      ) {
-        labelsToAdd = labelsToAdd.filter((l) => !l.startsWith("ciflow/"));
-      }
+      labelsToAdd = await filterCIFlowLabels(
+        false,
+        labelsToAdd,
+        context,
+        owner,
+        repo
+      );
 
       await addNewLabels(labels, labelsToAdd, context);
     }
