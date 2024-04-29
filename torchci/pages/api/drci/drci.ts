@@ -750,10 +750,8 @@ export async function getWorkflowJobsStatuses(
         if (similarFailure !== undefined) {
           flakyJobs.push(job);
           relatedJobs.set(job.id, similarFailure);
-        } else {
-          failedJobs.push(job);
+          continue;
         }
-        continue;
       }
 
       failedJobs.push(job);
