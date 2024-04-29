@@ -80,7 +80,7 @@ export default function JobLinks({
     subInfo.push(testInsightsLink);
   }
 
-  const disableTestButton = DisableTest({ job: job, label: "disable" });
+  const disableTestButton = DisableTest({ job: job, label: "skipped" });
   if (disableTestButton != null) {
     subInfo.push(disableTestButton);
   }
