@@ -16,6 +16,34 @@ nodeConfig:
       - key: kubernetes.io/os
         operator: In
         values: ["linux"]
+  - nodeType: compute-amd64-amp
+    requirements:
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["c7i"]
+      - key: "karpenter.k8s.aws/instance-cpu"
+        operator: In
+        values: ["16", "32", "48", "64", "96", "192"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
+  - nodeType: compute-amd64-amp-metal
+    requirements:
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["c7i.metal"]
+      - key: "karpenter.k8s.aws/instance-cpu"
+        operator: In
+        values: ["96", "192"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
   - nodeType: compute-amd64-avx512
     requirements:
       - key: "karpenter.k8s.aws/instance-category"
