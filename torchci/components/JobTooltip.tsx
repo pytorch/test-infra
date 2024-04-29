@@ -29,7 +29,7 @@ export default function JobTooltip({
       <div>
         <em>click to pin this tooltip, double-click for job page</em>
       </div>
-      <JobLinks job={job} />
+      <JobLinks job={job} showCommitLink={true} />
       <LogViewer job={job} />
     </div>
   );

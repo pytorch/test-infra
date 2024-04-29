@@ -16,8 +16,10 @@ export default function JobLinks({
   job: JobData;
   showCommitLink?: boolean;
 }) {
-  const commitLink = showCommitLink ? (
-    <span>
+  const subInfo = [];
+
+  if (showCommitLink) {
+    subInfo.push(
       <a
         target="_blank"
         rel="noreferrer"
@@ -25,76 +27,91 @@ export default function JobLinks({
       >
         Commit
       </a>
-      {` | `}
-    </span>
-  ) : null;
+    );
+  }
 
-  const rawLogs =
-    job.conclusion !== "pending" ? (
+  if (job.conclusion !== "pending" && job.logUrl != null) {
+    subInfo.push(
+      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+        Raw logs
+      </a>
+    );
+  }
+
+  if (job.failureCaptures != null) {
+    subInfo.push(
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={`/failure?name=${encodeURIComponent(
+          job.name as string
+        )}&jobName=${encodeURIComponent(
+          job.jobName as string
+        )}&failureCaptures=${encodeURIComponent(
+          JSON.stringify(job.failureCaptures)
+        )}`}
+      >
+        more like this
+      </a>
+    );
+  }
+
+  if (job.queueTimeS != null) {
+    subInfo.push(
+      <span>{`Queued: ${durationHuman(Math.max(job.queueTimeS!, 0))}`}</span>
+    );
+  }
+
+  if (job.durationS != null) {
+    subInfo.push(<span>{`Duration: ${durationHuman(job.durationS!)}`}</span>);
+  }
+
+  if (job.time != null) {
+    subInfo.push(
       <span>
-        <a target="_blank" rel="noreferrer" href={job.logUrl}>
-          Raw logs
-        </a>
-      </span>
-    ) : null;
-
-  const queueTimeS =
-    job.queueTimeS != null ? (
-      <span>{` | Queued: ${durationHuman(Math.max(job.queueTimeS!, 0))}`}</span>
-    ) : null;
-
-  const durationS =
-    job.durationS != null ? (
-      <span>{` | Duration: ${durationHuman(job.durationS!)}`}</span>
-    ) : null;
-
-  const eventTime =
-    job.time != null ? (
-      <span>
-        {` | Started: `}
+        {`Started: `}
         <LocalTimeHuman timestamp={job.time} />
       </span>
-    ) : null;
+    );
+  }
 
-  const failureCaptures =
-    job.failureCaptures != null ? (
-      <span>
-        {" | "}
-        <a
-          target="_blank"
-          rel="noreferrer"
-          href={`/failure?name=${encodeURIComponent(
-            job.name as string
-          )}&jobName=${encodeURIComponent(
-            job.jobName as string
-          )}&failureCaptures=${encodeURIComponent(
-            JSON.stringify(job.failureCaptures)
-          )}`}
-        >
-          more like this
-        </a>
-      </span>
-    ) : null;
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
+    subInfo.push(testInsightsLink);
+  }
 
+  const disableTestButton = DisableTest({ job: job, label: "skipped" });
+  if (disableTestButton != null) {
+    subInfo.push(disableTestButton);
+  }
   const authenticated = useSession().status === "authenticated";
+
+  if (authenticated) {
+    const unstableJobButton = UnstableJob({ job: job, label: "unstable" });
+    if (unstableJobButton != null) {
+      subInfo.push(unstableJobButton);
+    }
+  }
+
+  if (authenticated && job.failureLines) {
+    const reproComamnd = ReproductionCommand({
+      job: job,
+      separator: "",
+      testName: getTestName(job.failureLines[0] ?? "", true),
+    });
+    if (reproComamnd != null) {
+      subInfo.push(reproComamnd);
+    }
+  }
+
   return (
     <span>
-      {commitLink}
-      {rawLogs}
-      {failureCaptures}
-      {queueTimeS}
-      {durationS}
-      {eventTime}
-      <TestInsightsLink job={job} separator={" | "} />
-      <DisableTest job={job} label={"skipped"} />
-      {authenticated && <UnstableJob job={job} label={"unstable"} />}
-      {authenticated && job.failureLines && (
-        <ReproductionCommand
-          job={job}
-          separator={" | "}
-          testName={getTestName(job.failureLines[0] ?? "", true)}
-        />
-      )}
+      {subInfo.map((info, i) => (
+        <span key={i}>
+          {i > 0 && " | "}
+          {info}
+        </span>
+      ))}
     </span>
   );
 }
@@ -154,7 +171,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   }
   // - If we don't yet have any data, show a loading state.
   if (data === undefined) {
-    return <span>{" | "} checking for disable tests</span>;
+    return <span>checking for disable tests</span>;
   }
 
   // At this point, we should show something. Search the existing disable issues
@@ -205,7 +222,7 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
 
   // If we don't yet have any data, show a loading state.
   if (data === undefined) {
-    return <span>{" | "} checking for disable jobs</span>;
+    return <span>checking for disable jobs</span>;
   }
 
   // At this point, we should show something. Search the existing disable issues
@@ -275,11 +292,8 @@ function DisableIssue({
   }
 
   return (
-    <span>
-      {" | "}
-      <a target="_blank" rel="noreferrer" href={issueLink}>
-        <button className={buttonStyle}>{linkText}</button>
-      </a>
-    </span>
+    <a target="_blank" rel="noreferrer" href={issueLink}>
+      <button className={buttonStyle}>{linkText}</button>
+    </a>
   );
 }
