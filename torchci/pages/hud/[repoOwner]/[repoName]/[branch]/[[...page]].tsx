@@ -60,7 +60,7 @@ export function JobCell({
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
-        tooltipContent={<JobTooltip job={job} />}
+        tooltipContent={<JobTooltip job={job} sha={pinnedId.sha || sha} />}
         sha={sha as string}
         name={job.name as string}
       >
