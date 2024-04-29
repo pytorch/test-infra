@@ -16,18 +16,18 @@ runnerConfig:
     containerMode: dind-rootless
     workingDiskSpace: 150Gi
   - cpu: 16.0
-    maxRunners: 30
-    memory: 32256Mi
+    maxRunners: 100
+    memory: 16Gi
     minRunners: 0
-    nodeType: compute-amd64
-    runnerLabel: linux.16xlarge
+    nodeType: compute-amd64-amp
+    runnerLabel: linux.16xl.spr
     containerMode: dind-rootless
     workingDiskSpace: 200Gi
   - cpu: 24.0
-    maxRunners: 30
-    memory: 32256Mi
+    maxRunners: 100
+    memory: 45Gi
     minRunners: 0
-    nodeType: compute-amd64
+    nodeType: compute-amd64-amp-metal
     runnerLabel: linux.24xl.spr-metal
     containerMode: dind-rootless
     workingDiskSpace: 200Gi
