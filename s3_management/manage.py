@@ -62,7 +62,7 @@ PACKAGE_ALLOW_LIST = {
     "pycryptodomex",
     "python_dateutil",
     "pytz",
-    "pyyaml",
+    "PyYAML",
     "regex",
     "safetensors",
     "sentencepiece",
