@@ -46,6 +46,7 @@ PACKAGE_ALLOW_LIST = {
     "aiohttp",
     "aiosignal",
     "antlr4_python3_runtime",
+    "antlr4-python3-runtime",
     "attrs",
     "blobfile",
     "datasets",
