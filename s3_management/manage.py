@@ -68,6 +68,7 @@ PACKAGE_ALLOW_LIST = {
     "sentencepiece",
     "six",
     "tiktoken",
+    "torchao",
     "tzdata",
     "xxhash",
     "yarl",
