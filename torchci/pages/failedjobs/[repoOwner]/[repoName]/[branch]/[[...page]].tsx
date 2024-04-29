@@ -88,9 +88,7 @@ function FailedJob({
           unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
         />
         <div>
-          <CommitLink job={job} />
-          {" | "}
-          <JobLinks job={job} />
+          <JobLinks job={job} showCommitLink={true} />
         </div>
         <div>
           <JobAnnotationToggle
