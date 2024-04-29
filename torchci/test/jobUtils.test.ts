@@ -433,6 +433,41 @@ describe("Test various job utils", () => {
         conclusion: "cancelled",
         time: "2023-08-23T09:10:01.259562Z",
       },
+
+      // Do not match with other jobs with similar prefix
+      {
+        name: "pull / linux-jammy-py3.8-gcc11 / build",
+        conclusion: "success",
+        time: "2023-08-23T08:57:27.732608Z",
+      },
+      {
+        name: "pull / linux-jammy-py3.8-gcc11 / build",
+        conclusion: "cancelled",
+        time: "2023-08-23T09:10:01.259562Z",
+      },
+      {
+        name: "pull / linux-jammy-py3.8-gcc11-mobile-lightweight-dispatch-build / build",
+        conclusion: "success",
+        // Set the timestamp here to be after the previous timestamp indicating that this
+        // job runs after pull / linux-jammy-py3.8-gcc11 / build. The latter should not be
+        // removed from the list
+        time: "2023-08-23T09:15:01.259562Z",
+      },
+      {
+        name: "pull / linux-jammy-py3.8-gcc11-no-ops / build",
+        conclusion: "success",
+        time: "2023-08-23T09:15:01.259562Z",
+      },
+      {
+        name: "pull / linux-jammy-py3.8-gcc11-no-ops / build",
+        conclusion: "cancelled",
+        time: "2023-08-23T08:57:27.732608Z",
+      },
+      {
+        name: "pull / linux-jammy-py3.8-gcc11-pch / build",
+        conclusion: "success",
+        time: "2023-08-23T08:57:27.732608Z",
+      },
     ];
 
     const results = removeCancelledJobAfterRetry(jobs);
@@ -504,6 +539,28 @@ describe("Test various job utils", () => {
           name: "pull / linux-focal-py3.8-clang10 / test (default, 3, 3, linux.2xlarge)",
           conclusion: "cancelled",
           time: "2023-08-23T09:10:01.259562Z",
+        },
+
+        // Do not match with other jobs with similar prefix
+        {
+          name: "pull / linux-jammy-py3.8-gcc11 / build",
+          conclusion: "cancelled",
+          time: "2023-08-23T09:10:01.259562Z",
+        },
+        {
+          name: "pull / linux-jammy-py3.8-gcc11-mobile-lightweight-dispatch-build / build",
+          conclusion: "success",
+          time: "2023-08-23T09:15:01.259562Z",
+        },
+        {
+          name: "pull / linux-jammy-py3.8-gcc11-no-ops / build",
+          conclusion: "success",
+          time: "2023-08-23T09:15:01.259562Z",
+        },
+        {
+          name: "pull / linux-jammy-py3.8-gcc11-pch / build",
+          conclusion: "success",
+          time: "2023-08-23T08:57:27.732608Z",
         },
       ])
     );

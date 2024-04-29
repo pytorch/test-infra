@@ -342,6 +342,23 @@ To find relevant log snippets:
   if (test.file !== `${test.invoking_file}.py`) {
     fileInfo += ` or \`${test.invoking_file}\``;
   }
+
+  let sampleTraceback = "";
+  if (test.sampleTraceback) {
+    function toCodeBlock(text: string): string {
+      return `\`\`\`\n${text}\n\`\`\``;
+    }
+    let inDetails = "";
+    // Rather arbitrary length to avoid printing a massive traceback
+    if (test.sampleTraceback.length > 30000) {
+      const truncatedTrackback = test.sampleTraceback.slice(-30000);
+      inDetails = `Truncated for length\n${toCodeBlock(truncatedTrackback)}`;
+    } else {
+      inDetails = toCodeBlock(test.sampleTraceback);
+    }
+    sampleTraceback = `\n\n<details><summary>Sample error message</summary>\n\n${inDetails}\n\n</details>\n\n`;
+  }
+
   if (test.numRed === undefined) {
     // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
     numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
@@ -363,7 +380,7 @@ This test was disabled because it is failing in CI. See [recent examples](${exam
 ${numRedGreen}
 
 ${debuggingSteps}
-
+${sampleTraceback}
 ${fileInfo}`;
 }
 

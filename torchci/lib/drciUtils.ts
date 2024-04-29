@@ -5,15 +5,7 @@ import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
 import { Client } from "@opensearch-project/opensearch";
-import { getOpenSearchClient } from "lib/opensearch";
-import {
-  searchSimilarFailures,
-  WORKFLOW_JOB_INDEX,
-  MIN_SCORE,
-  MAX_SIZE,
-  NEWEST_FIRST,
-  OLDEST_FIRST,
-} from "lib/searchUtils";
+import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import { RecentWorkflowsData, JobData } from "lib/types";
 import {
   isSameAuthor,
@@ -44,6 +36,7 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "lint",
   "linux-docs",
   "ghstack-mergeability-check",
+  "backwards_compat",
 ];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
@@ -231,75 +224,6 @@ export async function upsertDrCiComment(
   }
 }
 
-export async function querySimilarFailures(
-  job: RecentWorkflowsData,
-  baseCommitDate: string,
-  lookbackPeriodInHours: number = 24,
-  maxSize: number = MAX_SIZE,
-  sortByTimeStamp: string = OLDEST_FIRST,
-  client?: Client
-): Promise<JobData[]> {
-  // This function queries HUD to find all similar failures during a period of time
-  // before the current job. If a pre-existing job is found with exactly the same
-  // failure and job name, the failure will be considered flaky. The end date is the
-  // when the job finishes while the start date is either the time when the base commit
-  // finishes minus a look-back period of 24 hours.
-  if (
-    job.name === undefined ||
-    job.name === "" ||
-    job.failure_captures === undefined ||
-    job.failure_captures === null ||
-    job.failure_captures.length === 0 ||
-    job.completed_at === undefined ||
-    job.completed_at === null ||
-    job.completed_at === ""
-  ) {
-    return [];
-  }
-
-  if (client === undefined) {
-    client = getOpenSearchClient();
-  }
-
-  // Search for all captured failure
-  const failure = job.failure_captures.join(" ");
-  const endDate = dayjs(job.completed_at);
-  const startDate = dayjs(
-    baseCommitDate !== "" && baseCommitDate !== "0"
-      ? baseCommitDate
-      : job.completed_at
-  ).subtract(lookbackPeriodInHours, "hour");
-
-  if (
-    endDate.diff(startDate, "hour") >
-    MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES
-  ) {
-    // The base commit is too old, given the current accuracy of the log classifier, it
-    // increases the risk of getting an FP when searching for similar failures
-    return [];
-  }
-
-  // Get the workflow name if possible
-  const jobNameIndex = job.name.indexOf(` / ${job.jobName}`);
-  const workflowName =
-    jobNameIndex !== -1 ? job.name.substring(0, jobNameIndex) : "";
-
-  const results = await searchSimilarFailures(
-    client,
-    failure,
-    workflowName,
-    "",
-    WORKFLOW_JOB_INDEX,
-    startDate.toISOString(),
-    endDate.toISOString(),
-    MIN_SCORE,
-    maxSize,
-    sortByTimeStamp
-  );
-
-  return "jobs" in results ? results["jobs"] : [];
-}
-
 export async function hasSimilarFailures(
   job: RecentWorkflowsData,
   baseCommitDate: string,
@@ -315,14 +239,41 @@ export async function hasSimilarFailures(
   // of the previous merge commits of a reverted PR. The first record is the most
   // relevant one and also the first time the failure is observed in the search
   // window
-  const records = await querySimilarFailures(
-    job,
-    baseCommitDate,
-    lookbackPeriodInHours,
-    MAX_SIZE,
-    OLDEST_FIRST,
-    client
-  );
+  if (
+    job.completed_at === undefined ||
+    job.completed_at === null ||
+    job.completed_at === ""
+  ) {
+    return false;
+  }
+
+  const endDate = dayjs(job.completed_at);
+  const startDate = dayjs(
+    baseCommitDate !== "" && baseCommitDate !== "0"
+      ? baseCommitDate
+      : job.completed_at
+  ).subtract(lookbackPeriodInHours, "hour");
+
+  if (
+    endDate.diff(startDate, "hour") >
+    MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES
+  ) {
+    // The base commit is too old, given the current accuracy of the log classifier, it
+    // increases the risk of getting an FP when searching for similar failures
+    return false;
+  }
+
+  const records = await querySimilarFailures({
+    failure_captures: job.failure_captures,
+    name: job.name,
+    jobName: job.jobName,
+    startDate,
+    endDate,
+    maxSize: MAX_SIZE,
+    sortByTimeStamp: OLDEST_FIRST,
+    client,
+  });
+
   if (records.length === 0) {
     return false;
   }
@@ -368,6 +319,7 @@ export async function hasSimilarFailures(
     if (
       job.id !== failure.id &&
       job.head_sha !== failure.head_sha &&
+      job.head_branch !== failure.head_branch &&
       isSameFailure(job, failure) &&
       // Run this check last because it costs one query to query for the commit
       // author of the failure

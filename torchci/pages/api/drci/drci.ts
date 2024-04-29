@@ -4,7 +4,7 @@ import {
   fetchRecentWorkflows,
   fetchFailedJobsFromCommits,
 } from "lib/fetchRecentWorkflows";
-import { RecentWorkflowsData } from "lib/types";
+import { RecentWorkflowsData, IssueData } from "lib/types";
 import {
   NUM_MINUTES,
   formDrciComment,
@@ -19,6 +19,7 @@ import {
   isLogClassifierFailed,
   fetchIssueLabels,
   isSuppressedByLabels,
+  isExcludedFromFlakiness,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -28,6 +29,7 @@ import {
   isSameFailure,
   removeCancelledJobAfterRetry,
   backfillMissingLog,
+  isUnstableJob,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
@@ -91,6 +93,7 @@ export async function updateDrciComments(
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
+  const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
@@ -116,7 +119,8 @@ export async function updateDrciComments(
           pr_info,
           flakyRules,
           baseCommitJobs.get(pr_info.merge_base) || new Map(),
-          labels || []
+          labels || [],
+          unstableIssues || []
         );
 
       failures[pr_info.pr_number] = {
@@ -627,7 +631,8 @@ export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>,
-  labels: string[] = []
+  labels: string[] = [],
+  unstableIssues: IssueData[] = []
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -648,7 +653,7 @@ export async function getWorkflowJobsStatuses(
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
-      if (job.name !== undefined && job.name.includes("unstable")) {
+      if (await isUnstableJob(job, unstableIssues)) {
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
@@ -664,7 +669,10 @@ export async function getWorkflowJobsStatuses(
           (await hasSimilarFailures(job, prInfo.merge_base_date)))
       ) {
         flakyJobs.push(job);
-      } else if (await isLogClassifierFailed(job)) {
+      } else if (
+        (await isLogClassifierFailed(job)) &&
+        !isExcludedFromFlakiness(job)
+      ) {
         flakyJobs.push(job);
         await backfillMissingLog(prInfo.owner, prInfo.repo, job);
       } else {

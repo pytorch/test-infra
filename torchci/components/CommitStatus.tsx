@@ -1,6 +1,6 @@
 import FilteredJobList from "./FilteredJobList";
 import VersionControlLinks from "./VersionControlLinks";
-import { CommitData, JobData } from "lib/types";
+import { CommitData, JobData, IssueData } from "lib/types";
 import WorkflowBox from "./WorkflowBox";
 import styles from "components/commit.module.css";
 import _ from "lodash";
@@ -15,7 +15,13 @@ import useScrollTo from "lib/useScrollTo";
 import WorkflowDispatcher from "./WorkflowDispatcher";
 import { useSession } from "next-auth/react";
 
-function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
+function WorkflowsContainer({
+  jobs,
+  unstableIssues,
+}: {
+  jobs: JobData[];
+  unstableIssues: IssueData[];
+}) {
   useScrollTo();
 
   if (jobs.length === 0) {
@@ -44,6 +50,7 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
               key={workflowName}
               workflowName={workflowName}
               jobs={jobs}
+              unstableIssues={unstableIssues}
             />
           );
         })}
@@ -58,12 +65,14 @@ export default function CommitStatus({
   commit,
   jobs,
   isCommitPage,
+  unstableIssues,
 }: {
   repoOwner: string;
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
   isCommitPage: boolean;
+  unstableIssues: IssueData[];
 }) {
   const session = useSession();
   const isAuthenticated = session.status === "authenticated";
@@ -90,26 +99,30 @@ export default function CommitStatus({
         pred={(job) =>
           isFailedJob(job) &&
           !isRerunDisabledTestsJob(job) &&
-          !isUnstableJob(job)
+          !isUnstableJob(job, unstableIssues)
         }
         showClassification
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Failed unstable jobs"
         jobs={jobs}
-        pred={(job) => isFailedJob(job) && isUnstableJob(job)}
+        pred={(job) => isFailedJob(job) && isUnstableJob(job, unstableIssues)}
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Daily rerunning disabled jobs"
         jobs={jobs}
         pred={(job) => isFailedJob(job) && isRerunDisabledTestsJob(job)}
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Pending jobs"
         jobs={jobs}
         pred={(job) => job.conclusion === "pending"}
+        unstableIssues={unstableIssues}
       />
-      <WorkflowsContainer jobs={jobs} />
+      <WorkflowsContainer jobs={jobs} unstableIssues={unstableIssues} />
       {isAuthenticated && isCommitPage && (
         <WorkflowDispatcher
           repoOwner={repoOwner}

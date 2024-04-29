@@ -7,6 +7,7 @@ import TestInsightsLink from "./TestInsights";
 import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
+import { transformJobName } from "../lib/jobUtils";
 
 export default function JobLinks({
   job,
@@ -163,30 +164,17 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
       isDisabledTest={true}
     />
   );
-}
-
-const jobNameRe = /^(.*) \(([^,]*),.*\)/;
-function transformJobName(jobName?: string) {
-  if (jobName == undefined) {
-    return null;
-  }
-
-  // We want to have the job name in the following format WORKFLOW / JOB (CONFIG)
-  const jobNameMatch = jobName.match(jobNameRe);
-  if (jobNameMatch !== null) {
-    return `${jobNameMatch[1]} (${jobNameMatch[2]})`;
-  }
-
-  return jobName;
 }
 
 function formatUnstableJobBody() {
@@ -229,9 +217,11 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const matchingIssues = issues.filter((issue) =>
     issueTitle.includes(issue.title)
   );
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
@@ -241,17 +231,19 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
 }
 
 function DisableIssue({
+  repo,
   matchingIssues,
   issueTitle,
   issueBody,
   isDisabledTest,
 }: {
+  repo: string;
   matchingIssues: IssueData[];
   issueTitle: string;
   issueBody: string;
   isDisabledTest: boolean;
 }) {
-  let issueLink = `https://github.com/pytorch/pytorch/issues/new?title=${issueTitle}&body=${issueBody}`;
+  let issueLink = `https://github.com/${repo}/issues/new?title=${issueTitle}&body=${issueBody}`;
   let linkText = isDisabledTest
     ? "Disable test"
     : issueTitle.includes("UNSTABLE")

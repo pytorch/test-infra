@@ -30,6 +30,7 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "executorch",
       "rl",
       "torchtune",
+      "ao",
     ].includes(repo)
   );
 }
@@ -129,6 +130,35 @@ export class CachedLabelerConfigTracker extends CachedConfigTracker {
 
       if (config != null && "labeler_config" in config) {
         this.repoLabels[key] = context.config(config["labeler_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
+  }
+}
+
+export class LabelToLabelConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "label_to_label_config" in config) {
+        this.repoLabels[key] = context.config(config["label_to_label_config"]);
       } else {
         this.repoLabels[key] = {};
       }
@@ -265,4 +295,22 @@ export async function isFirstTimeContributor(
     per_page: 1,
   });
   return commits?.data?.length === 0;
+}
+
+export async function getFilesChangedByPr(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
+  const filesChangedRes = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+    {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }
+  );
+  return filesChangedRes.map((f: any) => f.filename);
 }

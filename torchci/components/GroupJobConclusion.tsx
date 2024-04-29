@@ -1,5 +1,5 @@
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
-import { GroupData, JobData } from "lib/types";
+import { GroupData, JobData, IssueData } from "lib/types";
 import styles from "./JobConclusion.module.css";
 import hudStyles from "./hud.module.css";
 import TooltipTarget from "components/TooltipTarget";
@@ -39,11 +39,13 @@ export default function HudGroupedCell({
   groupData,
   isExpanded,
   isClassified,
+  unstableIssues,
 }: {
   sha: string;
   groupData: GroupData;
   isExpanded: boolean;
   isClassified: boolean;
+  unstableIssues: IssueData[];
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
@@ -55,7 +57,7 @@ export default function HudGroupedCell({
   const failedPreviousRunJobs = [];
   for (const job of groupData.jobs) {
     if (isFailedJob(job)) {
-      if (isRerunDisabledTestsJob(job) || isUnstableJob(job)) {
+      if (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues)) {
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);

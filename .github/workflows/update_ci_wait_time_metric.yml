@@ -3,14 +3,25 @@ on:
   schedule:
     # Update the indices every day at 5am
     - cron: "0 5 * * *"
-  # Enable triggering this job manually using the API as well 
+  # Enable triggering this job manually using the API as well
   workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   update-kpi:
     runs-on: ubuntu-22.04
     if: ${{ github.repository == 'pytorch/test-infra' }}
     steps:
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_update_ci_wait_time_metric
+          aws-region: us-east-1
+
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -24,13 +35,11 @@ jobs:
       - name: Install Python Packages
         run: |
           pip3 install rockset==1.0.3
-          pip3 install boto3==1.19.12
+          pip3 install boto3==1.34.92
           pip3 install pandas==1.5
 
       - name: Compute kpi and upload to RDS
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
         run: |
           python3 .github/scripts/compute_and_upload_ci_wait_time_metric.py

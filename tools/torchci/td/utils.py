@@ -93,7 +93,7 @@ def evaluate(
 
     scores = []
     score_per_file = defaultdict(list)
-    for test in tests:
+    for test in tests[::10]:
         changed_files = merge_bases[test["head_sha"]]["changed_files"]
 
         prediction = defaultdict(int)
@@ -166,6 +166,7 @@ def get_filtered_failed_tests() -> List[Dict[str, Any]]:
         join workflow_job j on t.job_id = j.id
     where
         t.file is not null
+        and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
     """
     failed_tests = query_rockset(failed_tests_query, use_cache=True)
     return filter_tests(failed_tests, get_merge_bases_dict())
