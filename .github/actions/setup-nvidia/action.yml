@@ -7,7 +7,7 @@ inputs:
     description: which driver version to install
     required: false
     type: string
-    default: "535.54.03"   # From https://www.nvidia.com/en-us/drivers/unix
+    default: "550.54.15"   # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-550-54-15/index.html
 
 runs:
   using: composite
