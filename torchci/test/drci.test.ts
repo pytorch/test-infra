@@ -9,7 +9,6 @@ import {
   getActiveSEVs,
   formDrciSevBody,
   isInfraFlakyJob,
-  HUD_URL,
 } from "lib/drciUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import dayjs from "dayjs";
@@ -285,10 +284,7 @@ function constructResultsCommentHelper({
   sha = "random sha",
   merge_base = "random_merge_base_sha",
   merge_base_date = "2023-08-08T06:03:21Z",
-  hudBaseUrl = HUD_URL,
-  owner = "pytorch",
-  repo = "pytorch",
-  prNumber = 123,
+  hud_pr_url = "random hud pr url",
 }: {
   pending?: number;
   failedJobs?: RecentWorkflowsData[];
@@ -298,10 +294,7 @@ function constructResultsCommentHelper({
   sha?: string;
   merge_base?: string;
   merge_base_date?: string;
-  hudBaseUrl?: string;
-  owner?: string;
-  repo?: string;
-  prNumber?: number;
+  hud_pr_url?: string;
 }) {
   return updateDrciBot.constructResultsComment(
     pending,
@@ -309,21 +302,17 @@ function constructResultsCommentHelper({
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
-    new Map(),
     sha,
     merge_base,
     merge_base_date,
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber
+    hud_pr_url
   );
 }
 
 describe("Update Dr. CI Bot Unit Tests", () => {
   beforeEach(() => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
-    mock.mockImplementation(() => Promise.resolve(undefined));
+    mock.mockImplementation(() => Promise.resolve(false));
 
     const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
     mockJobUtils.mockImplementation(() => Promise.resolve(true));
@@ -357,16 +346,17 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       pending,
       failedJobs,
       sha: pr_1001.head_sha,
+      hud_pr_url: "hudlink",
     });
     const failedJobName = failedA.name!;
 
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
-    const expectedFailureOrder = `* [Lint](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
+    const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
     \`mind blown\`
-* [something](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
+* [something](hudlink#1) ([gh](a))
     \`cde\`
-* [z-docs / build-docs (cpp)](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
+* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))
     \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
   });
@@ -766,15 +756,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
   test("test similar failures marked as flaky", async () => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
-    mock.mockImplementation(() =>
-      Promise.resolve({
-        id: "1",
-        completed_at: "2022-07-13T19:34:03Z",
-        html_url: "abcdefg",
-        head_sha: "abcdefg",
-        failure_captures: [],
-      })
-    );
+    mock.mockImplementation(() => Promise.resolve(true));
 
     const originalWorkflows = [failedA, failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(

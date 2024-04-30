@@ -114,20 +114,14 @@ export async function updateDrciComments(
         pr_info.pr_number
       );
 
-      const {
-        pending,
-        failedJobs,
-        flakyJobs,
-        brokenTrunkJobs,
-        unstableJobs,
-        relatedJobs,
-      } = await getWorkflowJobsStatuses(
-        pr_info,
-        flakyRules,
-        baseCommitJobs.get(pr_info.merge_base) || new Map(),
-        labels || [],
-        unstableIssues || []
-      );
+      const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+        await getWorkflowJobsStatuses(
+          pr_info,
+          flakyRules,
+          baseCommitJobs.get(pr_info.merge_base) || new Map(),
+          labels || [],
+          unstableIssues || []
+        );
 
       failures[pr_info.pr_number] = {
         FAILED: failedJobs,
@@ -142,14 +136,10 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
-        relatedJobs,
         pr_info.head_sha,
         pr_info.merge_base,
         pr_info.merge_base_date,
-        HUD_URL,
-        OWNER,
-        repo,
-        pr_info.pr_number
+        `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
       );
 
       const comment = formDrciComment(
@@ -419,16 +409,12 @@ where
 }
 
 function constructResultsJobsSections(
-  hudBaseUrl: string,
-  owner: string,
-  repo: string,
-  prNumber: number,
+  hud_pr_url: string,
   header: string,
   description: string,
   jobs: RecentWorkflowsData[],
   suggestion?: string,
-  collapsed: boolean = false,
-  relatedJobs: Map<string, RecentWorkflowsData> = new Map()
+  collapsed: boolean = false
 ): string {
   if (jobs.length === 0) {
     return "";
@@ -442,28 +428,11 @@ function constructResultsJobsSections(
   }
 
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
-
-  const hudPrUrl = `${hudBaseUrl}/pr/${owner}/${repo}/${prNumber}`;
   const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
   for (const job of jobsSorted) {
-    output += `* [${job.name}](${hudPrUrl}#${job.id}) ([gh](${job.html_url}))`;
-
-    const relatedJob = relatedJobs.get(job.id);
-    // Show the related trunk failure for broken trunk or the similar failure for flaky
-    if (relatedJob !== undefined) {
-      const hudCommitUrl = `${hudBaseUrl}/${owner}/${repo}/commit/${relatedJob.head_sha}`;
-      const relatedJobLink = `${hudCommitUrl}#${relatedJob.id}`;
-      if (header === "BROKEN TRUNK") {
-        output += ` ([trunk failure](${relatedJobLink}))`;
-      } else if (header === "FLAKY") {
-        output += `([similar failure](${relatedJobLink}))`;
-      } else {
-        output += `([related job](${relatedJobLink}))`;
-      }
-    }
-
+    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
     if (job.failure_captures) {
-      output += `\n    \`${job.failure_captures[0]}\`\n`;
+      output += `    \`${job.failure_captures[0]}\`\n`;
     }
   }
   output += "</p></details>";
@@ -488,14 +457,10 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
-  relatedJobs: Map<string, RecentWorkflowsData>,
   sha: string,
   merge_base: string,
   merge_base_date: string,
-  hudBaseUrl: string,
-  owner: string,
-  repo: string,
-  prNumber: number
+  hud_pr_url: string
 ): string {
   let output = `\n`;
   const unrelatedFailureCount =
@@ -570,19 +535,13 @@ export function constructResultsComment(
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
   output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
+    hud_pr_url,
     `NEW ${pluralize("FAILURE", failedJobs.length).toLocaleUpperCase()}`,
     `The following ${failedJobs.length > 1 ? "jobs have" : "job has"} failed`,
     failedJobs
   );
   output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
+    hud_pr_url,
     "FLAKY",
     `The following ${pluralize("job", flakyJobs.length)} failed but ${pluralize(
       "was",
@@ -591,14 +550,10 @@ export function constructResultsComment(
     )} likely due to flakiness present on trunk`,
     flakyJobs,
     "",
-    true,
-    relatedJobs
+    true
   );
   output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
+    hud_pr_url,
     "BROKEN TRUNK",
     `The following ${pluralize(
       "job",
@@ -610,14 +565,10 @@ export function constructResultsComment(
     )} present on the merge base`,
     brokenTrunkJobs,
     "Rebase onto the `viable/strict` branch to avoid these failures",
-    true,
-    relatedJobs
+    true
   );
   output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
+    hud_pr_url,
     "UNSTABLE",
     `The following ${pluralize(
       "job",
@@ -629,8 +580,7 @@ export function constructResultsComment(
     )} likely due to flakiness present on trunk and has been marked as unstable`,
     unstableJobs,
     "",
-    true,
-    relatedJobs
+    true
   );
   return output;
 }
@@ -661,20 +611,20 @@ function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
   });
 }
 
-function getTrunkFailure(
+function isBrokenTrunk(
   job: RecentWorkflowsData,
   baseJobs: Map<string, RecentWorkflowsData[]>
-): RecentWorkflowsData | undefined {
+): boolean {
   const jobNameNoSuffix = removeJobNameSuffix(job.name!);
 
   // This job doesn't exist in the base commit, thus not a broken trunk failure
   if (!baseJobs.has(jobNameNoSuffix)) {
-    return;
+    return false;
   }
 
   return baseJobs
     .get(jobNameNoSuffix)!
-    .find((baseJob) => isSameFailure(baseJob, job));
+    .some((baseJob) => isSameFailure(baseJob, job));
 }
 
 export async function getWorkflowJobsStatuses(
@@ -689,17 +639,12 @@ export async function getWorkflowJobsStatuses(
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
-  relatedJobs: Map<string, RecentWorkflowsData>;
 }> {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
-
-  // This map holds the list of the base failures for broken trunk jobs or the similar
-  // failures for flaky jobs
-  const relatedJobs: Map<string, RecentWorkflowsData> = new Map();
 
   for (const job of prInfo.jobs) {
     if (
@@ -708,66 +653,34 @@ export async function getWorkflowJobsStatuses(
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
-      if (
+      if (await isUnstableJob(job, unstableIssues)) {
+        unstableJobs.push(job);
+      } else if (isBrokenTrunk(job, baseJobs)) {
+        brokenTrunkJobs.push(job);
+      } else if (
         prInfo.repo === "pytorch" &&
         (await isSuppressedByLabels(job, labels))
       ) {
         flakyJobs.push(job);
-        continue;
-      }
-
-      if (await isUnstableJob(job, unstableIssues)) {
-        unstableJobs.push(job);
-        continue;
-      }
-
-      const trunkFailure = getTrunkFailure(job, baseJobs);
-      if (trunkFailure !== undefined) {
-        brokenTrunkJobs.push(job);
-        relatedJobs.set(job.id, trunkFailure);
-        continue;
-      }
-
-      if (isFlaky(job, flakyRules) || isInfraFlakyJob(job)) {
+      } else if (
+        isFlaky(job, flakyRules) ||
+        isInfraFlakyJob(job) ||
+        (prInfo.repo === "pytorch" &&
+          (await hasSimilarFailures(job, prInfo.merge_base_date)))
+      ) {
         flakyJobs.push(job);
-        continue;
-      }
-
-      if ((await isLogClassifierFailed(job)) && !isExcludedFromFlakiness(job)) {
+      } else if (
+        (await isLogClassifierFailed(job)) &&
+        !isExcludedFromFlakiness(job)
+      ) {
         flakyJobs.push(job);
         await backfillMissingLog(prInfo.owner, prInfo.repo, job);
-        continue;
+      } else {
+        failedJobs.push(job);
       }
-
-      if (prInfo.repo === "pytorch") {
-        // NB: Searching for similar failures depends on the accuracy of the log
-        // classifier, so we only enable this in PyTorch core atm where the log
-        // classifier works decently well
-        const similarFailure = await hasSimilarFailures(
-          job,
-          prInfo.merge_base_date
-        );
-        if (similarFailure !== undefined) {
-          flakyJobs.push(job);
-          relatedJobs.set(job.id, similarFailure);
-        } else {
-          failedJobs.push(job);
-        }
-        continue;
-      }
-
-      failedJobs.push(job);
     }
   }
-
-  return {
-    pending,
-    failedJobs,
-    flakyJobs,
-    brokenTrunkJobs,
-    unstableJobs,
-    relatedJobs,
-  };
+  return { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs };
 }
 
 export function reorganizeWorkflows(
