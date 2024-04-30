@@ -247,7 +247,7 @@ export async function hasSimilarFailures(
   }
 
   // NB: Use the commit timestamp here instead of the job timestamp to avoid using
-  // the wrong end date when a commit is reverted and the job rerun
+  // the wrong end date when a PR is reverted and the job reruns
   const endDate = dayjs(job.head_sha_timestamp);
   const startDate = dayjs(
     baseCommitDate !== "" && baseCommitDate !== "0"
