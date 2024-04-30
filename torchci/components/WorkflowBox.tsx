@@ -8,8 +8,9 @@ import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState, CSSProperties, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
+import React from "react";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -37,25 +38,28 @@ function WorkflowJobSummary({
   setArtifactsToShow: any;
   unstableIssues: IssueData[];
 }) {
-  var queueTimeInfo = null;
+  const subInfo = [];
   if (job.queueTimeS != null) {
-    queueTimeInfo = (
+    subInfo.push(
       <>
         <i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins
       </>
     );
   }
 
-  var durationInfo = null;
   if (job.durationS != null) {
-    durationInfo = (
+    subInfo.push(
       <>
         <i>Duration:</i> {Math.round(job.durationS / 60)} mins
       </>
     );
   }
 
-  var separator = queueTimeInfo && durationInfo ? ", " : "";
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
+    subInfo.push(testInsightsLink);
+  }
+
   const hasArtifacts = artifacts && artifacts.length > 0;
 
   function setArtifactsToShowHelper() {
@@ -72,22 +76,34 @@ function WorkflowJobSummary({
     }
   }
 
+  if (hasArtifacts) {
+    subInfo.push(
+      <a onClick={() => setArtifactsToShowHelper()}>Show artifacts</a>
+    );
+  }
+
+  if (job.logUrl) {
+    subInfo.push(
+      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+        Raw logs
+      </a>
+    );
+  }
+
   return (
     <>
       <JobSummary job={job} unstableIssues={unstableIssues} />
       <br />
       <small>
         &nbsp;&nbsp;&nbsp;&nbsp;
-        {queueTimeInfo}
-        {separator}
-        {durationInfo}
-        <TestInsightsLink job={job} separator={", "} />,{" "}
-        {hasArtifacts && (
-          <a onClick={() => setArtifactsToShowHelper()}> Show artifacts, </a>
-        )}
-        <a target="_blank" rel="noreferrer" href={job.logUrl}>
-          Raw logs
-        </a>
+        {subInfo.map((info, ind) => {
+          return (
+            <span key={ind}>
+              {info}
+              {ind < subInfo.length - 1 && ", "}
+            </span>
+          );
+        })}
         {hasArtifacts &&
           artifactsToShow.has(job.id!) &&
           artifacts?.map((artifact, ind) => {

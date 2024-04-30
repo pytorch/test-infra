@@ -53,7 +53,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
     mock.mockClear();
 
     const mockJobData: JobData = {
@@ -82,7 +82,21 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(true);
+    ).toEqual({
+      authorEmail: undefined,
+      completed_at: mockJobData.time,
+      conclusion: mockJobData.conclusion,
+      failure_captures: mockJobData.failureCaptures,
+      failure_context: undefined,
+      failure_lines: mockJobData.failureLines,
+      head_branch: mockJobData.branch,
+      head_sha: mockJobData.sha,
+      html_url: mockJobData.htmlUrl,
+      id: mockJobData.id,
+      jobName: mockJobData.jobName,
+      name: mockJobData.name,
+      workflowId: mockJobData.workflowId,
+    });
     expect(JSON.stringify(mock.mock.calls)).toEqual(
       JSON.stringify([
         [
@@ -109,7 +123,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
 
     // Found a match but it has a different job name
     expect(
@@ -122,7 +136,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
 
     // Found a match, but it has the same job ID, thus the same job
     expect(
@@ -132,7 +146,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
 
     // Found a match but it has a different failure
     expect(
@@ -142,7 +156,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
 
     // Found a match but it has a different conclusion
     expect(
@@ -152,7 +166,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
 
     mock.mockClear();
     // Check time ranges are correct
@@ -226,7 +240,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
     expect(mock).not.toHaveBeenCalled();
 
     mock.mockClear();
@@ -238,7 +252,7 @@ describe("Test various utils used by Dr.CI", () => {
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
-    ).toEqual(false);
+    ).toEqual(undefined);
     expect(mock).not.toHaveBeenCalled();
   });
 

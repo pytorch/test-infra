@@ -12,15 +12,15 @@ export default function ReproductionCommand({
   testName: string | null;
 }) {
   if (job === null || testName === null) {
-    return <></>;
+    return null;
   }
 
   if (job.conclusion === "pending") {
-    return <></>;
+    return null;
   }
 
   if (!job.jobName?.includes("test")) {
-    return <></>;
+    return null;
   }
 
   return (
