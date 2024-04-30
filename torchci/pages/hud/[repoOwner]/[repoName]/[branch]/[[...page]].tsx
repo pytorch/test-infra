@@ -128,6 +128,13 @@ function HudRow({
         {rowData.prNum !== null && (
           <a
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+            title={
+              rowData.isForcedMerge
+                ? rowData.isForcedMergeWithFailures
+                  ? "Forced merge with failures"
+                  : "Forced merge"
+                : undefined
+            }
           >
             {rowData.isForcedMerge ? (
               <mark
