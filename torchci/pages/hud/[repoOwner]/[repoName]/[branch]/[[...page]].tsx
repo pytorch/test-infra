@@ -74,6 +74,7 @@ export function JobCell({
               (isRerunDisabledTestsJob(job) ||
                 isUnstableJob(job, unstableIssues))
             }
+            jobData={job}
           />
         </div>
       </TooltipTarget>
@@ -295,6 +296,7 @@ function GroupFilterableHudTable({
         hideUnstable={hideUnstable}
         setHideUnstable={setHideUnstable}
       />
+      <StylishFailuresCheckbox />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}
@@ -361,6 +363,41 @@ function UnstableCheckBox({
           onChange={() => {}}
         />
         <label htmlFor="hideUnstable"> Hide unstable jobs</label>
+      </div>
+    </>
+  );
+}
+
+export const StylishFailuresContext = createContext<[boolean, React.Dispatch<React.SetStateAction<boolean>> | undefined]>(
+  [false, undefined]
+);
+
+export function StylishFailuresProvider({ children }: { children: React.ReactNode }) {
+  const [stylishFailures, setStylishFailures] = useState<boolean>(false);
+  return (
+    <StylishFailuresContext.Provider value={[stylishFailures, setStylishFailures]}>
+      {children}
+    </StylishFailuresContext.Provider>
+  );
+}
+
+export function StylishFailuresCheckbox() {
+  const [stylishFailures, setStylishFailures] = useContext(StylishFailuresContext);
+  return (
+    <>
+      <div
+        title="Add style cues to the failure symbol (X) based on the error line."
+        onClick={() => {
+          setStylishFailures && setStylishFailures(!stylishFailures);
+        }}
+      >
+        <input
+          type="checkbox"
+          name="stylishFailures"
+          checked={stylishFailures}
+          onChange={() => {}}
+        />
+        <label htmlFor="stylishFailures"> Stylish failures</label>
       </div>
     </>
   );
@@ -472,14 +509,16 @@ export default function Hud() {
         <title>PyTorch CI HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
-        {params.branch !== undefined && (
-          <div onClick={handleClick}>
-            <HudHeader params={params} />
-            <div>This page automatically updates.</div>
-            <HudTable params={params} />
-            <PageSelector params={params} baseUrl="hud" />
-          </div>
-        )}
+        <StylishFailuresProvider>
+          {params.branch !== undefined && (
+            <div onClick={handleClick}>
+              <HudHeader params={params} />
+              <div>This page automatically updates.</div>
+              <HudTable params={params} />
+              <PageSelector params={params} baseUrl="hud" />
+            </div>
+          )}
+        </StylishFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
   );
