@@ -125,7 +125,7 @@ runs:
           if [[ "${PACKAGE_TYPE:-}" == "conda" ]]; then
             # For conda package host python version is irrelevant
             export PYTHON_VERSION=3.9
-            export CONDA_BUILD_EXTRA="conda=23.10.0 conda-build=3.27.0"
+            export CONDA_BUILD_EXTRA="conda=24.4.0 conda-build=24.3.0"
           else
             # For wheel builds we don't need neither conda nor conda-build
             export CONDA_BUILD_EXTRA=""
