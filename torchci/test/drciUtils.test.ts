@@ -27,15 +27,16 @@ describe("Test various utils used by Dr.CI", () => {
     const headBranch = "mock-branch";
     const emptyBaseCommitDate = "";
     const lookbackPeriodInHours = 24;
-    const mockCompletedAtDate = dayjs("2023-08-01T00:00:00Z");
+    const mockHeadShaDate = dayjs("2023-08-01T00:00:00Z");
     const job: RecentWorkflowsData = {
       id: "12345",
       name: "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
       html_url: "A",
       head_sha: "A",
+      head_sha_timestamp: mockHeadShaDate.toISOString(),
       failure_captures: ["ERROR"],
       conclusion: "failure",
-      completed_at: mockCompletedAtDate.toISOString(),
+      completed_at: mockHeadShaDate.toISOString(),
       head_branch: "whatever",
     };
 
@@ -64,7 +65,7 @@ describe("Test various utils used by Dr.CI", () => {
       id: "54321",
       branch: headBranch,
       workflowId: "12345",
-      time: mockCompletedAtDate.toISOString(),
+      time: mockHeadShaDate.toISOString(),
       conclusion: "failure",
       htmlUrl: "Anything goes",
       failureLines: ["ERROR"],
@@ -104,8 +105,8 @@ describe("Test various utils used by Dr.CI", () => {
           "",
           "",
           searchUtils.WORKFLOW_JOB_INDEX,
-          mockCompletedAtDate.subtract(lookbackPeriodInHours, "hour"),
-          mockCompletedAtDate,
+          mockHeadShaDate.subtract(lookbackPeriodInHours, "hour"),
+          mockHeadShaDate,
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
           searchUtils.OLDEST_FIRST,
@@ -172,7 +173,7 @@ describe("Test various utils used by Dr.CI", () => {
     await hasSimilarFailures(
       {
         ...job,
-        completed_at: mockCompletedAtDate.subtract(1, "hour").toISOString(),
+        head_sha_timestamp: mockHeadShaDate.subtract(1, "hour").toISOString(),
       },
       emptyBaseCommitDate,
       lookbackPeriodInHours,
@@ -186,8 +187,8 @@ describe("Test various utils used by Dr.CI", () => {
           "",
           "",
           searchUtils.WORKFLOW_JOB_INDEX,
-          mockCompletedAtDate.subtract(1 + lookbackPeriodInHours, "hour"),
-          mockCompletedAtDate.subtract(1, "hour"),
+          mockHeadShaDate.subtract(1 + lookbackPeriodInHours, "hour"),
+          mockHeadShaDate.subtract(1, "hour").toISOString(),
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
           searchUtils.OLDEST_FIRST,
@@ -200,9 +201,9 @@ describe("Test various utils used by Dr.CI", () => {
     await hasSimilarFailures(
       {
         ...job,
-        completed_at: mockCompletedAtDate.subtract(1, "hour").toISOString(),
+        head_sha_timestamp: mockHeadShaDate.subtract(1, "hour").toISOString(),
       },
-      mockCompletedAtDate.subtract(20, "hour").toISOString(),
+      mockHeadShaDate.subtract(20, "hour").toISOString(),
       lookbackPeriodInHours,
       "TESTING" as unknown as Client
     );
@@ -214,8 +215,8 @@ describe("Test various utils used by Dr.CI", () => {
           "",
           "",
           searchUtils.WORKFLOW_JOB_INDEX,
-          mockCompletedAtDate.subtract(20 + lookbackPeriodInHours, "hour"),
-          mockCompletedAtDate.subtract(1, "hour"),
+          mockHeadShaDate.subtract(20 + lookbackPeriodInHours, "hour"),
+          mockHeadShaDate.subtract(1, "hour").toISOString(),
           searchUtils.MIN_SCORE,
           searchUtils.MAX_SIZE,
           searchUtils.OLDEST_FIRST,
@@ -228,7 +229,7 @@ describe("Test various utils used by Dr.CI", () => {
     expect(
       await hasSimilarFailures(
         job,
-        mockCompletedAtDate
+        mockHeadShaDate
           .subtract(
             MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES -
               lookbackPeriodInHours +
@@ -243,10 +244,10 @@ describe("Test various utils used by Dr.CI", () => {
     expect(mock).not.toHaveBeenCalled();
 
     mock.mockClear();
-    // Auto return false if no completed at
+    // Auto return false if no head sha timestamp
     expect(
       await hasSimilarFailures(
-        { ...job, completed_at: "" },
+        { ...job, head_sha_timestamp: "" },
         emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
