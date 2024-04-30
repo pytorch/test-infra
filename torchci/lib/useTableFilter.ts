@@ -16,7 +16,7 @@ export default function useTableFilter(params: HudParams) {
 
   useEffect(() => {
     const sha = pinnedId.sha;
-    const listener = (e) => {
+    const listener = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setJobFilter(null);
         router.push(formatHudUrlForRoute("hud", params), undefined, {
