@@ -131,8 +131,8 @@ function HudRow({
             title={
               rowData.isForcedMerge
                 ? rowData.isForcedMergeWithFailures
-                  ? "Forced merge with failures"
-                  : "Forced merge"
+                  ? "Forced merge with failures that were merge-blocking"
+                  : "Forced merge. Had no merge-blocking failures"
                 : undefined
             }
           >
