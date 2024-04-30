@@ -456,14 +456,15 @@ function constructResultsJobsSections(
       if (header === "BROKEN TRUNK") {
         output += ` ([trunk failure](${relatedJobLink}))`;
       } else if (header === "FLAKY") {
-        output += `([similar failure](${relatedJobLink}))`;
+        output += ` ([similar failure](${relatedJobLink}))`;
       } else {
-        output += `([related job](${relatedJobLink}))`;
+        output += ` ([related job](${relatedJobLink}))`;
       }
     }
 
+    output += "\n";
     if (job.failure_captures) {
-      output += `\n    \`${job.failure_captures[0]}\`\n`;
+      output += `    \`${job.failure_captures[0]}\`\n`;
     }
   }
   output += "</p></details>";
