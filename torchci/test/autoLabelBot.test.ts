@@ -1106,7 +1106,6 @@ describe("auto-label-bot: label-to-label.yml config", () => {
     handleScope(scope);
   });
 
-
   test("getLabelsFromLabelerConfig issue all", async () => {
     const event = requireDeepCopy("./fixtures/issues.labeled");
     event.label.name = "allif1";
