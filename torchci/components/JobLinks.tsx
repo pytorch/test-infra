@@ -281,13 +281,15 @@ function DisableIssue({
         ? "Job is unstable"
         : "Job is disabled";
     } else if (
-      dayjs().diff(dayjs(matchingIssue.updated_at), "hours") >
+      dayjs().diff(dayjs(matchingIssue.updated_at), "hours") <
       recentThresholdHours
     ) {
-      // There is a closed issue but it's a bit old, so use the style that says
-      // nothing exists, but link back to the issue
-      issueLink = matchingIssue.html_url;
-      buttonStyle = styles.disableTestButton;
+      buttonStyle = styles.closedDisableIssueButton;
+      linkText = isDisabledTest
+        ? "Recent previously disabled test"
+        : issueTitle.includes("UNSTABLE")
+        ? "Recent previously unstable job"
+        : "Recent previously disabled job";
     } else {
       buttonStyle = styles.closedDisableIssueButton;
       linkText = isDisabledTest
