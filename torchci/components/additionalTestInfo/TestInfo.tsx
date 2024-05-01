@@ -21,7 +21,7 @@ function RecursiveDetailsSummary({
     return (
       <ul style={{ paddingLeft: "1em" }}>
         {keysInInfo.map((config) => (
-          <li style={{ listStyleType: "none" }}>
+          <li style={{ listStyleType: "none" }} key={config}>
             {children(config, info[config], keysInInfo.length)}
           </li>
         ))}
@@ -31,7 +31,7 @@ function RecursiveDetailsSummary({
   return (
     <ul style={{ paddingLeft: "1em" }}>
       {keysInInfo.map((config) => (
-        <li style={{ listStyleType: "none" }}>
+        <li style={{ listStyleType: "none" }} key={config}>
           <details open={keysInInfo.length == 1}>
             <summary>{summaryFunction(config, info[config])}</summary>
             <RecursiveDetailsSummary
@@ -39,8 +39,9 @@ function RecursiveDetailsSummary({
               summaryFunction={summaryFunction}
               info={info[config]}
               level={level - 1}
-              children={children}
-            />
+            >
+              {children}
+            </RecursiveDetailsSummary>
           </details>
         </li>
       ))}
@@ -152,10 +153,8 @@ function TestRerunsInfo({
         Info about tests that got rerun
       </div>
       <div>
-        <RecursiveDetailsSummary
-          info={info}
-          level={4}
-          children={(name: any, info: any, numSiblings: number) => (
+        <RecursiveDetailsSummary info={info} level={4}>
+          {(name: any, info: any, numSiblings: number) => (
             <TestRerunsInfoIndividiual
               key={name}
               info={info}
@@ -163,7 +162,7 @@ function TestRerunsInfo({
               numSiblings={numSiblings}
             />
           )}
-        />
+        </RecursiveDetailsSummary>
       </div>
     </>
   );
@@ -226,7 +225,8 @@ function TDInfo({
             </>
           );
         }}
-        children={(config: any, configInfo: any, numSiblings: number) => (
+      >
+        {(config: any, configInfo: any, numSiblings: number) => (
           <details open={numSiblings == 1} key={config}>
             <summary>
               {config} ({configInfo.length})
@@ -247,7 +247,7 @@ function TDInfo({
             </div>
           </details>
         )}
-      />
+      </RecursiveDetailsSummary>
     </div>
   );
 }
