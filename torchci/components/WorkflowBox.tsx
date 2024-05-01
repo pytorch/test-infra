@@ -11,6 +11,7 @@ import TestInsightsLink from "./TestInsights";
 import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
 import React from "react";
+import { TestInfo } from "./additionalTestInfo/TestInfo";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -118,10 +119,14 @@ export default function WorkflowBox({
   workflowName,
   jobs,
   unstableIssues,
+  wide,
+  setWide,
 }: {
   workflowName: string;
   jobs: JobData[];
   unstableIssues: IssueData[];
+  wide: boolean;
+  setWide: any;
 }) {
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
@@ -148,7 +153,11 @@ export default function WorkflowBox({
   }, [searchString]);
 
   return (
-    <div id={anchorName} className={workflowClass}>
+    <div
+      id={anchorName}
+      className={workflowClass}
+      style={wide ? { gridColumn: "1 / -1" } : {}}
+    >
       <h3>{workflowName}</h3>
       <div>
         <div
@@ -174,7 +183,22 @@ export default function WorkflowBox({
             ></input>
             <input type="submit" value="Search"></input>
           </form>
+          <div
+            style={{
+              // Ensures elements after this div are actually below it (due to float)
+              clear: "both",
+            }}
+          ></div>
           {searchString && <div>{searchRes.info}</div>}
+          <div style={{ margin: ".5em 0em" }}>
+            <span
+              onClick={() => {
+                setWide(!wide);
+              }}
+            >
+              {wide ? "Hide Additional Test Info" : "Show Additional Test Info"}
+            </span>
+          </div>
         </div>
         <div
           style={{
@@ -183,9 +207,12 @@ export default function WorkflowBox({
           }}
         ></div>
       </div>
+      {wide && (
+        <TestInfo workflowId={workflowId!} runAttempt={"1"} jobs={jobs} />
+      )}
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
-          <div key={job.id}>
+          <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
               artifacts={groupedArtifacts?.get(job.id)}

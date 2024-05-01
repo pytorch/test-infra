@@ -14,19 +14,9 @@ import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import useScrollTo from "lib/useScrollTo";
 import WorkflowDispatcher from "./WorkflowDispatcher";
 import { useSession } from "next-auth/react";
+import { useState } from "react";
 
-function WorkflowsContainer({
-  jobs,
-  unstableIssues,
-}: {
-  jobs: JobData[];
-  unstableIssues: IssueData[];
-}) {
-  useScrollTo();
-
-  if (jobs.length === 0) {
-    return null;
-  }
+function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
   const byWorkflow = _(jobs)
     .groupBy((job) => job.workflowName)
     .sortBy(
@@ -38,6 +28,45 @@ function WorkflowsContainer({
     )
     .reverse()
     .value();
+
+  // Next, if a workflow is wide, make sure it is on the left to make shifting
+  // less prominent when the workflowbox becomes wide
+  const newOrder = [];
+  let left = true;
+  for (const workflow of byWorkflow) {
+    const workflowName = workflow[0].workflowName as string;
+
+    if (wideBoxes.has(workflowName) && !left) {
+      const last: JobData[] = newOrder.pop()!;
+      newOrder.push(workflow);
+      newOrder.push(last);
+    } else {
+      newOrder.push(workflow);
+      if (!wideBoxes.has(workflowName)) {
+        left = !left;
+      }
+    }
+  }
+
+  return newOrder;
+}
+
+function WorkflowsContainer({
+  jobs,
+  unstableIssues,
+}: {
+  jobs: JobData[];
+  unstableIssues: IssueData[];
+}) {
+  useScrollTo();
+
+  const [wideBoxes, setWideBoxes] = useState(new Set<string>());
+
+  if (jobs.length === 0) {
+    return null;
+  }
+
+  const byWorkflow = getBoxOrdering(jobs, wideBoxes);
 
   return (
     <>
@@ -51,6 +80,16 @@ function WorkflowsContainer({
               workflowName={workflowName}
               jobs={jobs}
               unstableIssues={unstableIssues}
+              wide={wideBoxes.has(workflowName)}
+              setWide={(wide: boolean) => {
+                if (wide) {
+                  setWideBoxes(new Set(wideBoxes).add(workflowName));
+                } else {
+                  const newSet = new Set(wideBoxes);
+                  newSet.delete(workflowName);
+                  setWideBoxes(newSet);
+                }
+              }}
             />
           );
         })}
