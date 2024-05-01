@@ -39,6 +39,7 @@ import {
 import {
   useGroupingPreference,
   usePreference,
+  useStylishFailuresPreference,
 } from "lib/useGroupingPreference";
 import { track } from "lib/track";
 import useSWR from "swr";
@@ -369,7 +370,7 @@ function UnstableCheckBox({
 }
 
 export const StylishFailuresContext = createContext<
-  [boolean, React.Dispatch<React.SetStateAction<boolean>> | undefined]
+  [boolean, ((value: boolean) => void) | undefined]
 >([false, undefined]);
 
 export function StylishFailuresProvider({
@@ -377,7 +378,7 @@ export function StylishFailuresProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [stylishFailures, setStylishFailures] = useState<boolean>(false);
+  const [stylishFailures, setStylishFailures] = useStylishFailuresPreference();
   return (
     <StylishFailuresContext.Provider
       value={[stylishFailures, setStylishFailures]}

@@ -27,3 +27,10 @@ export function useGroupingPreference(
 
   return usePreference("useGrouping", override);
 }
+
+export function useStylishFailuresPreference(): [
+  boolean,
+  (useStylishFailuresValue: boolean) => void
+] {
+  return usePreference("useStylishFailures", undefined);
+}
