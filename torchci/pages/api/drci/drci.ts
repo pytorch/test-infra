@@ -756,7 +756,7 @@ export async function getWorkflowJobsStatuses(
         flakyJobs.push(job);
         relatedInfo.set(
           job.id,
-          `suppressed by ${JSON.stringify(suppressedLabels)}`
+          `suppressed by ${suppressedLabels.join(", ")}`
         );
         continue;
       }
