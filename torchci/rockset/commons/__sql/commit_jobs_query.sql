@@ -107,15 +107,11 @@ WITH
             workflow._event_time AS time,
             workflow.head_sha AS sha,
             workflow.name AS job_name,
-            'Workflow Startup Failure' AS workflow_name,
+            workflow.name AS workflow_name,
             workflow.id,
             null AS workflow_id,
             workflow.artifacts_url AS github_artifact_url,
-            IF(
-                workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',
-                'failure',
-                workflow.conclusion
-            ) as conclusion,
+            workflow.conclusion,
             workflow.html_url,
             null AS log_url,
             DATE_DIFF(
