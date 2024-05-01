@@ -828,7 +828,7 @@ export function BranchAndCommitPicker({
 
 export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
   if (!logs) {
-    return;
+    return (<></>);
   }
 
   return (
