@@ -239,3 +239,112 @@ for (const job of unclassifiedJobs.results) {
   }
 }
 console.log("::endgroup::");
+
+console.log("::group::Backfill workflow runs...");
+async function backfillWorkflowRun(id, repoName, repoOwner, dynamoKey) {
+  console.log(`Checking workflow run ${id}`);
+
+  const table = "torchci-workflow-run";
+
+  try {
+    let workflowRun = await octokit.rest.actions.getWorkflowRun({
+      owner: repoOwner,
+      repo: repoName,
+      run_id: id,
+    });
+    workflowRun = workflowRun.data;
+
+    if (workflowRun.status !== "completed") {
+      console.log(
+        `Skipping backfill for workflow run ${id} because its status is ${workflowRun.status}`
+      );
+      return;
+    }
+
+    const payload = workflowRun;
+
+    const thing = {
+      TableName: table,
+      Item: {
+        dynamoKey: dynamoKey,
+        ...payload,
+      },
+    };
+    console.log(`Writing workflow run ${id} to DynamoDB`);
+    console.log(thing);
+    await dClient.put(thing);
+  } catch (error) {
+    console.log(`Failed to find workflow run id ${id}: ${error}`);
+    console.log(`Marking workflow run id ${id} as incomplete`);
+    console.log(`Querying dynamo entry for workflow run id ${id}`);
+    const dynamoEntry = await client.queries.query({
+      sql: {
+        query: `
+SELECT
+    *
+FROM
+    workflow_run w
+WHERE
+    w.dynamoKey = '${dynamoKey}'
+`,
+      },
+    });
+    if (dynamoEntry.results.length === 0) {
+      console.log(`No dynamo entry found for workflow run id ${id}`);
+      return;
+    }
+    const result = dynamoEntry.results[0];
+    console.log(`Writing workflow run ${id} to DynamoDB:`);
+    const thing = {
+      TableName: table,
+      Item: {
+        ...result,
+        data_quality: "incomplete",
+        backfill: "not-found",
+      },
+    };
+    console.log(thing);
+    await dClient.put(thing);
+    return;
+  }
+}
+
+async function backfillWorkflowRuns() {
+  // Github does not send webhooks on workflow start up failure so they just
+  // stay pending forever
+  const pendingWorkflowRuns = await client.queries.query({
+    sql: {
+      query: `
+select
+  w.id,
+  w.repository.name as repoName,
+  w.repository.owner.login as repoOwner,
+  w.dynamoKey
+from
+  workflow_run w
+where
+  w.conclusion is null
+  and w.status = 'queued'
+  and PARSE_TIMESTAMP_ISO8601(w.run_started_at) > CURRENT_TIMESTAMP() - DAYS(1)
+  AND w.repository.name = 'pytorch'
+  AND w.backfill IS NULL
+`,
+    },
+  });
+
+  for (const {
+    id,
+    repoName,
+    repoOwner,
+    dynamoKey,
+  } of pendingWorkflowRuns.results) {
+    try {
+      await backfillWorkflowRun(id, repoName, repoOwner, dynamoKey);
+    } catch (error) {
+      console.log(`Failed to backfill workflow run ${id}: ${error}`);
+    }
+  }
+}
+
+await backfillWorkflowRuns();
+console.log("::endgroup::");
