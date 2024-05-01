@@ -472,7 +472,7 @@ function constructResultsJobsSections(
     // Show all the related issues
     if (relatedIssue !== undefined) {
       const issueInfo = relatedIssue
-        .map((issue) => `[${issue.number}](${issue.html_url})`)
+        .map((issue) => `[#${issue.number}](${issue.html_url})`)
         .join(", ");
       output += ` (${issueInfo})`;
     }
