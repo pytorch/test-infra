@@ -4,6 +4,12 @@ import styles from "./JobConclusion.module.css";
 import { JobData } from "../lib/types";
 import { useContext } from "react";
 import { StylishFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import { LRUCache } from "lru-cache";
+
+// Create an LRU cache with a maximum size of 256
+const failureStyleCache = new LRUCache<number, object>({
+  max: 256,
+});
 
 /**
  * `getFailureStyle` is a function that generates a style object for a job failure based on the conclusion and job data.
@@ -27,6 +33,10 @@ const getFailureStyle = (conclusion?: string, jobData?: JobData) => {
 
   // Generate hash value from the error string
   let hashValue = hashJobFailureString(error);
+
+  if (failureStyleCache.has(hashValue)) {
+    return failureStyleCache.get(hashValue);
+  }
 
   // Generate color variations based on the hash value
   const hue = (hashValue % 30) + 330;
@@ -80,7 +90,7 @@ const getFailureStyle = (conclusion?: string, jobData?: JobData) => {
   }
 
   // Create and return the style object
-  return {
+  const ret = {
     display: "inline-block",
     fontSize,
     color,
@@ -89,6 +99,10 @@ const getFailureStyle = (conclusion?: string, jobData?: JobData) => {
     fontWeight,
     textDecoration,
   };
+
+  // Store the style object in the cache
+  failureStyleCache.set(hashValue, ret);
+  return ret;
 };
 
 /**

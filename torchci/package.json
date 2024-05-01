@@ -38,6 +38,7 @@
     "echarts-for-react": "^3.0.2",
     "jaro-winkler-typescript": "^1.0.1",
     "lodash": "^4.17.21",
+    "lru-cache": "^10.2.2",
     "minimatch": "^9.0.3",
     "minimist": "^1.2.6",
     "next": "12.1.5",
