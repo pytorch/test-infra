@@ -111,7 +111,7 @@ WITH
             workflow.id,
             null AS workflow_id,
             workflow.artifacts_url AS github_artifact_url,
-            workflow.conclusion,
+            IF(workflow.conclusion = 'startup_failure', 'failure', workflow.conclusion) AS conclusion,
             workflow.html_url,
             null AS log_url,
             DATE_DIFF(
