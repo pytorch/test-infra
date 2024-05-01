@@ -45,7 +45,6 @@ export interface RecentWorkflowsData extends BasicJobData {
   completed_at: string | null;
   html_url: string;
   head_sha: string;
-  head_sha_timestamp?: string;
   head_branch?: string | null;
   pr_number?: number;
   failure_captures: string[];
