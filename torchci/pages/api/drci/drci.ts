@@ -754,10 +754,7 @@ export async function getWorkflowJobsStatuses(
         suppressedLabels.length !== 0
       ) {
         flakyJobs.push(job);
-        relatedInfo.set(
-          job.id,
-          `suppressed by ${suppressedLabels.join(", ")}`
-        );
+        relatedInfo.set(job.id, `suppressed by ${suppressedLabels.join(", ")}`);
         continue;
       }
 
