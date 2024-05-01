@@ -1,6 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData, IssueData } from "./types";
-import { hasOpenUnstableIssue } from "lib/jobUtils";
+import { getOpenUnstableIssues } from "lib/jobUtils";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
@@ -184,9 +184,10 @@ export function classifyGroup(
   jobName: string,
   unstableIssues?: IssueData[]
 ): string {
+  const openUnstableIssues = getOpenUnstableIssues(jobName, unstableIssues);
   // Double check first if the job has been marked as unstable but doesn't include
   // the unstable keyword
-  if (hasOpenUnstableIssue(jobName, unstableIssues)) {
+  if (openUnstableIssues !== undefined && openUnstableIssues.length !== 0) {
     return GROUP_UNSTABLE;
   }
 
@@ -326,8 +327,9 @@ export function isPersistentGroup(name: string) {
 }
 
 export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
+  const openUnstableIssues = getOpenUnstableIssues(name, unstableIssues);
   return (
     name.toLocaleLowerCase().includes("unstable") ||
-    hasOpenUnstableIssue(name, unstableIssues)
+    (openUnstableIssues !== undefined && openUnstableIssues.length !== 0)
   );
 }

@@ -99,7 +99,7 @@ export default function CommitStatus({
         pred={(job) =>
           isFailedJob(job) &&
           !isRerunDisabledTestsJob(job) &&
-          !isUnstableJob(job, unstableIssues)
+          !isUnstableJob(job, unstableIssues).unstable
         }
         showClassification
         unstableIssues={unstableIssues}
@@ -107,7 +107,9 @@ export default function CommitStatus({
       <FilteredJobList
         filterName="Failed unstable jobs"
         jobs={jobs}
-        pred={(job) => isFailedJob(job) && isUnstableJob(job, unstableIssues)}
+        pred={(job) =>
+          isFailedJob(job) && isUnstableJob(job, unstableIssues).unstable
+        }
         unstableIssues={unstableIssues}
       />
       <FilteredJobList

@@ -72,7 +72,7 @@ export function JobCell({
             warningOnly={
               isFailedJob(job) &&
               (isRerunDisabledTestsJob(job) ||
-                isUnstableJob(job, unstableIssues))
+                isUnstableJob(job, unstableIssues).unstable)
             }
           />
         </div>

@@ -409,19 +409,17 @@ export async function fetchIssueLabels(
   return _.map(res.data, (label) => label.name);
 }
 
-export function isSuppressedByLabels(
+export function getSuppressedLabels(
   job: RecentWorkflowsData,
   labels: string[]
-): boolean {
+): string[] {
   if (
     job.jobName === undefined ||
     job.jobName === null ||
     !(job.jobName in SUPPRESSED_JOB_BY_LABELS)
   ) {
-    return false;
+    return [];
   }
 
-  return (
-    _.intersection(SUPPRESSED_JOB_BY_LABELS[job.jobName], labels).length !== 0
-  );
+  return _.intersection(SUPPRESSED_JOB_BY_LABELS[job.jobName], labels);
 }
