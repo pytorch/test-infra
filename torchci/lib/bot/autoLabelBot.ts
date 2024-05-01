@@ -255,7 +255,136 @@ async function filterCIFlowLabels(
   }
   return labels;
 }
+function isNotUserFacing(filesChanged: string[]): boolean {
+  return (
+    filesChanged.length > 0 &&
+    filesChanged.every(
+      (f) =>
+        notUserFacingPatterns.some((p) => f.match(p)) &&
+        !notUserFacingPatternExceptions.some((p) => f.match(p))
+    )
+  );
+}
+function getLabelsToAddFromTitle(
+  title: string,
+  labelFilter: RegExp = /.*/
+): string[] {
+  const labelsToAdd: string[] = [];
 
+  for (const [regex, label] of titleRegexToLabel) {
+    if (title.match(regex) && label.match(labelFilter)) {
+      labelsToAdd.push(label);
+    }
+  }
+
+  return labelsToAdd;
+}
+
+function addLabel(labelSet: Set<string>, newLabels: string[], l: string): void {
+  if (!labelSet.has(l)) {
+    newLabels.push(l);
+    labelSet.add(l);
+  }
+}
+// https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
+function getReleaseNotesCategoryAndTopic(
+  title: string,
+  labels: string[],
+  filesChanged: string[]
+): [string, string] {
+  let topic: string = "untopiced";
+
+  if (labels.includes("module: bc-breaking")) {
+    // yes, there is some clowning with the - and _
+    topic = "topic: bc_breaking";
+  }
+
+  if (labels.includes("module: deprecation")) {
+    topic = "topic: deprecation";
+  }
+
+  // these files do not warrant a real category and mostly not user facing
+  // we want to return this _before_ categorizing
+  if (isNotUserFacing(filesChanged)) {
+    return ["skip", "topic: not user facing"];
+  }
+
+  // don't re-categorize those with existing labels
+  if (
+    labels.some(
+      (l) => l.startsWith("release notes:") || l === "topic: not user facing"
+    )
+  ) {
+    // already topiced
+    if (labels.some((l) => l.startsWith("topic:"))) {
+      return ["skip", "skip"];
+    }
+    return ["skip", topic];
+  }
+
+  if (
+    filesChanged.length > 0 &&
+    filesChanged.every((f) => f.includes("caffe2"))
+  ) {
+    return ["caffe2", topic];
+  }
+
+  if (title.toLowerCase().includes("[codemod]")) {
+    return ["uncategorized", "topic: not user facing"];
+  }
+
+  for (const file of filesChanged) {
+    // check for typical matches
+    for (const [regex, label] of filenameRegexToReleaseCategory) {
+      if (file.match(regex)) {
+        // return here since we take the first match (first category of first matching file)
+        return [label, topic];
+      }
+    }
+  }
+
+  if (
+    filesChanged.length > 0 &&
+    filesChanged.every((f) => f.endsWith(".cu") || f.endsWith(".cuh"))
+  ) {
+    return ["release notes: cuda", topic];
+  }
+
+  if (title.includes("[PyTorch Edge]")) {
+    return ["release notes: mobile", topic];
+  }
+
+  // OpInfo related
+  if (
+    filesChanged.length === 1 &&
+    (filesChanged
+      .at(0)
+      ?.includes("torch/testing/_internal/common_methods_invocations.py") ||
+      filesChanged.at(0)?.includes("torch/_torch_docs.py"))
+  ) {
+    return ["release notes: python_frontend", topic];
+  }
+
+  return ["uncategorized", topic];
+}
+
+async function addNewLabels(
+  existingLabels: string[],
+  labelsToAdd: string[],
+  context: Context
+): Promise<void> {
+  // labelsToAdd may have duplicates, so we cannot use a filter
+  const newLabels: string[] = [];
+  labelsToAdd.forEach((l) => {
+    if (!existingLabels.includes(l) && !newLabels.includes(l)) {
+      newLabels.push(l);
+    }
+  });
+
+  if (newLabels.length > 0) {
+    await addLabels(context, newLabels);
+  }
+}
 function myBot(app: Probot): void {
   const TDRolloutTracker = new CachedIssueTracker(
     app,
@@ -264,28 +393,6 @@ function myBot(app: Probot): void {
   );
   const labelerConfigTracker = new CachedLabelerConfigTracker(app);
   const labelToLabelConfigTracker = new LabelToLabelConfigTracker(app);
-
-  function addLabel(
-    labelSet: Set<string>,
-    newLabels: string[],
-    l: string
-  ): void {
-    if (!labelSet.has(l)) {
-      newLabels.push(l);
-      labelSet.add(l);
-    }
-  }
-
-  function isNotUserFacing(filesChanged: string[]): boolean {
-    return (
-      filesChanged.length > 0 &&
-      filesChanged.every(
-        (f) =>
-          notUserFacingPatterns.some((p) => f.match(p)) &&
-          !notUserFacingPatternExceptions.some((p) => f.match(p))
-      )
-    );
-  }
 
   app.on("issues.labeled", async (context) => {
     // Careful!  For most labels, we only apply actions *when the issue
@@ -330,121 +437,6 @@ function myBot(app: Probot): void {
       await addLabels(context, filtered);
     }
   });
-
-  function getLabelsToAddFromTitle(
-    title: string,
-    labelFilter: RegExp = /.*/
-  ): string[] {
-    const labelsToAdd: string[] = [];
-
-    for (const [regex, label] of titleRegexToLabel) {
-      if (title.match(regex) && label.match(labelFilter)) {
-        labelsToAdd.push(label);
-      }
-    }
-
-    return labelsToAdd;
-  }
-
-  // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
-  function getReleaseNotesCategoryAndTopic(
-    title: string,
-    labels: string[],
-    filesChanged: string[]
-  ): [string, string] {
-    let topic: string = "untopiced";
-
-    if (labels.includes("module: bc-breaking")) {
-      // yes, there is some clowning with the - and _
-      topic = "topic: bc_breaking";
-    }
-
-    if (labels.includes("module: deprecation")) {
-      topic = "topic: deprecation";
-    }
-
-    // these files do not warrant a real category and mostly not user facing
-    // we want to return this _before_ categorizing
-    if (isNotUserFacing(filesChanged)) {
-      return ["skip", "topic: not user facing"];
-    }
-
-    // don't re-categorize those with existing labels
-    if (
-      labels.some(
-        (l) => l.startsWith("release notes:") || l === "topic: not user facing"
-      )
-    ) {
-      // already topiced
-      if (labels.some((l) => l.startsWith("topic:"))) {
-        return ["skip", "skip"];
-      }
-      return ["skip", topic];
-    }
-
-    if (
-      filesChanged.length > 0 &&
-      filesChanged.every((f) => f.includes("caffe2"))
-    ) {
-      return ["caffe2", topic];
-    }
-
-    if (title.toLowerCase().includes("[codemod]")) {
-      return ["uncategorized", "topic: not user facing"];
-    }
-
-    for (const file of filesChanged) {
-      // check for typical matches
-      for (const [regex, label] of filenameRegexToReleaseCategory) {
-        if (file.match(regex)) {
-          // return here since we take the first match (first category of first matching file)
-          return [label, topic];
-        }
-      }
-    }
-
-    if (
-      filesChanged.length > 0 &&
-      filesChanged.every((f) => f.endsWith(".cu") || f.endsWith(".cuh"))
-    ) {
-      return ["release notes: cuda", topic];
-    }
-
-    if (title.includes("[PyTorch Edge]")) {
-      return ["release notes: mobile", topic];
-    }
-
-    // OpInfo related
-    if (
-      filesChanged.length === 1 &&
-      (filesChanged
-        .at(0)
-        ?.includes("torch/testing/_internal/common_methods_invocations.py") ||
-        filesChanged.at(0)?.includes("torch/_torch_docs.py"))
-    ) {
-      return ["release notes: python_frontend", topic];
-    }
-
-    return ["uncategorized", topic];
-  }
-
-  async function addNewLabels(
-    existingLabels: string[],
-    labelsToAdd: string[],
-    context: Context
-  ): Promise<void> {
-    // labelsToAdd may have duplicates, so we cannot use a filter
-    const newLabels: string[] = [];
-    labelsToAdd.forEach((l) => {
-      if (!existingLabels.includes(l) && !newLabels.includes(l)) {
-        newLabels.push(l);
-      }
-    });
-
-    if (newLabels.length > 0) {
-      await addLabels(context, newLabels);
-    }
-  }
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const labels: string[] = context.payload.issue.labels!.map(
