@@ -368,21 +368,29 @@ function UnstableCheckBox({
   );
 }
 
-export const StylishFailuresContext = createContext<[boolean, React.Dispatch<React.SetStateAction<boolean>> | undefined]>(
-  [false, undefined]
-);
+export const StylishFailuresContext = createContext<
+  [boolean, React.Dispatch<React.SetStateAction<boolean>> | undefined]
+>([false, undefined]);
 
-export function StylishFailuresProvider({ children }: { children: React.ReactNode }) {
+export function StylishFailuresProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [stylishFailures, setStylishFailures] = useState<boolean>(false);
   return (
-    <StylishFailuresContext.Provider value={[stylishFailures, setStylishFailures]}>
+    <StylishFailuresContext.Provider
+      value={[stylishFailures, setStylishFailures]}
+    >
       {children}
     </StylishFailuresContext.Provider>
   );
 }
 
 export function StylishFailuresCheckbox() {
-  const [stylishFailures, setStylishFailures] = useContext(StylishFailuresContext);
+  const [stylishFailures, setStylishFailures] = useContext(
+    StylishFailuresContext
+  );
   return (
     <>
       <div
@@ -445,6 +453,7 @@ function HudHeader({ params }: { params: HudParams }) {
     const branch = e.target[0].value;
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
+
   function handleRepoSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     // @ts-ignore
@@ -489,9 +498,11 @@ export default function Hud() {
     sha: undefined,
     name: undefined,
   });
+
   function handleClick() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
+
   useEffect(() => {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {

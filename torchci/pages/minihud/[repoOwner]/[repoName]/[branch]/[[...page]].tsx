@@ -72,6 +72,7 @@ function FailedJob({ job }: { job: JobData }) {
       setJobFilter(job.name!);
     }
   }
+
   const isClassified = job.failureAnnotation != null;
   const linkStyle: CSSProperties = { cursor: "pointer", marginRight: "0.5em" };
   if (job.name === jobHoverContext) {
@@ -93,7 +94,11 @@ function FailedJob({ job }: { job: JobData }) {
       }}
     >
       <div>
-        <JobConclusion conclusion={job.conclusion} classified={isClassified} jobData={job} />
+        <JobConclusion
+          conclusion={job.conclusion}
+          classified={isClassified}
+          jobData={job}
+        />
         <a
           target="_blank"
           rel="noreferrer"
@@ -413,6 +418,7 @@ function DurationInfo({
       </tr>
     );
   }
+
   return (
     <div style={{ padding: "10px" }}>
       <table>
