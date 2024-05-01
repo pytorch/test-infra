@@ -261,7 +261,7 @@ export function TestInfo({
   runAttempt: string;
   jobs: JobData[];
 }) {
-  const [showInfo, setShowInfo] = useState("TD Info");
+  const [showInfo, setShowInfo] = useState("Reruns Info");
 
   function setShowInfoHelper(info: string) {
     if (showInfo === info) {
@@ -285,8 +285,8 @@ export function TestInfo({
   return (
     <>
       <div className={styles.tab}>
-        <ButtonSelector name="TD Info" />
         <ButtonSelector name="Reruns Info" />
+        <ButtonSelector name="TD Info" />
       </div>
       <div className={styles.tabcontent}>
         {showInfo == "TD Info" && (

@@ -167,8 +167,18 @@ export default function WorkflowBox({
           Job Status
         </div>
         <div style={{ float: "right" }}>
+          <div style={{ margin: ".5em 0em" }}>
+            <button
+              onClick={() => {
+                setWide(!wide);
+              }}
+              className={styles.buttonBorder}
+            >
+              {wide ? "Hide Additional Test Info" : "Show Additional Test Info"}
+            </button>
+          </div>
           <form
-            style={{ float: "right" }}
+            style={{ float: "right", paddingBottom: ".5em" }}
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               // @ts-ignore
@@ -190,15 +200,6 @@ export default function WorkflowBox({
             }}
           ></div>
           {searchString && <div>{searchRes.info}</div>}
-          <div style={{ margin: ".5em 0em" }}>
-            <span
-              onClick={() => {
-                setWide(!wide);
-              }}
-            >
-              {wide ? "Hide Additional Test Info" : "Show Additional Test Info"}
-            </span>
-          </div>
         </div>
         <div
           style={{
