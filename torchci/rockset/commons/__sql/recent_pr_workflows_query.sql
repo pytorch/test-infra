@@ -8,7 +8,9 @@ WITH recent_shas AS (
   FROM
     workflow_job j
     JOIN commons.pull_request pull_request ON j.head_sha = pull_request.head.sha HINT(join_broadcast = true)
-    JOIN commons.push push ON j.head_sha = push.after HINT(join_broadcast = true)
+    -- Do a left join here because the push table won't have any information about
+    -- commits from forked repo
+    LEFT JOIN commons.push push ON j.head_sha = push.after HINT(join_broadcast = true)
   WHERE
     (
       (

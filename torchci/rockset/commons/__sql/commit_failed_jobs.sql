@@ -19,7 +19,9 @@ SELECT
 FROM
   commons.workflow_job j
   JOIN commons.workflow_run w ON w.id = j.run_id HINT(join_broadcast = true)
-  JOIN commons.push p ON p.after = j.head_sha HINT(join_broadcast = true)
+  -- Do a left join here because the push table won't have any information about
+  -- commits from forked repo
+  LEFT JOIN commons.push p ON p.after = j.head_sha HINT(join_broadcast = true)
 WHERE
   ARRAY_CONTAINS(
     SPLIT(: shas, ','),
