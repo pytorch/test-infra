@@ -795,7 +795,6 @@ export async function reorganizeWorkflows(
       // timestamp will be undefined and we will make an additional query to GitHub
       // to get the value
       if (octokit && !headShaTimestamp) {
-        // workflow.head_sha_timestamp = headShaTimestamp;
         headShaTimestamp = await fetchCommitTimestamp(
           octokit,
           owner,
