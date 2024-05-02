@@ -30,6 +30,7 @@ import {
   removeCancelledJobAfterRetry,
   backfillMissingLog,
   isUnstableJob,
+  getOpenUnstableIssues,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
@@ -758,10 +759,12 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
-      const { unstable, issues } = await isUnstableJob(job, unstableIssues);
-      if (unstable) {
+      if (isUnstableJob(job, unstableIssues)) {
         unstableJobs.push(job);
-        relatedIssues.set(job.id, issues);
+        relatedIssues.set(
+          job.id,
+          getOpenUnstableIssues(job.name, unstableIssues)
+        );
         continue;
       }
 

@@ -38,8 +38,7 @@ export default function JobSummary({
         conclusion={job.conclusion}
         warningOnly={
           isFailedJob(job) &&
-          (isRerunDisabledTestsJob(job) ||
-            isUnstableJob(job, unstableIssues).unstable)
+          (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues))
         }
       />
       <a href={job.htmlUrl}> {job.jobName} </a>

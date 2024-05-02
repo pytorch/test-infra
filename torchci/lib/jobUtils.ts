@@ -68,32 +68,28 @@ export function isRerunDisabledTestsJob(job: JobData) {
 export function isUnstableJob(
   job: JobData,
   unstableIssues?: IssueData[]
-): { unstable: boolean; issues: IssueData[] } {
+): boolean {
   // The name has the unstable keywork, the job is unstable
   if (isMatchingJobByName(job, "unstable")) {
-    return { unstable: true, issues: [] };
+    return true;
   }
 
   const openUnstableIssues = getOpenUnstableIssues(job.name, unstableIssues);
-  if (openUnstableIssues === undefined || openUnstableIssues.length === 0) {
-    return { unstable: false, issues: [] };
-  } else {
-    return { unstable: true, issues: openUnstableIssues };
-  }
+  return openUnstableIssues !== undefined && openUnstableIssues.length !== 0;
 }
 
 export function getOpenUnstableIssues(
   jobName?: string,
   unstableIssues?: IssueData[]
-): IssueData[] | undefined {
+): IssueData[] {
   // Passing job name as a string here so that this function can be reused by functions in JobClassifierUtil
   // which only have the job name to group jobs
   if (!jobName) {
-    return;
+    return [];
   }
 
   if (unstableIssues === undefined || unstableIssues === null) {
-    return;
+    return [];
   }
 
   // For PT build jobs and Nova jobs from other repos, there is no clear way to change
@@ -102,7 +98,7 @@ export function getOpenUnstableIssues(
   const transformedJobName = transformJobName(jobName);
   // Ignore invalid job name
   if (transformedJobName === null) {
-    return;
+    return [];
   }
 
   const issueTitle = `UNSTABLE ${transformedJobName}`;
