@@ -234,9 +234,9 @@ export async function hasSimilarFailures(
     return;
   }
 
-  // NB: Using the job completed_at timestamp has many FP, so it's better that
-  // we only enable this feature only when the head commit timestamp is available
-  // and use it as the end date
+  // NB: Using the job completed_at timestamp has many false positives, so it's
+  // better that we only enable this feature when the head commit timestamp is
+  // available and use it as the end date
   if (
     job.head_sha_timestamp === undefined ||
     job.head_sha_timestamp === null ||
