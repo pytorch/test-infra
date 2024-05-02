@@ -81,6 +81,6 @@ prodVersions[qLambda.workspace][qLambda.name] = qLambda.version;
 
 await fs.writeFile(
   prodVersionsFilePath,
-  JSON.stringify(prodVersions, null, 2),
+  JSON.stringify(prodVersions, null, 2) + "\n",
   "utf8"
 );
