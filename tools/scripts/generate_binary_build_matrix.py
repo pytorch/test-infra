@@ -26,7 +26,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.1"],
+    "nightly": ["11.8", "12.1", "12.4"],
     "test": ["11.8", "12.1"],
     "release": ["11.8", "12.1"],
 }
@@ -39,6 +39,7 @@ ROCM_ARCHES_DICT = {
 CUDA_CUDDN_VERSIONS = {
     "11.8": { "cuda": "11.8.0", "cudnn": "8" },
     "12.1": { "cuda": "12.1.1", "cudnn": "8"},
+    "12.4": { "cuda": "12.4.0", "cudnn": "8"},
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]

@@ -331,41 +331,6 @@ function myBot(app: Probot): void {
     }
   });
 
-  app.on("pull_request.labeled", async (context) => {
-    // Careful! Read the above comments about label addition
-
-    const addedLabel = context.payload.label!.name;
-    const existingLabels: string[] = context.payload.pull_request.labels!.map(
-      (e) => e["name"]
-    );
-    context.log({ addedLabel, existingLabels });
-
-    const existingLabelsSet = new Set(existingLabels);
-    const newLabels: string[] = [];
-
-    const newLabelsFromLabelToLabelConfig =
-      await getLabelsFromLabelToLabelConfig(
-        context,
-        labelToLabelConfigTracker,
-        existingLabels,
-        addedLabel
-      );
-    for (const label of newLabelsFromLabelToLabelConfig) {
-      addLabel(existingLabelsSet, newLabels, label);
-    }
-
-    const filtered = await filterCIFlowLabels(
-      false,
-      newLabels,
-      context,
-      context.payload.repository.owner.login,
-      context.payload.repository.name
-    );
-    if (filtered.length) {
-      await addLabels(context, filtered);
-    }
-  });
-
   function getLabelsToAddFromTitle(
     title: string,
     labelFilter: RegExp = /.*/

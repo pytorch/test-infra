@@ -65,27 +65,31 @@ export function isRerunDisabledTestsJob(job: JobData) {
   return isMatchingJobByName(job, "rerun_disabled_tests");
 }
 
-export function isUnstableJob(job: JobData, unstableIssues?: IssueData[]) {
+export function isUnstableJob(
+  job: JobData,
+  unstableIssues?: IssueData[]
+): boolean {
   // The name has the unstable keywork, the job is unstable
   if (isMatchingJobByName(job, "unstable")) {
     return true;
   }
 
-  return hasOpenUnstableIssue(job.name, unstableIssues);
+  const openUnstableIssues = getOpenUnstableIssues(job.name, unstableIssues);
+  return openUnstableIssues !== undefined && openUnstableIssues.length !== 0;
 }
 
-export function hasOpenUnstableIssue(
+export function getOpenUnstableIssues(
   jobName?: string,
   unstableIssues?: IssueData[]
-) {
+): IssueData[] {
   // Passing job name as a string here so that this function can be reused by functions in JobClassifierUtil
   // which only have the job name to group jobs
   if (!jobName) {
-    return false;
+    return [];
   }
 
   if (unstableIssues === undefined || unstableIssues === null) {
-    return false;
+    return [];
   }
 
   // For PT build jobs and Nova jobs from other repos, there is no clear way to change
@@ -94,15 +98,13 @@ export function hasOpenUnstableIssue(
   const transformedJobName = transformJobName(jobName);
   // Ignore invalid job name
   if (transformedJobName === null) {
-    return false;
+    return [];
   }
 
   const issueTitle = `UNSTABLE ${transformedJobName}`;
-  const matchingIssues = unstableIssues.filter(
+  return unstableIssues.filter(
     (issue) => issueTitle.includes(issue.title) && issue.state === "open"
   );
-
-  return matchingIssues.length !== 0;
 }
 
 export async function getFlakyJobsFromPreviousWorkflow(

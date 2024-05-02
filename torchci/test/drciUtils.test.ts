@@ -3,7 +3,7 @@ import {
   isInfraFlakyJob,
   isExcludedFromFlakiness,
   isLogClassifierFailed,
-  isSuppressedByLabels,
+  getSuppressedLabels,
   MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
 } from "../lib/drciUtils";
 import * as searchUtils from "../lib/searchUtils";
@@ -397,7 +397,7 @@ describe("Test various utils used by Dr.CI", () => {
     expect(isExcludedFromFlakiness(notExcludedJob)).toEqual(false);
   });
 
-  test("test isSuppressedByLabels", () => {
+  test("test getSuppressedLabels", () => {
     const job: RecentWorkflowsData = {
       jobName: "not suppressed job",
 
@@ -410,22 +410,24 @@ describe("Test various utils used by Dr.CI", () => {
     };
 
     // Not supported
-    expect(isSuppressedByLabels(job, ["anything goes"])).toEqual(false);
+    expect(getSuppressedLabels(job, ["anything goes"])).toEqual([]);
 
     job.jobName = "bc_linter";
     // Not suppressed
-    expect(isSuppressedByLabels(job, [])).toEqual(false);
-    expect(isSuppressedByLabels(job, ["anything goes"])).toEqual(false);
+    expect(getSuppressedLabels(job, [])).toEqual([]);
+    expect(getSuppressedLabels(job, ["anything goes"])).toEqual([]);
     // Suppress, the job will be hidden on CI and doesn't block merge
-    expect(isSuppressedByLabels(job, ["suppress-bc-linter"])).toEqual(true);
+    expect(getSuppressedLabels(job, ["suppress-bc-linter"])).toEqual([
+      "suppress-bc-linter",
+    ]);
     expect(
-      isSuppressedByLabels(job, ["suppress-api-compatibility-check"])
-    ).toEqual(true);
+      getSuppressedLabels(job, ["suppress-api-compatibility-check"])
+    ).toEqual(["suppress-api-compatibility-check"]);
     expect(
-      isSuppressedByLabels(job, [
+      getSuppressedLabels(job, [
         "suppress-bc-linter",
         "suppress-api-compatibility-check",
       ])
-    ).toEqual(true);
+    ).toEqual(["suppress-bc-linter", "suppress-api-compatibility-check"]);
   });
 });
