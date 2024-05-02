@@ -43,6 +43,7 @@ import {
 import { track } from "lib/track";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
+import { ParamSelector } from "lib/ParamSelector";
 
 export function JobCell({
   sha,
@@ -368,37 +369,6 @@ function UnstableCheckBox({
 
 function HudTable({ params }: { params: HudParams }) {
   return <GroupedView params={params} />;
-}
-
-function ParamSelector({
-  value,
-  handleSubmit,
-}: {
-  value: string;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-}) {
-  const [isInput, setIsInput] = useState(false);
-  if (isInput) {
-    return (
-      <form
-        className={styles.branchForm}
-        onSubmit={handleSubmit}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setIsInput(false);
-          }
-        }}
-      >
-        <input autoFocus className={styles.branchFormInput} type="text"></input>
-      </form>
-    );
-  }
-
-  return (
-    <code style={{ cursor: "pointer" }} onClick={() => setIsInput(true)}>
-      {value}
-    </code>
-  );
 }
 
 function HudHeader({ params }: { params: HudParams }) {
