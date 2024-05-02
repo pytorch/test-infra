@@ -34,9 +34,11 @@ import {
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
+import { fetchCommitTimestamp } from "lib/fetchCommit";
 
 interface PRandJobs {
   head_sha: string;
+  head_sha_timestamp?: string;
   pr_number: number;
   jobs: RecentWorkflowsData[];
   merge_base: string;
@@ -89,7 +91,12 @@ export async function updateDrciComments(
     NUM_MINUTES + ""
   );
 
-  const workflowsByPR = reorganizeWorkflows(OWNER, repo, recentWorkflows);
+  const workflowsByPR = await reorganizeWorkflows(
+    OWNER,
+    repo,
+    recentWorkflows,
+    octokit
+  );
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
@@ -832,19 +839,38 @@ export async function getWorkflowJobsStatuses(
   };
 }
 
-export function reorganizeWorkflows(
+export async function reorganizeWorkflows(
   owner: string,
   repo: string,
-  recentWorkflows: RecentWorkflowsData[]
-): Map<number, PRandJobs> {
+  recentWorkflows: RecentWorkflowsData[],
+  octokit?: Octokit
+): Promise<Map<number, PRandJobs>> {
   const workflowsByPR: Map<number, PRandJobs> = new Map();
+  const headShaTimestamps: Map<string, string> = new Map();
 
   for (const workflow of recentWorkflows) {
     const pr_number = workflow.pr_number!;
     if (!workflowsByPR.has(pr_number)) {
+      let headShaTimestamp = workflow.head_sha_timestamp;
+      // NB: The head SHA timestamp is currently used as the end date when searching
+      // for similar failures.  However, it's not available on Rockset for commits
+      // from forked PRs before a ciflow ref is pushed.  In such case, the head SHA
+      // timestamp will be undefined and we will make an additional query to GitHub
+      // to get the value
+      if (octokit && !headShaTimestamp) {
+        headShaTimestamp = await fetchCommitTimestamp(
+          octokit,
+          owner,
+          repo,
+          workflow.head_sha
+        );
+        headShaTimestamps.set(workflow.head_sha, headShaTimestamp);
+      }
+
       workflowsByPR.set(pr_number, {
         pr_number: pr_number,
         head_sha: workflow.head_sha,
+        head_sha_timestamp: headShaTimestamp,
         jobs: [],
         merge_base: "",
         merge_base_date: "",
@@ -852,6 +878,12 @@ export function reorganizeWorkflows(
         repo: repo,
       });
     }
+
+    const headShaTimestamp = headShaTimestamps.get(workflow.head_sha);
+    if (!workflow.head_sha_timestamp && headShaTimestamp) {
+      workflow.head_sha_timestamp = headShaTimestamp;
+    }
+
     workflowsByPR.get(pr_number)!.jobs.push(workflow);
   }
 

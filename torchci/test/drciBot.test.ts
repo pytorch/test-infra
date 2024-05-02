@@ -229,6 +229,8 @@ describe("verify-drci-functionality", () => {
         return true;
       })
       .reply(200, {})
+      .get(`/repos/${OWNER}/${REPO}/git/commits/abcdefg`)
+      .reply(200, { committer: { date: "Anything goes" } })
       .patch(
         `/repos/${OWNER}/${REPO}/issues/comments/${comment_id}`,
         (body) => {

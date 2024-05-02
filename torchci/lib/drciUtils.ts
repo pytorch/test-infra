@@ -234,24 +234,25 @@ export async function hasSimilarFailures(
     return;
   }
 
-  // NB: It's important to sort the oldest matching results in the search window
-  // first here because that can be used to verify if the failure came from one
-  // of the previous merge commits of a reverted PR. The first record is the most
-  // relevant one and also the first time the failure is observed in the search
-  // window
+  // NB: Using the job completed_at timestamp has many false positives, so it's
+  // better that we only enable this feature when the head commit timestamp is
+  // available and use it as the end date
   if (
-    job.completed_at === undefined ||
-    job.completed_at === null ||
-    job.completed_at === ""
+    job.head_sha_timestamp === undefined ||
+    job.head_sha_timestamp === null ||
+    job.head_sha_timestamp === "" ||
+    job.head_sha_timestamp === "0"
   ) {
     return;
   }
 
-  const endDate = dayjs(job.completed_at);
+  // NB: Use the commit timestamp here instead of the job timestamp to avoid using
+  // the wrong end date when a PR is reverted and the job reruns
+  const endDate = dayjs(job.head_sha_timestamp);
   const startDate = dayjs(
     baseCommitDate !== "" && baseCommitDate !== "0"
       ? baseCommitDate
-      : job.completed_at
+      : job.head_sha_timestamp
   ).subtract(lookbackPeriodInHours, "hour");
 
   if (
@@ -263,6 +264,11 @@ export async function hasSimilarFailures(
     return;
   }
 
+  // NB: It's important to sort the oldest matching results in the search window
+  // first here because that can be used to verify if the failure came from one
+  // of the previous merge commits of a reverted PR. The first record is the most
+  // relevant one and also the first time the failure is observed in the search
+  // window
   const records = await querySimilarFailures({
     failure_captures: job.failure_captures,
     name: job.name,

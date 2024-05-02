@@ -5,6 +5,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 
 import { CommitData, JobData } from "./types";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
+import { Octokit } from "octokit";
 
 export default async function fetchCommit(
   owner: string,
@@ -67,4 +68,21 @@ export default async function fetchCommit(
     commit: commitDataFromResponse(githubResponse.data),
     jobs: _.concat(filteredJobs, badWorkflows),
   };
+}
+
+export async function fetchCommitTimestamp(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  commit_sha: string
+): Promise<string> {
+  // Query GitHub to get the commit timestamp, this is used to get the timestamp of
+  // commits from forked PRs
+  const commit = await octokit.rest.git.getCommit({
+    owner: owner,
+    repo: repo,
+    commit_sha: commit_sha,
+  });
+
+  return commit.data.committer.date;
 }

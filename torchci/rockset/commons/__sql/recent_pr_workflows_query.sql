@@ -2,11 +2,15 @@
 -- classified into new failures and unrelated failures such as broken trunk, flaky, unstable, etc.
 WITH recent_shas AS (
   SELECT
-    distinct p.head.sha AS sha,
-    p.number AS number
+    distinct pull_request.head.sha AS sha,
+    pull_request.number AS number,
+    push.head_commit.timestamp AS timestamp,
   FROM
     workflow_job j
-    JOIN commons.pull_request p ON j.head_sha = p.head.sha HINT(join_broadcast = true)
+    JOIN commons.pull_request pull_request ON j.head_sha = pull_request.head.sha HINT(join_broadcast = true)
+    -- Do a left join here because the push table won't have any information about
+    -- commits from forked repo
+    LEFT JOIN commons.push push ON j.head_sha = push.after HINT(join_broadcast = true)
   WHERE
     (
       (
@@ -15,9 +19,9 @@ WITH recent_shas AS (
         )
         AND : prNumber = 0
       )
-      OR : prNumber = p.number
+      OR : prNumber = pull_request.number
     )
-    AND p.base.repo.full_name =: repo
+    AND pull_request.base.repo.full_name =: repo
 )
 SELECT
   w.id AS workflowId,
@@ -33,6 +37,7 @@ SELECT
   j.head_branch,
   recent_shas.number AS pr_number,
   recent_shas.sha AS head_sha,
+  recent_shas.timestamp AS head_sha_timestamp,
   j.torchci_classification.captures AS failure_captures,
   IF(
     j.torchci_classification.line IS NULL,
@@ -62,6 +67,7 @@ SELECT
   w.head_branch,
   recent_shas.number AS pr_number,
   w.head_sha,
+  recent_shas.timestamp AS head_sha_timestamp,
   null AS failure_captures,
   null AS failure_lines,
   null AS failure_context,
