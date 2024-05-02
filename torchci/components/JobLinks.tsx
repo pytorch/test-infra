@@ -8,6 +8,7 @@ import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { transformJobName } from "../lib/jobUtils";
+import dayjs from "dayjs";
 
 export default function JobLinks({
   job,
@@ -260,13 +261,15 @@ function DisableIssue({
   issueBody: string;
   isDisabledTest: boolean;
 }) {
+  const recentThresholdHours = 14 * 24;
+
   let issueLink = `https://github.com/${repo}/issues/new?title=${issueTitle}&body=${issueBody}`;
   let linkText = isDisabledTest
     ? "Disable test"
     : issueTitle.includes("UNSTABLE")
     ? "Mark unstable job"
     : "Disable job";
-  let buttonStyle = "";
+  let buttonStyle = styles.disableTestButton;
 
   if (matchingIssues.length !== 0) {
     // There is a matching issue, show that in the tooltip box.
@@ -277,7 +280,11 @@ function DisableIssue({
         : issueTitle.includes("UNSTABLE")
         ? "Job is unstable"
         : "Job is disabled";
-    } else {
+      buttonStyle = "";
+    } else if (
+      dayjs().diff(dayjs(matchingIssue.updated_at), "hours") <
+      recentThresholdHours
+    ) {
       buttonStyle = styles.closedDisableIssueButton;
       linkText = isDisabledTest
         ? "Previously disabled test"
@@ -286,9 +293,6 @@ function DisableIssue({
         : "Previously disabled job";
     }
     issueLink = matchingIssues[0].html_url;
-  } else {
-    // No matching issue, show a link to create one.
-    buttonStyle = styles.disableTestButton;
   }
 
   return (
