@@ -269,7 +269,7 @@ function DisableIssue({
     : issueTitle.includes("UNSTABLE")
     ? "Mark unstable job"
     : "Disable job";
-  let buttonStyle = "";
+  let buttonStyle = styles.disableTestButton;
 
   if (matchingIssues.length !== 0) {
     // There is a matching issue, show that in the tooltip box.
@@ -280,17 +280,11 @@ function DisableIssue({
         : issueTitle.includes("UNSTABLE")
         ? "Job is unstable"
         : "Job is disabled";
+      buttonStyle = "";
     } else if (
       dayjs().diff(dayjs(matchingIssue.updated_at), "hours") <
       recentThresholdHours
     ) {
-      buttonStyle = styles.closedDisableIssueButton;
-      linkText = isDisabledTest
-        ? "Recent previously disabled test"
-        : issueTitle.includes("UNSTABLE")
-        ? "Recent previously unstable job"
-        : "Recent previously disabled job";
-    } else {
       buttonStyle = styles.closedDisableIssueButton;
       linkText = isDisabledTest
         ? "Previously disabled test"
@@ -299,9 +293,6 @@ function DisableIssue({
         : "Previously disabled job";
     }
     issueLink = matchingIssues[0].html_url;
-  } else {
-    // No matching issue, show a link to create one.
-    buttonStyle = styles.disableTestButton;
   }
 
   return (
