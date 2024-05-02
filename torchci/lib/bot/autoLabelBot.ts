@@ -195,14 +195,26 @@ export async function getLabelsFromLabelToLabelConfig(
 
 function getRepoSpecificLabels(
   owner: string,
-  repo: string
-): [RegExp, string][] {
+  repo: string,
+  changedFiles: string[]
+): string[] {
   var repoKey = owner + "/" + repo;
   if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
     return [];
   }
 
-  return repoSpecificAutoLabels[repoKey];
+  const config = repoSpecificAutoLabels[repoKey];
+
+  const labelsToAdd: string[] = [];
+  for (const file of changedFiles) {
+    // check for typical matches
+    for (const [regex, label] of config) {
+      if (file.match(regex)) {
+        labelsToAdd.push(label);
+      }
+    }
+  }
+  return labelsToAdd;
 }
 
 function TDRolloutIssueParser(rawSubsText: string): object {
@@ -219,6 +231,23 @@ function TDRolloutIssueParser(rawSubsText: string): object {
     }
   });
   return authors;
+}
+
+async function canRunWorkflows(
+  context: Context<"pull_request"> | Context<"pull_request_review">
+) {
+  return (
+    (await hasApprovedPullRuns(
+      context.octokit,
+      context.payload.repository.owner.login,
+      context.payload.repository.name,
+      context.payload.pull_request.head.sha
+    )) ||
+    (await hasWritePermissions(
+      context,
+      context.payload.pull_request.user.login
+    ))
+  );
 }
 
 async function filterCIFlowLabels(
@@ -239,22 +268,12 @@ async function filterCIFlowLabels(
 
   assert(context && owner && repo, "context, owner, and repo must be provided");
 
-  if (
-    !(await hasApprovedPullRuns(
-      context.octokit,
-      owner,
-      repo,
-      context.payload.pull_request.head.sha
-    )) &&
-    !(await hasWritePermissions(
-      context,
-      context.payload.pull_request.user.login
-    ))
-  ) {
+  if (!(await canRunWorkflows(context))) {
     return noCIFlowLabels;
   }
   return labels;
 }
+
 function isNotUserFacing(filesChanged: string[]): boolean {
   return (
     filesChanged.length > 0 &&
@@ -265,6 +284,7 @@ function isNotUserFacing(filesChanged: string[]): boolean {
     )
   );
 }
+
 function getLabelsToAddFromTitle(
   title: string,
   labelFilter: RegExp = /.*/
@@ -280,12 +300,6 @@ function getLabelsToAddFromTitle(
   return labelsToAdd;
 }
 
-function addLabel(labelSet: Set<string>, newLabels: string[], l: string): void {
-  if (!labelSet.has(l)) {
-    newLabels.push(l);
-    labelSet.add(l);
-  }
-}
 // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
 function getReleaseNotesCategoryAndTopic(
   title: string,
@@ -385,6 +399,7 @@ async function addNewLabels(
     await addLabels(context, newLabels);
   }
 }
+
 function myBot(app: Probot): void {
   const TDRolloutTracker = new CachedIssueTracker(
     app,
@@ -401,23 +416,22 @@ function myBot(app: Probot): void {
     // from triage review, we shouldn't readd triage review the next
     // time the issue is labeled).
 
-    const label = context.payload.label!.name;
-    const labels: string[] = context.payload.issue.labels!.map(
+    const addedLabel = context.payload.label!.name;
+    const existingLabels: string[] = context.payload.issue.labels!.map(
       (e) => e["name"]
     );
-    context.log({ label, labels });
+    context.log({ addedLabel, existingLabels });
 
-    const labelSet = new Set(labels);
     const newLabels: string[] = [];
 
     // NB: Added labels here will trigger more issues.labeled actions,
     // so be careful about accidentally adding a cycle.  With just label
     // addition it's not possible to infinite loop as you will
     // eventually quiesce, beware if you remove labels though!
-    switch (label) {
+    switch (addedLabel) {
       case "high priority":
       case "critical":
-        addLabel(labelSet, newLabels, "triage review");
+        newLabels.push("triage review");
         break;
     }
 
@@ -425,28 +439,24 @@ function myBot(app: Probot): void {
       await getLabelsFromLabelToLabelConfig(
         context,
         labelToLabelConfigTracker,
-        labels,
-        label
+        existingLabels,
+        addedLabel
       );
-    for (const label of newLabelsFromLabelToLabelConfig) {
-      addLabel(labelSet, newLabels, label);
-    }
+    newLabels.push(...newLabelsFromLabelToLabelConfig);
 
     const filtered = await filterCIFlowLabels(true, newLabels);
-    if (filtered.length) {
-      await addLabels(context, filtered);
-    }
+    await addNewLabels(existingLabels, filtered, context);
   });
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
-    const labels: string[] = context.payload.issue.labels!.map(
+    const existingLabels: string[] = context.payload.issue.labels!.map(
       (e) => e["name"]
     );
     const title = context.payload["issue"]["title"];
-    context.log({ labels, title });
+    context.log({ existingLabels, title });
 
     const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
-    await addNewLabels(labels, labelsToAdd, context);
+    await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
   app.on(
@@ -484,25 +494,15 @@ function myBot(app: Probot): void {
       }
 
       // Add a repo specific labels (if any)
-      var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
+      var repoSpecificLabels = getRepoSpecificLabels(owner, repo, filesChanged);
+      labelsToAdd.push(...repoSpecificLabels);
 
       var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
         context,
         labelerConfigTracker,
         filesChanged
       );
-      for (const label of labelsFromLabelerConfig) {
-        labelsToAdd.push(label);
-      }
-
-      for (const file of filesChanged) {
-        // check for typical matches
-        for (const [regex, label] of repoSpecificLabels) {
-          if (file.match(regex)) {
-            labelsToAdd.push(label);
-          }
-        }
-      }
+      labelsToAdd.push(...labelsFromLabelerConfig);
 
       if (
         isPyTorchPyTorch(owner, repo) &&
@@ -537,6 +537,9 @@ function myBot(app: Probot): void {
     const repo = context.payload.repository.name;
     const prAuthor = context.payload.pull_request.user.login;
     const body = context.payload.pull_request.body;
+    const existingLabels = context.payload.pull_request.labels.map(
+      (e) => e["name"]
+    );
 
     if (context.payload.review.state !== "approved") {
       return;
@@ -554,15 +557,7 @@ function myBot(app: Probot): void {
     // Is codev but doesn't have approvals means the author is a metamate but
     // doesn't have write permissions, so post link to get write access
     // I think only one of these checks is really needed
-    if (
-      !(await hasApprovedPullRuns(
-        context.octokit,
-        owner,
-        repo,
-        context.payload.pull_request.head.sha
-      )) &&
-      !(await hasWritePermissions(context, prAuthor))
-    ) {
+    if (!(await canRunWorkflows(context))) {
       await context.octokit.issues.createComment({
         owner,
         repo,
@@ -572,7 +567,7 @@ function myBot(app: Probot): void {
       return;
     }
 
-    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
+    await addNewLabels(existingLabels, [CIFLOW_TRUNK_LABEL], context);
   });
 }
 
