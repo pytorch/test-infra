@@ -18,7 +18,7 @@ import {
   isInfraFlakyJob,
   isLogClassifierFailed,
   fetchIssueLabels,
-  isSuppressedByLabels,
+  getSuppressedLabels,
   isExcludedFromFlakiness,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
@@ -30,6 +30,7 @@ import {
   removeCancelledJobAfterRetry,
   backfillMissingLog,
   isUnstableJob,
+  getOpenUnstableIssues,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
@@ -121,6 +122,8 @@ export async function updateDrciComments(
         brokenTrunkJobs,
         unstableJobs,
         relatedJobs,
+        relatedIssues,
+        relatedInfo,
       } = await getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
@@ -143,6 +146,8 @@ export async function updateDrciComments(
         brokenTrunkJobs,
         unstableJobs,
         relatedJobs,
+        relatedIssues,
+        relatedInfo,
         pr_info.head_sha,
         pr_info.merge_base,
         pr_info.merge_base_date,
@@ -428,7 +433,9 @@ function constructResultsJobsSections(
   jobs: RecentWorkflowsData[],
   suggestion?: string,
   collapsed: boolean = false,
-  relatedJobs: Map<string, RecentWorkflowsData> = new Map()
+  relatedJobs: Map<string, RecentWorkflowsData> = new Map(),
+  relatedIssues: Map<string, IssueData[]> = new Map(),
+  relatedInfo: Map<string, string> = new Map()
 ): string {
   if (jobs.length === 0) {
     return "";
@@ -452,14 +459,29 @@ function constructResultsJobsSections(
     // Show the related trunk failure for broken trunk or the similar failure for flaky
     if (relatedJob !== undefined) {
       const hudCommitUrl = `${hudBaseUrl}/${owner}/${repo}/commit/${relatedJob.head_sha}`;
-      const relatedJobLink = `${hudCommitUrl}#${relatedJob.id}`;
+      const relatedJobUrl = `${hudCommitUrl}#${relatedJob.id}`;
       if (header === "BROKEN TRUNK") {
-        output += ` ([trunk failure](${relatedJobLink}))`;
+        output += ` ([trunk failure](${relatedJobUrl}))`;
       } else if (header === "FLAKY") {
-        output += ` ([similar failure](${relatedJobLink}))`;
+        output += ` ([similar failure](${relatedJobUrl}))`;
       } else {
-        output += ` ([related job](${relatedJobLink}))`;
+        output += ` ([related job](${relatedJobUrl}))`;
       }
+    }
+
+    const relatedIssue = relatedIssues.get(job.id);
+    // Show all the related issues
+    if (relatedIssue !== undefined) {
+      const issueInfo = relatedIssue
+        .map((issue) => `[#${issue.number}](${issue.html_url})`)
+        .join(", ");
+      output += ` (${issueInfo})`;
+    }
+
+    const info = relatedInfo.get(job.id);
+    // Show all the related information
+    if (info !== undefined) {
+      output += ` (${info})`;
     }
 
     output += "\n";
@@ -490,6 +512,8 @@ export function constructResultsComment(
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
   relatedJobs: Map<string, RecentWorkflowsData>,
+  relatedIssues: Map<string, IssueData[]>,
+  relatedInfo: Map<string, string>,
   sha: string,
   merge_base: string,
   merge_base_date: string,
@@ -593,7 +617,9 @@ export function constructResultsComment(
     flakyJobs,
     "",
     true,
-    relatedJobs
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
   );
   output += constructResultsJobsSections(
     hudBaseUrl,
@@ -612,7 +638,9 @@ export function constructResultsComment(
     brokenTrunkJobs,
     "Rebase onto the `viable/strict` branch to avoid these failures",
     true,
-    relatedJobs
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
   );
   output += constructResultsJobsSections(
     hudBaseUrl,
@@ -631,13 +659,18 @@ export function constructResultsComment(
     unstableJobs,
     "",
     true,
-    relatedJobs
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
   );
   return output;
 }
 
-function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
-  return flakyRules.some((flakyRule) => {
+function isFlaky(
+  job: RecentWorkflowsData,
+  flakyRules: FlakyRule[]
+): FlakyRule | undefined {
+  return flakyRules.find((flakyRule) => {
     const jobNameRegex = new RegExp(flakyRule.name);
 
     return (
@@ -691,6 +724,8 @@ export async function getWorkflowJobsStatuses(
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
   relatedJobs: Map<string, RecentWorkflowsData>;
+  relatedIssues: Map<string, IssueData[]>;
+  relatedInfo: Map<string, string>;
 }> {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
@@ -701,6 +736,10 @@ export async function getWorkflowJobsStatuses(
   // This map holds the list of the base failures for broken trunk jobs or the similar
   // failures for flaky jobs
   const relatedJobs: Map<string, RecentWorkflowsData> = new Map();
+  // And this holds the string pointing to the associated unstable issue that disables a job
+  const relatedIssues: Map<string, IssueData[]> = new Map();
+  // Any additional information about the job classification can be kept here
+  const relatedInfo: Map<string, string> = new Map();
 
   for (const job of prInfo.jobs) {
     if (
@@ -709,16 +748,23 @@ export async function getWorkflowJobsStatuses(
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
+      const suppressedLabels = await getSuppressedLabels(job, labels);
       if (
         prInfo.repo === "pytorch" &&
-        (await isSuppressedByLabels(job, labels))
+        suppressedLabels &&
+        suppressedLabels.length !== 0
       ) {
         flakyJobs.push(job);
+        relatedInfo.set(job.id, `suppressed by ${suppressedLabels.join(", ")}`);
         continue;
       }
 
-      if (await isUnstableJob(job, unstableIssues)) {
+      if (isUnstableJob(job, unstableIssues)) {
         unstableJobs.push(job);
+        relatedIssues.set(
+          job.id,
+          getOpenUnstableIssues(job.name, unstableIssues)
+        );
         continue;
       }
 
@@ -729,13 +775,28 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
-      if (isFlaky(job, flakyRules) || isInfraFlakyJob(job)) {
+      const flakyRule = isFlaky(job, flakyRules);
+      if (flakyRule !== undefined) {
         flakyJobs.push(job);
+        relatedInfo.set(
+          job.id,
+          `matched **${flakyRule.name}** rule in [flaky-rules.json](https://github.com/pytorch/test-infra/blob/generated-stats/stats/flaky-rules.json)`
+        );
+        continue;
+      }
+
+      if (isInfraFlakyJob(job)) {
+        flakyJobs.push(job);
+        relatedInfo.set(job.id, `detected as infra flaky with no runner`);
         continue;
       }
 
       if ((await isLogClassifierFailed(job)) && !isExcludedFromFlakiness(job)) {
         flakyJobs.push(job);
+        relatedInfo.set(
+          job.id,
+          `detected as infra flaky with no log or failing log classifier`
+        );
         await backfillMissingLog(prInfo.owner, prInfo.repo, job);
         continue;
       }
@@ -766,6 +827,8 @@ export async function getWorkflowJobsStatuses(
     brokenTrunkJobs,
     unstableJobs,
     relatedJobs,
+    relatedIssues,
+    relatedInfo,
   };
 }
 

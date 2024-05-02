@@ -310,6 +310,8 @@ function constructResultsCommentHelper({
     brokenTrunkJobs,
     unstableJobs,
     new Map(),
+    new Map(),
+    new Map(),
     sha,
     merge_base,
     merge_base_date,
