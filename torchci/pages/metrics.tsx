@@ -858,14 +858,13 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Number of tests run"}
-            queryName={"num_tests_run"}
+            title={"Number of new disabled tests"}
+            queryName={"disabled_test_historical"}
             queryParams={[...timeParams]}
-            granularity={"minute"}
-            groupByFieldName={"workflow_name"}
-            timeFieldName={"push_event_time"}
-            yAxisFieldName={"avg_num_tests"}
-            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"number_of_new_disabled_tests"}
+            yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
@@ -904,19 +903,6 @@ export default function Page() {
           percentileParam={percentileParam}
           timeParams={timeParams}
         />
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"Number of new disabled tests"}
-            queryName={"disabled_test_historical"}
-            queryParams={[...timeParams]}
-            granularity={"day"}
-            timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"number_of_new_disabled_tests"}
-            yAxisRenderer={(value) => value}
-            additionalOptions={{ yAxis: { scale: true } }}
-          />
-        </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
