@@ -1,22 +1,12 @@
 import { useEffect, useState } from "react";
 import styles from "components/hud.module.css";
 
-export function handleSubmitURL(
-  e: React.FormEvent<HTMLFormElement>,
-  getNewUrl: (submission: string) => string
-) {
-  e.preventDefault();
-  // @ts-ignore
-  const submission = e.target[0].value;
-  window.location.href = getNewUrl(submission);
-}
-
 export function ParamSelector({
   value,
   handleSubmit,
 }: {
   value: string;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  handleSubmit: (submission: string) => void;
 }) {
   const [size, setSize] = useState(value?.length || 0);
   useEffect(() => {
@@ -25,13 +15,31 @@ export function ParamSelector({
   return (
     <form
       className={styles.branchForm}
-      onSubmit={handleSubmit}
+      onSubmit={(e) => {
+        e.preventDefault();
+        // @ts-ignore
+        handleSubmit(e.target[0].value);
+      }}
       onChange={(e) => {
         // @ts-ignore
         setSize(e.target.value.length);
       }}
       onFocus={(e) => {
         e.target.select();
+      }}
+      onBlur={(e) => {
+        if (e.target.value !== value && e.target.value.length > 0) {
+          e.preventDefault();
+          handleSubmit(e.target.value);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          // @ts-ignore
+          e.target.value = value;
+          setSize(value.length);
+        }
       }}
     >
       <input

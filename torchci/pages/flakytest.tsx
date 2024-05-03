@@ -4,12 +4,12 @@ import LogViewer from "components/LogViewer";
 import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
-import { ParamSelector, handleSubmitURL } from "lib/ParamSelector";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function getURL(name: string, suite: string, file: string, limit: string) {
-  return `/flakytest?name=${encodeURIComponent(
+function setURL(name: string, suite: string, file: string, limit: string) {
+  window.location.href = `/flakytest?name=${encodeURIComponent(
     name
   )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
     file
@@ -46,29 +46,17 @@ export default function Page() {
         Test Name Filter:{" "}
         <ParamSelector
           value={name}
-          handleSubmit={(e) =>
-            handleSubmitURL(e, (submission) =>
-              getURL(submission, suite, file, limit)
-            )
-          }
+          handleSubmit={(e) => setURL(e, suite, file, limit)}
         />{" "}
         | Test Suite Filter:{" "}
         <ParamSelector
           value={suite}
-          handleSubmit={(e) =>
-            handleSubmitURL(e, (submission) =>
-              getURL(name, submission, file, limit)
-            )
-          }
+          handleSubmit={(s) => setURL(name, s, file, limit)}
         />{" "}
         | Test File Filter:{" "}
         <ParamSelector
           value={file}
-          handleSubmit={(e) =>
-            handleSubmitURL(e, (submission) =>
-              getURL(name, suite, submission, limit)
-            )
-          }
+          handleSubmit={(s) => setURL(name, suite, s, limit)}
         />
       </h3>
       {data === undefined ? (

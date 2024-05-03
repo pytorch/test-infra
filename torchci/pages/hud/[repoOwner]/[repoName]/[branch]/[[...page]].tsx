@@ -372,16 +372,10 @@ function HudTable({ params }: { params: HudParams }) {
 }
 
 function HudHeader({ params }: { params: HudParams }) {
-  function handleBranchSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const branch = e.target[0].value;
+  function handleBranchSubmit(branch: string) {
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
-  function handleRepoSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const repoOwnerAndName = e.target[0].value;
+  function handleRepoSubmit(repoOwnerAndName: string) {
     const split = repoOwnerAndName.split("/");
     window.location.href = formatHudUrlForRoute("hud", {
       ...params,

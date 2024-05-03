@@ -11,7 +11,7 @@ import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
 import JobLinks from "components/JobLinks";
 import { usePreference } from "lib/useGroupingPreference";
-import { ParamSelector, handleSubmitURL } from "lib/ParamSelector";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 import { CSSProperties } from "react";
@@ -246,8 +246,8 @@ function FailureInfo({
   );
 }
 
-function getURL(name: string, jobName: string, failureCaptures: string) {
-  return `/failure?name=${encodeURIComponent(
+function setURL(name: string, jobName: string, failureCaptures: string) {
+  window.location.href = `/failure?name=${encodeURIComponent(
     name
   )}&jobName=${encodeURIComponent(
     jobName
@@ -285,20 +285,12 @@ export default function Page() {
           Job:{" "}
           <ParamSelector
             value={name}
-            handleSubmit={(e: any) =>
-              handleSubmitURL(e, (submission) =>
-                getURL(submission, jobName, failureCaptures)
-              )
-            }
+            handleSubmit={(e: any) => setURL(e, jobName, failureCaptures)}
           />
         </div>
         <ParamSelector
           value={failureCaptures}
-          handleSubmit={(e: any) =>
-            handleSubmitURL(e, (submission) =>
-              getURL(name, jobName, submission)
-            )
-          }
+          handleSubmit={(e: any) => setURL(name, jobName, e)}
         />
       </h2>
       <FuzzySearchCheckBox
