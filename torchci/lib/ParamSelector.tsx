@@ -39,6 +39,8 @@ export function ParamSelector({
           // @ts-ignore
           e.target.value = value;
           setSize(value.length);
+          // @ts-ignore
+          e.target.blur();
         }
       }}
     >
