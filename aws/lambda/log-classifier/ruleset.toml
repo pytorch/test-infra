@@ -26,7 +26,7 @@ pattern = '^>>> Lint for.*'
 
 [[rule]]
 name = 'GHA timeout'
-pattern = '^##\[error\]The action (.*) has timed out after .* minutes.'
+pattern = '^##\[error\]The action (.*)has timed out(?: after .* minutes|)?.'
 
 [[rule]]
 name = 'Faulty ROCM runner'
