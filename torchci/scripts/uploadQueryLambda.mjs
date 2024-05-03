@@ -108,6 +108,6 @@ await Promise.all(tasks);
 
 await fs.writeFile(
   "rockset/prodVersions.json",
-  JSON.stringify(prodVersionsNew, null, 2),
+  JSON.stringify(prodVersionsNew, null, 2) + "\n",
   "utf8"
 );
