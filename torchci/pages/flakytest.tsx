@@ -4,8 +4,17 @@ import LogViewer from "components/LogViewer";
 import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function setURL(name: string, suite: string, file: string, limit: string) {
+  window.location.href = `/flakytest?name=${encodeURIComponent(
+    name
+  )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
+    file
+  )}&limit=${encodeURIComponent(limit)}`;
+}
 
 export default function Page() {
   const router = useRouter();
@@ -34,9 +43,21 @@ export default function Page() {
         name.
       </div>
       <h3>
-        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> | Test
-        Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> | Test File
-        Filter: <code>{file === "%" ? "<any>" : file}</code>
+        Test Name Filter:{" "}
+        <ParamSelector
+          value={name}
+          handleSubmit={(e) => setURL(e, suite, file, limit)}
+        />{" "}
+        | Test Suite Filter:{" "}
+        <ParamSelector
+          value={suite}
+          handleSubmit={(s) => setURL(name, s, file, limit)}
+        />{" "}
+        | Test File Filter:{" "}
+        <ParamSelector
+          value={file}
+          handleSubmit={(s) => setURL(name, suite, s, limit)}
+        />
       </h3>
       {data === undefined ? (
         <div>Loading...</div>

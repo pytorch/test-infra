@@ -10,14 +10,11 @@ import { JobData } from "lib/types";
 import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
 import JobLinks from "components/JobLinks";
+import { usePreference } from "lib/useGroupingPreference";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 import { CSSProperties } from "react";
-
-import {
-  useGroupingPreference,
-  usePreference,
-} from "lib/useGroupingPreference";
 
 function FuzzySearchCheckBox({
   useFuzzySearch,
@@ -249,6 +246,14 @@ function FailureInfo({
   );
 }
 
+function setURL(name: string, jobName: string, failureCaptures: string) {
+  window.location.href = `/failure?name=${encodeURIComponent(
+    name
+  )}&jobName=${encodeURIComponent(
+    jobName
+  )}&failureCaptures=${encodeURIComponent(failureCaptures)}`;
+}
+
 export default function Page() {
   const router = useRouter();
   const name = router.query.name as string;
@@ -276,7 +281,17 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Failure Info</h1>
       <h2>
-        <code>{failureCaptures}</code>
+        <div>
+          Job:{" "}
+          <ParamSelector
+            value={name}
+            handleSubmit={(e: any) => setURL(e, jobName, failureCaptures)}
+          />
+        </div>
+        <ParamSelector
+          value={failureCaptures}
+          handleSubmit={(e: any) => setURL(name, jobName, e)}
+        />
       </h2>
       <FuzzySearchCheckBox
         useFuzzySearch={useFuzzySearch}
