@@ -3,6 +3,7 @@ name: log-classifier-lambda
 on:
   pull_request:
     paths:
+      - .github/workflows/log-classifier-lambda.yml
       - aws/lambda/log-classifier/**
   push:
     branches:
