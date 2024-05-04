@@ -24,8 +24,8 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-20.04
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: linux.2xlarge
+    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       id-token: write
       contents: read
