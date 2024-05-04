@@ -25,6 +25,9 @@ jobs:
 
   deploy:
     needs: test
+    # NB: We need to run the deployment process on the same OS that the lambda
+    # is using, meaning AmazonLinux family, not GitHub ubuntu runner, to avoid
+    # libc linking issue
     runs-on: linux.2xlarge
     # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
@@ -33,6 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
