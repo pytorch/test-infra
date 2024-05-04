@@ -45,6 +45,7 @@ jobs:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_log-classifier-lambda
           aws-region: us-east-1
       - run: sudo yum -y groupinstall "Development Tools"
+      - run: pip3 install ziglang
       - run: cargo install cargo-lambda
       - run: cargo lambda build --release
       - run: cargo lambda deploy
