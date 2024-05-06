@@ -1,25 +1,30 @@
 import { JobData } from "lib/types";
-import { useState } from "react";
+import { CSSProperties, useState } from "react";
 import _ from "lodash";
 import styles from "./TestInfo.module.css";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
+import { AiOutlineConsoleSql } from "react-icons/ai";
+import { durationDisplay } from "components/TimeUtils";
+import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
 
 function RecursiveDetailsSummary({
   info,
   level,
   summaryFunction = (name: any, info: any) => <>{name}</>,
+  bodyFunction,
   children,
 }: {
   info: any;
   level: number;
   summaryFunction?: (name: any, info: any) => JSX.Element;
   children: (name: any, info: any, numSiblings: number) => JSX.Element;
+  bodyFunction?: (name: any, info: any) => JSX.Element;
 }) {
   const keysInInfo = Object.keys(info);
   if (level == 0) {
     return (
-      <ul style={{ paddingLeft: "1em" }}>
+      <ul style={{ paddingLeft: "0em" }}>
         {keysInInfo.map((config) => (
           <li style={{ listStyleType: "none" }} key={config}>
             {children(config, info[config], keysInInfo.length)}
@@ -29,23 +34,29 @@ function RecursiveDetailsSummary({
     );
   }
   return (
-    <ul style={{ paddingLeft: "1em" }}>
-      {keysInInfo.map((config) => (
-        <li style={{ listStyleType: "none" }} key={config}>
-          <details open={keysInInfo.length == 1}>
-            <summary>{summaryFunction(config, info[config])}</summary>
-            <RecursiveDetailsSummary
-              key={config}
-              summaryFunction={summaryFunction}
-              info={info[config]}
-              level={level - 1}
-            >
-              {children}
-            </RecursiveDetailsSummary>
-          </details>
-        </li>
-      ))}
-    </ul>
+    <>
+      {bodyFunction && bodyFunction("All", info)}
+      <ul style={{ paddingLeft: "0em" }}>
+        {keysInInfo.map((config) => (
+          <li style={{ listStyleType: "none" }} key={config}>
+            <details open={!bodyFunction && keysInInfo.length == 1}>
+              <summary>{summaryFunction(config, info[config])}</summary>
+              <div style={{ paddingLeft: "1em" }}>
+                {bodyFunction && bodyFunction(config, info[config])}
+                <RecursiveDetailsSummary
+                  key={config}
+                  summaryFunction={summaryFunction}
+                  info={info[config]}
+                  level={level - 1}
+                >
+                  {children}
+                </RecursiveDetailsSummary>
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -79,40 +90,42 @@ function TestRerunsInfoIndividiual({
         {successes.length > 0 ? "Flaky/Succeeded after reruns" : "Failed"}) (
         {failuresWithReruns.length} reruns)
       </summary>
-      {failuresWithReruns.map((i: any, ind: number) => {
-        return (
-          <div key={ind}>
-            <span
-              onClick={() => {
-                if (trackbacksToShow.has(ind)) {
-                  const newSet = new Set(trackbacksToShow);
-                  newSet.delete(ind);
-                  setTrackbacksToShow(newSet);
-                } else {
-                  setTrackbacksToShow(new Set(trackbacksToShow).add(ind));
-                }
-              }}
-            >
-              Show Trackback #{ind + 1} on
-            </span>
-            <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
-            {trackbacksToShow.has(ind) && (
-              <div
-                style={{
-                  overflowY: "auto",
-                  maxHeight: "50vh",
-                  borderColor: "black",
-                  borderStyle: "solid",
-                  borderWidth: "1px",
-                  padding: "0em 0.5em",
+      <div style={{ paddingLeft: "1em" }}>
+        {failuresWithReruns.map((i: any, ind: number) => {
+          return (
+            <div key={ind}>
+              <span
+                onClick={() => {
+                  if (trackbacksToShow.has(ind)) {
+                    const newSet = new Set(trackbacksToShow);
+                    newSet.delete(ind);
+                    setTrackbacksToShow(newSet);
+                  } else {
+                    setTrackbacksToShow(new Set(trackbacksToShow).add(ind));
+                  }
                 }}
               >
-                <pre>{i.failure.text}</pre>
-              </div>
-            )}
-          </div>
-        );
-      })}
+                Show Trackback #{ind + 1} on
+              </span>
+              <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
+              {trackbacksToShow.has(ind) && (
+                <div
+                  style={{
+                    overflowY: "auto",
+                    maxHeight: "50vh",
+                    borderColor: "black",
+                    borderStyle: "solid",
+                    borderWidth: "1px",
+                    padding: "0em 0.5em",
+                  }}
+                >
+                  <pre>{i.failure.text}</pre>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>{" "}
     </details>
   );
 }
@@ -238,22 +251,169 @@ function TDInfo({
             <summary>
               {config} ({configInfo.length})
             </summary>
-            <div
-              style={{
-                overflowY: "auto",
-                maxHeight: "50vh",
-                borderColor: "black",
-                borderStyle: "solid",
-                borderWidth: "1px",
-                padding: "0em 0.5em",
-              }}
-            >
-              {Array.from(configInfo).map((file: any) => {
-                return <div key={file}>{file}</div>;
-              })}
+            <div style={{ paddingLeft: "1em" }}>
+              <div
+                style={{
+                  overflowY: "auto",
+                  maxHeight: "50vh",
+                  borderColor: "black",
+                  borderStyle: "solid",
+                  borderWidth: "1px",
+                  padding: "0em 0.5em",
+                }}
+              >
+                {Array.from(configInfo).map((file: any) => {
+                  return <div key={file}>{file}</div>;
+                })}
+              </div>
             </div>
           </details>
         )}
+      </RecursiveDetailsSummary>
+    </div>
+  );
+}
+
+function TestCountsDataGrid({ info }: { info: any }) {
+  return (
+    <DataGrid
+      initialState={{
+        sorting: {
+          sortModel: [{ field: "file", sort: "desc" }],
+        },
+      }}
+      density={"compact"}
+      rows={Object.keys(info).map((file) => {
+        return {
+          file: file,
+          count: info[file].count,
+          time: Math.round(info[file].time * 100) / 100,
+          id: file,
+        };
+      })}
+      columns={[
+        { field: "file", headerName: "Name", flex: 3 },
+        { field: "count", headerName: "Total Tests", flex: 1 },
+        {
+          field: "time",
+          headerName: "Time",
+          flex: 1,
+          renderCell: (params: GridRenderCellParams<string>) => {
+            const humanReadable = durationDisplay(
+              params.value ? parseFloat(params.value) : 0
+            );
+            return <>{humanReadable}</>;
+          },
+        },
+      ]}
+      hideFooter={true}
+      autoPageSize={false}
+    />
+  );
+}
+
+function TestCountsInfo({
+  workflowId,
+  jobs,
+  runAttempt,
+}: {
+  workflowId: string;
+  jobs: JobData[];
+  runAttempt: string;
+}) {
+  const shouldShow =
+    jobs.every((job) => job.conclusion !== "pending") &&
+    jobs.some((job) => job.name!.includes("/ test "));
+  const { data: info, error } = useSWR(
+    shouldShow
+      ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${workflowId}/${runAttempt}`
+      : null,
+    fetcher
+  );
+
+  console.log(info);
+  if (!shouldShow) {
+    return <div>Workflow is still pending or there are no test jobs</div>;
+  }
+
+  if (error) {
+    return <div>Error retrieving data {`${error}`}</div>;
+  }
+
+  if (!info) {
+    return <div>Loading...</div>;
+  }
+
+  if (Object.keys(info).length == 0) {
+    return <div>There was trouble parsing data</div>;
+  }
+
+  function getTestCountsTime(info: any): any {
+    const keys = Object.keys(info);
+    if (keys.includes("time") && keys.includes("count")) {
+      return [
+        {
+          time: info.time,
+          count: info.count,
+        },
+      ];
+    }
+    return keys.map((key) => {
+      const subInfo = getTestCountsTime(info[key]);
+      return {
+        time: subInfo.reduce((prev: number, curr: any) => prev + curr.time, 0),
+        count: subInfo.reduce(
+          (prev: number, curr: any) => prev + curr.count,
+          0
+        ),
+        file: key,
+      };
+    });
+  }
+
+  const divStyle: CSSProperties = {
+    overflowY: "auto",
+    height: "50vh",
+    borderStyle: "solid",
+    borderWidth: "1px",
+    padding: "0em 0.5em",
+  };
+  return (
+    <div>
+      <div
+        style={{ fontSize: "1.17em", fontWeight: "bold", paddingTop: "1em" }}
+      >
+        Test Times and Counts
+      </div>
+      <RecursiveDetailsSummary
+        info={info}
+        level={1}
+        bodyFunction={(name: any, info: any) => {
+          const testCountsTimeInfo = _.keyBy(getTestCountsTime(info), "file");
+          return (
+            <div
+              style={{
+                ...divStyle,
+                height: `15vh`,
+              }}
+            >
+              <TestCountsDataGrid info={testCountsTimeInfo} />
+            </div>
+          );
+        }}
+      >
+        {(config: any, configInfo: any, numSiblings: number) => {
+          return (
+            <details>
+              <summary>{config}</summary>
+              <div style={{ paddingLeft: "1em" }}>
+                <div style={divStyle}>
+                  <TestCountsDataGrid info={configInfo} />
+                </div>
+              </div>
+            </details>
+          );
+        }}
       </RecursiveDetailsSummary>
     </div>
   );
@@ -294,6 +454,7 @@ export function TestInfo({
       <div className={styles.tab}>
         <ButtonSelector name="Reruns Info" />
         <ButtonSelector name="TD Info" />
+        <ButtonSelector name="Test Counts Info" />
       </div>
       <div className={styles.tabcontent}>
         {showInfo == "TD Info" && (
@@ -301,6 +462,13 @@ export function TestInfo({
         )}
         {showInfo == "Reruns Info" && (
           <TestRerunsInfo
+            workflowId={workflowId}
+            jobs={jobs}
+            runAttempt={runAttempt}
+          />
+        )}
+        {showInfo == "Test Counts Info" && (
+          <TestCountsInfo
             workflowId={workflowId}
             jobs={jobs}
             runAttempt={runAttempt}
