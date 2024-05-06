@@ -1,5 +1,5 @@
 import { JobData } from "lib/types";
-import { CSSProperties } from "react";
+import { CSSProperties, useState } from "react";
 import _ from "lodash";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
@@ -7,7 +7,23 @@ import { durationDisplay } from "components/TimeUtils";
 import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
 import { RecursiveDetailsSummary } from "./TestInfo";
 
-function TestCountsDataGrid({ info }: { info: any }) {
+function TestCountsDataGrid({
+  info,
+  showComparison,
+}: {
+  info: any;
+  showComparison?: boolean;
+}) {
+  function renderTime(params: GridRenderCellParams<string>) {
+    if (params.value === undefined) {
+      return <></>;
+    }
+    const humanReadable = durationDisplay(
+      params.value ? parseFloat(params.value) : 0
+    );
+    return <>{humanReadable}</>;
+  }
+
   return (
     <DataGrid
       initialState={{
@@ -17,25 +33,83 @@ function TestCountsDataGrid({ info }: { info: any }) {
       }}
       density={"compact"}
       rows={Object.keys(info).map((file) => {
-        return {
+        const obj: any = {
           file: file,
           count: info[file].count,
-          time: Math.round(info[file].time * 100) / 100,
+          time: info[file].time && Math.round(info[file].time * 100) / 100,
+          rawtime: info[file].time,
           id: file,
         };
+        if (showComparison) {
+          obj.comparisonCount = info[file].comparisonCount;
+          obj.comparisonTime =
+            info[file].comparisonTime &&
+            Math.round(info[file].comparisonTime * 100) / 100;
+          obj.diffCount =
+            (info[file].count || 0) - (info[file].comparisonCount || 0);
+          obj.diffTime =
+            Math.round(
+              ((info[file].time || 0) - (info[file].comparisonTime || 0)) * 100
+            ) / 100;
+        }
+        return obj;
       })}
       columns={[
-        { field: "file", headerName: "Name", flex: 3 },
+        { field: "file", headerName: "Name", flex: 4 },
         { field: "count", headerName: "Total Tests", flex: 1 },
         {
           field: "time",
           headerName: "Time",
           flex: 1,
-          renderCell: (params: GridRenderCellParams<string>) => {
-            const humanReadable = durationDisplay(
-              params.value ? parseFloat(params.value) : 0
+          renderCell: renderTime,
+        },
+        {
+          field: "comparisonCount",
+          headerName: "Other SHA Test Count",
+          flex: 1,
+        },
+        {
+          field: "comparisonTime",
+          headerName: "Other SHA Time",
+          flex: 1,
+          renderCell: renderTime,
+        },
+        {
+          field: "diffCount",
+          headerName: "Diff Test Count",
+          flex: 1,
+          renderCell: (params) => {
+            if (params.value === undefined) {
+              return <></>;
+            }
+            if (parseInt(params.value) === 0) {
+              return <></>;
+            }
+            return (
+              <>
+                {parseInt(params.value) > 0 && "+"}
+                {params.value}
+              </>
             );
-            return <>{humanReadable}</>;
+          },
+        },
+        {
+          field: "diffTime",
+          headerName: "Diff Time",
+          flex: 1,
+          renderCell: (params) => {
+            if (params.value === undefined) {
+              return <></>;
+            }
+            if (parseFloat(params.value) === 0) {
+              return <></>;
+            }
+            return (
+              <>
+                {parseFloat(params.value) > 0 ? "+" : "-"}
+                {durationDisplay(Math.abs(parseFloat(params.value)))}
+              </>
+            );
           },
         },
       ]}
@@ -43,6 +117,97 @@ function TestCountsDataGrid({ info }: { info: any }) {
       autoPageSize={false}
     />
   );
+}
+
+function mergeComparisonInfo(info: any, comparisonInfo: any): any {
+  if (!comparisonInfo) {
+    return info;
+  }
+  const keys = Object.keys(comparisonInfo);
+  if (keys.includes("time") && keys.includes("count")) {
+    return {
+      ...info,
+      comparisonTime: comparisonInfo.time,
+      comparisonCount: comparisonInfo.count,
+    };
+  }
+  let newInfo = info || {};
+  keys.forEach((key) => {
+    newInfo[key] = {
+      ...mergeComparisonInfo(newInfo[key], comparisonInfo[key]),
+    };
+  });
+  return newInfo;
+}
+
+function ComparisonStatus({
+  comparisonSha,
+  comparisonId,
+  comparisonIdError,
+  comparisonInfo,
+  comparisonError,
+}: {
+  comparisonSha: string | undefined;
+  comparisonId: any | undefined;
+  comparisonIdError: any | undefined;
+  comparisonInfo: any | undefined;
+  comparisonError: any | undefined;
+}) {
+  if (!comparisonSha) {
+    return <></>;
+  } else if (comparisonIdError) {
+    return (
+      <div>
+        Error retrieving corresponding workflow id {`${comparisonIdError}`}
+      </div>
+    );
+  } else if (!comparisonId) {
+    return <div>Loading...</div>;
+  } else if (comparisonId.length == 0) {
+    return <div>No corresponding workflow found</div>;
+  } else if (comparisonError) {
+    return <div>Error retrieving comparison data {`${comparisonError}`}</div>;
+  } else if (!comparisonInfo) {
+    return <div>Loading...</div>;
+  }
+  return <></>;
+}
+
+function getTestCountsTime(info: any): any {
+  function reduce(info: any, field: string): any {
+    if (info.length == 0 || info.every((x: any) => x[field] == undefined)) {
+      return undefined;
+    }
+    return info.reduce(
+      (prev: number, curr: any) => prev + (curr[field] || 0),
+      0
+    );
+  }
+  const keys = Object.keys(info);
+  if (
+    keys.some((key) =>
+      ["time", "count", "comparisonCount", "comparisonTime"].includes(key)
+    )
+  ) {
+    return [
+      {
+        time: info.time,
+        count: info.count,
+        comparisonCount: info.comparisonCount,
+        comparisonTime: info.comparisonTime,
+      },
+    ];
+  }
+  return keys.map((key) => {
+    const subInfo = getTestCountsTime(info[key]);
+    return {
+      file: key,
+      time: reduce(subInfo, "time"),
+      count: reduce(subInfo, "count"),
+      comparisonCount: reduce(subInfo, "comparisonCount"),
+      comparisonTime: reduce(subInfo, "comparisonTime"),
+    };
+  });
 }
 
 export function TestCountsInfo({
@@ -64,7 +229,20 @@ export function TestCountsInfo({
     fetcher
   );
 
-  console.log(info);
+  const [comparisonSha, setComparisonSha] = useState();
+  const { data: comparisonId, error: comparisonIdError } = useSWR(
+    comparisonSha
+      ? `/api/corresponding_workflow_id?sha=${comparisonSha}&workflowId=${workflowId}`
+      : null,
+    fetcher
+  );
+  const { data: comparisonInfo, error: comparisonInfoError } = useSWR(
+    comparisonSha && comparisonId && comparisonId[0]
+      ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${comparisonId[0].id}/${runAttempt}`
+      : null,
+    fetcher
+  );
+
   if (!shouldShow) {
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
@@ -80,29 +258,7 @@ export function TestCountsInfo({
   if (Object.keys(info).length == 0) {
     return <div>There was trouble parsing data</div>;
   }
-
-  function getTestCountsTime(info: any): any {
-    const keys = Object.keys(info);
-    if (keys.includes("time") && keys.includes("count")) {
-      return [
-        {
-          time: info.time,
-          count: info.count,
-        },
-      ];
-    }
-    return keys.map((key) => {
-      const subInfo = getTestCountsTime(info[key]);
-      return {
-        time: subInfo.reduce((prev: number, curr: any) => prev + curr.time, 0),
-        count: subInfo.reduce(
-          (prev: number, curr: any) => prev + curr.count,
-          0
-        ),
-        file: key,
-      };
-    });
-  }
+  const mergedInfo = mergeComparisonInfo(info, comparisonInfo);
 
   const divStyle: CSSProperties = {
     overflowY: "auto",
@@ -113,13 +269,34 @@ export function TestCountsInfo({
   };
   return (
     <div>
-      <div
-        style={{ fontSize: "1.17em", fontWeight: "bold", paddingTop: "1em" }}
-      >
+      <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
         Test Times and Counts
       </div>
+      <div style={{ paddingBottom: "1em" }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            // @ts-ignore
+            setComparisonSha(e.target[0].value);
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Enter a sha to compare with"
+            size={50}
+          />
+          <button type="submit">Submit</button>
+        </form>
+        <ComparisonStatus
+          comparisonId={comparisonId}
+          comparisonIdError={comparisonIdError}
+          comparisonInfo={comparisonInfo}
+          comparisonSha={comparisonSha}
+          comparisonError={comparisonInfoError}
+        />
+      </div>
       <RecursiveDetailsSummary
-        info={info}
+        info={mergedInfo}
         level={1}
         bodyFunction={(name: any, info: any) => {
           const testCountsTimeInfo = _.keyBy(getTestCountsTime(info), "file");
@@ -130,7 +307,10 @@ export function TestCountsInfo({
                 height: `15vh`,
               }}
             >
-              <TestCountsDataGrid info={testCountsTimeInfo} />
+              <TestCountsDataGrid
+                info={testCountsTimeInfo}
+                showComparison={comparisonInfo}
+              />
             </div>
           );
         }}
@@ -141,7 +321,10 @@ export function TestCountsInfo({
               <summary>{config}</summary>
               <div style={{ paddingLeft: "1em" }}>
                 <div style={divStyle}>
-                  <TestCountsDataGrid info={configInfo} />
+                  <TestCountsDataGrid
+                    info={configInfo}
+                    showComparison={comparisonInfo}
+                  />
                 </div>
               </div>
             </details>
