@@ -58,9 +58,14 @@ function TestRerunsInfoIndividiual({
   name: any;
   numSiblings: number;
 }) {
-  const [failures, successes] = _.partition(
-    Array.from(info),
-    (i: any) => i.failure
+  const [failures, successes] = _.partition(info, (i) => i.failure);
+
+  const failuresWithReruns = failures.concat(
+    _(info)
+      .filter((i: any) => i.rerun)
+      .map((i) => i.rerun.map((rerun: any) => ({ ...rerun, job_id: i.job_id })))
+      .flatten()
+      .value()
   );
 
   const [trackbacksToShow, setTrackbacksToShow] = useState(
@@ -70,9 +75,11 @@ function TestRerunsInfoIndividiual({
   return (
     <details open={numSiblings == 1}>
       <summary>
-        {name} ({failures.length} reruns)
+        {name} (
+        {successes.length > 0 ? "Flaky/Succeeded after reruns" : "Failed"}) (
+        {failuresWithReruns.length} reruns)
       </summary>
-      {failures.map((i: any, ind: number) => {
+      {failuresWithReruns.map((i: any, ind: number) => {
         return (
           <div key={ind}>
             <span
