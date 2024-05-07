@@ -26,18 +26,17 @@ DOCKER_IMAGE_TYPES = ["runtime", "devel"]
 def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
 
     ret: List[Dict[str, str]] = []
+    prefix = "ghcr.io/pytorch/pytorch"
+    docker_image_version = ""
+    if channel == "release":
+        docker_image_version = f"{prefix}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
+    elif channel == "test":
+        docker_image_version = f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
+    else:
+        docker_image_version = f"{prefix}-nightly:{generate_binary_build_matrix.CURRENT_NIGHTLY_VERSION}.dev{datetime.today().strftime('%Y%m%d')}"
+
     for cuda in generate_binary_build_matrix.CUDA_ARCHES_DICT[channel]:
         version = generate_binary_build_matrix.CUDA_CUDDN_VERSIONS[cuda]
-
-        prefix = "ghcr.io/pytorch/pytorch"
-        docker_image_version = ""
-        if channel == "release":
-            docker_image_version = f"{prefix}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
-        elif channel == "test":
-            docker_image_version = f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
-        else:
-            docker_image_version = f"{prefix}-nightly:{generate_binary_build_matrix.CURRENT_NIGHTLY_VERSION}.dev{datetime.today().strftime('%Y%m%d')}"
-
         for image in DOCKER_IMAGE_TYPES:
             ret.append(
                 {
@@ -46,9 +45,20 @@ def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
                     "cudnn_version": version["cudnn"],
                     "image_type": image,
                     "docker": f"{docker_image_version}-cuda{cuda}-cudnn{version['cudnn']}-{image}",
-                    "platform": "linux/arm64,linux/amd64",
+                    "platform": "linux/amd64",
                 }
             )
+
+    ret.append(
+        {
+            "cuda": "cpu",
+            "cuda_full_version": "",
+            "cudnn_version": "",
+            "image_type": "runtime",
+            "docker": f"{docker_image_version}-runtime",
+            "platform": "linux/arm64",
+        }
+    )
     return {"include": ret}
 
 
