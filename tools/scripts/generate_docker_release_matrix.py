@@ -46,6 +46,7 @@ def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
                     "image_type": image,
                     "docker": f"{docker_image_version}-cuda{cuda}-cudnn{version['cudnn']}-{image}",
                     "platform": "linux/amd64",
+                    "validation_runner": generate_binary_build_matrix.LINUX_GPU_RUNNER,
                 }
             )
 
@@ -57,6 +58,7 @@ def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
             "image_type": "runtime",
             "docker": f"{docker_image_version}-runtime",
             "platform": "linux/arm64",
+            "validation_runner": generate_binary_build_matrix.LINUX_AARCH64_RUNNER,
         }
     )
     return {"include": ret}
