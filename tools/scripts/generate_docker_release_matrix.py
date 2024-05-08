@@ -29,7 +29,7 @@ def generate_docker_matrix(channel: str) -> Dict[str, List[Dict[str, str]]]:
     prefix = "ghcr.io/pytorch/pytorch"
     docker_image_version = ""
     if channel == "release":
-        docker_image_version = f"{prefix}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
+        docker_image_version = f"{prefix.replace("ghcr.io/", "")}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
     elif channel == "test":
         docker_image_version = f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
     else:
