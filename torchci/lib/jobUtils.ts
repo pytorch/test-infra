@@ -9,6 +9,7 @@ import {
   JobData,
   BasicJobData,
   IssueData,
+  PRandJobs,
 } from "lib/types";
 import { getAuthors } from "lib/getAuthors";
 import { jaroWinkler } from "jaro-winkler-typescript";
@@ -19,6 +20,10 @@ export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
 
 export const EXTRACT_REPO_NAME_REGEX = new RegExp(
   "^.+/github\\.com/(?<repo>.+)/actions/runs/.+$"
+);
+
+export const FAILED_TEST_REGEX = new RegExp(
+  "(?<testfile>.+)::(?<testclass>.+)::(?<testcase>.+)"
 );
 
 export const STRING_SIMILARITY_THRESHOLD = 0.95;
@@ -105,6 +110,109 @@ export function getOpenUnstableIssues(
   return unstableIssues.filter(
     (issue) => issueTitle.includes(issue.title) && issue.state === "open"
   );
+}
+
+export function isDisabledTest(matchDisabledTestIssues: IssueData[]): boolean {
+  return matchDisabledTestIssues.some(
+    (disabledTestIssue) => disabledTestIssue.state === "open"
+  );
+}
+
+export function isDisabledTestMentionedInPR(
+  matchDisabledTestIssues: IssueData[],
+  prInfo: PRandJobs
+): boolean {
+  // This captures the rule in PyTorch run_test.py that if the disabled issue
+  // is mentioned anywhere in the PR body or commit, the test should be run
+  // instead of skipping by the PR
+  return matchDisabledTestIssues.some((disabledTestIssue) => {
+    // NB: This is the same regex used by filter_test_configs script
+    const reenableTestRegex = new RegExp(
+      `(Close(d|s)?|Resolve(d|s)?|Fix(ed|es)?) (#|https://github.com/pytorch/pytorch/issues/)${disabledTestIssue.number}`,
+      "i"
+    );
+    return (
+      prInfo.body.match(reenableTestRegex) ||
+      prInfo.shas.some((commit) => commit.title.match(reenableTestRegex))
+    );
+  });
+}
+
+export function isRecentlyCloseDisabledTest(
+  matchDisabledTestIssues: IssueData[],
+  baseCommitDate: string
+): boolean {
+  // If there is one open disabled issue associated with the failed test, it's
+  // obviously not a recently closed one
+  if (isDisabledTest(matchDisabledTestIssues)) {
+    return false;
+  }
+
+  // We need the base commit date for the comparison, so there is nothing to
+  // say if the value is not there
+  if (!baseCommitDate) {
+    return false;
+  }
+
+  const closeTimestamp = _.max(
+    matchDisabledTestIssues.map((disabledTestIssue) =>
+      dayjs(disabledTestIssue.updated_at)
+    )
+  );
+  // If the base commit timestamp is before the closing time of the issue, it
+  // won't have the commit that fixes the flaky test. So, it's ok if the test
+  // fails
+  return dayjs(baseCommitDate).isBefore(dayjs(closeTimestamp));
+}
+
+export function getDisabledTestIssues(
+  job: RecentWorkflowsData,
+  disabledTestIssues: IssueData[]
+): IssueData[] {
+  if (!job.name || !job.failure_captures || job.failure_captures.length === 0) {
+    return [];
+  }
+
+  const matchingIssues: IssueData[] = [];
+  for (const failureCapture of job.failure_captures) {
+    const matchTest = failureCapture.match(FAILED_TEST_REGEX);
+    if (!matchTest || !matchTest.groups) {
+      continue;
+    }
+
+    const testfile = matchTest.groups.testfile;
+    const testclass = matchTest.groups.testclass;
+    const testcase = matchTest.groups.testcase;
+
+    const matchingIssue = disabledTestIssues.filter((disabledTestIssue) => {
+      const title = disabledTestIssue.title;
+      if (
+        !title.includes(`DISABLED ${testcase}`) ||
+        !title.includes(testclass)
+      ) {
+        return false;
+      }
+
+      // Get the list of platforms where the test is disabled
+      const platformsMatch = disabledTestIssue.body.match(
+        new RegExp("Platforms: (?<platforms>[w,s]*)")
+      );
+      if (!platformsMatch || !platformsMatch.groups) {
+        return false;
+      }
+
+      return _.some(
+        platformsMatch.groups.platforms
+          .split(",")
+          .map((platform) => platform.trim()),
+        (platform) => job.name!.includes(platform)
+      );
+    });
+
+    matchingIssues.push(...matchingIssue);
+  }
+
+  return matchingIssues;
 }
 
 export async function getFlakyJobsFromPreviousWorkflow(

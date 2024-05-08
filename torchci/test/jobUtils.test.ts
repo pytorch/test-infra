@@ -5,6 +5,10 @@ import {
   isSameContext,
   removeCancelledJobAfterRetry,
   isFailureFromPrevMergeCommit,
+  getDisabledTestIssues,
+  isRecentlyCloseDisabledTest,
+  isDisabledTest,
+  isDisabledTestMentionedInPR,
 } from "../lib/jobUtils";
 import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
 import nock from "nock";
@@ -564,5 +568,568 @@ describe("Test various job utils", () => {
         },
       ])
     );
+  });
+
+  test("test isDisabledTest", async () => {
+    expect(isDisabledTest([])).toEqual(false);
+    expect(
+      isDisabledTest([
+        {
+          state: "closed",
+          number: 123,
+          title: "",
+          body: "",
+          updated_at: "",
+          author_association: "",
+          html_url: "",
+        },
+      ])
+    ).toEqual(false);
+    expect(
+      isDisabledTest([
+        {
+          state: "open",
+          number: 123,
+          title: "",
+          body: "",
+          updated_at: "",
+          author_association: "",
+          html_url: "",
+        },
+      ])
+    ).toEqual(true);
+    // Hypothetical case where there are more than one matching disabled test issues,
+    // the test is disabled as long as one of them is open
+    expect(
+      isDisabledTest([
+        {
+          state: "open",
+          number: 123,
+          title: "",
+          body: "",
+          updated_at: "",
+          author_association: "",
+          html_url: "",
+        },
+        {
+          state: "closed",
+          number: 123,
+          title: "",
+          body: "",
+          updated_at: "",
+          author_association: "",
+          html_url: "",
+        },
+      ])
+    ).toEqual(true);
+  });
+
+  test("test isDisabledTestMentionedInPR", async () => {
+    const prInfo = {
+      head_sha: "",
+      head_sha_timestamp: "",
+      pr_number: 12345,
+      jobs: [],
+      merge_base: "",
+      merge_base_date: "",
+      owner: "pytorch",
+      repo: "pytorch",
+      title: "A mock PR",
+      // Only the following fields matter in this test
+      body: "Anything goes. Fixes #666. Fixes https://github.com/pytorch/pytorch/issues/555",
+      shas: [
+        {
+          sha: "SHA",
+          title: "Anything goes",
+        },
+        {
+          sha: "SHA",
+          title: "Anything goes. Fixes #777",
+        },
+      ],
+    };
+
+    expect(isDisabledTestMentionedInPR([], prInfo)).toEqual(false);
+    // Not mention anywhere
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "closed",
+            number: 123,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(false);
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 123,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(false);
+
+    // Mention in PR body
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "closed",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+
+    // Mention in PR body
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "closed",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+
+    // Mention in PR one of the PR commit
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "closed",
+            number: 777,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 777,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+
+    // Just one issue is mentioned
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+          {
+            state: "open",
+            number: 123,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+    expect(
+      isDisabledTestMentionedInPR(
+        [
+          {
+            state: "open",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+          {
+            state: "closed",
+            number: 123,
+            title: "",
+            body: "",
+            updated_at: "",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        prInfo
+      )
+    ).toEqual(true);
+  });
+
+  test("test isRecentlyCloseDisabledTest", async () => {
+    // At least one of the issue is still open
+    expect(
+      isRecentlyCloseDisabledTest(
+        [
+          {
+            state: "open",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "2024-05-05T00:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        "2024-05-06T00:00:00Z"
+      )
+    ).toEqual(false);
+    expect(
+      isRecentlyCloseDisabledTest(
+        [
+          {
+            state: "open",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "2024-05-05T00:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+          {
+            state: "closed",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "2024-05-04T00:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        "2024-05-06T00:00:00Z"
+      )
+    ).toEqual(false);
+
+    // The issue is close before the base commit date
+    expect(
+      isRecentlyCloseDisabledTest(
+        [
+          {
+            state: "closed",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "2024-05-05T00:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+          {
+            state: "closed",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "2024-05-04T00:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        "2024-05-06T00:00:00Z"
+      )
+    ).toEqual(false);
+
+    // The issue is close after the base commit date
+    expect(
+      isRecentlyCloseDisabledTest(
+        [
+          {
+            state: "closed",
+            number: 555,
+            title: "",
+            body: "",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+          {
+            state: "closed",
+            number: 666,
+            title: "",
+            body: "",
+            updated_at: "2024-05-06T01:00:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ],
+        "2024-05-06T00:00:00Z"
+      )
+    ).toEqual(true);
+  });
+
+  test("test getDisabledTestIssues", async () => {
+    // Invalid input should return nothing
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [],
+        },
+        []
+      )
+    ).toEqual([]);
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [],
+          name: "Anything goes",
+        },
+        []
+      )
+    ).toEqual([]);
+
+    // Having no disabled test issue
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
+          ],
+          name: "Anything goes",
+        },
+        []
+      )
+    ).toEqual([]);
+
+    // Not matching the failure regex
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: ["Not a failed test"],
+          name: "Anything goes",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Platforms: linux, win, mac",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([]);
+
+    // Not matching test case
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration_no_match",
+          ],
+          name: "Anything goes",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Platforms: linux, win, mac",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([]);
+
+    // Not matching test class
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistrationNoMatch::test_open_device_registration",
+          ],
+          name: "Anything goes",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Platforms: linux, win, mac",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([]);
+
+    // No platforms
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
+          ],
+          name: "Anything goes",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Nothing is specified here.  Does this mean the test is disabled everywhere?",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([]);
+
+    // Match a disable test issue
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
+          ],
+          name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Platforms: linux",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([
+      {
+        state: "open",
+        number: 100152,
+        title:
+          "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+        body: "Platforms: linux",
+        updated_at: "2024-05-06T00:30:00Z",
+        author_association: "",
+        html_url: "",
+      },
+    ]);
   });
 });
