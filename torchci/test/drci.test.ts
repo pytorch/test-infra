@@ -331,7 +331,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
     mockJobUtils.mockImplementation(() => Promise.resolve(true));
 
-    // Mocking feels like a dark art sometimes
     const mockfetchPR = jest.spyOn(fetchPR, "default");
     mockfetchPR.mockImplementation(() =>
       Promise.resolve({

@@ -828,7 +828,7 @@ export async function getWorkflowJobsStatuses(
           .join(", ");
         relatedInfo.set(
           job.id,
-          `disabled by ${disabledTestIssuesMsg} but the issue was closed recently`
+          `disabled by ${disabledTestIssuesMsg} but the issue was closed recently and a rebase is needed to make it pass`
         );
         continue;
       }

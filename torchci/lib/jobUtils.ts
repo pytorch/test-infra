@@ -122,9 +122,9 @@ export function isDisabledTestMentionedInPR(
   matchDisabledTestIssues: IssueData[],
   prInfo: PRandJobs
 ): boolean {
-  // This captures the rule in PyTorch run_test.py that if the disabled issue
-  // is mentioned anywhere in the PR body or commit, the test should be run
-  // instead of skipping by the PR
+  // This captures the rule in PyTorch CI that if the disabled issue is mentioned
+  // anywhere in the PR body or commit, the test should be run instead of skipping
+  // by the PR
   return matchDisabledTestIssues.some((disabledTestIssue) => {
     // NB: This is the same regex used by filter_test_configs script
     const reenableTestRegex = new RegExp(
@@ -195,7 +195,7 @@ export function getDisabledTestIssues(
 
       // Get the list of platforms where the test is disabled
       const platformsMatch = disabledTestIssue.body.match(
-        new RegExp("Platforms: (?<platforms>[w,s]*)")
+        new RegExp("Platforms: (?<platforms>[\\w,\\s]*)")
       );
       if (!platformsMatch || !platformsMatch.groups) {
         return false;
