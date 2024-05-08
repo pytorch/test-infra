@@ -1131,5 +1131,44 @@ describe("Test various job utils", () => {
         html_url: "",
       },
     ]);
+
+    // Include new lines in issue body
+    expect(
+      getDisabledTestIssues(
+        {
+          id: "",
+          completed_at: "",
+          html_url: "",
+          head_sha: "",
+          failure_captures: [
+            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
+          ],
+          name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
+        },
+        [
+          {
+            state: "open",
+            number: 100152,
+            title:
+              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+            body: "Platforms: linux, mac\n\rShould not be match",
+            updated_at: "2024-05-06T00:30:00Z",
+            author_association: "",
+            html_url: "",
+          },
+        ]
+      )
+    ).toEqual([
+      {
+        state: "open",
+        number: 100152,
+        title:
+          "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+        body: "Platforms: linux, mac\n\rShould not be match",
+        updated_at: "2024-05-06T00:30:00Z",
+        author_association: "",
+        html_url: "",
+      },
+    ]);
   });
 });
