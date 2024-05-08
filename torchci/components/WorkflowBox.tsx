@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
 import React from "react";
 import { TestInfo } from "./additionalTestInfo/TestInfo";
+import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -43,7 +44,7 @@ function WorkflowJobSummary({
   if (job.queueTimeS != null) {
     subInfo.push(
       <>
-        <i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins
+        <i>Queued:</i> {durationDisplay(Math.max(job.queueTimeS, 0))}
       </>
     );
   }
@@ -51,7 +52,7 @@ function WorkflowJobSummary({
   if (job.durationS != null) {
     subInfo.push(
       <>
-        <i>Duration:</i> {Math.round(job.durationS / 60)} mins
+        <i>Duration:</i> {durationDisplay(job.durationS)}
       </>
     );
   }
