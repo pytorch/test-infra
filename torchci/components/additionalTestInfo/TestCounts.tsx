@@ -56,27 +56,27 @@ function TestCountsDataGrid({
       })}
       columns={[
         { field: "file", headerName: "Name", flex: 4 },
-        { field: "count", headerName: "Total Tests", flex: 1 },
+        { field: "count", headerName: "Test Count", flex: 1 },
         {
           field: "time",
-          headerName: "Time",
+          headerName: "Test Time",
           flex: 1,
           renderCell: renderTime,
         },
         {
           field: "comparisonCount",
-          headerName: "Other SHA Test Count",
+          headerName: "vs Test Count",
           flex: 1,
         },
         {
           field: "comparisonTime",
-          headerName: "Other SHA Time",
+          headerName: "vs Test Time",
           flex: 1,
           renderCell: renderTime,
         },
         {
           field: "diffCount",
-          headerName: "Diff Test Count",
+          headerName: "Δ Test Count",
           flex: 1,
           renderCell: (params) => {
             if (params.value === undefined) {
@@ -95,7 +95,7 @@ function TestCountsDataGrid({
         },
         {
           field: "diffTime",
-          headerName: "Diff Time",
+          headerName: "Δ Test Time",
           flex: 1,
           renderCell: (params) => {
             if (params.value === undefined) {
@@ -272,7 +272,15 @@ export function TestCountsInfo({
       <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
         Test Times and Counts
       </div>
-      <div style={{ paddingBottom: "1em" }}>
+      <div>
+        This shows the total number of tests and total time taken to run them.
+        Click on the columns names to sort the table by that column. The finest
+        granularity supported is the file level. Expand the build environment
+        names and test configs to see the individual test files. You can also
+        enter a sha below to compare the counts and times with the other sha.
+        The Δ is current sha - comparison sha.
+      </div>
+      <div style={{ padding: "1em 0" }}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
