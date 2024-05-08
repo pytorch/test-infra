@@ -8,9 +8,9 @@ export function ParamSelector({
   value: string;
   handleSubmit: (submission: string) => void;
 }) {
-  const [size, setSize] = useState(value?.length || 0);
+  const [val, setVal] = useState(value || "");
   useEffect(() => {
-    setSize(value?.length || 0);
+    setVal(value || "");
   }, [value]);
   return (
     <form
@@ -20,35 +20,36 @@ export function ParamSelector({
         // @ts-ignore
         handleSubmit(e.target[0].value);
       }}
-      onChange={(e) => {
-        // @ts-ignore
-        setSize(e.target.value.length);
-      }}
-      onFocus={(e) => {
-        e.target.select();
-      }}
-      onBlur={(e) => {
-        if (e.target.value !== value && e.target.value.length > 0) {
-          e.preventDefault();
-          handleSubmit(e.target.value);
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          // @ts-ignore
-          e.target.value = value;
-          setSize(value.length);
-          // @ts-ignore
-          e.target.blur();
-        }
-      }}
     >
       <input
-        size={size}
+        onChange={(e) => {
+          // @ts-ignore
+          setVal(e.target.value);
+        }}
+        onFocus={(e) => {
+          e.target.select();
+          console.log(e.target.value);
+        }}
+        onBlur={(e) => {
+          if (e.target.value !== value && e.target.value.length > 0) {
+            e.preventDefault();
+            handleSubmit(e.target.value);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            // @ts-ignore
+            e.target.value = value;
+            setVal(value);
+            // @ts-ignore
+            e.target.blur();
+          }
+        }}
+        size={val.length || 0}
         className={styles.branchFormInput}
         type="text"
-        defaultValue={value}
+        value={val}
       ></input>
     </form>
   );
