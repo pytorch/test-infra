@@ -1151,7 +1151,7 @@ describe("Test various job utils", () => {
             number: 100152,
             title:
               "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, mac\n\rShould not be match",
+            body: "Platforms: linux, mac \n\rShould not be match",
             updated_at: "2024-05-06T00:30:00Z",
             author_association: "",
             html_url: "",
@@ -1164,7 +1164,7 @@ describe("Test various job utils", () => {
         number: 100152,
         title:
           "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-        body: "Platforms: linux, mac\n\rShould not be match",
+        body: "Platforms: linux, mac \n\rShould not be match",
         updated_at: "2024-05-06T00:30:00Z",
         author_association: "",
         html_url: "",

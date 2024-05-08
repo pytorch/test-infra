@@ -195,7 +195,7 @@ export function getDisabledTestIssues(
 
       // Get the list of platforms where the test is disabled
       const platformsMatch = disabledTestIssue.body.match(
-        new RegExp("Platforms: (?<platforms>[\\w,\\s]*)[\\r\\n]?")
+        new RegExp("Platforms: (?<platforms>[\\w,\\t ]*)")
       );
       if (!platformsMatch || !platformsMatch.groups) {
         return false;
