@@ -820,10 +820,8 @@ export async function getWorkflowJobsStatuses(
         isRecentlyCloseDisabledTest(
           matchDisabledTestIssues,
           prInfo.merge_base_date
-        ) &&
-        !isDisabledTestMentionedInPR(matchDisabledTestIssues, prInfo)
+        )
       ) {
-        flakyJobs.push(job);
         const disabledTestIssuesMsg = matchDisabledTestIssues
           .map((issue) => `[#${issue.number}](${issue.html_url})`)
           .join(", ");
@@ -831,20 +829,9 @@ export async function getWorkflowJobsStatuses(
           job.id,
           `disabled by ${disabledTestIssuesMsg} but the issue was closed recently and a rebase is needed to make it pass`
         );
-        continue;
-      }
 
-      if (prInfo.repo === "pytorch") {
-        // NB: Searching for similar failures depends on the accuracy of the log
-        // classifier, so we only enable this in PyTorch core atm where the log
-        // classifier works decently well
-        const similarFailure = await hasSimilarFailures(
-          job,
-          prInfo.merge_base_date
-        );
-        if (similarFailure !== undefined) {
+        if (!isDisabledTestMentionedInPR(matchDisabledTestIssues, prInfo)) {
           flakyJobs.push(job);
-          relatedJobs.set(job.id, similarFailure);
           continue;
         }
       }
@@ -866,6 +853,21 @@ export async function getWorkflowJobsStatuses(
             .map((issue) => `[#${issue.number}](${issue.html_url})`)
             .join(", ");
           relatedInfo.set(job.id, `disabled by ${disabledTestIssuesMsg}`);
+          continue;
+        }
+      }
+
+      if (prInfo.repo === "pytorch") {
+        // NB: Searching for similar failures depends on the accuracy of the log
+        // classifier, so we only enable this in PyTorch core atm where the log
+        // classifier works decently well
+        const similarFailure = await hasSimilarFailures(
+          job,
+          prInfo.merge_base_date
+        );
+        if (similarFailure !== undefined) {
+          flakyJobs.push(job);
+          relatedJobs.set(job.id, similarFailure);
           continue;
         }
       }
