@@ -823,7 +823,13 @@ export async function getWorkflowJobsStatuses(
         )
       ) {
         const disabledTestIssuesMsg = matchDisabledTestIssues
-          .map((issue) => `[#${issue.number}](${issue.html_url})`)
+          .map(
+            (issue) =>
+              `[#${issue.number}](${issue.html_url.replace(
+                "https://github.com",
+                HUD_URL
+              )})`
+          )
           .join(", ");
         relatedInfo.set(
           job.id,
