@@ -10,7 +10,13 @@ import {
   isDisabledTest,
   isDisabledTestMentionedInPR,
 } from "../lib/jobUtils";
-import { JobData, RecentWorkflowsData, BasicJobData } from "lib/types";
+import {
+  JobData,
+  RecentWorkflowsData,
+  BasicJobData,
+  IssueData,
+  PRandJobs,
+} from "lib/types";
 import nock from "nock";
 import dayjs from "dayjs";
 import * as getAuthors from "../lib/getAuthors";
@@ -571,30 +577,30 @@ describe("Test various job utils", () => {
   });
 
   test("test isDisabledTest", async () => {
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
+
     expect(isDisabledTest([])).toEqual(false);
     expect(
       isDisabledTest([
         {
+          ...mockIssue,
           state: "closed",
-          number: 123,
-          title: "",
-          body: "",
-          updated_at: "",
-          author_association: "",
-          html_url: "",
         },
       ])
     ).toEqual(false);
     expect(
       isDisabledTest([
         {
+          ...mockIssue,
           state: "open",
-          number: 123,
-          title: "",
-          body: "",
-          updated_at: "",
-          author_association: "",
-          html_url: "",
         },
       ])
     ).toEqual(true);
@@ -603,29 +609,20 @@ describe("Test various job utils", () => {
     expect(
       isDisabledTest([
         {
+          ...mockIssue,
           state: "open",
-          number: 123,
-          title: "",
-          body: "",
-          updated_at: "",
-          author_association: "",
-          html_url: "",
         },
         {
+          ...mockIssue,
           state: "closed",
-          number: 123,
-          title: "",
-          body: "",
-          updated_at: "",
-          author_association: "",
-          html_url: "",
+          number: 456,
         },
       ])
     ).toEqual(true);
   });
 
   test("test isDisabledTestMentionedInPR", async () => {
-    const prInfo = {
+    const prInfo: PRandJobs = {
       head_sha: "",
       head_sha_timestamp: "",
       pr_number: 12345,
@@ -648,6 +645,15 @@ describe("Test various job utils", () => {
         },
       ],
     };
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
 
     expect(isDisabledTestMentionedInPR([], prInfo)).toEqual(false);
     // Not mention anywhere
@@ -655,13 +661,8 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "closed",
-            number: 123,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -671,13 +672,8 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
-            number: 123,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -689,13 +685,9 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "closed",
             number: 666,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -705,31 +697,23 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
             number: 666,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
       )
     ).toEqual(true);
 
-    // Mention in PR body
+    // Another one mention in PR body
     expect(
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "closed",
             number: 555,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -739,13 +723,9 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
             number: 555,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -757,13 +737,9 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "closed",
             number: 777,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -773,40 +749,28 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
             number: 777,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
       )
     ).toEqual(true);
 
-    // Just one issue is mentioned
+    // Just one issue is mentioned in the list
     expect(
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
             number: 666,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
           {
+            ...mockIssue,
             state: "open",
             number: 123,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -816,22 +780,14 @@ describe("Test various job utils", () => {
       isDisabledTestMentionedInPR(
         [
           {
+            ...mockIssue,
             state: "open",
             number: 666,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
           {
+            ...mockIssue,
             state: "closed",
             number: 123,
-            title: "",
-            body: "",
-            updated_at: "",
-            author_association: "",
-            html_url: "",
           },
         ],
         prInfo
@@ -840,18 +796,24 @@ describe("Test various job utils", () => {
   });
 
   test("test isRecentlyCloseDisabledTest", async () => {
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
+
     // At least one of the issue is still open
     expect(
       isRecentlyCloseDisabledTest(
         [
           {
+            ...mockIssue,
             state: "open",
-            number: 555,
-            title: "",
-            body: "",
             updated_at: "2024-05-05T00:00:00Z",
-            author_association: "",
-            html_url: "",
           },
         ],
         "2024-05-06T00:00:00Z"
@@ -861,22 +823,15 @@ describe("Test various job utils", () => {
       isRecentlyCloseDisabledTest(
         [
           {
+            ...mockIssue,
             state: "open",
-            number: 555,
-            title: "",
-            body: "",
             updated_at: "2024-05-05T00:00:00Z",
-            author_association: "",
-            html_url: "",
           },
           {
+            ...mockIssue,
             state: "closed",
             number: 666,
-            title: "",
-            body: "",
             updated_at: "2024-05-04T00:00:00Z",
-            author_association: "",
-            html_url: "",
           },
         ],
         "2024-05-06T00:00:00Z"
@@ -888,22 +843,15 @@ describe("Test various job utils", () => {
       isRecentlyCloseDisabledTest(
         [
           {
+            ...mockIssue,
             state: "closed",
-            number: 555,
-            title: "",
-            body: "",
             updated_at: "2024-05-05T00:00:00Z",
-            author_association: "",
-            html_url: "",
           },
           {
+            ...mockIssue,
             state: "closed",
             number: 666,
-            title: "",
-            body: "",
             updated_at: "2024-05-04T00:00:00Z",
-            author_association: "",
-            html_url: "",
           },
         ],
         "2024-05-06T00:00:00Z"
@@ -915,22 +863,15 @@ describe("Test various job utils", () => {
       isRecentlyCloseDisabledTest(
         [
           {
+            ...mockIssue,
             state: "closed",
-            number: 555,
-            title: "",
-            body: "",
             updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
           },
           {
+            ...mockIssue,
             state: "closed",
             number: 666,
-            title: "",
-            body: "",
             updated_at: "2024-05-06T01:00:00Z",
-            author_association: "",
-            html_url: "",
           },
         ],
         "2024-05-06T00:00:00Z"
@@ -939,73 +880,49 @@ describe("Test various job utils", () => {
   });
 
   test("test getDisabledTestIssues", async () => {
+    const mockJob: RecentWorkflowsData = {
+      id: "",
+      completed_at: "",
+      html_url: "",
+      head_sha: "",
+      failure_captures: [
+        "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
+      ],
+      name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
+    };
+    const mockIssue: IssueData = {
+      number: 100152,
+      state: "open",
+      title:
+        "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+      body: "Platforms: linux, win, mac",
+      updated_at: "2024-05-06T00:30:00Z",
+      author_association: "",
+      html_url: "",
+    };
+
     // Invalid input should return nothing
     expect(
       getDisabledTestIssues(
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
+          ...mockJob,
           failure_captures: [],
-        },
-        []
-      )
-    ).toEqual([]);
-    expect(
-      getDisabledTestIssues(
-        {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
-          failure_captures: [],
-          name: "Anything goes",
         },
         []
       )
     ).toEqual([]);
 
     // Having no disabled test issue
-    expect(
-      getDisabledTestIssues(
-        {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
-          failure_captures: [
-            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
-          ],
-          name: "Anything goes",
-        },
-        []
-      )
-    ).toEqual([]);
+    expect(getDisabledTestIssues(mockJob, [])).toEqual([]);
 
     // Not matching the failure regex
     expect(
       getDisabledTestIssues(
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
+          ...mockJob,
           failure_captures: ["Not a failed test"],
-          name: "Anything goes",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, win, mac",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
+        [mockIssue]
       )
     ).toEqual([]);
 
@@ -1013,27 +930,12 @@ describe("Test various job utils", () => {
     expect(
       getDisabledTestIssues(
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
+          ...mockJob,
           failure_captures: [
             "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration_no_match",
           ],
-          name: "Anything goes",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, win, mac",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
+        [mockIssue]
       )
     ).toEqual([]);
 
@@ -1041,133 +943,57 @@ describe("Test various job utils", () => {
     expect(
       getDisabledTestIssues(
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
+          ...mockJob,
           failure_captures: [
             "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistrationNoMatch::test_open_device_registration",
           ],
-          name: "Anything goes",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, win, mac",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
+        [mockIssue]
       )
     ).toEqual([]);
 
     // No platforms
     expect(
-      getDisabledTestIssues(
+      getDisabledTestIssues(mockJob, [
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
-          failure_captures: [
-            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
-          ],
-          name: "Anything goes",
+          ...mockIssue,
+          body: "Nothing is specified here.  This means that the test is disabled everywhere",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Nothing is specified here.  Does this mean the test is disabled everywhere?",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
-      )
-    ).toEqual([]);
+      ])
+    ).toEqual([
+      {
+        ...mockIssue,
+        body: "Nothing is specified here.  This means that the test is disabled everywhere",
+      },
+    ]);
 
     // Match a disable test issue
     expect(
-      getDisabledTestIssues(
+      getDisabledTestIssues(mockJob, [
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
-          failure_captures: [
-            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
-          ],
-          name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
+          ...mockIssue,
+          body: "Platforms: linux, mac",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, mac",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
-      )
+      ])
     ).toEqual([
       {
-        state: "open",
-        number: 100152,
-        title:
-          "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
+        ...mockIssue,
         body: "Platforms: linux, mac",
-        updated_at: "2024-05-06T00:30:00Z",
-        author_association: "",
-        html_url: "",
       },
     ]);
 
     // Include new lines in issue body
     expect(
-      getDisabledTestIssues(
+      getDisabledTestIssues(mockJob, [
         {
-          id: "",
-          completed_at: "",
-          html_url: "",
-          head_sha: "",
-          failure_captures: [
-            "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
-          ],
-          name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
+          ...mockIssue,
+          body: "Platforms: linux, mac \n\rAnother line on the issue body",
         },
-        [
-          {
-            state: "open",
-            number: 100152,
-            title:
-              "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-            body: "Platforms: linux, mac \n\rShould not be match",
-            updated_at: "2024-05-06T00:30:00Z",
-            author_association: "",
-            html_url: "",
-          },
-        ]
-      )
+      ])
     ).toEqual([
       {
-        state: "open",
-        number: 100152,
-        title:
-          "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
-        body: "Platforms: linux, mac \n\rShould not be match",
-        updated_at: "2024-05-06T00:30:00Z",
-        author_association: "",
-        html_url: "",
+        ...mockIssue,
+        body: "Platforms: linux, mac \n\rAnother line on the issue body",
       },
     ]);
   });

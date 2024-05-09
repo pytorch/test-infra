@@ -820,7 +820,8 @@ export async function getWorkflowJobsStatuses(
         isRecentlyCloseDisabledTest(
           matchDisabledTestIssues,
           prInfo.merge_base_date
-        )
+        ) &&
+        !isDisabledTestMentionedInPR(matchDisabledTestIssues, prInfo)
       ) {
         flakyJobs.push(job);
         const disabledTestIssuesMsg = matchDisabledTestIssues

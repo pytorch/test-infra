@@ -198,7 +198,9 @@ export function getDisabledTestIssues(
         new RegExp("Platforms: (?<platforms>[\\w,\\t ]*)")
       );
       if (!platformsMatch || !platformsMatch.groups) {
-        return false;
+        // Note that if the list of platforms is not set, the default is to disabled
+        // the test on all of them
+        return true;
       }
 
       return _.some(
