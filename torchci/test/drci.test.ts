@@ -17,6 +17,7 @@ import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import * as drciUtils from "lib/drciUtils";
 import * as jobUtils from "lib/jobUtils";
+import * as fetchPR from "lib/fetchPR";
 
 nock.disableNetConnect();
 
@@ -329,6 +330,15 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const mockJobUtils = jest.spyOn(jobUtils, "hasS3Log");
     mockJobUtils.mockImplementation(() => Promise.resolve(true));
+
+    const mockfetchPR = jest.spyOn(fetchPR, "default");
+    mockfetchPR.mockImplementation(() =>
+      Promise.resolve({
+        title: "A mock pull request",
+        body: "Anything goes. Fixes #66",
+        shas: [],
+      })
+    );
   });
 
   afterEach(() => {
