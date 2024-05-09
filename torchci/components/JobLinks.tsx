@@ -1,4 +1,4 @@
-import { durationHuman, LocalTimeHuman } from "./TimeUtils";
+import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
@@ -59,12 +59,12 @@ export default function JobLinks({
 
   if (job.queueTimeS != null) {
     subInfo.push(
-      <span>{`Queued: ${durationHuman(Math.max(job.queueTimeS!, 0))}`}</span>
+      <span>{`Queued: ${durationDisplay(Math.max(job.queueTimeS!, 0))}`}</span>
     );
   }
 
   if (job.durationS != null) {
-    subInfo.push(<span>{`Duration: ${durationHuman(job.durationS!)}`}</span>);
+    subInfo.push(<span>{`Duration: ${durationDisplay(job.durationS!)}`}</span>);
   }
 
   if (job.time != null) {
