@@ -476,7 +476,13 @@ function constructResultsJobsSections(
     // Show all the related issues
     if (relatedIssue !== undefined) {
       const issueInfo = relatedIssue
-        .map((issue) => `[#${issue.number}](${issue.html_url})`)
+        .map(
+          (issue) =>
+            `[#${issue.number}](${issue.html_url.replace(
+              "https://github.com",
+              HUD_URL
+            )})`
+        )
         .join(", ");
       output += ` (${issueInfo})`;
     }
@@ -856,7 +862,13 @@ export async function getWorkflowJobsStatuses(
           // its failure is consider flaky
           flakyJobs.push(job);
           const disabledTestIssuesMsg = matchDisabledTestIssues
-            .map((issue) => `[#${issue.number}](${issue.html_url})`)
+            .map(
+              (issue) =>
+                `[#${issue.number}](${issue.html_url.replace(
+                  "https://github.com",
+                  HUD_URL
+                )})`
+            )
             .join(", ");
           relatedInfo.set(job.id, `disabled by ${disabledTestIssuesMsg}`);
           continue;
