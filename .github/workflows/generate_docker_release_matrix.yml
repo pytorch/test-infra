@@ -3,7 +3,7 @@ on:
     inputs:
       channel:
         description: "Channel to use (nightly, test, release, all)"
-        default: ""
+        default: "release"
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
@@ -13,9 +13,9 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
-      generate_dockerhub_images: # New boolean input
+      generate_dockerhub_images: 
         description: "Whether to generate Docker Hub images"
-        default: false
+        default: true
         type: boolean
     outputs:
       matrix:
@@ -43,7 +43,7 @@ jobs:
         id: generate
         env:
           CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
-          GENERATE_DOCKERHUB_IMAGES: ${{ inputs.generate_dockerhub_images }} # Pass input to script
+          GENERATE_DOCKERHUB_IMAGES: ${{ inputs.generate_dockerhub_images }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_docker_release_matrix.py)"
