@@ -15,15 +15,13 @@ on:
         type: string
       generate_dockerhub_images: 
         description: "Whether to generate Docker Hub images"
-        default: false
+        default: true
         type: boolean
     outputs:
       matrix:
         description: "Generated build matrix"
         value: ${{ jobs.generate.outputs.matrix }}
-  push:
-    branches:
-      - '*'
+
 jobs:
   generate:
     outputs:
