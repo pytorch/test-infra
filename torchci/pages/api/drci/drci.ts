@@ -4,7 +4,7 @@ import {
   fetchRecentWorkflows,
   fetchFailedJobsFromCommits,
 } from "lib/fetchRecentWorkflows";
-import { RecentWorkflowsData, IssueData } from "lib/types";
+import { RecentWorkflowsData, IssueData, PRandJobs } from "lib/types";
 import {
   NUM_MINUTES,
   formDrciComment,
@@ -31,21 +31,15 @@ import {
   backfillMissingLog,
   isUnstableJob,
   getOpenUnstableIssues,
+  getDisabledTestIssues,
+  isRecentlyCloseDisabledTest,
+  isDisabledTest,
+  isDisabledTestMentionedInPR,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
 import _ from "lodash";
 import { fetchCommitTimestamp } from "lib/fetchCommit";
-
-interface PRandJobs {
-  head_sha: string;
-  head_sha_timestamp?: string;
-  pr_number: number;
-  jobs: RecentWorkflowsData[];
-  merge_base: string;
-  merge_base_date: string;
-  owner: string;
-  repo: string;
-}
+import fetchPR from "lib/fetchPR";
 
 export interface FlakyRule {
   name: string;
@@ -102,6 +96,7 @@ export async function updateDrciComments(
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
   const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
+  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel("skipped");
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
@@ -136,7 +131,8 @@ export async function updateDrciComments(
         flakyRules,
         baseCommitJobs.get(pr_info.merge_base) || new Map(),
         labels || [],
-        unstableIssues || []
+        unstableIssues || [],
+        disabledTestIssues || []
       );
 
       failures[pr_info.pr_number] = {
@@ -480,7 +476,13 @@ function constructResultsJobsSections(
     // Show all the related issues
     if (relatedIssue !== undefined) {
       const issueInfo = relatedIssue
-        .map((issue) => `[#${issue.number}](${issue.html_url})`)
+        .map(
+          (issue) =>
+            `[#${issue.number}](${issue.html_url.replace(
+              "https://github.com",
+              HUD_URL
+            )})`
+        )
         .join(", ");
       output += ` (${issueInfo})`;
     }
@@ -608,7 +610,12 @@ export function constructResultsComment(
     prNumber,
     `NEW ${pluralize("FAILURE", failedJobs.length).toLocaleUpperCase()}`,
     `The following ${failedJobs.length > 1 ? "jobs have" : "job has"} failed`,
-    failedJobs
+    failedJobs,
+    "",
+    false,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
   );
   output += constructResultsJobsSections(
     hudBaseUrl,
@@ -723,7 +730,8 @@ export async function getWorkflowJobsStatuses(
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>,
   labels: string[] = [],
-  unstableIssues: IssueData[] = []
+  unstableIssues: IssueData[] = [],
+  disabledTestIssues: IssueData[] = []
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -808,6 +816,65 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
+      const matchDisabledTestIssues = getDisabledTestIssues(
+        job,
+        disabledTestIssues
+      );
+      if (
+        matchDisabledTestIssues !== undefined &&
+        matchDisabledTestIssues.length !== 0 &&
+        isRecentlyCloseDisabledTest(
+          matchDisabledTestIssues,
+          prInfo.merge_base_date
+        )
+      ) {
+        const disabledTestIssuesMsg = matchDisabledTestIssues
+          .map(
+            (issue) =>
+              `[#${issue.number}](${issue.html_url.replace(
+                "https://github.com",
+                HUD_URL
+              )})`
+          )
+          .join(", ");
+        relatedInfo.set(
+          job.id,
+          `disabled by ${disabledTestIssuesMsg} but the issue was closed recently and a rebase is needed to make it pass`
+        );
+
+        if (!isDisabledTestMentionedInPR(matchDisabledTestIssues, prInfo)) {
+          flakyJobs.push(job);
+          continue;
+        }
+      }
+
+      if (
+        matchDisabledTestIssues !== undefined &&
+        matchDisabledTestIssues.length !== 0 &&
+        isDisabledTest(matchDisabledTestIssues)
+      ) {
+        if (isDisabledTestMentionedInPR(matchDisabledTestIssues, prInfo)) {
+          // If the test is disabled and it's mentioned in the PR, its failure
+          // would be legit, for example, the PR is trying to fix the flaky test
+          relatedIssues.set(job.id, matchDisabledTestIssues);
+        } else {
+          // If the test is disabled and it's NOT mentioned anywhere in the PR,
+          // its failure is consider flaky
+          flakyJobs.push(job);
+          const disabledTestIssuesMsg = matchDisabledTestIssues
+            .map(
+              (issue) =>
+                `[#${issue.number}](${issue.html_url.replace(
+                  "https://github.com",
+                  HUD_URL
+                )})`
+            )
+            .join(", ");
+          relatedInfo.set(job.id, `disabled by ${disabledTestIssuesMsg}`);
+          continue;
+        }
+      }
+
       if (prInfo.repo === "pytorch") {
         // NB: Searching for similar failures depends on the accuracy of the log
         // classifier, so we only enable this in PyTorch core atm where the log
@@ -849,8 +916,8 @@ export async function reorganizeWorkflows(
   const headShaTimestamps: Map<string, string> = new Map();
 
   for (const workflow of recentWorkflows) {
-    const pr_number = workflow.pr_number!;
-    if (!workflowsByPR.has(pr_number)) {
+    const prNumber = workflow.pr_number!;
+    if (!workflowsByPR.has(prNumber)) {
       let headShaTimestamp = workflow.head_sha_timestamp;
       // NB: The head SHA timestamp is currently used as the end date when searching
       // for similar failures.  However, it's not available on Rockset for commits
@@ -867,8 +934,19 @@ export async function reorganizeWorkflows(
         headShaTimestamps.set(workflow.head_sha, headShaTimestamp);
       }
 
-      workflowsByPR.set(pr_number, {
-        pr_number: pr_number,
+      let prTitle = "";
+      let prBody = "";
+      let prShas: { sha: string; title: string }[] = [];
+      // Gate this to PyTorch as disabled tests feature is only available there
+      if (octokit && repo === "pytorch") {
+        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
+        prTitle = prData.title;
+        prBody = prData.body;
+        prShas = prData.shas;
+      }
+
+      workflowsByPR.set(prNumber, {
+        pr_number: prNumber,
         head_sha: workflow.head_sha,
         head_sha_timestamp: headShaTimestamp,
         jobs: [],
@@ -876,6 +954,9 @@ export async function reorganizeWorkflows(
         merge_base_date: "",
         owner: owner,
         repo: repo,
+        title: prTitle,
+        body: prBody,
+        shas: prShas,
       });
     }
 
@@ -884,7 +965,7 @@ export async function reorganizeWorkflows(
       workflow.head_sha_timestamp = headShaTimestamp;
     }
 
-    workflowsByPR.get(pr_number)!.jobs.push(workflow);
+    workflowsByPR.get(prNumber)!.jobs.push(workflow);
   }
 
   // clean up the workflows - remove retries, remove workflows that have jobs,

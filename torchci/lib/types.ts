@@ -119,7 +119,19 @@ export interface HudParams {
 
 export interface PRData {
   title: string;
+  body: string;
   shas: { sha: string; title: string }[];
+}
+
+export interface PRandJobs extends PRData {
+  head_sha: string;
+  head_sha_timestamp?: string;
+  pr_number: number;
+  jobs: RecentWorkflowsData[];
+  merge_base: string;
+  merge_base_date: string;
+  owner: string;
+  repo: string;
 }
 
 export interface FlakyTestData {

@@ -1,4 +1,4 @@
-import { getOctokit } from "./github";
+import { Octokit } from "octokit";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 import { PRData } from "./types";
@@ -6,15 +6,14 @@ import { PRData } from "./types";
 export default async function fetchPR(
   owner: string,
   repo: string,
-  prNumber: string
+  prNumber: string,
+  octokit: Octokit
 ): Promise<PRData> {
   // We pull data from both Rockset and Github to get all commits, including
   // the ones that have been force merged out of the git history.
   // Rockset is the primary source, GitHub covers anything newer that might
   // have been missed.
-
   const rocksetClient = getRocksetClient();
-  const octokit = await getOctokit(owner, repo);
   const [pull, commits, historicalCommits] = await Promise.all([
     octokit.rest.pulls.get({
       owner,
@@ -53,6 +52,7 @@ export default async function fetchPR(
     ),
   ]);
   const title = pull.data.title;
+  const body = pull.data.body ?? "";
 
   let shas = historicalCommits.results!.map((commit) => {
     return { sha: commit.sha, title: commit.message.split("\n")[0] };
@@ -77,5 +77,5 @@ export default async function fetchPR(
     }
   }
 
-  return { title, shas };
+  return { title, body, shas };
 }

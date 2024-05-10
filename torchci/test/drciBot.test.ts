@@ -174,6 +174,8 @@ describe("verify-drci-functionality", () => {
       .reply(200, { results: [] })
       .post((url) => url.includes("commit_failed_jobs"))
       .reply(200, { results: [] })
+      .post((url) => url.includes("issue_query")) // There are 2 queries to get unstable and skipped issues
+      .reply(200, { results: [] })
       .post((url) => url.includes("issue_query"))
       .reply(200, { results: [] })
       .post(
@@ -187,7 +189,9 @@ describe("verify-drci-functionality", () => {
         (url) => url.includes("self/queries"),
         (body) => JSON.stringify(body).includes("issue_comment")
       )
-      .reply(200, { results: [] }); // query to get issue comments
+      .reply(200, { results: [] }) // query to get issue comments
+      .post((url) => url.includes("pr_commits"))
+      .reply(200, { results: [{ sha: "MOCK", message: "Anything goes" }] }); // query to get PR commits from fetchPR
 
     const scope = nock("https://api.github.com")
       .post(
@@ -247,7 +251,11 @@ describe("verify-drci-functionality", () => {
           return true;
         }
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${OWNER}/${REPO}/pulls/1000`)
+      .reply(200, { title: "A mock pull request", body: "Anything goes" })
+      .get(`/repos/${OWNER}/${REPO}/pulls/1000/commits?per_page=100`)
+      .reply(200, [{ sha: "MOCK", message: "Anything goes" }]);
     await probot.receive(event);
     handleScope(scope);
     handleScope(rockset);
