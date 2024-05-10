@@ -20,6 +20,9 @@ on:
         description: "Generated build matrix"
         value: ${{ jobs.generate.outputs.matrix }}
 
+  push:
+      branches:
+      - '*'
 jobs:
   generate:
     outputs:
