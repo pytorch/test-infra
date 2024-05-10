@@ -3,7 +3,7 @@ on:
     inputs:
       channel:
         description: "Channel to use (nightly, test, release, all)"
-        default: "release"
+        default: release
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
