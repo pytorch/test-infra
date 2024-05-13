@@ -5,6 +5,7 @@ import styles from "./TestInfo.module.css";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import { TestCountsInfo } from "./TestCounts";
+import { TestRerunsInfo } from "./RerunInfo";
 
 export function RecursiveDetailsSummary({
   info,
@@ -58,134 +59,6 @@ export function RecursiveDetailsSummary({
   );
 }
 
-function TestRerunsInfoIndividiual({
-  info,
-  name,
-  numSiblings,
-}: {
-  info: any;
-  name: any;
-  numSiblings: number;
-}) {
-  const [failures, successes] = _.partition(info, (i) => i.failure);
-
-  const failuresWithReruns = failures.concat(
-    _(info)
-      .filter((i: any) => i.rerun)
-      .map((i) => i.rerun.map((rerun: any) => ({ ...rerun, job_id: i.job_id })))
-      .flatten()
-      .value()
-  );
-
-  const [trackbacksToShow, setTrackbacksToShow] = useState(
-    new Set<number>(failures.length == 1 ? [0] : [])
-  );
-
-  return (
-    <details open={numSiblings == 1}>
-      <summary>
-        {name} (
-        {successes.length > 0 ? "Flaky/Succeeded after reruns" : "Failed"}) (
-        {failuresWithReruns.length} reruns)
-      </summary>
-      <div style={{ paddingLeft: "1em" }}>
-        {failuresWithReruns.map((i: any, ind: number) => {
-          return (
-            <div key={ind}>
-              <span
-                onClick={() => {
-                  if (trackbacksToShow.has(ind)) {
-                    const newSet = new Set(trackbacksToShow);
-                    newSet.delete(ind);
-                    setTrackbacksToShow(newSet);
-                  } else {
-                    setTrackbacksToShow(new Set(trackbacksToShow).add(ind));
-                  }
-                }}
-              >
-                Show Trackback #{ind + 1} on
-              </span>
-              <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
-              {trackbacksToShow.has(ind) && (
-                <div
-                  style={{
-                    overflowY: "auto",
-                    maxHeight: "50vh",
-                    borderColor: "black",
-                    borderStyle: "solid",
-                    borderWidth: "1px",
-                    padding: "0em 0.5em",
-                  }}
-                >
-                  <pre>{i.failure.text}</pre>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>{" "}
-    </details>
-  );
-}
-
-function TestRerunsInfo({
-  workflowId,
-  jobs,
-  runAttempt,
-}: {
-  workflowId: string;
-  jobs: JobData[];
-  runAttempt: string;
-}) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
-
-  const { data: info, error } = useSWR(
-    shouldShow
-      ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/reruns/${workflowId}/${runAttempt}`
-      : null,
-    fetcher
-  );
-
-  if (!shouldShow) {
-    return <div>Workflow is still pending or there are no test jobs</div>;
-  }
-
-  if (error) {
-    return <div>Error retrieving data {`${error}`}</div>;
-  }
-
-  if (!info) {
-    return <div>Loading...</div>;
-  }
-  if (Object.keys(info).length == 0) {
-    return <div>No tests were rerun or there was trouble parsing data</div>;
-  }
-
-  return (
-    <>
-      <div
-        style={{ fontSize: "1.17em", fontWeight: "bold", paddingTop: "1em" }}
-      >
-        Info about tests that got rerun
-      </div>
-      <div>
-        <RecursiveDetailsSummary info={info} level={4}>
-          {(name: any, info: any, numSiblings: number) => (
-            <TestRerunsInfoIndividiual
-              key={name}
-              info={info}
-              name={name}
-              numSiblings={numSiblings}
-            />
-          )}
-        </RecursiveDetailsSummary>
-      </div>
-    </>
-  );
-}
-
 function TDInfo({
   workflowId,
   jobs,
@@ -229,6 +102,7 @@ function TDInfo({
       >
         Excluded test files by job
       </div>
+      <div>This shows the files excluded by TD.</div>
       <RecursiveDetailsSummary
         info={info}
         level={1}
