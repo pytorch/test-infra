@@ -18,12 +18,15 @@ function groupByStatus(info: any) {
             const failuresWithReruns = failures.concat(
               _(value)
                 .filter((i: any) => i.rerun)
-                .map((i) =>
-                  i.rerun.map((rerun: any) => ({
+                .map((i) => {
+                  if (!Array.isArray(i.rerun)) {
+                    i.rerun = [i.rerun];
+                  }
+                  return i.rerun.map((rerun: any) => ({
                     failure: rerun,
                     job_id: i.job_id,
-                  }))
-                )
+                  }));
+                })
                 .flatten()
                 .value()
             );
