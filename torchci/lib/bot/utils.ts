@@ -31,6 +31,7 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "rl",
       "torchtune",
       "ao",
+      "torchchat",
     ].includes(repo)
   );
 }
