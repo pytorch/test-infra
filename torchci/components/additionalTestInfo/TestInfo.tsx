@@ -102,9 +102,7 @@ function TDInfo({
       >
         Excluded test files by job
       </div>
-      <div>
-        This shows the files excluded by TD.
-      </div>
+      <div>This shows the files excluded by TD.</div>
       <RecursiveDetailsSummary
         info={info}
         level={1}
