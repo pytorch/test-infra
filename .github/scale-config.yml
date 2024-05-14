@@ -93,6 +93,12 @@ runner_types:
     is_ephemeral: false
     max_available: 30
     os: linux
+  linux.g5.48xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.48xlarge
+    is_ephemeral: false
+    max_available: 2
+    os: linux
   linux.g5.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.12xlarge
