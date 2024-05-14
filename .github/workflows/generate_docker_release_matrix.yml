@@ -1,5 +1,3 @@
-name: Generates the docker release matrix
-
 on:
   workflow_call:
     inputs:
@@ -15,6 +13,10 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
+      generate_dockerhub_images: 
+        description: "Whether to generate Docker Hub images"
+        default: true
+        type: boolean
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -39,6 +41,7 @@ jobs:
         id: generate
         env:
           CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
+          GENERATE_DOCKERHUB_IMAGES: ${{ inputs.generate_dockerhub_images }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_docker_release_matrix.py)"
