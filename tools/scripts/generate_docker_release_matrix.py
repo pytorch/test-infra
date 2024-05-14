@@ -23,13 +23,13 @@ import generate_binary_build_matrix
 DOCKER_IMAGE_TYPES = ["runtime", "devel"]
 
 
-def generate_docker_matrix(channel: str, generate_dockerhub_images: bool) -> Dict[str, List[Dict[str, str]]]:
+def generate_docker_matrix(channel: str, generate_dockerhub_images: str) -> Dict[str, List[Dict[str, str]]]:
 
     ret: List[Dict[str, str]] = []
     prefix = "ghcr.io/pytorch/pytorch"
     docker_image_version = ""
     if channel == "release":
-        prefix_for_release = prefix.replace("ghcr.io/", "") if generate_dockerhub_images else prefix
+        prefix_for_release = prefix.replace("ghcr.io/", "") if generate_dockerhub_images == "true" else prefix
         docker_image_version = f"{prefix_for_release}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
     elif channel == "test":
         docker_image_version = f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
@@ -75,10 +75,11 @@ def main() -> None:
         default=os.getenv("CHANNEL", "nightly"),
     )
     parser.add_argument(
-    "--generate_dockerhub_images",
-    help="Whether to generate Docker Hub images (default: False)",
-    action="store_true",
-    default=False,  
+        "--generate_dockerhub_images",
+        help="Whether to generate Docker Hub images (default: False)",
+        type=str,
+        choices=["true", "false"],
+        default=os.getenv("GENERATE_DOCKER_HUB_IMAGE", "false"),
     )
     options = parser.parse_args()
 
