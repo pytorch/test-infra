@@ -176,10 +176,7 @@ export function formValidationComment(
   body +=
     "action will disable the test for all platforms if no platforms list is specified. \n";
   body +=
-    "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
-  body += `${Array.from(supportedPlatforms.keys())
-    .sort((a, b) => a.localeCompare(b))
-    .join(", ")}.</body>`;
+    "```\nPlatforms: case-insensitive, list, of, platforms\n```\nThe list of supported platforms can be found [here](https://github.com/pytorch/test-infra/wiki/Flaky-test-bot).</body>";
 
   return validationCommentStart + body + validationCommentEnd;
 }
