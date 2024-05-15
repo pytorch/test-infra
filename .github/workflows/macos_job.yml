@@ -168,7 +168,7 @@ jobs:
         shell: bash -l {0}
         working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
         run: |
@@ -185,11 +185,12 @@ jobs:
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
       - name: Clean up disk space
         if: always()
         continue-on-error: true

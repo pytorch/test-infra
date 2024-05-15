@@ -259,6 +259,7 @@ jobs:
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
+        if: always()
         working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         env:
@@ -290,7 +291,7 @@ jobs:
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
