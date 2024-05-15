@@ -84,6 +84,7 @@ def evaluate(
     tests: List[Dict[str, Any]],
     merge_bases: Dict[str, Dict[str, Any]],
     rev_mapping: Dict[str, Dict[str, float]],
+    get_test_name_fn: Any = lambda x: x["invoking_file"],
 ) -> None:
     # This function creates a file called results.csv which contains information
     # about ordering of tests.  It doesn't produce output that is used but is
@@ -104,7 +105,7 @@ def evaluate(
         test_files_sorted_by_score = [
             x[0] for x in sorted(prediction.items(), key=lambda x: x[1], reverse=True)
         ]
-        invoking_file = test["invoking_file"]
+        invoking_file = get_test_name_fn(test)
         position = {}
         for i, file in enumerate(test_files_sorted_by_score):
             position[file] = (i + 1) / len(all_invoking_files)
@@ -170,3 +171,33 @@ def get_filtered_failed_tests() -> List[Dict[str, Any]]:
     """
     failed_tests = query_rockset(failed_tests_query, use_cache=True)
     return filter_tests(failed_tests, get_merge_bases_dict())
+
+
+def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
+    # Should return a mapping of changed file -> correlated test failures -> confidence score
+
+    # Get a mapping of failing test -> list of shas that broke it
+    failing_tests_to_sha = defaultdict(set)
+    for test in tests:
+        failing_test = get_test_name_fn(test)
+        sha = test["head_sha"]
+        failing_tests_to_sha[failing_test].add(sha)
+
+    # Make mapping of failing test -> changed file -> confidence score
+    failing_tests_to_causes = {}
+    for failing_test in failing_tests_to_sha:
+        score_dict = defaultdict(int)  # changed file -> confidence score
+        for sha in failing_tests_to_sha[failing_test]:
+            changed_files = merge_bases[sha]["changed_files"]
+            for changed_file in changed_files:
+                score_dict[changed_file] += 1 / len(changed_files)
+        failing_tests_to_causes[failing_test] = score_dict
+
+    # Reverse the mapping to changed file -> failing test -> confidence score
+    rev_mapping = defaultdict(lambda: defaultdict(float))
+    for failing_test in failing_tests_to_causes:
+        for changed_file in failing_tests_to_causes[failing_test]:
+            rev_mapping[changed_file][failing_test] = failing_tests_to_causes[
+                failing_test
+            ][changed_file]
+    return rev_mapping
