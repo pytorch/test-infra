@@ -176,7 +176,7 @@ export function formValidationComment(
   body +=
     "action will disable the test for all platforms if no platforms list is specified. \n";
   body +=
-    "```\nPlatforms: case-insensitive, list, of, platforms\n```";
+    "```\nPlatforms: case-insensitive, list, of, platforms\n```\n</body>";
 
   return validationCommentStart + body + validationCommentEnd;
 }
