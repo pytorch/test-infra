@@ -79,7 +79,7 @@ def main() -> None:
         help="Whether to generate Docker Hub images (default: False)",
         type=str,
         choices=["true", "false"],
-        default=os.getenv("GENERATE_DOCKER_HUB_IMAGE", "false"),
+        default=os.getenv("GENERATE_DOCKER_HUB_IMAGES", "false"),
     )
     options = parser.parse_args()
 
