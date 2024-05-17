@@ -28,6 +28,8 @@ jobs:
           tag: v${{ steps.date.outputs.date }}
 
   call-release:
+    permissions:
+      contents: write
     needs: tag
     uses: ./.github/workflows/lambda-do-release-runners.yml
     with:
