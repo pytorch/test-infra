@@ -57,6 +57,8 @@ resource "aws_lambda_function" "scale_up" {
       RETRY_SCALE_UP_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
+      SCALE_CONFIG_REPO                    = var.scale_config_repo
+      SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",

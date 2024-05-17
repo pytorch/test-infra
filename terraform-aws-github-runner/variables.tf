@@ -341,3 +341,15 @@ variable "cant_have_issues_labels" {
   type        = list(string)
   default     = []
 }
+
+variable "scale_config_repo" {
+  description = "Repository to fetch scale config from."
+  default     = ""
+  type        = string
+}
+
+variable "scale_config_repo_path" {
+  description = "Path in the repository to fetch scale config from."
+  default     = ""
+  type        = string
+}
