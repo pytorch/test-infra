@@ -13,6 +13,8 @@ jobs:
     name: Upload Release for runners lambdas
     runs-on: ubuntu-latest
     container: node:14
+    permissions:
+      contents: write
     env:
       REF: ${{ inputs.tag }}
     steps:
@@ -52,5 +54,3 @@ jobs:
           artifacts: "runners.zip,webhook.zip"
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
-          token: ${{ secrets.TAG_RELEASE }}
-          allowUpdates: false
