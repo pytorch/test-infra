@@ -47,31 +47,10 @@ jobs:
         with:
           args: zip webhook.zip index.js
 
-      - name: Create Release
-        uses: actions/create-release@v1
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ inputs.tag }}
-          release_name: Runner lambdas ${{ inputs.tag }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset - Runners
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: runners.zip
-          asset_name: runners.zip
-          asset_content_type: application/zip
-      - name: Upload Release Asset - Webhook
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: webhook.zip
-          asset_name: webhook.zip
-          asset_content_type: application/zip
+          artifacts: "runners.zip,webhook.zip"
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+          token: ${{ secrets.TAG_RELEASE }}
+          allowUpdates: false
