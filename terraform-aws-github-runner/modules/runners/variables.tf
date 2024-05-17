@@ -284,3 +284,15 @@ variable "role_runner_arn" {
   description = "Role to use for the runner. If not set a role will be created."
   type        = string
 }
+
+variable "scale_config_repo" {
+  description = "Repository to fetch scale config from."
+  default     = ""
+  type        = string
+}
+
+variable "scale_config_repo_path" {
+  description = "Path in the repository to fetch scale config from."
+  default     = ""
+  type        = string
+}

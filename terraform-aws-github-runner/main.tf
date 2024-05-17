@@ -104,6 +104,9 @@ module "runners" {
   environment          = var.environment
   tags                 = local.tags
 
+  scale_config_repo      = var.scale_config_repo
+  scale_config_repo_path = var.scale_config_repo_path
+
   encryption = {
     kms_key_id = local.kms_key_id
     encrypt    = var.encrypt_secrets
