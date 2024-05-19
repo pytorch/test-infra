@@ -34,7 +34,7 @@ runs:
           set -eou pipefail
 
           DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
-          DRIVER_FN="NVIDIA-Linux-${GPU_ARCH_TYPE}-${DRIVER_VERSION}.run"
+          DRIVER_FN="NVIDIA-Linux-${ARCH_TYPE}-${DRIVER_VERSION}.run"
           YUM_REPO_URL="https://nvidia.github.io/nvidia-docker/${DISTRIBUTION}/nvidia-docker.repo"
 
           install_nvidia_docker2_amzn2() {
