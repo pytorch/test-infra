@@ -117,8 +117,7 @@ jobs:
           done
 
       - name: Upload package to pypi
-        # if: ${{ env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
-        if: ${{ contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
+        if: ${{ env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
