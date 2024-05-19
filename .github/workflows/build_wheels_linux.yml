@@ -75,6 +75,10 @@ on:
         required: false
         type: string
         default: 'setup-py'
+      upload-to-pypi:
+        description: The comma-separated list of CUDA arch to be uploaded to pypi
+        default: ""
+        type: string
 
 permissions:
   id-token: write
@@ -260,6 +264,7 @@ jobs:
       build-matrix: ${{ inputs.build-matrix }}
       architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
+      upload-to-pypi: ${{ inputs.upload-to-pypi }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
