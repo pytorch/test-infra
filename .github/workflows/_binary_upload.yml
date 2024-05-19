@@ -36,6 +36,10 @@ on:
         description: The comma-separated list of CUDA arch to be uploaded to pypi
         default: ''
         type: string
+    secrets:
+      PYPI_API_TOKEN:
+        description: An optional token to upload to pypi
+        required: false
 
 jobs:
   upload:
