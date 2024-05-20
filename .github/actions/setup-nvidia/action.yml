@@ -9,9 +9,15 @@ inputs:
     type: string
     default: "550.54.15"   # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-550-54-15/index.html
   GPU_ARCH_TYPE:
-    required: true
+    description: GPU Arch type #"cuda", "cuda-aarch64"
+    required: false
     type: string
-    description: GPU Arch type
+  ARCH_TYPE:
+    description: CPU Arch Type
+    required: false
+    type: string
+    default: "x86_64"   
+
 
 runs:
   using: composite
@@ -21,10 +27,9 @@ runs:
       env:
         DRIVER_VERSION: ${{ inputs.driver-version }}
         GPU_ARCH_TYPE: ${{ inputs.GPU_ARCH_TYPE }}
+        ARCH_TYPE: ${{ inputs.ARCH_TYPE }}
         ${{ if eq(inputs.GPU_ARCH_TYPE , 'cuda-aarch64') }}:
             ARCH_TYPE: sbsa
-        ${{ else }}:
-            ARCH_TYPE: x86_64
       with:
         timeout_minutes: 10
         max_attempts: 3
