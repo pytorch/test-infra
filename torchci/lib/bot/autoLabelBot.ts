@@ -310,8 +310,7 @@ function getReleaseNotesCategoryAndTopic(
   let topic: string = "untopiced";
 
   if (labels.includes("module: bc-breaking")) {
-    // yes, there is some clowning with the - and _
-    topic = "topic: bc_breaking";
+    topic = "topic: bc breaking";
   }
 
   if (labels.includes("module: deprecation")) {
