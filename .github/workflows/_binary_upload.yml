@@ -32,6 +32,14 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         type: string
         default: ''
+      upload-to-pypi:
+        description: The comma-separated list of CUDA arch to be uploaded to pypi
+        default: ''
+        type: string
+    secrets:
+      PYPI_API_TOKEN:
+        description: An optional token to upload to pypi
+        required: false
 
 jobs:
   upload:
@@ -82,7 +90,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Nightly or release RC
-        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash
         run: |
           set -ex
@@ -107,3 +115,13 @@ jobs:
           for pkg in dist/*; do
             ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
+
+      - name: Upload package to pypi
+        if: ${{ env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          repository-url: https://upload.pypi.org/legacy/
+          packages-dir: ${{ inputs.repository }}/dist/
+          skip-existing: true
