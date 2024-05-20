@@ -76,7 +76,7 @@ jobs:
           path: ${{ inputs.repository }}/dist/
 
       - name: Configure aws credentials (pytorch account)
-        if: ${{ inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly') }}
+        if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) }}
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
