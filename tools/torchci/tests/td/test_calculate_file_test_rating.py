@@ -1,10 +1,8 @@
 from unittest import main, TestCase
 
-from torchci.td.calculate_file_test_rating import (
-    calculate_test_class_ratings,
-    calculate_test_file_ratings,
-    filter_tests,
-)
+from torchci.td.historical_class_failure_correlation import extract_test_class_name
+from torchci.td.historical_file_failure_correlation import filter_tests
+from torchci.td.utils import calculate_generic_test_ratings
 
 
 class TestCalculateFileTestRating(TestCase):
@@ -22,6 +20,7 @@ class TestCalculateFileTestRating(TestCase):
             "classname": classname,
             "file": file,
             "head_sha": head_sha,
+            "failure": invoking_file,
         }
 
     def gen_merge_base(self, sha, changed_files, merge_base):
@@ -47,7 +46,9 @@ class TestCalculateFileTestRating(TestCase):
             ]
         )
         expected = {"a.txt": {"invoking_file": 1.5}, "b.txt": {"invoking_file": 0.5}}
-        scores = calculate_test_file_ratings(tests, merge_bases)
+        scores = calculate_generic_test_ratings(
+            tests, merge_bases, lambda x: x["failure"]
+        )
         self.assertDictEqual(scores, expected)
 
         tests = [
@@ -63,7 +64,9 @@ class TestCalculateFileTestRating(TestCase):
             "a.txt": {"invoking_file_1": 0.5, "invoking_file_2": 0.5},
             "b.txt": {"invoking_file_1": 0.5, "invoking_file_2": 0.5},
         }
-        scores = calculate_test_file_ratings(tests, merge_bases)
+        scores = calculate_generic_test_ratings(
+            tests, merge_bases, lambda x: x["failure"]
+        )
         self.assertDictEqual(scores, expected)
 
     def test_calculate_test_class_ratings(self):
@@ -83,7 +86,9 @@ class TestCalculateFileTestRating(TestCase):
             "a.txt": {"invoking_file::classname": 1.5},
             "b.txt": {"invoking_file::classname": 0.5},
         }
-        scores = calculate_test_class_ratings(tests, merge_bases)
+        scores = calculate_generic_test_ratings(
+            tests, merge_bases, get_test_name_fn=extract_test_class_name
+        )
         self.assertDictEqual(scores, expected)
 
         tests = [
@@ -105,7 +110,9 @@ class TestCalculateFileTestRating(TestCase):
                 "invoking_file_2::classname2": 0.5,
             },
         }
-        scores = calculate_test_class_ratings(tests, merge_bases)
+        scores = calculate_generic_test_ratings(
+            tests, merge_bases, get_test_name_fn=extract_test_class_name
+        )
         self.assertDictEqual(scores, expected)
 
     def test_filter_tests(self):

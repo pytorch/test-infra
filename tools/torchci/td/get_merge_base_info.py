@@ -77,7 +77,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
     docs = []
     for sha in shas:
         try:
-            merge_base = run_command(f"git merge-base main {sha}")
+            merge_base = run_command(f"git merge-base origin/main {sha}")
             if merge_base == sha:
                 # The commit was probably already on main, so take the previous
                 # commit as the merge base
