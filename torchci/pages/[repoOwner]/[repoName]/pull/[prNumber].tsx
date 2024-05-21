@@ -120,7 +120,6 @@ function Page() {
   if (prData === undefined) {
     return <div>Loading...</div>;
   }
-
   return (
     <div>
       <h1>
