@@ -21,7 +21,7 @@ jobs:
       - run: yarn lint
       - name: yarn prettier --check .
         run: |
-          yarn prettier --check . || (echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m'. If it doesn't work, first run `yarn install`" && exit 1)
+          yarn prettier --check . || (echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m'. If it doesn't work, run 'yarn install' and try again." && exit 1)
       - run: yarn tsc
       - run: yarn test
       - run: yarn node scripts/checkRockset.mjs
