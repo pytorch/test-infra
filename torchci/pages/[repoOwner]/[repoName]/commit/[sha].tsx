@@ -22,7 +22,7 @@ export function CommitInfo({
       // Refresh even when the user isn't looking, so that switching to the tab
       // will always have fresh info.
       refreshWhenHidden: true,
-    },
+    }
   );
 
   const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
@@ -61,12 +61,12 @@ export default function Page() {
     repoOwner === "pytorch" && repoName === "pytorch"
       ? "PyTorch"
       : repoOwner === "pytorch" && repoName === "vision"
-        ? "TorchVision"
-        : repoOwner === "pytorch" && repoName === "audio"
-          ? "TorchAudio"
-          : repoOwner === "pytorch" && repoName === "executorch"
-            ? "ExecuTorch"
-            : `${repoOwner}/${repoName}`;
+      ? "TorchVision"
+      : repoOwner === "pytorch" && repoName === "audio"
+      ? "TorchAudio"
+      : repoOwner === "pytorch" && repoName === "executorch"
+      ? "ExecuTorch"
+      : `${repoOwner}/${repoName}`;
 
   useEffect(() => {
     document.title = `${fancyName} sha:${sha}`;

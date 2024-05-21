@@ -24,7 +24,7 @@ function CommitInfo({
       // Refresh even when the user isn't looking, so that switching to the tab
       // will always have fresh info.
       refreshWhenHidden: true,
-    },
+    }
   );
 
   const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
@@ -73,7 +73,7 @@ function CommitHeader({
         value={selectedSha}
         onChange={(e) => {
           router.push(
-            `/${repoOwner}/${repoName}/pull/${pr}?sha=${e.target.value}`,
+            `/${repoOwner}/${repoName}/pull/${pr}?sha=${e.target.value}`
           );
         }}
       >
