@@ -19,9 +19,7 @@ export default function JobFilterInput({
           handleSubmit();
         }}
       >
-        <label htmlFor="name_filter">
-          Job filter: (press enter to change url, esc to clear):{" "}
-        </label>
+        <label htmlFor="name_filter">Job filter: </label>
         <input
           style={{ width: width }}
           onChange={(e) => {
