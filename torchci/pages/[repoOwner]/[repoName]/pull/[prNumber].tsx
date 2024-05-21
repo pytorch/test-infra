@@ -109,17 +109,18 @@ function Page() {
 
   const prData = data as PRData | undefined;
 
+  if (prData === undefined) {
+    return <div>Loading...</div>;
+  }
+
   useEffect(() => {
     const selected = (sha ??
       prData?.shas[prData.shas.length - 1].sha ??
       "") as string;
     setSelectedSha(selected);
-    document.title = 'Gya ha ha';
-  }, [prData?.shas, sha]);
+    document.title = `${prData?.title} #${prNumber}`;
+  }, [prData?.shas, sha, prData?.title]);
 
-  if (prData === undefined) {
-    return <div>Loading...</div>;
-  }
   return (
     <div>
       <h1>
