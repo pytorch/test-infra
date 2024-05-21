@@ -96,11 +96,13 @@ export function JobCell({
 function HudRow({
   rowData,
   expandedGroups,
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
@@ -176,6 +178,7 @@ function HudRow({
       <HudJobCells
         rowData={rowData}
         expandedGroups={expandedGroups}
+        setExpandedGroups={setExpandedGroups}
         names={names}
         unstableIssues={unstableIssues}
       />
@@ -186,11 +189,13 @@ function HudRow({
 function HudJobCells({
   rowData,
   expandedGroups,
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
@@ -215,6 +220,14 @@ function HudJobCells({
               key={name}
               groupData={rowData.groupedJobs?.get(name)!}
               isExpanded={expandedGroups.has(name)}
+              toggleExpanded={() => {
+                if (expandedGroups.has(name)) {
+                  expandedGroups.delete(name);
+                } else {
+                  expandedGroups.add(name);
+                }
+                setExpandedGroups(new Set(expandedGroups));
+              }}
               isClassified={
                 numClassified != 0 && numClassified == failedJobs?.length
               }
@@ -240,11 +253,13 @@ function HudJobCells({
 function HudTableBody({
   shaGrid,
   expandedGroups = new Set(),
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   shaGrid: RowData[];
   expandedGroups?: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
@@ -255,6 +270,7 @@ function HudTableBody({
           key={row.sha}
           rowData={row}
           expandedGroups={expandedGroups}
+          setExpandedGroups={setExpandedGroups}
           names={names}
           unstableIssues={unstableIssues}
         />
@@ -655,6 +671,7 @@ function GroupedHudTable({
       <HudTableBody
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
+        setExpandedGroups={setExpandedGroups}
         names={names}
         unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
       />
