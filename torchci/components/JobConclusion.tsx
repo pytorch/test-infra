@@ -31,12 +31,15 @@ const getFailureEl = (conclusion?: string, jobData?: JobData) => {
   // 278 sprites in total
   const spriteIdx = hashValue % 278;
   const x = (spriteIdx % 10) * 15.26;
-  const y = Math.floor(spriteIdx / 10) * (640/ 28 / 1.5);
+  const y = Math.floor(spriteIdx / 10) * (640 / 28 / 1.5);
 
   // Create and return the style object
-  return <div className={styles.failure_monster} style={/*background position*/
-    {backgroundPosition: `-${x}px -${y}px`}
-  }/>
+  return (
+    <div
+      className={styles.failure_monster}
+      style={/*background position*/ { backgroundPosition: `-${x}px -${y}px` }}
+    />
+  );
 };
 
 /**
