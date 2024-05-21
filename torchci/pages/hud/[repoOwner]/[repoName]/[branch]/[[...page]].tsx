@@ -52,6 +52,7 @@ import { fetcher } from "lib/GeneralUtils";
 import { ParamSelector } from "lib/ParamSelector";
 
 import _ from "lodash";
+import CopyLink from "components/CopyLink";
 
 export function JobCell({
   sha,
@@ -481,27 +482,6 @@ function useLatestCommitSha(params: HudParams) {
   return data.shaGrid[0].sha;
 }
 
-function usePermalinkCopiedState(params: HudParams) {
-  // We ensure that the "Copied" state is reset when the params change
-  // since that would change the permalink url.
-  // Params can change on things like page navigation, changing job filter, etc.
-
-  const [copied, setCopied] = useState(false);
-
-  // Store the old params to know when the actual params
-  // change instead of just the reference to them
-  const prevParamsRef = useRef(params);
-
-  useEffect(() => {
-    if (!_.isEqual(prevParamsRef.current, params)) {
-      prevParamsRef.current = params;
-      setCopied(false);
-    }
-  }, [params]);
-
-  return { copied, setCopied };
-}
-
 function CopyPermanentLink({
   params,
   style,
@@ -509,9 +489,6 @@ function CopyPermanentLink({
   params: HudParams;
   style?: React.CSSProperties;
 }) {
-  // Used to let users know that the permalink has been successfully copied to their clipboard
-  const { copied, setCopied } = usePermalinkCopiedState(params);
-
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
   const latestCommitSha = useLatestCommitSha(params);
@@ -523,23 +500,7 @@ function CopyPermanentLink({
   const domain = window.location.origin;
   const path = formatHudUrlForRoute("hud", permaParams);
   const url = `${domain}${path}`;
-  return (
-    <>
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(url);
-          setCopied(true);
-
-          setTimeout(() => {
-            setCopied(false);
-          }, 10 * 1000); // 10000 milliseconds = 10 seconds
-        }}
-        style={style}
-      >
-        {copied ? "✅ Copied" : "🔗 Permalink"}
-      </button>
-    </>
-  );
+  return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
 function GroupedView({ params }: { params: HudParams }) {
