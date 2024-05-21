@@ -29,7 +29,13 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import PageSelector from "components/PageSelector";
 import {
   isFailedJob,
@@ -44,6 +50,9 @@ import { track } from "lib/track";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import { ParamSelector } from "lib/ParamSelector";
+
+import _ from "lodash";
+import CopyLink from "components/CopyLink";
 
 export function JobCell({
   sha,
@@ -438,7 +447,13 @@ export default function Hud() {
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         {params.branch !== undefined && (
           <div onClick={handleClick}>
-            <HudHeader params={params} />
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <HudHeader params={params} />
+              <CopyPermanentLink
+                params={params}
+                style={{ marginLeft: "10px" }}
+              />
+            </div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
             <br />
@@ -450,6 +465,42 @@ export default function Hud() {
       </PinnedTooltipContext.Provider>
     </>
   );
+}
+
+function useLatestCommitSha(params: HudParams) {
+  const data = useHudData(params);
+  if (data === undefined) {
+    return null;
+  }
+  if (data.shaGrid.length === 0) {
+    return null; // Nothing worth copying
+  }
+  if (data.shaGrid[0].sha === undefined) {
+    return null; // No sha to copy. This should never happen (TM)
+  }
+
+  return data.shaGrid[0].sha;
+}
+
+function CopyPermanentLink({
+  params,
+  style,
+}: {
+  params: HudParams;
+  style?: React.CSSProperties;
+}) {
+  // Branch and tag pointers can change over time.
+  // For a permanent, we take the latest immutable commit as our reference
+  const latestCommitSha = useLatestCommitSha(params);
+  if (latestCommitSha === null) {
+    return <></>;
+  }
+  let permaParams = { ...params, branch: latestCommitSha };
+
+  const domain = window.location.origin;
+  const path = formatHudUrlForRoute("hud", permaParams);
+  const url = `${domain}${path}`;
+  return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
 function GroupedView({ params }: { params: HudParams }) {
