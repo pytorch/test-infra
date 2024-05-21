@@ -441,8 +441,10 @@ export default function Hud() {
             <HudHeader params={params} />
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
-            <br/>
-            <div><em>This page automatically updates.</em></div>
+            <br />
+            <div>
+              <em>This page automatically updates.</em>
+            </div>
           </div>
         )}
       </PinnedTooltipContext.Provider>
