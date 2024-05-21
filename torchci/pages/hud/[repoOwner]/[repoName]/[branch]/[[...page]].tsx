@@ -29,7 +29,7 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import PageSelector from "components/PageSelector";
 import {
   isFailedJob,
@@ -475,17 +475,20 @@ function useLatestCommitSha(params: HudParams) {
   return data.shaGrid[0].sha;
 }
 
-function getPermalinkCopiedState(params: HudParams) {
+function usePermalinkCopiedState(params: HudParams) {
   // We ensure that the "Copied" state is reset when the params change
   // since that would change the permalink url.
   // Params can change on things like page navigation, changing job filter, etc.
 
   const [copied, setCopied] = useState(false);
-  const [oldParams, setOldParams] = useState(params);
+
+  // Store the old params to know when the actual params
+  // change instead of just the reference to them
+  const prevParamsRef = useRef(params);
 
   useEffect(() => {
-    if (!_.isEqual(oldParams, params)) {
-      setOldParams(params);
+    if (!_.isEqual(prevParamsRef.current, params)) {
+      prevParamsRef.current = params;
       setCopied(false);
     }
   }, [params]);
@@ -501,7 +504,7 @@ function CopyPermanentLink({
   style?: React.CSSProperties;
 }) {
   // Used to let users know that the permalink has been successfully copied to their clipboard
-  const { copied, setCopied } = getPermalinkCopiedState(params);
+  const { copied, setCopied } = usePermalinkCopiedState(params);
 
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
