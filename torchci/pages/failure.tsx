@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
 
-import { CSSProperties, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import { BarChart, Bar, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
@@ -270,6 +270,18 @@ function FailureInfo({
   );
 }
 
+function getTestInfo(failureCapture: string) {
+  const pytestFailureRe = /.*.py::(.*)::(test_\S*)/;
+  const match = failureCapture.match(pytestFailureRe);
+  if (match == null) {
+    return null;
+  }
+  return {
+    moduleName: match[1],
+    testName: match[2],
+  };
+}
+
 function setURL(name: string, jobName: string, failureCaptures: string) {
   window.location.href = `/failure?name=${encodeURIComponent(
     name
@@ -283,6 +295,7 @@ export default function Page() {
   const name = router.query.name as string;
   const jobName = router.query.jobName as string;
   const failureCaptures = router.query.failureCaptures as string;
+  const [testInfo, setTestInfo] = useState<any>(null);
 
   const [useFuzzySearch, setUseFuzzySearch] = usePreference(
     "useFuzzySearch",
@@ -301,6 +314,13 @@ export default function Page() {
         )}&useFuzzySearch=${useFuzzySearch}`
       : null;
   const { data } = useSWR(swrKey, fetcher);
+
+  useEffect(() => {
+    setTestInfo(
+      getTestInfo(failureCaptures ? JSON.parse(failureCaptures)[0] : "")
+    );
+  }, [failureCaptures]);
+
   return (
     <div>
       <h1>PyTorch CI Failure Info</h1>
@@ -317,6 +337,17 @@ export default function Page() {
           handleSubmit={(e: any) => setURL(name, jobName, e)}
         />
       </h2>
+      {testInfo && (
+        <div>
+          <a
+            href={`/flakytest?name=${encodeURIComponent(
+              testInfo.testName
+            )}&suite=${encodeURIComponent(testInfo.moduleName)}&limit=100`}
+          >
+            More Failures Page for {testInfo.testName}
+          </a>
+        </div>
+      )}
       <FuzzySearchCheckBox
         useFuzzySearch={useFuzzySearch}
         setUseFuzzySearch={setUseFuzzySearch}
