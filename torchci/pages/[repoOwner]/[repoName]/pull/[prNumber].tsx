@@ -120,6 +120,7 @@ function Page() {
     return <div>Loading...</div>;
   }
   return (
+    <title> Gya ha ha</title>
     <div>
       <h1>
         {prData.title}{" "}
