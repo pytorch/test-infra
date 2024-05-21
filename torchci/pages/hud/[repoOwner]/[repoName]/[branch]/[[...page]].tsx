@@ -536,7 +536,7 @@ function CopyPermanentLink({
         }}
         style={style}
       >
-        {copied ? "📋 ✅ Copied" : "📋 Permalink"}
+        {copied ? "✅ Copied" : "🔗 Permalink"}
       </button>
     </>
   );
