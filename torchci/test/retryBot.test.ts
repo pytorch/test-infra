@@ -46,7 +46,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
@@ -88,7 +88,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
