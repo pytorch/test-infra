@@ -32,5 +32,5 @@ export function useMonsterFailuresPreference(): [
   boolean,
   (useMonsterFailuresValue: boolean) => void
 ] {
-  return usePreference("useMonsterFailures", undefined);
+  return usePreference("useMonsterFailures", /*default*/ false);
 }
