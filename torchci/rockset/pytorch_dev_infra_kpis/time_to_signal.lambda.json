@@ -2,14 +2,9 @@
   "sql_path": "__sql/time_to_signal.sql",
   "default_parameters": [
     {
-      "name": "buildOrAll",
-      "type": "string",
-      "value": "all"
-    },
-    {
       "name": "startTime",
       "type": "string",
-      "value": "2022-01-01T00:00:00.000Z"
+      "value": "2023-01-01T00:00:00.000Z"
     }
   ],
   "description": "TTS for successful workflows"
