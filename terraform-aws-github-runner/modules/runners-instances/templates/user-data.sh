@@ -36,7 +36,7 @@ if [[ "$os_id" =~ ^amzn.* ]]; then
     sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
     sudo modprobe backlight
 fi
-sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
+sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-550.54.15.run"
 sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
 if [[ "$os_id" =~ ^amzn.* ]]; then
