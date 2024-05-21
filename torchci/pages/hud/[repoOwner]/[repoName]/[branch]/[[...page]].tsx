@@ -460,7 +460,7 @@ export default function Hud() {
   );
 }
 
-function getLatestCommitSha(params: HudParams) {
+function useLatestCommitSha(params: HudParams) {
   const data = useHudData(params);
   if (data === undefined) {
     return null;
@@ -505,7 +505,7 @@ function CopyPermanentLink({
 
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
-  const latestCommitSha = getLatestCommitSha(params);
+  const latestCommitSha = useLatestCommitSha(params);
   if (latestCommitSha === null) {
     return <></>;
   }
