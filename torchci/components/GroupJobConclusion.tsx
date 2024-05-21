@@ -39,12 +39,14 @@ export default function HudGroupedCell({
   sha,
   groupData,
   isExpanded,
+  toggleExpanded,
   isClassified,
   unstableIssues,
 }: {
   sha: string;
   groupData: GroupData;
   isExpanded: boolean;
+  toggleExpanded: () => void;
   isClassified: boolean;
   unstableIssues: IssueData[];
 }) {
@@ -111,6 +113,7 @@ export default function HudGroupedCell({
                   ? styles["classified"]
                   : styles[conclusion ?? "none"]
               }
+              onDoubleClick={toggleExpanded}
               style={{ border: "1px solid gainsboro", padding: "0 1px" }}
             >
               {getGroupConclusionChar(conclusion)}
