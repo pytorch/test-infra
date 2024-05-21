@@ -914,13 +914,15 @@ export default function Page() {
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
               {
-                field: "search_string",
+                field: "captures",
                 headerName: "Captures",
                 flex: 4,
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = params.value
-                    ? `failure/${encodeURIComponent(params.row.search_string)}`
-                    : "failure/";
+                    ? `failure?failureCaptures=${encodeURIComponent(
+                        JSON.stringify(params.row.captures)
+                      )}`
+                    : "failure";
                   return <a href={url}>{params.value}</a>;
                 },
               },
