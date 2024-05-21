@@ -45,6 +45,7 @@ import {
 import {
   useGroupingPreference,
   usePreference,
+  useMonsterFailuresPreference,
 } from "lib/useGroupingPreference";
 import { track } from "lib/track";
 import useSWR from "swr";
@@ -84,6 +85,7 @@ export function JobCell({
               (isRerunDisabledTestsJob(job) ||
                 isUnstableJob(job, unstableIssues))
             }
+            jobData={job}
           />
         </div>
       </TooltipTarget>
@@ -305,6 +307,7 @@ function GroupFilterableHudTable({
         hideUnstable={hideUnstable}
         setHideUnstable={setHideUnstable}
       />
+      <MonsterFailuresCheckbox />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}
@@ -376,6 +379,49 @@ function UnstableCheckBox({
   );
 }
 
+export const MonsterFailuresContext = createContext<
+  [boolean, ((value: boolean) => void) | undefined]
+>([false, undefined]);
+
+export function MonsterFailuresProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [monsterFailures, setMonsterFailures] = useMonsterFailuresPreference();
+  return (
+    <MonsterFailuresContext.Provider
+      value={[monsterFailures, setMonsterFailures]}
+    >
+      {children}
+    </MonsterFailuresContext.Provider>
+  );
+}
+
+export function MonsterFailuresCheckbox() {
+  const [monsterFailures, setMonsterFailures] = useContext(
+    MonsterFailuresContext
+  );
+  return (
+    <>
+      <div
+        title="Replace `X` with a monster icon based on the error line."
+        onClick={() => {
+          setMonsterFailures && setMonsterFailures(!monsterFailures);
+        }}
+      >
+        <input
+          type="checkbox"
+          name="monsterFailures"
+          checked={monsterFailures}
+          onChange={() => {}}
+        />
+        <label htmlFor="monsterFailures"> Monsterize failures</label>
+      </div>
+    </>
+  );
+}
+
 function HudTable({ params }: { params: HudParams }) {
   return <GroupedView params={params} />;
 }
@@ -425,9 +471,11 @@ export default function Hud() {
     sha: undefined,
     name: undefined,
   });
+
   function handleClick() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
+
   useEffect(() => {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
@@ -445,23 +493,25 @@ export default function Hud() {
         <title>PyTorch CI HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
-        {params.branch !== undefined && (
-          <div onClick={handleClick}>
-            <div style={{ display: "flex", alignItems: "flex-end" }}>
-              <HudHeader params={params} />
-              <CopyPermanentLink
-                params={params}
-                style={{ marginLeft: "10px" }}
-              />
+        <MonsterFailuresProvider>
+          {params.branch !== undefined && (
+            <div onClick={handleClick}>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <HudHeader params={params} />
+                <CopyPermanentLink
+                  params={params}
+                  style={{ marginLeft: "10px" }}
+                />
+              </div>
+              <HudTable params={params} />
+              <PageSelector params={params} baseUrl="hud" />
+              <br />
+              <div>
+                <em>This page automatically updates.</em>
+              </div>
             </div>
-            <HudTable params={params} />
-            <PageSelector params={params} baseUrl="hud" />
-            <br />
-            <div>
-              <em>This page automatically updates.</em>
-            </div>
-          </div>
-        )}
+          )}
+        </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
   );

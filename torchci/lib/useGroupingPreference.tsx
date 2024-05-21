@@ -27,3 +27,10 @@ export function useGroupingPreference(
 
   return usePreference("useGrouping", override);
 }
+
+export function useMonsterFailuresPreference(): [
+  boolean,
+  (useMonsterFailuresValue: boolean) => void
+] {
+  return usePreference("useMonsterFailures", /*default*/ false);
+}

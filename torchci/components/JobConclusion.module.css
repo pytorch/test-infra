@@ -16,6 +16,13 @@
   color: red;
 }
 
+.failure_monster {
+  width: 14px;
+  height: 15px;
+  background-image: url("/failures_spritesheet.png");
+  background-size: 152px 426px; /* total size of the spritesheet (downscaled 1.5x) */
+}
+
 .skipped {
   color: grey;
 }

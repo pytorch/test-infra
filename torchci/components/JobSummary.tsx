@@ -40,6 +40,7 @@ export default function JobSummary({
           isFailedJob(job) &&
           (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues))
         }
+        jobData={job}
       />
       <a href={job.htmlUrl}> {job.jobName} </a>
       <BranchName name={job.branch} highlight={highlight} />

@@ -93,7 +93,11 @@ function FailedJob({ job }: { job: JobData }) {
       }}
     >
       <div>
-        <JobConclusion conclusion={job.conclusion} classified={isClassified} />
+        <JobConclusion
+          conclusion={job.conclusion}
+          classified={isClassified}
+          jobData={job}
+        />
         <a
           target="_blank"
           rel="noreferrer"
