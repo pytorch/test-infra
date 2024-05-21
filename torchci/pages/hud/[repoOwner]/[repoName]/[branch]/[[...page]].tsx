@@ -29,7 +29,13 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import PageSelector from "components/PageSelector";
 import {
   isFailedJob,
