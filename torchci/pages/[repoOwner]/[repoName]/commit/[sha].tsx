@@ -1,6 +1,7 @@
 import CommitStatus from "components/CommitStatus";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
+import { useEffect } from "react";
 import useSWR from "swr";
 import { IssueData } from "lib/types";
 
@@ -66,6 +67,10 @@ export default function Page() {
       : repoOwner === "pytorch" && repoName === "executorch"
       ? "ExecuTorch"
       : `${repoOwner}/${repoName}`;
+
+  useEffect(() => {
+    document.title = `${fancyName} sha:${sha}`;
+  }, [fancyName, sha]);
 
   return (
     <div>
