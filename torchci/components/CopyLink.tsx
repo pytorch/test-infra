@@ -18,7 +18,7 @@ export default function CopyLink({ textToCopy }: { textToCopy: string }) {
       title={isCopied ? "Copied" : "Copy Link"}
       onClick={onClick}
     >
-      {showCopied ? "✔️" : "📋"}
+      {showCopied ? "✅" : "🔗"}
     </button>
   );
 }
