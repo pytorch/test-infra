@@ -114,13 +114,13 @@ function Page() {
       prData?.shas[prData.shas.length - 1].sha ??
       "") as string;
     setSelectedSha(selected);
+    document.title = 'Gya ha ha';
   }, [prData?.shas, sha]);
 
   if (prData === undefined) {
     return <div>Loading...</div>;
   }
   return (
-    <title> Gya ha ha</title>
     <div>
       <h1>
         {prData.title}{" "}
