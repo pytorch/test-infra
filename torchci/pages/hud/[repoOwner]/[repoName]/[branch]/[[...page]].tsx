@@ -439,9 +439,10 @@ export default function Hud() {
         {params.branch !== undefined && (
           <div onClick={handleClick}>
             <HudHeader params={params} />
-            <div>This page automatically updates.</div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
+            <br/>
+            <div><em>This page automatically updates.</em></div>
           </div>
         )}
       </PinnedTooltipContext.Provider>
