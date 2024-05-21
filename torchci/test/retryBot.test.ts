@@ -128,7 +128,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       )
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
@@ -172,7 +172,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
@@ -213,7 +213,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       )
       .post(
         `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
@@ -268,7 +268,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       )
       .post(
         `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
@@ -318,7 +318,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       )
       .post(
         `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
@@ -355,7 +355,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
     await probot.receive(event);
@@ -365,7 +365,7 @@ describe("retry-bot", () => {
 
   test("get more pages of workflow_jobs", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
-    event.payload.workflow_run.name = "Lint";
+    event.payload.workflow_run.name = "Pull";
     const workflow_jobs1 = requireDeepCopy("./fixtures/workflow_jobs.json");
     const workflow_jobs2 = requireDeepCopy("./fixtures/workflow_jobs.json");
     workflow_jobs2.jobs[0].conclusion = "failure";
@@ -396,7 +396,7 @@ describe("retry-bot", () => {
       )
       .reply(
         200,
-        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";

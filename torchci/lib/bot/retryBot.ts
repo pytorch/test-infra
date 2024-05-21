@@ -79,11 +79,6 @@ async function retryCurrentWorkflow(
       return true;
     }
 
-    // don't rerun linter
-    if (workflowName.toLocaleLowerCase() === "lint") {
-      return false;
-    }
-
     // for builds, don't rerun if it failed on the actual build step
     if (
       job.name.toLocaleLowerCase().startsWith("build") &&
