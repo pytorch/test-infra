@@ -440,9 +440,12 @@ export default function Hud() {
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         {params.branch !== undefined && (
           <div onClick={handleClick}>
-            <div style={{ display: 'flex', alignItems: 'flex-end'}}>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
               <HudHeader params={params} />
-              <CopyPermanentLink params={params} style={{ marginLeft: '10px' }}/>
+              <CopyPermanentLink
+                params={params}
+                style={{ marginLeft: "10px" }}
+              />
             </div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
@@ -472,20 +475,33 @@ function getLatestCommitSha(params: HudParams) {
   return data.shaGrid[0].sha;
 }
 
-function CopyPermanentLink({ params, style }: { params: HudParams; style?: React.CSSProperties }) {
-  // Used to let users know that the permalink has been successfully copied to their clipboard
+function getPermalinkCopiedState(params: HudParams) {
+  // We ensure that the "Copied" state is reset when the params change
+  // since that would change the permalink url.
+  // Params can change on things like page navigation, changing job filter, etc.
+
   const [copied, setCopied] = useState(false);
   const [oldParams, setOldParams] = useState(params);
 
-  // Ensure that the "Copied" message is reset when the params change
-  // since that would change the permalink url.
-  // Params can change on things like page navigation, changing job filter, etc.
   useEffect(() => {
     if (!_.isEqual(oldParams, params)) {
       setOldParams(params);
       setCopied(false);
     }
   }, [params]);
+
+  return { copied, setCopied };
+}
+
+function CopyPermanentLink({
+  params,
+  style,
+}: {
+  params: HudParams;
+  style?: React.CSSProperties;
+}) {
+  // Used to let users know that the permalink has been successfully copied to their clipboard
+  const { copied, setCopied } = getPermalinkCopiedState(params);
 
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
