@@ -22,10 +22,12 @@ export default function PageSelector({
             })}
           >
             Prev
-          </Link>{" "}
-          |{" "}
+          </Link>
         </span>
-      ) : null}
+      ) : (
+        <span>Prev</span>
+      )}{" "}
+      |{" "}
       <Link
         prefetch={false}
         href={formatHudUrlForRoute(baseUrl, {
