@@ -477,7 +477,6 @@ function GroupedHudTable({
     data.shaGrid,
     data.jobNames,
 
-
     unstableIssuesData ? unstableIssuesData.issues : []
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
