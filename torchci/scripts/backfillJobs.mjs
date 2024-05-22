@@ -134,8 +134,8 @@ WHERE
     AND w.repository.name = 'pytorch'
     AND j.backfill IS NULL
 ORDER BY
-    j._event_time DESC
-LIMIT 10000
+    j._event_time ASC
+LIMIT 200
 `,
   },
 });
@@ -184,8 +184,8 @@ WHERE
     AND w.repository.name = 'pytorch'
     AND j.backfill IS NULL
 ORDER BY
-    j._event_time DESC
-LIMIT 10000
+    j._event_time ASC
+LIMIT 200
 `,
   },
 });
