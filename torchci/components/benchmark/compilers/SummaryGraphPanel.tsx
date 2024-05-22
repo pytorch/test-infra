@@ -18,7 +18,7 @@ import {
 } from "lib/benchmark/compilerUtils";
 import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import { SUITES } from "components/benchmark/SuitePicker";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 
 const GRAPH_ROW_HEIGHT = 245;
 

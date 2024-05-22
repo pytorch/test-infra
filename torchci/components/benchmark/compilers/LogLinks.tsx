@@ -1,4 +1,4 @@
-import { SUITES } from "components/benchmark/SuitePicker";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 
 export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
   if (!logs) {

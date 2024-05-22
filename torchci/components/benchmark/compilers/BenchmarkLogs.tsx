@@ -1,6 +1,6 @@
 import { RocksetParam } from "lib/rockset";
-import { SUITES } from "components/benchmark/SuitePicker";
-import { LogLinks } from "components/benchmark/LogLinks";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
+import { LogLinks } from "components/benchmark/compilers/LogLinks";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import { LOG_PREFIX } from "components/benchmark/common";

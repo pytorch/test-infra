@@ -13,7 +13,10 @@ import CopyLink from "components/CopyLink";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
-import { SUITES, SuitePicker } from "components/benchmark/SuitePicker";
+import {
+  SUITES,
+  SuitePicker,
+} from "components/benchmark/compilers/SuitePicker";
 import {
   DEFAULT_MODE,
   MODES,

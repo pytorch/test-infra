@@ -10,7 +10,7 @@ import {
   computePeakMemoryUsage,
   computeMemoryCompressionRatio,
 } from "lib/benchmark/compilerUtils";
-import { SUITES } from "components/benchmark/SuitePicker";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
   RELATIVE_THRESHOLD,
