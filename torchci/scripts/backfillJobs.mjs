@@ -181,6 +181,7 @@ WHERE
     j.status = 'queued'
     AND w.status != 'completed'
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 7 DAY)
     AND w.repository.name = 'pytorch'
     AND j.backfill IS NULL
 ORDER BY
