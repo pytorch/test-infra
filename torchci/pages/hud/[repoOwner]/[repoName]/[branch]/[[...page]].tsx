@@ -506,7 +506,7 @@ export default function Hud() {
   return (
     <>
       <Head>
-        <title>PyTorch CI HUD {title}</title>
+        <title>HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>

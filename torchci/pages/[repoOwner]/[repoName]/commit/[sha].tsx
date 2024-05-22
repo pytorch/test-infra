@@ -1,4 +1,5 @@
 import CommitStatus from "components/CommitStatus";
+import { useSetTitle } from "components/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
@@ -66,6 +67,8 @@ export default function Page() {
       : repoOwner === "pytorch" && repoName === "executorch"
       ? "ExecuTorch"
       : `${repoOwner}/${repoName}`;
+
+  useSetTitle(`${repoOwner}/${repoName} sha:${sha}`);
 
   return (
     <div>
