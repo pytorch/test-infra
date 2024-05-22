@@ -70,7 +70,7 @@ export default function Page() {
 
   useEffect(() => {
     document.title = `${repoOwner}/${repoName} sha:${sha}`;
-  }, [repoOwner, repoName, sha]);
+  }, []);
 
   return (
     <div>
