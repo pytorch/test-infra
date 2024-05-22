@@ -352,18 +352,20 @@ function GroupViewCheckBox({
 }) {
   return (
     <>
-      <div
-        onClick={() => {
-          setUseGrouping(!useGrouping);
-        }}
-      >
-        <input
-          type="checkbox"
-          name="groupView"
-          checked={useGrouping}
-          onChange={() => {}}
-        />
-        <label htmlFor="groupView"> Use grouped view</label>
+      <div>
+        <span
+          onClick={() => {
+            setUseGrouping(!useGrouping);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="groupView"
+            checked={useGrouping}
+            onChange={() => {}}
+          />
+          <label htmlFor="groupView"> Use grouped view</label>
+        </span>
       </div>
     </>
   );
@@ -378,18 +380,20 @@ function UnstableCheckBox({
 }) {
   return (
     <>
-      <div
-        onClick={() => {
-          setHideUnstable(!hideUnstable);
-        }}
-      >
-        <input
-          type="checkbox"
-          name="hideUnstable"
-          checked={hideUnstable}
-          onChange={() => {}}
-        />
-        <label htmlFor="hideUnstable"> Hide unstable jobs</label>
+      <div>
+        <span
+          onClick={() => {
+            setHideUnstable(!hideUnstable);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="hideUnstable"
+            checked={hideUnstable}
+            onChange={() => {}}
+          />
+          <label htmlFor="hideUnstable"> Hide unstable jobs</label>
+        </span>
       </div>
     </>
   );
@@ -420,19 +424,20 @@ export function MonsterFailuresCheckbox() {
   );
   return (
     <>
-      <div
-        title="Replace `X` with a monster icon based on the error line."
-        onClick={() => {
-          setMonsterFailures && setMonsterFailures(!monsterFailures);
-        }}
-      >
-        <input
-          type="checkbox"
-          name="monsterFailures"
-          checked={monsterFailures}
-          onChange={() => {}}
-        />
-        <label htmlFor="monsterFailures"> Monsterize failures</label>
+      <div title="Replace `X` with a monster icon based on the error line.">
+        <span
+          onClick={() => {
+            setMonsterFailures && setMonsterFailures(!monsterFailures);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="monsterFailures"
+            checked={monsterFailures}
+            onChange={() => {}}
+          />
+          <label htmlFor="monsterFailures"> Monsterize failures</label>
+        </span>
       </div>
     </>
   );
