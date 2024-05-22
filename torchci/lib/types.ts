@@ -193,6 +193,12 @@ export interface CompilerPerformanceData {
   job_id?: number;
 }
 
+export interface BranchAndCommit {
+  branch: string;
+  commit: string;
+  date?: string;
+}
+
 export enum JobAnnotation {
   NULL = "None",
   BROKEN_TRUNK = "Broken Trunk",

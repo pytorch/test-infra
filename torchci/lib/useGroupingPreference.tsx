@@ -1,13 +1,20 @@
 import { useState } from "react";
 
+/**
+ * A hook to manage a boolean preference in local storage.
+ * @param name The name of the preference in local storage.
+ * @param override If defined, this value will be used instead of the value in local storage.
+ * @param defaultValue The default value to use if the preference is not set in local storage.
+ */
 export function usePreference(
   name: string,
-  override: boolean | undefined = undefined
-): [boolean, (_grouping: boolean) => void] {
+  override: boolean | undefined = undefined,
+  defaultValue: boolean = true
+): [boolean, (grouping: boolean) => void] {
   const settingFromStorage =
     typeof window === "undefined"
-      ? "true"
-      : window.localStorage.getItem(name) ?? "true";
+      ? String(defaultValue)
+      : window.localStorage.getItem(name) ?? String(defaultValue);
   const initialVal =
     override === undefined ? settingFromStorage === "true" : override;
   const [state, setState] = useState<boolean>(initialVal);
@@ -32,5 +39,9 @@ export function useMonsterFailuresPreference(): [
   boolean,
   (_useMonsterFailuresValue: boolean) => void
 ] {
-  return usePreference("useMonsterFailures", /*default*/ false);
+  return usePreference(
+    "useMonsterFailures",
+    /*override*/ undefined,
+    /*default*/ false
+  );
 }
