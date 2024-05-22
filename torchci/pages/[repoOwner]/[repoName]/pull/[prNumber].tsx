@@ -1,5 +1,6 @@
 import CommitStatus from "components/CommitStatus";
 import ErrorBoundary from "components/ErrorBoundary";
+import { useSetTitle } from "components/DynamicTitle";
 import { PRData, IssueData } from "lib/types";
 import { useRouter } from "next/router";
 import React, { useState, useEffect } from "react";
@@ -114,8 +115,9 @@ function Page() {
       prData?.shas[prData.shas.length - 1].sha ??
       "") as string;
     setSelectedSha(selected);
-    document.title = `${prData?.title} #${prNumber}`;
-  }, [prData?.shas, sha, prData?.title]);
+  }, [prData?.shas, sha]);
+
+  useSetTitle(`${prData?.title} #${prNumber}`);
 
   if (prData === undefined) {
     return <div>Loading...</div>;

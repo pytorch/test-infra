@@ -7,10 +7,10 @@ interface TitleContextProps {
 
 const TitleContext = createContext<TitleContextProps | undefined>(undefined);
 
-export function useTitle(title: string) {
+export function useSetTitle(title: string) {
   const context = useContext(TitleContext);
   if (!context) {
-    throw new Error("useTitle must be used within a TitleProvider");
+    throw new Error("useSetTitle must be used within a TitleProvider");
   }
   context.setTitle(title);
 }
