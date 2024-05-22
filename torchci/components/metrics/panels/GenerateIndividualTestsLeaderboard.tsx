@@ -7,7 +7,6 @@ import {
 import TablePanel from "components/metrics/panels/TablePanel";
 import { durationDisplay } from "components/TimeUtils";
 import { RocksetParam } from "lib/rockset";
-import { useRouter } from "next/router";
 import { useState } from "react";
 
 const ROW_HEIGHT = 500;
@@ -23,8 +22,7 @@ export default function GenerateIndividualTestsLeaderboard({
   thresholdInSecond: number;
   classname?: string;
 }) {
-  const [queryDate, setQueryDate] = useState(dayjs().subtract(2, "day"));
-  const router = useRouter();
+  const [queryDate, _setQueryDate] = useState(dayjs().subtract(2, "day"));
   const queryParamsForLongTestTable: RocksetParam[] = [
     {
       name: "oncall",

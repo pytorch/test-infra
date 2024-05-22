@@ -180,7 +180,6 @@ export function getDisabledTestIssues(
       continue;
     }
 
-    const testfile = matchTest.groups.testfile;
     const testclass = matchTest.groups.testclass;
     const testcase = matchTest.groups.testcase;
 

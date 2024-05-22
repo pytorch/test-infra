@@ -30,7 +30,7 @@ export default function useTableFilter(params: HudParams) {
         document.removeEventListener("keydown", listener);
       };
     }
-  }, [pinnedId.sha]);
+  }, [router, params, pinnedId.sha]);
   const handleInput = useCallback(
     (f: any) => {
       setJobFilter(f);

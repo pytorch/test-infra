@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Client } from "@opensearch-project/opensearch";
 import { getOpenSearchClient } from "lib/opensearch";
 import { JobData } from "lib/types";
 import {
@@ -7,7 +6,6 @@ import {
   WORKFLOW_JOB_INDEX,
   MIN_SCORE,
 } from "lib/searchUtils";
-import { Credentials } from "@aws-sdk/types";
 
 export default async function handler(
   req: NextApiRequest,

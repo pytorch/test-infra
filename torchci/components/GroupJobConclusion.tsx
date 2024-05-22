@@ -4,10 +4,7 @@ import styles from "./JobConclusion.module.css";
 import hudStyles from "./hud.module.css";
 import TooltipTarget from "components/TooltipTarget";
 import { useContext } from "react";
-import {
-  JobCell,
-  PinnedTooltipContext,
-} from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,

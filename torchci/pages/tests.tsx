@@ -1,14 +1,6 @@
 import dayjs from "dayjs";
 import { Grid, Stack, Typography } from "@mui/material";
-import {
-  GridRenderCellParams,
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
 import { TimeRangePicker } from "./metrics";
-import TablePanel from "components/metrics/panels/TablePanel";
-import { durationDisplay } from "components/TimeUtils";
-import { RocksetParam } from "lib/rockset";
-
 import { useState } from "react";
 import GenerateTestInsightsOverviewTable from "../components/metrics/panels/GenerateTestInsightsOverviewTable";
 

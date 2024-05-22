@@ -18,7 +18,6 @@ import {
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { RevertModal } from "lib/RevertModal";
 import {
@@ -29,7 +28,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import useSWR, { SWRConfig } from "swr";
+import { SWRConfig } from "swr";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
@@ -197,27 +196,6 @@ function CommitLinks({ row }: { row: RowData }) {
         </span>
       )}
     </div>
-  );
-}
-
-function RevertButton({ prNum, sha }: { prNum: number; sha: string }) {
-  const router = useRouter();
-  const { repoName, repoOwner } = router.query;
-  const session = useSession();
-
-  if (session.status == "loading" || session.status == "unauthenticated") {
-    return null;
-  }
-  return (
-    <span className={styles.shaTitleElement}>
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={`/${repoName}/${repoOwner}/pull/revert/${prNum}?sha=${sha}`}
-      >
-        <button className={styles.revertButton}>Revert</button>
-      </a>
-    </span>
   );
 }
 
@@ -464,8 +442,6 @@ function CommitSummary({
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
   const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
-  const router = useRouter();
-  const { repoOwner, repoName } = router.query;
 
   let className;
   if (jobs.length === 0) {
@@ -606,14 +582,14 @@ function MiniHud({ params }: { params: HudParams }) {
 }
 
 const JobFilterContext = createContext<
-  [null | string, (name: null | string) => void]
+  [null | string, (_name: null | string) => void]
 >([null, (_n) => {}]);
 
 const JobHoverContext = createContext<
-  [null | string, (name: null | string) => void]
+  [null | string, (_name: null | string) => void]
 >([null, (_n) => {}]);
 
-const ShowDurationContext = createContext<[boolean, (name: boolean) => void]>([
+const ShowDurationContext = createContext<[boolean, (_name: boolean) => void]>([
   false,
   (_n) => {},
 ]);

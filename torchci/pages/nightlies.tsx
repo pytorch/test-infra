@@ -202,11 +202,6 @@ export default function Page() {
     },
   ];
 
-  var numberFormat = Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  });
-
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

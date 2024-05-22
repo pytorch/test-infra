@@ -3,7 +3,6 @@ import { useSetTitle } from "components/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
-import { IssueData } from "lib/types";
 
 export function CommitInfo({
   repoOwner,

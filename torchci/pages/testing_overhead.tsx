@@ -1,11 +1,4 @@
-import {
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-} from "@mui/material";
+import { Grid } from "@mui/material";
 import {
   GridRenderCellParams,
   GridValueFormatterParams,
@@ -26,8 +19,8 @@ const THRESHOLD_IN_SECOND = 10;
 
 export default function TestingOverhead() {
   // Looking at data from the past six months
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
-  const [stopTime, setStopTime] = useState(dayjs());
+  const [startTime, _setStartTime] = useState(dayjs().subtract(1, "month"));
+  const [stopTime, _setStopTime] = useState(dayjs());
   const [workflow, setWorkFlow] = useState<string>(Object.keys(WORKFLOWS)[0]);
   const timeParams: RocksetParam[] = [
     {
@@ -47,8 +40,8 @@ export default function TestingOverhead() {
   }: {
     workflowName: string;
   }) {
-    const [startTime, setStartTime] = useState(dayjs().subtract(2, "day"));
-    const [endTime, setEndTime] = useState(dayjs().subtract(1, "day"));
+    const [startTime, _setStartTime] = useState(dayjs().subtract(2, "day"));
+    const [endTime, _setEndTime] = useState(dayjs().subtract(1, "day"));
     const queryParams: RocksetParam[] = [
       {
         name: "oncall",

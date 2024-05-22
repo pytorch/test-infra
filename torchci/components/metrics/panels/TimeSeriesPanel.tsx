@@ -11,7 +11,6 @@ import { EChartsOption } from "echarts";
 import _ from "lodash";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { time } from "console";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
@@ -67,7 +66,7 @@ export function seriesWithInterpolatedTimes(
 
   // Group the data by the provided field and generate a time series for each
   // one.
-  let byGroup = _.groupBy(data, (d) => "");
+  let byGroup = _.groupBy(data, (_d) => "");
   if (groupByFieldName !== undefined) {
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
@@ -132,7 +131,7 @@ export function TimeSeriesPanelWithData({
   title: string;
   groupByFieldName?: string;
   timeFieldDisplayFormat?: string;
-  yAxisRenderer: (value: any) => string;
+  yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
 }) {
@@ -221,7 +220,7 @@ export default function TimeSeriesPanel({
   timeFieldName: string;
   timeFieldDisplayFormat?: string;
   yAxisFieldName: string;
-  yAxisRenderer: (value: any) => string;
+  yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
 }) {

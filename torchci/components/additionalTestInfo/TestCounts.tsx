@@ -323,7 +323,7 @@ export function TestCountsInfo({
           );
         }}
       >
-        {(config: any, configInfo: any, numSiblings: number) => {
+        {(config: any, configInfo: any, _numSiblings: number) => {
           return (
             <details>
               <summary>{config}</summary>

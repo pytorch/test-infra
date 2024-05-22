@@ -6,7 +6,7 @@ export function ParamSelector({
   handleSubmit,
 }: {
   value: string;
-  handleSubmit: (submission: string) => void;
+  handleSubmit: (_submission: string) => void;
 }) {
   const [val, setVal] = useState(value || "");
   useEffect(() => {

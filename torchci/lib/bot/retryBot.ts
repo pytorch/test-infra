@@ -53,7 +53,7 @@ async function retryCurrentWorkflow(
 
   const doesLookLikeUserFailure = (
     job: any,
-    isCodeValiationStep: (step: any) => boolean
+    isCodeValiationStep: (_step: any) => boolean
   ) => {
     // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
     return (

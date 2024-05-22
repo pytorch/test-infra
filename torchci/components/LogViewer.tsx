@@ -245,7 +245,7 @@ function Log({
         view.destroy();
       };
     }
-  }, [currentLine, data]);
+  }, [state, currentLine, data]);
 
   return <div ref={viewer} onDoubleClick={(e) => e.stopPropagation()}></div>;
 }

@@ -238,7 +238,7 @@ async function forAllPRs(
   );
 }
 
-function get_head_branch(repo: string) {
+function get_head_branch(_repo: string) {
   return "main";
 }
 
@@ -318,7 +318,7 @@ where
     // NB (huydhn): This function couldn't find merge base for ghstack PR and
     // always throw an error in that case, so I decide to not print anything
     // here to void confusion when seeing this error in the log
-    async (pr_info: PRandJobs, e: Error) => {
+    async (pr_info: PRandJobs, _e: Error) => {
       // Insert dummy values if merge base can't be found
       pr_info.merge_base =
         "failed to retrieve merge base, please contact dev infra";

@@ -19,8 +19,8 @@ export function ScalarPanelWithValue({
 }: {
   title: string;
   value: any;
-  valueRenderer: (value: any) => string;
-  badThreshold: (value: any) => boolean;
+  valueRenderer: (_value: any) => string;
+  badThreshold: (_value: any) => boolean;
 }) {
   if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -74,9 +74,9 @@ export default function ScalarPanel({
   queryCollection?: string;
   queryName: string;
   queryParams: RocksetParam[];
-  valueRenderer: (value: any) => string;
+  valueRenderer: (_value: any) => string;
   metricName: string;
-  badThreshold: (value: any) => boolean;
+  badThreshold: (_value: any) => boolean;
 }) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)

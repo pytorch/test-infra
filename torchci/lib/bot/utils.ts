@@ -66,12 +66,12 @@ export class CachedConfigTracker {
 export class CachedIssueTracker extends CachedConfigTracker {
   repoIssues: any = {};
   configName: string;
-  issueParser: (data: string) => object;
+  issueParser: (_data: string) => object;
 
   constructor(
     app: Probot,
     configName: string,
-    issueParser: (data: string) => object
+    issueParser: (_data: string) => object
   ) {
     super(app);
     this.configName = configName;

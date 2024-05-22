@@ -14,20 +14,6 @@ import { TimeRangePicker } from "pages/metrics";
 import dayjs from "dayjs";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
 
-function CommitLink({ job }: { job: JobData }) {
-  return (
-    <span>
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={`/${job.repo}/commit/${job.sha}`}
-      >
-        Commit
-      </a>
-    </span>
-  );
-}
-
 function SimilarFailedJobs({
   job,
   similarJobs,

@@ -1,7 +1,7 @@
 import CommitStatus from "components/CommitStatus";
 import ErrorBoundary from "components/ErrorBoundary";
 import { useSetTitle } from "components/DynamicTitle";
-import { PRData, IssueData } from "lib/types";
+import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import React, { useState, useEffect } from "react";
 import useSWR from "swr";

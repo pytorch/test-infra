@@ -1,9 +1,8 @@
 import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useSWR from "swr";
-import { fetcher, fetcherWithToken } from "lib/GeneralUtils";
-import { Octokit } from "octokit";
+import { fetcherWithToken } from "lib/GeneralUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { WithCommitData } from "./WithCommitData";
@@ -43,7 +42,7 @@ function Workflow({
   sha: string;
   jobs: JobData[];
 }) {
-  const [alreadyRun, setAlreadyRun] = useState(
+  const [alreadyRun, _setAlreadyRun] = useState(
     hasWorkflow(jobs, workflow) !== undefined
   );
   const [isClicked, setIsClicked] = useState(false);
@@ -54,7 +53,7 @@ function Workflow({
 
   const url = `/api/github/dispatch/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
-  const { data, error } = useSWR(
+  useSWR(
     [isClicked && !alreadyRun ? url : null, accessToken],
     fetcherWithToken,
     {

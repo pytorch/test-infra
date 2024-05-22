@@ -29,13 +29,7 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
 import {
   isFailedJob,
@@ -51,8 +45,6 @@ import { track } from "lib/track";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import { ParamSelector } from "lib/ParamSelector";
-
-import _ from "lodash";
 import CopyLink from "components/CopyLink";
 
 export function JobCell({
@@ -400,7 +392,7 @@ function UnstableCheckBox({
 }
 
 export const MonsterFailuresContext = createContext<
-  [boolean, ((value: boolean) => void) | undefined]
+  [boolean, ((_value: boolean) => void) | undefined]
 >([false, undefined]);
 
 export function MonsterFailuresProvider({
@@ -611,7 +603,7 @@ function GroupedHudTable({
     // Only run on component mount, this assumes that the user's preference is
     // the value in local storage
     track(router, "groupingPreference", { useGrouping: useGrouping });
-  }, []);
+  }, [router, useGrouping]);
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 

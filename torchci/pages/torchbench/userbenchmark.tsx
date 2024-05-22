@@ -1,4 +1,4 @@
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import React, { useState, useEffect } from "react";

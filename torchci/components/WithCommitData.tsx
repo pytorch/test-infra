@@ -13,7 +13,7 @@ export function WithCommitData({
   sha: string;
   repoOwner: string;
   repoName: string;
-  children: (commitInfo: {
+  children: (_commitInfo: {
     commit: CommitData;
     jobs: JobData[];
   }) => JSX.Element;
