@@ -1,2 +1,2 @@
 boto3==1.24.59
-requests==2.31.0
+requests==2.32.2
