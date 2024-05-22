@@ -10,7 +10,7 @@ export function usePreference(
   name: string,
   override: boolean | undefined = undefined,
   defaultValue: boolean = true
-): [boolean, (grouping: boolean) => void] {
+): [boolean, (_grouping: boolean) => void] {
   const settingFromStorage =
     typeof window === "undefined"
       ? String(defaultValue)

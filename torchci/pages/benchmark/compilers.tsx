@@ -50,8 +50,6 @@ function Report({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const router = useRouter();
-
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
 
@@ -77,7 +75,7 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  let { data: lData, error: lError } = useSWR(lUrl, fetcher, {
+  let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   lData = augmentData(lData);
@@ -99,7 +97,7 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  let { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+  let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   rData = augmentData(rData);
@@ -243,7 +241,7 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [router.query]);
+  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
 
   const queryParams: RocksetParam[] = [
     {
