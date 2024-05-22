@@ -1,7 +1,7 @@
 import CommitStatus from "components/CommitStatus";
+import { useTitle } from "components/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
 import useSWR from "swr";
 import { IssueData } from "lib/types";
 
@@ -68,9 +68,7 @@ export default function Page() {
       ? "ExecuTorch"
       : `${repoOwner}/${repoName}`;
 
-  useEffect(() => {
-    document.title = `${repoOwner}/${repoName} sha:${sha}`;
-  }, []);
+  useTitle(`${repoOwner}/${repoName} sha:${sha}`);
 
   return (
     <div>
