@@ -198,7 +198,7 @@ export function SingleWorkflowDispatcher({
         repoOwner={repoOwner as string}
         repoName={repoName as string}
       >
-        {({ _commit, jobs }) => (
+        {({ commit, jobs }) => (
           <Workflow
             accessToken={accessToken}
             repoOwner={repoOwner as string}

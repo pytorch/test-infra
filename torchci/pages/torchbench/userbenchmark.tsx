@@ -47,7 +47,7 @@ function UserbenchmarkPicker({
     JSON.stringify(queryParams)
   )}`;
 
-  let { data, _error } = useSWR(list_userbenchmark_url, fetcher, {
+  let { data, error } = useSWR(list_userbenchmark_url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   if (data === undefined || data.length === 0) {
@@ -226,7 +226,7 @@ function Report({
     )}`;
   }
   function QueryMetrics(url: string) {
-    let { data, _error } = useSWR(url, fetcher, {
+    let { data, error } = useSWR(url, fetcher, {
       refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
     });
     return data;

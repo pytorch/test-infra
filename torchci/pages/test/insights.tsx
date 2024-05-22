@@ -271,7 +271,7 @@ function GetJobs({
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data, _error } = useSWR(url, fetcher);
+  const { data, error } = useSWR(url, fetcher);
 
   // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
   if (workflowId == null || jobId == null) {

@@ -15,11 +15,11 @@ import dayjs from "dayjs";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
 
 function SimilarFailedJobs({
-  _job,
+  job,
   similarJobs,
   classification,
 }: {
-  _job: JobData;
+  job: JobData;
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
