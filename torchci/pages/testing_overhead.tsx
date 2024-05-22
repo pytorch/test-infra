@@ -177,31 +177,6 @@ export default function TestingOverhead() {
               additionalOptions={{ yAxis: { scale: true } }}
             />
           </Grid>
-          <Grid item xs={6} lg={12} height={ROW_HEIGHT}>
-            <TimeSeriesPanel
-              title={"Workflow load per Day"}
-              queryName={"workflow_load"}
-              queryParams={[
-                {
-                  name: "timezone",
-                  type: "string",
-                  value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                },
-                {
-                  name: "repo",
-                  type: "string",
-                  value: "pytorch/%",
-                },
-                ...timeParams,
-              ]}
-              granularity={"hour"}
-              groupByFieldName={"name"}
-              timeFieldName={"granularity_bucket"}
-              yAxisFieldName={"count"}
-              yAxisLabel={"# of workflows run"}
-              yAxisRenderer={(value) => value}
-            />
-          </Grid>
         </Grid>
       </>
       <GenerateOncallTestingOverheadLeaderboard workflowName={workflow} />

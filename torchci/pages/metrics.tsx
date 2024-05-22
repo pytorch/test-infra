@@ -858,14 +858,27 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Number of new disabled tests"}
-            queryName={"disabled_test_historical"}
-            queryParams={[...timeParams]}
-            granularity={"day"}
+            title={"Workflow load per Day"}
+            queryName={"workflow_load"}
+            queryParams={[
+              {
+                name: "timezone",
+                type: "string",
+                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+              {
+                name: "repo",
+                type: "string",
+                value: "pytorch/pytorch",
+              },
+              ...timeParams,
+            ]}
+            granularity={"hour"}
+            groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"number_of_new_disabled_tests"}
+            yAxisFieldName={"count"}
+            yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
-            additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
         <JobsDuration
@@ -931,6 +944,18 @@ export default function Page() {
               getRowId: (el: any) =>
                 el.search_string ? el.search_string : "null",
             }}
+          />
+        </Grid>
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Number of new disabled tests"}
+            queryName={"disabled_test_historical"}
+            queryParams={[...timeParams]}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"number_of_new_disabled_tests"}
+            yAxisRenderer={(value) => value}
+            additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
       </Grid>
