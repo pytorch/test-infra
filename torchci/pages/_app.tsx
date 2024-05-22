@@ -5,7 +5,6 @@ import TitleProvider from "components/DynamicTitle";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
-import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import "styles/globals.css";
@@ -17,7 +16,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     // GA records page views on its own, but I want to see how it differs with
     // this one.
     track(router, "pageview", {});
-  }, [router.pathname]);
+  }, [router, router.pathname]);
 
   ReactGA.initialize("G-HZEXJ323ZF");
   return (

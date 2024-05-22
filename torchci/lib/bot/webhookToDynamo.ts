@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { Context, Probot } from "probot";
+import { Probot } from "probot";
 import {
   EmitterWebhookEvent as WebhookEvent,
   EmitterWebhookEventName as WebhookEvents,
@@ -16,14 +16,6 @@ function narrowType<E extends WebhookEvents>(
 async function handleWorkflowJob(
   event: WebhookEvent<"workflow_run" | "workflow_job">
 ) {
-  // [WebhookEvent typing]: `event` is really a Probot.Context, but if we try to
-  // do any strong type checking on `context.payload` TypeScript errors out with
-  // "union too complex"-type errors. This is fixed by mostly passing around
-  // `event` as a `WebhookEvent` (which it "inherits" from). But sometimes we
-  // need the actual context object (for logging and such), so declare it here
-  // as well
-  const context = event as Context;
-
   // Thre is the chance that job ids from different repos could collide. To
   // prevent this, prefix the object key with the repo that they come from.
   const key_prefix = event.payload.repository.full_name + "/";

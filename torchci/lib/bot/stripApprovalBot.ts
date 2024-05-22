@@ -1,6 +1,5 @@
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
-import { exit } from "process";
 
 export default function stripApprovalBot(app: Probot): void {
   app.on(

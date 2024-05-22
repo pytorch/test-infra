@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOctokit } from "lib/github";
 import fetchFlakyTests, {
-  fetchFlakyTestsAcrossJobs,
   fetchFlakyTestsAcrossFileReruns,
 } from "lib/fetchFlakyTests";
 import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
@@ -151,7 +150,6 @@ export async function handleFlakyTest(
 ) {
   const issueTitle = getIssueTitle(test.name, test.suite);
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
-  const workflowJobNames = getWorkflowJobNames(test);
   test.invoking_file = test.invoking_file.replaceAll(".", "/");
   if (matchingIssues.length !== 0) {
     // There is a matching issue

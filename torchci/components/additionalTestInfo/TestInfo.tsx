@@ -1,6 +1,5 @@
 import { JobData } from "lib/types";
 import { useState } from "react";
-import _ from "lodash";
 import styles from "./TestInfo.module.css";
 import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
@@ -10,15 +9,15 @@ import { TestRerunsInfo } from "./RerunInfo";
 export function RecursiveDetailsSummary({
   info,
   level,
-  summaryFunction = (name: any, info: any) => <>{name}</>,
+  summaryFunction = (name: any, _info: any) => <>{name}</>,
   bodyFunction,
   children,
 }: {
   info: any;
   level: number;
-  summaryFunction?: (name: any, info: any) => JSX.Element;
-  children: (name: any, info: any, numSiblings: number) => JSX.Element;
-  bodyFunction?: (name: any, info: any) => JSX.Element;
+  summaryFunction?: (_name: any, _info: any) => JSX.Element;
+  children: (_name: any, _info: any, _numSiblings: number) => JSX.Element;
+  bodyFunction?: (_name: any, _info: any) => JSX.Element;
 }) {
   const keysInInfo = Object.keys(info);
   if (level == 0) {

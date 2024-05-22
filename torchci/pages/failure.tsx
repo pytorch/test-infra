@@ -74,7 +74,7 @@ function FailureInfo({
   highlighted.add("main");
 
   const branchNames = new Set<string>(highlighted);
-  samplesToShow.forEach((job, i) => {
+  samplesToShow.forEach((job, _i) => {
     const time = dayjs(job.time!).local().format("MM/D");
     if (!dayBuckets.has(time)) {
       return;
@@ -119,9 +119,6 @@ function FailureInfo({
       backgroundColor: "#fff",
       border: "1px solid #ccc",
       whiteSpace: "nowrap",
-    };
-    const finalLabelStyle: CSSProperties = {
-      margin: 0,
     };
     const finalItemStyle = {
       display: "block",

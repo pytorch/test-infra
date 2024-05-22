@@ -4,7 +4,6 @@ import useSWR from "swr";
 import { useEffect, useState } from "react";
 import {
   Autocomplete,
-  Checkbox,
   FormControl,
   Grid,
   InputLabel,
@@ -16,8 +15,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
-import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import { RocksetParam } from "lib/rockset";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
@@ -25,9 +22,6 @@ import { durationDisplay } from "components/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
 
 const ROW_HEIGHT = 600;
-
-const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
-const checkedIcon = <CheckBoxIcon fontSize="small" />;
 
 function TimePicker({ label, value, setValue }: any) {
   return (

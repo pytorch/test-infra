@@ -25,7 +25,7 @@ export const authOptions = {
       session.userData = user;
       return session;
     },
-    async jwt({ token, user, account, profile, isNewUser }) {
+    async jwt({ token, user, account, _profile, _isNewUser }) {
       if (user) {
         token.id = user.id;
       }

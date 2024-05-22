@@ -432,8 +432,6 @@ function JobsDuration({
 
 const ROW_HEIGHT = 375;
 
-function getCommitRedMetrics(queryParams: RocksetParam[]) {}
-
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
@@ -459,11 +457,6 @@ export default function Page() {
     type: "float",
     value: ttsPercentile,
   };
-
-  var numberFormat = Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  });
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryCollection = "metrics";

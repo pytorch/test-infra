@@ -1,11 +1,10 @@
 import dayjs from "dayjs";
-import { Divider, Grid, Stack, Typography } from "@mui/material";
+import { Grid, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 import { useState } from "react";
-import fetchS3Links from "lib/fetchS3Links";
 import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPanel";
 
 const LASTEST_N_RUNS = 50;
@@ -272,7 +271,7 @@ function GetJobs({
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data, error } = useSWR(url, fetcher);
+  const { data, _error } = useSWR(url, fetcher);
 
   // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
   if (workflowId == null || jobId == null) {
@@ -308,8 +307,8 @@ function GetJobs({
 }
 
 export default function Page() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
-  const [stopTime, setStopTime] = useState(dayjs());
+  const [startTime, _setStartTime] = useState(dayjs().subtract(1, "week"));
+  const [stopTime, _setStopTime] = useState(dayjs());
 
   const router = useRouter();
   // Need all these parameters to narrow down the test selection

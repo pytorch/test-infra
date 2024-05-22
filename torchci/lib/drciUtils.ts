@@ -6,7 +6,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
 import { Client } from "@opensearch-project/opensearch";
 import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
-import { RecentWorkflowsData, JobData } from "lib/types";
+import { RecentWorkflowsData } from "lib/types";
 import {
   isSameAuthor,
   isSameFailure,

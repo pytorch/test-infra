@@ -25,7 +25,7 @@ function GenerateOncallTestInsightsOverviewTable({
 }) {
   const router = useRouter();
   const oncall = router.query.oncall as string;
-  const [startTime, setStartTime] = useState(dayjs().subtract(2, "day"));
+  const [startTime, _setStartTime] = useState(dayjs().subtract(2, "day"));
   const queryParams: RocksetParam[] = [
     {
       name: "queryDate",
@@ -118,8 +118,8 @@ export default function TestingOverhead() {
   const router = useRouter();
   const oncall = router.query.oncall as string;
   // Looking at data from the past six months
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
-  const [endTime, setEndTime] = useState(dayjs());
+  const [startTime, _setStartTime] = useState(dayjs().subtract(1, "month"));
+  const [endTime, _setEndTime] = useState(dayjs());
   const [workflow, setWorkFlow] = useState<string>(Object.keys(WORKFLOWS)[0]);
   return (
     <>

@@ -9,7 +9,7 @@ export default function MePage() {
     if (!session) {
       return;
     }
-    const response = await fetch(
+    await fetch(
       "https://api.github.com/repos/pytorch/test-infra/issues",
       {
         method: "POST",

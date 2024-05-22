@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import React, { useState } from "react";
 import useCopyClipboard from "react-use-clipboard";
 

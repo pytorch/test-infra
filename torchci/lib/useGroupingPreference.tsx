@@ -3,7 +3,7 @@ import { useState } from "react";
 export function usePreference(
   name: string,
   override: boolean | undefined = undefined
-): [boolean, (grouping: boolean) => void] {
+): [boolean, (_grouping: boolean) => void] {
   const settingFromStorage =
     typeof window === "undefined"
       ? "true"
@@ -22,7 +22,7 @@ export function usePreference(
 
 export function useGroupingPreference(
   hasParams: boolean
-): [boolean, (grouping: boolean) => void] {
+): [boolean, (_grouping: boolean) => void] {
   const override = hasParams ? false : undefined;
 
   return usePreference("useGrouping", override);
@@ -30,7 +30,7 @@ export function useGroupingPreference(
 
 export function useMonsterFailuresPreference(): [
   boolean,
-  (useMonsterFailuresValue: boolean) => void
+  (_useMonsterFailuresValue: boolean) => void
 ] {
   return usePreference("useMonsterFailures", /*default*/ false);
 }

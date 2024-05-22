@@ -151,7 +151,7 @@ export default function WorkflowBox({
   });
   useEffect(() => {
     getSearchRes(jobs, searchString, setSearchRes);
-  }, [searchString]);
+  }, [jobs, searchString]);
 
   return (
     <div

@@ -50,7 +50,7 @@ export default function FilteredJobList({
 }: {
   filterName: string;
   jobs: JobData[];
-  pred: (job: JobData) => boolean;
+  pred: (_job: JobData) => boolean;
   showClassification?: boolean;
   unstableIssues: IssueData[];
 }) {

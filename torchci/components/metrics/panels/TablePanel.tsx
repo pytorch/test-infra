@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { DataGrid, DataGridProps, GridColDef } from "@mui/x-data-grid";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { Typography, Skeleton } from "@mui/material";
 import { RocksetParam } from "lib/rockset";
 import HelpIcon from "@mui/icons-material/Help";

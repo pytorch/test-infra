@@ -2,10 +2,9 @@ import dayjs from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
-import _ from "lodash";
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -78,7 +77,6 @@ function Graphs({
   queryParams,
   granularity,
   ttsPercentile,
-  selectedJobName,
   checkboxRef,
   branchName,
   filter,
@@ -87,7 +85,6 @@ function Graphs({
   queryParams: RocksetParam[];
   granularity: Granularity;
   ttsPercentile: number;
-  selectedJobName: string;
   checkboxRef: any;
   branchName: string;
   filter: any;
@@ -305,7 +302,6 @@ export default function Page() {
         queryParams={queryParams}
         granularity={granularity}
         ttsPercentile={ttsPercentile}
-        selectedJobName={jobName}
         checkboxRef={checkboxRef}
         branchName={branch}
         filter={filter}

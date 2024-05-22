@@ -1,5 +1,4 @@
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import TablePanel from "components/metrics/panels/TablePanel";
 import { RocksetParam } from "lib/rockset";
 import { durationDisplay } from "components/TimeUtils";
 import { TimeRangePicker } from "./metrics";
