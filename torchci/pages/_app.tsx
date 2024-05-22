@@ -1,6 +1,7 @@
 import AnnouncementBanner from "components/AnnouncementBanner";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
+import TitleProvider from "components/DynamicTitle";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
@@ -22,15 +23,14 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <SessionProvider>
-        <Head>
-          <title>PyTorch CI HUD</title>
-        </Head>
-        <NavBar />
-        <AnnouncementBanner />
-        <SevReport />
-        <div style={{ margin: "20px" }}>
-          <Component {...pageProps} />
-        </div>
+        <TitleProvider>
+          <NavBar />
+          <AnnouncementBanner />
+          <SevReport />
+          <div style={{ margin: "20px" }}>
+            <Component {...pageProps} />
+          </div>
+        </TitleProvider>
       </SessionProvider>
     </>
   );
