@@ -6,6 +6,7 @@ import { decrypt } from '../kms';
 
 const DEFAULT_PATTERNS = [/windows-.*/, /ubuntu-.*/, /macos-.*/];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const handle = async (headers: IncomingHttpHeaders, payload: any): Promise<number> => {
   // ensure header keys lower case since github headers can contain capitals.
   for (const key in headers) {
