@@ -117,6 +117,7 @@ export default function Kpis() {
           yAxisFieldName={"avg_tts"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
+          groupByFieldName="branch"
         />
       </Grid>
 
