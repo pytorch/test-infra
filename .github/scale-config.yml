@@ -123,7 +123,7 @@ runner_types:
     is_ephemeral: false
     max_available: 200
     os: linux
-  linux.arm64.4xlarge:
+  linux.arm64.m7g.4xlarge:
     disk_size: 256
     instance_type: m7g.4xlarge
     is_ephemeral: false
