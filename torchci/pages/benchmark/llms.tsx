@@ -8,14 +8,8 @@ import { useRouter } from "next/router";
 import CopyLink from "components/CopyLink";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import {
-  Skeleton,
   Stack,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  SelectChangeEvent,
   Divider,
 } from "@mui/material";
 import { TimeRangePicker } from "../metrics";
@@ -23,7 +17,6 @@ import GranularityPicker from "components/GranularityPicker";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
 import {
-  QUANTIZATIONS,
   DEFAULT_QUANTIZATION,
   BENCHMARKS,
   DEFAULT_MODEL_NAME,
@@ -31,10 +24,12 @@ import {
 import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { BranchAndCommit } from "lib/types";
+import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
 
-function queryBenchmark(
+function QueryBenchmark(
   queryParams: RocksetParam[],
   modelName: string,
+  quantization: string,
   branchAndCommit: BranchAndCommit
 ) {
   const queryCollection = "benchmarks";
@@ -56,8 +51,14 @@ function queryBenchmark(
       type: "string",
       value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
     },
+    {
+      name: "quantization",
+      type: "string",
+      value: quantization,
+    },
     ...queryParams,
   ];
+
   const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithBranchAndCommit)
   )}`;
@@ -72,8 +73,8 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  quantization,
   modelName,
+  quantization,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -81,19 +82,21 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  quantization: string;
   modelName: string;
+  quantization: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const { data: lData, error: lError } = queryBenchmark(
+  const { data: lData, error: _lError } = QueryBenchmark(
     queryParams,
     modelName,
+    quantization,
     lBranchAndCommit
   );
-  const { data: rData, error: rError } = queryBenchmark(
+  const { data: rData, error: _rError } = QueryBenchmark(
     queryParams,
     modelName,
+    quantization,
     rBranchAndCommit
   );
 
@@ -104,9 +107,11 @@ function Report({
     rData.length === 0
   ) {
     return (
-      <>
-        We found no data for {modelName} quantized in {quantization}.
-      </>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Typography fontSize={"1rem"} fontStyle={"italic"}>
+          Loading records for {modelName} quantized in {quantization}...
+        </Typography>
+      </Stack>
     );
   }
 
@@ -114,20 +119,38 @@ function Report({
     <div>
       <CommitPanel
         lBranchAndCommit={{
-          ...lBranchAndCommit,
-          date: lData[0].granularity_bucket,
-        }}
-        rBranchAndCommit={{
           ...rBranchAndCommit,
           date:
             rData !== undefined && rData.length !== 0
               ? rData[0].granularity_bucket
               : undefined,
         }}
+        rBranchAndCommit={{
+          ...lBranchAndCommit,
+          date:
+            lData !== undefined && lData.length !== 0
+              ? lData[0].granularity_bucket
+              : undefined,
+        }}
         workflowName={"inductor-micro-benchmark"}
       >
         <></>
       </CommitPanel>
+      <SummaryPanel
+        startTime={startTime}
+        stopTime={stopTime}
+        granularity={granularity}
+        quantization={quantization}
+        modelName={modelName}
+        lPerfData={{
+          ...lBranchAndCommit,
+          data: lData,
+        }}
+        rPerfData={{
+          ...rBranchAndCommit,
+          data: rData,
+        }}
+      />
     </div>
   );
 }
@@ -212,7 +235,7 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [router.query]);
+  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
 
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
@@ -238,11 +261,6 @@ export default function Page() {
       value: granularity,
     },
     {
-      name: "quantization",
-      type: "string",
-      value: quantization,
-    },
-    {
       name: "filenames",
       type: "string",
       value: BENCHMARKS.join(","),
@@ -252,15 +270,17 @@ export default function Page() {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data, error } = useSWR(url, fetcher, {
+  const { data, _error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
   if (data === undefined || data.length === 0) {
-    return <>We found no data for {BENCHMARKS.join(", ")}.</>;
+    return <>Loading {BENCHMARKS.join(", ")}...</>;
   }
+
   const modelNames: string[] = _.uniq(data.map((r: any) => r.name));
   modelNames.push(DEFAULT_MODEL_NAME);
+  const quantizations: string[] = _.uniq(data.map((r: any) => r.mode));
 
   return (
     <div>
@@ -273,7 +293,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&quantization=${quantization}&modelName=${modelName}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -291,25 +311,25 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <DTypePicker
-          dtype={quantization}
-          setDType={setQuantization}
-          dtypes={QUANTIZATIONS}
-          label={"Quantization"}
-        />
-        <DTypePicker
           dtype={modelName}
           setDType={setModelName}
           dtypes={modelNames}
           label={"Model"}
         />
+        <DTypePicker
+          dtype={quantization}
+          setDType={setQuantization}
+          dtypes={quantizations}
+          label={"Quantization"}
+        />
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
           queryParams={queryParams}
-          branch={rBranch}
-          setBranch={setRBranch}
-          commit={rCommit}
-          setCommit={setRCommit}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
@@ -321,10 +341,10 @@ export default function Page() {
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
           queryParams={queryParams}
-          branch={lBranch}
-          setBranch={setLBranch}
-          commit={lCommit}
-          setCommit={setLCommit}
+          branch={rBranch}
+          setBranch={setRBranch}
+          commit={rCommit}
+          setCommit={setRCommit}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
@@ -336,8 +356,8 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        quantization={quantization}
         modelName={modelName}
+        quantization={quantization}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />
