@@ -20,7 +20,10 @@ import {
   DTypePicker,
 } from "components/benchmark/ModeAndDTypePicker";
 import { augmentData } from "lib/benchmark/compilerUtils";
-import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "components/benchmark/compilers/common";
+import {
+  COMPILER_NAMES_TO_DISPLAY_NAMES,
+  DTYPES,
+} from "components/benchmark/compilers/common";
 import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
 import { BranchAndCommit } from "lib/types";
@@ -329,7 +332,12 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
-        <DTypePicker dtype={dtype} setDType={setDType} />
+        <DTypePicker
+          dtype={dtype}
+          setDType={setDType}
+          dtypes={DTYPES}
+          label={"Precision"}
+        />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
           queryCollection={"inductor"}

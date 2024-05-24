@@ -50,3 +50,5 @@ export interface BranchAndCommitPerfData extends BranchAndCommit {
 // A help link to explain the metrics used in the dashboard
 export const HELP_LINK =
   "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
+
+export const DTYPES = ["amp", "float16", "bfloat16", "quant"];

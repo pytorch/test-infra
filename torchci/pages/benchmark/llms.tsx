@@ -1,43 +1,79 @@
 import dayjs from "dayjs";
+import _ from "lodash";
 import useSWR from "swr";
-import { Skeleton, Stack, Typography, Divider } from "@mui/material";
-import React from "react";
-import { useState, useEffect } from "react";
-import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
-import GranularityPicker from "components/GranularityPicker";
-import { TimeRangePicker } from "../metrics";
-import { BranchAndCommit } from "lib/types";
+import { RocksetParam } from "lib/rockset";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import CopyLink from "components/CopyLink";
-import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
-import { CommitPanel } from "components/benchmark/CommitPanel";
-import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
-import { DTYPES } from "components/benchmark/compilers/common";
-import {
-  SUITES,
-  SuitePicker,
-} from "components/benchmark/compilers/SuitePicker";
-import {
-  DEFAULT_MODE,
-  MODES,
-  ModePicker,
-  DTypePicker,
-} from "components/benchmark/ModeAndDTypePicker";
-import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
-import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import {
+  Skeleton,
+  Stack,
+  Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+  Divider,
+} from "@mui/material";
+import { TimeRangePicker } from "../metrics";
+import GranularityPicker from "components/GranularityPicker";
+import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
+import {
+  QUANTIZATIONS,
+  DEFAULT_QUANTIZATION,
+  BENCHMARKS,
+  DEFAULT_MODEL_NAME,
+} from "components/benchmark/llms/common";
+import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
+import { CommitPanel } from "components/benchmark/CommitPanel";
+import { BranchAndCommit } from "lib/types";
+
+function queryBenchmark(
+  queryParams: RocksetParam[],
+  modelName: string,
+  branchAndCommit: BranchAndCommit
+) {
+  const queryCollection = "benchmarks";
+  const queryName = "oss_ci_benchmark_llms";
+
+  const queryParamsWithBranchAndCommit: RocksetParam[] = [
+    {
+      name: "branches",
+      type: "string",
+      value: branchAndCommit.branch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: branchAndCommit.commit,
+    },
+    {
+      name: "names",
+      type: "string",
+      value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
+    },
+    ...queryParams,
+  ];
+  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithBranchAndCommit)
+  )}`;
+
+  return useSWR(lUrl, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+}
 
 function Report({
   queryParams,
   startTime,
   stopTime,
   granularity,
-  suite,
-  mode,
-  dtype,
+  quantization,
+  modelName,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -45,63 +81,21 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  suite: string;
-  mode: string;
-  dtype: string;
+  quantization: string;
+  modelName: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
-
-  const queryParamsWithL: RocksetParam[] = [
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
-    {
-      name: "branches",
-      type: "string",
-      value: lBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: lBranchAndCommit.commit,
-    },
-    ...queryParams,
-  ];
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithL)
-  )}`;
-
-  let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
-  lData = augmentData(lData);
-
-  const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: rBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: rBranchAndCommit.commit,
-    },
-    ...queryParams,
-  ];
-  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithR)
-  )}`;
-
-  let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
-  rData = augmentData(rData);
+  const { data: lData, error: lError } = queryBenchmark(
+    queryParams,
+    modelName,
+    lBranchAndCommit
+  );
+  const { data: rData, error: rError } = queryBenchmark(
+    queryParams,
+    modelName,
+    rBranchAndCommit
+  );
 
   if (
     lData === undefined ||
@@ -109,7 +103,11 @@ function Report({
     rData === undefined ||
     rData.length === 0
   ) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
+    return (
+      <>
+        We found no data for {modelName} quantized in {quantization}.
+      </>
+    );
   }
 
   return (
@@ -126,33 +124,10 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        workflowName={"inductor-micro-benchmark"}
       >
-        <BenchmarkLogs workflowId={lData[0].workflow_id} />
+        <></>
       </CommitPanel>
-      <SummaryPanel
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
-        mode={mode}
-        dtype={dtype}
-        lPerfData={{
-          ...lBranchAndCommit,
-          data: lData,
-        }}
-        rPerfData={{
-          ...rBranchAndCommit,
-          data: rData,
-        }}
-      />
-      <GraphPanel
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
-      />
     </div>
   );
 }
@@ -165,16 +140,15 @@ export default function Page() {
   const defaultStopTime = dayjs();
   const [stopTime, setStopTime] = useState(defaultStopTime);
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
-
+  const [quantization, setQuantization] =
+    useState<string>(DEFAULT_QUANTIZATION);
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [mode, setMode] = useState<string>(DEFAULT_MODE);
-  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -202,19 +176,15 @@ export default function Page() {
       setGranularity(granularity);
     }
 
-    const suite: string = (router.query.suite as string) ?? undefined;
-    if (suite !== undefined) {
-      setSuite(suite);
+    const quantization: string =
+      (router.query.quantization as string) ?? undefined;
+    if (quantization !== undefined) {
+      setQuantization(quantization);
     }
 
-    const mode: string = (router.query.mode as string) ?? undefined;
-    if (mode !== undefined) {
-      setMode(mode);
-    }
-
-    const dtype: string = (router.query.dtype as string) ?? undefined;
-    if (dtype !== undefined) {
-      setDType(dtype);
+    const modelName: string = (router.query.modelName as string) ?? undefined;
+    if (modelName !== undefined) {
+      setModelName(modelName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -242,8 +212,10 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
+  }, [router.query]);
 
+  const queryCollection = "benchmarks";
+  const queryName = "oss_ci_benchmark_names";
   const queryParams: RocksetParam[] = [
     {
       name: "timezone",
@@ -266,29 +238,42 @@ export default function Page() {
       value: granularity,
     },
     {
-      name: "mode",
+      name: "quantization",
       type: "string",
-      value: mode,
+      value: quantization,
     },
     {
-      name: "dtypes",
+      name: "filenames",
       type: "string",
-      value: dtype,
+      value: BENCHMARKS.join(","),
     },
   ];
+
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (data === undefined || data.length === 0) {
+    return <>We found no data for {BENCHMARKS.join(", ")}.</>;
+  }
+  const modelNames: string[] = _.uniq(data.map((r: any) => r.name));
+  modelNames.push(DEFAULT_MODEL_NAME);
 
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchInductor Performance DashBoard
+          LLMs Benchmark DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -305,17 +290,21 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <SuitePicker suite={suite} setSuite={setSuite} />
-        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
-          dtype={dtype}
-          setDType={setDType}
-          dtypes={DTYPES}
-          label={"Precision"}
+          dtype={quantization}
+          setDType={setQuantization}
+          dtypes={QUANTIZATIONS}
+          label={"Quantization"}
+        />
+        <DTypePicker
+          dtype={modelName}
+          setDType={setModelName}
+          dtypes={modelNames}
+          label={"Model"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
+          queryName={"oss_ci_benchmark_branches"}
+          queryCollection={"benchmarks"}
           queryParams={queryParams}
           branch={rBranch}
           setBranch={setRBranch}
@@ -329,8 +318,8 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
+          queryName={"oss_ci_benchmark_branches"}
+          queryCollection={"benchmarks"}
           queryParams={queryParams}
           branch={lBranch}
           setBranch={setLBranch}
@@ -347,9 +336,8 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        suite={suite}
-        mode={mode}
-        dtype={dtype}
+        quantization={quantization}
+        modelName={modelName}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />
