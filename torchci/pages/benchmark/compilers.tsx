@@ -241,7 +241,7 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
+  }, [router.query]);
 
   const queryParams: RocksetParam[] = [
     {
