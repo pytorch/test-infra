@@ -37,6 +37,7 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "linux-docs",
   "ghstack-mergeability-check",
   "backwards_compat",
+  // TODO (huydhn): Figure out a way to do flaky check accurately for build jobs
   "/ build",
 ];
 // If the base commit is too old, don't query for similar failures because
