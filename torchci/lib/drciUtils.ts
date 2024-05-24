@@ -37,6 +37,7 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "linux-docs",
   "ghstack-mergeability-check",
   "backwards_compat",
+  "/ build",
 ];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
