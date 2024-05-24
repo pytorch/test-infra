@@ -262,6 +262,10 @@ name = 'Docker error'
 pattern = '^docker: Error.*'
 
 [[rule]]
+name = 'Build error'
+pattern = 'ninja: build stopped: subcommand failed'
+
+[[rule]]
 name = 'sccache error'
 pattern = '^sccache: error: .*'
 

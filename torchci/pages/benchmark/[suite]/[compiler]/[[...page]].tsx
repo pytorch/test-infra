@@ -255,7 +255,7 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
+  }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
