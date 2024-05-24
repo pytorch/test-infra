@@ -1,3 +1,5 @@
+const { defaults } = require("jest-config");
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest/presets/js-with-ts',
@@ -13,6 +15,7 @@ module.exports = {
       statements: 0
     }
   },
+  testPathIgnorePatterns: ["<rootDir>/node_modules/"],
   transformIgnorePatterns: [
     // "node_modules/(?!(@octokit/webhooks/.+|aggregate-error/.+|indent-string/.+|clean-stack/.+))"
     "should_notMatchAnything"
