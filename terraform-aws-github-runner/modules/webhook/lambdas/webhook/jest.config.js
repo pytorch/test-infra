@@ -20,15 +20,11 @@ module.exports = {
     // "node_modules/(?!(@octokit/webhooks/.+|aggregate-error/.+|indent-string/.+|clean-stack/.+))"
     "should_notMatchAnything"
   ],
-  // moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'node'],
-  // transform: {
-  //   // '^.+\\.[tj]sx?$' to process js/ts with `ts-jest`
-  //   // '^.+\\.m?[tj]sx?$' to process js/ts/mjs/mts with `ts-jest`
-  //   '^.+\\.tsx?$': [
-  //     'ts-jest',
-  //     {
-  //       // ts-jest configuration goes here
-  //     },
-  //   ],
-  // },
+  moduleNameMapper: {
+    '^#home-directory$': '<rootDir>/node_modules/clean-stack/home-directory.js',
+  },
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
+  },
 };
