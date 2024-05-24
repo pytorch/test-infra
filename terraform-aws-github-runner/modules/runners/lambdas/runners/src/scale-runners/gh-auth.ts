@@ -125,7 +125,6 @@ export async function createGithubAuth(
       const authOptions: StrategyOptions = {
         appId: parseInt(githubCreds.github_app_id),
         privateKey: Buffer.from(privateKeyBase64, 'base64').toString(),
-        installationId,
         clientId: githubCreds.github_app_client_id as string,
         clientSecret,
       };
