@@ -3,6 +3,8 @@
 --- the LLMs benchmark dashboard
 SELECT
   DISTINCT o.workflow_id,
+  -- As the JSON response is pretty big, only return the field if it's needed
+  IF(:getJobId, o.job_id, NULL) AS job_id,
   o.name,
   o.mode AS quantization,
   IF(

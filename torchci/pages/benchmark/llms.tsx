@@ -7,11 +7,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import CopyLink from "components/CopyLink";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import {
-  Stack,
-  Typography,
-  Divider,
-} from "@mui/material";
+import { Stack, Typography, Divider } from "@mui/material";
 import { TimeRangePicker } from "../metrics";
 import GranularityPicker from "components/GranularityPicker";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
@@ -25,48 +21,8 @@ import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { BranchAndCommit } from "lib/types";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
-
-function QueryBenchmark(
-  queryParams: RocksetParam[],
-  modelName: string,
-  quantization: string,
-  branchAndCommit: BranchAndCommit
-) {
-  const queryCollection = "benchmarks";
-  const queryName = "oss_ci_benchmark_llms";
-
-  const queryParamsWithBranchAndCommit: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: branchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: branchAndCommit.commit,
-    },
-    {
-      name: "names",
-      type: "string",
-      value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
-    },
-    {
-      name: "quantization",
-      type: "string",
-      value: quantization,
-    },
-    ...queryParams,
-  ];
-
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithBranchAndCommit)
-  )}`;
-
-  return useSWR(lUrl, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
-}
+import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
+import { useBenchmark } from "lib/benchmark/llmUtils";
 
 function Report({
   queryParams,
@@ -87,17 +43,19 @@ function Report({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const { data: lData, error: _lError } = QueryBenchmark(
+  const { data: lData, error: _lError } = useBenchmark(
     queryParams,
     modelName,
     quantization,
-    lBranchAndCommit
+    lBranchAndCommit,
+    true
   );
-  const { data: rData, error: _rError } = QueryBenchmark(
+  const { data: rData, error: _rError } = useBenchmark(
     queryParams,
     modelName,
     quantization,
-    rBranchAndCommit
+    rBranchAndCommit,
+    true
   );
 
   if (
@@ -136,12 +94,20 @@ function Report({
       >
         <></>
       </CommitPanel>
+      <GraphPanel
+        queryParams={queryParams}
+        granularity={granularity}
+        quantization={quantization}
+        modelName={modelName}
+        lBranchAndCommit={lBranchAndCommit}
+        rBranchAndCommit={rBranchAndCommit}
+      />
       <SummaryPanel
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        quantization={quantization}
         modelName={modelName}
+        quantization={quantization}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
@@ -235,7 +201,7 @@ export default function Page() {
         window.location.host
       }${router.asPath.replace(/\?.+/, "")}`
     );
-  }, [defaultStartTime, defaultStopTime, router.asPath, router.query]);
+  }, [router.query]);
 
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
@@ -270,7 +236,7 @@ export default function Page() {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data, _error } = useSWR(url, fetcher, {
+  const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 

@@ -17,6 +17,11 @@
       "value": ""
     },
     {
+      "name": "getJobId",
+      "type": "bool",
+      "value": "false"
+    },
+    {
       "name": "granularity",
       "type": "string",
       "value": "day"

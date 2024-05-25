@@ -104,7 +104,7 @@
     "validation_jobs_red_past_day": "aecb798a574ba2ff"
   },
   "benchmarks": {
-    "oss_ci_benchmark_llms": "e68eea3ad44a63ed",
+    "oss_ci_benchmark_llms": "e5a344dc2e13739b",
     "oss_ci_benchmark_branches": "b98670d6fd6faf46",
     "oss_ci_benchmark_names": "6a80ae806dfc10ab"
   }
