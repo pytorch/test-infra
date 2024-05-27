@@ -17,6 +17,7 @@ export interface ActionRequestMessage {
   callbackUrl: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NUM_MESSAGE_GROUPS = process.env.NUM_MESSAGE_GROUPS !== undefined ? parseInt(process.env.NUM_MESSAGE_GROUPS) : 1;
 
 export const sendActionRequest = async (message: ActionRequestMessage) => {

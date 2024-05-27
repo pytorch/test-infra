@@ -12,7 +12,7 @@ jobs:
   release-lambdas:
     name: Upload Release for runners lambdas
     runs-on: ubuntu-latest
-    container: node:14
+    container: node:20
     permissions:
       contents: write
     env:
