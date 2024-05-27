@@ -28,6 +28,8 @@ jobs:
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
       - name: Build distribution - Runners
         run: yarn build
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
       - name: Copy js to root - Runners
         run: cp terraform-aws-github-runner/modules/runners/lambdas/runners/dist/index.js .
@@ -41,6 +43,8 @@ jobs:
         working-directory: terraform-aws-github-runner/modules/webhook/lambdas/webhook
       - name: Build distribution - Webhook
         run: yarn build
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"
         working-directory: terraform-aws-github-runner/modules/webhook/lambdas/webhook
       - name: Copy js to root - Webhook
         run: cp terraform-aws-github-runner/modules/webhook/lambdas/webhook/dist/index.js .
