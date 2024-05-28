@@ -225,6 +225,7 @@ jobs:
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
+          export TORCHINDUCTOR_COMPILE_THREADS=1
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           # Checking that we have a pinned version of torch in our dependency tree
           (
