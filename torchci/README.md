@@ -102,7 +102,7 @@ console.
 
 ## Alerts
 
-The scripts/check_alerts.py queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
+Code is in `test-infra/tools/torchci/check_alerts.py`. It queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
 SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
 Github Issue.
 
