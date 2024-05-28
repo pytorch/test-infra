@@ -220,12 +220,13 @@ jobs:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
-          set -euxo pipefail
+          set uxo pipefail
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
           export TORCHINDUCTOR_COMPILE_THREADS=1
+          export TORCH_LOGS=output_code
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           # Checking that we have a pinned version of torch in our dependency tree
           (
@@ -249,6 +250,7 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+          cat /tmp/torchinductor_root/tt/cttmh7vyic6svkvlu2hcuw4luorlu3r2nantzcwl4y23rlv3oqsp.py
       # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
         continue-on-error: true
