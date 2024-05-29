@@ -162,13 +162,14 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python --version
+
           python -m pip install cibuildwheel==2.18.1
 
       - name: Build wheels
+        env:
+          REPOSITORY: ${{ inputs.repository }}
         run: |
-          pwd
-          ls
+          cd ${REPOSITORY}
           python -m cibuildwheel --output-dir wheelhouse
         # to supply options, put them in 'env', like:
         # env:
