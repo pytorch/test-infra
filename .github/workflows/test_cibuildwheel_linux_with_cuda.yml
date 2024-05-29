@@ -1,0 +1,47 @@
+name: Test Build Linux Wheels with CUDA
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cidbuildwheel_linux.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - .github/workflows/test_cibuildwheel_linux_with_cuda.yml
+      - tools/scripts/generate_binary_build_matrix.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/vision
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
+    uses: ./.github/workflows/cibuildwheel_linux.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"

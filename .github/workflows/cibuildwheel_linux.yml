@@ -1,0 +1,194 @@
+name: Build Linux Wheels using cibuildwheel module
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: "nightly"
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      build-matrix:
+        description: "Build matrix to utilize"
+        default: ""
+        type: string
+      pre-script:
+        description: "Pre script to run prior to build"
+        default: ""
+        type: string
+      post-script:
+        description: "Post script to run prior to build"
+        default: ""
+        type: string
+      smoke-test-script:
+        description: "Script for Smoke Test for a specific domain"
+        default: ""
+        type: string
+      env-var-script:
+        description: "Script that sets Domain-Specific Environment Variables"
+        default: ""
+        type: string
+      package-name:
+        description: "Name of the actual python package that is imported"
+        default: ""
+        type: string
+      trigger-event:
+        description: "Trigger Event in caller that determines whether or not to upload"
+        default: ""
+        type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
+      architecture:
+        description: Architecture to build for x86_64 for default Linux, or aarch64 for Linux aarch64 builds
+        required: false
+        type: string
+        default: x86_64
+      submodules:
+        description: Works as stated in actions/checkout, but the default value is recursive
+        required: false
+        type: string
+        default: recursive
+      setup-miniconda:
+        description: Set to true if setup-miniconda is needed
+        required: false
+        type: boolean
+        default: true
+      build-platform:
+        description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
+        required: false
+        type: string
+        default: 'setup-py'
+      upload-to-pypi:
+        description: The comma-separated list of CUDA arch to be uploaded to pypi
+        default: ""
+        type: string
+    secrets:
+      PYPI_API_TOKEN:
+        description: An optional token to upload to pypi
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    env:
+      PYTHON_VERSION: ${{ matrix.python_version }}
+      PACKAGE_TYPE: wheel
+      REPOSITORY: ${{ inputs.repository }}
+      REF: ${{ inputs.ref }}
+      CU_VERSION: ${{ matrix.desired_cuda }}
+      UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
+      ARCH: ${{ inputs.architecture }}
+    name: ${{ matrix.build_name }}
+    runs-on: ${{ matrix.validation_runner }}
+    container:
+      image: ${{ matrix.container_image }}
+      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
+    # If a build is taking longer than 60 minutes on these runners we need
+    # to have a conversation
+    timeout-minutes: 120
+    steps:
+      - name: Clean workspace
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          echo "::group::Cleanup debug output"
+          rm -rf "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+
+          if [[ "${{ inputs.architecture }}" = "aarch64" ]]; then
+            rm -rf "${RUNNER_TEMP}/*"
+          fi
+
+          echo "::endgroup::"
+      - uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - uses: ./test-infra/.github/actions/set-channel
+      - name: Set PYTORCH_VERSION
+        if: ${{ env.CHANNEL == 'test' }}
+        run: |
+          # When building RC, set the version to be the current candidate version,
+          # otherwise, leave it alone so nightly will pick up the latest
+          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
+
+      - uses: actions/setup-python@v5
+
+
+
+      - name: Combine Env Var and Build Env Files
+        if: ${{ inputs.env-var-script != '' }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          set -euxo pipefail
+          cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
+
+      - name: Install torch dependency
+        run: |
+          set -euxo pipefail
+          # shellcheck disable=SC1090
+          source "${BUILD_ENV_FILE}"
+          # shellcheck disable=SC2086
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.18.1
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        # to supply options, put them in 'env', like:
+        # env:
+        #   CIBW_SOME_OPTION: value
+
+      - name: Run Pre-Script with Caching
+        if: ${{ inputs.pre-script != '' }}
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          cache-path: ${{ inputs.cache-path }}
+          cache-key: ${{ inputs.cache-key }}
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.pre-script }}
+
+      - name: Build the wheel (python-build-package)
+        if: ${{ inputs.build-platform == 'python-build-package' }}
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
+          ${CONDA_RUN} python -m pip install build
+          echo "Successfully installed Python build package"
+          ${CONDA_RUN} python -m build --wheel
+
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
