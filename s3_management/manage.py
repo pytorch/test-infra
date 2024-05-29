@@ -70,6 +70,7 @@ PACKAGE_ALLOW_LIST = {
     "six",
     "tiktoken",
     "torchao",
+    "torchao_nightly",
     "tzdata",
     "xxhash",
     "yarl",
