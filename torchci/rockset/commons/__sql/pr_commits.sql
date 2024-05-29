@@ -27,10 +27,7 @@ pr_shas AS (
     p.head_commit.url AS commit_url,
   FROM
     commons.push p
-    JOIN (
-      commons.workflow_job j
-      INNER JOIN commons.workflow_run r ON j.run_id = r.id HINT(join_strategy = lookup)
-    ) ON p.head_commit.id = j.head_sha HINT(join_strategy = lookup)
+    JOIN commons.workflow_run r ON p.head_commit.id = r.head_sha HINT(join_strategy=lookup)
   WHERE
     1 = 1
     AND LENGTH(r.pull_requests) = 1
