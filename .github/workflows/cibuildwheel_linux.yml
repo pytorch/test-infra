@@ -133,6 +133,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Combine Env Var and Build Env Files
@@ -143,7 +144,9 @@ jobs:
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
 
       - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.18.1
+        run: |
+          python --version
+          python -m pip install cibuildwheel==2.18.1
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
