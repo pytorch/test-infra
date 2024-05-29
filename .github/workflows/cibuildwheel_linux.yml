@@ -167,7 +167,8 @@ jobs:
 
       - name: Build wheels
         run: |
-          cd inputs.repository
+          pwd
+          ls
           python -m cibuildwheel --output-dir wheelhouse
         # to supply options, put them in 'env', like:
         # env:
