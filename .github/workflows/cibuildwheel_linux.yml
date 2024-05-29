@@ -132,6 +132,8 @@ jobs:
           path: test-infra
 
       - uses: actions/setup-python@v4
+        with:
+          cache: 'pip' # caching pip dependencies
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
