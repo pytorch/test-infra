@@ -102,7 +102,7 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ matrix.validation_runner }}
+    runs-on: ubuntu-latest
     # container:
     #  image: ${{ matrix.container_image }}
     #  options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
