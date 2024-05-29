@@ -1,8 +1,7 @@
 import { getDynamoClient } from "lib/dynamo";
+import getRocksetClient, { RocksetParam } from "lib/rockset";
 import { JobData } from "lib/types";
 import { NextApiRequest, NextApiResponse } from "next";
-import getRocksetClient from "lib/rockset";
-import { RocksetParam } from "lib/rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
 async function fetchFailureJobs(

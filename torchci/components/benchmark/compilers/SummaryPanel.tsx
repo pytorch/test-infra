@@ -1,30 +1,30 @@
-import dayjs from "dayjs";
 import { Grid } from "@mui/material";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import { CompilerPerformanceData } from "lib/types";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
-  getPassingModels,
-  computePassrate,
-  computeGeomean,
-  computeCompilationTime,
-  computePeakMemoryUsage,
-  computeMemoryCompressionRatio,
-} from "lib/benchmark/compilerUtils";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import {
-  RELATIVE_THRESHOLD,
   ACCURACY_THRESHOLD,
-  SPEEDUP_THRESHOLD,
+  BranchAndCommitPerfData,
   COMPRESSION_RATIO_THRESHOLD,
   DIFF_HEADER,
   DISPLAY_NAMES_TO_COMPILER_NAMES,
-  SCALE,
   HELP_LINK,
-  BranchAndCommitPerfData,
+  RELATIVE_THRESHOLD,
+  SCALE,
+  SPEEDUP_THRESHOLD,
 } from "components/benchmark/compilers/common";
-import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import styles from "components/metrics.module.css";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import {
+  computeCompilationTime,
+  computeGeomean,
+  computeMemoryCompressionRatio,
+  computePassrate,
+  computePeakMemoryUsage,
+  getPassingModels,
+} from "lib/benchmark/compilerUtils";
+import { CompilerPerformanceData } from "lib/types";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;

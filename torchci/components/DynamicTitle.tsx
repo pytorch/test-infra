@@ -1,5 +1,5 @@
 // DynamicTitle.tsx
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 interface TitleContextProps {
   setTitle: (_title: string) => void;

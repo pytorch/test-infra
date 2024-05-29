@@ -1,10 +1,10 @@
+import { fetcherWithToken } from "lib/GeneralUtils";
 import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
-import { useState } from "react";
-import useSWR from "swr";
-import { fetcherWithToken } from "lib/GeneralUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
+import { useState } from "react";
+import useSWR from "swr";
 import { WithCommitData } from "./WithCommitData";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {

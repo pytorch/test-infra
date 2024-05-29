@@ -1,13 +1,12 @@
-import _ from "lodash";
-import { Probot } from "probot";
-import * as utils from "./utils";
-import nock from "nock";
-import myProbotApp from "../lib/bot/drciBot";
-import pytorchBot from "../lib/bot/pytorchBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import nock from "nock";
+import { Probot } from "probot";
+import myProbotApp from "../lib/bot/drciBot";
+import pytorchBot from "../lib/bot/pytorchBot";
 import { handleScope } from "./common";
 import { successfulA } from "./drci.test";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

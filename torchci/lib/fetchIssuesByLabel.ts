@@ -1,6 +1,5 @@
-import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
-
+import getRocksetClient from "./rockset";
 import { IssueData } from "./types";
 
 export default async function fetchIssuesByLabel(

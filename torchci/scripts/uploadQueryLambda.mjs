@@ -1,6 +1,6 @@
 import rockset from "@rockset/client";
-import { promises as fs } from "fs";
 import dotenv from "dotenv";
+import { promises as fs } from "fs";
 import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 

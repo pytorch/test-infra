@@ -1,9 +1,9 @@
 import CommitStatus from "components/CommitStatus";
-import ErrorBoundary from "components/ErrorBoundary";
 import { useSetTitle } from "components/DynamicTitle";
+import ErrorBoundary from "components/ErrorBoundary";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

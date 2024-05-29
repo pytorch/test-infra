@@ -1,9 +1,9 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
 import { getDynamoClient } from "lib/dynamo";
+import { getOctokit } from "lib/github";
+import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
-import { getOctokit } from "lib/github";
-import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
 
 export default async function handler(
   req: NextApiRequest,

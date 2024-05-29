@@ -1,7 +1,7 @@
 import rockset from "@rockset/client";
-import { promises as fs } from "fs";
-import { diffLines } from "diff";
 import "colors";
+import { diffLines } from "diff";
+import { promises as fs } from "fs";
 
 async function readJSON(path) {
   const rawData = await fs.readFile(path);

@@ -1,4 +1,5 @@
 import CopyLink from "components/CopyLink";
+import JobAnnotationToggle from "components/JobAnnotationToggle";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobLinks from "components/JobLinks";
@@ -7,19 +8,19 @@ import styles from "components/minihud.module.css";
 import PageSelector from "components/PageSelector";
 import { durationHuman, LocalTimeHuman } from "components/TimeUtils";
 import { isFailedJob } from "lib/jobUtils";
+import { RevertModal } from "lib/RevertModal";
 import {
   HudParams,
+  JobAnnotation,
   JobData,
   packHudParams,
   RowData,
   TTSChange,
-  JobAnnotation,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
 import { useRouter } from "next/router";
-import { RevertModal } from "lib/RevertModal";
 import {
   createContext,
   CSSProperties,
@@ -29,7 +30,6 @@ import {
   useState,
 } from "react";
 import { SWRConfig } from "swr";
-import JobAnnotationToggle from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {

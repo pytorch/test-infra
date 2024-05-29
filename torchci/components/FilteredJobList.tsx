@@ -1,13 +1,12 @@
 import { fetcher } from "lib/GeneralUtils";
-import { JobData } from "lib/types";
+import { IssueData, JobAnnotation, JobData } from "lib/types";
+import useScrollTo from "lib/useScrollTo";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
-import { JobAnnotation, IssueData } from "lib/types";
-import useScrollTo from "lib/useScrollTo";
 
 function FailedJobInfo({
   job,

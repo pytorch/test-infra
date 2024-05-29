@@ -1,8 +1,8 @@
+import pytorchBot from "lib/bot/pytorchBot";
 import nock from "nock";
 import * as probot from "probot";
-import * as utils from "./utils";
-import pytorchBot from "lib/bot/pytorchBot";
 import { handleScope } from "./common";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

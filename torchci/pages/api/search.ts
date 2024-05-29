@@ -1,11 +1,11 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import { getOpenSearchClient } from "lib/opensearch";
-import { JobData } from "lib/types";
 import {
+  MIN_SCORE,
   searchSimilarFailures,
   WORKFLOW_JOB_INDEX,
-  MIN_SCORE,
 } from "lib/searchUtils";
+import { JobData } from "lib/types";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,

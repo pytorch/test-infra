@@ -1,5 +1,5 @@
-import { JobData } from "../lib/types";
 import React from "react";
+import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 
 export default function ReproductionCommand({

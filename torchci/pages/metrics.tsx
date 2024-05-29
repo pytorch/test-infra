@@ -1,37 +1,35 @@
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
+import {
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  SelectChangeEvent,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import {
   GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
-import useSWR from "swr";
-import {
-  Grid,
-  Paper,
-  TextField,
-  Typography,
-  Stack,
-  Skeleton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  SelectChangeEvent,
-} from "@mui/material";
-import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
-
-import { useEffect, useState } from "react";
-
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
+import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 
 function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(

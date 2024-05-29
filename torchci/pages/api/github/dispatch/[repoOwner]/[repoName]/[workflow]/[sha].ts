@@ -1,6 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
+import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,

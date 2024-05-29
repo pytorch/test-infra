@@ -1,7 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { JobData } from "lib/types";
 import getRocksetClient from "lib/rockset";
+import { JobData } from "lib/types";
 import _ from "lodash";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,

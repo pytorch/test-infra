@@ -1,9 +1,9 @@
 import { getConclusionChar } from "lib/JobClassifierUtil";
+import { useContext } from "react";
+import { JobData } from "../lib/types";
+import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { JobStatus } from "./GroupJobConclusion";
 import styles from "./JobConclusion.module.css";
-import { JobData } from "../lib/types";
-import { useContext } from "react";
-import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 
 /**
  * `getFailureEl` generates a div with a monster sprite element based on the first line of `failureLines` in `jobData`.

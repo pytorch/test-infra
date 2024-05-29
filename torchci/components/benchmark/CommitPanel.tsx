@@ -1,8 +1,7 @@
-import dayjs from "dayjs";
 import { Stack, Typography } from "@mui/material";
-import { SHA_DISPLAY_LENGTH } from "components/benchmark/common";
+import { HUD_PREFIX, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
+import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
-import { HUD_PREFIX } from "components/benchmark/common";
 import { ReactNode } from "react";
 
 export function CommitPanel({

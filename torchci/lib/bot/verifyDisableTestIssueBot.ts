@@ -1,7 +1,7 @@
+import _ from "lodash";
+import { getPlatformLabels } from "pages/api/flaky-tests/disable";
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
-import { getPlatformLabels } from "pages/api/flaky-tests/disable";
-import _ from "lodash";
 
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";

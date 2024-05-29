@@ -1,18 +1,17 @@
-import _ from "lodash";
 import dayjs from "dayjs";
-import TrieSearch from "trie-search";
-import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
-import { isEqual } from "lodash";
+import { jaroWinkler } from "jaro-winkler-typescript";
+import { getAuthors } from "lib/getAuthors";
 import {
-  RecentWorkflowsData,
-  JobData,
   BasicJobData,
   IssueData,
+  JobData,
   PRandJobs,
+  RecentWorkflowsData,
 } from "lib/types";
-import { getAuthors } from "lib/getAuthors";
-import { jaroWinkler } from "jaro-winkler-typescript";
+import _, { isEqual } from "lodash";
+import rocksetVersions from "rockset/prodVersions.json";
+import TrieSearch from "trie-search";
+import getRocksetClient from "./rockset";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"

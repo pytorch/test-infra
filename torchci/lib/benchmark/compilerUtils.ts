@@ -1,8 +1,8 @@
 import {
-  SCALE,
-  COMPILER_NAMES_TO_DISPLAY_NAMES,
   BLOCKLIST_COMPILERS,
+  COMPILER_NAMES_TO_DISPLAY_NAMES,
   PASSING_ACCURACY,
+  SCALE,
 } from "components/benchmark/compilers/common";
 import { CompilerPerformanceData } from "lib/types";
 

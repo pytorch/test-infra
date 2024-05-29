@@ -1,9 +1,8 @@
 import { promises as fs } from "fs";
 import nock from "nock";
 import { Probot } from "probot";
-
-import * as utils from "./utils";
 import * as triggerCircleBot from "../lib/bot/triggerCircleCIWorkflows";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

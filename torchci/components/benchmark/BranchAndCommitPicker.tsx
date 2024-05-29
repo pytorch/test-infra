@@ -1,17 +1,17 @@
-import useSWR from "swr";
-import dayjs from "dayjs";
-import { fetcher } from "lib/GeneralUtils";
-import { useEffect } from "react";
 import {
-  Select,
-  MenuItem,
   FormControl,
   InputLabel,
-  Skeleton,
+  MenuItem,
+  Select,
   SelectChangeEvent,
+  Skeleton,
 } from "@mui/material";
+import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
+import dayjs from "dayjs";
+import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
-import { SHA_DISPLAY_LENGTH, MAIN_BRANCH } from "components/benchmark/common";
+import { useEffect } from "react";
+import useSWR from "swr";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha

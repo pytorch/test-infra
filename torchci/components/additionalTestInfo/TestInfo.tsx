@@ -1,10 +1,10 @@
+import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import { useState } from "react";
-import styles from "./TestInfo.module.css";
 import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import { TestCountsInfo } from "./TestCounts";
 import { TestRerunsInfo } from "./RerunInfo";
+import { TestCountsInfo } from "./TestCounts";
+import styles from "./TestInfo.module.css";
 
 export function RecursiveDetailsSummary({
   info,

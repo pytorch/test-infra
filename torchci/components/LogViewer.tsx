@@ -1,11 +1,13 @@
 import { basicSetup } from "@codemirror/basic-setup";
 import { codeFolding, foldAll, foldService } from "@codemirror/language";
+import { search } from "@codemirror/search";
 import {
   EditorSelection,
   EditorState,
   Range,
   RangeSet,
 } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
 import {
   Decoration,
   DecorationSet,
@@ -14,15 +16,12 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import { parse } from "ansicolor";
-import { search } from "@codemirror/search";
-
-import { oneDark } from "@codemirror/theme-one-dark";
 import { isFailure } from "lib/JobClassifierUtil";
+import { LogSearchResult } from "lib/searchLogs";
 import { JobData, LogAnnotation } from "lib/types";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
 import LogAnnotationToggle from "./LogAnnotationToggle";
-import { LogSearchResult } from "lib/searchLogs";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
 // Based on the current editor view, produce a series of decorations that
