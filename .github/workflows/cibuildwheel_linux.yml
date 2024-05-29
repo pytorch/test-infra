@@ -172,8 +172,14 @@ jobs:
           cd ${REPOSITORY}
           python -m cibuildwheel --output-dir wheelhouse
         # to supply options, put them in 'env', like:
-        # env:
-        #   CIBW_SOME_OPTION: value
+        env:
+          CIBW_BUILD_VERBOSITY: 3
+          CIBW_REPAIR_WHEEL_COMMAND: "bash packaging/post_build_script.sh {dest_dir} {wheel}"
+          CIBW_SKIP: cp39-musllinux*
+          CIBW_ARCHS: x86_64
+          CIBW_BEFORE_BUILD: "bash packaging/pre_build_script.sh"
+          CIBW_BUILD: cp39-*
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.container_image }}
 
 
 concurrency:
