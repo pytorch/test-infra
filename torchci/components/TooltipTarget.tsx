@@ -28,7 +28,7 @@ export default function TooltipTarget({
     clearTimeout(timeoutId.current!);
     timeoutId.current = setTimeout(() => {
       setVisible(true);
-    }, 10);
+    }, 5);
   }
   function handleMouseLeave() {
     setVisible(false);
@@ -60,14 +60,15 @@ export default function TooltipTarget({
     ) : null;
 
   return (
-    <div
-      onMouseOver={handleMouseOver}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
-      className={styles.target}
-    >
+    <div className={styles.target}>
       {content}
-      {children}
+      <div
+        onMouseOver={handleMouseOver}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+      >
+        {children}
+      </div>
     </div>
   );
 }
