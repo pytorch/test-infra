@@ -131,6 +131,21 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+      - name: Remove repository directory (if exists)
+        shell: bash
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euxo pipefail
+          rm -rf "${REPOSITORY}"
+
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
+          path: ${{ inputs.repository }}
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -151,7 +166,9 @@ jobs:
           python -m pip install cibuildwheel==2.18.1
 
       - name: Build wheels
-        run: python -m cibuildwheel --output-dir wheelhouse
+        run: |
+          cd inputs.repository
+          python -m cibuildwheel --output-dir wheelhouse
         # to supply options, put them in 'env', like:
         # env:
         #   CIBW_SOME_OPTION: value
