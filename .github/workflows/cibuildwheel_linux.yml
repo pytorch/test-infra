@@ -138,9 +138,7 @@ jobs:
           # otherwise, leave it alone so nightly will pick up the latest
           echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.0'
+      - uses: actions/setup-python@v5
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
