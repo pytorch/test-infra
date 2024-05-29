@@ -135,6 +135,8 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip' # caching pip dependencies
+        env:
+          AGENT_TOOLSDIRECTORY: /opt/hostedtoolache
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
