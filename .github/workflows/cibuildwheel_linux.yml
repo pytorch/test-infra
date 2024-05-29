@@ -140,7 +140,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.11.0'
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
