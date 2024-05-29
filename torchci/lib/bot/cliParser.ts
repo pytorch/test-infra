@@ -1,5 +1,5 @@
 import { ArgumentParser, RawTextHelpFormatter, SUPPRESS } from "argparse";
-import { revertClassifications, cherryPickClassifications } from "./Constants";
+import { cherryPickClassifications, revertClassifications } from "./Constants";
 
 // The default ArgumentParser is designed to be used from the command line, so
 // when it encounters an error it calls process.exit. We want to throw an

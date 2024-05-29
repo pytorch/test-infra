@@ -1,20 +1,20 @@
-import { RocksetParam } from "lib/rockset";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import {
-  Granularity,
-  TimeSeriesPanelWithData,
-  seriesWithInterpolatedTimes,
-} from "components/metrics/panels/TimeSeriesPanel";
-import { augmentData } from "lib/benchmark/compilerUtils";
 import { Grid, Skeleton } from "@mui/material";
-import dayjs from "dayjs";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import {
+  Granularity,
+  seriesWithInterpolatedTimes,
+  TimeSeriesPanelWithData,
+} from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import { augmentData } from "lib/benchmark/compilerUtils";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { CompilerPerformanceData } from "lib/types";
+import useSWR from "swr";
 
 const GRAPH_ROW_HEIGHT = 245;
 // The number of digit after decimal to display on the detail page

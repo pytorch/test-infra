@@ -1,8 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { NEWEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import dayjs from "dayjs";
-import _ from "lodash";
-import { isEqual } from "lodash";
+import { NEWEST_FIRST, querySimilarFailures } from "lib/searchUtils";
+import _, { isEqual } from "lodash";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 interface Data {}
 

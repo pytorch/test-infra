@@ -1,19 +1,19 @@
 import { Grid } from "@mui/material";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
-import { RocksetParam } from "lib/rockset";
-import { useState } from "react";
-import { useRouter } from "next/router";
-import TablePanel from "components/metrics/panels/TablePanel";
-import { durationDisplay } from "components/TimeUtils";
 import {
   GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
 import GenerateIndividualTestsLeaderboard from "components/metrics/panels/GenerateIndividualTestsLeaderboard";
+import TablePanel from "components/metrics/panels/TablePanel";
+import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import WorkflowPicker, {
   WORKFLOWS,
 } from "components/metrics/panels/WorkflowPicker";
+import { durationDisplay } from "components/TimeUtils";
+import dayjs from "dayjs";
+import { RocksetParam } from "lib/rockset";
+import { useRouter } from "next/router";
+import { useState } from "react";
 
 const ROW_HEIGHT = 500;
 const THRESHOLD_IN_SECOND = 60;

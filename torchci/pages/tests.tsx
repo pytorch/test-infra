@@ -1,8 +1,8 @@
-import dayjs from "dayjs";
 import { Grid, Stack, Typography } from "@mui/material";
-import { TimeRangePicker } from "./metrics";
+import dayjs from "dayjs";
 import { useState } from "react";
 import GenerateTestInsightsOverviewTable from "../components/metrics/panels/GenerateTestInsightsOverviewTable";
+import { TimeRangePicker } from "./metrics";
 
 const THRESHOLD_IN_SECOND = 60;
 

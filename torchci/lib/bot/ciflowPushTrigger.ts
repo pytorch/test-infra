@@ -1,8 +1,8 @@
 import { Context, Probot } from "probot";
 import {
   CachedConfigTracker,
-  hasWritePermissions,
   hasApprovedPullRuns,
+  hasWritePermissions,
   isPyTorchPyTorch,
 } from "./utils";
 

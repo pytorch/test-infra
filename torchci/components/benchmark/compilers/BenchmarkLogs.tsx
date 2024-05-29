@@ -1,9 +1,9 @@
-import { RocksetParam } from "lib/rockset";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
-import { LogLinks } from "components/benchmark/compilers/LogLinks";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
 import { LOG_PREFIX } from "components/benchmark/common";
+import { LogLinks } from "components/benchmark/compilers/LogLinks";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import useSWR from "swr";
 
 export const INDUCTOR_JOB_NAME_REGEX = new RegExp(
   ".+\\s/\\stest\\s\\(inductor_(.+)_perf_?(.*), ([0-9]+), ([0-9]+), (.+)\\)"

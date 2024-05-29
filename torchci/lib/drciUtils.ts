@@ -1,19 +1,19 @@
-import dayjs from "dayjs";
-import _ from "lodash";
-import { Octokit } from "octokit";
-import { IssueData } from "./types";
-import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
-import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
 import { Client } from "@opensearch-project/opensearch";
-import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
-import { RecentWorkflowsData } from "lib/types";
+import dayjs from "dayjs";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import {
-  isSameAuthor,
-  isSameFailure,
+  getPRMergeCommits,
   hasS3Log,
   isFailureFromPrevMergeCommit,
-  getPRMergeCommits,
+  isSameAuthor,
+  isSameFailure,
 } from "lib/jobUtils";
+import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
+import { RecentWorkflowsData } from "lib/types";
+import _ from "lodash";
+import { Octokit } from "octokit";
+import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
+import { IssueData } from "./types";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";

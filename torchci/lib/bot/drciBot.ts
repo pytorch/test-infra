@@ -1,5 +1,5 @@
-import { Probot } from "probot";
 import { upsertDrCiComment } from "lib/drciUtils";
+import { Probot } from "probot";
 
 export default function drciBot(app: Probot): void {
   app.on(

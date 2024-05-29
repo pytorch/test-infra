@@ -1,10 +1,10 @@
+import {
+  IssuesLabeledEvent,
+  PullRequestLabeledEvent,
+} from "@octokit/webhooks-types";
+import { Context, Probot } from "probot";
 import { parseSubscriptions } from "./subscriptions";
 import { CachedIssueTracker } from "./utils";
-import { Probot, Context } from "probot";
-import {
-  PullRequestLabeledEvent,
-  IssuesLabeledEvent,
-} from "@octokit/webhooks-types";
 
 function myBot(app: Probot): void {
   const tracker = new CachedIssueTracker(

@@ -1,11 +1,11 @@
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
-import { commitDataFromResponse, getOctokit } from "./github";
-import getRocksetClient from "./rockset";
-import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
+import { commitDataFromResponse, getOctokit } from "./github";
 import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
-import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import getRocksetClient from "./rockset";
+import { HudParams, JobData, RowData } from "./types";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];

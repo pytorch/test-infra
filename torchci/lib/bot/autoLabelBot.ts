@@ -1,20 +1,20 @@
-import { Context, Probot } from "probot";
-import {
-  CachedIssueTracker,
-  CachedLabelerConfigTracker,
-  addLabels,
-  hasApprovedPullRuns,
-  hasWritePermissions,
-  isPyTorchPyTorch,
-  getFilesChangedByPr,
-  LabelToLabelConfigTracker,
-} from "./utils";
+import assert from "assert";
 import { minimatch } from "minimatch";
+import { Context, Probot } from "probot";
 import {
   CODEV_INDICATOR,
   genCodevNoWritePermComment,
 } from "./codevNoWritePermBot";
-import assert from "assert";
+import {
+  addLabels,
+  CachedIssueTracker,
+  CachedLabelerConfigTracker,
+  getFilesChangedByPr,
+  hasApprovedPullRuns,
+  hasWritePermissions,
+  isPyTorchPyTorch,
+  LabelToLabelConfigTracker,
+} from "./utils";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],

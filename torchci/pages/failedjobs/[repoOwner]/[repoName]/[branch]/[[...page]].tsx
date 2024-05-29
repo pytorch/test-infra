@@ -1,18 +1,18 @@
-import useSWR from "swr";
-import _ from "lodash";
 import { Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
-import React, { useState } from "react";
-import JobSummary from "components/JobSummary";
-import JobLinks from "components/JobLinks";
-import LogViewer from "components/LogViewer";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
-import { JobData, JobAnnotation } from "lib/types";
-import { TimeRangePicker } from "pages/metrics";
+import JobLinks from "components/JobLinks";
+import JobSummary from "components/JobSummary";
+import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
+import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
+import { RocksetParam } from "lib/rockset";
+import { JobAnnotation, JobData } from "lib/types";
+import _ from "lodash";
+import { useRouter } from "next/router";
+import { TimeRangePicker } from "pages/metrics";
+import React, { useState } from "react";
+import useSWR from "swr";
 
 function SimilarFailedJobs({
   job,

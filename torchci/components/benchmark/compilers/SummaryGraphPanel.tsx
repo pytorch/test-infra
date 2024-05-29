@@ -1,24 +1,24 @@
-import { RocksetParam } from "lib/rockset";
-import dayjs from "dayjs";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import {
-  Granularity,
-  TimeSeriesPanelWithData,
-  seriesWithInterpolatedTimes,
-} from "components/metrics/panels/TimeSeriesPanel";
 import { Grid, Skeleton } from "@mui/material";
-import {
-  getPassingModels,
-  computePassrate,
-  computeGeomean,
-  computeCompilationTime,
-  computePeakMemoryUsage,
-  computeMemoryCompressionRatio,
-} from "lib/benchmark/compilerUtils";
 import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
+import {
+  Granularity,
+  seriesWithInterpolatedTimes,
+  TimeSeriesPanelWithData,
+} from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import {
+  computeCompilationTime,
+  computeGeomean,
+  computeMemoryCompressionRatio,
+  computePassrate,
+  computePeakMemoryUsage,
+  getPassingModels,
+} from "lib/benchmark/compilerUtils";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import useSWR from "swr";
 
 const GRAPH_ROW_HEIGHT = 245;
 

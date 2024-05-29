@@ -1,10 +1,10 @@
-import { JobData, IssueData } from "lib/types";
-import JobConclusion from "./JobConclusion";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
+import { IssueData, JobData } from "lib/types";
+import JobConclusion from "./JobConclusion";
 
 function BranchName({
   name,

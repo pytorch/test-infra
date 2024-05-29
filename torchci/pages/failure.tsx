@@ -1,18 +1,16 @@
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-dayjs.extend(utc);
-
-import { CSSProperties, useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import useSWR from "swr";
-import { BarChart, Bar, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-
-import { JobData } from "lib/types";
+import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
-import JobLinks from "components/JobLinks";
-import { usePreference } from "lib/useGroupingPreference";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { ParamSelector } from "lib/ParamSelector";
+import { JobData } from "lib/types";
+import { usePreference } from "lib/useGroupingPreference";
+import { useRouter } from "next/router";
+import { CSSProperties, useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
+import useSWR from "swr";
+dayjs.extend(utc);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 

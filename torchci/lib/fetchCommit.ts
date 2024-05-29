@@ -1,11 +1,10 @@
 import _ from "lodash";
-import { getOctokit, commitDataFromResponse } from "./github";
-import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
-
-import { CommitData, JobData } from "./types";
-import { removeCancelledJobAfterRetry } from "./jobUtils";
 import { Octokit } from "octokit";
+import rocksetVersions from "rockset/prodVersions.json";
+import { commitDataFromResponse, getOctokit } from "./github";
+import { removeCancelledJobAfterRetry } from "./jobUtils";
+import getRocksetClient from "./rockset";
+import { CommitData, JobData } from "./types";
 
 export default async function fetchCommit(
   owner: string,

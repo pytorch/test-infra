@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { Grid } from "@mui/material";
 import {
   GridRenderCellParams,
@@ -6,6 +5,7 @@ import {
 } from "@mui/x-data-grid";
 import TablePanel from "components/metrics/panels/TablePanel";
 import { durationDisplay } from "components/TimeUtils";
+import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 
 const ROW_HEIGHT = 500;

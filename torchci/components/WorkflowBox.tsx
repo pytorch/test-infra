@@ -1,17 +1,16 @@
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
-import { Artifact, JobData, IssueData } from "lib/types";
+import { getSearchRes, LogSearchResult } from "lib/searchLogs";
+import { Artifact, IssueData, JobData } from "lib/types";
+import React, { useEffect, useState } from "react";
 import useSWR from "swr";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import { TestInfo } from "./additionalTestInfo/TestInfo";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
-import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState, useEffect } from "react";
-import { LogSearchResult, getSearchRes } from "lib/searchLogs";
-import React from "react";
-import { TestInfo } from "./additionalTestInfo/TestInfo";
 import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {

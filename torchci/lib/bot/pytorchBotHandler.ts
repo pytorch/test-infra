@@ -6,13 +6,13 @@ import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
+  addLabels,
+  hasApprovedPullRuns,
+  hasWritePermissions as _hasWP,
+  isFirstTimeContributor,
   isPyTorchOrg,
   isPyTorchPyTorch,
-  addLabels,
-  hasWritePermissions as _hasWP,
   reactOnComment,
-  hasApprovedPullRuns,
-  isFirstTimeContributor,
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";

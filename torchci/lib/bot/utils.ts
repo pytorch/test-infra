@@ -1,6 +1,6 @@
+import { Octokit } from "octokit";
 import { Context, Probot } from "probot";
 import urllib from "urllib";
-import { Octokit } from "octokit";
 
 export function repoKey(
   context: Context | Context<"pull_request.labeled">

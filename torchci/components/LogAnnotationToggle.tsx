@@ -1,7 +1,7 @@
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useSession } from "next-auth/react";
 import React from "react";
 import { JobData, LogAnnotation } from "../lib/types";
-import { ToggleButtonGroup, ToggleButton } from "@mui/material";
-import { useSession } from "next-auth/react";
 
 export default function LogAnnotationToggle({
   job,

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
 import { signIn, useSession } from "next-auth/react";
-import styles from "./LoginSection.module.css";
+import React, { useState } from "react";
 import LoggedInMenu from "./LoggedInMenu";
+import styles from "./LoginSection.module.css";
 
 export default function LoginSection() {
   const { data: session, status } = useSession();

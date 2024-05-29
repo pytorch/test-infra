@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { formatHudUrlForRoute, HudParams } from "./types";
 import { PinnedTooltipContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import { formatHudUrlForRoute, HudParams } from "./types";
 
 export default function useTableFilter(params: HudParams) {
   const router = useRouter();

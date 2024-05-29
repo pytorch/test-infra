@@ -1,6 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
-import { GroupData, RowData, IssueData } from "./types";
 import { getOpenUnstableIssues } from "lib/jobUtils";
+import { GroupData, IssueData, RowData } from "./types";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";

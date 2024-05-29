@@ -1,22 +1,22 @@
-import dayjs from "dayjs";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import React, { useState, useEffect } from "react";
-import { RocksetParam } from "lib/rockset";
 import {
+  Divider,
+  FormControl,
   Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
   Skeleton,
   Stack,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  Divider,
-  InputLabel,
-  SelectChangeEvent,
 } from "@mui/material";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
+import dayjs from "dayjs";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import React, { useEffect, useState } from "react";
+import useSWR from "swr";
 
 const queryCollection = "torchbench";
 const ROW_GAP = 30;

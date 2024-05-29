@@ -1,20 +1,20 @@
-import dayjs from "dayjs";
+import { Grid } from "@mui/material";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import { LOG_PREFIX, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import {
+  BranchAndCommitPerfData,
+  COMPRESSION_RATIO_THRESHOLD,
+  DIFF_HEADER,
+  PASSING_ACCURACY,
+  PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD,
   RELATIVE_THRESHOLD,
   SPEEDUP_THRESHOLD,
-  COMPRESSION_RATIO_THRESHOLD,
-  PEAK_MEMORY_USAGE_RELATIVE_THRESHOLD,
-  PASSING_ACCURACY,
-  DIFF_HEADER,
 } from "components/benchmark/compilers/common";
-import { BranchAndCommitPerfData } from "components/benchmark/compilers/common";
 import styles from "components/metrics.module.css";
-import { Grid } from "@mui/material";
-import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
-import { CompilerPerformanceData } from "lib/types";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { SHA_DISPLAY_LENGTH, LOG_PREFIX } from "components/benchmark/common";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import { CompilerPerformanceData } from "lib/types";
 
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;

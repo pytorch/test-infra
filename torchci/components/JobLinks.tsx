@@ -1,14 +1,14 @@
-import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
-import useSWR from "swr";
-import React from "react";
-import { IssueData, JobData } from "../lib/types";
-import styles from "./JobLinks.module.css";
-import TestInsightsLink from "./TestInsights";
-import ReproductionCommand from "./ReproductionCommand";
+import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
+import React from "react";
+import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { transformJobName } from "../lib/jobUtils";
-import dayjs from "dayjs";
+import { IssueData, JobData } from "../lib/types";
+import styles from "./JobLinks.module.css";
+import ReproductionCommand from "./ReproductionCommand";
+import TestInsightsLink from "./TestInsights";
+import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
 export default function JobLinks({
   job,

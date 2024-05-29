@@ -1,25 +1,23 @@
 import {
-  removeJobNameSuffix,
-  isSameFailure,
-  isSameAuthor,
-  isSameContext,
-  removeCancelledJobAfterRetry,
-  isFailureFromPrevMergeCommit,
-  getDisabledTestIssues,
-  isRecentlyCloseDisabledTest,
-  isDisabledTest,
-  isDisabledTestMentionedInPR,
-} from "../lib/jobUtils";
-import {
-  JobData,
-  RecentWorkflowsData,
   BasicJobData,
   IssueData,
   PRandJobs,
+  RecentWorkflowsData,
 } from "lib/types";
 import nock from "nock";
-import dayjs from "dayjs";
 import * as getAuthors from "../lib/getAuthors";
+import {
+  getDisabledTestIssues,
+  isDisabledTest,
+  isDisabledTestMentionedInPR,
+  isFailureFromPrevMergeCommit,
+  isRecentlyCloseDisabledTest,
+  isSameAuthor,
+  isSameContext,
+  isSameFailure,
+  removeCancelledJobAfterRetry,
+  removeJobNameSuffix,
+} from "../lib/jobUtils";
 
 nock.disableNetConnect();
 

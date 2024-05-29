@@ -1,5 +1,5 @@
-import { Artifact } from "./types";
 import _ from "lodash";
+import { Artifact } from "./types";
 
 const GHA_ARTIFACTS_LAMBDA =
   "https://np6xty2nm6jifkuuyb6wllx6ha0qtthb.lambda-url.us-east-1.on.aws";

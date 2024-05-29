@@ -1,10 +1,10 @@
-import { useRouter } from "next/router";
-import useSWR from "swr";
-import LogViewer from "components/LogViewer";
-import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
+import LogViewer from "components/LogViewer";
 import { ParamSelector } from "lib/ParamSelector";
+import { useRouter } from "next/router";
+import useSWR from "swr";
+import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 

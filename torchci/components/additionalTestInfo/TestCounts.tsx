@@ -1,10 +1,10 @@
-import { JobData } from "lib/types";
-import { CSSProperties, useState } from "react";
-import _ from "lodash";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import { durationDisplay } from "components/TimeUtils";
 import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
+import { durationDisplay } from "components/TimeUtils";
+import { fetcher } from "lib/GeneralUtils";
+import { JobData } from "lib/types";
+import _ from "lodash";
+import { CSSProperties, useState } from "react";
+import useSWR from "swr";
 import { RecursiveDetailsSummary } from "./TestInfo";
 
 function TestCountsDataGrid({

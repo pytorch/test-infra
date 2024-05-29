@@ -1,8 +1,8 @@
 import nock from "nock";
-import * as utils from "./utils";
+import { Probot } from "probot";
 import myProbotApp from "../lib/bot/autoCcBot";
 import { nockTracker } from "./common";
-import { Probot } from "probot";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

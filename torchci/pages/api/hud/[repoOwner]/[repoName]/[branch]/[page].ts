@@ -1,8 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import zlib from "zlib";
-
 import fetchHud from "lib/fetchHud";
 import { packHudParams } from "lib/types";
+import type { NextApiRequest, NextApiResponse } from "next";
+import zlib from "zlib";
 
 export default async function handler(
   req: NextApiRequest,

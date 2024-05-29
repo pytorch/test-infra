@@ -1,7 +1,3 @@
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
-import useSWR from "swr";
-import { useEffect, useState } from "react";
 import {
   Autocomplete,
   FormControl,
@@ -15,11 +11,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { RocksetParam } from "lib/rockset";
-import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
+import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
+import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 
 const ROW_HEIGHT = 600;
 

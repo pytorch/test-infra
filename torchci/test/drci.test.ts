@@ -1,23 +1,22 @@
-import nock from "nock";
-import * as updateDrciBot from "../pages/api/drci/drci";
+import dayjs from "dayjs";
+import * as drciUtils from "lib/drciUtils";
 import {
-  OH_URL,
   DOCS_URL,
   DRCI_COMMENT_START,
   formDrciComment,
   formDrciHeader,
-  getActiveSEVs,
   formDrciSevBody,
-  isInfraFlakyJob,
+  getActiveSEVs,
   HUD_URL,
+  OH_URL,
 } from "lib/drciUtils";
-import { IssueData, RecentWorkflowsData } from "lib/types";
-import dayjs from "dayjs";
-import { removeJobNameSuffix } from "lib/jobUtils";
-import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
-import * as drciUtils from "lib/drciUtils";
-import * as jobUtils from "lib/jobUtils";
 import * as fetchPR from "lib/fetchPR";
+import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
+import * as jobUtils from "lib/jobUtils";
+import { removeJobNameSuffix } from "lib/jobUtils";
+import { IssueData, RecentWorkflowsData } from "lib/types";
+import nock from "nock";
+import * as updateDrciBot from "../pages/api/drci/drci";
 
 nock.disableNetConnect();
 

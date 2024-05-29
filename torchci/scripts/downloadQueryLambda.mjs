@@ -1,7 +1,7 @@
 import rockset from "@rockset/client";
 import { ArgumentParser } from "argparse";
-import { promises as fs, existsSync } from "fs";
 import dotenv from "dotenv";
+import { existsSync, promises as fs } from "fs";
 import path from "path";
 import { exit } from "process";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });

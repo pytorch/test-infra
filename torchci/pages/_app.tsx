@@ -1,14 +1,14 @@
 import AnnouncementBanner from "components/AnnouncementBanner";
+import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
-import TitleProvider from "components/DynamicTitle";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import "styles/globals.css";
 import ReactGA from "react-ga4";
+import "styles/globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();

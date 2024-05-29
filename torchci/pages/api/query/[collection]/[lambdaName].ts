@@ -1,6 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-
 import getRocksetClient, { RocksetParam } from "lib/rockset";
+import type { NextApiRequest, NextApiResponse } from "next";
 import rocksetVersions from "rockset/prodVersions.json";
 
 export const config = {

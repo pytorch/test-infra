@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import styles from "components/hud.module.css";
+import { useEffect, useState } from "react";
 
 export function ParamSelector({
   value,

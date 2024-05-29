@@ -1,29 +1,28 @@
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
-import useSWR from "swr";
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { useCallback, useState } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
 import {
-  Granularity,
-  getTooltipMarker,
-  seriesWithInterpolatedTimes,
-} from "components/metrics/panels/TimeSeriesPanel";
-import React from "react";
-import { TimeRangePicker } from "../../../metrics";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import GranularityPicker from "components/GranularityPicker";
-import {
-  GridRenderCellParams,
   GridCellParams,
+  GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
+import GranularityPicker from "components/GranularityPicker";
 import styles from "components/hud.module.css";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import {
+  getTooltipMarker,
+  Granularity,
+  seriesWithInterpolatedTimes,
+} from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
 import { approximateFailureByTypePercent } from "lib/metricUtils";
+import { RocksetParam } from "lib/rockset";
 import { JobAnnotation } from "lib/types";
+import { useRouter } from "next/router";
+import React, { useCallback, useState } from "react";
+import useSWR from "swr";
+import { TimeRangePicker } from "../../../metrics";
 
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
