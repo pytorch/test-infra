@@ -105,8 +105,8 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND: "bash packaging/post_build_script.sh {dest_dir} {wheel}"
       CIBW_SKIP: cp39-musllinux*
       CIBW_ARCHS: x86_64
+      CIBW_PRERELEASE_PYTHONS: True
       CIBW_BEFORE_BUILD: >-
-        pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/${{ matrix.desired_cuda }} &&
         bash packaging/pre_build_script.sh
       CIBW_BUILD: cp39-*
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.container_image }}
@@ -117,6 +117,7 @@ jobs:
         VERSION_SUFFIX=+${{ matrix.desired_cuda }}
         PYTORCH_VERSION_SUFFIX=+${{ matrix.desired_cuda }}
         TORCH_CUDA_ARCH_LIST="5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0"
+        PIP_INDEX_URL=https://download.pytorch.org/whl/nightly/${{ matrix.desired_cuda }}
 
     name: ${{ matrix.build_name }}
     runs-on: linux.2xlarge
