@@ -117,7 +117,7 @@ jobs:
         VERSION_SUFFIX=+${{ matrix.desired_cuda }}
         PYTORCH_VERSION_SUFFIX=+${{ matrix.desired_cuda }}
         TORCH_CUDA_ARCH_LIST="5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0"
-        PIP_EXTRAINDEX_URL=https://download.pytorch.org/whl/nightly/${{ matrix.desired_cuda }}
+        PIP_INDEX_URL=https://download.pytorch.org/whl/nightly/${{ matrix.desired_cuda }}
 
     name: ${{ matrix.build_name }}
     runs-on: linux.2xlarge
