@@ -107,7 +107,7 @@ jobs:
       CIBW_ARCHS: x86_64
       CIBW_BEFORE_BUILD: >-
         pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/${{ matrix.desired_cuda }} &&
-        "bash packaging/pre_build_script.sh
+        bash packaging/pre_build_script.sh
       CIBW_BUILD: cp39-*
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.container_image }}
       CIBW_ENVIRONMENT: CU_VERSION=${{ matrix.desired_cuda }}
