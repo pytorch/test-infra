@@ -23,6 +23,8 @@ toml = "0.5.9"
 native-tls = { version = "0.2.10", features = ["vendored"] }
 aws-sdk-dynamodb = "0.18.0"
 serde_dynamo = { version = "4.0.6", features = ["aws-sdk-dynamodb+0_18"] }
+chrono = "0.4.38"
+reqwest = { version = "0.12.4", features = ["json"] }
 
   [dependencies.serde]
   version = "1.0.144"
