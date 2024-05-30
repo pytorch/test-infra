@@ -141,6 +141,8 @@ PACKAGE_ALLOW_LIST = {
     "urllib3",
     "xformers",
     "executorch",
+    "setuptools",
+    "wheel"
 }
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
