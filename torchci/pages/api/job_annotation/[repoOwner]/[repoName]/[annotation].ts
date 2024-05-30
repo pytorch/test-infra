@@ -1,8 +1,8 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { getDynamoClient } from "lib/dynamo";
+import { getOctokit } from "lib/github";
+import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
-import { getOctokit } from "lib/github";
 
 // Team ID query from https://api.github.com/orgs/pytorch/teams/pytorch-dev-infra
 export const pytorchDevInfra = "pytorch-dev-infra";

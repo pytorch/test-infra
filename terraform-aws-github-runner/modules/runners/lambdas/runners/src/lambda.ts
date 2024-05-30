@@ -90,7 +90,7 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
           console.error(`Retryable error thrown: "${e.message}"`);
           evtFailed.push([evt, true, 1]);
         } else {
-          console.error(`Non-retryable error during request: "${e.message}"`);
+          console.error(`Non-retryable error during request: "${(e as Error).message}"`);
           console.error(`All remaning '${event.Records.length - i}' messages will be scheduled to retry`);
           for (let ii = i; ii < event.Records.length; ii += 1) {
             evtFailed.push([event.Records[ii], false, 1]);

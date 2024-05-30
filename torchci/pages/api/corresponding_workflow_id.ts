@@ -3,8 +3,8 @@
 // the trunk workflow, then this will return the workflow id for the trunk
 // workflow on the provided sha
 
-import type { NextApiRequest, NextApiResponse } from "next";
 import getRocksetClient, { RocksetParam } from "lib/rockset";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 async function getCorrespondingWorkflowID(sha: string, workflowId: string) {
   const parameters: RocksetParam[] = [

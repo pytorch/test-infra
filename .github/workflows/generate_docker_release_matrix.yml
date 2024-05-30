@@ -15,6 +15,10 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
+      generate_dockerhub_images: 
+        description: "Whether to generate Docker Hub images"
+        default: "false"
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -39,6 +43,7 @@ jobs:
         id: generate
         env:
           CHANNEL: ${{ inputs.channel != '' && inputs.channel || env.CHANNEL }}
+          GENERATE_DOCKERHUB_IMAGES: ${{ inputs.generate_dockerhub_images != '' && inputs.generate_dockerhub_images || env.GENERATE_DOCKERHUB_IMAGES }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_docker_release_matrix.py)"

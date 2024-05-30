@@ -2,9 +2,9 @@
  * A metrics panel that shows a single scalar value.
  */
 
-import { RocksetParam } from "lib/rockset";
-import { Box, Paper, Typography, Skeleton } from "@mui/material";
+import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 
 export function ScalarPanelWithValue({

@@ -1,6 +1,5 @@
 import getRocksetClient from "lib/rockset";
 import rocksetVersions from "rockset/prodVersions.json";
-
 import { JobData } from "./types";
 
 export default async function fetchFailureSamples(

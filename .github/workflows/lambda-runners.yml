@@ -12,7 +12,7 @@ jobs:
   build:
     name: "Run tests for runners lambda"
     runs-on: ubuntu-latest
-    container: node:14
+    container: node:20
     defaults:
       run:
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
@@ -29,3 +29,5 @@ jobs:
         run: yarn test
       - name: Build distribution
         run: yarn build
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"

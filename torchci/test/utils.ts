@@ -1,4 +1,3 @@
-import { createAppAuth } from "@octokit/auth-app";
 import nock from "nock";
 import { Octokit } from "octokit";
 import { Probot, ProbotOctokit } from "probot";

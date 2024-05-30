@@ -1,7 +1,6 @@
-import { NextApiRequest, NextApiResponse } from "next";
-
-import { IssueData } from "lib/types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { IssueData } from "lib/types";
+import { NextApiRequest, NextApiResponse } from "next";
 
 interface Data {
   issues: IssueData[];

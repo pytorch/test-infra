@@ -2,15 +2,15 @@
  * A metrics panel that shows a time series line chart.
  */
 
-import { RocksetParam } from "lib/rockset";
-import ReactECharts from "echarts-for-react";
 import { Paper, Skeleton } from "@mui/material";
-import { fetcher } from "lib/GeneralUtils";
-import useSWR from "swr";
-import { EChartsOption } from "echarts";
-import _ from "lodash";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import _ from "lodash";
+import useSWR from "swr";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";

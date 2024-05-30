@@ -157,7 +157,6 @@ describe('Test createGithubAuth', () => {
         const authOptions = {
           appId: parseInt(config.githubAppId),
           privateKey: privateKeyBase64,
-          installationId,
           clientId: config.githubAppClientId,
           clientSecret: clientSecret,
         };
@@ -208,7 +207,6 @@ describe('Test createGithubAuth', () => {
         const authOptions = {
           appId: parseInt(config.githubAppId),
           privateKey: privateKeyBase64,
-          installationId,
           clientId: config.githubAppClientId,
           clientSecret: clientSecret,
           request: mockedRequestInterface.defaults({ baseUrl: githubServerUrl }),
@@ -265,7 +263,6 @@ describe('Test createGithubAuth', () => {
         const authOptions = {
           appId: 10,
           privateKey: privateKeyBase64,
-          installationId,
           clientId: '20',
           clientSecret: clientSecret,
         };

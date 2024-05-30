@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from "uuid";
-import { Probot } from "probot";
 import {
   EmitterWebhookEvent as WebhookEvent,
   EmitterWebhookEventName as WebhookEvents,
 } from "@octokit/webhooks";
 import { getDynamoClient } from "lib/dynamo";
+import { Probot } from "probot";
+import { v4 as uuidv4 } from "uuid";
 
 function narrowType<E extends WebhookEvents>(
   event: E,

@@ -6,6 +6,7 @@ import { decrypt } from '../kms';
 
 const DEFAULT_PATTERNS = [/windows-.*/, /ubuntu-.*/, /macos-.*/];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const handle = async (headers: IncomingHttpHeaders, payload: any): Promise<number> => {
   // ensure header keys lower case since github headers can contain capitals.
   for (const key in headers) {
@@ -38,7 +39,7 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
 
   const githubEvent = headers['x-github-event'] as string;
 
-  console.debug(`Received Github event: "${githubEvent}"`);
+  console.info(`Received Github event: "${githubEvent}"`);
 
   if (githubEvent === 'workflow_job') {
     const body = JSON.parse(payload) as WorkflowJobEvent;
@@ -48,14 +49,17 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
     }
     if (body.action === 'queued') {
       // If repository ends with -canary and environment is not canary environment then ignore
-      if (body.repository.name.endsWith('-canary') && !(process.env.ENVIRONMENT as string).endsWith('-canary')) {
-        console.debug(
+      if (
+        body.repository.name.endsWith('-canary') &&
+        !((process.env.ENVIRONMENT as string).endsWith('-canary') || (process.env.ENVIRONMENT as string).endsWith('-c'))
+      ) {
+        console.info(
           `Ignore canary event on non-canary environment (${process.env.ENVIRONMENT as string})` + githubEvent,
         );
         return 200;
       }
       if (isDefault(body.workflow_job.labels)) {
-        console.debug('Ignoring default label');
+        console.info('Ignoring default label');
         return 200;
       }
       await sendActionRequest({
@@ -69,7 +73,7 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
       });
     }
   } else {
-    console.debug('Ignore event ' + githubEvent);
+    console.info('Ignore event ' + githubEvent);
   }
 
   return 200;
@@ -79,7 +83,7 @@ function isDefault(labels: string[]): boolean {
   for (const label of labels) {
     for (const pattern of DEFAULT_PATTERNS) {
       if (label.match(pattern)) {
-        console.debug(`Matched default label ${label}`);
+        console.info(`Matched default label ${label}`);
         return true;
       }
     }

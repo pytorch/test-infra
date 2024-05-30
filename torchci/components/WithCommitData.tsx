@@ -1,7 +1,7 @@
 /* Wrapper component for fetching commit data */
 
-import useSWR from "swr";
 import { CommitData, JobData } from "lib/types";
+import useSWR from "swr";
 import { fetcher } from "../lib/GeneralUtils";
 
 export function WithCommitData({

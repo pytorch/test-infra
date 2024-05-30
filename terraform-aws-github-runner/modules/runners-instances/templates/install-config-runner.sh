@@ -1,10 +1,38 @@
 set -x
+
+install_hooks() {
+  pushd /home/$USER_NAME
+
+  CLEANUP_SCRIPT=/home/$USER_NAME/runner-scripts/cleanup.sh
+  # https://github.com/pytorch/test-infra/issues/5246, install pre and post-job hooks
+  # to chown everything under actions-runner to $USER_NAME so that the runner can clean
+  # up these files
+  mkdir -p runner-scripts
+  cat > $CLEANUP_SCRIPT <<EOF
+#!/bin/bash
+sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner || true
+EOF
+  chmod 755 $CLEANUP_SCRIPT
+
+  RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
+  # https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/running-scripts-before-or-after-a-job
+  STARTED_HOOK="ACTIONS_RUNNER_HOOK_JOB_STARTED=$CLEANUP_SCRIPT"
+  COMPLETED_HOOK="ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$CLEANUP_SCRIPT"
+
+  echo $STARTED_HOOK >> $RUNNER_ENV
+  echo $COMPLETED_HOOK >> $RUNNER_ENV
+
+  popd
+}
+
 cd /home/$USER_NAME
 mkdir actions-runner && cd actions-runner
 
 aws s3 cp ${s3_location_runner_distribution} actions-runner.tar.gz
 tar xzf ./actions-runner.tar.gz
 rm -rf actions-runner.tar.gz
+
+install_hooks
 
 ${arm_patch}
 

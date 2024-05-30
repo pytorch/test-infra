@@ -1,5 +1,5 @@
-import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
 import correlationMatrix from "lib/correlation_matrix.json";
 
 export default function Page() {

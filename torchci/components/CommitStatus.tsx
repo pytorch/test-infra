@@ -1,20 +1,20 @@
-import FilteredJobList from "./FilteredJobList";
-import VersionControlLinks from "./VersionControlLinks";
-import { CommitData, JobData, IssueData } from "lib/types";
-import WorkflowBox from "./WorkflowBox";
 import styles from "components/commit.module.css";
-import _ from "lodash";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
-import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import { CommitData, IssueData, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
-import WorkflowDispatcher from "./WorkflowDispatcher";
+import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import FilteredJobList from "./FilteredJobList";
+import VersionControlLinks from "./VersionControlLinks";
+import WorkflowBox from "./WorkflowBox";
+import WorkflowDispatcher from "./WorkflowDispatcher";
 
 function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
   const byWorkflow = _(jobs)

@@ -1,8 +1,8 @@
-import * as searchUtils from "../lib/searchUtils";
+import { Client } from "@opensearch-project/opensearch";
+import dayjs from "dayjs";
 import { JobData } from "lib/types";
 import nock from "nock";
-import dayjs from "dayjs";
-import { Client } from "@opensearch-project/opensearch";
+import * as searchUtils from "../lib/searchUtils";
 
 nock.disableNetConnect();
 

@@ -1,7 +1,7 @@
 import { Client } from "@opensearch-project/opensearch";
+import dayjs from "dayjs";
 import { JobData } from "lib/types";
 import { getOpenSearchClient } from "./opensearch";
-import dayjs from "dayjs";
 // Import itself to ensure that mocks can be applied, see
 // https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest

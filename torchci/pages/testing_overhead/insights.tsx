@@ -1,10 +1,10 @@
-import dayjs from "dayjs";
 import { Grid, Stack, Typography } from "@mui/material";
+import dayjs from "dayjs";
+import { useRouter } from "next/router";
 import { TimeRangePicker } from "pages/metrics";
-
 import { useState } from "react";
 import GenerateTestInsightsOverviewTable from "../../components/metrics/panels/GenerateTestInsightsOverviewTable";
-import { useRouter } from "next/router";
+
 const THRESHOLD_IN_SECOND = 60;
 
 export default function IndividualTestInsights() {

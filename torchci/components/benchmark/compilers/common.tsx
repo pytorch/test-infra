@@ -1,4 +1,4 @@
-import { CompilerPerformanceData, BranchAndCommit } from "lib/types";
+import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 
 // Relative thresholds
 export const RELATIVE_THRESHOLD = 0.05;

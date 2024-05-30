@@ -1,14 +1,14 @@
-import { Probot } from "probot";
-import * as utils from "./utils";
-import myProbotApp, * as bot from "../lib/bot/verifyDisableTestIssueBot";
+import _ from "lodash";
 import nock from "nock";
-import { requireDeepCopy, handleScope } from "./common";
-import {
-  pytorchBotId,
+import { Probot } from "probot";
+import * as bot from "../lib/bot/verifyDisableTestIssueBot";
+import myProbotApp, {
   disabledKey,
+  pytorchBotId,
   unstableKey,
 } from "../lib/bot/verifyDisableTestIssueBot";
-import _ from "lodash";
+import { handleScope, requireDeepCopy } from "./common";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

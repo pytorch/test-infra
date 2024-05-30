@@ -325,9 +325,7 @@ export async function getRunnerTypes(
       });
 
       /* istanbul ignore next */
-      const { content } = { ...(response?.data || {}) };
-
-      /* istanbul ignore next */
+      const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
       if (response?.status != 200 || !content) {
         throw Error(
           `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,

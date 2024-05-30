@@ -1,4 +1,4 @@
-import { JobsPerCommitData, JobAnnotation } from "lib/types";
+import { JobAnnotation, JobsPerCommitData } from "lib/types";
 
 // When N consecutive failures of the same type happen, the failures are counted as
 // broken trunk failures (approximately)

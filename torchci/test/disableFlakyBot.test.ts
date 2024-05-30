@@ -1,10 +1,10 @@
-import nock from "nock";
-import * as utils from "./utils";
-import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
 import dayjs from "dayjs";
-import { deepCopy, handleScope } from "./common";
-import { IssueData } from "lib/types";
 import { parseBody } from "lib/bot/verifyDisableTestIssueBot";
+import { IssueData } from "lib/types";
+import nock from "nock";
+import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
+import { deepCopy, handleScope } from "./common";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

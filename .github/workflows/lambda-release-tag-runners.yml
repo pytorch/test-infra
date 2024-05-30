@@ -7,7 +7,7 @@ jobs:
   tag:
     name: Create Release Tag
     runs-on: ubuntu-latest
-    container: node:14
+    container: node:20
     outputs:
       date: ${{ steps.date.outputs.date }}
     steps:

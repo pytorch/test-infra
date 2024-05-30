@@ -1,9 +1,9 @@
+import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import nock from "nock";
 import * as probot from "probot";
-import * as utils from "./utils";
 import pytorchBot from "../lib/bot/pytorchBot";
 import { handleScope, requireDeepCopy } from "./common";
-import { getFailureMessage, getMessage } from "lib/GeneralUtils";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

@@ -1,24 +1,21 @@
-import dayjs from "dayjs";
-import useSWR from "swr";
-import { Grid, Skeleton, Stack, Typography, Divider } from "@mui/material";
-import { useRouter } from "next/router";
-import React from "react";
-import { useState, useEffect } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import GranularityPicker from "components/GranularityPicker";
-import { TimeRangePicker } from "../../../metrics";
-import { CompilerPerformanceData } from "lib/types";
-import CopyLink from "components/CopyLink";
+import { Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
-import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
+import { CommitPanel } from "components/benchmark/CommitPanel";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
+import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
+import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "components/benchmark/compilers/common";
+import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
+import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
 import {
   DEFAULT_MODE,
-  MODES,
-  ModePicker,
   DTypePicker,
+  ModePicker,
+  MODES,
 } from "components/benchmark/ModeAndDTypePicker";
+import CopyLink from "components/CopyLink";
+import GranularityPicker from "components/GranularityPicker";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import {
   COMPILER_NAMES_TO_DISPLAY_NAMES,

@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { RecursiveDetailsSummary } from "./TestInfo";
-import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";
+import { useState } from "react";
+import useSWR from "swr";
+import { RecursiveDetailsSummary } from "./TestInfo";
 
 function groupByStatus(info: any) {
   const flaky = {};

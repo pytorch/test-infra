@@ -1,5 +1,5 @@
-import { Octokit, App } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
+import { App, Octokit } from "octokit";
 import { CommitData } from "./types";
 
 // Retrieve an Octokit instance authenticated as PyTorchBot's installation on

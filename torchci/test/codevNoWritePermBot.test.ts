@@ -1,9 +1,9 @@
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
-import * as utils from "./utils";
+import { Probot } from "probot";
 import myProbotApp from "../lib/bot/codevNoWritePermBot";
 import { handleScope, requireDeepCopy } from "./common";
-import { Probot } from "probot";
-import * as botUtils from "lib/bot/utils";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 

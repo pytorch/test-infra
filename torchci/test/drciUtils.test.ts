@@ -1,17 +1,17 @@
-import {
-  hasSimilarFailures,
-  isInfraFlakyJob,
-  isExcludedFromFlakiness,
-  isLogClassifierFailed,
-  getSuppressedLabels,
-  MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
-} from "../lib/drciUtils";
-import * as searchUtils from "../lib/searchUtils";
-import * as jobUtils from "../lib/jobUtils";
+import { Client } from "@opensearch-project/opensearch";
+import dayjs from "dayjs";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
-import dayjs from "dayjs";
-import { Client } from "@opensearch-project/opensearch";
+import {
+  getSuppressedLabels,
+  hasSimilarFailures,
+  isExcludedFromFlakiness,
+  isInfraFlakyJob,
+  isLogClassifierFailed,
+  MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
+} from "../lib/drciUtils";
+import * as jobUtils from "../lib/jobUtils";
+import * as searchUtils from "../lib/searchUtils";
 
 nock.disableNetConnect();
 

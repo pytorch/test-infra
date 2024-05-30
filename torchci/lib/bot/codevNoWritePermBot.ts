@@ -1,5 +1,5 @@
-import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 import { Probot } from "probot";
+import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 
 export const CODEV_INDICATOR = /Differential Revision: \[?D/;
 const CODEV_WIKI_LINK =

@@ -1,22 +1,21 @@
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
-import useSWR from "swr";
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { useCallback, useState } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
+import GranularityPicker from "components/GranularityPicker";
+import styles from "components/hud.module.css";
 import {
-  Granularity,
   getTooltipMarker,
+  Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
-import GranularityPicker from "components/GranularityPicker";
-import React from "react";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { useRouter } from "next/router";
+import React, { useCallback, useState } from "react";
+import useSWR from "swr";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
-import styles from "components/hud.module.css";
 
 const SUPPORTED_WORKFLOWS = [
   "pull",

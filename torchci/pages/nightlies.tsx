@@ -1,15 +1,13 @@
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
-import useSWR from "swr";
-import { Grid, Paper, Typography, Stack, Skeleton } from "@mui/material";
-
-import { useState } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
-
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import TablePanel from "components/metrics/panels/TablePanel";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { TimeRangePicker } from "pages/metrics";
+import { useState } from "react";
+import useSWR from "swr";
 
 function NightlyJobsRedPanel({
   params,

@@ -1,5 +1,5 @@
-import { JobData } from "../lib/types";
 import React from "react";
+import { JobData } from "../lib/types";
 
 // The following jobs are not supported at the moment because neither the monitoring
 // script is running there at the moment (libtorch, bazel, android)

@@ -1,6 +1,6 @@
 import { Octokit } from "octokit";
-import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
+import getRocksetClient from "./rockset";
 import { PRData } from "./types";
 
 export default async function fetchPR(

@@ -3,7 +3,11 @@ import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { OctokitOptions } from '@octokit/core/dist-types/types';
 import { SecretsManager } from 'aws-sdk';
-import { StrategyOptions } from '@octokit/auth-app/dist-types/types';
+import {
+  AppAuthentication,
+  InstallationAccessTokenAuthentication,
+  StrategyOptions,
+} from '@octokit/auth-app/dist-types/types';
 import { createAppAuth } from '@octokit/auth-app';
 import { decrypt } from './kms';
 import { expBackOff } from './utils';
@@ -121,7 +125,6 @@ export async function createGithubAuth(
       const authOptions: StrategyOptions = {
         appId: parseInt(githubCreds.github_app_id),
         privateKey: Buffer.from(privateKeyBase64, 'base64').toString(),
-        installationId,
         clientId: githubCreds.github_app_client_id as string,
         clientSecret,
       };
@@ -133,9 +136,22 @@ export async function createGithubAuth(
       }
 
       const auth = await expBackOff(() => {
-        return metrics.trackRequest(metrics.createAppAuthGHCallSuccess, metrics.createAppAuthGHCallFailure, () => {
-          return createAppAuth(authOptions)({ type: authType });
-        });
+        return metrics.trackRequest(
+          metrics.createAppAuthGHCallSuccess,
+          metrics.createAppAuthGHCallFailure,
+          (): Promise<AppAuthentication | InstallationAccessTokenAuthentication> => {
+            const auth = createAppAuth(authOptions);
+            if (authType === 'app') {
+              return auth({ type: 'app' });
+            } else if (authType === 'installation') {
+              return auth({
+                type: 'installation',
+                installationId: installationId,
+              });
+            }
+            throw Error('Invalid authType');
+          },
+        );
       });
 
       let tokenDisplayInfo = '';

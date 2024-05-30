@@ -1,5 +1,5 @@
-import _ from "lodash";
 import { RecentWorkflowsData } from "lib/types";
+import _ from "lodash";
 import getRocksetClient from "./rockset";
 
 // NB: Surprisingly, jest cannot mock function in the same module so we need to

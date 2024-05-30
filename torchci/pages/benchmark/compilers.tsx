@@ -1,34 +1,33 @@
-import dayjs from "dayjs";
-import useSWR from "swr";
-import { Skeleton, Stack, Typography, Divider } from "@mui/material";
-import React from "react";
-import { useState, useEffect } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
-import GranularityPicker from "components/GranularityPicker";
-import { TimeRangePicker } from "../metrics";
-import { BranchAndCommit } from "lib/types";
-import { useRouter } from "next/router";
-import CopyLink from "components/CopyLink";
+import { Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { MAIN_BRANCH, LAST_N_DAYS } from "components/benchmark/common";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { DTYPES } from "components/benchmark/compilers/common";
+import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
-  SUITES,
   SuitePicker,
+  SUITES,
 } from "components/benchmark/compilers/SuitePicker";
+import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
+import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DEFAULT_MODE,
-  MODES,
-  ModePicker,
   DTypePicker,
+  ModePicker,
+  MODES,
 } from "components/benchmark/ModeAndDTypePicker";
-import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
-import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
+import CopyLink from "components/CopyLink";
+import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { BranchAndCommit } from "lib/types";
+import { useRouter } from "next/router";
+import React, { useEffect, useState } from "react";
+import useSWR from "swr";
+import { TimeRangePicker } from "../metrics";
 
 function Report({
   queryParams,
