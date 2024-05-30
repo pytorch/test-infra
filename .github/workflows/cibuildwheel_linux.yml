@@ -108,6 +108,14 @@ jobs:
       CIBW_BEFORE_BUILD: "bash packaging/pre_build_script.sh"
       CIBW_BUILD: cp39-*
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.container_image }}
+      CIBW_ENVIRONMENT: CU_VERSION=${{ matrix.desired_cuda }}
+      CIBW_ENVIRONMENT: CUDA_HOME=/usr/local/cuda-${{ matrix.gpu_arch_version }}
+      CIBW_ENVIRONMENT: CUDA_PATH=/usr/local/cuda-${{ matrix.gpu_arch_version }}
+      CIBW_ENVIRONMENT: FORCE_CUDA=1
+      CIBW_ENVIRONMENT: VERSION_SUFFIX=+${{ matrix.desired_cuda }}
+      CIBW_ENVIRONMENT: PYTORCH_VERSION_SUFFIX=+${{ matrix.desired_cuda }}
+      CIBW_ENVIRONMENT: TORCH_CUDA_ARCH_LIST="5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0"
+
     name: ${{ matrix.build_name }}
     runs-on: linux.2xlarge
     # container:
