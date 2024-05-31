@@ -1,23 +1,25 @@
-name: Upload docs to github.event_name
+name: Upload docs to github
 
 description: Uploads the built docs to a github branch
 
-inputs:
-  docs-branch:
-    description: The branch to upload the docs to
-    type: string
-    default: 'gh-pages'
-  docs-name:
-    description: The name of the artifact uploaded to github
-    type: string
-    required: true
-  docs-path:
-    description: The path of the artifact uploaded to github
-    type: string
-    required: true
+on:
+  workflow_call:
+    inputs:
+      docs-branch:
+        description: The branch to upload the docs to
+        type: string
+        default: 'gh-pages'
+      docs-name:
+        description: The name of the artifact uploaded to github
+        type: string
+        required: true
+      docs-path:
+        description: The path of the artifact uploaded to github
+        type: string
+        required: true
 
 jobs:
-  job:
+  uplaod_docs:
     name: Upload docs
     permissions:
       contents: write
@@ -46,17 +48,20 @@ jobs:
           - name: Move and commit changes
             run: |
               set -euo pipefail
+              # Get github.ref for the output doc folder. By default "main"
+              # If matches a tag like refs/tags/v1.12.0-rc3 or
+              # refs/tags/v1.12.0 convert to 1.12
+              GITHUB_REF=${{ github.ref }}
 
               # Convert refs/tags/v1.12.0rc3 into 1.12.
               # Adopted from https://github.com/pytorch/pytorch/blob/main/.github/workflows/_docs.yml#L150C11-L155C13
-              GITHUB_REF=${{ github.ref }}
               if [[ "${GITHUB_REF}" =~ ^refs/tags/v([0-9]+\.[0-9]+)\.* ]]; then
                 TARGET_FOLDER="${BASH_REMATCH[1]}"
               else
                 TARGET_FOLDER="main"
               fi
-
               echo "Target Folder: ${TARGET_FOLDER}"
+
               mkdir -p "${TARGET_FOLDER}"
               rm -rf "${TARGET_FOLDER}"/*
               mv docs/* "${TARGET_FOLDER}"
