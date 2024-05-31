@@ -8,14 +8,11 @@ import {
 } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import { DTYPES } from "components/benchmark/compilers/common";
+import { JobPicker, JOBS } from "components/benchmark/compilers/JobPicker";
 import {
   SuitePicker,
   SUITES,
 } from "components/benchmark/compilers/SuitePicker";
-import {
-  JobPicker,
-  JOBS,
-} from "components/benchmark/compilers/JobPicker";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
@@ -294,7 +291,7 @@ export default function Page() {
       type: "string",
       value: dtype,
     },
-  ]
+  ];
   var queryName = "compilers_benchmark_performance_branches";
   if (job === "torchao") {
     queryName = "torchao_benchmark_performance_branches";
