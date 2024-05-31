@@ -228,6 +228,7 @@ function DisabledTestsPanel({ queryParams }: { queryParams: RocksetParam[] }) {
             },
           ]}
           dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
+          showFooter={true}
         />
       </Grid>
     </Grid>
