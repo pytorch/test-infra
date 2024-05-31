@@ -47,6 +47,10 @@ const ACCEPTED_LABELS_REGEX = new RegExp(
 );
 const DEFAULT_TRIAGED_STATE = "both";
 const TRIAGED_STATES = [DEFAULT_TRIAGED_STATE, "yes", "no"];
+const DISABLED_TEST_TITLE_REGEX = new RegExp(
+  "^(?<testCase>.*)s*\\(__main__.(?<testClass>.*)\\)$"
+);
+const TEST_PATH_REGEX = new RegExp("Test file path: `(?<testPath>[^\\s]*)`");
 
 function getLabels(data: any) {
   const acceptedLabels: string[] = [];
@@ -62,6 +66,14 @@ function getLabels(data: any) {
 function generateDisabledTestsTable(data: any) {
   const disabledTests: any = [];
   data.forEach((r: any) => {
+    const title = r.title.substring("DISABLED ".length);
+    const titleMatch = title.match(DISABLED_TEST_TITLE_REGEX);
+    const testCase = titleMatch ? titleMatch.groups.testCase : title;
+    const testClass = titleMatch ? titleMatch.groups.testClass : "";
+
+    const bodyMatch = r.body.match(TEST_PATH_REGEX);
+    const testPath = bodyMatch ? bodyMatch.groups.testPath : "";
+
     disabledTests.push({
       metadata: {
         number: r.number,
@@ -69,7 +81,9 @@ function generateDisabledTestsTable(data: any) {
         triaged: r.labels.some((label: string) => label === TRIAGED_LABEL),
         hiprio: r.labels.some((label: string) => label === HIGH_PRIORITY_LABEL),
       },
-      title: r.title,
+      testCase: testCase,
+      testClass: testClass,
+      testPath: testPath,
       assignee: r.assignee,
       timestamp: r.updated_at,
     });
@@ -164,11 +178,35 @@ function DisabledTestsPanel({ queryParams }: { queryParams: RocksetParam[] }) {
               },
             },
             {
-              field: "title",
-              headerName: "Disabled Test",
+              field: "testCase",
+              headerName: "Testcase",
               flex: 1,
               renderCell: (params: GridRenderCellParams<any>) => {
-                return params.value.substring("DISABLED ".length);
+                return params.value;
+              },
+            },
+            {
+              field: "testClass",
+              headerName: "Test Class",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return params.value;
+              },
+            },
+            {
+              field: "testPath",
+              headerName: "Test File",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return (
+                  <>
+                    <a
+                      href={`https://github.com/pytorch/pytorch/blob/main/test/${params.value}`}
+                    >
+                      {params.value}
+                    </a>
+                  </>
+                );
               },
             },
             {
@@ -179,6 +217,7 @@ function DisabledTestsPanel({ queryParams }: { queryParams: RocksetParam[] }) {
                 return params.value !== null ? params.value : "";
               },
             },
+
             {
               field: "timestamp",
               headerName: "Last Updated",
@@ -348,7 +387,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&state=${state}`}
+          )}&granularity=${granularity}&state=${state}&platform=${platform}&label=${label}&triaged=${triaged}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
