@@ -5,7 +5,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { CSSProperties, useState } from "react";
 import useSWR from "swr";
-import { RecursiveDetailsSummary } from "./TestInfo";
+import { isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function TestCountsDataGrid({
   info,
@@ -219,9 +219,7 @@ export function TestCountsInfo({
   jobs: JobData[];
   runAttempt: string;
 }) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
+  const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
   const { data: info, error } = useSWR(
     shouldShow
       ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${workflowId}/${runAttempt}`
@@ -248,6 +246,15 @@ export function TestCountsInfo({
   }
 
   if (error) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab. If you have already done this, there was probably
+          trouble parsing data ({`${error}`}).
+        </div>
+      );
+    }
     return <div>Error retrieving data {`${error}`}</div>;
   }
 
@@ -256,6 +263,14 @@ export function TestCountsInfo({
   }
 
   if (Object.keys(info).length == 0) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab.
+        </div>
+      );
+    }
     return <div>There was trouble parsing data</div>;
   }
   const mergedInfo = mergeComparisonInfo(info, comparisonInfo);
@@ -280,6 +295,9 @@ export function TestCountsInfo({
         enter a sha below to compare the counts and times with the other sha.
         The Δ is current sha - comparison sha.
       </div>
+      {isPending(jobs) && (
+        <div>Workflow is still pending. Data may be incomplete.</div>
+      )}
       <div style={{ padding: "1em 0" }}>
         <form
           onSubmit={(e) => {

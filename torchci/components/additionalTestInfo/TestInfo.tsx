@@ -1,10 +1,15 @@
 import { fetcher } from "lib/GeneralUtils";
+import { runWorkflow } from "lib/githubFunctions";
 import { JobData } from "lib/types";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 import useSWR from "swr";
 import { TestRerunsInfo } from "./RerunInfo";
-import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
+
+export function isPending(jobs: JobData[]) {
+  return jobs.some((job) => job.conclusion === "pending");
+}
 
 export function RecursiveDetailsSummary({
   info,
@@ -67,9 +72,7 @@ function TDInfo({
   jobs: JobData[];
   runAttempt: string;
 }) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
+  const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
   const { data: info, error } = useSWR(
     shouldShow
       ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/td_exclusions/${workflowId}/${runAttempt}`
@@ -82,6 +85,15 @@ function TDInfo({
   }
 
   if (error) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab. If you have already done this, no test files were
+          excluded or there was trouble parsing data ({`${error}`}).
+        </div>
+      );
+    }
     return <div>Error retrieving data {`${error}`}</div>;
   }
 
@@ -90,6 +102,15 @@ function TDInfo({
   }
 
   if (Object.keys(info).length == 0) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab. If you have already done this, no test files were
+          excluded or there was trouble parsing data
+        </div>
+      );
+    }
     return (
       <div>No test files were excluded or there was trouble parsing data</div>
     );
@@ -102,6 +123,9 @@ function TDInfo({
         Excluded test files by job
       </div>
       <div>This shows the files excluded by TD.</div>
+      {isPending(jobs) && (
+        <div>Workflow is still pending. Data may be incomplete.</div>
+      )}
       <RecursiveDetailsSummary
         info={info}
         level={1}
@@ -145,6 +169,62 @@ function TDInfo({
   );
 }
 
+function RegenerateInfo({
+  workflowId,
+  runAttempt,
+  jobs,
+}: {
+  workflowId: string;
+  runAttempt: string;
+  jobs: JobData[];
+}) {
+  const session = useSession();
+  const [status, setStatus] = useState("");
+  if (session.status !== "authenticated") {
+    return <div>You must be logged in to regenerate test data</div>;
+  }
+  return (
+    <div>
+      {status == "" && (
+        <button
+          onClick={async () => {
+            runWorkflow({
+              workflowName: "upload_test_stats_intermediate.yml",
+              body: {
+                workflow_id: workflowId,
+                workflow_run_attempt: runAttempt,
+              },
+              owner: "pytorch",
+              repo: "pytorch",
+              accessToken: session.data?.accessToken,
+              onComplete: setStatus,
+            });
+          }}
+          disabled={status !== ""}
+          style={{
+            backgroundColor: "white",
+          }}
+        >
+          Click here to regenerate data
+        </button>
+      )}
+      <div>{status}</div>
+      {status == "Workflow triggered successfully" && (
+        <div>
+          The data is being regenerated. It may take a few minutes for the new
+          data to show up. You can see the progress of the workflow{" "}
+          <a
+            href={`https://github.com/pytorch/pytorch/actions/workflows/upload_test_stats_intermediate.yml`}
+          >
+            here
+          </a>
+          .
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TestInfo({
   workflowId,
   runAttempt,
@@ -156,18 +236,10 @@ export function TestInfo({
 }) {
   const [showInfo, setShowInfo] = useState("Reruns Info");
 
-  function setShowInfoHelper(info: string) {
-    if (showInfo === info) {
-      setShowInfo("none");
-    } else {
-      setShowInfo(info);
-    }
-  }
-
   function ButtonSelector({ name }: { name: string }) {
     return (
       <button
-        onClick={() => setShowInfoHelper(name)}
+        onClick={() => setShowInfo(name)}
         className={showInfo === name ? styles.active : ""}
       >
         {name}
@@ -181,6 +253,7 @@ export function TestInfo({
         <ButtonSelector name="Reruns Info" />
         <ButtonSelector name="TD Info" />
         <ButtonSelector name="Test Counts Info" />
+        <ButtonSelector name="Regenerate Info" />
       </div>
       <div className={styles.tabcontent}>
         {showInfo == "TD Info" && (
@@ -195,6 +268,13 @@ export function TestInfo({
         )}
         {showInfo == "Test Counts Info" && (
           <TestCountsInfo
+            workflowId={workflowId}
+            jobs={jobs}
+            runAttempt={runAttempt}
+          />
+        )}
+        {showInfo == "Regenerate Info" && (
+          <RegenerateInfo
             workflowId={workflowId}
             jobs={jobs}
             runAttempt={runAttempt}

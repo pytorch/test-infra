@@ -1,3 +1,5 @@
+import { getOctokitWithUserToken } from "./github";
+
 export async function commentOnPR(
   owner: string,
   repo: string,
@@ -22,4 +24,46 @@ export async function commentOnPR(
     },
   });
   onComplete(JSON.stringify(await response.json(), undefined, 2));
+}
+
+export async function runWorkflow({
+  workflowName,
+  body,
+  owner,
+  repo,
+  accessToken,
+  onComplete,
+  ref = "main",
+}: {
+  workflowName: string;
+  body: any;
+  owner: string;
+  repo: string;
+  accessToken: string;
+  onComplete: Function;
+  ref?: string;
+}) {
+  const octokit = await getOctokitWithUserToken(accessToken);
+  const user = await octokit.rest.users.getAuthenticated();
+  if (
+    user === undefined ||
+    user.data === undefined ||
+    user.data.login === undefined
+  ) {
+    return onComplete("Invalid user");
+  }
+  const response = octokit.rest.actions.createWorkflowDispatch({
+    owner,
+    repo,
+    workflow_id: workflowName,
+    ref: ref,
+    inputs: body,
+  });
+  onComplete("Triggering workflow");
+  const data = await response;
+  if (data.status !== 204) {
+    onComplete("Failed to trigger workflow");
+  } else {
+    onComplete("Workflow triggered successfully");
+  }
 }

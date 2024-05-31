@@ -3,7 +3,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { useState } from "react";
 import useSWR from "swr";
-import { RecursiveDetailsSummary } from "./TestInfo";
+import { isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function groupByStatus(info: any) {
   const flaky = {};
@@ -138,9 +138,7 @@ export function TestRerunsInfo({
   jobs: JobData[];
   runAttempt: string;
 }) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
+  const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
 
   const { data: info, error } = useSWR(
     shouldShow
@@ -154,6 +152,15 @@ export function TestRerunsInfo({
   }
 
   if (error) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab. If you have already done this, there was trouble
+          parsing data ({`${error}`}).
+        </div>
+      );
+    }
     return <div>Error retrieving data {`${error}`}</div>;
   }
 
@@ -161,6 +168,15 @@ export function TestRerunsInfo({
     return <div>Loading...</div>;
   }
   if (Object.keys(info).length == 0) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          Workflow is still pending. Consider generating info in the
+          corresponding tab. If you have already done this, no tests were rerun
+          or there was trouble parsing data.
+        </div>
+      );
+    }
     return <div>No tests were rerun or there was trouble parsing data</div>;
   }
   const { succeeded, flaky, failed } = groupByStatus(info);
@@ -174,6 +190,9 @@ export function TestRerunsInfo({
       <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
         Info about tests that got rerun
       </div>
+      {isPending(jobs) && (
+        <div>Workflow is still pending. Data may be incomplete.</div>
+      )}
       {flaky && (
         <div>
           <div style={divSummaryStyle}>
