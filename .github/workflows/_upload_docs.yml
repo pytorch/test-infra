@@ -33,7 +33,7 @@ jobs:
           path: docs
       - name: Add no-index tag
         run: |
-          REF_NAME=$(echo "${{ github.ref }}")
+          REF_NAME=${{ github.ref }}
           echo "Ref name: ${REF_NAME}"
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
             find docs -name "*.html" -print0 | xargs -0 -r sed -i '/<head>/a \ \ <meta name="robots" content="noindex">';
@@ -56,7 +56,8 @@ jobs:
           echo "Target Folder: ${TARGET_FOLDER}"
 
           mkdir -p "${TARGET_FOLDER}"
-          rm -rf "${TARGET_FOLDER}"/*
+          # ACTIONLINT/[shellcheck] is not able to understand that the default value is already main
+          rm -rf "${TARGET_FOLDER:main}"/*
           mv docs/* "${TARGET_FOLDER}"
 
           git config user.name 'pytorchbot'
