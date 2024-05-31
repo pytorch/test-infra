@@ -1,7 +1,5 @@
 name: Upload docs to github
 
-description: Uploads the built docs to a github branch
-
 on:
   workflow_call:
     inputs:
