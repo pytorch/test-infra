@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/disabled_test_labels.sql",
+  "default_parameters": [
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "states",
+      "type": "string",
+      "value": "open"
+    }
+  ],
+  "description": "Query the list of DISABLED tests labels"
+}
