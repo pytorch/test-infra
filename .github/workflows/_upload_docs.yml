@@ -61,7 +61,7 @@ jobs:
 
           mkdir -p "${TARGET_FOLDER}"
           # ACTIONLINT/[shellcheck] is not able to understand that the default value is already main
-          rm -rf "${TARGET_FOLDER:main}"/*
+          rm -rf "${TARGET_FOLDER:?}"/*
           mv docs/* "${TARGET_FOLDER}"
 
           git config user.name 'pytorchbot'
