@@ -1,0 +1,37 @@
+{
+    "sql_path": "__sql/torchao_benchmark_performance_branches.sql",
+    "default_parameters": [
+      {
+        "name": "device",
+        "type": "string",
+        "value": "cuda"
+      },
+      {
+        "name": "dtypes",
+        "type": "string",
+        "value": "amp"
+      },
+      {
+        "name": "granularity",
+        "type": "string",
+        "value": "day"
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "value": "training"
+      },
+      {
+        "name": "startTime",
+        "type": "string",
+        "value": "2023-02-01T00:00:00.00Z"
+      },
+      {
+        "name": "stopTime",
+        "type": "string",
+        "value": "2023-04-01T00:00:00.00Z"
+      }
+    ],
+    "description": "Get all the branches that run the benchmark "
+  }
+  

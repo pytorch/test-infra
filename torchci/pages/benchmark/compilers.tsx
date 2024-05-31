@@ -12,6 +12,10 @@ import {
   SuitePicker,
   SUITES,
 } from "components/benchmark/compilers/SuitePicker";
+import {
+  JobPicker,
+  JOBS,
+} from "components/benchmark/compilers/JobPicker";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
@@ -38,6 +42,7 @@ function Report({
   startTime,
   stopTime,
   granularity,
+  job,
   suite,
   mode,
   dtype,
@@ -48,6 +53,7 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  job: string;
   suite: string;
   mode: string;
   dtype: string;
@@ -55,7 +61,10 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
+  var queryName = "compilers_benchmark_performance";
+  if (job === "torchao") {
+    queryName = "torchao_benchmark_performance";
+  }
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -171,6 +180,7 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
+  const [job, setJob] = useState<string>(Object.keys(JOBS)[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
   const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
@@ -204,6 +214,11 @@ export default function Page() {
       (router.query.granularity as Granularity) ?? undefined;
     if (granularity !== undefined) {
       setGranularity(granularity);
+    }
+
+    const job: string = (router.query.job as string) ?? undefined;
+    if (job !== undefined) {
+      setSuite(job);
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
@@ -279,7 +294,11 @@ export default function Page() {
       type: "string",
       value: dtype,
     },
-  ];
+  ]
+  var queryName = "compilers_benchmark_performance_branches";
+  if (job === "torchao") {
+    queryName = "torchao_benchmark_performance_branches";
+  }
 
   return (
     <div>
@@ -292,7 +311,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&job={job}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -309,6 +328,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <JobPicker job={job} setJob={setJob} />
         <SuitePicker suite={suite} setSuite={setSuite} />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
@@ -318,7 +338,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={queryName}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={rBranch}
@@ -333,7 +353,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={queryName}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={lBranch}
@@ -351,6 +371,7 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        job={job}
         suite={suite}
         mode={mode}
         dtype={dtype}

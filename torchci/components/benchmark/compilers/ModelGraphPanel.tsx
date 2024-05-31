@@ -24,6 +24,7 @@ export function GraphPanel({
   queryParams,
   granularity,
   compiler,
+  job,
   model,
   branch,
   lCommit,
@@ -32,13 +33,17 @@ export function GraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   compiler: string;
+  job: string;
   model: string;
   branch: string;
   lCommit: string;
   rCommit: string;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
+  var queryName = "compilers_benchmark_performance";
+  if (job === "torchao") {
+    queryName = "torchao_benchmark_performance";
+  }
 
   const queryParamsWithBranch: RocksetParam[] = [
     {
