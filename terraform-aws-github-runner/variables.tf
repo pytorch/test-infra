@@ -343,13 +343,13 @@ variable "cant_have_issues_labels" {
 }
 
 variable "scale_config_repo" {
-  description = "Repository to fetch scale config from."
-  default     = ""
+  description = "Repository to fetch scale config from if `enable_organization_runners` is set to true. Otherwise the job's repo will be used"
+  default     = "" # Internally defaults to 'test-infra'
   type        = string
 }
 
 variable "scale_config_repo_path" {
-  description = "Path in the repository to fetch scale config from."
-  default     = ""
+  description = "Path relative to repo root the scale config should be fetched from. If `enable_organization_runners` is set to false, will be relative to the job's repo root instaed. If `enable_organization_runners` is set to true, will be relative to `scale_config_repo`."
+  default     = "" # Internally defaults to '.github/scale-config.yml'
   type        = string
 }
