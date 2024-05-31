@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 import useSWR from "swr";
 import { TestRerunsInfo } from "./RerunInfo";
+import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
 
 export function isPending(jobs: JobData[]) {
@@ -185,6 +186,14 @@ function RegenerateInfo({
   }
   return (
     <div>
+      <div>
+        This can be used to regenerate the info in each of the tabs. This can be
+        helpful if you believe any data is missing or incorrect, and also if the
+        scripts to generate information have been updated since the last time
+        the data was generated. This will also work even if the jobs are still
+        pending but will result in incomplete data. This may take a few minutes
+        to run.
+      </div>
       {status == "" && (
         <button
           onClick={async () => {
