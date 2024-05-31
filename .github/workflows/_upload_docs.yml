@@ -11,10 +11,6 @@ on:
         description: The name of the artifact uploaded to github
         type: string
         required: true
-      docs-path:
-        description: The path of the artifact uploaded to github
-        type: string
-        required: true
 
 jobs:
   upload_docs:
@@ -33,7 +29,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ inputs.docs-name }}
-          path: ${{ inputs.docs-path }}
+          path: docs
       - name: Add no-index tag
         run: |
           REF_NAME=$(echo "${{ github.ref }}")
