@@ -1,14 +1,14 @@
-import dayjs from "dayjs";
 import { Grid } from "@mui/material";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
   LLMsBenchmarkData,
   RELATIVE_THRESHOLD,
 } from "components/benchmark/llms/common";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import styles from "components/metrics.module.css";
-import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;

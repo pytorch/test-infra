@@ -1,8 +1,8 @@
-import { RocksetParam } from "lib/rockset";
-import useSWR from "swr";
-import { fetcher } from "lib/GeneralUtils";
-import { BranchAndCommit } from "lib/types";
 import { DEFAULT_MODEL_NAME } from "components/benchmark/llms/common";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { BranchAndCommit } from "lib/types";
+import useSWR from "swr";
 
 export function useBenchmark(
   queryParams: RocksetParam[],

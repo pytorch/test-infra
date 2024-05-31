@@ -3,7 +3,10 @@ import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicke
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "components/benchmark/compilers/common";
+import {
+  COMPILER_NAMES_TO_DISPLAY_NAMES,
+  DTYPES,
+} from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
 import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
 import {
@@ -17,15 +20,13 @@ import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
-import {
-  COMPILER_NAMES_TO_DISPLAY_NAMES,
-  DTYPES,
-} from "components/benchmark/compilers/common";
-import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
-import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
-import { BranchAndCommit } from "lib/types";
-import { CommitPanel } from "components/benchmark/CommitPanel";
-import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
+import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
+import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
+import { useRouter } from "next/router";
+import React, { useEffect, useState } from "react";
+import useSWR from "swr";
+import { TimeRangePicker } from "../../../metrics";
 
 function Report({
   queryParams,
