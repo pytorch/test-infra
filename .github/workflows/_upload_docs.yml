@@ -12,6 +12,10 @@ on:
         description: The name of the artifact uploaded to github
         type: string
         required: true
+      repository:
+        description: Repository of the workflow, used only to make sure that this workflow doesn't run on forks
+        type: string
+        required: true
 
 jobs:
   upload_docs:
@@ -19,7 +23,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'pytorch' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.repository == ${{ inputs.repository }} && github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     steps:
       - name: Checkout
         uses: actions/checkout@v3
