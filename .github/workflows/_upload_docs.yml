@@ -19,55 +19,53 @@ on:
         required: true
 
 jobs:
-  uplaod_docs:
+  upload_docs:
     name: Upload docs
     permissions:
       contents: write
     runs-on: ubuntu-latest
     if: github.repository_owner == 'clee2000' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     steps:
-      upload:
-        steps:
-          - name: Checkout
-            uses: actions/checkout@v3
-            with:
-              ref: ${{ inputs.docs-branch }}
-              persist-credentials: true
-          - name: Download artifact
-            uses: actions/download-artifact@v3
-            with:
-              name: ${{ inputs.docs-name }}
-              path: ${{ inputs.docs-path }}
-          - name: Add no-index tag
-            run: |
-              REF_NAME=$(echo "${{ github.ref }}")
-              echo "Ref name: ${REF_NAME}"
-              if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
-                find docs -name "*.html" -print0 | xargs -0 sed -i '/<head>/a \ \ <meta name="robots" content="noindex">';
-              fi
-          - name: Move and commit changes
-            run: |
-              set -euo pipefail
-              # Get github.ref for the output doc folder. By default "main"
-              # If matches a tag like refs/tags/v1.12.0-rc3 or
-              # refs/tags/v1.12.0 convert to 1.12
-              GITHUB_REF=${{ github.ref }}
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.docs-branch }}
+          persist-credentials: true
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.docs-name }}
+          path: ${{ inputs.docs-path }}
+      - name: Add no-index tag
+        run: |
+          REF_NAME=$(echo "${{ github.ref }}")
+          echo "Ref name: ${REF_NAME}"
+          if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
+            find docs -name "*.html" -print0 | xargs -0 sed -i '/<head>/a \ \ <meta name="robots" content="noindex">';
+          fi
+      - name: Move and commit changes
+        run: |
+          set -euo pipefail
+          # Get github.ref for the output doc folder. By default "main"
+          # If matches a tag like refs/tags/v1.12.0-rc3 or
+          # refs/tags/v1.12.0 convert to 1.12
+          GITHUB_REF=${{ github.ref }}
 
-              # Convert refs/tags/v1.12.0rc3 into 1.12.
-              # Adopted from https://github.com/pytorch/pytorch/blob/main/.github/workflows/_docs.yml#L150C11-L155C13
-              if [[ "${GITHUB_REF}" =~ ^refs/tags/v([0-9]+\.[0-9]+)\.* ]]; then
-                TARGET_FOLDER="${BASH_REMATCH[1]}"
-              else
-                TARGET_FOLDER="main"
-              fi
-              echo "Target Folder: ${TARGET_FOLDER}"
+          # Convert refs/tags/v1.12.0rc3 into 1.12.
+          # Adopted from https://github.com/pytorch/pytorch/blob/main/.github/workflows/_docs.yml#L150C11-L155C13
+          if [[ "${GITHUB_REF}" =~ ^refs/tags/v([0-9]+\.[0-9]+)\.* ]]; then
+            TARGET_FOLDER="${BASH_REMATCH[1]}"
+          else
+            TARGET_FOLDER="main"
+          fi
+          echo "Target Folder: ${TARGET_FOLDER}"
 
-              mkdir -p "${TARGET_FOLDER}"
-              rm -rf "${TARGET_FOLDER}"/*
-              mv docs/* "${TARGET_FOLDER}"
+          mkdir -p "${TARGET_FOLDER}"
+          rm -rf "${TARGET_FOLDER}"/*
+          mv docs/* "${TARGET_FOLDER}"
 
-              git config user.name 'pytorchbot'
-              git config user.email 'soumith+bot@pytorch.org'
-              git add "${TARGET_FOLDER}" || true
-              git commit -m "auto-generating sphinx docs" || true
-              git push -f
+          git config user.name 'pytorchbot'
+          git config user.email 'soumith+bot@pytorch.org'
+          git add "${TARGET_FOLDER}" || true
+          git commit -m "auto-generating sphinx docs" || true
+          git push -f
