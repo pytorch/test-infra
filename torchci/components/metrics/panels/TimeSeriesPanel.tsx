@@ -158,16 +158,18 @@ export function TimeSeriesPanelWithData({
         right: 10,
         top: "center",
         type: "scroll",
-        selector: [
-          {
-            type: "all",
-            title: "All",
-          },
-          {
-            type: "inverse",
-            title: "Inv",
-          },
-        ],
+        ...(groupByFieldName !== undefined && {
+          selector: [
+            {
+              type: "all",
+              title: "All",
+            },
+            {
+              type: "inverse",
+              title: "Inv",
+            },
+          ],
+        }),
       },
       // @ts-ignore
       tooltip: {
