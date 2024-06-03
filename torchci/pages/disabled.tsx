@@ -95,7 +95,7 @@ function GraphPanel({ queryParams }: { queryParams: RocksetParam[] }) {
   return (
     <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
-        title={"Total number of open disabled tests"}
+        title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
         queryCollection={"metrics"}
         queryParams={[...queryParams]}
