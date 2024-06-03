@@ -1,3 +1,4 @@
+import { Octokit } from "octokit";
 import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
 
@@ -38,9 +39,24 @@ export function getFailureMessage(
   return `
   ### Additional Information
 
-  @${commitData.author} This PR is being reverted. The following jobs failed on this PR: 
+  @${commitData.author} This PR is being reverted. The following jobs failed on this PR:
   ${failedJobsString}
 
   Debug these failures on [HUD](${hudLink}).
   `;
+}
+
+export async function hasWritePermissionsUsingOctokit(
+  octokit: Octokit,
+  username: string,
+  owner: string,
+  repo: string
+): Promise<boolean> {
+  const res = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    owner: owner,
+    repo: repo,
+    username: username,
+  });
+  const permissions = res?.data?.permission;
+  return permissions === "admin" || permissions === "write";
 }

@@ -6,7 +6,7 @@ export const authOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      authorization: { params: { scope: "public_repo" } },
+      authorization: { params: { scope: "public_repo workflow" } },
     }),
   ],
   debug: process.env.NODE_ENV === "development",

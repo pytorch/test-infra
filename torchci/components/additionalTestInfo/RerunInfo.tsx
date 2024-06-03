@@ -3,7 +3,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { useState } from "react";
 import useSWR from "swr";
-import { RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function groupByStatus(info: any) {
   const flaky = {};
@@ -138,9 +138,7 @@ export function TestRerunsInfo({
   jobs: JobData[];
   runAttempt: string;
 }) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
+  const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
 
   const { data: info, error } = useSWR(
     shouldShow
@@ -152,8 +150,20 @@ export function TestRerunsInfo({
   if (!shouldShow) {
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
+  const infoString = "No tests were rerun or there was trouble parsing data";
 
   if (error) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+            error: error,
+          })}
+        </div>
+      );
+    }
     return <div>Error retrieving data {`${error}`}</div>;
   }
 
@@ -161,7 +171,17 @@ export function TestRerunsInfo({
     return <div>Loading...</div>;
   }
   if (Object.keys(info).length == 0) {
-    return <div>No tests were rerun or there was trouble parsing data</div>;
+    if (isPending(jobs)) {
+      return (
+        <div>
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+          })}
+        </div>
+      );
+    }
+    return <div>{infoString}</div>;
   }
   const { succeeded, flaky, failed } = groupByStatus(info);
 
@@ -174,6 +194,9 @@ export function TestRerunsInfo({
       <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
         Info about tests that got rerun
       </div>
+      {isPending(jobs) && (
+        <div>Workflow is still pending. Data may be incomplete.</div>
+      )}
       {flaky && (
         <div>
           <div style={divSummaryStyle}>

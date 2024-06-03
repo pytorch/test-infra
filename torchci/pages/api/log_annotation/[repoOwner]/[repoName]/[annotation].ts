@@ -1,5 +1,5 @@
-import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
 import { getDynamoClient } from "lib/dynamo";
+import { hasWritePermissionsUsingOctokit } from "lib/GeneralUtils";
 import { getOctokit } from "lib/github";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";

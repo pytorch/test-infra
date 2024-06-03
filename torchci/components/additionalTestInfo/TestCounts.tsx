@@ -5,7 +5,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { CSSProperties, useState } from "react";
 import useSWR from "swr";
-import { RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function TestCountsDataGrid({
   info,
@@ -219,9 +219,7 @@ export function TestCountsInfo({
   jobs: JobData[];
   runAttempt: string;
 }) {
-  const shouldShow =
-    jobs.every((job) => job.conclusion !== "pending") &&
-    jobs.some((job) => job.name!.includes("/ test "));
+  const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
   const { data: info, error } = useSWR(
     shouldShow
       ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${workflowId}/${runAttempt}`
@@ -247,7 +245,19 @@ export function TestCountsInfo({
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
 
+  const infoString = "No tests were run or there was trouble parsing data";
   if (error) {
+    if (isPending(jobs)) {
+      return (
+        <div>
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+            error: error,
+          })}
+        </div>
+      );
+    }
     return <div>Error retrieving data {`${error}`}</div>;
   }
 
@@ -256,7 +266,17 @@ export function TestCountsInfo({
   }
 
   if (Object.keys(info).length == 0) {
-    return <div>There was trouble parsing data</div>;
+    if (isPending(jobs)) {
+      return (
+        <div>
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+          })}
+        </div>
+      );
+    }
+    return <div>{infoString}</div>;
   }
   const mergedInfo = mergeComparisonInfo(info, comparisonInfo);
 
@@ -280,6 +300,9 @@ export function TestCountsInfo({
         enter a sha below to compare the counts and times with the other sha.
         The Δ is current sha - comparison sha.
       </div>
+      {isPending(jobs) && (
+        <div>Workflow is still pending. Data may be incomplete.</div>
+      )}
       <div style={{ padding: "1em 0" }}>
         <form
           onSubmit={(e) => {
