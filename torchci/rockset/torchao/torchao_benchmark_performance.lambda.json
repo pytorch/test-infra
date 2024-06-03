@@ -67,5 +67,5 @@
         "value": "0"
       }
     ],
-    "description": "Gather the benchmark performance of different PyTorch compilers"
+    "description": "Gather the benchmark performance of different TorchAO backends"
   }

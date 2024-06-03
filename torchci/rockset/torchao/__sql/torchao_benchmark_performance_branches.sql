@@ -9,7 +9,6 @@ SELECT
   ) AS event_time,
 FROM
   inductor.torchao_perf_stats
-  LEFT JOIN commons.workflow_run w ON torchao_perf_stats.workflow_id = w.id
 WHERE
   torchao_perf_stats._event_time >= PARSE_DATETIME_ISO8601(: startTime)
   AND torchao_perf_stats._event_time < PARSE_DATETIME_ISO8601(: stopTime)
