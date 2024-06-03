@@ -183,7 +183,6 @@ export function TimeSeriesPanelWithData({
     },
     additionalOptions
   );
-  console.log(options);
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
