@@ -7,6 +7,21 @@
       "value": "day"
     },
     {
+      "name": "label",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "platform",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
       "name": "startTime",
       "type": "string",
       "value": "2023-07-01T00:00:00.000Z"
@@ -25,6 +40,11 @@
       "name": "timezone",
       "type": "string",
       "value": "America/Los_Angeles"
+    },
+    {
+      "name": "triaged",
+      "type": "string",
+      "value": ""
     }
   ],
   "description": "Count the number of open disabled tests over time"

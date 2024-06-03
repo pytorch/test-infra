@@ -1,41 +1,82 @@
 --- This query returns the number of new disabled tests (number_of_new_disabled_tests)
 --- and the number of open disabled tests (number_of_open_disabled_tests) daily
-WITH
+WITH issues_with_labels AS (
+  SELECT
+    i.title,
+    i.body,
+    ARRAY_AGG(labels.value.name) AS labels,
+    i.created_at,
+    i.closed_at
+  FROM
+    commons.issues i,
+    UNNEST (i.labels AS value) AS labels
+  WHERE
+    i.repository_url = CONCAT(
+      'https://api.github.com/repos/',
+      : repo
+    )
+    AND i.title LIKE '%DISABLED%'
+    AND (
+      : platform = ''
+      OR i.body LIKE CONCAT('%', : platform, '%')
+      OR (NOT i.body LIKE '%Platforms: %')
+    )
+  GROUP BY
+    i.title,
+    i.body,
+    i.created_at,
+    i.closed_at
+),
 --- There could be day where there is no new issue or no issue is closed and we want
 --- the count on that day to be 0
 buckets AS (
   SELECT
     DATE_TRUNC(
       : granularity,
-      CAST(issues.created_at AS TIMESTAMP) AT TIME ZONE : timezone
+      CAST(i.created_at AS TIMESTAMP) AT TIME ZONE : timezone
     ) AS granularity_bucket
   FROM
-    commons.issues
+    commons.issues i
   WHERE
-    issues.created_at IS NOT NULL
+    i.created_at IS NOT NULL
   UNION
   SELECT
     DATE_TRUNC(
       : granularity,
-      CAST(issues.closed_at AS TIMESTAMP) AT TIME ZONE : timezone
+      CAST(i.closed_at AS TIMESTAMP) AT TIME ZONE : timezone
     ) AS granularity_bucket
   FROM
-    commons.issues
+    commons.issues i
   WHERE
-    issues.closed_at IS NOT NULL
+    i.closed_at IS NOT NULL
 ),
 --- Count the newly created disabled tests
 raw_new_disabled_tests AS (
   SELECT
     DATE_TRUNC(
       : granularity,
-      CAST(issues.created_at AS TIMESTAMP) AT TIME ZONE : timezone
+      CAST(i.created_at AS TIMESTAMP) AT TIME ZONE : timezone
     ) AS granularity_bucket,
-    COUNT(title) AS number_of_new_disabled_tests,
+    COUNT(i.title) AS number_of_new_disabled_tests,
   FROM
-    commons.issues
+    issues_with_labels i
   WHERE
-    issues.title LIKE '%DISABLED%'
+    ARRAY_CONTAINS(i.labels, 'skipped')
+    AND (
+      : label = ''
+      OR ARRAY_CONTAINS(i.labels, : label)
+    )
+    AND (
+      : triaged = ''
+      OR (
+        : triaged = 'yes'
+        AND ARRAY_CONTAINS(i.labels, 'triaged')
+      )
+      OR (
+        : triaged = 'no'
+        AND NOT ARRAY_CONTAINS(i.labels, 'triaged')
+      )
+    )
   GROUP BY
     granularity_bucket
 ),
@@ -63,14 +104,29 @@ raw_closed_disabled_tests AS (
   SELECT
     DATE_TRUNC(
       : granularity,
-      CAST(issues.closed_at AS TIMESTAMP) AT TIME ZONE : timezone
+      CAST(i.closed_at AS TIMESTAMP) AT TIME ZONE : timezone
     ) AS granularity_bucket,
-    COUNT(title) AS number_of_closed_disabled_tests,
+    COUNT(i.title) AS number_of_closed_disabled_tests,
   FROM
-    commons.issues
+    issues_with_labels i
   WHERE
-    issues.title LIKE '%DISABLED%'
-    AND issues.closed_at IS NOT NULL
+    i.closed_at IS NOT NULL
+    AND ARRAY_CONTAINS(i.labels, 'skipped')
+    AND (
+      : label = ''
+      OR ARRAY_CONTAINS(i.labels, : label)
+    )
+    AND (
+      : triaged = ''
+      OR (
+        : triaged = 'yes'
+        AND ARRAY_CONTAINS(i.labels, 'triaged')
+      )
+      OR (
+        : triaged = 'no'
+        AND NOT ARRAY_CONTAINS(i.labels, 'triaged')
+      )
+    )
   GROUP BY
     granularity_bucket
 ),
@@ -101,7 +157,9 @@ aggregated_closed_disabled_tests AS (
 --- The final aggregated count
 aggregated_disabled_tests AS (
   SELECT
-    FORMAT_ISO8601(aggregated_new_disabled_tests.granularity_bucket) AS granularity_bucket,
+    FORMAT_ISO8601(
+      aggregated_new_disabled_tests.granularity_bucket
+    ) AS granularity_bucket,
     number_of_new_disabled_tests,
     number_of_closed_disabled_tests,
     total_number_of_new_disabled_tests,
