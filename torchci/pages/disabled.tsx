@@ -388,7 +388,9 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&state=${state}&platform=${platform}&label=${label}&triaged=${triaged}`}
+          )}&granularity=${granularity}&state=${state}&platform=${platform}&label=${encodeURIComponent(
+            label
+          )}&triaged=${triaged}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
