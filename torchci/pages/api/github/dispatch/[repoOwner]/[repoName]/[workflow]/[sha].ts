@@ -1,4 +1,4 @@
-import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
+import { hasWritePermissionsUsingOctokit } from "lib/GeneralUtils";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 

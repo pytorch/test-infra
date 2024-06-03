@@ -1,3 +1,4 @@
+import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
 
 export async function commentOnPR(
@@ -52,6 +53,20 @@ export async function runWorkflow({
   ) {
     return onComplete("Invalid user");
   }
+
+  let hasWritePermissions = false;
+  try {
+    hasWritePermissions = await hasWritePermissionsUsingOctokit(
+      octokit,
+      user.data.login,
+      owner,
+      repo
+    );
+  } catch (e) {}
+  if (!hasWritePermissions) {
+    return onComplete("User does not have write permissions");
+  }
+
   const response = octokit.rest.actions.createWorkflowDispatch({
     owner,
     repo,
