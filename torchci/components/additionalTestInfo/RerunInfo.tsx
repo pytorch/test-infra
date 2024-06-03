@@ -3,7 +3,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { useState } from "react";
 import useSWR from "swr";
-import { isPending, RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function groupByStatus(info: any) {
   const flaky = {};
@@ -150,14 +150,17 @@ export function TestRerunsInfo({
   if (!shouldShow) {
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
+  const infoString = "No tests were rerun or there was trouble parsing data";
 
   if (error) {
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab. If you have already done this, there was trouble
-          parsing data ({`${error}`}).
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+            error: error,
+          })}
         </div>
       );
     }
@@ -171,13 +174,14 @@ export function TestRerunsInfo({
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab. If you have already done this, no tests were rerun
-          or there was trouble parsing data.
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+          })}
         </div>
       );
     }
-    return <div>No tests were rerun or there was trouble parsing data</div>;
+    return <div>{infoString}</div>;
   }
   const { succeeded, flaky, failed } = groupByStatus(info);
 

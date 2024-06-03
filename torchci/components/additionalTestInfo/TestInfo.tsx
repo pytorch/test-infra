@@ -8,6 +8,28 @@ import { TestRerunsInfo } from "./RerunInfo";
 import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
 
+export function genMessage({
+  infoString,
+  pending = false,
+  error,
+}: {
+  infoString: string;
+  pending?: boolean;
+  error?: any;
+}) {
+  let errorString = "";
+  if (pending) {
+    errorString +=
+      "Workflow is still pending. Consider generating info in the corresponding tab.  If you have already done this, ";
+    infoString = infoString.charAt(0).toLowerCase() + infoString.slice(1);
+  }
+  errorString += infoString;
+  if (error) {
+    errorString += ` (${error})`;
+  }
+  return errorString.trim();
+}
+
 export function isPending(jobs: JobData[]) {
   return jobs.some((job) => job.conclusion === "pending");
 }
@@ -85,13 +107,18 @@ function TDInfo({
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
 
+  const infoString =
+    "No test files were excluded or there was trouble parsing data";
+
   if (error) {
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab. If you have already done this, no test files were
-          excluded or there was trouble parsing data ({`${error}`}).
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+            error: error,
+          })}
         </div>
       );
     }
@@ -106,15 +133,14 @@ function TDInfo({
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab. If you have already done this, no test files were
-          excluded or there was trouble parsing data
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+          })}
         </div>
       );
     }
-    return (
-      <div>No test files were excluded or there was trouble parsing data</div>
-    );
+    return <div>{infoString}</div>;
   }
   return (
     <div>

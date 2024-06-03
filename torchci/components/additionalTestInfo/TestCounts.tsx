@@ -5,7 +5,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { CSSProperties, useState } from "react";
 import useSWR from "swr";
-import { isPending, RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
 
 function TestCountsDataGrid({
   info,
@@ -245,13 +245,16 @@ export function TestCountsInfo({
     return <div>Workflow is still pending or there are no test jobs</div>;
   }
 
+  const infoString = "No tests were run or there was trouble parsing data";
   if (error) {
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab. If you have already done this, there was probably
-          trouble parsing data ({`${error}`}).
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+            error: error,
+          })}
         </div>
       );
     }
@@ -266,12 +269,14 @@ export function TestCountsInfo({
     if (isPending(jobs)) {
       return (
         <div>
-          Workflow is still pending. Consider generating info in the
-          corresponding tab.
+          {genMessage({
+            infoString: infoString,
+            pending: true,
+          })}
         </div>
       );
     }
-    return <div>There was trouble parsing data</div>;
+    return <div>{infoString}</div>;
   }
   const mergedInfo = mergeComparisonInfo(info, comparisonInfo);
 
