@@ -1,0 +1,31 @@
+{
+  "sql_path": "__sql/disabled_tests.sql",
+  "default_parameters": [
+    {
+      "name": "label",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "platform",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "state",
+      "type": "string",
+      "value": "open"
+    },
+    {
+      "name": "triaged",
+      "type": "string",
+      "value": ""
+    }
+  ],
+  "description": "Returns the list of DISABLED tests together with their labels"
+}
