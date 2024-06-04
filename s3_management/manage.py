@@ -53,6 +53,7 @@ PACKAGE_ALLOW_LIST = {
     "dill",
     "frozenlist",
     "huggingface_hub",
+    "llnl_hatchet",
     "lxml",
     "multidict",
     "multiprocess",
