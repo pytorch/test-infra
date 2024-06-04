@@ -15,23 +15,23 @@ $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
 $cudnn_lib_folder="lib\x64"
-$cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
-$toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
+$cudnn_subfolder="cudnn-windows-x86_64-9.1.0.70_cuda11-archive"
+$toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
 
 Switch ($cudaVersion) {
   "11.8" {
     $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-8.7.0.84_cuda11-archive"
+    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda11-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion"
   }
   "12.1" {
     $toolkitInstaller = "cuda_12.1.1_531.14_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-8.9.2.26_cuda12-archive"
+    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda12-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "12.4" {
     $toolkitInstaller = "cuda_12.4.0_551.61_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-8.9.7.29_cuda12-archive"
+    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda12-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
 }
