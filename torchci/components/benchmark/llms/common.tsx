@@ -12,7 +12,6 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   token_per_sec: "TPS",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
-export const DEFAULT_REPO_NAME = "pytorch/pytorch";
 
 // Relative thresholds
 export const RELATIVE_THRESHOLD = 0.05;

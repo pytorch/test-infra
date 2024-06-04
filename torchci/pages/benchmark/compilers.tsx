@@ -1,12 +1,13 @@
 import { Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
-import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   DEFAULT_REPO_NAME,
-  DTYPES,
-} from "components/benchmark/compilers/common";
+  LAST_N_DAYS,
+  MAIN_BRANCH,
+} from "components/benchmark/common";
+import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
+import { DTYPES } from "components/benchmark/compilers/common";
 import {
   SuitePicker,
   SUITES,

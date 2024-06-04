@@ -1,12 +1,15 @@
 import { Divider, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
+import {
+  DEFAULT_REPO_NAME,
+  LAST_N_DAYS,
+  MAIN_BRANCH,
+} from "components/benchmark/common";
 import {
   BENCHMARKS,
   DEFAULT_DEVICE_NAME,
   DEFAULT_MODEL_NAME,
-  DEFAULT_REPO_NAME,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
