@@ -28,7 +28,7 @@ runner_types:
     max_available: 1000
     os: linux
   linux.10xlarge.avx2:
-    disk_size: 160
+    disk_size: 200
     instance_type: m4.10xlarge
     is_ephemeral: false
     max_available: 60
