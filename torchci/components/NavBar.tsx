@@ -64,6 +64,10 @@ function NavBar() {
       name: "TorchBench",
       href: "/torchbench/userbenchmark",
     },
+    {
+      name: "Disabled Tests",
+      href: "/disabled",
+    },
     // uncomment after some eyeballs are on this
     // {
     //   name: "Testing Overhead",

@@ -121,12 +121,14 @@ export default function WorkflowBox({
   unstableIssues,
   wide,
   setWide,
+  repoFullName,
 }: {
   workflowName: string;
   jobs: JobData[];
   unstableIssues: IssueData[];
   wide: boolean;
   setWide: any;
+  repoFullName: string;
 }) {
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
@@ -168,14 +170,18 @@ export default function WorkflowBox({
         </div>
         <div style={{ float: "right" }}>
           <div style={{ margin: ".5em 0em" }}>
-            <button
-              onClick={() => {
-                setWide(!wide);
-              }}
-              className={styles.buttonBorder}
-            >
-              {wide ? "Hide Additional Test Info" : "Show Additional Test Info"}
-            </button>
+            {repoFullName == "pytorch/pytorch" && (
+              <button
+                onClick={() => {
+                  setWide(!wide);
+                }}
+                className={styles.buttonBorder}
+              >
+                {wide
+                  ? "Hide Additional Test Info"
+                  : "Show Additional Test Info"}
+              </button>
+            )}
           </div>
           <form
             style={{ float: "right", paddingBottom: ".5em" }}

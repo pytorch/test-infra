@@ -90,7 +90,7 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
-pattern = '^FAILED (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+pattern = '^(FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'Python unittest error'
@@ -99,6 +99,10 @@ pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 [[rule]]
 name = 'pytest test error'
 pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+
+[[rule]]
+name = 'Fallback for other test failure rules'
+pattern = '^The following tests failed consistently: \[(.*)\]$'
 
 [[rule]]
 name = 'xla cpp test failure'
@@ -190,7 +194,7 @@ pattern = '!+ KeyboardInterrupt !+'
 
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: .*test.* failed'
+pattern = '(?:RuntimeError: )?.*test.* failed!'
 
 [[rule]]
 name = 'CUDA out of memory error'

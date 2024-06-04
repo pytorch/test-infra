@@ -54,9 +54,11 @@ function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
 function WorkflowsContainer({
   jobs,
   unstableIssues,
+  repoFullName,
 }: {
   jobs: JobData[];
   unstableIssues: IssueData[];
+  repoFullName: string;
 }) {
   useScrollTo();
 
@@ -76,6 +78,7 @@ function WorkflowsContainer({
           let workflowName = "" + jobs[0].workflowName;
           return (
             <WorkflowBox
+              repoFullName={repoFullName}
               key={workflowName}
               workflowName={workflowName}
               jobs={jobs}
@@ -161,7 +164,11 @@ export default function CommitStatus({
         pred={(job) => job.conclusion === "pending"}
         unstableIssues={unstableIssues}
       />
-      <WorkflowsContainer jobs={jobs} unstableIssues={unstableIssues} />
+      <WorkflowsContainer
+        jobs={jobs}
+        unstableIssues={unstableIssues}
+        repoFullName={`${repoOwner}/${repoName}`}
+      />
       {isAuthenticated && isCommitPage && (
         <WorkflowDispatcher
           repoOwner={repoOwner}
