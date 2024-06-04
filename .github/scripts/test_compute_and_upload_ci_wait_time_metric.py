@@ -20,11 +20,11 @@ def normalize_workflow_runs(records: pd.DataFrame) -> pd.DataFrame:
 
 
 class TestComputeAndUploadCiWaitTimeMetric(TestCase):
-    def assertDataFramesAreEqual(self, df1: pd.DataFrame, df2: pd.DataFrame):
+    def assertDataFramesAreEqual(self, df1: pd.DataFrame, df2: pd.DataFrame) -> None:
         # Validate the results. We use numpy because the indexes on the dataframes is expected to be different
         self.assertTrue(np.array_equal(df1.values, df2.values))
 
-    def test_removing_cancelled_jobs(self):
+    def test_removing_cancelled_jobs(self) -> None:
         records = pd.json_normalize(
             [
                 {
@@ -80,7 +80,7 @@ class TestComputeAndUploadCiWaitTimeMetric(TestCase):
         actual = remove_cancelled_jobs(records)
         self.assertDataFramesAreEqual(actual, expected)
 
-    def test_normalizing_start_times(self):
+    def test_normalizing_start_times(self) -> None:
         records = pd.json_normalize(
             [
                 {
@@ -182,7 +182,7 @@ class TestComputeAndUploadCiWaitTimeMetric(TestCase):
         ]
         self.assertDataFramesAreEqual(actual, expected)
 
-    def test_remove_irrelevant_success_jobs(self):
+    def test_remove_irrelevant_success_jobs(self) -> None:
         records = normalize_workflow_runs(
             pd.json_normalize(
                 [
@@ -261,7 +261,7 @@ class TestComputeAndUploadCiWaitTimeMetric(TestCase):
         ]
         self.assertDataFramesAreEqual(actual, expected)
 
-    def test_remove_irrelevant_failure_jobs(self):
+    def test_remove_irrelevant_failure_jobs(self) -> None:
         records = normalize_workflow_runs(
             pd.json_normalize(
                 [
@@ -303,7 +303,7 @@ class TestComputeAndUploadCiWaitTimeMetric(TestCase):
         actual = remove_irrelevant_failure_jobs(records)
         self.assertDataFramesAreEqual(actual, expected)
 
-    def test_get_pr_level_stats(self):
+    def test_get_pr_level_stats(self) -> None:
         records = normalize_workflow_runs(
             pd.json_normalize(
                 [
