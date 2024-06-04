@@ -301,26 +301,19 @@ class S3Index:
 
         Takes our objects and transforms them into HTML that have historically
         been used by pip for installing pytorch, but now only used to generate libtorch browseable folder.
-
-        NOTE: These are not PEP 503 compliant but are here for legacy purposes
         """
         out: List[str] = []
         subdir = self._resolve_subdir(subdir)
         is_root = subdir == self.prefix
-        for obj in self.gen_file_list(subdir):
-            # Hide non libtorch objects
-            obj_name = path.basename(obj.key)
-            if not obj_name.endswith(".zip") or not obj_name.startswith("libtorch"):
+        for obj in self.gen_file_list(subdir, "libtorch"):
+            # Skip root objs, as they are irrelevant for libtorch indexes
+            if not is_root and self.is_obj_at_root(obj):
                 continue
             # Strip our prefix
             sanitized_obj = obj.key.replace(subdir, "", 1)
             if sanitized_obj.startswith('/'):
                 sanitized_obj = sanitized_obj.lstrip("/")
-            if not is_root and self.is_obj_at_root(obj):
-                # strip root prefix
-                sanitized_obj = obj.key.replace(self.prefix, "", 1).lstrip("/")
-                sanitized_obj = f"../{sanitized_obj}"
-            out.append(f'<a href="{sanitized_obj}">{sanitized_obj}</a><br/>')
+            out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
         return "\n".join(sorted(out))
 
     def to_simple_package_html(
