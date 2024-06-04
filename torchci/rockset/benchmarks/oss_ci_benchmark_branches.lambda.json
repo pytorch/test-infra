@@ -12,6 +12,11 @@
       "value": "day"
     },
     {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
       "name": "startTime",
       "type": "string",
       "value": "2024-05-01T00:00:00.00Z"

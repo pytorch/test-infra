@@ -3,6 +3,7 @@ import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
   LLMsBenchmarkData,
+  METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
 } from "components/benchmark/llms/common";
 import styles from "components/metrics.module.css";
@@ -18,7 +19,7 @@ export function SummaryPanel({
   stopTime,
   granularity,
   modelName,
-  quantization,
+  metricNames,
   lPerfData,
   rPerfData,
 }: {
@@ -26,7 +27,7 @@ export function SummaryPanel({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   modelName: string;
-  quantization: string;
+  metricNames: string[];
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
 }) {
@@ -41,7 +42,11 @@ export function SummaryPanel({
 
   const dataGroupedByModel: { [k: string]: any } = {};
   rData.forEach((record: LLMsBenchmarkData) => {
-    dataGroupedByModel[record.name] = {
+    if (!(record.name in dataGroupedByModel)) {
+      dataGroupedByModel[record.name] = {};
+    }
+
+    dataGroupedByModel[record.name][record.metric] = {
       r: record,
     };
   });
@@ -49,39 +54,41 @@ export function SummaryPanel({
   // Combine with left (base) data
   if (lCommit !== rCommit && lData !== undefined) {
     lData.forEach((record: LLMsBenchmarkData) => {
-      if (record.name in dataGroupedByModel) {
-        dataGroupedByModel[record.name]["l"] = record;
-      } else {
-        dataGroupedByModel[record.name] = {
-          l: record,
-        };
+      if (!(record.name in dataGroupedByModel)) {
+        dataGroupedByModel[record.name] = {};
       }
+
+      if (!(record.metric in dataGroupedByModel[record.name])) {
+        dataGroupedByModel[record.name][record.metric] = {};
+      }
+
+      dataGroupedByModel[record.name][record.metric]["l"] = record;
     });
   }
 
   // Transform the data into a displayable format
   const data = Object.keys(dataGroupedByModel).map((name: string) => {
-    const record = dataGroupedByModel[name];
-    const hasL = "l" in record;
-    const hasR = "r" in record;
-
-    return {
+    const row: { [k: string]: any } = {
       // Keep the name as as the row ID as DataGrid requires it
       name: name,
+    };
 
-      // The model name and the logs
-      metadata: {
+    for (const metric in dataGroupedByModel[name]) {
+      const record = dataGroupedByModel[name][metric];
+      const hasL = "l" in record;
+      const hasR = "r" in record;
+
+      row["metadata"] = {
         name: name,
         l: hasL ? record["l"]["job_id"] : undefined,
         r: hasR ? record["r"]["job_id"] : undefined,
-      },
+      };
 
-      // Token per second
-      token_per_sec: {
+      row[metric] = {
         l: hasL
           ? {
-              actual: record["l"]["token_per_sec[actual]"],
-              target: record["l"]["token_per_sec[target]"],
+              actual: record["l"].actual,
+              target: record["l"].target,
             }
           : {
               actual: 0,
@@ -89,37 +96,17 @@ export function SummaryPanel({
             },
         r: hasR
           ? {
-              actual: record["r"]["token_per_sec[actual]"],
-              target: record["r"]["token_per_sec[target]"],
+              actual: record["r"].actual,
+              target: record["r"].target,
             }
           : {
               actual: 0,
               target: 0,
             },
-      },
+      };
+    }
 
-      // Memory bandwidth
-      memory_bandwidth: {
-        l: hasL
-          ? {
-              actual: record["l"]["memory_bandwidth[actual]"],
-              target: record["l"]["memory_bandwidth[target]"],
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        r: hasR
-          ? {
-              actual: record["r"]["memory_bandwidth[actual]"],
-              target: record["r"]["memory_bandwidth[target]"],
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-      },
-    };
+    return row;
   });
 
   return (
@@ -150,106 +137,85 @@ export function SummaryPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&quantization=${quantization}&modelName=${encodedName}`;
+                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&modelName=${encodedName}`;
 
                 return (
                   <a href={url}>
-                    <b>
-                      {name} ({quantization})
-                    </b>
+                    <b>{name}</b>
                   </a>
                 );
               },
             },
-            {
-              field: "token_per_sec",
-              headerName: "Token per second",
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined || v.l.actual === 0) {
-                  return "";
-                }
+            ...metricNames
+              .filter(
+                (metric: string) => data.length !== 0 && metric in data[0]
+              )
+              .map((metric: string) => {
+                return {
+                  field: metric,
+                  headerName:
+                    metric in METRIC_DISPLAY_HEADERS
+                      ? METRIC_DISPLAY_HEADERS[metric]
+                      : metric,
+                  flex: 1,
+                  cellClassName: (params: GridCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined || v.l.actual === 0) {
+                      return "";
+                    }
 
-                // l is the old (base) value, r is the new value
-                const l = v.l.actual;
-                const r = v.r.actual;
+                    // l is the old (base) value, r is the new value
+                    const l = v.l.actual;
+                    const r = v.r.actual;
 
-                if (lCommit === rCommit) {
-                  return "";
-                } else {
-                  if (l === r) {
-                    // 0 means the model isn't run at all
+                    if (lCommit === rCommit) {
+                      return "";
+                    } else {
+                      if (l === r) {
+                        // 0 means the model isn't run at all
+                        return "";
+                      }
+
+                      // It didn't error in the past, but now it does error
+                      if (r === 0) {
+                        return styles.error;
+                      }
+
+                      // Higher TPS
+                      if (r - l > RELATIVE_THRESHOLD * l) {
+                        return styles.ok;
+                      }
+
+                      // Lower TPS
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+                    }
+
                     return "";
-                  }
+                  },
+                  renderCell: (params: GridRenderCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
 
-                  // It didn't error in the past, but now it does error
-                  if (r === 0) {
-                    return styles.error;
-                  }
+                    const l = v.l.actual;
+                    const r = v.r.actual;
 
-                  // Higher TPS
-                  if (r - l > RELATIVE_THRESHOLD * l) {
-                    return styles.ok;
-                  }
+                    // Compute the percentage
+                    const target = v.r.target;
+                    const lPercent = Number((l * 100) / target).toFixed(0);
+                    const rPercent = Number((r * 100) / target).toFixed(0);
 
-                  // Lower TPS
-                  if (l - r > RELATIVE_THRESHOLD * r) {
-                    return styles.error;
-                  }
-                }
-
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = v.l.actual;
-                const r = v.r.actual;
-
-                // Compute the percentage
-                const target = v.r.target;
-                const lPercent = Number((l * 100) / target).toFixed(0);
-                const rPercent = Number((r * 100) / target).toFixed(0);
-
-                if (lCommit === rCommit || l === r || v.l === 0) {
-                  return `${r} (${rPercent}%) [target = ${target}]`;
-                } else {
-                  return `${l} (${lPercent}%) → ${r} (${rPercent}%) [target = ${target}]`;
-                }
-              },
-            },
-            {
-              field: "memory_bandwidth",
-              headerName: "Memory bandwidth (GB/s)",
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                return "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const v = params.value;
-                if (v === undefined) {
-                  return "";
-                }
-
-                const l = v.l.actual;
-                const r = v.r.actual;
-
-                // Compute the percentage
-                const target = v.r.target;
-                const lPercent = Number((l * 100) / target).toFixed(0);
-                const rPercent = Number((r * 100) / target).toFixed(0);
-
-                if (lCommit === rCommit || l === r || v.l === 0) {
-                  return `${r} (${rPercent}%) [target = ${target}]`;
-                } else {
-                  return `${l} (${lPercent}%) → ${r} (${rPercent}%) [target = ${v.r.target}]`;
-                }
-              },
-            },
+                    if (lCommit === rCommit || l === r || v.l === 0) {
+                      return `${r} (${rPercent}%) [target = ${target}]`;
+                    } else {
+                      return `${l} (${lPercent}%) → ${r} (${rPercent}%) [target = ${target}]`;
+                    }
+                  },
+                };
+              }),
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />

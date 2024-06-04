@@ -6,23 +6,15 @@ SELECT
   -- As the JSON response is pretty big, only return the field if it's needed
   IF(:getJobId, o.job_id, NULL) AS job_id,
   o.name,
-  o.mode AS quantization,
+  o.metric,
   IF(
-    o."token_per_sec[target]" IS NOT NULL,
-    o."token_per_sec[target]", 0.0
-  ) AS "token_per_sec[target]",
+    o.actual IS NOT NULL,
+    CAST(o.actual AS FLOAT), 0.0
+  ) AS actual,
   IF(
-    o."token_per_sec[actual]" IS NOT NULL,
-    o."token_per_sec[actual]", 0.0
-  ) AS "token_per_sec[actual]",
-  IF(
-    o."memory_bandwidth[target]" IS NOT NULL,
-    o."memory_bandwidth[target]", 0.0
-  ) AS "memory_bandwidth[target]",
-  IF(
-    o."memory_bandwidth[actual]" IS NOT NULL,
-    o."memory_bandwidth[actual]", 0.0
-  ) AS "memory_bandwidth[actual]",
+    o.target IS NOT NULL,
+    CAST(o.target AS FLOAT), 0.0
+  ) AS target,
   FORMAT_ISO8601(
     DATE_TRUNC(: granularity, w._event_time)
   ) AS granularity_bucket,
@@ -58,7 +50,8 @@ WHERE
     )
     OR : names = ''
   )
-  AND o.mode = : quantization
+  AND o.metric IS NOT NULL
+  AND w.html_url LIKE CONCAT('%', : repo, '%')
 ORDER BY
   granularity_bucket DESC,
   workflow_id DESC,

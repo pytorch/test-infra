@@ -12,6 +12,11 @@
       "value": ""
     },
     {
+      "name": "devices",
+      "type": "string",
+      "value": ""
+    },
+    {
       "name": "filenames",
       "type": "string",
       "value": ""
@@ -32,9 +37,9 @@
       "value": ""
     },
     {
-      "name": "quantization",
+      "name": "repo",
       "type": "string",
-      "value": "bfloat16"
+      "value": "pytorch/pytorch"
     },
     {
       "name": "startTime",

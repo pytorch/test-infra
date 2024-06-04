@@ -3,7 +3,10 @@ import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicke
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { DTYPES } from "components/benchmark/compilers/common";
+import {
+  DEFAULT_REPO_NAME,
+  DTYPES,
+} from "components/benchmark/compilers/common";
 import {
   SuitePicker,
   SUITES,
@@ -114,6 +117,7 @@ function Report({
   return (
     <div>
       <CommitPanel
+        repoName={DEFAULT_REPO_NAME}
         lBranchAndCommit={{
           ...lBranchAndCommit,
           date: lData[0].granularity_bucket,

@@ -5,6 +5,7 @@ import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   COMPILER_NAMES_TO_DISPLAY_NAMES,
+  DEFAULT_REPO_NAME,
   DTYPES,
 } from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
@@ -123,6 +124,7 @@ function Report({
   return (
     <div>
       <CommitPanel
+        repoName={DEFAULT_REPO_NAME}
         lBranchAndCommit={{
           ...lBranchAndCommit,
           date: lData[0].granularity_bucket,

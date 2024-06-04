@@ -21,6 +21,8 @@ WHERE
     )
     OR : filenames = ''
   )
+  AND o.metric IS NOT NULL
+  AND w.html_url LIKE CONCAT('%', : repo, '%')
 ORDER BY
   w.head_branch,
   event_time DESC

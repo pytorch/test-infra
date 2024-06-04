@@ -52,3 +52,4 @@ export const HELP_LINK =
   "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
 
 export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
+export const DEFAULT_REPO_NAME = "pytorch/pytorch";

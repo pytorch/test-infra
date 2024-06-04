@@ -7,6 +7,8 @@ import { TIME_FIELD_NAME } from "components/benchmark/common";
 import {
   DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
+  METRIC_DISPLAY_HEADERS,
+  METRIC_DISPLAY_SHORT_HEADERS,
 } from "components/benchmark/llms/common";
 import {
   Granularity,
@@ -24,20 +26,22 @@ export function GraphPanel({
   queryParams,
   granularity,
   modelName,
-  quantization,
+  deviceName,
+  metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   modelName: string;
-  quantization: string;
+  deviceName: string;
+  metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
   // Do not set the commit here to query all the records in the time range to
   // draw a chart
-  const { data, error } = useBenchmark(queryParams, modelName, quantization, {
+  const { data, error } = useBenchmark(queryParams, modelName, deviceName, {
     branch: rBranchAndCommit.branch,
     commit: "",
   });
@@ -46,7 +50,7 @@ export function GraphPanel({
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading chart for {modelName} quantized in {quantization}...
+          Loading chart for {modelName}...
         </Typography>
       </Stack>
     );
@@ -70,86 +74,67 @@ export function GraphPanel({
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
   const groupByFieldName = "name";
-  const chartData = data
-    .filter((record: LLMsBenchmarkData) => record.name === modelName)
-    .filter((record: LLMsBenchmarkData) => {
-      const id = record.workflow_id;
-      return (
-        (id >= lWorkflowId && id <= rWorkflowId) ||
-        (id <= lWorkflowId && id >= rWorkflowId)
-      );
-    });
 
-  const tpsSeries = seriesWithInterpolatedTimes(
-    chartData,
-    startTime,
-    stopTime,
-    granularity,
-    groupByFieldName,
-    TIME_FIELD_NAME,
-    "token_per_sec[actual]",
-    false
-  );
-
-  const memoryBandwidthSeries = seriesWithInterpolatedTimes(
-    chartData,
-    startTime,
-    stopTime,
-    granularity,
-    groupByFieldName,
-    TIME_FIELD_NAME,
-    "memory_bandwidth[actual]",
-    false
-  );
+  const chartData: { [k: string]: any } = {};
+  const graphSeries: { [k: string]: any } = {};
+  metricNames.forEach((metric: string) => {
+    chartData[metric] = data
+      .filter(
+        (record: LLMsBenchmarkData) =>
+          record.name === modelName && record.metric === metric
+      )
+      .filter((record: LLMsBenchmarkData) => {
+        const id = record.workflow_id;
+        return (
+          (id >= lWorkflowId && id <= rWorkflowId) ||
+          (id <= lWorkflowId && id >= rWorkflowId)
+        );
+      });
+    graphSeries[metric] = seriesWithInterpolatedTimes(
+      chartData[metric],
+      startTime,
+      stopTime,
+      granularity,
+      groupByFieldName,
+      TIME_FIELD_NAME,
+      "actual",
+      false
+    );
+  });
 
   return (
     <>
       <div>
         <Grid container spacing={2}>
-          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
-            <TimeSeriesPanelWithData
-              data={chartData}
-              series={tpsSeries}
-              title={"Token per second"}
-              groupByFieldName={groupByFieldName}
-              yAxisRenderer={(unit) => unit}
-              additionalOptions={{
-                yAxis: {
-                  scale: true,
-                },
-                label: {
-                  show: true,
-                  align: "left",
-                  formatter: (r: any) => {
-                    return r.value[1];
-                  },
-                },
-              }}
-            />
-          </Grid>
-
-          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
-            <TimeSeriesPanelWithData
-              data={chartData}
-              series={memoryBandwidthSeries}
-              title={"Memory bandwidth (GB/s)"}
-              groupByFieldName={groupByFieldName}
-              yAxisLabel={"GB/s"}
-              yAxisRenderer={(unit) => unit}
-              additionalOptions={{
-                yAxis: {
-                  scale: true,
-                },
-                label: {
-                  show: true,
-                  align: "left",
-                  formatter: (r: any) => {
-                    return r.value[1];
-                  },
-                },
-              }}
-            />
-          </Grid>
+          {metricNames.map((metric: string) => (
+            <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT} key={metric}>
+              {chartData[metric].length !== 0 && (
+                <TimeSeriesPanelWithData
+                  data={chartData[metric]}
+                  series={graphSeries[metric]}
+                  title={
+                    metric in METRIC_DISPLAY_HEADERS
+                      ? METRIC_DISPLAY_HEADERS[metric]
+                      : metric
+                  }
+                  groupByFieldName={groupByFieldName}
+                  yAxisRenderer={(unit) => unit}
+                  additionalOptions={{
+                    yAxis: {
+                      scale: true,
+                    },
+                    label: {
+                      show: true,
+                      align: "left",
+                      formatter: (r: any) => {
+                        return r.value[1];
+                      },
+                    },
+                  }}
+                />
+              )}
+            </Grid>
+          ))}
         </Grid>
       </div>
       <div>
@@ -158,12 +143,19 @@ export function GraphPanel({
             <tr>
               <th>Date</th>
               <th>Commit</th>
-              <th>TPS</th>
-              <th>Bandwidth</th>
+              {metricNames.map((metric: string) => (
+                <th key={metric}>
+                  {chartData[metric].length !== 0
+                    ? metric in METRIC_DISPLAY_SHORT_HEADERS
+                      ? METRIC_DISPLAY_SHORT_HEADERS[metric]
+                      : metric
+                    : ""}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {chartData.map((entry: any, index: number) => {
+            {chartData[metricNames[0]].map((entry: any, index: number) => {
               let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
               return (
                 <tr key={index}>
@@ -178,8 +170,13 @@ export function GraphPanel({
                       </a>
                     </code>
                   </td>
-                  <td>{entry["token_per_sec[actual]"]}</td>
-                  <td>{entry["memory_bandwidth[actual]"]}</td>
+                  {metricNames.map((metric: string) => (
+                    <td key={`${metric}-${index}`}>
+                      {chartData[metric][index] !== undefined
+                        ? chartData[metric][index].actual
+                        : ""}
+                    </td>
+                  ))}
                 </tr>
               );
             })}

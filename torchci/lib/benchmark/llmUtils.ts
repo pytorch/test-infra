@@ -1,4 +1,7 @@
-import { DEFAULT_MODEL_NAME } from "components/benchmark/llms/common";
+import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_MODEL_NAME,
+} from "components/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
@@ -7,7 +10,7 @@ import useSWR from "swr";
 export function useBenchmark(
   queryParams: RocksetParam[],
   modelName: string,
-  quantization: string,
+  deviceName: string,
   branchAndCommit: BranchAndCommit,
   getJobId: boolean = false
 ) {
@@ -21,9 +24,9 @@ export function useBenchmark(
       value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
     },
     {
-      name: "quantization",
+      name: "devices",
       type: "string",
-      value: quantization,
+      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     },
     {
       name: "getJobId",

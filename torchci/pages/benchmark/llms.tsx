@@ -4,8 +4,9 @@ import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import {
   BENCHMARKS,
+  DEFAULT_DEVICE_NAME,
   DEFAULT_MODEL_NAME,
-  DEFAULT_QUANTIZATION,
+  DEFAULT_REPO_NAME,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
@@ -29,8 +30,10 @@ function Report({
   startTime,
   stopTime,
   granularity,
+  repoName,
   modelName,
-  quantization,
+  deviceName,
+  metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -38,22 +41,24 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  repoName: string;
   modelName: string;
-  quantization: string;
+  deviceName: string;
+  metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
   const { data: lData, error: _lError } = useBenchmark(
     queryParams,
     modelName,
-    quantization,
+    deviceName,
     lBranchAndCommit,
     true
   );
   const { data: rData, error: _rError } = useBenchmark(
     queryParams,
     modelName,
-    quantization,
+    deviceName,
     rBranchAndCommit,
     true
   );
@@ -67,7 +72,7 @@ function Report({
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading records for {modelName} quantized in {quantization}...
+          Loading records for {modelName}...
         </Typography>
       </Stack>
     );
@@ -76,6 +81,7 @@ function Report({
   return (
     <div>
       <CommitPanel
+        repoName={repoName}
         lBranchAndCommit={{
           ...rBranchAndCommit,
           date:
@@ -97,8 +103,9 @@ function Report({
       <GraphPanel
         queryParams={queryParams}
         granularity={granularity}
-        quantization={quantization}
         modelName={modelName}
+        deviceName={deviceName}
+        metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
       />
@@ -107,7 +114,7 @@ function Report({
         stopTime={stopTime}
         granularity={granularity}
         modelName={modelName}
-        quantization={quantization}
+        metricNames={metricNames}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
@@ -129,15 +136,15 @@ export default function Page() {
   const defaultStopTime = dayjs();
   const [stopTime, setStopTime] = useState(defaultStopTime);
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
-  const [quantization, setQuantization] =
-    useState<string>(DEFAULT_QUANTIZATION);
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -165,15 +172,19 @@ export default function Page() {
       setGranularity(granularity);
     }
 
-    const quantization: string =
-      (router.query.quantization as string) ?? undefined;
-    if (quantization !== undefined) {
-      setQuantization(quantization);
+    const repoName: string = (router.query.repoName as string) ?? undefined;
+    if (repoName !== undefined) {
+      setRepoName(repoName);
     }
 
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
       setModelName(modelName);
+    }
+
+    const deviceName: string = (router.query.deviceName as string) ?? undefined;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -231,6 +242,11 @@ export default function Page() {
       type: "string",
       value: BENCHMARKS.join(","),
     },
+    {
+      name: "repo",
+      type: "string",
+      value: repoName,
+    },
   ];
 
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
@@ -244,9 +260,11 @@ export default function Page() {
     return <>Loading {BENCHMARKS.join(", ")}...</>;
   }
 
-  const modelNames: string[] = _.uniq(data.map((r: any) => r.name));
-  modelNames.push(DEFAULT_MODEL_NAME);
-  const quantizations: string[] = _.uniq(data.map((r: any) => r.mode));
+  const modelNames: string[] = [
+    DEFAULT_MODEL_NAME,
+    ...(_.uniq(data.map((r: any) => r.name)) as string[]),
+  ];
+  const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
   return (
     <div>
@@ -259,7 +277,11 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&quantization=${quantization}&modelName=${modelName}`}
+          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+            repoName
+          )}&modelName=${encodeURIComponent(
+            modelName
+          )}&deviceName=${encodeURIComponent(deviceName)}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -283,10 +305,10 @@ export default function Page() {
           label={"Model"}
         />
         <DTypePicker
-          dtype={quantization}
-          setDType={setQuantization}
-          dtypes={quantizations}
-          label={"Quantization"}
+          dtype={deviceName}
+          setDType={setDeviceName}
+          dtypes={[DEFAULT_DEVICE_NAME]}
+          label={"Device"}
         />
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
@@ -322,8 +344,10 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        repoName={repoName}
         modelName={modelName}
-        quantization={quantization}
+        deviceName={deviceName}
+        metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />
