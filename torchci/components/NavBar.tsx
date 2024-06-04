@@ -35,6 +35,21 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
+  const benchmarksDropdown = [
+    {
+      name: "TorchInductor",
+      href: "/benchmark/compilers",
+    },
+    {
+      name: "TorchBench",
+      href: "/torchbench/userbenchmark",
+    },
+    {
+      name: "LLMs",
+      href: "/benchmark/llms",
+    },
+  ];
+
   const devInfraDropdown = [
     {
       name: "SLIs",
@@ -60,10 +75,7 @@ function NavBar() {
       name: "Failures Classifier",
       href: "/failedjobs/pytorch/pytorch/main",
     },
-    {
-      name: "TorchBench",
-      href: "/torchbench/userbenchmark",
-    },
+
     {
       name: "Disabled Tests",
       href: "/disabled",
@@ -133,11 +145,7 @@ function NavBar() {
               KPIs
             </Link>
           </li>
-          <li>
-            <Link prefetch={false} href="/benchmark/compilers">
-              TorchInductor
-            </Link>
-          </li>
+          <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li style={{ cursor: "pointer" }}>
             <Link
