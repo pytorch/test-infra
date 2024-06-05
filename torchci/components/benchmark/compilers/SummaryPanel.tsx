@@ -11,7 +11,6 @@ import {
   SCALE,
   SPEEDUP_THRESHOLD,
 } from "components/benchmark/compilers/common";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
@@ -136,6 +135,7 @@ export function SummaryPanel({
   dtype,
   lPerfData,
   rPerfData,
+  all_suites,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -144,6 +144,7 @@ export function SummaryPanel({
   dtype: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
+  all_suites: { [key: string]: string };
 }) {
   const fields: { [k: string]: any } = {
     passrate_display: computePassrate,
@@ -167,7 +168,8 @@ export function SummaryPanel({
     fields
   );
 
-  const suites = Object.keys(SUITES);
+  const suites = Object.keys(all_suites);
+
   // Combine both sides
   const passrate = combineLeftAndRight(
     lCommit,
@@ -229,7 +231,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -319,7 +321,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -412,7 +414,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -501,7 +503,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;

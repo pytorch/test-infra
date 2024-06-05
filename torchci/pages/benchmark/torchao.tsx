@@ -1,25 +1,21 @@
 import { Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import {
-  DEFAULT_REPO_NAME,
-  LAST_N_DAYS,
-  MAIN_BRANCH,
-} from "components/benchmark/common";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { DTYPES } from "components/benchmark/compilers/common";
-import {
-  SuitePicker,
-  SUITES,
-} from "components/benchmark/compilers/SuitePicker";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
-  DEFAULT_MODE,
   DTypePicker,
   ModePicker,
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
+import {
+  DEFAULT_MODE,
+  DEFAULT_REPO_NAME,
+  DTYPES,
+} from "components/benchmark/torchao/common";
+import { SuitePicker, SUITES } from "components/benchmark/torchao/SuitePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
@@ -55,7 +51,7 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
+  const queryName = "torchao_query";
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -130,7 +126,7 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        workflowName={"torchao-nightly"}
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
@@ -286,7 +282,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchInductor Performance DashBoard
+          TorchAO Performance DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -319,7 +315,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={"torchao_query_branches"}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={rBranch}
@@ -334,7 +330,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={"torchao_query_branches"}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={lBranch}
