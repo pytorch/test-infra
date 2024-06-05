@@ -911,6 +911,13 @@
       "rocm"
     ]
   ],
+  "test_grad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
+    "98677",
+    "https://github.com/pytorch/pytorch/issues/98677",
+    [
+      "linux"
+    ]
+  ],
   "test_grad_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "114834",
     "https://github.com/pytorch/pytorch/issues/114834",
