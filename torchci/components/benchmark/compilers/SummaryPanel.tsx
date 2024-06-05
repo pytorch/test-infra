@@ -11,7 +11,6 @@ import {
   SCALE,
   SPEEDUP_THRESHOLD,
 } from "components/benchmark/compilers/common";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
@@ -136,6 +135,7 @@ export function SummaryPanel({
   dtype,
   lPerfData,
   rPerfData,
+  suites,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -144,6 +144,7 @@ export function SummaryPanel({
   dtype: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
+  suites: string[];
 }) {
   const fields: { [k: string]: any } = {
     passrate_display: computePassrate,
@@ -167,7 +168,6 @@ export function SummaryPanel({
     fields
   );
 
-  const suites = Object.keys(SUITES);
   // Combine both sides
   const passrate = combineLeftAndRight(
     lCommit,

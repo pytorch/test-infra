@@ -148,6 +148,7 @@ function Report({
           ...rBranchAndCommit,
           data: rData,
         }}
+        suites={Object.keys(SUITES)}
       />
       <GraphPanel
         queryParams={queryParams}
