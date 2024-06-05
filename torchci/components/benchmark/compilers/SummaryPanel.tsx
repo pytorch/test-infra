@@ -135,7 +135,7 @@ export function SummaryPanel({
   dtype,
   lPerfData,
   rPerfData,
-  suites,
+  all_suites,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -144,7 +144,7 @@ export function SummaryPanel({
   dtype: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
-  suites: string[];
+  all_suites:  { [key: string]: string };
 }) {
   const fields: { [k: string]: any } = {
     passrate_display: computePassrate,
@@ -167,6 +167,8 @@ export function SummaryPanel({
     rPerfData.data,
     fields
   );
+
+  const suites = Object.keys(all_suites)
 
   // Combine both sides
   const passrate = combineLeftAndRight(
@@ -229,7 +231,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -319,7 +321,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -412,7 +414,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
@@ -501,7 +503,7 @@ export function SummaryPanel({
               suites.map((suite: string) => {
                 return {
                   field: suite,
-                  headerName: SUITES[suite],
+                  headerName: all_suites[suite],
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
