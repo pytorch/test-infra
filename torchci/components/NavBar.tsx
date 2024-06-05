@@ -41,6 +41,10 @@ function NavBar() {
       href: "/benchmark/compilers",
     },
     {
+      name: "TorchAO",
+      href: "/benchmark/torchao",
+    },
+    {
       name: "TorchBench",
       href: "/torchbench/userbenchmark",
     },

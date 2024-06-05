@@ -37,7 +37,6 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  job,
   suite,
   mode,
   dtype,
@@ -50,7 +49,6 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  job: string;
   suite: string;
   mode: string;
   dtype: string;
@@ -60,10 +58,7 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  var queryName = "compilers_benchmark_performance";
-  if (job === "torchao") {
-    queryName = "torchao_benchmark_performance";
-  }
+  const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -152,7 +147,6 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         compiler={compiler}
-        job={job}
         model={model}
         branch={lBranchAndCommit.branch}
         lCommit={lBranchAndCommit.commit}
@@ -162,7 +156,6 @@ function Report({
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        job={job}
         suite={suite}
         mode={mode}
         dtype={dtype}
@@ -185,7 +178,6 @@ export default function Page() {
   const router = useRouter();
 
   // The dimensions to query Rockset
-  const job: string = (router.query.job as string) ?? undefined;
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
@@ -384,7 +376,6 @@ export default function Page() {
           startTime={startTime}
           stopTime={stopTime}
           granularity={granularity}
-          job={job}
           suite={suite}
           mode={mode}
           dtype={dtype}
