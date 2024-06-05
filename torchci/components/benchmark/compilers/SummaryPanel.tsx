@@ -144,7 +144,7 @@ export function SummaryPanel({
   dtype: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
-  all_suites:  { [key: string]: string };
+  all_suites: { [key: string]: string };
 }) {
   const fields: { [k: string]: any } = {
     passrate_display: computePassrate,
@@ -168,7 +168,7 @@ export function SummaryPanel({
     fields
   );
 
-  const suites = Object.keys(all_suites)
+  const suites = Object.keys(all_suites);
 
   // Combine both sides
   const passrate = combineLeftAndRight(
