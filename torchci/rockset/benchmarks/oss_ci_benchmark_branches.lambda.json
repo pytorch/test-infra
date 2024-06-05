@@ -1,0 +1,31 @@
+{
+  "sql_path": "__sql/oss_ci_benchmark_branches.sql",
+  "default_parameters": [
+    {
+      "name": "filenames",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-05-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-08-01T00:00:00.00Z"
+    }
+  ],
+  "description": "Query branches and commits from OSS CI benchmarks"
+}

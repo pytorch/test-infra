@@ -12,7 +12,6 @@ export const MODES: { [k: string]: string } = {
   training: "amp",
   inference: "bfloat16",
 };
-export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
 
 export function ModePicker({
   mode,
@@ -54,9 +53,13 @@ export function ModePicker({
 export function DTypePicker({
   dtype,
   setDType,
+  dtypes,
+  label,
 }: {
   dtype: string;
   setDType: any;
+  dtypes: string[];
+  label: string;
 }) {
   function handleChange(e: SelectChangeEvent<string>) {
     setDType(e.target.value);
@@ -65,15 +68,15 @@ export function DTypePicker({
   return (
     <>
       <FormControl>
-        <InputLabel id="dtype-picker-input-label">Precision</InputLabel>
+        <InputLabel id="dtype-picker-input-label">{label}</InputLabel>
         <Select
           value={dtype}
-          label="Precision"
+          label={label}
           labelId="dtype-picker-select-label"
           onChange={handleChange}
           id="dtype-picker-select"
         >
-          {DTYPES.map((dtype) => (
+          {dtypes.map((dtype) => (
             <MenuItem key={dtype} value={dtype}>
               {dtype}
             </MenuItem>

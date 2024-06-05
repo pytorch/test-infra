@@ -1,9 +1,16 @@
 import { Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
+import {
+  DEFAULT_REPO_NAME,
+  LAST_N_DAYS,
+  MAIN_BRANCH,
+} from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "components/benchmark/compilers/common";
+import {
+  COMPILER_NAMES_TO_DISPLAY_NAMES,
+  DTYPES,
+} from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
 import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
 import {
@@ -120,6 +127,7 @@ function Report({
   return (
     <div>
       <CommitPanel
+        repoName={DEFAULT_REPO_NAME}
         lBranchAndCommit={{
           ...lBranchAndCommit,
           date: lData[0].granularity_bucket,
@@ -327,7 +335,12 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
-        <DTypePicker dtype={dtype} setDType={setDType} />
+        <DTypePicker
+          dtype={dtype}
+          setDType={setDType}
+          dtypes={DTYPES}
+          label={"Precision"}
+        />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
           queryCollection={"inductor"}

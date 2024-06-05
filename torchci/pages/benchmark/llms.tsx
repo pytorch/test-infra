@@ -1,4 +1,4 @@
-import { Divider, Skeleton, Stack, Typography } from "@mui/material";
+import { Divider, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
@@ -6,30 +6,25 @@ import {
   LAST_N_DAYS,
   MAIN_BRANCH,
 } from "components/benchmark/common";
-import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { DTYPES } from "components/benchmark/compilers/common";
 import {
-  SuitePicker,
-  SUITES,
-} from "components/benchmark/compilers/SuitePicker";
-import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
-import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
-import {
-  DEFAULT_MODE,
-  DTypePicker,
-  ModePicker,
-  MODES,
-} from "components/benchmark/ModeAndDTypePicker";
+  BENCHMARKS,
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_MODEL_NAME,
+} from "components/benchmark/llms/common";
+import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
+import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
+import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
+import _ from "lodash";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../metrics";
 
@@ -38,9 +33,10 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  suite,
-  mode,
-  dtype,
+  repoName,
+  modelName,
+  deviceName,
+  metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -48,63 +44,27 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  suite: string;
-  mode: string;
-  dtype: string;
+  repoName: string;
+  modelName: string;
+  deviceName: string;
+  metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
-
-  const queryParamsWithL: RocksetParam[] = [
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
-    {
-      name: "branches",
-      type: "string",
-      value: lBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: lBranchAndCommit.commit,
-    },
-    ...queryParams,
-  ];
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithL)
-  )}`;
-
-  let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
-  lData = augmentData(lData);
-
-  const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: rBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: rBranchAndCommit.commit,
-    },
-    ...queryParams,
-  ];
-  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithR)
-  )}`;
-
-  let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
-  rData = augmentData(rData);
+  const { data: lData, error: _lError } = useBenchmark(
+    queryParams,
+    modelName,
+    deviceName,
+    lBranchAndCommit,
+    true
+  );
+  const { data: rData, error: _rError } = useBenchmark(
+    queryParams,
+    modelName,
+    deviceName,
+    rBranchAndCommit,
+    true
+  );
 
   if (
     lData === undefined ||
@@ -112,34 +72,52 @@ function Report({
     rData === undefined ||
     rData.length === 0
   ) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
+    return (
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Typography fontSize={"1rem"} fontStyle={"italic"}>
+          Loading records for {modelName}...
+        </Typography>
+      </Stack>
+    );
   }
 
   return (
     <div>
       <CommitPanel
-        repoName={DEFAULT_REPO_NAME}
+        repoName={repoName}
         lBranchAndCommit={{
-          ...lBranchAndCommit,
-          date: lData[0].granularity_bucket,
-        }}
-        rBranchAndCommit={{
           ...rBranchAndCommit,
           date:
             rData !== undefined && rData.length !== 0
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        rBranchAndCommit={{
+          ...lBranchAndCommit,
+          date:
+            lData !== undefined && lData.length !== 0
+              ? lData[0].granularity_bucket
+              : undefined,
+        }}
+        workflowName={"inductor-micro-benchmark"}
       >
-        <BenchmarkLogs workflowId={lData[0].workflow_id} />
+        <></>
       </CommitPanel>
+      <GraphPanel
+        queryParams={queryParams}
+        granularity={granularity}
+        modelName={modelName}
+        deviceName={deviceName}
+        metricNames={metricNames}
+        lBranchAndCommit={lBranchAndCommit}
+        rBranchAndCommit={rBranchAndCommit}
+      />
       <SummaryPanel
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        mode={mode}
-        dtype={dtype}
+        modelName={modelName}
+        metricNames={metricNames}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
@@ -148,14 +126,6 @@ function Report({
           ...rBranchAndCommit,
           data: rData,
         }}
-      />
-      <GraphPanel
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
       />
     </div>
   );
@@ -169,16 +139,15 @@ export default function Page() {
   const defaultStopTime = dayjs();
   const [stopTime, setStopTime] = useState(defaultStopTime);
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
-
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [mode, setMode] = useState<string>(DEFAULT_MODE);
-  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
+  const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -206,19 +175,19 @@ export default function Page() {
       setGranularity(granularity);
     }
 
-    const suite: string = (router.query.suite as string) ?? undefined;
-    if (suite !== undefined) {
-      setSuite(suite);
+    const repoName: string = (router.query.repoName as string) ?? undefined;
+    if (repoName !== undefined) {
+      setRepoName(repoName);
     }
 
-    const mode: string = (router.query.mode as string) ?? undefined;
-    if (mode !== undefined) {
-      setMode(mode);
+    const modelName: string = (router.query.modelName as string) ?? undefined;
+    if (modelName !== undefined) {
+      setModelName(modelName);
     }
 
-    const dtype: string = (router.query.dtype as string) ?? undefined;
-    if (dtype !== undefined) {
-      setDType(dtype);
+    const deviceName: string = (router.query.deviceName as string) ?? undefined;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -248,6 +217,8 @@ export default function Page() {
     );
   }, [router.query]);
 
+  const queryCollection = "benchmarks";
+  const queryName = "oss_ci_benchmark_names";
   const queryParams: RocksetParam[] = [
     {
       name: "timezone",
@@ -270,29 +241,50 @@ export default function Page() {
       value: granularity,
     },
     {
-      name: "mode",
+      name: "filenames",
       type: "string",
-      value: mode,
+      value: BENCHMARKS.join(","),
     },
     {
-      name: "dtypes",
+      name: "repo",
       type: "string",
-      value: dtype,
+      value: repoName,
     },
   ];
+
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (data === undefined || data.length === 0) {
+    return <>Loading {BENCHMARKS.join(", ")}...</>;
+  }
+
+  const modelNames: string[] = [
+    DEFAULT_MODEL_NAME,
+    ...(_.uniq(data.map((r: any) => r.name)) as string[]),
+  ];
+  const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchInductor Performance DashBoard
+          LLMs Benchmark DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+            repoName
+          )}&modelName=${encodeURIComponent(
+            modelName
+          )}&deviceName=${encodeURIComponent(deviceName)}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -309,22 +301,26 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <SuitePicker suite={suite} setSuite={setSuite} />
-        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
-          dtype={dtype}
-          setDType={setDType}
-          dtypes={DTYPES}
-          label={"Precision"}
+          dtype={modelName}
+          setDType={setModelName}
+          dtypes={modelNames}
+          label={"Model"}
+        />
+        <DTypePicker
+          dtype={deviceName}
+          setDType={setDeviceName}
+          dtypes={[DEFAULT_DEVICE_NAME]}
+          label={"Device"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
+          queryName={"oss_ci_benchmark_branches"}
+          queryCollection={"benchmarks"}
           queryParams={queryParams}
-          branch={rBranch}
-          setBranch={setRBranch}
-          commit={rCommit}
-          setCommit={setRCommit}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
@@ -333,13 +329,13 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
+          queryName={"oss_ci_benchmark_branches"}
+          queryCollection={"benchmarks"}
           queryParams={queryParams}
-          branch={lBranch}
-          setBranch={setLBranch}
-          commit={lCommit}
-          setCommit={setLCommit}
+          branch={rBranch}
+          setBranch={setRBranch}
+          commit={rCommit}
+          setCommit={setRCommit}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
@@ -351,9 +347,10 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        suite={suite}
-        mode={mode}
-        dtype={dtype}
+        repoName={repoName}
+        modelName={modelName}
+        deviceName={deviceName}
+        metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />

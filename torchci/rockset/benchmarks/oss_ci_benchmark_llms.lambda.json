@@ -1,0 +1,56 @@
+{
+  "sql_path": "__sql/oss_ci_benchmark_llms.sql",
+  "default_parameters": [
+    {
+      "name": "branches",
+      "type": "string",
+      "value": "main"
+    },
+    {
+      "name": "commits",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "devices",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "filenames",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "getJobId",
+      "type": "bool",
+      "value": "false"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "names",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-05-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-08-01T00:00:00.00Z"
+    }
+  ],
+  "description": "The query to power LLMs benchmark dashboard"
+}
