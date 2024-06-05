@@ -6,12 +6,15 @@ import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
-  DEFAULT_MODE,
   DTypePicker,
   ModePicker,
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
-import { DEFAULT_REPO_NAME, DTYPES } from "components/benchmark/torchao/common";
+import {
+  DEFAULT_MODE,
+  DEFAULT_REPO_NAME,
+  DTYPES,
+} from "components/benchmark/torchao/common";
 import { SuitePicker, SUITES } from "components/benchmark/torchao/SuitePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
@@ -48,7 +51,7 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  const queryName = "torchao_benchmark_performance";
+  const queryName = "torchao_query";
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -311,7 +314,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={"torchao_benchmark_performance_branches"}
+          queryName={"torchao_query_branches"}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={rBranch}
@@ -326,7 +329,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"torchao_benchmark_performance_branches"}
+          queryName={"torchao_query_branches"}
           queryCollection={"inductor"}
           queryParams={queryParams}
           branch={lBranch}
