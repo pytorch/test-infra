@@ -90,7 +90,7 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
-pattern = '^(FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+pattern = '^(?:FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'Python unittest error'
