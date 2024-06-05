@@ -1,19 +1,9 @@
 import { Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import {
-  LAST_N_DAYS,
-  MAIN_BRANCH,
-} from "components/benchmark/common";
-import {
-    DEFAULT_REPO_NAME,
-} from "components/benchmark/torchao/common";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import { DTYPES } from "components/benchmark/compilers/common";
-import {
-  SuitePicker,
-  SUITES,
-} from "components/benchmark/torchao/SuitePicker";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
@@ -22,6 +12,8 @@ import {
   ModePicker,
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
+import { DEFAULT_REPO_NAME } from "components/benchmark/torchao/common";
+import { SuitePicker, SUITES } from "components/benchmark/torchao/SuitePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
