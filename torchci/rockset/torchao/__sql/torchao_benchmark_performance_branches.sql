@@ -1,10 +1,9 @@
 SELECT
-  DISTINCT w.head_branch,
-  w.head_sha,
-  w.id,
+  DISTINCT head_branch,
+  head_sha,
   FORMAT_ISO8601(
     DATE_TRUNC(
-      : granularity, torchao_perf_stats._event_time
+      : granularity, _event_time
     )
   ) AS event_time,
 FROM
@@ -18,5 +17,5 @@ WHERE
     '_%'
   )
 ORDER BY
-  w.head_branch,
+  head_branch,
   event_time DESC

@@ -9,7 +9,7 @@
       {
         "name": "dtypes",
         "type": "string",
-        "value": "amp"
+        "value": "bfloat16"
       },
       {
         "name": "granularity",
@@ -19,7 +19,7 @@
       {
         "name": "mode",
         "type": "string",
-        "value": "training"
+        "value": "inference"
       },
       {
         "name": "startTime",

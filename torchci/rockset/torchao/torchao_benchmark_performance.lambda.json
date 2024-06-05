@@ -7,11 +7,6 @@
         "value": "main,master"
       },
       {
-        "name": "commits",
-        "type": "string",
-        "value": ""
-      },
-      {
         "name": "compilers",
         "type": "string",
         "value": ""
@@ -24,7 +19,7 @@
       {
         "name": "dtypes",
         "type": "string",
-        "value": "amp"
+        "value": "bfloat16"
       },
       {
         "name": "getJobId",
@@ -39,7 +34,7 @@
       {
         "name": "mode",
         "type": "string",
-        "value": "training"
+        "value": "inference"
       },
       {
         "name": "startTime",
