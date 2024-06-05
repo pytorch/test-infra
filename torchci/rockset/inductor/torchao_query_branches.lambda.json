@@ -1,0 +1,36 @@
+{
+  "sql_path": "__sql/torchao_query_branches.sql",
+  "default_parameters": [
+    {
+      "name": "device",
+      "type": "string",
+      "value": "cuda"
+    },
+    {
+      "name": "dtypes",
+      "type": "string",
+      "value": "bfloat16"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "value": "inference"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-06-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-06-06T00:00:00.00Z"
+    }
+  ],
+  "description": "TorchAO Query for commit branches"
+}

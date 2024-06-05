@@ -1,0 +1,66 @@
+{
+  "sql_path": "__sql/torchao_query.sql",
+  "default_parameters": [
+    {
+      "name": "branches",
+      "type": "string",
+      "value": "main"
+    },
+    {
+      "name": "compilers",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "device",
+      "type": "string",
+      "value": "cuda"
+    },
+    {
+      "name": "dtypes",
+      "type": "string",
+      "value": "bfloat16"
+    },
+    {
+      "name": "getJobId",
+      "type": "bool",
+      "value": "false"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "value": "inference"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-06-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-06-06T00:00:00.00Z"
+    },
+    {
+      "name": "suites",
+      "type": "string",
+      "value": "torchbench,huggingface,timm_models"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    },
+    {
+      "name": "workflowId",
+      "type": "string",
+      "value": "0"
+    }
+  ],
+  "description": "TorchAO Query"
+}
