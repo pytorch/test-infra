@@ -30,7 +30,7 @@ import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import useSWR from "swr";
-import { TimeRangePicker } from "../../../../metrics";
+import { TimeRangePicker } from "../../../metrics";
 
 function Report({
   queryParams,
