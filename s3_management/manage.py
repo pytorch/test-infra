@@ -28,14 +28,13 @@ ACCEPTED_SUBDIR_PATTERNS = [
     r"rocm[0-9]+\.[0-9]+",  # for rocm
     "cpu",
 ]
-PREFIXES_WITH_HTML = {
-    "whl": "torch_stable.html",
-    "whl/lts/1.8": "torch_lts.html",
-    "whl/nightly": "torch_nightly.html",
-    "whl/test": "torch_test.html",
-    "libtorch": "index.html",
-    "libtorch/nightly": "index.html",
-}
+PREFIXES = [
+    "whl",
+    "whl/nightly",
+    "whl/test",
+    "libtorch",
+    "libtorch/nightly",
+]
 
 # NOTE: This refers to the name on the wheels themselves and not the name of
 # package as specified by setuptools, for packages with "-" (hyphens) in their
@@ -210,7 +209,7 @@ class S3Index:
     def __init__(self: S3IndexType, objects: List[S3Object], prefix: str) -> None:
         self.objects = objects
         self.prefix = prefix.rstrip("/")
-        self.html_name = PREFIXES_WITH_HTML[self.prefix]
+        self.html_name = "index.html"
         # should dynamically grab subdirectories like whl/test/cu101
         # so we don't need to add them manually anymore
         self.subdirs = {
@@ -295,33 +294,27 @@ class S3Index:
     def obj_to_package_name(self, obj: S3Object) -> str:
         return path.basename(obj.key).split('-', 1)[0].lower()
 
-    def to_legacy_html(
+    def to_libtorch_html(
         self,
         subdir: Optional[str] = None
     ) -> str:
         """Generates a string that can be used as the HTML index
 
         Takes our objects and transforms them into HTML that have historically
-        been used by pip for installing pytorch.
-
-        NOTE: These are not PEP 503 compliant but are here for legacy purposes
+        been used by pip for installing pytorch, but now only used to generate libtorch browseable folder.
         """
         out: List[str] = []
         subdir = self._resolve_subdir(subdir)
         is_root = subdir == self.prefix
-        for obj in self.gen_file_list(subdir):
+        for obj in self.gen_file_list(subdir, "libtorch"):
+            # Skip root objs, as they are irrelevant for libtorch indexes
+            if not is_root and self.is_obj_at_root(obj):
+                continue
             # Strip our prefix
             sanitized_obj = obj.key.replace(subdir, "", 1)
             if sanitized_obj.startswith('/'):
                 sanitized_obj = sanitized_obj.lstrip("/")
-            # we include objects at our root prefix so that users can still
-            # install packages like torchaudio / torchtext even if they want
-            # to install a specific GPU arch of torch / torchvision
-            if not is_root and self.is_obj_at_root(obj):
-                # strip root prefix
-                sanitized_obj = obj.key.replace(self.prefix, "", 1).lstrip("/")
-                sanitized_obj = f"../{sanitized_obj}"
-            out.append(f'<a href="{sanitized_obj}">{sanitized_obj}</a><br/>')
+            out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
         return "\n".join(sorted(out))
 
     def to_simple_package_html(
@@ -365,7 +358,7 @@ class S3Index:
         out.append(f'<!--TIMESTAMP {int(time.time())}-->')
         return '\n'.join(out)
 
-    def upload_legacy_html(self) -> None:
+    def upload_libtorch_html(self) -> None:
         for subdir in self.subdirs:
             print(f"INFO Uploading {subdir}/{self.html_name}")
             BUCKET.Object(
@@ -374,7 +367,7 @@ class S3Index:
                 ACL='public-read',
                 CacheControl='no-cache,no-store,must-revalidate',
                 ContentType='text/html',
-                Body=self.to_legacy_html(subdir=subdir)
+                Body=self.to_libtorch_html(subdir=subdir)
             )
 
     def upload_pep503_htmls(self) -> None:
@@ -400,12 +393,12 @@ class S3Index:
                     Body=self.to_simple_package_html(subdir=subdir, package_name=pkg_name)
                 )
 
-    def save_legacy_html(self) -> None:
+    def save_libtorch_html(self) -> None:
         for subdir in self.subdirs:
             print(f"INFO Saving {subdir}/{self.html_name}")
             makedirs(subdir, exist_ok=True)
             with open(path.join(subdir, self.html_name), mode="w", encoding="utf-8") as f:
-                f.write(self.to_legacy_html(subdir=subdir))
+                f.write(self.to_libtorch_html(subdir=subdir))
 
     def save_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
@@ -518,10 +511,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "prefix",
         type=str,
-        choices=list(PREFIXES_WITH_HTML.keys()) + ["all"]
+        choices=PREFIXES + ["all"]
     )
     parser.add_argument("--do-not-upload", action="store_true")
-    parser.add_argument("--generate-pep503", action="store_true")
     parser.add_argument("--compute-sha256", action="store_true")
     return parser
 
@@ -533,22 +525,23 @@ def main() -> None:
     if args.compute_sha256:
         action = "Computing checksums"
 
-    prefixes = PREFIXES_WITH_HTML if args.prefix == 'all' else [args.prefix]
+    prefixes = PREFIXES if args.prefix == 'all' else [args.prefix]
     for prefix in prefixes:
+        generate_pep503 = prefix.startswith("whl")
         print(f"INFO: {action} for '{prefix}'")
         stime = time.time()
-        idx = S3Index.from_S3(prefix=prefix, with_metadata=args.generate_pep503 or args.compute_sha256)
+        idx = S3Index.from_S3(prefix=prefix, with_metadata=generate_pep503 or args.compute_sha256)
         etime = time.time()
         print(f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime-stime:.2f} seconds")
         if args.compute_sha256:
             idx.compute_sha256()
         elif args.do_not_upload:
-            idx.save_legacy_html()
-            if args.generate_pep503:
+            idx.save_libtorch_html()
+            if generate_pep503:
                 idx.save_pep503_htmls()
         else:
-            idx.upload_legacy_html()
-            if args.generate_pep503:
+            idx.upload_libtorch_html()
+            if generate_pep503:
                 idx.upload_pep503_htmls()
 
 
