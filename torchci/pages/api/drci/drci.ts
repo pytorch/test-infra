@@ -8,8 +8,10 @@ import {
   getDrciComment,
   getSuppressedLabels,
   hasSimilarFailures,
+  hasSimilarFailuresInSamePR,
   HUD_URL,
   isExcludedFromFlakiness,
+  isGitHubError,
   isInfraFlakyJob,
   isLogClassifierFailed,
   NUM_MINUTES,
@@ -743,7 +745,7 @@ export async function getWorkflowJobsStatuses(
   relatedInfo: Map<string, string>;
 }> {
   let pending = 0;
-  const failedJobs: RecentWorkflowsData[] = [];
+  const preprocessFailedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
@@ -890,8 +892,43 @@ export async function getWorkflowJobsStatuses(
         }
       }
 
-      failedJobs.push(job);
+      preprocessFailedJobs.push(job);
     }
+  }
+
+  const failedJobs: RecentWorkflowsData[] = [];
+
+  // Verify that the failed job is unique and there is no similar flaky, broken trunk,
+  // or unstable jobs in the same pull request. If there are some, these failures are
+  // also considered unrelated
+  for (const job of preprocessFailedJobs) {
+    // If the failure is a generic GitHub error, don't do anything because we run the
+    // risk of getting false positives
+    if (isGitHubError(job)) {
+      failedJobs.push(job);
+      continue;
+    }
+
+    // Some jobs are marked as unstable while similar ones are not, i.e. different CUDA/python versions
+    const similarUnstableFailure = hasSimilarFailuresInSamePR(
+      job,
+      unstableJobs
+    );
+    if (similarUnstableFailure !== undefined) {
+      unstableJobs.push(job);
+      relatedJobs.set(job.id, similarUnstableFailure);
+      continue;
+    }
+
+    // Searching for similar flaky failures miss this case
+    const similarFlakyFailure = hasSimilarFailuresInSamePR(job, flakyJobs);
+    if (similarFlakyFailure !== undefined) {
+      flakyJobs.push(job);
+      relatedJobs.set(job.id, similarFlakyFailure);
+      continue;
+    }
+
+    failedJobs.push(job);
   }
 
   return {

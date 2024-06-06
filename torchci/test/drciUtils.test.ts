@@ -5,7 +5,9 @@ import nock from "nock";
 import {
   getSuppressedLabels,
   hasSimilarFailures,
+  hasSimilarFailuresInSamePR,
   isExcludedFromFlakiness,
+  isGitHubError,
   isInfraFlakyJob,
   isLogClassifierFailed,
   MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
@@ -429,5 +431,75 @@ describe("Test various utils used by Dr.CI", () => {
         "suppress-api-compatibility-check",
       ])
     ).toEqual(["suppress-bc-linter", "suppress-api-compatibility-check"]);
+  });
+
+  test("test isGitHubError", () => {
+    const job: RecentWorkflowsData = {
+      jobName: "A job name",
+
+      // Doesn't matter, just mocking
+      id: "A",
+      completed_at: "2023-08-01T00:00:00Z",
+      html_url: "A",
+      head_sha: "A",
+      failure_captures: [],
+    };
+    expect(isGitHubError(job)).toEqual(false);
+
+    job.failure_captures.push("ERROR");
+    expect(isGitHubError(job)).toEqual(false);
+
+    job.failure_captures.push("Process completed with exit code 1");
+    expect(isGitHubError(job)).toEqual(true);
+  });
+
+  test("test hasSimilarFailuresInSamePR", () => {
+    const job: RecentWorkflowsData = {
+      name: "a job name",
+
+      // Doesn't matter, just mocking
+      id: "A",
+      completed_at: "2023-08-01T00:00:00Z",
+      html_url: "A",
+      head_sha: "A",
+      failure_captures: ["A mock error"],
+    };
+    const failures: RecentWorkflowsData[] = [
+      {
+        name: "a job name",
+
+        // Doesn't matter, just mocking
+        id: "A",
+        completed_at: "2023-08-01T00:00:00Z",
+        html_url: "A",
+        head_sha: "A",
+        failure_captures: ["A different mock error"],
+      },
+      {
+        name: "a different job name",
+
+        // Doesn't matter, just mocking
+        id: "A",
+        completed_at: "2023-08-01T00:00:00Z",
+        html_url: "A",
+        head_sha: "A",
+        failure_captures: ["A different mock error"],
+      },
+    ];
+    expect(hasSimilarFailuresInSamePR(job, failures)).toEqual(undefined);
+
+    failures.push({
+      name: "another different job name",
+
+      // Doesn't matter, just mocking
+      id: "A",
+      completed_at: "2023-08-01T00:00:00Z",
+      html_url: "A",
+      head_sha: "A",
+      failure_captures: ["A mock error"],
+    });
+    expect(hasSimilarFailuresInSamePR(job, failures)?.name).toEqual(
+      "another different job name"
+    );
   });
 });

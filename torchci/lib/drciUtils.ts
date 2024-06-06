@@ -49,6 +49,9 @@ export const MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES = 7 * 24;
 export const SUPPRESSED_JOB_BY_LABELS: { [job: string]: string[] } = {
   bc_linter: ["suppress-bc-linter", "suppress-api-compatibility-check"],
 };
+export const LOG_CLASSIFIER_CATCH_ALL_GITHUB_ERROR = new RegExp(
+  "Process completed with exit code \\d+"
+);
 
 export function formDrciHeader(
   owner: string,
@@ -424,4 +427,33 @@ export function getSuppressedLabels(
   }
 
   return _.intersection(SUPPRESSED_JOB_BY_LABELS[job.jobName], labels);
+}
+
+export function isGitHubError(job: RecentWorkflowsData): boolean {
+  if (job.failure_captures === null || job.failure_captures === undefined) {
+    return false;
+  }
+
+  for (const failureCapture of job.failure_captures) {
+    const matchTest = failureCapture.match(
+      LOG_CLASSIFIER_CATCH_ALL_GITHUB_ERROR
+    );
+    if (matchTest) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function hasSimilarFailuresInSamePR(
+  job: RecentWorkflowsData,
+  unrelatedFailures: RecentWorkflowsData[]
+): RecentWorkflowsData | undefined {
+  for (const failure of unrelatedFailures) {
+    if (isSameFailure(job, failure, false)) {
+      return failure;
+    }
+  }
+
+  return;
 }

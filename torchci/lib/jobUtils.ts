@@ -427,7 +427,8 @@ export function isFailureFromPrevMergeCommit(
 
 export function isSameFailure(
   jobA: RecentWorkflowsData,
-  jobB: RecentWorkflowsData
+  jobB: RecentWorkflowsData,
+  doJobNameCheck: boolean = true
 ): boolean {
   if (
     jobA.name === undefined ||
@@ -443,7 +444,7 @@ export function isSameFailure(
   const jobANameNoSuffix = removeJobNameSuffix(jobA.name);
   const jobBNameNoSuffix = removeJobNameSuffix(jobB.name);
 
-  if (jobANameNoSuffix !== jobBNameNoSuffix) {
+  if (doJobNameCheck && jobANameNoSuffix !== jobBNameNoSuffix) {
     return false;
   }
 
