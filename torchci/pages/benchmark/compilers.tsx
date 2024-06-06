@@ -135,7 +135,7 @@ function Report({
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
       <SummaryPanel
-        dashboard={"TorchInductor"}
+        dashboard={"torchinductor"}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
