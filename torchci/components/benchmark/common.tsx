@@ -7,7 +7,7 @@ export const LAST_N_DAYS = 7;
 export const TIME_FIELD_NAME = "granularity_bucket";
 export const DASHBOARD_QUERY_MAP: { [k: string]: string } = {
   torchao: "torchao_query",
-  torchinductor: "compiler_benchmarks_performance",
+  torchinductor: "compilers_benchmarks_performance",
 };
 export const DASHBOARD_NAME_MAP: { [k: string]: string } = {
   torchao: "TorchAO",
