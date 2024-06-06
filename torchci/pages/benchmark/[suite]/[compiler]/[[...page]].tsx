@@ -187,6 +187,7 @@ export default function Page() {
     (router.query.dashboardName as string) ?? "TorchInductor";
   const queryName: string =
     (router.query.queryName as string) ?? "compilers_benchmark_performance";
+  const branchQueryName = queryName + "_branch";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const [startTime, setStartTime] = useState(defaultStartTime);
@@ -348,7 +349,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={queryName}
+          queryName={branchQueryName}
           queryCollection={"inductor"}
           branch={rBranch}
           setBranch={setRBranch}
@@ -363,7 +364,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={queryName}
+          queryName={branchQueryName}
           queryCollection={"inductor"}
           branch={lBranch}
           setBranch={setLBranch}
