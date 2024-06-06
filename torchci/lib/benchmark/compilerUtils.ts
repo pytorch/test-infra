@@ -1,7 +1,7 @@
 import {
   BLOCKLIST_COMPILERS,
   COMPILER_NAMES_TO_DISPLAY_NAMES,
-  // PASSING_ACCURACY,
+  PASSING_ACCURACY,
   SCALE,
 } from "components/benchmark/compilers/common";
 import { CompilerPerformanceData } from "lib/types";
@@ -39,9 +39,9 @@ export function getPassingModels(data: CompilerPerformanceData[]) {
       models[bucket][workflowId][suite][compiler] = new Set<string>();
     }
 
-    // if (PASSING_ACCURACY.includes(accuracy)) {
-    models[bucket][workflowId][suite][compiler].add(model);
-    // }
+    if (PASSING_ACCURACY.includes(accuracy)) {
+      models[bucket][workflowId][suite][compiler].add(model);
+    }
   });
 
   return models;
