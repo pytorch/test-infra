@@ -428,7 +428,7 @@ describe("verify-disable-test-issue-bot", () => {
         (body) => !body.body.includes("don't have permission")
       )
       .reply(200)
-      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
         _.isEqual(body.labels, ["module: rocm"])
       )
       .reply(200, []);
@@ -463,7 +463,7 @@ describe("verify-disable-test-issue-bot", () => {
         (body) => !body.body.includes("don't have permission")
       )
       .reply(200)
-      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
         _.isEqual(body.labels, ["random label", "module: rocm"])
       )
       .reply(200, []);

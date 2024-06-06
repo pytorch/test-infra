@@ -290,7 +290,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       // check labels, add labels as needed
       let expectedLabels = getExpectedLabels(platformsToSkip, labels);
       if (!_.isEqual(new Set(expectedLabels), new Set(labels))) {
-        await context.octokit.issues.setLabels({
+        await context.octokit.issues.addLabels({
           owner,
           repo,
           issue_number: number,
