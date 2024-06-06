@@ -1,58 +1,34 @@
 {
-  "inductor / cuda12.1-py3.10-gcc9-sm86 / test (dynamic_inductor_timm)": [
-    "atalman",
-    "127438",
-    "https://github.com/pytorch/pytorch/issues/127438",
-    "inductor",
-    "cuda12.1-py3.10-gcc9-sm86",
-    "test (dynamic_inductor_timm)"
-  ],
-  "inductor / cuda12.1-py3.10-gcc9-sm86 / test (inductor_timm)": [
-    "clee2000",
-    "126884",
-    "https://github.com/pytorch/pytorch/issues/126884",
-    "inductor",
-    "cuda12.1-py3.10-gcc9-sm86",
-    "test (inductor_timm)"
-  ],
-  "inductor / cuda12.4-py3.10-gcc9-sm86 / test (dynamic_inductor_timm)": [
+  "Build manywheel docker images for s390x / build-docker-cpu-s390x": [
     "huydhn",
-    "127680",
-    "https://github.com/pytorch/pytorch/issues/127680",
-    "inductor",
-    "cuda12.4-py3.10-gcc9-sm86",
-    "test (dynamic_inductor_timm)"
+    "154074",
+    "https://github.com/pytorch/pytorch/issues/154074",
+    "Build manywheel docker images for s390x",
+    "build-docker-cpu-s390x",
+    ""
   ],
-  "inductor / linux-jammy-cpu-py3.8-gcc11-inductor / test (inductor_torchbench_cpu_smoketest_perf)": [
-    "clee2000",
-    "126993",
-    "https://github.com/pytorch/pytorch/issues/126993",
-    "inductor",
-    "linux-jammy-cpu-py3.8-gcc11-inductor",
-    "test (inductor_torchbench_cpu_smoketest_perf)"
+  "Lint / Link checks / Lint URLs / linux-job": [
+    "huydhn",
+    "152884",
+    "https://github.com/pytorch/pytorch/issues/152884",
+    "Lint",
+    "Link checks",
+    "Lint URLs / linux-job"
   ],
-  "linux-binary-manywheel / manywheel-py3_8-cuda12_1-test / test": [
-    "atalman",
-    "127288",
-    "https://github.com/pytorch/pytorch/issues/127288",
-    "linux-binary-manywheel",
-    "manywheel-py3_8-cuda12_1-test",
-    "test"
+  "Lint / Lint URLs / linux-job": [
+    "huydhn",
+    "152489",
+    "https://github.com/pytorch/pytorch/issues/152489",
+    "Lint",
+    "Lint URLs",
+    "linux-job"
   ],
-  "linux-binary-manywheel / manywheel-py3_8-cuda12_4-test / test": [
-    "atalman",
-    "127289",
-    "https://github.com/pytorch/pytorch/issues/127289",
-    "linux-binary-manywheel",
-    "manywheel-py3_8-cuda12_4-test",
-    "test"
-  ],
-  "pull / linux-focal-cuda12.4-py3.10-gcc9-sm86 / build": [
-    "atalman",
-    "127104",
-    "https://github.com/pytorch/pytorch/issues/127104",
+  "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
+    "ZainRizvi",
+    "158876",
+    "https://github.com/pytorch/pytorch/issues/158876",
     "pull",
-    "linux-focal-cuda12.4-py3.10-gcc9-sm86",
-    "build"
+    "linux-jammy-py3_9-clang9-xla",
+    "test (xla)"
   ]
 }

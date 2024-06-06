@@ -72,5 +72,29 @@
   {
     "name": "linux",
     "captures": ["Failed to fetch"]
+  },
+  {
+    "name": "linux",
+    "captures": ["Error response from daemon"]
+  },
+  {
+    "name": "linux",
+    "captures": ["connect ETIMEDOUT"]
+  },
+  {
+    "name": "linux",
+    "captures": ["read ECONNRESET"]
+  },
+  {
+    "name": "llm-retrieval",
+    "captures": [".*"]    
+  },
+  {
+    "name": "win",
+    "captures": ["Can't find 'action.yml', 'action.yaml' or 'Dockerfile'"]
+  },
+  {
+    "name": "linux-binary-libtorch",
+    "captures": ["Error downloading packages"]    
   }
 ]
