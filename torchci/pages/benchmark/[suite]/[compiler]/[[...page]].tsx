@@ -205,8 +205,10 @@ export default function Page() {
   useEffect(() => {
     const dashboardName: string =
       (router.query.dashboardName as string) ?? "TorchInductor";
+    setDashboardName(dashboardName);
     const queryName: string =
       (router.query.queryName as string) ?? "compilers_benchmark_performance";
+    setQueryname(queryName);
 
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
