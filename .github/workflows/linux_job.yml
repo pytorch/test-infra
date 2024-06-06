@@ -153,6 +153,9 @@ jobs:
         uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
+          instructions: |
+            All testing is done inside the container, to start an interactive session run:
+               docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
