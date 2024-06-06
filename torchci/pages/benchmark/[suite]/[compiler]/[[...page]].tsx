@@ -183,6 +183,8 @@ export default function Page() {
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
+  const dashboardName: string = (router.query.dashboardName as string) ?? "TorchInductor";
+  const queryName: string = (router.query.queryName as string) ?? "compilers_benchmark_performance";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const [startTime, setStartTime] = useState(defaultStartTime);
@@ -198,18 +200,9 @@ export default function Page() {
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
-  const [queryName, setQueryname] = useState<string>("");
-  const [dashboardName, setDashboardName] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
-    const dashboardName: string =
-      (router.query.dashboardName as string) ?? "TorchInductor";
-    setDashboardName(dashboardName);
-    const queryName: string =
-      (router.query.queryName as string) ?? "compilers_benchmark_performance";
-    setQueryname(queryName);
-
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
       setStartTime(dayjs(startTime));
