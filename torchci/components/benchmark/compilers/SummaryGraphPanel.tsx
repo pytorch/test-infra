@@ -23,6 +23,7 @@ import useSWR from "swr";
 const GRAPH_ROW_HEIGHT = 245;
 
 export function GraphPanel({
+  queryName,
   queryParams,
   granularity,
   suite,
@@ -30,6 +31,7 @@ export function GraphPanel({
   lCommit,
   rCommit,
 }: {
+  queryName: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
@@ -41,6 +43,7 @@ export function GraphPanel({
   // from Rockset small enough (<6MB) to fit into Vercel lambda limit
   return (
     <SuiteGraphPanel
+      queryName={queryName}
       queryParams={queryParams}
       granularity={granularity}
       suite={suite}
@@ -52,6 +55,7 @@ export function GraphPanel({
 }
 
 function SuiteGraphPanel({
+  queryName,
   queryParams,
   granularity,
   suite,
@@ -59,6 +63,7 @@ function SuiteGraphPanel({
   lCommit,
   rCommit,
 }: {
+  queryName: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
@@ -67,7 +72,6 @@ function SuiteGraphPanel({
   rCommit: string;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithSuite: RocksetParam[] = [
     {

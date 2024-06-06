@@ -147,6 +147,7 @@ function Report({
         all_suites={SUITES}
       />
       <GraphPanel
+        queryName={"torchao_benchmark_performance"}
         queryParams={queryParams}
         granularity={granularity}
         suite={suite}

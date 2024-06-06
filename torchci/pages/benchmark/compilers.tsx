@@ -151,6 +151,7 @@ function Report({
         all_suites={SUITES}
       />
       <GraphPanel
+        queryName={"compilers_benchmark_performance"}
         queryParams={queryParams}
         granularity={granularity}
         suite={suite}
