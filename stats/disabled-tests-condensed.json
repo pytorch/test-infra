@@ -20,13 +20,6 @@
       "rocm"
     ]
   ],
-  "test__int_mm_k_16_n_32_use_transpose_a_False_use_transpose_b_False_cuda (__main__.TestLinalgCUDA)": [
-    "126866",
-    "https://github.com/pytorch/pytorch/issues/126866",
-    [
-      "rocm"
-    ]
-  ],
   "test__int_mm_k_32_n_16_use_transpose_a_True_use_transpose_b_False_cuda (__main__.TestLinalgCUDA)": [
     "127273",
     "https://github.com/pytorch/pytorch/issues/127273",
@@ -142,28 +135,11 @@
       "slow"
     ]
   ],
-  "test_aot_export_cond_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "123096",
-    "https://github.com/pytorch/pytorch/issues/123096",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_aot_export_cond_simple_cuda_int32 (__main__.TestHOPCUDA)": [
     "123194",
     "https://github.com/pytorch/pytorch/issues/123194",
     [
       "linux",
-      "slow"
-    ]
-  ],
-  "test_aot_export_while_loop_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "123948",
-    "https://github.com/pytorch/pytorch/issues/123948",
-    [
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
@@ -834,6 +810,13 @@
       "rocm"
     ]
   ],
+  "test_flash_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_64_is_causal_True_dropout_p_0_22_bfloat16_scale_l1_cuda_bfloat16 (__main__.TestSDPACudaOnlyCUDA)": [
+    "128119",
+    "https://github.com/pytorch/pytorch/issues/128119",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
@@ -1163,15 +1146,6 @@
       "dynamo"
     ]
   ],
-  "test_item_to_inputs_kernel_nobreak_cuda (__main__.TestInductorDynamicCUDA)": [
-    "119538",
-    "https://github.com/pytorch/pytorch/issues/119538",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_jvpvjp_nn_functional_conv3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "114654",
     "https://github.com/pytorch/pytorch/issues/114654",
@@ -1318,13 +1292,6 @@
       "inductor"
     ]
   ],
-  "test_memory_snapshot (__main__.TestCudaMallocAsync)": [
-    "126953",
-    "https://github.com/pytorch/pytorch/issues/126953",
-    [
-      "rocm"
-    ]
-  ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
@@ -1412,13 +1379,6 @@
     "https://github.com/pytorch/pytorch/issues/126689",
     [
       "rocm"
-    ]
-  ],
-  "test_non_contiguous_input_mm (__main__.TestMaxAutotune)": [
-    "126849",
-    "https://github.com/pytorch/pytorch/issues/126849",
-    [
-      "linux"
     ]
   ],
   "test_non_contiguous_input_mm_plus_mm (__main__.TestMaxAutotune)": [
@@ -1698,15 +1658,6 @@
       "rocm"
     ]
   ],
-  "test_pre_dispatch_export_while_loop_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "123943",
-    "https://github.com/pytorch/pytorch/issues/123943",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_precompilations (__main__.TestMaxAutotune)": [
     "124265",
     "https://github.com/pytorch/pytorch/issues/124265",
@@ -1788,6 +1739,13 @@
   "test_quantization_doc_ptsq (__main__.TestQuantizationDocs)": [
     "125669",
     "https://github.com/pytorch/pytorch/issues/125669",
+    [
+      "linux"
+    ]
+  ],
+  "test_quantization_doc_qat (__main__.TestQuantizationDocs)": [
+    "128118",
+    "https://github.com/pytorch/pytorch/issues/128118",
     [
       "linux"
     ]
@@ -1911,15 +1869,6 @@
     "https://github.com/pytorch/pytorch/issues/122491",
     [
       "linux"
-    ]
-  ],
-  "test_retrace_export_while_loop_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "123944",
-    "https://github.com/pytorch/pytorch/issues/123944",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_retracibility_dynamic_shapes (__main__.DynamicShapesExportTests)": [
@@ -2085,15 +2034,6 @@
       "dynamo"
     ]
   ],
-  "test_serialize_export_while_loop_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "123946",
-    "https://github.com/pytorch/pytorch/issues/123946",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_set_gloo_pg_timeout (__main__.ProcessGroupGlooTest)": [
     "115740",
     "https://github.com/pytorch/pytorch/issues/115740",
@@ -2146,13 +2086,6 @@
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
-    [
-      "linux"
-    ]
-  ],
-  "test_super_resolution_cuda (__main__.TestModels)": [
-    "105332",
-    "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
     ]
