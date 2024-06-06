@@ -183,8 +183,10 @@ export default function Page() {
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
-  const dashboardName: string = (router.query.dashboardName as string) ?? "TorchInductor";
-  const queryName: string = (router.query.queryName as string) ?? "compilers_benchmark_performance";
+  const dashboardName: string =
+    (router.query.dashboardName as string) ?? "TorchInductor";
+  const queryName: string =
+    (router.query.queryName as string) ?? "compilers_benchmark_performance";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const [startTime, setStartTime] = useState(defaultStartTime);
