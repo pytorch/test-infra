@@ -286,7 +286,7 @@ export default function Page() {
           TorchAO Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+          textToCopy={`${baseUrl}?dashboardName=TorchAO&queryName=torchao_query&startTime=${encodeURIComponent(
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()

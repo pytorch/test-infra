@@ -33,6 +33,7 @@ import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 
 function Report({
+  queryName,
   queryParams,
   startTime,
   stopTime,
@@ -45,6 +46,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
+  queryName: string;
   queryParams: RocksetParam[];
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -58,7 +60,6 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -144,6 +145,7 @@ function Report({
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
       <GraphPanel
+        queryName={queryName}
         queryParams={queryParams}
         granularity={granularity}
         compiler={compiler}
@@ -196,9 +198,16 @@ export default function Page() {
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [queryName, setQueryname] = useState<string>("");
+  const [dashboardName, setDashboardName] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
+    const dashboardName: string =
+      (router.query.dashboardName as string) ?? "TorchInductor";
+    const queryName: string =
+      (router.query.queryName as string) ?? "compilers_benchmark_performance";
+
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
       setStartTime(dayjs(startTime));
@@ -306,12 +315,12 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchInductor Performance DashBoard (
+          ({dashboardName}) Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <CopyLink
           textToCopy={
-            `${baseUrl}?startTime=${encodeURIComponent(
+            `${baseUrl}?dashboardName=${dashboardName}&queryName=${queryName}&startTime=${encodeURIComponent(
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
@@ -342,7 +351,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={queryName}
           queryCollection={"inductor"}
           branch={rBranch}
           setBranch={setRBranch}
@@ -357,7 +366,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={queryName}
           queryCollection={"inductor"}
           branch={lBranch}
           setBranch={setLBranch}
@@ -372,6 +381,7 @@ export default function Page() {
 
       <Grid item xs={12}>
         <Report
+          queryName={queryName}
           queryParams={queryParams}
           startTime={startTime}
           stopTime={stopTime}
