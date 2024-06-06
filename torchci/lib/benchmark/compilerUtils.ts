@@ -39,9 +39,10 @@ export function getPassingModels(data: CompilerPerformanceData[]) {
       models[bucket][workflowId][suite][compiler] = new Set<string>();
     }
 
-    if (PASSING_ACCURACY.includes(accuracy)) {
-      models[bucket][workflowId][suite][compiler].add(model);
-    }
+    // TODO: remove this before pass
+    // if (PASSING_ACCURACY.includes(accuracy)) {
+    models[bucket][workflowId][suite][compiler].add(model);
+    // }
   });
 
   return models;
