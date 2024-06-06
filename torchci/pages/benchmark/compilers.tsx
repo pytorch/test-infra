@@ -135,6 +135,7 @@ function Report({
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
       <SummaryPanel
+        dashboard={"TorchInductor"}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -290,7 +291,7 @@ export default function Page() {
           TorchInductor Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+          textToCopy={`${baseUrl}?dashboard=torchinductor&startTime=${encodeURIComponent(
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()

@@ -32,6 +32,7 @@ const MEMORY_HEADER = `Peak mem compress ratio (threshold = ${COMPRESSION_RATIO_
 const PEAK_MEMORY_USAGE_HEADER = `Peak dynamo mem usage (GB)`;
 
 export function ModelPanel({
+  dashboard,
   startTime,
   stopTime,
   granularity,
@@ -43,6 +44,7 @@ export function ModelPanel({
   lPerfData,
   rPerfData,
 }: {
+  dashboard: string;
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -174,7 +176,7 @@ export function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
                   return (

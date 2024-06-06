@@ -2,6 +2,8 @@ import { Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
+  DASHBOARD_NAME_MAP,
+  DASHBOARD_QUERY_MAP,
   DEFAULT_REPO_NAME,
   LAST_N_DAYS,
   MAIN_BRANCH,
@@ -33,6 +35,7 @@ import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 
 function Report({
+  dashboard,
   queryName,
   queryParams,
   startTime,
@@ -46,6 +49,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
+  dashboard: string;
   queryName: string;
   queryParams: RocksetParam[];
   startTime: dayjs.Dayjs;
@@ -155,6 +159,7 @@ function Report({
         rCommit={rBranchAndCommit.commit}
       />
       <ModelPanel
+        dashboard={dashboard}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -183,10 +188,10 @@ export default function Page() {
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
-  const dashboardName: string =
-    (router.query.dashboardName as string) ?? "TorchInductor";
+  const dashboard: string =
+    (router.query.dashboard as string) ?? "TorchInductor";
   const queryName: string =
-    (router.query.queryName as string) ?? "compilers_benchmark_performance";
+    DASHBOARD_QUERY_MAP[dashboard] ?? "compilers_benchmark_performance";
   const branchQueryName = queryName + "_branches";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
@@ -313,12 +318,12 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          ({dashboardName}) Performance DashBoard (
+          {DASHBOARD_NAME_MAP[dashboard]} Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <CopyLink
           textToCopy={
-            `${baseUrl}?dashboardName=${dashboardName}&queryName=${queryName}&startTime=${encodeURIComponent(
+            `${baseUrl}?dashboard=${dashboard}&startTime=${encodeURIComponent(
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
@@ -379,6 +384,7 @@ export default function Page() {
 
       <Grid item xs={12}>
         <Report
+          dashboard={dashboard}
           queryName={queryName}
           queryParams={queryParams}
           startTime={startTime}
