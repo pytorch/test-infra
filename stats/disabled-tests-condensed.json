@@ -1871,13 +1871,6 @@
       "rocm"
     ]
   ],
-  "test_register_fsdp_forward_method (__main__.TestFullyShardCustomForwardMethod)": [
-    "126851",
-    "https://github.com/pytorch/pytorch/issues/126851",
-    [
-      "linux"
-    ]
-  ],
   "test_relu_cuda_dynamic_shapes_cuda_wrapper (__main__.DynamicShapesCudaWrapperCudaTests)": [
     "122364",
     "https://github.com/pytorch/pytorch/issues/122364",
