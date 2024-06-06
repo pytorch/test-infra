@@ -6,5 +6,13 @@
     "distributed",
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
+  ],
+  "inductor / cuda12.1-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
+    "huydhn",
+    "128094",
+    "https://github.com/pytorch/pytorch/issues/128094",
+    "inductor",
+    "cuda12.1-py3.10-gcc9-sm80",
+    "test (inductor_torchbench_smoketest_perf)"
   ]
 }
