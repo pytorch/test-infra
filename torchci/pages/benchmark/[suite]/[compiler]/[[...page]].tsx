@@ -187,7 +187,7 @@ export default function Page() {
     (router.query.dashboardName as string) ?? "TorchInductor";
   const queryName: string =
     (router.query.queryName as string) ?? "compilers_benchmark_performance";
-  const branchQueryName = queryName + "_branch";
+  const branchQueryName = queryName + "_branches";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const [startTime, setStartTime] = useState(defaultStartTime);
