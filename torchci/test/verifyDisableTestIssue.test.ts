@@ -317,7 +317,7 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("ERROR")).toBeFalsy();
   });
 
-  test("various getExpectedLabels tests", async () => {
+  test("various getExpectedPlatformLabels tests", async () => {
     expect(await bot.getExpectedPlatformLabels(["linux"], ["random"])).toEqual([
       [],
       [],
