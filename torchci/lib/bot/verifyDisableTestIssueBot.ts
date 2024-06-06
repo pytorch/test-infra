@@ -45,16 +45,22 @@ async function getValidationComment(
   return [0, ""];
 }
 
-export function getExpectedLabels(
+// Returns the platform labels that are expected, and invalid labels that we do not expect to be there
+export function getExpectedPlatformLabels(
   platforms: string[],
   labels: string[]
-): string[] {
+): [string[], string[]] {
   let supportedPlatformLabels = Array.from(supportedPlatforms.values()).flat();
-  let nonIssuePlatformLabels = labels.filter(
-    (label) => !supportedPlatformLabels.includes(label)
+  let existingPlatformLabels = labels.filter((label) =>
+    supportedPlatformLabels.includes(label)
   );
   let expectedPlatformLabels = getPlatformLabels(platforms);
-  return nonIssuePlatformLabels.concat(expectedPlatformLabels);
+  // everything in labels that's not in expectedLabels is invalid
+  let invalidPlatformLabels = _.difference(
+    existingPlatformLabels,
+    expectedPlatformLabels
+  );
+  return [expectedPlatformLabels, invalidPlatformLabels];
 }
 
 export function parseBody(body: string) {
@@ -103,7 +109,6 @@ export function parseTitle(title: string, prefix: string): string {
 
 function testNameIsExpected(testName: string): boolean {
   const split = testName.split(/\s+/);
-  console.log(split);
   if (split.length !== 2) {
     return false;
   }
@@ -288,13 +293,23 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       });
     } else {
       // check labels, add labels as needed
-      let expectedLabels = getExpectedLabels(platformsToSkip, labels);
-      if (!_.isEqual(new Set(expectedLabels), new Set(labels))) {
-        await context.octokit.issues.setLabels({
+      let [expectedPlatformLabels, invalidPlatformLabels] =
+        getExpectedPlatformLabels(platformsToSkip, labels);
+      let labelsSet = new Set(labels);
+      if (!expectedPlatformLabels.every((label) => labelsSet.has(label))) {
+        await context.octokit.issues.addLabels({
           owner,
           repo,
           issue_number: number,
-          labels: expectedLabels,
+          labels: expectedPlatformLabels,
+        });
+      }
+      for (const invalidLabel of invalidPlatformLabels) {
+        await context.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: number,
+          name: invalidLabel,
         });
       }
     }

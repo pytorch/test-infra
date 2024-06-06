@@ -317,29 +317,32 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("ERROR")).toBeFalsy();
   });
 
-  test("various getExpectedLabels tests", async () => {
-    expect(await bot.getExpectedLabels(["linux"], ["random"])).toEqual([
-      "random",
-    ]);
-    expect(await bot.getExpectedLabels(["inductor"], ["random"])).toEqual([
-      "random",
-      "oncall: pt2",
+  test("various getExpectedPlatformLabels tests", async () => {
+    expect(await bot.getExpectedPlatformLabels(["linux"], ["random"])).toEqual([
+      [],
+      [],
     ]);
     expect(
-      await bot.getExpectedLabels(["linux"], ["random", "module: rocm"])
-    ).toEqual(["random"]);
+      await bot.getExpectedPlatformLabels(["inductor"], ["random"])
+    ).toEqual([["oncall: pt2"], []]);
     expect(
-      await bot.getExpectedLabels(["rocm"], ["random", "module: rocm"])
-    ).toEqual(["random", "module: rocm"]);
+      await bot.getExpectedPlatformLabels(["linux"], ["random", "module: rocm"])
+    ).toEqual([[], ["module: rocm"]]);
     expect(
-      await bot.getExpectedLabels(
+      await bot.getExpectedPlatformLabels(["rocm"], ["random", "module: rocm"])
+    ).toEqual([["module: rocm"], []]);
+    expect(
+      await bot.getExpectedPlatformLabels(
         ["dynamo", "inductor"],
         ["random", "module: rocm"]
       )
-    ).toEqual(["random", "oncall: pt2"]);
+    ).toEqual([["oncall: pt2"], ["module: rocm"]]);
     expect(
-      await bot.getExpectedLabels(["linux", "rocm"], ["random", "module: rocm"])
-    ).toEqual(["random"]);
+      await bot.getExpectedPlatformLabels(
+        ["linux", "rocm"],
+        ["random", "module: rocm"]
+      )
+    ).toEqual([[], ["module: rocm"]]);
   });
 });
 
@@ -428,7 +431,7 @@ describe("verify-disable-test-issue-bot", () => {
         (body) => !body.body.includes("don't have permission")
       )
       .reply(200)
-      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
         _.isEqual(body.labels, ["module: rocm"])
       )
       .reply(200, []);
@@ -463,8 +466,12 @@ describe("verify-disable-test-issue-bot", () => {
         (body) => !body.body.includes("don't have permission")
       )
       .reply(200)
-      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-        _.isEqual(body.labels, ["random label", "module: rocm"])
+      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+        _.isEqual(body.labels, ["module: rocm"])
+      )
+      .reply(200, [])
+      .delete(
+        `/repos/${owner}/${repo}/issues/${number}/labels/module%3A%20windows`
       )
       .reply(200, []);
 
