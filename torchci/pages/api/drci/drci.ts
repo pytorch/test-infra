@@ -534,6 +534,12 @@ export function constructResultsComment(
   let output = `\n`;
   const unrelatedFailureCount =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion !== "cancelled"
+  );
+  const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion === "cancelled"
+  );
   const failing =
     failedJobs.length +
     flakyJobs.length +
@@ -544,9 +550,13 @@ export function constructResultsComment(
   const successIcon = `:white_check_mark:`;
   const failuresIcon = `:x:`;
   const noneFailing = `No Failures`;
-  const significantFailures = `${failedJobs.length} New ${pluralize(
+  const significantFailures = `${newFailedJobs.length} New ${pluralize(
     "Failure",
-    failedJobs.length
+    newFailedJobs.length
+  )}`;
+  const cancelledFailures = `${cancelledJobs.length} Cancelled ${pluralize(
+    "Job",
+    cancelledJobs.length
   )}`;
   const unrelatedFailures = `${unrelatedFailureCount} Unrelated ${pluralize(
     "Failure",
@@ -555,13 +565,14 @@ export function constructResultsComment(
   const pendingJobs = `${pending} Pending`;
 
   const hasAnyFailing = failing > 0;
-  const hasSignificantFailures = failedJobs.length > 0;
+  const hasSignificantFailures = newFailedJobs.length > 0;
+  const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
   const hasUnrelatedFailures =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
 
   let icon = "";
-  if (hasSignificantFailures) {
+  if (hasSignificantFailures || hasCancelledFailures) {
     icon = failuresIcon;
   } else if (hasPending) {
     icon = pendingIcon;
@@ -572,6 +583,9 @@ export function constructResultsComment(
   let title_messages = [];
   if (hasSignificantFailures) {
     title_messages.push(significantFailures);
+  }
+  if (hasCancelledFailures) {
+    title_messages.push(cancelledFailures);
   }
   if (!hasAnyFailing) {
     title_messages.push(noneFailing);
@@ -603,20 +617,45 @@ export function constructResultsComment(
   if (!hasAnyFailing) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
-  output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
-    `NEW ${pluralize("FAILURE", failedJobs.length).toLocaleUpperCase()}`,
-    `The following ${failedJobs.length > 1 ? "jobs have" : "job has"} failed`,
-    failedJobs,
-    "",
-    false,
-    relatedJobs,
-    relatedIssues,
-    relatedInfo
-  );
+
+  if (newFailedJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `NEW ${pluralize("FAILURE", newFailedJobs.length).toLocaleUpperCase()}`,
+      `The following ${
+        newFailedJobs.length > 1 ? "jobs have" : "job has"
+      } failed`,
+      newFailedJobs,
+      "",
+      false,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
+  }
+
+  if (cancelledJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `CANCELLED ${pluralize("JOB", cancelledJobs.length).toLocaleUpperCase()}`,
+      `The following ${
+        cancelledJobs.length > 1 ? "jobs were" : "job was"
+      } cancelled. Please retry`,
+      cancelledJobs,
+      "",
+      true,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
+  }
+
   output += constructResultsJobsSections(
     hudBaseUrl,
     owner,
