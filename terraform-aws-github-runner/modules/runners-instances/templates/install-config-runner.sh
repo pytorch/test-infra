@@ -36,7 +36,7 @@ install_hooks
 
 ${arm_patch}
 
-if [ "$(uname -m)" == "aarch64" ]; then
+if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
   TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
   INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
   REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
@@ -56,7 +56,10 @@ aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 export RUNNER_ALLOW_RUNASROOT=1
 os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)
 if [[ "$os_id" =~ ^ubuntu.* ]]; then
-    ./bin/installdependencies.sh
+  sudo ./bin/installdependencies.sh
+elif uname -a | grep 'amzn2023' > /dev/null; then
+  echo "Installing dependencies for Amazon Linux 2023"
+  sudo dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
 fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
