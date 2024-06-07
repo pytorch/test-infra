@@ -28,7 +28,7 @@ SELECT
   j._event_time AS time,
 FROM
   commons.workflow_run w
-  JOIN  commons.workflow_job j ON w.id = j.run_id HINT(join_broadcast = true)
+  JOIN commons.workflow_job j ON w.id = j.run_id HINT(join_broadcast = true)
   -- Do a left join here because the push table won't have any information about
   -- commits from forked repo
   LEFT JOIN relevant_pushes p ON p.after = j.head_sha HINT(join_strategy = lookup)
