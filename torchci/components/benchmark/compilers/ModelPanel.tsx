@@ -138,6 +138,8 @@ export function ModelPanel({
     };
   });
 
+  console.log(data);
+
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
     <Grid container spacing={2} style={{ height: "100%" }}>
