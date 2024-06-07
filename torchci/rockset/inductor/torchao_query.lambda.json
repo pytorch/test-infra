@@ -58,7 +58,7 @@
     },
     {
       "name": "workflowId",
-      "type": "string",
+      "type": "int",
       "value": "0"
     }
   ],
