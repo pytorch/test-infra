@@ -21,6 +21,7 @@ const GRAPH_ROW_HEIGHT = 245;
 const SCALE = 4;
 
 export function GraphPanel({
+  queryName,
   queryParams,
   granularity,
   compiler,
@@ -29,6 +30,7 @@ export function GraphPanel({
   lCommit,
   rCommit,
 }: {
+  queryName: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
   compiler: string;
@@ -38,7 +40,6 @@ export function GraphPanel({
   rCommit: string;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithBranch: RocksetParam[] = [
     {

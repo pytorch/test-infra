@@ -2,6 +2,8 @@ import { Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
+  DASHBOARD_NAME_MAP,
+  DASHBOARD_QUERY_MAP,
   DEFAULT_REPO_NAME,
   LAST_N_DAYS,
   MAIN_BRANCH,
@@ -33,6 +35,8 @@ import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 
 function Report({
+  dashboard,
+  queryName,
   queryParams,
   startTime,
   stopTime,
@@ -45,6 +49,8 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
+  dashboard: string;
+  queryName: string;
   queryParams: RocksetParam[];
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -58,7 +64,6 @@ function Report({
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryCollection = "inductor";
-  const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithL: RocksetParam[] = [
     {
@@ -144,6 +149,7 @@ function Report({
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
       <GraphPanel
+        queryName={queryName}
         queryParams={queryParams}
         granularity={granularity}
         compiler={compiler}
@@ -153,6 +159,7 @@ function Report({
         rCommit={rBranchAndCommit.commit}
       />
       <ModelPanel
+        dashboard={dashboard}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -181,6 +188,11 @@ export default function Page() {
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
+  const dashboard: string =
+    (router.query.dashboard as string) ?? "TorchInductor";
+  const queryName: string =
+    DASHBOARD_QUERY_MAP[dashboard] ?? "compilers_benchmark_performance";
+  const branchQueryName = queryName + "_branches";
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const [startTime, setStartTime] = useState(defaultStartTime);
@@ -306,12 +318,12 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchInductor Performance DashBoard (
+          {DASHBOARD_NAME_MAP[dashboard]} Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <CopyLink
           textToCopy={
-            `${baseUrl}?startTime=${encodeURIComponent(
+            `${baseUrl}?dashboard=${dashboard}&startTime=${encodeURIComponent(
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
@@ -342,7 +354,7 @@ export default function Page() {
           label={"Precision"}
         />
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={branchQueryName}
           queryCollection={"inductor"}
           branch={rBranch}
           setBranch={setRBranch}
@@ -357,7 +369,7 @@ export default function Page() {
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
-          queryName={"compilers_benchmark_performance_branches"}
+          queryName={branchQueryName}
           queryCollection={"inductor"}
           branch={lBranch}
           setBranch={setLBranch}
@@ -372,6 +384,8 @@ export default function Page() {
 
       <Grid item xs={12}>
         <Report
+          dashboard={dashboard}
+          queryName={queryName}
           queryParams={queryParams}
           startTime={startTime}
           stopTime={stopTime}

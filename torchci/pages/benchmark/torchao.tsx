@@ -131,6 +131,7 @@ function Report({
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
       <SummaryPanel
+        dashboard={"torchao"}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -286,7 +287,7 @@ export default function Page() {
           TorchAO Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+          textToCopy={`${baseUrl}?dashboard=torchao&startTime=${encodeURIComponent(
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
