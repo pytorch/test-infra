@@ -534,6 +534,12 @@ export function constructResultsComment(
   let output = `\n`;
   const unrelatedFailureCount =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion !== "cancelled"
+  );
+  const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion === "cancelled"
+  );
   const failing =
     failedJobs.length +
     flakyJobs.length +
@@ -544,9 +550,13 @@ export function constructResultsComment(
   const successIcon = `:white_check_mark:`;
   const failuresIcon = `:x:`;
   const noneFailing = `No Failures`;
-  const significantFailures = `${failedJobs.length} New ${pluralize(
+  const significantFailures = `${newFailedJobs.length} New ${pluralize(
     "Failure",
-    failedJobs.length
+    newFailedJobs.length
+  )}`;
+  const cancelledFailures = `${cancelledJobs.length} Cancelled ${pluralize(
+    "Job",
+    cancelledJobs.length
   )}`;
   const unrelatedFailures = `${unrelatedFailureCount} Unrelated ${pluralize(
     "Failure",
@@ -555,13 +565,14 @@ export function constructResultsComment(
   const pendingJobs = `${pending} Pending`;
 
   const hasAnyFailing = failing > 0;
-  const hasSignificantFailures = failedJobs.length > 0;
+  const hasSignificantFailures = newFailedJobs.length > 0;
+  const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
   const hasUnrelatedFailures =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
 
   let icon = "";
-  if (hasSignificantFailures) {
+  if (hasSignificantFailures || hasCancelledFailures) {
     icon = failuresIcon;
   } else if (hasPending) {
     icon = pendingIcon;
@@ -572,6 +583,9 @@ export function constructResultsComment(
   let title_messages = [];
   if (hasSignificantFailures) {
     title_messages.push(significantFailures);
+  }
+  if (hasCancelledFailures) {
+    title_messages.push(cancelledFailures);
   }
   if (!hasAnyFailing) {
     title_messages.push(noneFailing);
@@ -604,9 +618,6 @@ export function constructResultsComment(
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
 
-  const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
-    (job) => job.conclusion !== "cancelled"
-  );
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -626,9 +637,6 @@ export function constructResultsComment(
     );
   }
 
-  const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
-    (job) => job.conclusion === "cancelled"
-  );
   if (cancelledJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
