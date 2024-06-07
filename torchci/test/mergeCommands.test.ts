@@ -13,6 +13,7 @@ describe("merge-bot", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
+    utils.mockConfig("pytorch-probot.yml", "mergebot: True");
   });
 
   afterEach(() => {
@@ -1497,5 +1498,86 @@ some other text lol
     await probot.receive(event);
 
     handleScope(scope);
+  });
+});
+
+describe("merge-bot not supported repo", () => {
+  let probot: probot.Probot;
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(pytorchBot);
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+    jest.restoreAllMocks();
+  });
+
+  test("no config", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scopes = [
+      nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/contents/.github%2Fpytorch-probot.yml`)
+        .reply(200, {
+          message: "Not Found",
+          documentation_url:
+            "https://docs.github.com/rest/repos/contents#get-repository-content",
+        })
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test("config does not have mergebot key", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    utils.mockConfig("pytorch-probot.yml", "hello: true", `${owner}/${repo}`);
+    const scopes = [
+      nock("https://api.github.com")
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
   });
 });

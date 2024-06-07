@@ -25,7 +25,7 @@ export function testOctokit(): Octokit {
 export function mockConfig(
   fileName: string,
   content: string,
-  repoKey: string
+  repoKey: string | RegExp = ".*"
 ): void {
   const configPayload = require("./fixtures/config.json");
   configPayload["content"] = Buffer.from(content).toString("base64");
@@ -33,7 +33,14 @@ export function mockConfig(
   configPayload["path"] = `.github/${fileName}`;
   nock("https://api.github.com")
     .get(
-      `/repos/${repoKey}/contents/${encodeURIComponent(`.github/${fileName}`)}`
+      // The use of regex here means that if the repokey or the filename contain
+      // regex special characters, they will be viewed as regex.  The main one
+      // to worry about is `.` but I think it will cause minimal problems
+      RegExp(
+        `/repos/${repoKey}/contents/${encodeURIComponent(
+          `.github/${fileName}`
+        )}`
+      )
     )
     .times(2)
     .reply(200, content);
