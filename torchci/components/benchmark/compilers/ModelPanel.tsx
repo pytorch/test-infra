@@ -138,6 +138,8 @@ export function ModelPanel({
     };
   });
 
+  console.log(lData);
+  console.log(rData);
   console.log(data);
 
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
