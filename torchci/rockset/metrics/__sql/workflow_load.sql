@@ -18,6 +18,7 @@ WHERE
         'nightly',
         'periodic',
         'inductor',
+        'inductor-periodic',
         'inductor-A100-perf-compare',
         'inductor-A100-perf-nightly'
     )
