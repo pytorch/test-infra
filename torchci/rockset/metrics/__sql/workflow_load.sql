@@ -20,7 +20,8 @@ WHERE
         'inductor',
         'inductor-periodic',
         'inductor-A100-perf-compare',
-        'inductor-A100-perf-nightly'
+        'inductor-A100-perf-nightly',
+        'inductor-cu124'
     )
     AND workflow.repository.full_name like :repo
 GROUP BY
