@@ -248,7 +248,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     ic: boolean
   ) {
     const config: any = await this.cachedConfigTracker.loadConfig(this.ctx);
-    if (config == null || config["mergebot"] == null) {
+    if (config == null || !config["mergebot"]) {
       await this.handleConfused(
         true,
         "Mergebot is not configured for this repository. Please use the merge button provided by GitHub."

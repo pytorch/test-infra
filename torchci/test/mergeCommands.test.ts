@@ -1580,4 +1580,35 @@ describe("merge-bot not supported repo", () => {
     await probot.receive(event);
     handleScope(scopes);
   });
+
+  test("config mergebot key set to false", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    utils.mockConfig("pytorch-probot.yml", "mergebot: False", `${owner}/${repo}`);
+    const scopes = [
+      nock("https://api.github.com")
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
+  });
 });
