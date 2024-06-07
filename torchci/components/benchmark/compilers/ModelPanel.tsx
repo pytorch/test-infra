@@ -259,7 +259,10 @@ export function ModelPanel({
                 if (v === undefined) {
                   return "";
                 }
-                console.log(v);
+                if (v.l === null && v.r === null) {
+                  return "NULL";
+                }
+
                 if (v.r === undefined) {
                   return (
                     <>
@@ -267,6 +270,9 @@ export function ModelPanel({
                     </>
                   );
                 } else if (lCommit === rCommit || v.l === v.r) {
+                  if (v.r === null) {
+                    return "NULL";
+                  }
                   return v.r;
                 } else {
                   return `${v.r} → ${v.l}`;
