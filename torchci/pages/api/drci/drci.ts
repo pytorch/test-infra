@@ -603,20 +603,51 @@ export function constructResultsComment(
   if (!hasAnyFailing) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
-  output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
-    `NEW ${pluralize("FAILURE", failedJobs.length).toLocaleUpperCase()}`,
-    `The following ${failedJobs.length > 1 ? "jobs have" : "job has"} failed`,
-    failedJobs,
-    "",
-    false,
-    relatedJobs,
-    relatedIssues,
-    relatedInfo
+
+  const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion !== "cancelled"
   );
+  if (newFailedJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `NEW ${pluralize("FAILURE", newFailedJobs.length).toLocaleUpperCase()}`,
+      `The following ${
+        newFailedJobs.length > 1 ? "jobs have" : "job has"
+      } failed`,
+      newFailedJobs,
+      "",
+      false,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
+  }
+
+  const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
+    (job) => job.conclusion === "cancelled"
+  );
+  if (cancelledJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `CANCELLED ${pluralize("JOB", cancelledJobs.length).toLocaleUpperCase()}`,
+      `The following ${
+        cancelledJobs.length > 1 ? "jobs were" : "job was"
+      } cancelled. Please retry`,
+      cancelledJobs,
+      "",
+      true,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
+  }
+
   output += constructResultsJobsSections(
     hudBaseUrl,
     owner,
