@@ -255,20 +255,23 @@ export function ModelPanel({
                 return "";
               },
               renderCell: (params: GridRenderCellParams<any>) => {
-                // TODO: Revert these debugging tests before submit
                 const v = params.value;
                 if (v === undefined) {
-                  return "aaa";
+                  return "";
                 }
 
                 if (v.r === undefined) {
-                  return "bbb";
+                  return (
+                    <>
+                      {v.l} (<strong>NEW!</strong>)
+                    </>
+                  );
+                } else if (v.l === undefined) {
+                  return v.r;
                 } else if (lCommit === rCommit || v.l === v.r) {
-                  return "ccc";
-                } else if (v.l === undefined || v.l === null) {
-                  return "ddd";
+                  return v.l;
                 } else {
-                  return "eee";
+                  return `${v.r} → ${v.l}`;
                 }
               },
             },
