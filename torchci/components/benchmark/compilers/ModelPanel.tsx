@@ -259,15 +259,13 @@ export function ModelPanel({
                 if (v === undefined) {
                   return "";
                 }
-
+                console.log(v);
                 if (v.r === undefined) {
                   return (
                     <>
                       {v.l} (<strong>NEW!</strong>)
                     </>
                   );
-                } else if (v.l === undefined || v.l === null) {
-                  return v.r;
                 } else if (lCommit === rCommit || v.l === v.r) {
                   return v.r;
                 } else {
