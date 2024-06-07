@@ -84,7 +84,7 @@
   "inductor": {
     "compilers_benchmark_performance": "ee1751ed1f0e68cd",
     "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc",
-    "torchao_query": "011929830b89f966",
+    "torchao_query": "ed476b62a49a23c6",
     "torchao_query_branches": "dae2141eab66e839"
   },
   "torchbench": {
