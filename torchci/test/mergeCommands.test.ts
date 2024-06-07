@@ -1592,7 +1592,11 @@ describe("merge-bot not supported repo", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
-    utils.mockConfig("pytorch-probot.yml", "mergebot: False", `${owner}/${repo}`);
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "mergebot: False",
+      `${owner}/${repo}`
+    );
     const scopes = [
       nock("https://api.github.com")
         .post(
