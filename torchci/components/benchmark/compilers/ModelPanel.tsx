@@ -268,6 +268,12 @@ export function ModelPanel({
                   );
                 } else if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
+                } else if (v.l === undefined) {
+                  return (
+                    <>
+                      {v.r} (<strong>NEW!</strong>)
+                    </>
+                  );
                 } else {
                   return `${v.r} → ${v.l}`;
                 }
