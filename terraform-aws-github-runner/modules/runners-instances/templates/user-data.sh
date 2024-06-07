@@ -4,24 +4,41 @@ exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&
 
 ${pre_install}
 
-yum update -y
+sudo yum update -y
 
 %{ if enable_cloudwatch_agent ~}
-yum install amazon-cloudwatch-agent -y
+sudo yum install amazon-cloudwatch-agent -y
 amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${ssm_key_cloudwatch_agent_config}
 %{ endif ~}
 
 # Install docker
 if [ "$(uname -m)" == "aarch64" ]; then
-  yum install -y docker
+  sudo yum install -y docker
 else
-  amazon-linux-extras install docker
+  if command -v amazon-linux-extras 2>/dev/null; then
+    echo "Installing docker using amazon-linux-extras"
+    sudo amazon-linux-extras install docker
+  else
+    echo "Installing docker using dnf"
+    sudo dnf install docker -y
+  fi
 fi
 
 service docker start
 usermod -a -G docker ec2-user
 
-yum install -y curl jq git
+if ! command -v curl 2>/dev/null; then
+  echo "Installing curl"
+  sudo yum install -y curl
+fi
+if ! command -v jq 2>/dev/null; then
+  echo "Installing jq"
+  sudo yum install -y jq
+fi
+if ! command -v git 2>/dev/null; then
+  echo "Installing git"
+  sudo yum install -y git
+fi
 
 USER_NAME=ec2-user
 ${install_config_runner}
