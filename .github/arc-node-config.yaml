@@ -50,6 +50,23 @@ nodeConfig:
       - key: "karpenter.sh/capacity-type"
         operator: In
         values: ["on-demand"]
+  - nodeType: compute-amd64-avx2
+    requirements:
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["m4"]
+      - key: "karpenter.k8s.aws/instance-cpu"
+        operator: In
+        values: ["40"]
+      - key: "kubernetes.io/arch"
+        operator: In
+        values: ["amd64"]
+      - key: kubernetes.io/os
+        operator: In
+        values: ["linux"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
   - nodeType: compute-amd64-avx512
     requirements:
       - key: "karpenter.k8s.aws/instance-category"
