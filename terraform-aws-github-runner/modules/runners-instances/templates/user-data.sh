@@ -39,6 +39,10 @@ if ! command -v git 2>/dev/null; then
   echo "Installing git"
   sudo yum install -y git
 fi
+if ! command -v pip3 2>/dev/null; then
+  echo "Installing git"
+  sudo yum install -y pip
+fi
 
 USER_NAME=ec2-user
 ${install_config_runner}
