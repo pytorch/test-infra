@@ -21,6 +21,7 @@ WITH performance_results AS (
   FORMAT_ISO8601(
     DATE_TRUNC(: granularity, _event_time)
   ) AS granularity_bucket,
+  head_sha,
   head_branch,
 FROM
   inductor.torchao_perf_stats
@@ -67,6 +68,7 @@ results AS (
     performance_results.workflow_id AS workflow_id,
     performance_results.job_id AS job_id,
     performance_results.head_branch AS head_branch,
+    performance_results.head_sha AS head_sha,
     CASE
       WHEN performance_results.filename LIKE '%_torchbench' THEN 'torchbench'
       WHEN performance_results.filename LIKE '%_timm_models' THEN 'timm_models'
@@ -148,6 +150,7 @@ WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
   AND (ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler)) OR :compilers = '')
   AND (ARRAY_CONTAINS(SPLIT(:branches, ','), results.head_branch) OR :branches = '')
+  AND (ARRAY_CONTAINS(SPLIT(:commits, ','), results.head_sha) OR :commits = '')
 ORDER BY
   granularity_bucket DESC,
   workflow_id DESC,
