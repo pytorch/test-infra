@@ -138,10 +138,6 @@ export function ModelPanel({
     };
   });
 
-  console.log(lData);
-  console.log(rData);
-  console.log(data);
-
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
     <Grid container spacing={2} style={{ height: "100%" }}>
@@ -263,9 +259,6 @@ export function ModelPanel({
                 if (v === undefined) {
                   return "";
                 }
-                if (v.l === null && v.r === null) {
-                  return "NULL";
-                }
 
                 if (v.r === undefined) {
                   return (
@@ -274,10 +267,7 @@ export function ModelPanel({
                     </>
                   );
                 } else if (lCommit === rCommit || v.l === v.r) {
-                  if (v.r === null) {
-                    return "NULL";
-                  }
-                  return v.r;
+                  return v.l;
                 } else {
                   return `${v.r} → ${v.l}`;
                 }
