@@ -39,6 +39,7 @@ PACKAGES_PER_PROJECT = {
         "textX",
         "tzdata",
         "importlib-metadata",
+        "importlib-resources",
     ],
     "torchtune": [
         "aiohttp",

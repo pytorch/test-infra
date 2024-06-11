@@ -91,6 +91,7 @@ PACKAGE_ALLOW_LIST = {
     "textx",
     "tzdata",
     "importlib_metadata",
+    "importlib_resources",
     # ----
     "Pillow",
     "certifi",
