@@ -76,7 +76,7 @@ PACKAGE_ALLOW_LIST = {
     "yarl",
     # ---- triton additional packages ----
     "arpeggio",
-    "caliper-reader",
+    "caliper_reader",
     "contourpy",
     "cycler",
     "dill",
