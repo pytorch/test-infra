@@ -38,6 +38,7 @@ PACKAGES_PER_PROJECT = {
         "pytz",
         "textX",
         "tzdata",
+        "importlib-metadata",
     ],
     "torchtune": [
         "aiohttp",
