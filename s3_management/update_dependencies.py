@@ -22,7 +22,7 @@ PACKAGES_PER_PROJECT = {
         "nvidia-cudnn-cu12",
         "typing-extensions",
     ],
-    "torch-rocm": [
+    "triton": [
         "arpeggio",
         "caliper-reader",
         "contourpy",
