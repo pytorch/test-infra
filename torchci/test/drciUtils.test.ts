@@ -7,7 +7,7 @@ import {
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
   isExcludedFromFlakiness,
-  isGitHubError,
+  isExcludedFromSimilarityPostProcessing,
   isInfraFlakyJob,
   isLogClassifierFailed,
   MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
@@ -433,7 +433,7 @@ describe("Test various utils used by Dr.CI", () => {
     ).toEqual(["suppress-bc-linter", "suppress-api-compatibility-check"]);
   });
 
-  test("test isGitHubError", () => {
+  test("test isExcludedFromSimilarityPostProcessing", () => {
     const job: RecentWorkflowsData = {
       jobName: "A job name",
 
@@ -444,13 +444,13 @@ describe("Test various utils used by Dr.CI", () => {
       head_sha: "A",
       failure_captures: [],
     };
-    expect(isGitHubError(job)).toEqual(false);
+    expect(isExcludedFromSimilarityPostProcessing(job)).toEqual(false);
 
     job.failure_captures.push("ERROR");
-    expect(isGitHubError(job)).toEqual(false);
+    expect(isExcludedFromSimilarityPostProcessing(job)).toEqual(false);
 
     job.failure_captures.push("Process completed with exit code 1");
-    expect(isGitHubError(job)).toEqual(true);
+    expect(isExcludedFromSimilarityPostProcessing(job)).toEqual(true);
   });
 
   test("test hasSimilarFailuresInSamePR", () => {

@@ -11,7 +11,7 @@ import {
   hasSimilarFailuresInSamePR,
   HUD_URL,
   isExcludedFromFlakiness,
-  isGitHubError,
+  isExcludedFromSimilarityPostProcessing,
   isInfraFlakyJob,
   isLogClassifierFailed,
   NUM_MINUTES,
@@ -486,7 +486,9 @@ function constructResultsJobsSections(
             )})`
         )
         .join(", ");
-      output += ` (${issueInfo})`;
+      if (issueInfo) {
+        output += ` (${issueInfo})`;
+      }
     }
 
     const info = relatedInfo.get(job.id);
@@ -902,9 +904,9 @@ export async function getWorkflowJobsStatuses(
   // or unstable jobs in the same pull request. If there are some, these failures are
   // also considered unrelated
   for (const job of preprocessFailedJobs) {
-    // If the failure is a generic GitHub error, don't do anything because we run the
+    // If the failure is a generic error, don't do anything because we run the
     // risk of getting false positives
-    if (isGitHubError(job)) {
+    if (isExcludedFromSimilarityPostProcessing(job)) {
       failedJobs.push(job);
       continue;
     }
@@ -925,6 +927,17 @@ export async function getWorkflowJobsStatuses(
     if (similarFlakyFailure !== undefined) {
       flakyJobs.push(job);
       relatedJobs.set(job.id, similarFlakyFailure);
+      continue;
+    }
+
+    // Broken trunk between trunk and periodic jobs
+    const similarBrokenTrunkFailure = hasSimilarFailuresInSamePR(
+      job,
+      brokenTrunkJobs
+    );
+    if (similarBrokenTrunkFailure !== undefined) {
+      flakyJobs.push(job);
+      relatedJobs.set(job.id, similarBrokenTrunkFailure);
       continue;
     }
 
