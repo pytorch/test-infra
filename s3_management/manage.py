@@ -90,6 +90,7 @@ PACKAGE_ALLOW_LIST = {
     "pytz",
     "textx",
     "tzdata",
+    "importlib_metadata",
     # ----
     "Pillow",
     "certifi",
