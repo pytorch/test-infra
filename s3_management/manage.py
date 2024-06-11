@@ -88,7 +88,7 @@ PACKAGE_ALLOW_LIST = {
     "pydot",
     "pyparsing",
     "pytz",
-    "textX",
+    "textx",
     "tzdata",
     # ----
     "Pillow",
