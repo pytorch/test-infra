@@ -75,7 +75,7 @@ PACKAGE_ALLOW_LIST = {
     "xxhash",
     "yarl",
     # ---- triton additional packages ----
-    "arpeggio",
+    "Arpeggio",
     "caliper_reader",
     "contourpy",
     "cycler",
