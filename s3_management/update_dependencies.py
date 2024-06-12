@@ -40,6 +40,7 @@ PACKAGES_PER_PROJECT = {
         "tzdata",
         "importlib-metadata",
         "importlib-resources",
+        "zipp",
     ],
     "torchtune": [
         "aiohttp",
