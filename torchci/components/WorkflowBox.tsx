@@ -1,15 +1,18 @@
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
-import { Artifact, JobData } from "lib/types";
+import { Artifact, JobData, IssueData } from "lib/types";
 import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import TestInsightsLink from "./TestInsights";
-import { useState, CSSProperties, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { LogSearchResult, getSearchRes } from "lib/searchLogs";
+import React from "react";
+import { TestInfo } from "./additionalTestInfo/TestInfo";
+import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -29,31 +32,36 @@ function WorkflowJobSummary({
   artifacts,
   artifactsToShow,
   setArtifactsToShow,
+  unstableIssues,
 }: {
   job: JobData;
   artifacts?: Artifact[];
   artifactsToShow: Set<string>;
   setArtifactsToShow: any;
+  unstableIssues: IssueData[];
 }) {
-  var queueTimeInfo = null;
+  const subInfo = [];
   if (job.queueTimeS != null) {
-    queueTimeInfo = (
+    subInfo.push(
       <>
-        <i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins
+        <i>Queued:</i> {durationDisplay(Math.max(job.queueTimeS, 0))}
       </>
     );
   }
 
-  var durationInfo = null;
   if (job.durationS != null) {
-    durationInfo = (
+    subInfo.push(
       <>
-        <i>Duration:</i> {Math.round(job.durationS / 60)} mins
+        <i>Duration:</i> {durationDisplay(job.durationS)}
       </>
     );
   }
 
-  var separator = queueTimeInfo && durationInfo ? ", " : "";
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
+    subInfo.push(testInsightsLink);
+  }
+
   const hasArtifacts = artifacts && artifacts.length > 0;
 
   function setArtifactsToShowHelper() {
@@ -70,22 +78,34 @@ function WorkflowJobSummary({
     }
   }
 
+  if (hasArtifacts) {
+    subInfo.push(
+      <a onClick={() => setArtifactsToShowHelper()}>Show artifacts</a>
+    );
+  }
+
+  if (job.logUrl) {
+    subInfo.push(
+      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+        Raw logs
+      </a>
+    );
+  }
+
   return (
     <>
-      <JobSummary job={job} />
+      <JobSummary job={job} unstableIssues={unstableIssues} />
       <br />
       <small>
         &nbsp;&nbsp;&nbsp;&nbsp;
-        {queueTimeInfo}
-        {separator}
-        {durationInfo}
-        <TestInsightsLink job={job} separator={", "} />,{" "}
-        {hasArtifacts && (
-          <a onClick={() => setArtifactsToShowHelper()}> Show artifacts, </a>
-        )}
-        <a target="_blank" rel="noreferrer" href={job.logUrl}>
-          Raw logs
-        </a>
+        {subInfo.map((info, ind) => {
+          return (
+            <span key={ind}>
+              {info}
+              {ind < subInfo.length - 1 && ", "}
+            </span>
+          );
+        })}
         {hasArtifacts &&
           artifactsToShow.has(job.id!) &&
           artifacts?.map((artifact, ind) => {
@@ -99,9 +119,15 @@ function WorkflowJobSummary({
 export default function WorkflowBox({
   workflowName,
   jobs,
+  unstableIssues,
+  wide,
+  setWide,
 }: {
   workflowName: string;
   jobs: JobData[];
+  unstableIssues: IssueData[];
+  wide: boolean;
+  setWide: any;
 }) {
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
@@ -128,7 +154,11 @@ export default function WorkflowBox({
   }, [searchString]);
 
   return (
-    <div id={anchorName} className={workflowClass}>
+    <div
+      id={anchorName}
+      className={workflowClass}
+      style={wide ? { gridColumn: "1 / -1" } : {}}
+    >
       <h3>{workflowName}</h3>
       <div>
         <div
@@ -138,8 +168,18 @@ export default function WorkflowBox({
           Job Status
         </div>
         <div style={{ float: "right" }}>
+          <div style={{ margin: ".5em 0em" }}>
+            <button
+              onClick={() => {
+                setWide(!wide);
+              }}
+              className={styles.buttonBorder}
+            >
+              {wide ? "Hide Additional Test Info" : "Show Additional Test Info"}
+            </button>
+          </div>
           <form
-            style={{ float: "right" }}
+            style={{ float: "right", paddingBottom: ".5em" }}
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               // @ts-ignore
@@ -154,6 +194,12 @@ export default function WorkflowBox({
             ></input>
             <input type="submit" value="Search"></input>
           </form>
+          <div
+            style={{
+              // Ensures elements after this div are actually below it (due to float)
+              clear: "both",
+            }}
+          ></div>
           {searchString && <div>{searchRes.info}</div>}
         </div>
         <div
@@ -163,14 +209,18 @@ export default function WorkflowBox({
           }}
         ></div>
       </div>
+      {wide && (
+        <TestInfo workflowId={workflowId!} runAttempt={"1"} jobs={jobs} />
+      )}
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
-          <div key={job.id}>
+          <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
               artifacts={groupedArtifacts?.get(job.id)}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
+              unstableIssues={unstableIssues}
             />
             {(searchString && (
               <SearchLogViewer

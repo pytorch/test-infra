@@ -7,6 +7,7 @@ import dataclasses
 import functools
 import time
 
+from contextlib import suppress
 from os import path, makedirs
 from datetime import datetime
 from collections import defaultdict
@@ -41,6 +42,38 @@ PREFIXES_WITH_HTML = {
 # names you need to convert them to "_" (underscores) in order for them to be
 # allowed here since the name of the wheels is compared here
 PACKAGE_ALLOW_LIST = {
+    # ---- torchtune additional packages ----
+    "aiohttp",
+    "aiosignal",
+    "antlr4_python3_runtime",
+    "antlr4-python3-runtime",
+    "attrs",
+    "blobfile",
+    "datasets",
+    "dill",
+    "frozenlist",
+    "huggingface_hub",
+    "lxml",
+    "multidict",
+    "multiprocess",
+    "omegaconf",
+    "pandas",
+    "pyarrow",
+    "pyarrow_hotfix",
+    "pycryptodomex",
+    "python_dateutil",
+    "pytz",
+    "PyYAML",
+    "regex",
+    "safetensors",
+    "sentencepiece",
+    "six",
+    "tiktoken",
+    "torchao",
+    "tzdata",
+    "xxhash",
+    "yarl",
+    # ----
     "Pillow",
     "certifi",
     "charset_normalizer",
@@ -50,10 +83,12 @@ PACKAGE_ALLOW_LIST = {
     "filelock",
     "fsspec",
     "idna",
+    "intel_openmp",
     "Jinja2",
     "lit",
     "MarkupSafe",
     "mpmath",
+    "mkl",
     "nestedtensor",
     "networkx",
     "numpy",
@@ -86,6 +121,7 @@ PACKAGE_ALLOW_LIST = {
     "pytorch_triton_rocm",
     "requests",
     "sympy",
+    "tbb",
     "torch",
     "torch_tensorrt",
     "torcharrow",
@@ -96,12 +132,14 @@ PACKAGE_ALLOW_LIST = {
     "torchmetrics",
     "torchrec",
     "torchtext",
+    "torchtune",
     "torchvision",
     "triton",
     "tqdm",
     "typing_extensions",
     "urllib3",
     "xformers",
+    "executorch",
 }
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
@@ -111,6 +149,12 @@ PACKAGE_DATE_REGEX = r"([a-zA-z]*-[0-9.]*.dev)([0-9]*)"
 
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
+
+# TODO (huydhn): Clean this up once ExecuTorch has a new stable release that
+# match PyTorch stable release cadence. This nightly version is currently
+# referred to publicly in ExecuTorch alpha 0.1 release. So we want to keep
+# nightly binaries around for now
+KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2023, 10, 10, 0, 0)}
 
 S3IndexType = TypeVar('S3IndexType', bound='S3Index')
 
@@ -139,11 +183,9 @@ class S3Object:
 def extract_package_build_time(full_package_name: str) -> datetime:
     result = search(PACKAGE_DATE_REGEX, full_package_name)
     if result is not None:
-        try:
-            return datetime.strptime(result.group(2), "%Y%m%d")
-        except ValueError:
+        with suppress(ValueError):
             # Ignore any value errors since they probably shouldn't be hidden anyways
-            pass
+            return datetime.strptime(result.group(2), "%Y%m%d")
     return datetime.now()
 
 
@@ -158,7 +200,6 @@ def safe_parse_version(ver_str: str) -> Version:
         return _parse_version(ver_str)
     except InvalidVersion:
         return Version("0.0.0")
-
 
 
 class S3Index:
@@ -201,7 +242,10 @@ class S3Index:
             if package_name not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
-            if packages[package_name] >= KEEP_THRESHOLD or between_bad_dates(package_build_time):
+            if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
+                packages[package_name] >= KEEP_THRESHOLD
+                or between_bad_dates(package_build_time)
+            ):
                 to_hide.add(obj)
             else:
                 packages[package_name] += 1
@@ -245,7 +289,7 @@ class S3Index:
         )
 
     def obj_to_package_name(self, obj: S3Object) -> str:
-        return path.basename(obj.key).split('-', 1)[0]
+        return path.basename(obj.key).split('-', 1)[0].lower()
 
     def to_legacy_html(
         self,
@@ -447,7 +491,7 @@ class S3Index:
                            checksum=None,
                            size=None) for key in obj_names], prefix)
         if prefix == "whl/nightly":
-           rc.objects = rc.nightly_packages_to_show()
+            rc.objects = rc.nightly_packages_to_show()
         if with_metadata:
             rc.fetch_metadata()
         return rc

@@ -732,7 +732,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
-    expect(labels).toEqual(["module: fft", "oncall: pt2", "triaged"]);
+    expect(labels).toEqual(["module: fft", "oncall: pt2"]);
 
     handleScope(scope);
   });
@@ -899,7 +899,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getIssueBodyForFlakyTest: should contain correct examples URL", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
-      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a"
+      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a&limit=100"
     );
   });
 

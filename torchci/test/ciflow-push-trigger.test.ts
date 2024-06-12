@@ -55,7 +55,9 @@ describe("Push trigger integration tests", () => {
           `tags/${label}/${prNum}`
         )}`
       )
-      .reply(200, []);
+      .reply(200, [])
+      .get("/repos/suo/actions-test/collaborators/suo/permission")
+      .reply(200, { permission: "admin" });
 
     nock("https://api.github.com")
       .post("/repos/suo/actions-test/git/refs", (body) => {
@@ -103,7 +105,9 @@ describe("Push trigger integration tests", () => {
           node_id: "123",
           object: { sha: "abc" },
         },
-      ]);
+      ])
+      .get("/repos/suo/actions-test/collaborators/suo/permission")
+      .reply(200, { permission: "admin" });
 
     nock("https://api.github.com")
       .delete(
@@ -325,11 +329,10 @@ describe("Push trigger integration tests", () => {
     payload.label.name = "ciflow/test";
     payload.pull_request.user.login = "fake_user";
     const login = payload.pull_request.user.login;
+    const head_sha = payload.pull_request.head.sha;
     nock("https://api.github.com")
-      .get(
-        `/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`
-      )
-      .reply(200, [])
+      .get(`/repos/suo/actions-test/actions/runs?head_sha=${head_sha}`)
+      .reply(200, {})
       .get(`/repos/suo/actions-test/collaborators/${login}/permission`)
       .reply(200, {
         message: "fake_user is not a user",

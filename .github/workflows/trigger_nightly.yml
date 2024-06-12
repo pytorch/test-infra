@@ -19,6 +19,8 @@ on:
           - tensorrt
           - data
           - fbgemm
+          - executorch
+          - torchtune
           - all
 jobs:
   trigger:
@@ -83,3 +85,20 @@ jobs:
           repository: pytorch/fbgemm
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: fbgemm
+      - name: Trigger nightly executorch build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'executorch' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: viable/strict
+          repository: pytorch/executorch
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: executorch
+      - name: Trigger nightly torchtune build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchtune' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchtune
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchtune
+      

@@ -53,7 +53,8 @@ async function upload(workspace, queryName, queryLambdas) {
   }
 
   if (
-    queryLambda.description == config.description &&
+    (queryLambda.description == config.description ||
+      (queryLambda.description == null && config.description == "")) &&
     equalParametersList(
       queryLambda.default_parameters,
       config.default_parameters
@@ -107,6 +108,6 @@ await Promise.all(tasks);
 
 await fs.writeFile(
   "rockset/prodVersions.json",
-  JSON.stringify(prodVersionsNew, null, 2),
+  JSON.stringify(prodVersionsNew, null, 2) + "\n",
   "utf8"
 );

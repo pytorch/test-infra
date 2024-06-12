@@ -36,6 +36,7 @@ export function mockConfig(
     .get(
       `/repos/${repoKey}/contents/${encodeURIComponent(`.github/${fileName}`)}`
     )
+    .times(2)
     .reply(200, content);
 }
 
@@ -43,4 +44,68 @@ export function mockAccessToken(): void {
   nock("https://api.github.com")
     .post("/app/installations/2/access_tokens")
     .reply(200, { token: "test" });
+}
+
+export function mockPermissions(
+  repoFullName: string,
+  user: string,
+  permission: string = "write"
+) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullName}/collaborators/${user}/permission`)
+    .reply(200, {
+      permission: permission,
+    });
+}
+
+export function mockApprovedWorkflowRuns(
+  repoFullname: string,
+  headSha: string,
+  approved: boolean
+) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullname}/actions/runs?head_sha=${headSha}`)
+    .reply(200, {
+      workflow_runs: [
+        {
+          event: "pull_request",
+          conclusion: approved ? "success" : "action_required",
+        },
+      ],
+    });
+}
+
+export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
+  return nock("https://api.github.com")
+    .get(`/repos/${repoFullName}/pulls/${prNumber}`)
+    .reply(200, body);
+}
+
+export function mockPostComment(
+  repoFullName: string,
+  prNumber: number,
+  containedStrings: string[]
+) {
+  return nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues/${prNumber}/comments`, (body) => {
+      for (const containedString of containedStrings) {
+        expect(JSON.stringify(body)).toContain(containedString);
+      }
+      return true;
+    })
+    .reply(200);
+}
+
+export function mockAddLabels(
+  labels: string[],
+  repoFullName: string,
+  prNumber: number
+) {
+  const scope = nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues/${prNumber}/labels`, (body) => {
+      expect(body).toMatchObject({ labels: labels });
+      return true;
+    })
+    .reply(200, {});
+  return scope;
 }

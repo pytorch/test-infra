@@ -40,7 +40,7 @@ const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
 // A help link to explain the metrics used in the dashboard
 export const HELP_LINK =
-  "https://pytorch.org/docs/main/compile/performance-dashboard.html";
+  "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
 
 export const SHA_DISPLAY_LENGTH = 10;
 export const LAST_N_DAYS = 7;
@@ -64,6 +64,7 @@ export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
   inductor_cpp_wrapper: "cpp_wrapper",
   inductor_aot_inductor: "aot_inductor",
   inductor_with_cudagraphs_freezing: "cudagraphs_freezing",
+  inductor_cudagraphs_low_precision: "cudagraphs_low_precision",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
@@ -73,6 +74,7 @@ export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   cpp_wrapper: "inductor_cpp_wrapper",
   aot_inductor: "inductor_aot_inductor",
   cudagraphs_freezing: "inductor_with_cudagraphs_freezing",
+  cudagraphs_low_precision: "inductor_cudagraphs_low_precision",
 };
 export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
 export const SUITES: { [k: string]: string } = {
@@ -88,7 +90,7 @@ export const MODES: { [k: string]: string } = {
   training: "amp",
   inference: "bfloat16",
 };
-export const DTYPES = ["amp", "float16", "bfloat16"];
+export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 // Relative thresholds
@@ -825,6 +827,10 @@ export function BranchAndCommitPicker({
 }
 
 export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
+  if (!logs) {
+    return <></>;
+  }
+
   return (
     <>
       {" "}
@@ -1876,6 +1882,7 @@ export function AugmentData(data: CompilerPerformanceData[]) {
         "llama",
         "llama_v2_7b_16h",
         "sam",
+        "sam_fast",
         "clip",
         "stable_diffusion_text_encoder",
         "hf_Whisper",

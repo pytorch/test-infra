@@ -1,90 +1,92 @@
-import { FlakyTestData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import LogViewer from "components/LogViewer";
-import { getFlakyTestCapture } from "./api/flaky-tests/flakytest";
+import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
+import JobLinks from "components/JobLinks";
+import JobSummary from "components/JobSummary";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function setURL(name: string, suite: string, file: string, limit: string) {
+  window.location.href = `/flakytest?name=${encodeURIComponent(
+    name
+  )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
+    file
+  )}&limit=${encodeURIComponent(limit)}`;
+}
 
 export default function Page() {
   const router = useRouter();
   const name = (router.query.name || "%") as string;
   const suite = (router.query.suite || "%") as string;
   const file = (router.query.file || "%") as string;
+  const limit = (router.query.limit || "100") as string;
 
   // `useSWR` to avoid sending a garbage request to the server.
   const swrKey = `/api/flaky-tests/flakytest?name=${encodeURIComponent(
     name
-  )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(file)}`;
+  )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
+    file
+  )}&limit=${encodeURIComponent(limit)}`;
   const { data } = useSWR(swrKey, fetcher);
 
   return (
     <div>
-      <h1>PyTorch CI Flaky Tests</h1>
+      <h1>PyTorch CI Test Failures and Flaky Tests</h1>
+      <div>
+        {/* The March 22 date refers to https://github.com/pytorch/pytorch/pull/97304 */}
+        This shows the most recent failures in CI from after March 22nd, 2023
+        (100 by default). Data prior to this date still exists, but can only be
+        obtained by parsing test report xmls. If the job was successful, it
+        might have succeeded on retry. Search through the logs for the test
+        name.
+      </div>
       <h3>
-        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> | Test
-        Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> | Test File
-        Filter: <code>{file === "%" ? "<any>" : file}</code>
+        Test Name Filter:{" "}
+        <ParamSelector
+          value={name}
+          handleSubmit={(e) => setURL(e, suite, file, limit)}
+        />{" "}
+        | Test Suite Filter:{" "}
+        <ParamSelector
+          value={suite}
+          handleSubmit={(s) => setURL(name, s, file, limit)}
+        />{" "}
+        | Test File Filter:{" "}
+        <ParamSelector
+          value={file}
+          handleSubmit={(s) => setURL(name, suite, s, limit)}
+        />
       </h3>
-      <em>Showing last 30 days of data.</em>
       {data === undefined ? (
         <div>Loading...</div>
       ) : (
-        (data.flakyTests as FlakyTestData[]).map((test) => {
-          const samples = data.flakySamples[getFlakyTestCapture(test)];
-          console.log(samples);
+        (data as FlakyTestInfoHUD[]).map((test) => {
           return (
-            <div key={`${test.name} ${test.suite} ${test.file}`}>
+            <div key={`${test.name} ${test.classname} ${test.file}`}>
               <h1>
-                <code>{`${test.name}, ${test.suite}`}</code>
+                <code>{`${test.name}, ${test.classname}`}</code>
               </h1>
-              from file <code>{`${test.file}`}</code>
-              <h4>Debugging instructions:</h4>
-              <p>
-                DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield
-                flaky tests from developers so CI will thus be green but it will
-                be harder to parse the logs.
-              </p>
-              <p>To find relevant log snippets:</p>
-              <ol>
-                <li>
-                  Click on any of the workflow job links below, for example{" "}
-                  <a
-                    href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
-                  >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a>
-                </li>
-                <li>
-                  Click on the Test step of the job so that it is expanded.
-                  Otherwise, the grepping will not work.
-                </li>
-                <li>
-                  Grep for <code>{test.name}</code>
-                </li>
-                <li>
-                  There should be several instances run (as flaky tests are
-                  rerun in CI) from which you can study the logs.
-                </li>
-              </ol>
-              <div>
-                <h4> Test workflow job URLs: </h4>
-                <ul>
-                  {test.workflowNames.map((value, index) => {
-                    return (
-                      <li key={index}>
-                        <a
-                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
-                        >{`${value} / ${test.jobNames[index]}`}</a>{" "}
-                        on branch {test.branches[index]}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              {samples?.length > 0 && (
-                <div>
-                  <p>Example logs: </p> <LogViewer job={samples[0]} />
-                </div>
-              )}
+              from file <code>{`${test.invoking_file}`}</code>
+              <div>Jobs ({test.jobs.length} matches):</div>
+              <ul>
+                {test.jobs.map((job) => {
+                  return (
+                    <li key={job.id} id={job.id}>
+                      <JobSummary
+                        job={job}
+                        highlight={job.branch == "main"}
+                        unstableIssues={[]}
+                      />
+                      <div>
+                        <JobLinks job={job} showCommitLink={true} />
+                      </div>
+                      <LogViewer job={job} />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           );
         })

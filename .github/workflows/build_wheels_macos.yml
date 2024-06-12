@@ -59,6 +59,16 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
+      submodules:
+        description: "Works as stated in actions/checkout, but the default value is recursive"
+        required: false
+        type: string
+        default: recursive
+      delocate-wheel:
+        description: "Whether to run delocate-wheel after building."
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   id-token: write
@@ -105,6 +115,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
@@ -115,6 +126,7 @@ jobs:
         run: |
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install delocate-wheel
+        if: ${{ inputs.delocate-wheel }}
         run: |
           set -euxo pipefail
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
@@ -155,16 +167,11 @@ jobs:
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
+        if: ${{ inputs.delocate-wheel }}
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -203,6 +210,13 @@ jobs:
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           export PATH=${OLD_PATH}
+      # NB: Only upload to GitHub after passing smoke tests
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Clean up disk space
         if: always()
         continue-on-error: true
@@ -211,6 +225,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}

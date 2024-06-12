@@ -19,7 +19,7 @@ jobs:
       script: |
         conda create --yes --quiet -n test python=3.8
         conda activate test
-        python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        python -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
         python -c 'import torch'
   test-gpu:

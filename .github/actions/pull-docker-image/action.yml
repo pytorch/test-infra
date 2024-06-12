@@ -6,6 +6,9 @@ inputs:
   docker-image:
     description: the image to pull
     required: true
+  docker-registry:
+    description: The registry to store the image after it is built.
+    default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
 
 runs:
   using: composite
@@ -14,8 +17,22 @@ runs:
       shell: bash
       env:
         DOCKER_IMAGE: ${{ inputs.docker-image }}
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
       run: |
-        retry () { "$@"  || (sleep 1 && "$@") || (sleep 2 && "$@") }
+        set -x
+        set +e
+
+        login() {
+          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
+        }
+
+        retry () {
+          $*  || (sleep 1 && $*) || (sleep 2 && $*)
+        }
+
+        retry login "${DOCKER_REGISTRY}"
+
+        set -e
         # ignore output since only exit code is used for conditional
         # only pull docker image if it's not available locally
         if ! docker inspect --type=image "${DOCKER_IMAGE}" >/dev/null 2>/dev/null; then

@@ -16,7 +16,9 @@ on:
         default: "windows.4xlarge"
         type: string
       upload-artifact:
-        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        description: |
+          Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}, all the wheel files
+          under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
         default: ''
         type: string
       download-artifact:
@@ -131,7 +133,7 @@ jobs:
       - name: Run script
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         run: |
           EXEC_SCRIPT="${RUNNER_TEMP}/exec_script"
           {
@@ -166,9 +168,9 @@ jobs:
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
         run: |
@@ -177,12 +179,15 @@ jobs:
           if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
             mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
           fi
+          if [[ -d "artifacts-to-be-uploaded" ]]; then
+            mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+          fi
           # Set to fail upload step if there are no files for upload and expected files for upload
           echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/

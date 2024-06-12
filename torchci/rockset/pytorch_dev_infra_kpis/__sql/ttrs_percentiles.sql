@@ -13,7 +13,7 @@
 WITH
 -- All the percentiles that we want the query to determine
 percentiles_desired AS (
-  SELECT 
+  SELECT
     CONCAT('p', n.percentile) as percentile,
     n.percentile / 100.0 as percentile_num
   FROM  UNNEST(ARRAY_CREATE(25, 50, 75, 90) AS percentile) AS n
@@ -108,9 +108,9 @@ commit_job_durations AS (
     r.id AS workflow_run_id,
     s.url -- for debugging
   FROM
-    commons.workflow_job j CROSS
-    JOIN UNNEST (j.steps) js
-    INNER JOIN merged_pr_shas s ON j.head_sha = s.sha
+    commons.workflow_job j
+    INNER JOIN merged_pr_shas s ON j.head_sha = s.sha HINT(join_strategy = lookup)
+    CROSS JOIN UNNEST (j.steps) js
     INNER JOIN commons.workflow_run r ON j.run_id = r.id
   WHERE
     1 = 1

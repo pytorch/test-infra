@@ -8,114 +8,87 @@ from update_disabled_issues import (
     OWNER,
     REPO,
     UNSTABLE_PREFIX,
-    validate_and_sort,
 )
 
 
-MOCK_DATA = {
-    "total_count": 6,
-    "incomplete_results": False,
-    "items": [
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/32644",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/32644",
-            "number": 32644,
-            "title": "DISABLED test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)",
-            "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI.",
+MOCK_DATA = [
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/32644",
+        "number": 32644,
+        "title": "DISABLED test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)",
+        "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI.",
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/67289",
+        "number": 67289,
+        "title": "DISABLED test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)",
+        "body": "",
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/94861",
+        "number": 94861,
+        "title": "DISABLED pull / linux-bionic-py3.8-clang9 / test (dynamo)",
+        "author": {
+            "login": "mock-user",
         },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/67289",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/67289",
-            "number": 67289,
-            "title": "DISABLED test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)",
-            "body": "",
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/42345",
+        "number": 42345,
+        "title": "DISABLED pull / linux-bionic-py3.8-clang9",
+        "author": {
+            "login": "mock-user",
         },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/94861",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/94861",
-            "number": 94861,
-            "title": "DISABLED pull / linux-bionic-py3.8-clang9 / test (dynamo)",
-            "user": {
-                "login": "mock-user",
-            },
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/32132",
+        "number": 32132,
+        "title": "DISABLED pull",
+        "author": {
+            "login": "mock-user",
         },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/42345",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/42345",
-            "number": 42345,
-            "title": "DISABLED pull / linux-bionic-py3.8-clang9",
-            "user": {
-                "login": "mock-user",
-            },
-        },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/32132",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/32132",
-            "number": 32132,
-            "title": "DISABLED pull",
-            "user": {
-                "login": "mock-user",
-            },
-        },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/53457",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
-            "number": 53457,
-            "title": "Not a DISABLED issue, but has the disabled keyword",
-        },
-    ],
-}
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/53457",
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
+        "number": 53457,
+        "title": "Not a DISABLED issue, but has the disabled keyword",
+    },
+]
 
-MOCK_UNSTABLE_DATA = {
-    "total_count": 3,
-    "incomplete_results": False,
-    "items": [
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/102299",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/102299",
-            "number": 102299,
-            "title": "UNSTABLE trunk / macos-12-py3-arm64",
-            "user": {
-                "login": "mock-user",
-            },
+MOCK_UNSTABLE_DATA = [
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/102299",
+        "number": 102299,
+        "title": "UNSTABLE trunk / macos-12-py3-arm64",
+        "author": {
+            "login": "mock-user",
         },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/102300",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/102300",
-            "number": 102300,
-            "title": "UNSTABLE windows-binary-libtorch-release",
-            "user": {
-                "login": "mock-user",
-            },
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/102300",
+        "number": 102300,
+        "title": "UNSTABLE windows-binary-libtorch-release",
+        "author": {
+            "login": "mock-user",
         },
-        {
-            "html_url": "https://github.com/pytorch/pytorch/issues/53457",
-            "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
-            "number": 53457,
-            "title": "Not a UNSTABLE issue, but has the unstable keyword",
-        },
-    ],
-}
+    },
+    {
+        "url": "https://github.com/pytorch/pytorch/issues/53457",
+        "number": 53457,
+        "title": "Not a UNSTABLE issue, but has the unstable keyword",
+    },
+]
 
 
 @mock.patch("test_update_disabled_issues.get_disable_issues")
 class TestUpdateDisabledIssues(TestCase):
-    def test_validate_and_sort(self, mock_get_disable_issues):
-        mock_get_disable_issues.return_value = MOCK_DATA
-
-        disabled_issues = get_disable_issues()
-        validate_and_sort(disabled_issues)
-
-        items = disabled_issues["items"]
-        # Check that the list of issues is sorted
-        for i in range(len(items) - 1):
-            self.assertTrue(items[i]["number"] <= items[i + 1]["number"])
-
     def test_filter_disable_issues(self, mock_get_disable_issues):
-        mock_get_disable_issues.return_value = MOCK_DATA
+        mock_get_disable_issues.return_value = sorted(
+            MOCK_DATA, key=lambda x: x["number"]
+        )
 
-        disabled_issues = get_disable_issues()
-        validate_and_sort(disabled_issues)
+        disabled_issues = get_disable_issues("dummy token")
 
         disabled_tests, disabled_jobs = filter_disable_issues(disabled_issues)
         self.assertListEqual(
@@ -128,8 +101,7 @@ class TestUpdateDisabledIssues(TestCase):
     def test_condense_disable_tests(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_DATA
 
-        disabled_issues = get_disable_issues()
-        validate_and_sort(disabled_issues)
+        disabled_issues = get_disable_issues("dummy token")
 
         disabled_tests, _ = filter_disable_issues(disabled_issues)
         results = condense_disable_tests(disabled_tests)
@@ -156,8 +128,7 @@ class TestUpdateDisabledIssues(TestCase):
     def test_condense_disable_jobs(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_DATA
 
-        disabled_issues = get_disable_issues()
-        validate_and_sort(disabled_issues)
+        disabled_issues = get_disable_issues("dummy token")
 
         _, disabled_jobs = filter_disable_issues(disabled_issues)
 
@@ -166,7 +137,10 @@ class TestUpdateDisabledIssues(TestCase):
         ) as mock_can_disable_jobs:
             mock_can_disable_jobs.return_value = True
             results = condense_disable_jobs(
-                disable_issues=disabled_jobs, owner=OWNER, repo=REPO
+                disable_issues=disabled_jobs,
+                owner=OWNER,
+                repo=REPO,
+                token="dummy token",
             )
 
         self.assertDictEqual(
@@ -202,8 +176,7 @@ class TestUpdateDisabledIssues(TestCase):
     def test_unstable_jobs(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
 
-        unstable_issues = get_disable_issues(prefix=UNSTABLE_PREFIX)
-        validate_and_sort(unstable_issues)
+        unstable_issues = get_disable_issues("dummy token", prefix=UNSTABLE_PREFIX)
 
         _, unstable_jobs = filter_disable_issues(
             unstable_issues, prefix=UNSTABLE_PREFIX
@@ -217,6 +190,7 @@ class TestUpdateDisabledIssues(TestCase):
                 unstable_jobs,
                 owner=OWNER,
                 repo=REPO,
+                token="dummy token",
                 prefix=UNSTABLE_PREFIX,
             )
 
@@ -245,8 +219,7 @@ class TestUpdateDisabledIssues(TestCase):
     def test_unauthorized_condense_disable_jobs(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_DATA
 
-        disabled_issues = get_disable_issues()
-        validate_and_sort(disabled_issues)
+        disabled_issues = get_disable_issues("dummy token")
 
         _, disabled_jobs = filter_disable_issues(disabled_issues)
 
@@ -255,7 +228,10 @@ class TestUpdateDisabledIssues(TestCase):
         ) as mock_can_disable_jobs:
             mock_can_disable_jobs.return_value = False
             results = condense_disable_jobs(
-                disable_issues=disabled_jobs, owner=OWNER, repo=REPO
+                disable_issues=disabled_jobs,
+                owner=OWNER,
+                repo=REPO,
+                token="dummy token",
             )
 
         # Nothing should be disabled here because of the lack of permission
@@ -264,8 +240,7 @@ class TestUpdateDisabledIssues(TestCase):
     def test_unauthorized_unstable_jobs(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
 
-        unstable_issues = get_disable_issues(MOCK_UNSTABLE_DATA)
-        validate_and_sort(unstable_issues)
+        unstable_issues = get_disable_issues("dummy token", MOCK_UNSTABLE_DATA)
 
         _, unstable_jobs = filter_disable_issues(
             unstable_issues, prefix=UNSTABLE_PREFIX
@@ -276,7 +251,11 @@ class TestUpdateDisabledIssues(TestCase):
         ) as mock_can_disable_jobs:
             mock_can_disable_jobs.return_value = False
             results = condense_disable_jobs(
-                unstable_jobs, owner=OWNER, repo=REPO, prefix=UNSTABLE_PREFIX
+                unstable_jobs,
+                owner=OWNER,
+                repo=REPO,
+                token="dummy token",
+                prefix=UNSTABLE_PREFIX,
             )
 
         # Nothing should be masked as unstable here because of the lack of permission

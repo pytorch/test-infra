@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
 
+import { CSSProperties, useState } from "react";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import { BarChart, Bar, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
@@ -10,14 +11,10 @@ import { JobData } from "lib/types";
 import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
 import JobLinks from "components/JobLinks";
+import { usePreference } from "lib/useGroupingPreference";
+import { ParamSelector } from "lib/ParamSelector";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-import { CSSProperties } from "react";
-
-import {
-  useGroupingPreference,
-  usePreference,
-} from "lib/useGroupingPreference";
 
 function FuzzySearchCheckBox({
   useFuzzySearch,
@@ -54,6 +51,11 @@ function FailureInfo({
   jobCount: { [jobName: string]: number };
   samples: JobData[];
 }) {
+  const [jobsToShow, setJobsToShow] = useState(new Set<string>());
+  const samplesToShow = samples.filter((sample) => {
+    return jobsToShow.size == 0 || (sample.name && jobsToShow.has(sample.name));
+  });
+
   // Populate the last 14 days
   const dayBuckets: Map<
     string,
@@ -72,7 +74,7 @@ function FailureInfo({
   highlighted.add("main");
 
   const branchNames = new Set<string>(highlighted);
-  samples.forEach((job, i) => {
+  samplesToShow.forEach((job, i) => {
     const time = dayjs(job.time!).local().format("MM/D");
     if (!dayBuckets.has(time)) {
       return;
@@ -211,7 +213,26 @@ function FailureInfo({
                 return jobAName.localeCompare(jobBName);
               })
               .map(([job, count]) => (
-                <tr key={job}>
+                <tr
+                  key={job}
+                  onClick={() => {
+                    if (jobsToShow.has(job)) {
+                      const newSet = new Set(jobsToShow);
+                      newSet.delete(job);
+                      setJobsToShow(newSet);
+                    } else {
+                      setJobsToShow(new Set(jobsToShow).add(job));
+                    }
+                  }}
+                >
+                  <td>
+                    <input
+                      type="checkbox"
+                      name={`show-${job}`}
+                      checked={jobsToShow.has(job)}
+                      onChange={() => {}}
+                    ></input>
+                  </td>
                   <td>{job}</td>
                   <td>{count as number}</td>
                 </tr>
@@ -221,7 +242,7 @@ function FailureInfo({
       </div>
       <h3>Failures ({totalCount} total)</h3>
       <ul>
-        {samples
+        {samplesToShow
           // Keep the most recent samples on top
           .sort(function (sampleA: JobData, sampleB: JobData) {
             if (sampleA.time == sampleB.time) {
@@ -236,6 +257,7 @@ function FailureInfo({
                 highlight={
                   sample.branch ? highlighted.has(sample.branch) : false
                 }
+                unstableIssues={[]}
               />
               <div>
                 <JobLinks job={sample} showCommitLink={true} />
@@ -246,6 +268,14 @@ function FailureInfo({
       </ul>
     </div>
   );
+}
+
+function setURL(name: string, jobName: string, failureCaptures: string) {
+  window.location.href = `/failure?name=${encodeURIComponent(
+    name
+  )}&jobName=${encodeURIComponent(
+    jobName
+  )}&failureCaptures=${encodeURIComponent(failureCaptures)}`;
 }
 
 export default function Page() {
@@ -275,7 +305,17 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Failure Info</h1>
       <h2>
-        <code>{failureCaptures}</code>
+        <div>
+          Job:{" "}
+          <ParamSelector
+            value={name}
+            handleSubmit={(e: any) => setURL(e, jobName, failureCaptures)}
+          />
+        </div>
+        <ParamSelector
+          value={failureCaptures}
+          handleSubmit={(e: any) => setURL(name, jobName, e)}
+        />
       </h2>
       <FuzzySearchCheckBox
         useFuzzySearch={useFuzzySearch}

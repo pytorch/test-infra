@@ -5,6 +5,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 
 import { CommitData, JobData } from "./types";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
+import { Octokit } from "octokit";
 
 export default async function fetchCommit(
   owner: string,
@@ -47,8 +48,41 @@ export default async function fetchCommit(
   // Now sort alphabetically by name.
   jobs = _.sortBy(jobs, "name");
 
+  // Handle workflow start up failures by handling jobs and workflows separately
+  // and then merging them back together
+  const [workflows, onlyJobs] = _.partition(
+    jobs,
+    (job) => job.workflowId === null || job.workflowId === undefined
+  );
+
+  const filteredJobs = removeCancelledJobAfterRetry<JobData>(onlyJobs);
+
+  const workflowIdsWithJobs = _.map(filteredJobs, (job) => job.workflowId);
+
+  const badWorkflows = _.filter(
+    workflows,
+    (workflow) => !workflowIdsWithJobs.includes(workflow.id)
+  );
+
   return {
     commit: commitDataFromResponse(githubResponse.data),
-    jobs: removeCancelledJobAfterRetry<JobData>(jobs),
+    jobs: _.concat(filteredJobs, badWorkflows),
   };
+}
+
+export async function fetchCommitTimestamp(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  commit_sha: string
+): Promise<string> {
+  // Query GitHub to get the commit timestamp, this is used to get the timestamp of
+  // commits from forked PRs
+  const commit = await octokit.rest.git.getCommit({
+    owner: owner,
+    repo: repo,
+    commit_sha: commit_sha,
+  });
+
+  return commit.data.committer.date;
 }

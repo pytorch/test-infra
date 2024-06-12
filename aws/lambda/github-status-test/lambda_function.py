@@ -4,13 +4,15 @@ import gzip
 import json
 import os
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import urlopen
 from uuid import uuid4
+import requests
+import random
 
 import boto3
 
 s3 = boto3.resource("s3")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKENS = os.environ.get("GITHUB_TOKENS")
 BUCKET_NAME = "ossci-raw-job-status"
 
 
@@ -22,10 +24,10 @@ def download_log(full_name, conclusion, job_id):
     url = f"https://api.github.com/repos/{full_name}/actions/jobs/{job_id}/logs"
     headers = {
         "Accept": "application/vnd.github.v3+json",
-        "Authorization": f"token {GITHUB_TOKEN}",
+        "Authorization": "token " + random.choice(GITHUB_TOKENS.split(",")),
     }
-    with urlopen(Request(url, headers=headers)) as data:
-        log_data = data.read()
+    r = requests.get(url, headers=headers)
+    log_data = r.content
 
     object_path = f"log/{job_id}"
     if full_name != "pytorch/pytorch":

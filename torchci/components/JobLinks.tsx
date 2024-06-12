@@ -1,4 +1,4 @@
-import { durationHuman, LocalTimeHuman } from "./TimeUtils";
+import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
@@ -7,6 +7,8 @@ import TestInsightsLink from "./TestInsights";
 import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
+import { transformJobName } from "../lib/jobUtils";
+import dayjs from "dayjs";
 
 export default function JobLinks({
   job,
@@ -15,8 +17,10 @@ export default function JobLinks({
   job: JobData;
   showCommitLink?: boolean;
 }) {
-  const commitLink = showCommitLink ? (
-    <span>
+  const subInfo = [];
+
+  if (showCommitLink) {
+    subInfo.push(
       <a
         target="_blank"
         rel="noreferrer"
@@ -24,76 +28,91 @@ export default function JobLinks({
       >
         Commit
       </a>
-      {` | `}
-    </span>
-  ) : null;
+    );
+  }
 
-  const rawLogs =
-    job.conclusion !== "pending" ? (
+  if (job.conclusion !== "pending" && job.logUrl != null) {
+    subInfo.push(
+      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+        Raw logs
+      </a>
+    );
+  }
+
+  if (job.failureCaptures != null) {
+    subInfo.push(
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={`/failure?name=${encodeURIComponent(
+          job.name as string
+        )}&jobName=${encodeURIComponent(
+          job.jobName as string
+        )}&failureCaptures=${encodeURIComponent(
+          JSON.stringify(job.failureCaptures)
+        )}`}
+      >
+        more like this
+      </a>
+    );
+  }
+
+  if (job.queueTimeS != null) {
+    subInfo.push(
+      <span>{`Queued: ${durationDisplay(Math.max(job.queueTimeS!, 0))}`}</span>
+    );
+  }
+
+  if (job.durationS != null) {
+    subInfo.push(<span>{`Duration: ${durationDisplay(job.durationS!)}`}</span>);
+  }
+
+  if (job.time != null) {
+    subInfo.push(
       <span>
-        <a target="_blank" rel="noreferrer" href={job.logUrl}>
-          Raw logs
-        </a>
-      </span>
-    ) : null;
-
-  const queueTimeS =
-    job.queueTimeS != null ? (
-      <span>{` | Queued: ${durationHuman(Math.max(job.queueTimeS!, 0))}`}</span>
-    ) : null;
-
-  const durationS =
-    job.durationS != null ? (
-      <span>{` | Duration: ${durationHuman(job.durationS!)}`}</span>
-    ) : null;
-
-  const eventTime =
-    job.time != null ? (
-      <span>
-        {` | Started: `}
+        {`Started: `}
         <LocalTimeHuman timestamp={job.time} />
       </span>
-    ) : null;
+    );
+  }
 
-  const failureCaptures =
-    job.failureCaptures != null ? (
-      <span>
-        {" | "}
-        <a
-          target="_blank"
-          rel="noreferrer"
-          href={`/failure?name=${encodeURIComponent(
-            job.name as string
-          )}&jobName=${encodeURIComponent(
-            job.jobName as string
-          )}&failureCaptures=${encodeURIComponent(
-            JSON.stringify(job.failureCaptures)
-          )}`}
-        >
-          more like this
-        </a>
-      </span>
-    ) : null;
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
+    subInfo.push(testInsightsLink);
+  }
 
+  const disableTestButton = DisableTest({ job: job, label: "skipped" });
+  if (disableTestButton != null) {
+    subInfo.push(disableTestButton);
+  }
   const authenticated = useSession().status === "authenticated";
+
+  if (authenticated) {
+    const unstableJobButton = UnstableJob({ job: job, label: "unstable" });
+    if (unstableJobButton != null) {
+      subInfo.push(unstableJobButton);
+    }
+  }
+
+  if (authenticated && job.failureLines) {
+    const reproComamnd = ReproductionCommand({
+      job: job,
+      separator: "",
+      testName: getTestName(job.failureLines[0] ?? "", true),
+    });
+    if (reproComamnd != null) {
+      subInfo.push(reproComamnd);
+    }
+  }
+
   return (
     <span>
-      {commitLink}
-      {rawLogs}
-      {failureCaptures}
-      {queueTimeS}
-      {durationS}
-      {eventTime}
-      <TestInsightsLink job={job} separator={" | "} />
-      <DisableTest job={job} label={"skipped"} />
-      {authenticated && <UnstableJob job={job} label={"unstable"} />}
-      {authenticated && job.failureLines && (
-        <ReproductionCommand
-          job={job}
-          separator={" | "}
-          testName={getTestName(job.failureLines[0] ?? "")}
-        />
-      )}
+      {subInfo.map((info, i) => (
+        <span key={i}>
+          {i > 0 && " | "}
+          {info}
+        </span>
+      ))}
     </span>
   );
 }
@@ -101,14 +120,16 @@ export default function JobLinks({
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
-
-function getTestName(failureCapture: string) {
+function getTestName(failureCapture: string, reproduction: boolean = false) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
     return unittestMatch[1];
   }
   const pytestMatch = failureCapture.match(pytestFailureRe);
   if (pytestMatch !== null) {
+    if (reproduction) {
+      return `python ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
+    }
     return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
   }
   return null;
@@ -151,7 +172,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   }
   // - If we don't yet have any data, show a loading state.
   if (data === undefined) {
-    return <span>{" | "} checking for disable tests</span>;
+    return <span>checking for disable tests</span>;
   }
 
   // At this point, we should show something. Search the existing disable issues
@@ -161,30 +182,17 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
       isDisabledTest={true}
     />
   );
-}
-
-const jobNameRe = /^(.*) \(([^,]*),.*\)/;
-function transformJobName(jobName?: string) {
-  if (jobName == undefined) {
-    return null;
-  }
-
-  // We want to have the job name in the following format WORKFLOW / JOB (CONFIG)
-  const jobNameMatch = jobName.match(jobNameRe);
-  if (jobNameMatch !== null) {
-    return `${jobNameMatch[1]} (${jobNameMatch[2]})`;
-  }
-
-  return jobName;
 }
 
 function formatUnstableJobBody() {
@@ -215,7 +223,7 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
 
   // If we don't yet have any data, show a loading state.
   if (data === undefined) {
-    return <span>{" | "} checking for disable jobs</span>;
+    return <span>checking for disable jobs</span>;
   }
 
   // At this point, we should show something. Search the existing disable issues
@@ -227,9 +235,11 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const matchingIssues = issues.filter((issue) =>
     issueTitle.includes(issue.title)
   );
+  const repo = job.repo ?? "pytorch/pytorch";
 
   return (
     <DisableIssue
+      repo={repo}
       matchingIssues={matchingIssues}
       issueTitle={issueTitle}
       issueBody={issueBody}
@@ -239,23 +249,27 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
 }
 
 function DisableIssue({
+  repo,
   matchingIssues,
   issueTitle,
   issueBody,
   isDisabledTest,
 }: {
+  repo: string;
   matchingIssues: IssueData[];
   issueTitle: string;
   issueBody: string;
   isDisabledTest: boolean;
 }) {
-  let issueLink = `https://github.com/pytorch/pytorch/issues/new?title=${issueTitle}&body=${issueBody}`;
+  const recentThresholdHours = 14 * 24;
+
+  let issueLink = `https://github.com/${repo}/issues/new?title=${issueTitle}&body=${issueBody}`;
   let linkText = isDisabledTest
     ? "Disable test"
     : issueTitle.includes("UNSTABLE")
     ? "Mark unstable job"
     : "Disable job";
-  let buttonStyle = "";
+  let buttonStyle = styles.disableTestButton;
 
   if (matchingIssues.length !== 0) {
     // There is a matching issue, show that in the tooltip box.
@@ -266,7 +280,11 @@ function DisableIssue({
         : issueTitle.includes("UNSTABLE")
         ? "Job is unstable"
         : "Job is disabled";
-    } else {
+      buttonStyle = "";
+    } else if (
+      dayjs().diff(dayjs(matchingIssue.updated_at), "hours") <
+      recentThresholdHours
+    ) {
       buttonStyle = styles.closedDisableIssueButton;
       linkText = isDisabledTest
         ? "Previously disabled test"
@@ -275,17 +293,11 @@ function DisableIssue({
         : "Previously disabled job";
     }
     issueLink = matchingIssues[0].html_url;
-  } else {
-    // No matching issue, show a link to create one.
-    buttonStyle = styles.disableTestButton;
   }
 
   return (
-    <span>
-      {" | "}
-      <a target="_blank" rel="noreferrer" href={issueLink}>
-        <button className={buttonStyle}>{linkText}</button>
-      </a>
-    </span>
+    <a target="_blank" rel="noreferrer" href={issueLink}>
+      <button className={buttonStyle}>{linkText}</button>
+    </a>
   );
 }

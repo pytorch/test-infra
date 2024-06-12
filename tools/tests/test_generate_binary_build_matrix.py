@@ -17,6 +17,7 @@ class GenerateBuildMatrixTest(TestCase):
         rocm: bool,
         cpu: bool,
         reference_output_file: str,
+        build_python_only: bool = False,
     ) -> None:
         out = generate_build_matrix(
             package_type,
@@ -26,6 +27,9 @@ class GenerateBuildMatrixTest(TestCase):
             "enable" if rocm else "disable",
             "enable" if cpu else "disable",
             "false",
+            "false",
+            "enable" if build_python_only else "disable",
+
         )
 
         expected_json_filename = os.path.join(ASSETS_DIR, reference_output_file)

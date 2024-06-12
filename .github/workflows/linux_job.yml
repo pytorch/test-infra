@@ -16,7 +16,9 @@ on:
         default: "linux.2xlarge"
         type: string
       upload-artifact:
-        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        description: |
+          Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}, all the wheel files
+          under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
         default: ''
         type: string
       download-artifact:
@@ -193,7 +195,7 @@ jobs:
       - name: Run script in container
         if: ${{ inputs.run-with-docker == true }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
@@ -213,7 +215,7 @@ jobs:
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
@@ -257,7 +259,8 @@ jobs:
           ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
-        working-directory: ${{ inputs.repository }}
+        if: always()
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
@@ -268,6 +271,9 @@ jobs:
             # attempt to just grab whatever is in there and scoop it all up
             if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
               mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            if [[ -d "artifacts-to-be-uploaded" ]]; then
+              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
             # Set to fail upload step if there are no files for upload and expected files for upload
             echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
@@ -285,7 +291,7 @@ jobs:
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.upload-artifact != '' }}
+        if: ${{ always() && inputs.upload-artifact != '' }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/

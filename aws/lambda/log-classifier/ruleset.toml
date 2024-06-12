@@ -26,7 +26,7 @@ pattern = '^>>> Lint for.*'
 
 [[rule]]
 name = 'GHA timeout'
-pattern = '^##\[error\]The action has timed out.'
+pattern = '^##\[error\]The action (.*)has timed out(?: after .* minutes|)?.'
 
 [[rule]]
 name = 'Faulty ROCM runner'
@@ -71,6 +71,10 @@ pattern = '''^name unknown: The repository with name '.*' does not exist in the 
 [[rule]]
 name = 'Windows PyLong API usage check'
 pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
+
+[[rule]]
+name = 'Bazel build failure (specific)'
+pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
 
 [[rule]]
 name = 'Bazel build failure'
@@ -219,6 +223,31 @@ pattern = '^ModuleNotFoundError: .*'
 [[rule]]
 name = 'Python ImportError'
 pattern = '^ImportError: .*'
+
+[[rule]]
+name = 'Python ValueErrors'
+pattern = '^ValueError: .*'
+
+[[rule]]
+name = 'Python TypeErrors'
+pattern = '^TypeError: .*'
+
+# TODO (huydhn): Update ET test script to include the model name in the error message
+[[rule]]
+name = 'ExecuTorch portable model test - failed'
+pattern = 'Portable fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized portable model test - failed'
+pattern = 'Portable q8 error'
+
+[[rule]]
+name = 'ExecuTorch delegation model test - failed'
+pattern = 'Delegation fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized delegation model test - failed'
+pattern = 'Delegation q8 error'
 
 [[rule]]
 name = 'Docker login failure'

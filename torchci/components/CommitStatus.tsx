@@ -1,6 +1,6 @@
 import FilteredJobList from "./FilteredJobList";
 import VersionControlLinks from "./VersionControlLinks";
-import { CommitData, JobData } from "lib/types";
+import { CommitData, JobData, IssueData } from "lib/types";
 import WorkflowBox from "./WorkflowBox";
 import styles from "components/commit.module.css";
 import _ from "lodash";
@@ -14,13 +14,9 @@ import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import useScrollTo from "lib/useScrollTo";
 import WorkflowDispatcher from "./WorkflowDispatcher";
 import { useSession } from "next-auth/react";
+import { useState } from "react";
 
-function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
-  useScrollTo();
-
-  if (jobs.length === 0) {
-    return null;
-  }
+function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
   const byWorkflow = _(jobs)
     .groupBy((job) => job.workflowName)
     .sortBy(
@@ -33,6 +29,45 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
     .reverse()
     .value();
 
+  // Next, if a workflow is wide, make sure it is on the left to make shifting
+  // less prominent when the workflowbox becomes wide
+  const newOrder = [];
+  let left = true;
+  for (const workflow of byWorkflow) {
+    const workflowName = workflow[0].workflowName as string;
+
+    if (wideBoxes.has(workflowName) && !left) {
+      const last: JobData[] = newOrder.pop()!;
+      newOrder.push(workflow);
+      newOrder.push(last);
+    } else {
+      newOrder.push(workflow);
+      if (!wideBoxes.has(workflowName)) {
+        left = !left;
+      }
+    }
+  }
+
+  return newOrder;
+}
+
+function WorkflowsContainer({
+  jobs,
+  unstableIssues,
+}: {
+  jobs: JobData[];
+  unstableIssues: IssueData[];
+}) {
+  useScrollTo();
+
+  const [wideBoxes, setWideBoxes] = useState(new Set<string>());
+
+  if (jobs.length === 0) {
+    return null;
+  }
+
+  const byWorkflow = getBoxOrdering(jobs, wideBoxes);
+
   return (
     <>
       <h1>Workflows</h1>
@@ -44,6 +79,17 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
               key={workflowName}
               workflowName={workflowName}
               jobs={jobs}
+              unstableIssues={unstableIssues}
+              wide={wideBoxes.has(workflowName)}
+              setWide={(wide: boolean) => {
+                if (wide) {
+                  setWideBoxes(new Set(wideBoxes).add(workflowName));
+                } else {
+                  const newSet = new Set(wideBoxes);
+                  newSet.delete(workflowName);
+                  setWideBoxes(newSet);
+                }
+              }}
             />
           );
         })}
@@ -58,12 +104,14 @@ export default function CommitStatus({
   commit,
   jobs,
   isCommitPage,
+  unstableIssues,
 }: {
   repoOwner: string;
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
   isCommitPage: boolean;
+  unstableIssues: IssueData[];
 }) {
   const session = useSession();
   const isAuthenticated = session.status === "authenticated";
@@ -90,26 +138,30 @@ export default function CommitStatus({
         pred={(job) =>
           isFailedJob(job) &&
           !isRerunDisabledTestsJob(job) &&
-          !isUnstableJob(job)
+          !isUnstableJob(job, unstableIssues)
         }
         showClassification
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Failed unstable jobs"
         jobs={jobs}
-        pred={(job) => isFailedJob(job) && isUnstableJob(job)}
+        pred={(job) => isFailedJob(job) && isUnstableJob(job, unstableIssues)}
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Daily rerunning disabled jobs"
         jobs={jobs}
         pred={(job) => isFailedJob(job) && isRerunDisabledTestsJob(job)}
+        unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Pending jobs"
         jobs={jobs}
         pred={(job) => job.conclusion === "pending"}
+        unstableIssues={unstableIssues}
       />
-      <WorkflowsContainer jobs={jobs} />
+      <WorkflowsContainer jobs={jobs} unstableIssues={unstableIssues} />
       {isAuthenticated && isCommitPage && (
         <WorkflowDispatcher
           repoOwner={repoOwner}

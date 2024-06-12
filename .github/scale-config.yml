@@ -27,12 +27,24 @@ runner_types:
     is_ephemeral: false
     max_available: 1000
     os: linux
+  linux.24xl.spr-metal:
+    disk_size: 200
+    instance_type: c7i.metal-24xl
+    is_ephemeral: false
+    max_available: 30
+    os: linux
+  linux.16xlarge.spr:
+    disk_size: 200
+    instance_type: c7i.16xlarge
+    is_ephemeral: false
+    max_available: 30
+    os: linux
   linux.12xlarge.ephemeral:
     disk_size: 200
     instance_type: c5.12xlarge
     is_ephemeral: true
     max_available: 300
-    os: linux    
+    os: linux
   linux.16xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.16xlarge
@@ -75,17 +87,29 @@ runner_types:
     is_ephemeral: false
     max_available: 50
     os: linux
+  linux.g4dn.metal.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.metal
+    is_ephemeral: false
+    max_available: 30
+    os: linux
+  linux.g5.48xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.48xlarge
+    is_ephemeral: false
+    max_available: 20
+    os: linux
   linux.g5.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.12xlarge
     is_ephemeral: false
-    max_available: 100
+    max_available: 150
     os: linux
   linux.g5.4xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.4xlarge
     is_ephemeral: false
-    max_available: 800
+    max_available: 1200
     os: linux
   linux.large:
     disk_size: 15
@@ -97,6 +121,12 @@ runner_types:
     instance_type: t4g.2xlarge
     is_ephemeral: false
     max_available: 200
+    os: linux
+  linux.arm64.m7g.2xlarge:
+    disk_size: 256
+    instance_type: m7g.2xlarge
+    is_ephemeral: false
+    max_available: 20
     os: linux
   windows.4xlarge:
     disk_size: 256

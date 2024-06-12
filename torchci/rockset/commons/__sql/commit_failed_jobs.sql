@@ -10,6 +10,7 @@ SELECT
   j.completed_at,
   j.html_url,
   j.head_sha,
+  p.head_commit.timestamp AS head_sha_timestamp,
   j.head_branch,
   j.torchci_classification.captures AS failure_captures,
   IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
@@ -17,7 +18,10 @@ SELECT
   j._event_time AS time,
 FROM
   commons.workflow_job j
-  JOIN commons.workflow_run w ON w.id = j.run_id
+  JOIN commons.workflow_run w ON w.id = j.run_id HINT(join_broadcast = true)
+  -- Do a left join here because the push table won't have any information about
+  -- commits from forked repo
+  LEFT JOIN commons.push p ON p.after = j.head_sha HINT(join_broadcast = true)
 WHERE
   ARRAY_CONTAINS(
     SPLIT(: shas, ','),

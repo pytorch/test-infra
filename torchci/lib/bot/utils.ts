@@ -29,6 +29,9 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "tutorials",
       "executorch",
       "rl",
+      "torchtune",
+      "ao",
+      "torchchat",
     ].includes(repo)
   );
 }
@@ -104,6 +107,64 @@ export class CachedIssueTracker extends CachedConfigTracker {
       context.log({ parsedIssue: this.repoIssues[key] });
     }
     return this.repoIssues[key];
+  }
+}
+
+export class CachedLabelerConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "labeler_config" in config) {
+        this.repoLabels[key] = context.config(config["labeler_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
+  }
+}
+
+export class LabelToLabelConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "label_to_label_config" in config) {
+        this.repoLabels[key] = context.config(config["label_to_label_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
   }
 }
 
@@ -203,6 +264,26 @@ export async function hasWritePermissionsUsingOctokit(
   return permissions === "admin" || permissions === "write";
 }
 
+export async function hasApprovedPullRuns(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  sha: string
+): Promise<boolean> {
+  const res = await octokit.rest.actions.listWorkflowRunsForRepo({
+    owner: owner,
+    repo: repo,
+    head_sha: sha,
+  });
+  const pr_runs = res?.data?.workflow_runs?.filter(
+    (run) => run.event == "pull_request"
+  );
+  if (pr_runs == null || pr_runs?.length == 0) {
+    return false;
+  }
+  return pr_runs.every((run) => run.conclusion != "action_required");
+}
+
 export async function isFirstTimeContributor(
   ctx: any,
   username: string
@@ -217,12 +298,20 @@ export async function isFirstTimeContributor(
   return commits?.data?.length === 0;
 }
 
-export async function hasWorkflowRunningPermissions(
-  ctx: any,
-  username: string
-): Promise<boolean> {
-  return (
-    (await hasWritePermissions(ctx, username)) ||
-    !(await isFirstTimeContributor(ctx, username))
+export async function getFilesChangedByPr(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
+  const filesChangedRes = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+    {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }
   );
+  return filesChangedRes.map((f: any) => f.filename);
 }

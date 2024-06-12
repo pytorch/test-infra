@@ -7,6 +7,7 @@ on:
       - .github/workflows/test_build_conda_windows_with_cuda.yml
       - .github/workflows/build_conda_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
+      - .github/workflows/_binary_conda_upload.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
@@ -28,6 +29,8 @@ jobs:
             smoke-test-script: test/smoke_test/smoke_test.py
             conda-package-directory: packaging/torchaudio
             package-name: torchaudio
+            post-script: ""
+            pre-script: ""
           - repository: pytorch/vision
             pre-script: packaging/pre_build_script.sh
             env-script: packaging/windows/internal/vc_env_helper.bat

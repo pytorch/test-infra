@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   update-test-file-ratings:
     runs-on: ubuntu-latest
@@ -43,7 +46,9 @@ jobs:
 
       - name: Generate file test ratings
         run: |
-          python3 test-infra/tools/torchci/td/calculate_file_test_rating.py
+          set -ex
+          python3 test-infra/tools/torchci/td/historical_file_failure_correlation.py
+          python3 test-infra/tools/torchci/td/historical_class_failure_correlation.py
           python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
           # Do not run this one, it won't change
           # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py

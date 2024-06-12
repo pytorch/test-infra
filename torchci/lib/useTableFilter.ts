@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { formatHudUrlForRoute, HudParams } from "./types";
+import { PinnedTooltipContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 
 export default function useTableFilter(params: HudParams) {
   const router = useRouter();
@@ -11,16 +12,25 @@ export default function useTableFilter(params: HudParams) {
   const normalizedJobFilter =
     jobFilter === null || jobFilter === "" ? null : jobFilter.toLowerCase();
 
+  const [pinnedId] = useContext(PinnedTooltipContext);
+
   useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+    const sha = pinnedId.sha;
+    const listener = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setJobFilter(null);
         router.push(formatHudUrlForRoute("hud", params), undefined, {
           shallow: true,
         });
       }
-    });
-  }, []);
+    };
+    if (!sha) {
+      document.addEventListener("keydown", listener);
+      return () => {
+        document.removeEventListener("keydown", listener);
+      };
+    }
+  }, [pinnedId.sha]);
   const handleInput = useCallback(
     (f: any) => {
       setJobFilter(f);

@@ -328,7 +328,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
+  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}&limit=100`;
   let numRedGreen = `Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.`;
   let debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
 DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
@@ -342,6 +342,23 @@ To find relevant log snippets:
   if (test.file !== `${test.invoking_file}.py`) {
     fileInfo += ` or \`${test.invoking_file}\``;
   }
+
+  let sampleTraceback = "";
+  if (test.sampleTraceback) {
+    function toCodeBlock(text: string): string {
+      return `\`\`\`\n${text}\n\`\`\``;
+    }
+    let inDetails = "";
+    // Rather arbitrary length to avoid printing a massive traceback
+    if (test.sampleTraceback.length > 30000) {
+      const truncatedTrackback = test.sampleTraceback.slice(-30000);
+      inDetails = `Truncated for length\n${toCodeBlock(truncatedTrackback)}`;
+    } else {
+      inDetails = toCodeBlock(test.sampleTraceback);
+    }
+    sampleTraceback = `\n\n<details><summary>Sample error message</summary>\n\n${inDetails}\n\n</details>\n\n`;
+  }
+
   if (test.numRed === undefined) {
     // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
     numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
@@ -363,7 +380,7 @@ This test was disabled because it is failing in CI. See [recent examples](${exam
 ${numRedGreen}
 
 ${debuggingSteps}
-
+${sampleTraceback}
 ${fileInfo}`;
 }
 
@@ -409,7 +426,12 @@ export async function getTestOwnerLabels(
     labels.push("module: unknown");
   }
 
-  if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
+  if (
+    labels.some((x) => x.startsWith("module: ") && x !== "module: unknown") &&
+    !labels.includes("oncall: pt2")
+  ) {
+    // Add triaged if there is a module label and none of labels are oncall: pt2
+    // (see https://github.com/pytorch/pytorch/issues/117846)
     labels.push("triaged");
   }
   return { labels, additionalErrMessage };

@@ -35,11 +35,17 @@ export interface JobData extends BasicJobData {
 export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
   workflowId?: string;
+  // Each workflow file has an id. In rockset this is workflow_run.workflow_id.
+  // This can be used to group normal workflows (ex trunk) and those that failed
+  // to run (ex .github/workflows/trunk.yml) together even when they have
+  // different names.
+  workflowUniqueId?: number;
   jobName?: string;
   id: string;
   completed_at: string | null;
   html_url: string;
   head_sha: string;
+  head_sha_timestamp?: string;
   head_branch?: string | null;
   pr_number?: number;
   failure_captures: string[];
@@ -82,6 +88,7 @@ export interface RowData extends CommitData {
   groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
+  isForceMergeWithInfraFailures: boolean | false;
   nameToJobs?: Map<string, JobData>;
 }
 
@@ -113,7 +120,19 @@ export interface HudParams {
 
 export interface PRData {
   title: string;
+  body: string;
   shas: { sha: string; title: string }[];
+}
+
+export interface PRandJobs extends PRData {
+  head_sha: string;
+  head_sha_timestamp?: string;
+  pr_number: number;
+  jobs: RecentWorkflowsData[];
+  merge_base: string;
+  merge_base_date: string;
+  owner: string;
+  repo: string;
 }
 
 export interface FlakyTestData {
@@ -129,6 +148,7 @@ export interface FlakyTestData {
   jobNames: string[];
   branches: string[];
   eventTimes?: string[];
+  sampleTraceback?: string;
 }
 
 export interface DisabledNonFlakyTestData {

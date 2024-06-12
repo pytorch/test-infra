@@ -10,7 +10,15 @@ WITH queued_jobs as (
     job.html_url,
     IF(
       LENGTH(job.labels) = 0,
-      'N/A',
+      IF (
+        job.runner_group_name IS NOT null
+        AND job.runner_group_name != 'Default'
+        AND job.runner_group_name != 'GitHub Actions'
+        AND job.runner_group_name != ''
+        AND job.runner_group_name != 'linux.rocm.gpu.group',
+        job.runner_group_name,
+        'N/A'
+      ),
       IF(
         LENGTH(job.labels) > 1,
         ELEMENT_AT(job.labels, 2),

@@ -29,12 +29,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/text
-            pre-script: packaging/install_torchdata.sh
+          - repository: pytorch/audio
             env-script: packaging/vc_env_helper.bat
-            post-script: ""
-            smoke-test-script: test/smoke_tests/smoke_tests.py
-            package-name: torchtext
+            wheel-build-params: "--plat-name win_amd64"
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
@@ -43,9 +42,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
-      pre-script: ${{ matrix.pre-script }}
       env-script: ${{ matrix.env-script }}
-      post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"

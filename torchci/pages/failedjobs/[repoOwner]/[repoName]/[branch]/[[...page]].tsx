@@ -73,16 +73,22 @@ function FailedJob({
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
+
   const hasSimilarJobs = similarJobs.length > 1;
 
   return (
     <div style={{ padding: "10px" }}>
       <li key={job.id}>
-        <JobSummary job={job} />
+        <JobSummary
+          job={job}
+          unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
+        />
         <div>
-          <CommitLink job={job} />
-          {" | "}
-          <JobLinks job={job} />
+          <JobLinks job={job} showCommitLink={true} />
         </div>
         <div>
           <JobAnnotationToggle

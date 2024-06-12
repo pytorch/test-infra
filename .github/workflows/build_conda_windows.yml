@@ -140,7 +140,7 @@ jobs:
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
           source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
-          conda install -yq conda-build "conda-package-handling!=1.5.0" conda=23.7.3
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
 
           conda build \
             -c defaults \
@@ -154,6 +154,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
           set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
@@ -169,12 +170,13 @@ jobs:
             --no-test  --python "${PYTHON_VERSION}" \
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
-      - name: Upload artifact to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/distr/
+
+          # This is to remove the vs20xx conda package that sneaks into distr
+          for pkg in distr/**/*.tar.bz2; do
+            if [[ "${pkg}" != *"${PACKAGE_NAME}"* ]]; then
+              rm -f "${pkg}"
+            fi
+          done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -211,8 +213,9 @@ jobs:
             CONSTRAINT_BUILD="=${BUILD_VERSION}"
           fi
 
+          # keep verbose install here for details
           ${CONDA_RUN_SMOKE} conda install \
-            --quiet \
+            --verbose \
             --yes \
             -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
@@ -239,10 +242,18 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
+      # NB: Only upload to GitHub after passing smoke tests
+      - name: Upload artifact to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr/
 
   upload:
     needs: build
     uses: ./.github/workflows/_binary_conda_upload.yml
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}

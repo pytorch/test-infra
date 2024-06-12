@@ -20,7 +20,14 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
       setTime(time.format("M/D h:mm a"));
     }
   }, [timestamp]);
-  return <span>{time}</span>;
+  return (
+    <span
+      title={`${durationDisplay(dayjs().diff(timestamp, "seconds"))} ago`}
+      data-toggle="tooltip"
+    >
+      {time}
+    </span>
+  );
 }
 
 // from: https://gist.github.com/g1eb/62d9a48164fe7336fdf4845e22ae3d2c

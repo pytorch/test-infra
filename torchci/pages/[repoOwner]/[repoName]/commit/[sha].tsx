@@ -2,6 +2,7 @@ import CommitStatus from "components/CommitStatus";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
+import { IssueData } from "lib/types";
 
 export function CommitInfo({
   repoOwner,
@@ -12,7 +13,7 @@ export function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data, error } = useSWR(
+  const { data: commitData, error } = useSWR(
     `/api/${repoOwner}/${repoName}/commit/${sha}`,
     fetcher,
     {
@@ -23,15 +24,20 @@ export function CommitInfo({
     }
   );
 
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
+
   if (error != null) {
     return <div>Error occured</div>;
   }
 
-  if (data === undefined) {
+  if (commitData === undefined) {
     return <div>Loading...</div>;
   }
 
-  const { commit, jobs } = data;
+  const { commit, jobs } = commitData;
   return (
     <div>
       <h2>{commit.commitTitle}</h2>
@@ -41,6 +47,7 @@ export function CommitInfo({
         commit={commit}
         jobs={jobs}
         isCommitPage={true}
+        unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
       />
     </div>
   );

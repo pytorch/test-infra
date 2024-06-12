@@ -106,6 +106,10 @@
   background-color: #ffe0b3;
 }
 
+.forcedMergeWithInfraFailures {
+  background-color: #B9E4BF;
+}
+
 .selectedRow {
   background-color: lightblue;
   font-weight: bold;

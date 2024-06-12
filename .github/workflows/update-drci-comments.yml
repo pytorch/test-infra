@@ -4,7 +4,7 @@ on:
   schedule:
     # Run every 15 minutes
     - cron: "*/15 * * * *"
-  # Have the ability to trigger this job manually through the API (temporary)
+  # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
 jobs:
@@ -62,3 +62,24 @@ jobs:
           --url 'https://www.torch-ci.com/api/drci/drci' \
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
           --data 'repo=rl'
+
+      - name: Retrieve the Rockset query results and update Dr. CI comments for the TorchTune repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=torchtune'
+
+      - name: Retrieve the Rockset query results and update Dr. CI comments for the torchao repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=ao'
+
+      - name: Retrieve the Rockset query results and update Dr. CI comments for the torchchat repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=torchchat'

@@ -58,7 +58,7 @@ To run tests first make sure you're in the `torchci` folder and then:
 The easiest way to develop probot actions is to use `nock` to mock out
 interactions with the GitHub API and develop completely locally. If you _do_
 need real webhooks, the easiest thing to do is [follow these
-instructions](https://probot.github.io/docs/development/#manually-configuring-a-github-app)
+instructions](https://github.com/pytorch/test-infra/wiki/Testing-Probot-Locally)
 to configure a repo to send webhooks to a Smee proxy, which will then forward
 them to your local server.
 

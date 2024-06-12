@@ -13,7 +13,6 @@ import {
   getGroupingData,
   groups,
   sortGroupNamesForHUD,
-  isPersistentGroup,
   isUnstableGroup,
 } from "lib/JobClassifierUtil";
 import {
@@ -24,6 +23,7 @@ import {
   JobData,
   packHudParams,
   RowData,
+  IssueData,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
@@ -31,20 +31,29 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
-import useSWR from "swr";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { fetcher } from "lib/GeneralUtils";
 import {
   useGroupingPreference,
   usePreference,
 } from "lib/useGroupingPreference";
 import { track } from "lib/track";
+import useSWR from "swr";
+import { fetcher } from "lib/GeneralUtils";
+import { ParamSelector } from "lib/ParamSelector";
 
-export function JobCell({ sha, job }: { sha: string; job: JobData }) {
+export function JobCell({
+  sha,
+  job,
+  unstableIssues,
+}: {
+  sha: string;
+  job: JobData;
+  unstableIssues: IssueData[];
+}) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const style = pinnedId.name == job.name ? styles.highlight : "";
   return (
@@ -52,7 +61,7 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
-        tooltipContent={<JobTooltip job={job} />}
+        tooltipContent={<JobTooltip job={job} sha={pinnedId.sha || sha} />}
         sha={sha as string}
         name={job.name as string}
       >
@@ -63,7 +72,8 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
             classified={job.failureAnnotation != null}
             warningOnly={
               isFailedJob(job) &&
-              (isRerunDisabledTestsJob(job) || isUnstableJob(job))
+              (isRerunDisabledTestsJob(job) ||
+                isUnstableJob(job, unstableIssues))
             }
           />
         </div>
@@ -76,10 +86,12 @@ function HudRow({
   rowData,
   expandedGroups,
   names,
+  unstableIssues,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
   names: string[];
+  unstableIssues: IssueData[];
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
@@ -116,14 +128,25 @@ function HudRow({
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
           <a
-            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}     
+             title={
+              rowData.isForcedMerge
+                ? rowData.isForceMergeWithInfraFailures
+                  ? "Forced merge with infrastructure failures"
+                  : rowData.isForcedMergeWithFailures
+                  ? "Forced merge with failures that were merge-blocking"
+                  : "Forced merge. Had no merge-blocking failures"
+                : undefined
+            }
           >
             {rowData.isForcedMerge ? (
               <mark
                 className={
-                  rowData.isForcedMergeWithFailures
-                    ? styles.forcedMergeWithFailure
-                    : styles.forcedMerge
+                  rowData.isForceMergeWithInfraFailures
+                  ? styles.forcedMergeWithInfraFailures
+                  : rowData.isForcedMergeWithFailures
+                  ? styles.forcedMergeWithFailure
+                  : styles.forcedMerge
                 }
               >
                 #{rowData.prNum}
@@ -147,6 +170,7 @@ function HudRow({
         rowData={rowData}
         expandedGroups={expandedGroups}
         names={names}
+        unstableIssues={unstableIssues}
       />
     </tr>
   );
@@ -156,10 +180,12 @@ function HudJobCells({
   rowData,
   expandedGroups,
   names,
+  unstableIssues,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
   names: string[];
+  unstableIssues: IssueData[];
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
 
@@ -185,11 +211,19 @@ function HudJobCells({
               isClassified={
                 numClassified != 0 && numClassified == failedJobs?.length
               }
+              unstableIssues={unstableIssues}
             />
           );
         } else {
           const job = rowData.nameToJobs?.get(name);
-          return <JobCell sha={rowData.sha} key={name} job={job!} />;
+          return (
+            <JobCell
+              sha={rowData.sha}
+              key={name}
+              job={job!}
+              unstableIssues={unstableIssues}
+            />
+          );
         }
       })}
     </>
@@ -200,10 +234,12 @@ function HudTableBody({
   shaGrid,
   expandedGroups = new Set(),
   names,
+  unstableIssues,
 }: {
   shaGrid: RowData[];
   expandedGroups?: Set<string>;
   names: string[];
+  unstableIssues: IssueData[];
 }) {
   return (
     <tbody>
@@ -213,6 +249,7 @@ function HudTableBody({
           rowData={row}
           expandedGroups={expandedGroups}
           names={names}
+          unstableIssues={unstableIssues}
         />
       ))}
     </tbody>
@@ -338,48 +375,11 @@ function HudTable({ params }: { params: HudParams }) {
   return <GroupedView params={params} />;
 }
 
-function ParamSelector({
-  value,
-  handleSubmit,
-}: {
-  value: string;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-}) {
-  const [isInput, setIsInput] = useState(false);
-  if (isInput) {
-    return (
-      <form
-        className={styles.branchForm}
-        onSubmit={handleSubmit}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setIsInput(false);
-          }
-        }}
-      >
-        <input autoFocus className={styles.branchFormInput} type="text"></input>
-      </form>
-    );
-  }
-
-  return (
-    <code style={{ cursor: "pointer" }} onClick={() => setIsInput(true)}>
-      {value}
-    </code>
-  );
-}
-
 function HudHeader({ params }: { params: HudParams }) {
-  function handleBranchSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const branch = e.target[0].value;
+  function handleBranchSubmit(branch: string) {
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
-  function handleRepoSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const repoOwnerAndName = e.target[0].value;
+  function handleRepoSubmit(repoOwnerAndName: string) {
     const split = repoOwnerAndName.split("/");
     window.location.href = formatHudUrlForRoute("hud", {
       ...params,
@@ -443,9 +443,12 @@ export default function Hud() {
         {params.branch !== undefined && (
           <div onClick={handleClick}>
             <HudHeader params={params} />
-            <div>This page automatically updates.</div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
+            <br />
+            <div>
+              <em>This page automatically updates.</em>
+            </div>
           </div>
         )}
       </PinnedTooltipContext.Provider>
@@ -469,9 +472,15 @@ function GroupedHudTable({
   params: HudParams;
   data: HudData;
 }) {
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
+
   const { shaGrid, groupNameMapping } = getGroupingData(
     data.shaGrid,
-    data.jobNames
+    data.jobNames,
+    unstableIssuesData ? unstableIssuesData.issues : []
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
@@ -501,14 +510,25 @@ function GroupedHudTable({
       ];
     });
     if (hideUnstable) {
-      names = names.filter((name) => !isUnstableGroup(name));
+      names = names.filter(
+        (name) =>
+          !isUnstableGroup(
+            name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          )
+      );
     }
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
       if (
         groupNames.includes(group.name) &&
-        (group.persistent || (isUnstableGroup(group.name) && hideUnstable))
+        (group.persistent ||
+          (isUnstableGroup(
+            group.name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          ) &&
+            hideUnstable))
       ) {
         // Add group name, take out all the jobs that belong to that group
         // unless the group is expanded
@@ -539,6 +559,7 @@ function GroupedHudTable({
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
         names={names}
+        unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
       />
     </GroupFilterableHudTable>
   );

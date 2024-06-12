@@ -24,7 +24,14 @@
     ARRAY_AGG(workflow.id) as workflowIds,
     ARRAY_AGG(workflow.name) as workflowNames,
     ARRAY_AGG(workflow.head_branch) as branches,
-    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts
+    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,
+    ARBITRARY(
+        if(
+            TYPEOF(test_run.rerun) = 'object',
+            test_run.rerun.text,
+            test_run.rerun[0].text
+        )
+    ) as sampleTraceback
 FROM
     commons.workflow_job job
     INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)
@@ -60,7 +67,14 @@ select
     ARRAY_AGG(workflow.id) as workflowIds,
     ARRAY_AGG(workflow.name) as workflowNames,
     ARRAY_AGG(workflow.head_branch) as branches,
-    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts
+    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,
+    ARBITRARY(
+        if(
+            TYPEOF(test_run.rerun) = 'object',
+            test_run.rerun.text,
+            test_run.rerun[0].text
+        )
+    ) as sampleTraceback
 FROM
     commons.workflow_job job
     INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)

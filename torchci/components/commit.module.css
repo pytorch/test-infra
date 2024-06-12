@@ -25,3 +25,11 @@
   border-radius: 5px;
   background-color: azure;
 }
+
+.buttonBorder {
+  border: 1px solid;
+}
+
+.buttonBorder:hover {
+  background-color: lightgrey;
+}

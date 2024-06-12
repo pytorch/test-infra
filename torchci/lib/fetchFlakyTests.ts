@@ -111,7 +111,14 @@ select
             if(TYPEOF(t.rerun) = 'object', 1, Length(t.rerun)),
             if(TYPEOF(t.rerun) = 'object', 2, Length(t.rerun) + 1)
         )
-    ) as numRed
+    ) as numRed,
+    ARBITRARY(
+      if(
+          TYPEOF(t.rerun) = 'object',
+          t.rerun.text,
+          t.rerun[1].text
+      )
+  ) as sampleTraceback
 FROM
     commons.test_run_s3 t
 where
@@ -251,6 +258,7 @@ where
           jobIds: [curr.job_id],
           jobNames: [job_info.name],
           branches: [job_info.head_branch],
+          sampleTraceback: curr.sampleTraceback,
         });
       } else {
         val.jobIds.push(curr.job_id);

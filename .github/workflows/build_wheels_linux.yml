@@ -60,11 +60,29 @@ on:
         required: false
         type: string
         default: x86_64
-      setup-miniconda:
+      submodules:
         description: Works as stated in actions/checkout, but the default value is recursive
+        required: false
+        type: string
+        default: recursive
+      setup-miniconda:
+        description: Set to true if setup-miniconda is needed
         required: false
         type: boolean
         default: true
+      build-platform:
+        description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
+        required: false
+        type: string
+        default: 'setup-py'
+      upload-to-pypi:
+        description: The comma-separated list of CUDA arch to be uploaded to pypi
+        default: ""
+        type: string
+    secrets:
+      PYPI_API_TOKEN:
+        description: An optional token to upload to pypi
+        required: false
 
 permissions:
   id-token: write
@@ -142,6 +160,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
           setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
@@ -167,27 +186,28 @@ jobs:
           cache-key: ${{ inputs.cache-key }}
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
-      - name: Build clean
+      - name: Build the wheel (python-build-package)
+        if: ${{ inputs.build-platform == 'python-build-package' }}
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
+          ${CONDA_RUN} python -m pip install build
+          echo "Successfully installed Python build package"
+          ${CONDA_RUN} python -m build --wheel
+      - name: Build the wheel (setup-py)
+        if: ${{ inputs.build-platform == 'setup-py' }}
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python setup.py clean
-      - name: Build the wheel (bdist_wheel)
-        working-directory: ${{ inputs.repository }}
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
+          echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -228,10 +248,18 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+      # NB: Only upload to GitHub after passing smoke tests
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
 
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
@@ -240,6 +268,9 @@ jobs:
       build-matrix: ${{ inputs.build-matrix }}
       architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
+      upload-to-pypi: ${{ inputs.upload-to-pypi }}
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
