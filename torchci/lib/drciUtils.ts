@@ -2,7 +2,6 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import {
-  getPRMergeCommits,
   hasS3Log,
   isFailureFromPrevMergeCommit,
   isSameAuthor,
@@ -233,6 +232,7 @@ export async function upsertDrCiComment(
 export async function hasSimilarFailures(
   job: RecentWorkflowsData,
   baseCommitDate: string,
+  mergeCommits: string[],
   lookbackPeriodInHours: number = 24,
   client?: Client
 ): Promise<RecentWorkflowsData | undefined> {
@@ -290,9 +290,7 @@ export async function hasSimilarFailures(
     return;
   }
 
-  // Find the merge commits of the PR if it has already been merged before
-  const mergeCommits = await getPRMergeCommits(job);
-
+  let foundSimilarFailure;
   for (const record of records) {
     // Convert the result in JobData to RecentWorkflowsData used by Dr.CI
     const failure: RecentWorkflowsData = {
@@ -335,13 +333,17 @@ export async function hasSimilarFailures(
       isSameFailure(job, failure) &&
       // Run this check last because it costs one query to query for the commit
       // author of the failure
-      !(await isSameAuthor(job, failure))
+      !(await isSameAuthor(job, failure)) &&
+      foundSimilarFailure === undefined
     ) {
-      return failure;
+      // Save the first similar failure (the one with the highest score) and continue
+      // instead of returning right away to make sure that the previous logic from
+      // isFailureFromPrevMergeCommit is applied to all matches
+      foundSimilarFailure = failure;
     }
   }
 
-  return;
+  return foundSimilarFailure;
 }
 
 export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
