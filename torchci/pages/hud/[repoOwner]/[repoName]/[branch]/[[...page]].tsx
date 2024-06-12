@@ -128,10 +128,12 @@ function HudRow({
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
           <a
-            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
-            title={
+            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}     
+             title={
               rowData.isForcedMerge
-                ? rowData.isForcedMergeWithFailures
+                ? rowData.isForceMergeWithInfraFailures
+                  ? "Forced merge with infrastructure failures"
+                  : rowData.isForcedMergeWithFailures
                   ? "Forced merge with failures that were merge-blocking"
                   : "Forced merge. Had no merge-blocking failures"
                 : undefined
@@ -140,9 +142,11 @@ function HudRow({
             {rowData.isForcedMerge ? (
               <mark
                 className={
-                  rowData.isForcedMergeWithFailures
-                    ? styles.forcedMergeWithFailure
-                    : styles.forcedMerge
+                  rowData.isForceMergeWithInfraFailures
+                  ? styles.forcedMergeWithInfraFailures
+                  : rowData.isForcedMergeWithFailures
+                  ? styles.forcedMergeWithFailure
+                  : styles.forcedMerge
                 }
               >
                 #{rowData.prNum}

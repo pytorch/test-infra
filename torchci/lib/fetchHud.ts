@@ -7,6 +7,8 @@ import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
+const FLAKY_TEST_THRESHOLD = 10;
+
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
   jobNames: string[];
@@ -87,6 +89,17 @@ export default async function fetchHud(params: HudParams): Promise<{
     )
   );
 
+  const forcedMergedWithInfraFailuresShas = new Set(
+    _.map(
+      _.filter(filterForcedMergePr.results, (r) => {
+        return r.force_merge_with_infra_failures !== 0 && r.flaky_checks_count > FLAKY_TEST_THRESHOLD;
+      }),
+      (r) => {
+        return r.merge_commit_sha;
+      }
+    )
+  );
+
   const commitsBySha = _.keyBy(commits, "sha");
   let results = hudQuery.results;
 
@@ -99,6 +112,7 @@ export default async function fetchHud(params: HudParams): Promise<{
       (job: JobData) => !isUnstableJob(job, unstableIssues ?? [])
     );
   }
+
 
   const namesSet: Set<string> = new Set();
   // Built a list of all the distinct job names.
@@ -160,6 +174,7 @@ export default async function fetchHud(params: HudParams): Promise<{
       jobs: jobs,
       isForcedMerge: forcedMergeShas.has(commit.sha),
       isForcedMergeWithFailures: forcedMergeWithFailuresShas.has(commit.sha),
+      isForceMergeWithInfraFailures: forcedMergedWithInfraFailuresShas.has(commit.sha),
     };
     shaGrid.push(row);
   });

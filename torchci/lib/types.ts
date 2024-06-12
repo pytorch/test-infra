@@ -88,6 +88,7 @@ export interface RowData extends CommitData {
   groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
+  isForceMergeWithInfraFailures: boolean | false;
   nameToJobs?: Map<string, JobData>;
 }
 
