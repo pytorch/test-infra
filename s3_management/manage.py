@@ -92,6 +92,7 @@ PACKAGE_ALLOW_LIST = {
     "tzdata",
     "importlib_metadata",
     "importlib_resources",
+    "zipp",
     # ----
     "Pillow",
     "certifi",
