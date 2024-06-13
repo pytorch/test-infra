@@ -231,6 +231,11 @@ export class Metrics {
   }
 
   /* istanbul ignore next */
+  runShowTell() {
+    this.countEntry('run.show_tell.count');
+  }
+
+  /* istanbul ignore next */
   run() {
     this.countEntry('run.count');
   }

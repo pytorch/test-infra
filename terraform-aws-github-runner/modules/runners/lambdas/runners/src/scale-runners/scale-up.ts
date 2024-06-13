@@ -52,6 +52,7 @@ export async function scaleUp(
   }
 
   metrics.runRepo(repo);
+  metrics.runShowTell();
   metrics.run();
 
   const runnerTypes = await getRunnerTypes(

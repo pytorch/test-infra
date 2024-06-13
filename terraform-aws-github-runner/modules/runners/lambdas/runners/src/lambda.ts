@@ -147,6 +147,8 @@ export async function scaleDown(event: ScheduledEvent, context: Context, callbac
   // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
   context.callbackWaitsForEmptyEventLoop = false;
 
+  console.log("This is a log we're adding for show and tell");
+
   try {
     await scaleDownR();
     return callback(null);
