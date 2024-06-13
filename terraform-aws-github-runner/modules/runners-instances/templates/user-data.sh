@@ -50,8 +50,13 @@ ${install_config_runner}
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 set +e
+
 os_id=$(. /etc/os-release;echo $ID$VERSION_ID)
 if [[ "$os_id" =~ ^amzn.* ]]; then
+    if [[ "$os_id" =~ "amzn.2023" ]] ; then
+      echo "On Amazon Linux 2023, installing kernel-modules-extra"
+      sudo dnf install kernel-modules-extra -y
+    fi
     echo Installing Development Tools
     sudo yum groupinstall -y "Development Tools"
     sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
