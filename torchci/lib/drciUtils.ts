@@ -316,7 +316,7 @@ export async function hasSimilarFailures(
       failure.head_sha
     );
     if (!isEligibleCommit) {
-      return;
+      continue;
     }
 
     // When a PR is committed, it could break trunk even when the PR was ok due to
