@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+grab_count_versions() {
+    conda search -c "${CHANNEL}" --platform "${platform}" "${PKG}" 2>/dev/null | \
+        grep "${CHANNEL}" | \
+        awk -F '  *' '{print $2}' | \
+        uniq | \
+        wc -l
+}
+
 grab_prune_version() {
     conda search -c "${CHANNEL}" --platform "${platform}" "${PKG}" 2>/dev/null | \
         grep "${CHANNEL}" | \
@@ -34,6 +42,15 @@ PKG=${PKG:-pytorch}
 PLATFORMS=${PLATFORMS:-noarch osx-64 osx-arm64 linux-64 win-64}
 
 for platform in ${PLATFORMS}; do
+
+    # Allow keeping 2 versions in nightly for fallback
+    if [[ $CHANNEL == "pytorch-nightly" && $PKG == "pytorch" ]]; then
+        count_versions="$(grab_count_versions || 3)"
+        if [[ $count_versions -lt 3 ]]; then
+            continue
+        fi
+    fi
+
     latest_version="$(grab_latest_version || true)"
     specs_in_latest_version="$(grab_specs_for_version "${latest_version}" || true)"
     versions_to_prune="$(grab_prune_version || true)"
