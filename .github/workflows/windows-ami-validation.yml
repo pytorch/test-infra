@@ -1,4 +1,4 @@
-name: Check Alerts
+name: Windows AMI Validation
 on:
   pull_request:
     paths:
