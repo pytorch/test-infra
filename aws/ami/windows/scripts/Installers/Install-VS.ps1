@@ -1,10 +1,18 @@
 # https://developercommunity.visualstudio.com/t/install-specific-version-of-vs-component/1142479
-# Where to find the links: 
+# Where to find the links:
 #   - https://docs.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers
 #   - https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#fixed-version-bootstrappers
 # BuildTools from S3
 $VS_VERSION_major = [int] ${env:VS_VERSION}.split(".")[0]
+
 $VS_DOWNLOAD_LINK = "https://aka.ms/vs/$VS_VERSION_major/release/vs_BuildTools.exe"
+
+# Pin to older vs_buildtools version for cuda 11.8 and 12.1 builds
+# see issue: nerfstudio-project/nerfstudio#3157
+if ( ${env:VS_YEAR} -eq "2022" ) {
+    $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.8/vs_buildtools.exe"
+}
+
 $COLLECT_DOWNLOAD_LINK = "https://aka.ms/vscollect.exe"
 $VS_INSTALL_ARGS = @("--nocache","--quiet","--wait", "--add Microsoft.VisualStudio.Workload.VCTools",
                                                      "--add Microsoft.Component.MSBuild",
