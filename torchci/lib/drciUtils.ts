@@ -1,5 +1,6 @@
 import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
+import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import {
   getPRMergeCommits,
@@ -310,6 +311,13 @@ export async function hasSimilarFailures(
       failure_context: record.failureContext,
       authorEmail: record.authorEmail,
     };
+
+    const isEligibleCommit = await isEligibleCommitForSimilarFailureCheck(
+      failure.head_sha
+    );
+    if (!isEligibleCommit) {
+      return;
+    }
 
     // When a PR is committed, it could break trunk even when the PR was ok due to
     // land race or no signal, i.e. lacking periodic jobs. The SOP is to revert the

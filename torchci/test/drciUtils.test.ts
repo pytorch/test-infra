@@ -2,6 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
+import * as commitUtils from "../lib/commitUtils";
 import {
   getSuppressedLabels,
   hasSimilarFailures,
@@ -46,6 +47,11 @@ describe("Test various utils used by Dr.CI", () => {
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
     const mockJobUtils = jest.spyOn(jobUtils, "isSameAuthor");
     mockJobUtils.mockImplementation(() => Promise.resolve(false));
+    const mockCommitUtils = jest.spyOn(
+      commitUtils,
+      "isEligibleCommitForSimilarFailureCheck"
+    );
+    mockCommitUtils.mockImplementation(() => Promise.resolve(true));
 
     // Found no similar job
     expect(
@@ -256,6 +262,17 @@ describe("Test various utils used by Dr.CI", () => {
       )
     ).toEqual(undefined);
     expect(mock).not.toHaveBeenCalled();
+
+    mockCommitUtils.mockImplementation(() => Promise.resolve(false));
+    // Found a match but it belongs to a commit that is not eligible for similarity check
+    expect(
+      await hasSimilarFailures(
+        job,
+        emptyBaseCommitDate,
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toEqual(undefined);
   });
 
   test("test isInfraFlakyJob", () => {
