@@ -1,4 +1,6 @@
 name: Windows AMI Validation
+# Validates the Packer configuration for the Windows AMI
+
 on:
   pull_request:
     paths:
