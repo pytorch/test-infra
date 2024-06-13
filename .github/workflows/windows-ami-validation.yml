@@ -14,6 +14,7 @@ on:
 
 env:
     PACKER_VERSION: "1.11.0"
+
 jobs:
   validate-packer:
     runs-on: ubuntu-22.04
