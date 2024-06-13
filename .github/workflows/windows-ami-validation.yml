@@ -1,4 +1,4 @@
-name: Windows AMI Validation
+name: Windows AMI Packer config Validation
 # Validates the Packer configuration for the Windows AMI
 
 on:
