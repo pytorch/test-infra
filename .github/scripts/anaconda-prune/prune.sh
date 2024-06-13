@@ -44,9 +44,9 @@ PLATFORMS=${PLATFORMS:-noarch osx-64 osx-arm64 linux-64 win-64}
 for platform in ${PLATFORMS}; do
 
     # Allow keeping 2 versions in nightly for fallback
-    if [[ $CHANNEL == "pytorch-nightly" && $PKG == "pytorch" ]]; then
+    if [[ "${CHANNEL}" == "pytorch-nightly" && $PKG == "pytorch" ]]; then
         count_versions="$(grab_count_versions || 3)"
-        if [[ $count_versions -lt 3 ]]; then
+        if [[ ${count_versions} -lt 3 ]]; then
             continue
         fi
     fi
