@@ -1,0 +1,36 @@
+name: Check Alerts
+on:
+  pull_request:
+    paths:
+      - aws/ami/windows/**
+      - .github/workflows/windows-ami-validation.yml
+  push:
+    branches:
+      - main
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+env:
+    PACKER_VERSION: "1.11.0"
+jobs:
+  validate-packer:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup `packer`
+        uses: hashicorp/setup-packer@main
+        id: packer-setup
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Run `packer init`
+        id: packer-init
+        working-directory: ./aws/ami/windows
+        run: "packer init ."
+
+      - name: Run `packer validate`
+        id: packer-validate
+        working-directory: ./aws/ami/windows
+        run: "packer validate ."
