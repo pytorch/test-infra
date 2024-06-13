@@ -1,5 +1,9 @@
-# Building Windows AMIs
+# Setup
+- Install packer ([steps](https://developer.hashicorp.com/packer/tutorials/docker-get-started/get-started-install-cli))
+- Install VSCode plugin [HashiCorp HCL](https://marketplace.visualstudio.com/items?itemName=HashiCorp.HCL) for syntax highlighting of packer files
 
+
+# Building Windows AMIs
 Windows AMIs can be built using packer (in this directory) with:
 
 To just test builds:
