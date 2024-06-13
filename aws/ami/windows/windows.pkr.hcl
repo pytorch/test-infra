@@ -14,8 +14,7 @@ locals {
 }
 
 source "amazon-ebs" "windows_ebs_builder" {
-  a = "bad"
-  mi_name                    = "Windows 2019 GHA CI - ${local.timestamp}"
+  ami_name                    = "Windows 2019 GHA CI - ${local.timestamp}"
   associate_public_ip_address = true
   communicator                = "winrm"
   instance_type               = "p3.2xlarge"
