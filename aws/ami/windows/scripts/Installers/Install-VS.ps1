@@ -8,7 +8,7 @@ $VS_VERSION_major = [int] ${env:VS_VERSION}.split(".")[0]
 $VS_DOWNLOAD_LINK = "https://aka.ms/vs/$VS_VERSION_major/release/vs_BuildTools.exe"
 
 # Pin to older vs_buildtools version for cuda 11.8 and 12.1 builds
-# see issue: nerfstudio-project/nerfstudio#3157
+# see issue: https://github.com/nerfstudio-project/nerfstudio/issues/3157
 if ( ${env:VS_YEAR} -eq "2022" ) {
     $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.8/vs_buildtools.exe"
 }
