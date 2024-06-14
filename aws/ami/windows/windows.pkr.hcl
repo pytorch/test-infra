@@ -40,6 +40,20 @@ source "amazon-ebs" "windows_ebs_builder" {
 build {
   sources = ["source.amazon-ebs.windows_ebs_builder"]
 
+  # Install conda, it needs to be installed under SYSTEM to avoid this broken
+  # installation https://github.com/ContinuumIO/anaconda-issues/issues/11799.
+  # Also this needs to come after all the tools are installed to avoid error
+  # CondaHTTPError: HTTP 000 CONNECTION FAILED when connecting to conda (?)
+  provisioner "powershell" {
+    elevated_user     = "SYSTEM"
+    elevated_password = ""
+    scripts = [
+      "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
+      "${path.root}/scripts/Installers/Install-Conda-Dependencies.ps1",
+      "${path.root}/scripts/Installers/Install-Pip-Dependencies.ps1",
+    ]
+  }
+
   # Install sshd_config
   provisioner "file" {
     source      = "${path.root}/configs/sshd_config"
@@ -80,20 +94,6 @@ build {
       "${path.root}/scripts/Helpers/Reset-UserData.ps1",
       "${path.root}/scripts/Installers/Install-Choco.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
-    ]
-  }
-
-  # Install conda, it needs to be installed under SYSTEM to avoid this broken
-  # installation https://github.com/ContinuumIO/anaconda-issues/issues/11799.
-  # Also this needs to come after all the tools are installed to avoid error
-  # CondaHTTPError: HTTP 000 CONNECTION FAILED when connecting to conda (?)
-  provisioner "powershell" {
-    elevated_user     = "SYSTEM"
-    elevated_password = ""
-    scripts = [
-      "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
-      "${path.root}/scripts/Installers/Install-Conda-Dependencies.ps1",
-      "${path.root}/scripts/Installers/Install-Pip-Dependencies.ps1",
     ]
   }
 
