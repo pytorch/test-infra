@@ -119,6 +119,11 @@ export default function CommitStatus({
   const session = useSession();
   const isAuthenticated = session.status === "authenticated";
 
+  // Populate the repo field if it's not yet set in the job data
+  jobs.forEach((job) => {
+    job.repo = job.repo ?? `${repoOwner}/${repoName}`;
+  });
+
   return (
     <>
       <VersionControlLinks
