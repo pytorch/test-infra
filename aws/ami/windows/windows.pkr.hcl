@@ -42,7 +42,6 @@ build {
 
   # Install conda, it needs to be installed under SYSTEM to avoid this broken
   # installation https://github.com/ContinuumIO/anaconda-issues/issues/11799.
-  # Also this needs to come after all the tools are installed to avoid error
   # CondaHTTPError: HTTP 000 CONNECTION FAILED when connecting to conda (?)
   provisioner "powershell" {
     elevated_user     = "SYSTEM"
