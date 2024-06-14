@@ -26,7 +26,7 @@ describe("Test various utils used by Dr.CI", () => {
   });
 
   test("test hasSimilarFailures", async () => {
-    const headBranch = "mock-branch";
+    const headBranch = "main";
     const emptyBaseCommitDate = "";
     const lookbackPeriodInHours = 24;
     const mockHeadShaDate = dayjs("2023-08-01T00:00:00Z");
@@ -117,6 +117,18 @@ describe("Test various utils used by Dr.CI", () => {
         ],
       ])
     );
+
+    // Found a match, but it belongs to the merge commits of the same PR, so it
+    // will be ignored to avoid misclassification after the PR is reverted
+    expect(
+      await hasSimilarFailures(
+        { ...job, head_branch: "main" },
+        emptyBaseCommitDate,
+        ["ABCD"],
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toEqual(undefined);
 
     // Found a match, but it belongs to the same branch, thus from the same PR,
     // so it will be ignored
