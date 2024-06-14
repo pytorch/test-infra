@@ -29,6 +29,7 @@ import {
   backfillMissingLog,
   getDisabledTestIssues,
   getOpenUnstableIssues,
+  getPRMergeCommits,
   isDisabledTest,
   isDisabledTestMentionedInPR,
   isRecentlyCloseDisabledTest,
@@ -112,6 +113,13 @@ export async function updateDrciComments(
   await forAllPRs(
     workflowsByPR,
     async (pr_info: PRandJobs) => {
+      // Find the merge commits of the PR to check if it has already been merged before
+      const mergeCommits = await getPRMergeCommits(
+        OWNER,
+        repo,
+        pr_info.pr_number
+      );
+
       const labels = await fetchIssueLabels(
         octokit,
         pr_info.owner,
@@ -134,7 +142,8 @@ export async function updateDrciComments(
         baseCommitJobs.get(pr_info.merge_base) || new Map(),
         labels || [],
         unstableIssues || [],
-        disabledTestIssues || []
+        disabledTestIssues || [],
+        mergeCommits || []
       );
 
       failures[pr_info.pr_number] = {
@@ -774,7 +783,8 @@ export async function getWorkflowJobsStatuses(
   baseJobs: Map<string, RecentWorkflowsData[]>,
   labels: string[] = [],
   unstableIssues: IssueData[] = [],
-  disabledTestIssues: IssueData[] = []
+  disabledTestIssues: IssueData[] = [],
+  mergeCommits: string[] = []
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
@@ -924,7 +934,8 @@ export async function getWorkflowJobsStatuses(
         // classifier works decently well
         const similarFailure = await hasSimilarFailures(
           job,
-          prInfo.merge_base_date
+          prInfo.merge_base_date,
+          mergeCommits
         );
         if (similarFailure !== undefined) {
           flakyJobs.push(job);

@@ -368,13 +368,10 @@ export async function isSameAuthor(
 }
 
 export async function getPRMergeCommits(
-  job: RecentWorkflowsData
-): Promise<String[]> {
-  // No a PR job
-  if (!job.pr_number) {
-    return [];
-  }
-
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
   // Sort by comment ID desc because we don't want to depend on _event_time in
   // general
   const query = `
@@ -384,9 +381,12 @@ FROM
   commons.merges
 WHERE
   pr_num = :pr_num
+  AND owner = :owner
+  AND project = :project
+  AND merge_commit_sha != ''
 ORDER BY
   comment_id DESC
-  `;
+`;
 
   const rocksetClient = getRocksetClient();
   const results = (
@@ -397,14 +397,24 @@ ORDER BY
           {
             name: "pr_num",
             type: "int",
-            value: job.pr_number.toString(),
+            value: prNumber.toString(),
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: owner,
+          },
+          {
+            name: "project",
+            type: "string",
+            value: repo,
           },
         ],
       },
     })
   ).results;
 
-  // The PR hasn't been merged yet
+  // If the result is empty, the PR hasn't been merged yet
   return results !== undefined
     ? _.map(results, (record) => record.merge_commit_sha)
     : [];
