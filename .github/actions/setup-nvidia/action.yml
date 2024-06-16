@@ -8,6 +8,16 @@ inputs:
     required: false
     type: string
     default: "550.54.15"   # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-550-54-15/index.html
+  GPU_ARCH_TYPE:
+    description: GPU Arch type #"cuda", "cuda-aarch64"
+    required: false
+    type: string
+  ARCH_TYPE:
+    description: CPU Arch Type
+    required: false
+    type: string
+    default: "x86_64"   
+
 
 runs:
   using: composite
@@ -16,6 +26,10 @@ runs:
       uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
       env:
         DRIVER_VERSION: ${{ inputs.driver-version }}
+        GPU_ARCH_TYPE: ${{ inputs.GPU_ARCH_TYPE }}
+        ARCH_TYPE: ${{ inputs.ARCH_TYPE }}
+        ${{ if eq(inputs.GPU_ARCH_TYPE , 'cuda-aarch64') }}:
+            ARCH_TYPE: sbsa
       with:
         timeout_minutes: 10
         max_attempts: 3
@@ -25,7 +39,7 @@ runs:
           set -eou pipefail
 
           DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
-          DRIVER_FN="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+          DRIVER_FN="NVIDIA-Linux-${ARCH_TYPE}-${DRIVER_VERSION}.run"
           YUM_REPO_URL="https://nvidia.github.io/nvidia-docker/${DISTRIBUTION}/nvidia-docker.repo"
 
           install_nvidia_docker2_amzn2() {
