@@ -110,6 +110,6 @@
   "benchmarks": {
     "oss_ci_benchmark_llms": "a2cb598ac5b13d5a",
     "oss_ci_benchmark_branches": "76446d877defb748",
-    "oss_ci_benchmark_names": "92e166a6605bc812"
+    "oss_ci_benchmark_names": "98a212e928df968b"
   }
 }

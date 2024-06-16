@@ -25,4 +25,6 @@ WHERE
 ORDER BY
   o.filename,  
   o.name,
-  o.metric
+  o.metric,
+  o.dtype,
+  o.device
