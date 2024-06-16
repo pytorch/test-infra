@@ -42,11 +42,24 @@ export function SummaryPanel({
 
   const dataGroupedByModel: { [k: string]: any } = {};
   rData.forEach((record: LLMsBenchmarkData) => {
-    if (!(record.name in dataGroupedByModel)) {
-      dataGroupedByModel[record.name] = {};
+    const name = record.name;
+    const dtype = record.dtype;
+    const device = record.device;
+    const metric = record.metric;
+
+    if (!(name in dataGroupedByModel)) {
+      dataGroupedByModel[name] = {};
     }
 
-    dataGroupedByModel[record.name][record.metric] = {
+    if (!(dtype in dataGroupedByModel[name])) {
+      dataGroupedByModel[name][dtype] = {};
+    }
+
+    if (!(device in dataGroupedByModel[name][dtype])) {
+      dataGroupedByModel[name][dtype][device] = {};
+    }
+
+    dataGroupedByModel[name][dtype][device][metric] = {
       r: record,
     };
   });
@@ -54,59 +67,79 @@ export function SummaryPanel({
   // Combine with left (base) data
   if (lCommit !== rCommit && lData !== undefined) {
     lData.forEach((record: LLMsBenchmarkData) => {
-      if (!(record.name in dataGroupedByModel)) {
-        dataGroupedByModel[record.name] = {};
+      const name = record.name;
+      const dtype = record.dtype;
+      const device = record.device;
+      const metric = record.metric;
+
+      if (!(name in dataGroupedByModel)) {
+        dataGroupedByModel[name] = {};
       }
 
-      if (!(record.metric in dataGroupedByModel[record.name])) {
-        dataGroupedByModel[record.name][record.metric] = {};
+      if (!(dtype in dataGroupedByModel[name])) {
+        dataGroupedByModel[name][dtype] = {};
       }
 
-      dataGroupedByModel[record.name][record.metric]["l"] = record;
+      if (!(device in dataGroupedByModel[name][dtype])) {
+        dataGroupedByModel[name][dtype][device] = {};
+      }
+
+      if (!(metric in dataGroupedByModel[name][dtype][device])) {
+        dataGroupedByModel[name][dtype][device][metric] = {};
+      }
+
+      dataGroupedByModel[name][dtype][device][metric]["l"] = record;
     });
   }
 
   // Transform the data into a displayable format
-  const data = Object.keys(dataGroupedByModel).map((name: string) => {
-    const row: { [k: string]: any } = {
-      // Keep the name as as the row ID as DataGrid requires it
-      name: name,
-    };
+  const data: { [k: string]: any }[] = [];
+  Object.keys(dataGroupedByModel).forEach((name: string) => {
+    Object.keys(dataGroupedByModel[name]).forEach((dtype: string) => {
+      Object.keys(dataGroupedByModel[name][dtype]).forEach((device: string) => {
+        const row: { [k: string]: any } = {
+          // Keep the name as as the row ID as DataGrid requires it
+          name: `${name} (${dtype} / ${device})`,
+        };
 
-    for (const metric in dataGroupedByModel[name]) {
-      const record = dataGroupedByModel[name][metric];
-      const hasL = "l" in record;
-      const hasR = "r" in record;
+        for (const metric in dataGroupedByModel[name][dtype][device]) {
+          const record = dataGroupedByModel[name][dtype][device][metric];
+          const hasL = "l" in record;
+          const hasR = "r" in record;
 
-      row["metadata"] = {
-        name: name,
-        l: hasL ? record["l"]["job_id"] : undefined,
-        r: hasR ? record["r"]["job_id"] : undefined,
-      };
+          row["metadata"] = {
+            name: name,
+            dtype: dtype,
+            device: device,
+            l: hasL ? record["l"]["job_id"] : undefined,
+            r: hasR ? record["r"]["job_id"] : undefined,
+          };
 
-      row[metric] = {
-        l: hasL
-          ? {
-              actual: record["l"].actual,
-              target: record["l"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        r: hasR
-          ? {
-              actual: record["r"].actual,
-              target: record["r"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-      };
-    }
+          row[metric] = {
+            l: hasL
+              ? {
+                  actual: record["l"].actual,
+                  target: record["l"].target,
+                }
+              : {
+                  actual: 0,
+                  target: 0,
+                },
+            r: hasR
+              ? {
+                  actual: record["r"].actual,
+                  target: record["r"].target,
+                }
+              : {
+                  actual: 0,
+                  target: 0,
+                },
+          };
+        }
 
-    return row;
+        data.push(row);
+      });
+    });
   });
 
   return (
@@ -132,90 +165,110 @@ export function SummaryPanel({
               },
               renderCell: (params: GridRenderCellParams<any>) => {
                 const name = params.value.name;
+                const dtype = params.value.dtype;
+                const device = params.value.device;
                 if (name === undefined) {
-                  return `Invalid model name ${name}`;
+                  return `Invalid model name`;
+                }
+                if (dtype === undefined) {
+                  return `Invalid dtype for model ${name}`;
                 }
 
-                const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&modelName=${encodedName}`;
+                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&modelName=${encodeURIComponent(
+                  name
+                )}&dtypeName=${encodeURIComponent(
+                  dtype
+                )}&deviceName=${encodeURIComponent(device)}`;
+                const isNewModel = params.value.l === undefined ? "✅" : "";
+                const isModelStopRunning =
+                  params.value.r === undefined ? "❌" : "";
+
+                const displayName = name.includes(dtype)
+                  ? name.includes(device)
+                    ? name
+                    : `${name} (${device})`
+                  : name.includes(device)
+                  ? `${name} (${dtype})`
+                  : `${name} (${dtype} / ${device})`;
 
                 return (
                   <a href={url}>
-                    <b>{name}</b>
+                    {isNewModel}
+                    {isModelStopRunning}&nbsp;<b>{displayName}</b>
                   </a>
                 );
               },
             },
-            ...metricNames
-              .filter(
-                (metric: string) => data.length !== 0 && metric in data[0]
-              )
-              .map((metric: string) => {
-                return {
-                  field: metric,
-                  headerName:
-                    metric in METRIC_DISPLAY_HEADERS
-                      ? METRIC_DISPLAY_HEADERS[metric]
-                      : metric,
-                  flex: 1,
-                  cellClassName: (params: GridCellParams<any>) => {
-                    const v = params.value;
-                    if (v === undefined || v.l.actual === 0) {
-                      return "";
-                    }
-
-                    // l is the old (base) value, r is the new value
-                    const l = v.l.actual;
-                    const r = v.r.actual;
-
-                    if (lCommit === rCommit) {
-                      return "";
-                    } else {
-                      if (l === r) {
-                        // 0 means the model isn't run at all
-                        return "";
-                      }
-
-                      // It didn't error in the past, but now it does error
-                      if (r === 0) {
-                        return styles.error;
-                      }
-
-                      // Higher TPS
-                      if (r - l > RELATIVE_THRESHOLD * l) {
-                        return styles.ok;
-                      }
-
-                      // Lower TPS
-                      if (l - r > RELATIVE_THRESHOLD * r) {
-                        return styles.error;
-                      }
-                    }
-
+            ...metricNames.map((metric: string) => {
+              return {
+                field: metric,
+                headerName:
+                  metric in METRIC_DISPLAY_HEADERS
+                    ? METRIC_DISPLAY_HEADERS[metric]
+                    : metric,
+                flex: 1,
+                cellClassName: (params: GridCellParams<any>) => {
+                  const v = params.value;
+                  if (v === undefined || v.l.actual === 0) {
                     return "";
-                  },
-                  renderCell: (params: GridRenderCellParams<any>) => {
-                    const v = params.value;
-                    if (v === undefined) {
+                  }
+
+                  // l is the old (base) value, r is the new value
+                  const l = v.l.actual;
+                  const r = v.r.actual;
+
+                  if (lCommit === rCommit) {
+                    return "";
+                  } else {
+                    if (l === r) {
+                      // 0 means the model isn't run at all
                       return "";
                     }
 
-                    const l = v.l.actual;
-                    const r = v.r.actual;
-
-                    // Compute the percentage
-                    const target = v.r.target;
-                    const lPercent = Number((l * 100) / target).toFixed(0);
-                    const rPercent = Number((r * 100) / target).toFixed(0);
-
-                    if (lCommit === rCommit || l === r || v.l === 0) {
-                      return `${r} (${rPercent}%) [target = ${target}]`;
-                    } else {
-                      return `${l} (${lPercent}%) → ${r} (${rPercent}%) [target = ${target}]`;
+                    // It didn't error in the past, but now it does error
+                    if (r === 0) {
+                      return styles.error;
                     }
-                  },
-                };
-              }),
+
+                    // Higher TPS
+                    if (r - l > RELATIVE_THRESHOLD * l) {
+                      return styles.ok;
+                    }
+
+                    // Lower TPS
+                    if (l - r > RELATIVE_THRESHOLD * r) {
+                      return styles.error;
+                    }
+                  }
+
+                  return "";
+                },
+                renderCell: (params: GridRenderCellParams<any>) => {
+                  const v = params.value;
+                  if (v === undefined) {
+                    return "";
+                  }
+
+                  const l = v.l.actual;
+                  const r = v.r.actual;
+
+                  // Compute the percentage
+                  const target = v.r.target;
+                  const lPercent = target
+                    ? `(${Number((l * 100) / target).toFixed(0)}%)`
+                    : "";
+                  const rPercent = target
+                    ? `(${Number((r * 100) / target).toFixed(0)}%)`
+                    : "";
+
+                  if (lCommit === rCommit || l === r || v.l === 0) {
+                    return `${r} ${rPercent} [target = ${target}]`;
+                  } else {
+                    return `${l} ${lPercent} → ${r} ${rPercent} [target = ${target}]`;
+                  }
+                },
+              };
+            }),
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />

@@ -1,5 +1,6 @@
 import {
   DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
 } from "components/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
@@ -10,6 +11,7 @@ import useSWR from "swr";
 export function useBenchmark(
   queryParams: RocksetParam[],
   modelName: string,
+  dtypeName: string,
   deviceName: string,
   branchAndCommit: BranchAndCommit,
   getJobId: boolean = false
@@ -22,6 +24,11 @@ export function useBenchmark(
       name: "names",
       type: "string",
       value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
+    },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
     },
     {
       name: "devices",

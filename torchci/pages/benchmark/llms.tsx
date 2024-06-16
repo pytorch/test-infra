@@ -9,6 +9,7 @@ import {
 import {
   BENCHMARKS,
   DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
@@ -35,6 +36,7 @@ function Report({
   granularity,
   repoName,
   modelName,
+  dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
@@ -46,6 +48,7 @@ function Report({
   granularity: Granularity;
   repoName: string;
   modelName: string;
+  dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
@@ -54,6 +57,7 @@ function Report({
   const { data: lData, error: _lError } = useBenchmark(
     queryParams,
     modelName,
+    dtypeName,
     deviceName,
     lBranchAndCommit,
     true
@@ -61,6 +65,7 @@ function Report({
   const { data: rData, error: _rError } = useBenchmark(
     queryParams,
     modelName,
+    dtypeName,
     deviceName,
     rBranchAndCommit,
     true
@@ -107,6 +112,7 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         modelName={modelName}
+        dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
@@ -147,6 +153,7 @@ export default function Page() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
+  const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
@@ -183,6 +190,11 @@ export default function Page() {
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
       setModelName(modelName);
+    }
+
+    const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
+    if (dtypeName !== undefined) {
+      setDTypeName(dtypeName);
     }
 
     const deviceName: string = (router.query.deviceName as string) ?? undefined;
@@ -267,6 +279,14 @@ export default function Page() {
     DEFAULT_MODEL_NAME,
     ...(_.uniq(data.map((r: any) => r.name)) as string[]),
   ];
+  const deviceNames: string[] = [
+    DEFAULT_DEVICE_NAME,
+    ...(_.uniq(data.map((r: any) => r.device)) as string[]),
+  ];
+  const dtypeNames: string[] = [
+    DEFAULT_DTYPE_NAME,
+    ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
+  ];
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
   return (
@@ -284,6 +304,8 @@ export default function Page() {
             repoName
           )}&modelName=${encodeURIComponent(
             modelName
+          )}&dtypeName=${encodeURIComponent(
+            dtypeName
           )}&deviceName=${encodeURIComponent(deviceName)}`}
         />
       </Stack>
@@ -308,9 +330,15 @@ export default function Page() {
           label={"Model"}
         />
         <DTypePicker
+          dtype={dtypeName}
+          setDType={setDTypeName}
+          dtypes={dtypeNames}
+          label={"DType"}
+        />
+        <DTypePicker
           dtype={deviceName}
           setDType={setDeviceName}
-          dtypes={[DEFAULT_DEVICE_NAME]}
+          dtypes={deviceNames}
           label={"Device"}
         />
         <BranchAndCommitPicker
@@ -349,6 +377,7 @@ export default function Page() {
         granularity={granularity}
         repoName={repoName}
         modelName={modelName}
+        dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}

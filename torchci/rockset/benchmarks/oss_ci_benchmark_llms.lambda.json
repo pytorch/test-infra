@@ -17,6 +17,11 @@
       "value": ""
     },
     {
+      "name": "dtypes",
+      "type": "string",
+      "value": ""
+    },
+    {
       "name": "filenames",
       "type": "string",
       "value": ""
