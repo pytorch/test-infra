@@ -7,6 +7,7 @@ import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   addLabels,
+  CachedConfigTracker,
   hasApprovedPullRuns,
   hasWritePermissions as _hasWP,
   isFirstTimeContributor,
@@ -27,6 +28,7 @@ export interface PytorchbotParams {
   commentId: number;
   commentBody: string;
   useReactions: boolean;
+  cachedConfigTracker: CachedConfigTracker;
 }
 
 const PR_COMMENTED = "commented";
@@ -45,6 +47,7 @@ class PytorchBotHandler {
   login: string;
   commentBody: string;
   headSha: string | undefined;
+  cachedConfigTracker: CachedConfigTracker;
 
   forceMergeMessagePat = new RegExp("^\\s*\\S+\\s+\\S+.*");
 
@@ -60,6 +63,7 @@ class PytorchBotHandler {
     this.commentId = params.commentId;
     this.commentBody = params.commentBody;
     this.useReactions = params.useReactions;
+    this.cachedConfigTracker = params.cachedConfigTracker;
 
     this.logger = new PytorchBotLogger(params);
   }
@@ -243,6 +247,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     rebase: string | boolean,
     ic: boolean
   ) {
+    const config: any = await this.cachedConfigTracker.loadConfig(this.ctx);
+    if (config == null || !config["mergebot"]) {
+      await this.handleConfused(
+        true,
+        "Mergebot is not configured for this repository. Please use the merge button provided by GitHub."
+      );
+      return;
+    }
+
     const extra_data = {
       forceMessage,
       rebase,
