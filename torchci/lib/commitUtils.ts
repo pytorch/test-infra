@@ -1,8 +1,14 @@
 import getRocksetClient from "lib/rockset";
 
+const ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK: { [sha: string] : boolean; } = {};
+
 export async function isEligibleCommitForSimilarFailureCheck(
   sha: string
 ): Promise<boolean> {
+  if (sha in ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK) {
+    return ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha];
+  }
+
   // We will narrow down the similar failure check to only failures from the following two
   // categories.
   //   - Trunk
@@ -40,5 +46,6 @@ WHERE
     })
   ).results;
 
-  return results !== undefined && results.length !== 0 ? true : false;
+  ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha] = results !== undefined && results.length !== 0 ? true : false;
+  return ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha];
 }
