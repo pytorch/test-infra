@@ -3,9 +3,9 @@ import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
 import { ParamSelector } from "lib/ParamSelector";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
-import { useEffect, useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
