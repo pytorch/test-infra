@@ -1,8 +1,11 @@
 import { Probot } from "probot";
 import { getInputArgs } from "./cliParser";
 import PytorchBotHandler from "./pytorchBotHandler";
+import { CachedConfigTracker } from "./utils";
 
 function pytorchBot(app: Probot): void {
+  const cachedConfigTracker = new CachedConfigTracker(app);
+
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -20,6 +23,7 @@ function pytorchBot(app: Probot): void {
       commentId,
       commentBody,
       useReactions: true,
+      cachedConfigTracker,
     });
     const is_pr_comment = ctx.payload.issue.pull_request != null;
     const skipUsers = [
@@ -57,6 +61,7 @@ function pytorchBot(app: Probot): void {
         commentId,
         commentBody: reviewBody ?? "",
         useReactions: false,
+        cachedConfigTracker,
       });
       if (reviewBody == null) {
         return;
