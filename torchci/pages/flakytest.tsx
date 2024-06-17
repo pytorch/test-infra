@@ -5,6 +5,7 @@ import { ParamSelector } from "lib/ParamSelector";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import { FlakyTestInfoHUD } from "./api/flaky-tests/flakytest";
+import { useEffect, useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -22,6 +23,16 @@ export default function Page() {
   const suite = (router.query.suite || "%") as string;
   const file = (router.query.file || "%") as string;
   const limit = (router.query.limit || "100") as string;
+  const [hasSearch, setHasSearch] = useState(true);
+  useEffect(() => {
+    console.log(name, suite, file);
+    if (name === "%" && suite === "%" && file === "%") {
+      setHasSearch(false);
+    } else {
+      setHasSearch(true);
+    }
+    console.log(hasSearch);
+  }, [name, suite, file]);
 
   // `useSWR` to avoid sending a garbage request to the server.
   const swrKey = `/api/flaky-tests/flakytest?name=${encodeURIComponent(
@@ -29,7 +40,7 @@ export default function Page() {
   )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
     file
   )}&limit=${encodeURIComponent(limit)}`;
-  const { data } = useSWR(swrKey, fetcher);
+  const { data } = useSWR(hasSearch && swrKey, fetcher);
 
   return (
     <div>
@@ -59,7 +70,9 @@ export default function Page() {
           handleSubmit={(s) => setURL(name, suite, s, limit)}
         />
       </h3>
-      {data === undefined ? (
+      {!hasSearch ? (
+        <div>Please search for something more specific</div>
+      ) : data === undefined ? (
         <div>Loading...</div>
       ) : (
         (data as FlakyTestInfoHUD[]).map((test) => {
