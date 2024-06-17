@@ -53,7 +53,7 @@ set +e
 
 os_id=$(. /etc/os-release;echo $ID$VERSION_ID)
 if [[ "$os_id" =~ ^amzn.* ]]; then
-    if [[ "$os_id" =~ "amzn.2023" ]] ; then
+    if [[ "$os_id" =~ "amzn2023" ]] ; then
       echo "On Amazon Linux 2023, installing kernel-modules-extra"
       sudo dnf install kernel-modules-extra -y
     fi
@@ -68,7 +68,7 @@ sudo rm -fv /tmp/nvidia_driver
 if [[ "$os_id" =~ ^amzn.* ]]; then
     echo Installing nvidia-docker tools
     sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://nvidia.github.io/nvidia-docker/$os_id/nvidia-docker.repo
+    sudo yum-config-manager --add-repo https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
     sudo yum install -y nvidia-docker2
     sudo systemctl restart docker
 fi
