@@ -1,6 +1,7 @@
 import getRocksetClient from "lib/rockset";
 
-const ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK: { [sha: string] : boolean; } = {};
+const ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK: { [sha: string]: boolean } =
+  {};
 
 export async function isEligibleCommitForSimilarFailureCheck(
   sha: string
@@ -46,6 +47,7 @@ WHERE
     })
   ).results;
 
-  ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha] = results !== undefined && results.length !== 0 ? true : false;
+  ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha] =
+    results !== undefined && results.length !== 0 ? true : false;
   return ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha];
 }

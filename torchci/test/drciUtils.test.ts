@@ -292,6 +292,7 @@ describe("Test various utils used by Dr.CI", () => {
       await hasSimilarFailures(
         job,
         emptyBaseCommitDate,
+        [],
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
