@@ -64,11 +64,10 @@ function NavBar() {
       name: "TorchBench",
       href: "/torchbench/userbenchmark",
     },
-    // uncomment after some eyeballs are on this
-    // {
-    //   name: "Testing Overhead",
-    //   href: "/testingoverhead"
-    // }
+    {
+      name: "Testing Overhead",
+      href: "/testing_overhead"
+    }
   ];
 
   return (
