@@ -86,11 +86,13 @@ build {
   }
 
   # Install the rest of the dependencies
+  # Please note: When modifying Microsoft.PowerShell_profile for a user
+  # all modifications need to be done to Install-Choco-GenerateProfile script
   provisioner "powershell" {
     execution_policy = "unrestricted"
     scripts = [
       "${path.root}/scripts/Helpers/Reset-UserData.ps1",
-      "${path.root}/scripts/Installers/Install-Choco.ps1",
+      "${path.root}/scripts/Installers/Install-Choco-GenerateProfile.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
     ]
   }
