@@ -14,7 +14,7 @@ if (-Not (Test-Path -Path $parentDir)) {
 
 # Miniconda3-latest-Windows-x86_64 nows use Python3.10 which will causes conflicts
 # later on when installing
-$condaFilename = "Miniconda3-py39_22.11.1-1-Windows-x86_64.exe"
+$condaFilename = "Miniconda3-py39_24.4.0-0-Windows-x86_64"
 $condaURI = "https://repo.anaconda.com/miniconda/$condaFileName"
 
 Write-Output "Downloading Miniconda from $condaURI to $downloadDir, please wait ..."
