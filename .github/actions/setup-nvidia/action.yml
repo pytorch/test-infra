@@ -26,13 +26,19 @@ runs:
 
           DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
           DRIVER_FN="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-          YUM_REPO_URL="https://nvidia.github.io/nvidia-docker/${DISTRIBUTION}/nvidia-docker.repo"
 
           install_nvidia_docker2_amzn2() {
               (
                   set -x
                   # Needed for yum-config-manager
                   sudo yum install -y yum-utils
+                  if [[ "${DISTRIBUTION}" == "amzn2023" ]] ; then
+                    YUM_REPO_URL="https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+                  else
+                    # Amazon Linux 2
+                    YUM_REPO_URL="https://nvidia.github.io/nvidia-docker/${DISTRIBUTION}/nvidia-docker.repo"
+                  fi
+
                   sudo yum-config-manager --add-repo "${YUM_REPO_URL}"
                   sudo yum install -y nvidia-docker2
                   sudo systemctl restart docker
