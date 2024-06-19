@@ -7,11 +7,13 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Memory bandwidth (GB/s)",
   token_per_sec: "Token per second",
   flops_utilization: "FLOPs utilization",
+  "compilation_time(s)": "Compilation Time (s)",
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
   token_per_sec: "TPS",
   flops_utilization: "FLOPs",
+  "compilation_time(s)": "CompTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_DTYPE_NAME = "All DType";

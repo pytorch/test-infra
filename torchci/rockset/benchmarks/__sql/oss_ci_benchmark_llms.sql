@@ -67,8 +67,12 @@ WHERE
     OR : dtypes = ''
   )
   AND o.metric IS NOT NULL
+  AND o.dtype IS NOT NULL
+  AND o.device IS NOT NULL
   AND w.html_url LIKE CONCAT('%', : repo, '%')
 ORDER BY
   granularity_bucket DESC,
   workflow_id DESC,
-  name ASC
+  name,
+  dtype,
+  device
