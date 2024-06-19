@@ -85,7 +85,7 @@ if [[ "$OS_ID" =~ ^amzn.* ]]; then
       sudo retry "yum-config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'"
     fi
     echo Installing nvidia-docker tools
-    sudo retry "$PKG_MANAGER -y nvidia-docker2"
+    sudo retry "$PKG_MANAGER install -y nvidia-docker2"
     sudo systemctl restart docker
 fi
 %{ endif ~}
