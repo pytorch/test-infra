@@ -3,6 +3,8 @@ SELECT DISTINCT
   o.filename,  
   o.name,  
   o.metric,
+  o.dtype,
+  o.device,
 FROM
   benchmarks.oss_ci_benchmark o
   LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id
@@ -18,7 +20,11 @@ WHERE
   )
   AND o.metric IS NOT NULL
   AND w.html_url LIKE CONCAT('%', : repo, '%')
+  AND o.dtype IS NOT NULL
+  AND o.device IS NOT NULL
 ORDER BY
   o.filename,  
   o.name,
-  o.metric
+  o.metric,
+  o.dtype,
+  o.device

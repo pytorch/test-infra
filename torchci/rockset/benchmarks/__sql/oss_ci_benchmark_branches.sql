@@ -23,6 +23,8 @@ WHERE
   )
   AND o.metric IS NOT NULL
   AND w.html_url LIKE CONCAT('%', : repo, '%')
+  AND o.dtype IS NOT NULL
+  AND o.device IS NOT NULL
 ORDER BY
   w.head_branch,
   event_time DESC
