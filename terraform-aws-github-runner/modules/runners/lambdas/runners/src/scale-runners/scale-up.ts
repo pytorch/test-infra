@@ -134,10 +134,12 @@ async function createRunnerConfigArgument(
   awsRegion: string,
 ): Promise<string> {
   const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
-  const labelsArgument =
-    Config.Instance.runnersExtraLabels !== undefined
-      ? `AWS:${awsRegion},${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
-      : `AWS:${awsRegion},${runnerType.runnerTypeName}`;
+  const labelsArgument = [
+    `AWS:${awsRegion}`,
+    `${runnerType.runnerTypeName}`,
+    ...(Config.Instance.runnersExtraLabels ? Config.Instance.runnersExtraLabels.split(',') : []),
+    ...(runnerType.labels ?? []),
+  ].join(',');
 
   if (Config.Instance.enableOrganizationRunners) {
     /* istanbul ignore next */
