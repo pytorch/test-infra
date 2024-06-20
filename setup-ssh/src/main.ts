@@ -14,6 +14,7 @@ import fetch from 'node-fetch'
 install()
 
 async function run(): Promise<void> {
+  let failSilently = false
   try {
     core.info(
       'Please see https://github.com/pytorch/pytorch/wiki/Debugging-using-with-ssh-for-Github-Actions for more info.'
@@ -27,6 +28,7 @@ async function run(): Promise<void> {
     const removeExistingKeys: boolean = core.getBooleanInput(
       'remove-existing-keys'
     )
+    failSilently = core.getBooleanInput('fail-silently')
     let prNumber = github.context.payload.pull_request?.number as number
     if (github.context.eventName !== 'pull_request') {
       prNumber = extractCiFlowPrNumber(github.context.ref)
@@ -103,10 +105,11 @@ async function run(): Promise<void> {
       return
     }
   } catch (error) {
+    const errFunc = failSilently ? core.warning : core.setFailed
     if (error instanceof Error) {
-      core.setFailed(error.message)
+      errFunc(error.message)
     } else {
-      core.setFailed(`Failed due to unexpected error ${error}`)
+      errFunc(`Failed due to unexpected error ${error}`)
     }
   }
 }

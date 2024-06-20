@@ -16902,6 +16902,7 @@ const node_fetch_1 = __importDefault(__nccwpck_require__(467));
 (0, source_map_support_1.install)();
 async function run() {
     var _a;
+    let failSilently = false;
     try {
         core.info('Please see https://github.com/pytorch/pytorch/wiki/Debugging-using-with-ssh-for-Github-Actions for more info.');
         const activateWithLabel = core.getBooleanInput('activate-with-label');
@@ -16909,6 +16910,7 @@ async function run() {
         const github_token = core.getInput('github-secret');
         const instructions = core.getInput('instructions');
         const removeExistingKeys = core.getBooleanInput('remove-existing-keys');
+        failSilently = core.getBooleanInput('fail-silently');
         let prNumber = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number;
         if (github.context.eventName !== 'pull_request') {
             prNumber = (0, github_utils_1.extractCiFlowPrNumber)(github.context.ref);
@@ -16975,11 +16977,12 @@ async function run() {
         }
     }
     catch (error) {
+        const errFunc = failSilently ? core.warning : core.setFailed;
         if (error instanceof Error) {
-            core.setFailed(error.message);
+            errFunc(error.message);
         }
         else {
-            core.setFailed(`Failed due to unexpected error ${error}`);
+            errFunc(`Failed due to unexpected error ${error}`);
         }
     }
 }
