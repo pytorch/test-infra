@@ -14,6 +14,7 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     periodic: "Run periodic jobs",
     slow: "Run slow jobs",
     rocm: "Run rocm jobs",
+    "linux-aarch64": "Run Linux ARMv8 jobs",
   },
 };
 

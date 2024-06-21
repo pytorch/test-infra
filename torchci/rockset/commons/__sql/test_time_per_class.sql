@@ -32,7 +32,7 @@ class_duration_per_job AS (
         test_run.classname as classname,
         SUM(time) as time,
         REGEXP_EXTRACT(job.name, '^(.*) /', 1) as base_name,
-        REGEXP_EXTRACT(job.name, '/ test \((\w*),', 1) as test_config,
+        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) as test_config,
     FROM
         commons.test_run_summary test_run
         /* `test_run` is ginormous and `job` is small, so lookup join is essential */
@@ -66,4 +66,3 @@ ORDER BY
     test_config,
     file,
     classname
-

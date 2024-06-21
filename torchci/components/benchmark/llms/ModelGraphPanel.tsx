@@ -5,6 +5,8 @@ import {
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
@@ -26,6 +28,7 @@ export function GraphPanel({
   queryParams,
   granularity,
   modelName,
+  dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
@@ -34,6 +37,7 @@ export function GraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   modelName: string;
+  dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
@@ -41,10 +45,16 @@ export function GraphPanel({
 }) {
   // Do not set the commit here to query all the records in the time range to
   // draw a chart
-  const { data, error } = useBenchmark(queryParams, modelName, deviceName, {
-    branch: rBranchAndCommit.branch,
-    commit: "",
-  });
+  const { data, error } = useBenchmark(
+    queryParams,
+    modelName,
+    dtypeName,
+    deviceName,
+    {
+      branch: rBranchAndCommit.branch,
+      commit: "",
+    }
+  );
 
   if (data === undefined || data.length === 0) {
     return (
@@ -73,23 +83,44 @@ export function GraphPanel({
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
-  const groupByFieldName = "name";
+  const groupByFieldName = "display";
 
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
   metricNames.forEach((metric: string) => {
     chartData[metric] = data
-      .filter(
-        (record: LLMsBenchmarkData) =>
-          record.name === modelName && record.metric === metric
-      )
+      .filter((record: LLMsBenchmarkData) => {
+        return (
+          record.name === modelName &&
+          (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
+          (record.device === deviceName ||
+            deviceName === DEFAULT_DEVICE_NAME) &&
+          record.metric === metric
+        );
+      })
       .filter((record: LLMsBenchmarkData) => {
         const id = record.workflow_id;
         return (
           (id >= lWorkflowId && id <= rWorkflowId) ||
           (id <= lWorkflowId && id >= rWorkflowId)
         );
+      })
+      .map((record: LLMsBenchmarkData) => {
+        const name = record.name;
+        const dtype = record.dtype;
+        const device = record.device;
+
+        record.display = name.includes(dtype)
+          ? name.includes(device)
+            ? name
+            : `${name} (${device})`
+          : name.includes(device)
+          ? `${name} (${dtype})`
+          : `${name} (${dtype} / ${device})`;
+
+        return record;
       });
+
     graphSeries[metric] = seriesWithInterpolatedTimes(
       chartData[metric],
       startTime,
@@ -102,13 +133,18 @@ export function GraphPanel({
     );
   });
 
+  const availableMetric =
+    metricNames.find((metric) => chartData[metric].length !== 0) ??
+    metricNames[0];
+
   return (
     <>
       <div>
         <Grid container spacing={2}>
-          {metricNames.map((metric: string) => (
-            <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT} key={metric}>
-              {chartData[metric].length !== 0 && (
+          {metricNames
+            .filter((metric) => chartData[metric].length !== 0)
+            .map((metric: string) => (
+              <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT} key={metric}>
                 <TimeSeriesPanelWithData
                   data={chartData[metric]}
                   series={graphSeries[metric]}
@@ -132,9 +168,8 @@ export function GraphPanel({
                     },
                   }}
                 />
-              )}
-            </Grid>
-          ))}
+              </Grid>
+            ))}
         </Grid>
       </div>
       <div>
@@ -155,7 +190,7 @@ export function GraphPanel({
             </tr>
           </thead>
           <tbody>
-            {chartData[metricNames[0]].map((entry: any, index: number) => {
+            {chartData[availableMetric].map((entry: any, index: number) => {
               let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
               return (
                 <tr key={index}>
@@ -170,13 +205,15 @@ export function GraphPanel({
                       </a>
                     </code>
                   </td>
-                  {metricNames.map((metric: string) => (
-                    <td key={`${metric}-${index}`}>
-                      {chartData[metric][index] !== undefined
-                        ? chartData[metric][index].actual
-                        : ""}
-                    </td>
-                  ))}
+                  {metricNames
+                    .filter((metric) => chartData[metric].length !== 0)
+                    .map((metric: string) => (
+                      <td key={`${metric}-${index}`}>
+                        {chartData[metric][index] !== undefined
+                          ? chartData[metric][index].actual
+                          : ""}
+                      </td>
+                    ))}
                 </tr>
               );
             })}

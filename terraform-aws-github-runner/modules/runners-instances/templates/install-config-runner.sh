@@ -1,4 +1,4 @@
-set -x
+set -euxo pipefail
 
 install_hooks() {
   pushd /home/$USER_NAME

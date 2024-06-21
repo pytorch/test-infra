@@ -29,5 +29,3 @@ jobs:
         run: yarn test
       - name: Build distribution
         run: yarn build
-        env:
-          NODE_OPTIONS: "--openssl-legacy-provider"
