@@ -315,6 +315,7 @@ def generate_conda_matrix(
     with_cpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
+    with_split_build: bool = False,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     python_versions = list(PYTHON_ARCHES)
@@ -373,6 +374,7 @@ def generate_libtorch_matrix(
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
+    with_split_build: bool = False,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
 
@@ -460,6 +462,7 @@ def generate_wheels_matrix(
     use_only_dl_pytorch_org: bool,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
+    with_split_build: bool = False,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
@@ -511,8 +514,7 @@ def generate_wheels_matrix(
             )
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
-            ret.append(
-                {
+            entry = {
                     "python_version": python_version,
                     "gpu_arch_type": gpu_arch_type,
                     "gpu_arch_version": gpu_arch_version,
@@ -535,8 +537,17 @@ def generate_wheels_matrix(
                     "channel": channel,
                     "upload_to_base_bucket": upload_to_base_bucket,
                     "stable_version": CURRENT_VERSION,
+                    "use_split_build": False,
                 }
-            )
+            ret.append(entry)
+            if with_split_build:
+                entry = entry.copy()
+                entry["build_name"] = f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-split".replace(
+                    ".", "_"
+                )
+                entry["use_split_build"] = True
+                ret.append(entry)
+
     return ret
 
 
@@ -557,6 +568,7 @@ def generate_build_matrix(
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
     build_python_only: str,
+    use_split_build: str,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -657,6 +669,14 @@ def main(args: List[str]) -> None:
         default=os.getenv("BUILD_PYTHON_ONLY", ENABLE),
     )
 
+    parser.add_argument(
+        "--use-split-build",
+        help="Use split build for wheel",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("USE_SPLIT_BUILD", DISABLE),
+    )
+
     options = parser.parse_args(args)
 
     assert (
@@ -673,6 +693,7 @@ def main(args: List[str]) -> None:
         options.limit_pr_builds,
         options.use_only_dl_pytorch_org,
         options.build_python_only,
+        options.use_split_build,
     )
 
     print(json.dumps(build_matrix))
