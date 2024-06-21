@@ -142,6 +142,7 @@ PACKAGE_ALLOW_LIST = {
     "requests",
     "sympy",
     "tbb",
+    "torch_no_python",
     "torch",
     "torch_tensorrt",
     "torcharrow",
