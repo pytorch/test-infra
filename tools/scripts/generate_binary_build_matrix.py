@@ -702,7 +702,7 @@ def main(args: List[str]) -> None:
         options.use_split_build,
     )
 
-    print(json.dumps(build_matrix))
+    print(json.dumps(build_matrix, indent=2))
 
 
 if __name__ == "__main__":
