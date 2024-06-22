@@ -54,8 +54,7 @@ export const EXCLUDED_FROM_SIMILARITY_POST_PROCESSING = [
   new RegExp("Process completed with exit code \\d+"),
 ];
 // This error is returned when a step in the job timeout and is cancelled
-export const CANCELLED_STEP_ERROR: string =
-  "##[error]The operation was canceled.";
+export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
 export function formDrciHeader(
   owner: string,
