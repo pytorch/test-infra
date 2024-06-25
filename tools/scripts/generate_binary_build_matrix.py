@@ -573,7 +573,7 @@ def generate_build_matrix(
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
     build_python_only: str,
-    use_split_build: str,
+    use_split_build: str = "false",
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
