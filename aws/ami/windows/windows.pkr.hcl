@@ -25,7 +25,7 @@ source "amazon-ebs" "windows_ebs_builder" {
   }
   source_ami      = "${data.amazon-ami.windows_root_ami.id}"
   region          = "us-east-1"
-  ami_regions     = ["us-east-1", "us-east-2"]
+  ami_regions     = ["us-east-1"]
   user_data_file  = "user-data-scripts/bootstrap-winrm.ps1"
   winrm_insecure  = true
   winrm_use_ssl   = true
