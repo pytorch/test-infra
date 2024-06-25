@@ -290,7 +290,7 @@ def get_wheel_install_command(
     use_split_build: bool = False,
 ) -> str:
     if use_split_build:
-         if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
+        if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
             return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
         else:
             raise ValueError("Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds.")
