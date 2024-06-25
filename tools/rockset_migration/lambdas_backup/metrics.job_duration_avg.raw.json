@@ -1,0 +1,52 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "huydhn@gmail.com",
+  "last_updated": "2022-09-02T02:06:11Z",
+  "name": "job_duration_avg",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "huydhn@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-09-02T02:06:11Z",
+    "name": "job_duration_avg",
+    "version": "10a88ea2ebb80647",
+    "description": null,
+    "sql": {
+      "query": "SELECT\n    AVG(\n        DATE_DIFF(\n            'second',\n            PARSE_TIMESTAMP_ISO8601(job.started_at),\n            PARSE_TIMESTAMP_ISO8601(job.completed_at)\n        )\n    ) as duration_sec,\n    COUNT(*) as count,\n    CONCAT(workflow.name, ' / ', job.name) as name\nFROM\n    commons.workflow_job job\n    JOIN commons.workflow_run workflow on workflow.id = job.run_id\nWHERE\n    job.name != 'ciflow_should_run'\n    AND job.name != 'generate-test-matrix'\n    AND workflow.repository.full_name = 'pytorch/pytorch'\n    AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n    AND job.conclusion = 'success'\n    AND workflow.head_branch LIKE :branch\n    AND workflow.run_attempt = 1\nGROUP BY\n    name\nORDER BY\n    COUNT(*) * AVG(\n        DATE_DIFF(\n            'second',\n            PARSE_TIMESTAMP_ISO8601(job.started_at),\n            PARSE_TIMESTAMP_ISO8601(job.completed_at)\n        )\n    ) DESC\n",
+      "default_parameters": [
+        {
+          "name": "branch",
+          "type": "string",
+          "value": "%"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-02-22T00:08:03.395Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-03-01T00:08:03.395Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-17T17:15:00Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-17T17:10:04Z",
+      "last_execution_error_message": "No value specified for query parameter \"stopTime\". Please provide a value for this parameter and try again."
+    },
+    "public_access_id": null
+  }
+}

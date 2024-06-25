@@ -1,0 +1,25 @@
+{
+  "query": "WITH all_merges AS (\n  SELECT\n    skip_mandatory_checks,\n    LENGTH(failed_checks) AS failed_checks_count,\n    ignore_current,\n    is_failed,\n  FROM\n    commons.merges\n  WHERE\n    _event_time >= PARSE_DATETIME_ISO8601(: startTime)\n    AND _event_time < PARSE_DATETIME_ISO8601(: stopTime)\n    AND owner = : owner\n    AND project = : project\n),\nforce_merges_with_failed_checks AS (\n  SELECT\n    IF(\n      (\n        skip_mandatory_checks = true\n        AND failed_checks_count > 0\n      )\n      OR (\n        ignore_current = true\n        AND is_failed = false\n      ),\n      1,\n      0\n    ) AS force_merges_red,\n  FROM\n    all_merges\n)\nSELECT\n  AVG(force_merges_red) AS force_merges_red\nFROM\n  force_merges_with_failed_checks",
+  "default_parameters": [
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-03-27T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.000Z"
+    }
+  ]
+}

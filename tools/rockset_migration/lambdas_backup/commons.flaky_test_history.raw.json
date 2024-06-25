@@ -1,0 +1,54 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "janeyx@fb.com",
+  "last_updated": "2022-06-06T20:21:44Z",
+  "name": "flaky_test_history",
+  "version_count": 1,
+  "collections": [
+    "commons.test_run",
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "janeyx@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-06-06T20:21:44Z",
+    "name": "flaky_test_history",
+    "version": "9b4aedc197c46c12",
+    "description": "Get flaky test instances by test name",
+    "sql": {
+      "query": "SELECT\n\ttest_run.name,\n\ttest_run.classname as suite,\n\ttest_run.file,\n\tSUM(ELEMENT_AT(JSON_PARSE(REPLACE(test_run.skipped.message, 'True', 'true')), 'num_green')) as numGreen,\n\tSUM(ELEMENT_AT(JSON_PARSE(REPLACE(test_run.skipped.message, 'True', 'true')), 'num_red')) as numRed,\n\tARRAY_AGG(job.name) as jobNames,\n\tARRAY_AGG(job.id) as jobIds,\n\tARRAY_AGG(workflow.id) as workflowIds,\n\tARRAY_AGG(workflow.name) as workflowNames,\n\tARRAY_AGG(workflow.head_branch) as branches,\n    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts\nFROM\n    commons.workflow_job job \n    INNER JOIN commons.test_run ON test_run.job_id = job.id HINT(join_strategy=lookup)\n    INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id \nWHERE \n\ttest_run.skipped IS NOT NULL\n    AND STRPOS(test_run.skipped.message, 'num_red') > 0  \n    AND test_run.name = :name\n    AND test_run.classname LIKE :suite\n    AND test_run.file LIKE :file\nGROUP BY\n\tname,\n    suite,\n    file\n",
+      "default_parameters": [
+        {
+          "name": "file",
+          "type": "string",
+          "value": "%"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "value": "test_ddp_uneven_inputs"
+        },
+        {
+          "name": "suite",
+          "type": "string",
+          "value": "%"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.test_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

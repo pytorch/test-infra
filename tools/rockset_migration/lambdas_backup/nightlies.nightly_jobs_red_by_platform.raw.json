@@ -1,0 +1,49 @@
+{
+  "workspace": "nightlies",
+  "last_updated_by": "atalman@fb.com",
+  "last_updated": "2023-06-21T17:06:13Z",
+  "name": "nightly_jobs_red_by_platform",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "nightlies",
+    "created_by": "atalman@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-06-21T17:06:13Z",
+    "name": "nightly_jobs_red_by_platform",
+    "version": "d5ab478e83ff2dae",
+    "description": null,
+    "sql": {
+      "query": "WITH all_failed_jobs AS (\n  SELECT\n            COUNT(*) COUNT, workflow.path\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.id = job.run_id\n            JOIN push on workflow.head_commit.id = push.head_commit.id\n        WHERE\n            job.name NOT LIKE '%generate-matrix%'\n            AND job.name NOT LIKE '%unittests%'\n            AND workflow.name NOT IN ('cron', 'Bandit', 'tests', 'Lint')\n            AND push.ref = 'refs/heads/nightly'\n            AND push.repository.owner.name = 'pytorch'\n            AND push.repository.name in ('pytorch', 'vision', 'audio', 'text')\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n            AND job.conclusion in ('failure', 'timed_out', 'cancelled')\n  GROUP BY\n  workflow.path )\nSELECT\n    SUM(COUNT) as Count, 'Conda' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%conda%'\nUNION\nSELECT\n    SUM(COUNT) as Count, 'Wheel' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%wheel%'\nUNION \nSELECT\n    SUM(COUNT) as Count, 'Libtorch' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%libtorch%'\n\n",
+      "default_parameters": [
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2023-06-16T00:00:38.270Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2023-06-16T20:20:38.270Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push",
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-24T03:11:47Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2023-12-20T05:22:15Z",
+      "last_execution_error_message": "Query timeout reached. To extend the query timeout, run an async query by setting `async` to true. Otherwise, please upgrade to a larger Virtual Instance or contact Rockset customer support for assistance constructing a more efficient query."
+    },
+    "public_access_id": null
+  }
+}

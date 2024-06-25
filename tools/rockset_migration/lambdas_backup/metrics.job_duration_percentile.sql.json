@@ -1,0 +1,25 @@
+{
+  "query": "SELECT\n    max(duration_sec) AS duration_sec,\n    COUNT(name) AS count,\n    name\nFROM (\n    SELECT\n        duration_sec,\n        name,\n        PERCENT_RANK() OVER (PARTITION BY name ORDER BY duration_sec DESC) AS percentile\n    FROM (\n        SELECT\n            DATE_DIFF(\n                'second',\n                PARSE_TIMESTAMP_ISO8601(job.started_at),\n                PARSE_TIMESTAMP_ISO8601(job.completed_at)\n            ) AS duration_sec,\n            CONCAT(workflow.name, ' / ', job.name) as name\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.id = job.run_id\n        WHERE\n            job.name != 'ciflow_should_run'\n            AND job.name != 'generate-test-matrix'\n            AND job.name != 'get_workflow_conclusion'\n            AND workflow.repository.full_name = 'pytorch/pytorch'\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n            AND job.conclusion = 'success'\n            AND workflow.head_branch LIKE :branch\n            AND workflow.run_attempt = 1\n    ) AS duration\n) AS p\nWHERE\n    (SELECT NOT IS_NAN(p.percentile) AND p.percentile >= (1.0 - :percentile))\nGROUP BY\n    name\nORDER BY\n    COUNT(name) * MAX(duration_sec) DESC\n",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "percentile",
+      "type": "float",
+      "value": "0.9"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    }
+  ]
+}

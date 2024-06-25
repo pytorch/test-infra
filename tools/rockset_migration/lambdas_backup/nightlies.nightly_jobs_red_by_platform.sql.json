@@ -1,0 +1,15 @@
+{
+  "query": "WITH all_failed_jobs AS (\n  SELECT\n            COUNT(*) COUNT, workflow.path\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.id = job.run_id\n            JOIN push on workflow.head_commit.id = push.head_commit.id\n        WHERE\n            job.name NOT LIKE '%generate-matrix%'\n            AND job.name NOT LIKE '%unittests%'\n            AND workflow.name NOT IN ('cron', 'Bandit', 'tests', 'Lint')\n            AND push.ref = 'refs/heads/nightly'\n            AND push.repository.owner.name = 'pytorch'\n            AND push.repository.name in ('pytorch', 'vision', 'audio', 'text')\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n            AND job.conclusion in ('failure', 'timed_out', 'cancelled')\n  GROUP BY\n  workflow.path )\nSELECT\n    SUM(COUNT) as Count, 'Conda' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%conda%'\nUNION\nSELECT\n    SUM(COUNT) as Count, 'Wheel' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%wheel%'\nUNION \nSELECT\n    SUM(COUNT) as Count, 'Libtorch' as Platform\nFROM\n    all_failed_jobs\nwhere path like '%libtorch%'\n\n",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-06-16T00:00:38.270Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-06-16T20:20:38.270Z"
+    }
+  ]
+}

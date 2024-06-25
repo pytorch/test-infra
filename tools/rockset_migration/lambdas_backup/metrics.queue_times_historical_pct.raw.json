@@ -1,0 +1,60 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "jschmidt@meta.com",
+  "last_updated": "2023-07-20T10:31:20Z",
+  "name": "queue_times_historical_pct",
+  "version_count": 1,
+  "collections": [
+    "metrics.queue_times_24h_stats"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "jschmidt@meta.com",
+    "created_by_apikey_name": "jean-admin-key",
+    "created_at": "2023-07-20T10:31:20Z",
+    "name": "queue_times_historical_pct",
+    "version": "f815ad1732928bb6",
+    "description": "get computed statistics for a set of runner types in a time range",
+    "sql": {
+      "query": "SELECT\n    FORMAT_ISO8601(\n        DATE_TRUNC(\n            'hour',\n            q._event_time AT TIME ZONE :timezone\n        )\n    ) AS granularity_bucket,\n    q.queue_s_max,\n    q.queue_s_p99,\n    q.queue_s_p95,\n    q.queue_s_p90,\n    q.queue_s_p80,\n    q.queue_s_p50,\n    q.queue_s_avg,\n    q.machine_type\nFROM\n    metrics.queue_times_24h_stats q\nWHERE\n    q._event_time >= DATE_TRUNC('hour', PARSE_DATETIME_ISO8601(:startTime) AT TIME ZONE :timezone)\n    AND q._event_time < DATE_TRUNC('hour', PARSE_DATETIME_ISO8601(:stopTime) AT TIME ZONE :timezone)\n    AND ARRAY_CONTAINS(SPLIT(:workersTypes, ','), q.machine_type)\nORDER BY\n    granularity_bucket, machine_type ASC\n",
+      "default_parameters": [
+        {
+          "name": "pctile",
+          "type": "string",
+          "value": "queue_s_p50"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-05-13T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-05-21T00:06:32.839Z"
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "value": "America/Los_Angeles"
+        },
+        {
+          "name": "workersTypes",
+          "type": "string",
+          "value": "all"
+        }
+      ]
+    },
+    "collections": [
+      "metrics.queue_times_24h_stats"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T03:28:22Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-02-14T01:36:32Z",
+      "last_execution_error_message": "RESOURCE_EXHAUSTED: The instance size you are using does not have the memory capacity to execute the current workload. Please upgrade to a larger instance size, or reduce the rate or complexity of the queries you are running."
+    },
+    "public_access_id": null
+  }
+}

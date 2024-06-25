@@ -1,0 +1,40 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "albandes@fb.com",
+  "last_updated": "2022-09-27T14:05:53Z",
+  "name": "test_runtime_history_by_name",
+  "version_count": 1,
+  "collections": [
+    "commons.test_run_s3"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "albandes@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-09-27T14:05:53Z",
+    "name": "test_runtime_history_by_name",
+    "version": "61de7849f1fe1bdc",
+    "description": "Average runtime of this test every day",
+    "sql": {
+      "query": "with pr_data as (\n    SELECT\n        run._event_time as created_at,\n  \t\trun.time\n    FROM\n        commons.test_run_s3 run\n    where\n        name = :name\n  \n)\nselect\n    AVG(time) as time,\n    date_trunc('day', created_at) as day_bucket\nfrom\n    pr_data\ngroup by\n    day_bucket\norder by\n    day_bucket",
+      "default_parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "test_time_import_torch"
+        }
+      ]
+    },
+    "collections": [
+      "commons.test_run_s3"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

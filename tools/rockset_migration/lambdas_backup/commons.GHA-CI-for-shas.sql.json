@@ -1,0 +1,10 @@
+{
+  "query": "SELECT head_sha, head_branch, html_url, name, status, conclusion\nFROM workflow_run\nWHERE ARRAY_CONTAINS(SPLIT(:shas, ','), head_sha)",
+  "default_parameters": [
+    {
+      "name": "shas",
+      "type": "string",
+      "value": ""
+    }
+  ]
+}
