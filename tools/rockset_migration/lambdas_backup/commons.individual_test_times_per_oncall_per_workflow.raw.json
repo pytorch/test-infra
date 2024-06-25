@@ -1,0 +1,64 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-05-09T21:51:52Z",
+  "name": "individual_test_times_per_oncall_per_workflow",
+  "version_count": 1,
+  "collections": [
+    "commons.test_run_s3",
+    "commons.workflow_ids_from_test_aggregates",
+    "commons.test_file_to_oncall_mapping"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-09T21:51:52Z",
+    "name": "individual_test_times_per_oncall_per_workflow",
+    "version": "6b63c3dde3032bea",
+    "description": null,
+    "sql": {
+      "query": "WITH\n    oncalls_table as (\n        SELECT\n            test_file,\n            oncalls\n        FROM\n            commons.test_file_to_oncall_mapping\n        WHERE\n            DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(date)) >= DATE_TRUNC(\n                'DAY',\n                CAST(PARSE_DATETIME_ISO8601(:queryDate) as date)\n            )\n    ),\n    filtered_oncalls as (\n        SELECT\n            f.test_file,\n            oncall\n        FROM\n            (oncalls_table f\n            CROSS JOIN UNNEST(oncalls AS oncall))\n        WHERE\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') LIKE: oncall\n        GROUP BY\n            f.test_file,\n            oncall\n    ),\n    workflow_id_table as (\n        SELECT\n            CAST(workflow_id as STRING) as workflow_id,\n            workflow_name\n        from\n            commons.workflow_ids_from_test_aggregates\n        WHERE\n            workflow_name = :workflow_name\n            AND DATE_TRUNC('DAY', date) = DATE_TRUNC(\n                'DAY',\n                CAST(PARSE_DATETIME_ISO8601(:queryDate) as date)\n            )\n        LIMIT\n            3\n    ), test_times_filtered as (\n        SELECT\n            test_runs.time,\n            test_runs.classname,\n            test_runs.invoking_file,\n            test_runs.name,\n            wid.workflow_name,\n            wid.workflow_id,\n        FROM\n            commons.test_run_s3 test_runs\n            INNER JOIN workflow_id_table wid ON (test_runs.workflow_id = wid.workflow_id) HINT(join_strategy = lookup)\n        WHERE\n            test_runs.workflow_run_attempt = 1\n            AND test_runs.classname IS NOT NULL\n            AND test_runs.classname LIKE :classname\n    ),\n    test_times_with_oncalls as (\n        SELECT\n            time,\n            classname,\n            workflow_name,\n            workflow_id,\n            name,\n            invoking_file,\n            oncall\n        FROM\n            test_times_filtered test_runs\n            INNER JOIN filtered_oncalls oncalls ON (test_runs.invoking_file = oncalls.test_file) HINT(join_strategy = lookup)\n    )\nSELECT\n    AVG(time) as avg_time_in_seconds,\n    SUM(time) / COUNT(DISTINCT(workflow_id)) as time_per_wokflow_in_seconds,\n    classname as test_class,\n    invoking_file as test_file,\n    name as test_name,\n    oncall,\n    workflow_name\nFROM\n    test_times_with_oncalls\nGROUP BY\n    oncall,\n    workflow_name,\n    invoking_file,\n    classname,\n    name\nHAVING\n    AVG(time) >= :thresholdInSecond\nORDER BY\n    avg_time_in_seconds DESC\n",
+      "default_parameters": [
+        {
+          "name": "classname",
+          "type": "string",
+          "value": "%"
+        },
+        {
+          "name": "oncall",
+          "type": "string",
+          "value": "%"
+        },
+        {
+          "name": "queryDate",
+          "type": "string",
+          "value": "2023-05-06T21:08:08.862Z"
+        },
+        {
+          "name": "thresholdInSecond",
+          "type": "float",
+          "value": "10"
+        },
+        {
+          "name": "workflow_name",
+          "type": "string",
+          "value": "pull"
+        }
+      ]
+    },
+    "collections": [
+      "commons.test_file_to_oncall_mapping",
+      "commons.workflow_ids_from_test_aggregates",
+      "commons.test_run_s3"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T09:24:31Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-25T09:24:31Z",
+      "last_execution_error_message": "Query timeout reached. To extend the query timeout, run an async query by setting `async` to true. Otherwise, please upgrade to a larger Virtual Instance or contact Rockset customer support for assistance constructing a more efficient query."
+    },
+    "public_access_id": null
+  }
+}

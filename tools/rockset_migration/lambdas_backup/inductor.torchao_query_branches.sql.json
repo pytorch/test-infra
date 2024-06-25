@@ -1,0 +1,35 @@
+{
+  "query": "SELECT\n  DISTINCT head_branch,\n  head_sha,\n  FORMAT_ISO8601(\n    DATE_TRUNC(\n      : granularity, _event_time\n    )\n  ) AS event_time,\nFROM\n  inductor.torchao_perf_stats\nWHERE\n  torchao_perf_stats._event_time >= PARSE_DATETIME_ISO8601(: startTime)\n  AND torchao_perf_stats._event_time < PARSE_DATETIME_ISO8601(: stopTime)\n  AND torchao_perf_stats.filename LIKE '%_performance'\n  AND torchao_perf_stats.filename LIKE CONCAT(\n    '%_', : dtypes, '_', : mode, '_', : device,\n    '_%'\n  )\nORDER BY\n  head_branch,\n  event_time DESC\n",
+  "default_parameters": [
+    {
+      "name": "device",
+      "type": "string",
+      "value": "cuda"
+    },
+    {
+      "name": "dtypes",
+      "type": "string",
+      "value": "bfloat16"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "value": "inference"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-06-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-06-06T00:00:00.00Z"
+    }
+  ]
+}

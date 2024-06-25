@@ -1,0 +1,15 @@
+{
+  "query": "WITH\n    filtered_table as (\n        SELECT\n            workflow_job.id as job_id,\n            workflow_run.head_repository.full_name as repo_name,\n            workflow_job.name as job_name,\n            workflow_job.labels as labels,\n            workflow_job._event_time as event_timestamp,\n        FROM\n            commons.workflow_job\n            INNER JOIN commons.workflow_run ON (workflow_job.run_id = workflow_run.id)\n        WHERE\n            workflow_job._event_time >= PARSE_DATETIME_ISO8601(:startime)\n            AND workflow_job._event_time < PARSE_DATETIME_ISO8601(:endtime)\n            AND workflow_run.head_repository.full_name LIKE 'pytorch/%'\n            AND workflow_job.name LIKE '%test%'\n            AND workflow_job.conclusion = 'success'\n    )\nSELECT\n    f.job_id,\n    f.repo_name,\n    f.job_name,\n    f.event_timestamp,\n    label as runner_instance_type\nFROM\n    filtered_table f\n    CROSS JOIN UNNEST(labels as label)\nWHERE\n    label != 'self-hosted'\n",
+  "default_parameters": [
+    {
+      "name": "endtime",
+      "type": "string",
+      "value": "2023-04-23T00:00:00.000Z"
+    },
+    {
+      "name": "startime",
+      "type": "string",
+      "value": "2023-02-31T00:06:32.839Z"
+    }
+  ]
+}

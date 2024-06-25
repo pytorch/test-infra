@@ -1,0 +1,20 @@
+{
+  "query": "SELECT\n    CONCAT(workflow.name, ' / ', job.name) as name\nFROM\n    commons.workflow_job job\n    INNER JOIN commons.workflow_run workflow ON workflow.id = job.run_id\nWHERE\n    workflow.repository.full_name = 'pytorch/pytorch'\n    AND LOWER(CONCAT(workflow.name, ' / ', job.name)) LIKE :filter\n    AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\nGROUP BY\n    CONCAT(workflow.name, ' / ', job.name)\nORDER BY\n    CONCAT(workflow.name, ' / ', job.name)\n",
+  "default_parameters": [
+    {
+      "name": "filter",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-02-22T00:08:03.395Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-03-01T00:08:03.395Z"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "query": "WITH job as (\n    SELECT\n        job._event_time as time,\n        job.name as job_name,\n        workflow.name as workflow_name,\n        job.id,\n        job.run_attempt,\n        workflow.id as workflow_id,\n    FROM\n        workflow_job job\n        INNER JOIN workflow_run workflow on workflow.id = job.run_id\n    WHERE\n        job.name != 'ciflow_should_run'\n        AND job.name != 'generate-test-matrix'\n        AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA\n        AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA\n        AND workflow.head_sha = :sha\n        AND job.head_sha = :sha\n        AND workflow.repository.full_name = :repo\n)\nSELECT\n    workflow_name as workflowName,\n    job_name as jobName,\n    CAST(id as string) as id,\n    run_attempt as runAttempt,\n    CAST(workflow_id as string) as workflowId,\n    time,\nfrom\n    job\nORDER BY\n    workflowName, jobName\n",
+  "default_parameters": [
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "sha",
+      "type": "string",
+      "value": ""
+    }
+  ]
+}

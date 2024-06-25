@@ -1,0 +1,25 @@
+{
+  "query": "SELECT\n    ARBITRARY(item.machine_type) as machine_type,\n    SUM(item.queue_time) as queue_time,\n    item.granularity_bucket as granularity_bucket\nFROM\n    (\n        SELECT\n            job.run_url,\n            IF(\n                LENGTH(job.labels) > 1,\n                ELEMENT_AT(job.labels, 2),\n                ELEMENT_AT(job.labels, 1)\n            ) as machine_type,\n            DATE_DIFF(\n                'second',\n                PARSE_DATETIME_ISO8601(workflow.created_at),\n                PARSE_DATETIME_ISO8601(job.started_at)\n            ) as queue_time,\n            FORMAT_ISO8601(\n                DATE_TRUNC(\n                    :granularity,\n                    job._event_time AT TIME ZONE :timezone\n                )\n            ) AS granularity_bucket,\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.url = job.run_url\n        WHERE\n            job.status = 'queued'\n            AND LENGTH(job.labels) > 0\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time <= PARSE_DATETIME_ISO8601(:stopTime)\n        UNION\n        SELECT\n            job.run_url,\n            IF(\n                LENGTH(job.labels) > 1,\n                ELEMENT_AT(job.labels, 2),\n                ELEMENT_AT(job.labels, 1)\n            ) as machine_type,\n            0 AS queue_time,\n            FORMAT_ISO8601(\n                DATE_TRUNC(\n                    :granularity,\n                    job._event_time AT TIME ZONE :timezone\n                )\n            ) AS granularity_bucket,\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.url = job.run_url\n        WHERE\n            job.status = 'completed'\n            AND workflow.status = 'completed'\n            AND LENGTH(job.labels) > 0\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time <= PARSE_DATETIME_ISO8601(:stopTime)\n    ) item\nGROUP BY\n    item.run_url,\n    item.granularity_bucket\n",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ]
+}

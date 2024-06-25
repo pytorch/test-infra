@@ -1,0 +1,10 @@
+{
+  "query": "SELECT\n    issue.number,\n    issue.title,\n    issue.html_url,\n    issue.state,\n    issue.body,\n    issue.updated_at,\n    issue.author_association,\nFROM\n    issues AS issue\n    CROSS JOIN UNNEST(issue.labels AS label) AS labels\nWHERE\n    labels.label.name =: label\n",
+  "default_parameters": [
+    {
+      "name": "label",
+      "type": "string",
+      "value": "skipped"
+    }
+  ]
+}

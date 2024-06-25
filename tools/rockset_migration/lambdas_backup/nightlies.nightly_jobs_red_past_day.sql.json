@@ -1,0 +1,10 @@
+{
+  "query": "SELECT\n  COUNT(*) COUNT,\n  job.name\nFROM\n  commons.workflow_job job\n  JOIN commons.workflow_run workflow on workflow.id = job.run_id\n  JOIN push on workflow.head_commit.id = push.head_commit.id\nWHERE\n  job.name NOT LIKE '%generate-matrix%'\n  AND job.name NOT LIKE '%unittests%'\n  AND workflow.name NOT IN ('cron', 'Bandit', 'tests')\n  AND push.ref = 'refs/heads/nightly'\n  AND push.repository.owner.name = 'pytorch'\n  AND push.repository.name = :repo\n  AND job.conclusion in ('failure', 'timed_out', 'cancelled') \n  AND job._event_time >= CURRENT_DATE() - INTERVAL 1 DAY\nGROUP BY job.name\nORDER BY COUNT\n\n",
+  "default_parameters": [
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "query": "with successful_jobs as (\n    select\n        DATE_DIFF(\n            'second',\n            job._event_time,\n            CURRENT_TIMESTAMP()\n        ) as last_success_seconds_ago,\n        job.head_sha,\n        job.name name\n    from\n        workflow_job job\n        JOIN workflow_run workflow on workflow.id = job.run_id\n    where\n        workflow.repository.full_name = 'pytorch/pytorch'\n        AND workflow.head_branch IN ('master', 'main')\n        AND job.conclusion = 'success'\n        AND ARRAY_CONTAINS(SPLIT(:jobNames, ';'), job.name)\n    order by\n        job._event_time desc\n),\nsuccessful_commits as (\n    select\n        min(last_success_seconds_ago) seconds_ago,\n        count(DISTINCT name) distinct_names,\n        head_sha\n    from\n        successful_jobs\n    group by\n        head_sha\n)\nselect\n    seconds_ago as last_success_seconds_ago\nfrom\n    successful_commits\nwhere\n    distinct_names >= LENGTH(SPLIT(:jobNames, ';'))\norder by\n    seconds_ago\nlimit\n    1\n",
+  "default_parameters": [
+    {
+      "name": "jobNames",
+      "type": "string",
+      "value": "docs push / build-docs (python, 30);docs push / build-docs (cpp, 180)"
+    }
+  ]
+}

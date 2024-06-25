@@ -1,0 +1,64 @@
+{
+  "workspace": "nightlies",
+  "last_updated_by": "atalman@fb.com",
+  "last_updated": "2023-09-07T11:56:54Z",
+  "name": "nightly_jobs_red_report",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "nightlies",
+    "created_by": "atalman@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-09-07T11:56:54Z",
+    "name": "nightly_jobs_red_report",
+    "version": "6f975f3d65013ce5",
+    "description": null,
+    "sql": {
+      "query": "SELECT\n    FORMAT_ISO8601(\n        DATE_TRUNC(:granularity, time)\n    ) AS granularity_bucket,\n    AVG(\n        CASE\n            when conclusion = 'failure' THEN 1\n            when conclusion = 'timed_out' THEN 1\n            when conclusion = 'cancelled' THEN 1\n             when conclusion = 'skipped' THEN 1\n            ELSE 0\n        END\n    ) as red,\nFROM\n    (\n        SELECT\n            job._event_time AT TIME ZONE :timezone as time,\n            job.conclusion as conclusion,\n        FROM\n            commons.workflow_job job\n            JOIN commons.workflow_run workflow on workflow.id = job.run_id\n            JOIN push on workflow.head_commit.id = push.head_commit.id\n        WHERE\n            job.name NOT LIKE '%generate-matrix%'\n            AND job.name NOT LIKE '%unittests%'\n            AND workflow.name NOT IN ('cron', 'Bandit', 'tests')\n            AND push.ref = 'refs/heads/nightly'\n            AND push.repository.owner.name = 'pytorch'\n            AND push.repository.name = :repo\n            AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n    ) as all_job\nGROUP BY\n    DATE_TRUNC(:granularity, time)\nORDER BY\n    DATE_TRUNC(:granularity, time) ASC\n",
+      "default_parameters": [
+        {
+          "name": "granularity",
+          "type": "string",
+          "value": "day"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "audio"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2023-08-01T00:00:38.270Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2023-09-07T20:20:38.270Z"
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "value": "America/Los_Angeles"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push",
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

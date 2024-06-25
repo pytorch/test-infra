@@ -1,0 +1,47 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "nikita.shulga@gmail.com",
+  "last_updated": "2023-04-17T14:29:41Z",
+  "name": "log_captures_count",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "nikita.shulga@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-04-17T14:29:41Z",
+    "name": "log_captures_count",
+    "version": "7365d7871017530a",
+    "description": null,
+    "sql": {
+      "query": "select\n    COUNT(*) as num,\n    ARBITRARY(j.torchci_classification.line) as example,\n    j.torchci_classification.captures as captures,\n    ARRAY_JOIN(j.torchci_classification.captures, '%') as search_string\nfrom\n    workflow_job j\n    join workflow_run w on w.id = j.run_id\nwhere\n    j._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)\n    and j._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)\n    and w.head_branch = 'main'\n    and w.head_repository.full_name = 'pytorch/pytorch'\n    and j.conclusion in ('cancelled', 'failure', 'time_out')\n    AND w.event != 'workflow_run'\n    AND w.event != 'repository_dispatch'\ngroup by\n    j.torchci_classification.captures\norder by\n    COUNT(*) desc\n",
+      "default_parameters": [
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-10-01T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-11-01T00:06:32.839Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:28:35Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-17T17:23:54Z",
+      "last_execution_error_message": "No value specified for query parameter \"startTime\". Please provide a value for this parameter and try again."
+    },
+    "public_access_id": null
+  }
+}

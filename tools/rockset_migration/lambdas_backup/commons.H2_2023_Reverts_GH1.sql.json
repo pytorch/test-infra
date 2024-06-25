@@ -1,0 +1,4 @@
+{
+  "query": "SELECT\n    body,\n    updated_at,\n    ELEMENT_AT(SPLIT(html_url, '#'), 1) as pr_url,\n    html_url as comment_url\nFROM\n    issue_comment\nWHERE\n    updated_at > '2023-07-01T00:00:00Z' AND\n    body LIKE '@pytorchbot revert%' AND\n    body LIKE '%-c ghfirst%'\nORDER BY\n    updated_at\n    DESC",
+  "default_parameters": []
+}

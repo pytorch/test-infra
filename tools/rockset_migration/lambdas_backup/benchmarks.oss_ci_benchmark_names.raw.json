@@ -1,0 +1,62 @@
+{
+  "workspace": "benchmarks",
+  "last_updated_by": "huydhn@gmail.com",
+  "last_updated": "2024-06-16T06:09:30Z",
+  "name": "oss_ci_benchmark_names",
+  "version_count": 5,
+  "collections": [
+    "commons.workflow_run",
+    "benchmarks.oss_ci_benchmark"
+  ],
+  "latest_version": {
+    "workspace": "benchmarks",
+    "created_by": "huydhn@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2024-06-16T06:09:30Z",
+    "name": "oss_ci_benchmark_names",
+    "version": "98a212e928df968b",
+    "description": "Query experiment names from OSS CI benchmarks",
+    "sql": {
+      "query": "--- This query is used by HUD benchmarks dashboards to get the list of experiment names\nSELECT DISTINCT\n  o.filename,  \n  o.name,  \n  o.metric,\n  o.dtype,\n  o.device,\nFROM\n  benchmarks.oss_ci_benchmark o\n  LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id\nWHERE\n  o._event_time >= PARSE_DATETIME_ISO8601(: startTime)\n  AND o._event_time < PARSE_DATETIME_ISO8601(: stopTime)\n  AND (\n    ARRAY_CONTAINS(\n      SPLIT(: filenames, ','),\n      o.filename\n    )\n    OR : filenames = ''\n  )\n  AND o.metric IS NOT NULL\n  AND w.html_url LIKE CONCAT('%', : repo, '%')\n  AND o.dtype IS NOT NULL\n  AND o.device IS NOT NULL\nORDER BY\n  o.filename,  \n  o.name,\n  o.metric,\n  o.dtype,\n  o.device",
+      "default_parameters": [
+        {
+          "name": "filenames",
+          "type": "string",
+          "value": ""
+        },
+        {
+          "name": "granularity",
+          "type": "string",
+          "value": "day"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch/pytorch"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2024-05-01T00:00:00.00Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2024-08-01T00:00:00.00Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "benchmarks.oss_ci_benchmark"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T07:35:28Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

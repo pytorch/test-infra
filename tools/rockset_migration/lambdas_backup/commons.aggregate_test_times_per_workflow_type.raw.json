@@ -1,0 +1,45 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-04-03T22:32:16Z",
+  "name": "aggregate_test_times_per_workflow_type",
+  "version_count": 1,
+  "collections": [
+    "metrics.aggregated_test_metrics"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-04-03T22:32:16Z",
+    "name": "aggregate_test_times_per_workflow_type",
+    "version": "e127e5c9d0b60cf5",
+    "description": null,
+    "sql": {
+      "query": "SELECT\nt.workflow_name,\nSUM(t.avg_duration_in_second) as time_in_seconds,\nt.date\nFROM\nmetrics.aggregated_test_metrics AS t\nWHERE\nCAST(PARSE_DATETIME_ISO8601(t.date) as date) >= PARSE_DATETIME_ISO8601(:startDate) AND\nt.workflow_name = :workflow_type\nGROUP BY\n  t.date,\n  t.workflow_name\n",
+      "default_parameters": [
+        {
+          "name": "startDate",
+          "type": "string",
+          "value": "2023-02-31T00:06:32.839Z"
+        },
+        {
+          "name": "workflow_type",
+          "type": "string",
+          "value": "pull"
+        }
+      ]
+    },
+    "collections": [
+      "metrics.aggregated_test_metrics"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}
