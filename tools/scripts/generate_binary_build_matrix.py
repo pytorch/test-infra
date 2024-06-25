@@ -545,7 +545,7 @@ def generate_wheels_matrix(
                     "use_split_build": False,
                 }
             ret.append(entry)
-            if use_split_build:
+            if use_split_build and (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
                 entry = entry.copy()
                 entry["build_name"] = f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-split".replace(
                     ".", "_"
