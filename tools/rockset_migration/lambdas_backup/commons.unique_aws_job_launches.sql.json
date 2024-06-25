@@ -1,0 +1,4 @@
+{
+  "query": "SELECT\n    username,\n    COUNT(username) as jobs_launched\nFROM\n    commons.AWS_access_requests as t\nWHERE\n  entry_type = 'squeue'\n  AND PARSE_DATETIME_ISO8601(t.checked_time) > CURRENT_DATETIME() - INTERVAL 2 WEEK\nGROUP BY\n  username\nORDER BY\njobs_launched DESC\n\n",
+  "default_parameters": []
+}

@@ -1,0 +1,36 @@
+{
+  "workspace": "flakiness",
+  "last_updated_by": null,
+  "last_updated": "2022-11-09T21:55:54Z",
+  "name": "flaky_job_runs",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "flakiness",
+    "created_by": null,
+    "created_by_apikey_name": null,
+    "created_at": "2022-11-09T21:55:54Z",
+    "name": "flaky_job_runs",
+    "version": "e50c5f23f18ff597",
+    "description": "Individual runs that had flaky results with links to logs",
+    "sql": {
+      "query": "-- The specific runs that flaked\nselect * from commons.jobs_with_flakiness where flaky",
+      "default_parameters": []
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

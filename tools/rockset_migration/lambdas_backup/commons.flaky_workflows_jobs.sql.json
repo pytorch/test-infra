@@ -1,0 +1,40 @@
+{
+  "query": "-- This query is used to get flaky job on trunk so that they can be retried. A flaky job is the\n-- one that has the green / red / green pattern. The failure in the middle is considered flaky\n-- and can be retried\nWITH dedups AS (\n  -- Note that there can be more than one commit with the same ID with the actual author and pytorchmergebot.\n  -- This mess up the results in some cases, so this removes all redundant information and only keeps what is\n  -- needed for the later query\n  SELECT\n    DISTINCT CONCAT(w.name, ' / ', job.name) AS fullname,\n    w.name AS workflow_name,\n    w.id AS workflow_id,\n    job.name AS job_name,\n    job.id AS job_id,\n    job.conclusion AS conclusion,\n    push.head_commit.id AS head_commit,\n    push.head_commit.timestamp AS head_commit_timestamp,\n    job.run_attempt AS run_attempt,\n    ROW_NUMBER() OVER(\n      PARTITION BY w.id,\n      w.name,\n      job.name\n      ORDER BY\n        job.run_attempt DESC\n    ) AS row_num,\n  FROM\n    commons.workflow_run w\n    JOIN commons.workflow_job job ON w.id = job.run_id HINT(join_strategy = lookup)\n    JOIN push ON push.head_commit.id = w.head_commit.id\n  WHERE\n    (\n      job._event_time >= CURRENT_DATE() - HOURS(: numHours)\n      OR : numHours = 0\n    )\n    AND w.head_repository.full_name = : repo\n    AND ARRAY_CONTAINS(\n      SPLIT(: branches, ','),\n      w.head_branch\n    )\n    AND ARRAY_CONTAINS(\n      SPLIT(: workflowNames, ','),\n      w.name\n    )\n    AND job.name NOT LIKE '%mem_leak_check%'\n    AND job.name NOT LIKE '%rerun_disabled_tests%'\n    AND job.name NOT LIKE '%unstable%'\n),\nlatest_attempts AS (\n  -- Keep the latest run attempt to know if the job has already been retried\n  SELECT\n    *\n  FROM\n    dedups\n  WHERE\n    row_num = 1\n),\nflaky_jobs AS (\n  SELECT\n    workflow_name,\n    job_name,\n    -- Next commit\n    workflow_id AS next_workflow_id,\n    job_id AS next_job_id,\n    -- The flaky status of the job\n    FIRST_VALUE(conclusion) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) = 'success'\n    AND NTH_VALUE(conclusion, 2) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) = 'failure'\n    AND LAST_VALUE(conclusion) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) = 'success' AS flaky,\n    -- The current commit\n    NTH_VALUE(workflow_id, 2) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) AS workflow_id,\n    NTH_VALUE(job_id, 2) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) AS job_id,\n    NTH_VALUE(run_attempt, 2) OVER(\n      PARTITION BY fullname\n      ORDER BY\n        head_commit_timestamp DESC ROWS BETWEEN CURRENT ROW\n        AND 2 FOLLOWING\n    ) AS run_attempt,\n  FROM\n    latest_attempts\n  WHERE\n    (\n      latest_attempts.run_attempt <= : maxAttempt\n      OR : maxAttempt = 0\n    )\n)\nSELECT\n  DISTINCT flaky_jobs.workflow_name,\n  flaky_jobs.workflow_id,\n  flaky_jobs.job_name,\n  flaky_jobs.job_id,\n  flaky_jobs.flaky,\n  flaky_jobs.run_attempt,\n  flaky_jobs.next_workflow_id,\n  flaky_jobs.next_job_id,\n  annotation.annotation,\nFROM\n  flaky_jobs\n  LEFT JOIN commons.job_annotation annotation on annotation.jobID = flaky_jobs.job_id\nWHERE\n  (\n    (\n      flaky_jobs.flaky\n      AND annotation.annotation IS NULL\n    )\n    OR annotation.annotation = 'TEST_FLAKE'\n  )\n  AND (\n    flaky_jobs.workflow_id = : workflowId\n    OR : workflowId = 0\n  )\n  AND (\n    flaky_jobs.next_workflow_id = : nextWorkflowId\n    OR : nextWorkflowId = 0\n  )",
+  "default_parameters": [
+    {
+      "name": "branches",
+      "type": "string",
+      "value": "master,main"
+    },
+    {
+      "name": "maxAttempt",
+      "type": "int",
+      "value": "1"
+    },
+    {
+      "name": "nextWorkflowId",
+      "type": "int",
+      "value": "0"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "24"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "workflowId",
+      "type": "int",
+      "value": "0"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "query": "with\n    tts as (\n        SELECT\n            MAX(\n                DATE_DIFF(\n                    'second',\n                    PARSE_TIMESTAMP_ISO8601(w.created_at),\n                    PARSE_TIMESTAMP_ISO8601(w.updated_at)\n                )\n            ) as duration_sec,\n            w.head_sha,\n            ARBITRARY(IF(w.head_branch = 'main', 'main', 'not main')) as branch,\n            MIN(PARSE_TIMESTAMP_ISO8601(w.created_at)) as created_at\n        FROM\n            commons.workflow_run w\n        WHERE\n            ARRAY_CONTAINS(['pull'], LOWER(w.name))\n            AND PARSE_TIMESTAMP_ISO8601(w.created_at) >= PARSE_DATETIME_ISO8601(:startTime)\n            AND w.head_repository.full_name = 'pytorch/pytorch'\n        group by\n            w.head_sha\n        having\n            bool_and(\n                w.conclusion = 'success'\n                and w.run_attempt = 1\n            )\n    )\nselect\n    CAST(DATE_TRUNC('week', t.created_at) as string) AS week_bucket,\n    avg(t.duration_sec / 3600.0) as avg_tts,\n    t.branch\nfrom\n    tts t\ngroup by\n    week_bucket,\n    t.branch\norder by\n    week_bucket desc,\n    t.branch desc\n",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-01-01T00:00:00.000Z"
+    }
+  ]
+}

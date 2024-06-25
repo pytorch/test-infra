@@ -1,0 +1,59 @@
+{
+  "workspace": "testing",
+  "last_updated_by": "huydhn@gmail.com",
+  "last_updated": "2023-05-07T18:14:28Z",
+  "name": "classification_and_annotation",
+  "version_count": 2,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.job_annotation"
+  ],
+  "latest_version": {
+    "workspace": "testing",
+    "created_by": "huydhn@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-07T18:14:28Z",
+    "name": "classification_and_annotation",
+    "version": "c4aadcad83fe8351",
+    "description": "Classification and annotation results",
+    "sql": {
+      "query": "WITH jobs AS (\n  SELECT\n    job.head_sha as sha,\n    job.name as job_name,\n    workflow.name as workflow_name,\n    job.id,\n    job.conclusion,\n    job.html_url as html_url,\n    IF(\n      : repo = 'pytorch/pytorch',\n      CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        CAST(job.id as string)\n      ),\n      CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        : repo,\n        '/',\n        CAST(job.id as string)\n      )\n    ) as log_url,\n    job.steps,\n    job.labels,\n    DATE_DIFF(\n      'SECOND',\n      PARSE_TIMESTAMP_ISO8601(job.started_at),\n      PARSE_TIMESTAMP_ISO8601(job.completed_at)\n    ) as duration_s,\n    job.torchci_classification.line,\n    job.torchci_classification.captures,\n    job.torchci_classification.line_num,\n    annotation.annotation,\n    job._event_time AS event_time,\n  FROM\n    workflow_job job\n    INNER JOIN workflow_run workflow on workflow.id = job.run_id\n    LEFT JOIN job_annotation annotation ON job.id = annotation.jobID\n  WHERE\n    job.name != 'ciflow_should_run'\n    AND job.name != 'generate-test-matrix'\n    AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA\n    AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA\n    AND workflow.repository.full_name = : repo\n    AND job._event_time >= PARSE_DATETIME_ISO8601(: startTime)\n    AND job._event_time < PARSE_DATETIME_ISO8601(: stopTime)\n    AND (\n      ARRAY_CONTAINS(\n        SPLIT(: branches, ','),\n        workflow.head_branch\n      )\n      OR : branches = ''\n    )\n)\nSELECT\n  *\nFROM\n  jobs\nORDER BY\n  event_time,\n  sha,\n  workflow_name,\n  job_name",
+      "default_parameters": [
+        {
+          "name": "branches",
+          "type": "string",
+          "value": "main,master"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch/pytorch"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2023-05-01T00:00:00.00Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2023-05-07T00:00:00.00Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.job_annotation",
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2023-05-08T23:14:17Z",
+      "last_executed_by": "huydhn@gmail.com",
+      "last_execution_error": "2023-05-08T02:09:12Z",
+      "last_execution_error_message": "RESOURCE_EXHAUSTED: Query result contains more than 1.863GiB. Enable pagination in your query request to bypass this limit: https://rockset.com/docs/query-results-pagination/"
+    },
+    "public_access_id": null
+  }
+}

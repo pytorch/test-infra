@@ -1,0 +1,44 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "csl@fb.com",
+  "last_updated": "2024-06-07T18:41:11Z",
+  "name": "commit_failed_jobs",
+  "version_count": 2,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "csl@fb.com",
+    "created_by_apikey_name": "AKey",
+    "created_at": "2024-06-07T18:41:11Z",
+    "name": "commit_failed_jobs",
+    "version": "7365113df9e3280d",
+    "description": null,
+    "sql": {
+      "query": "-- This query is used by Dr.CI to get all the failed jobs from the base commit. They can then be\n-- used to decide if a failure is due to broken trunk\nwith relevant_pushes as (\n  select\n    p.head_commit.timestamp,\n    p.after\n  from commons.push p\n  where\n    ARRAY_CONTAINS(\n      SPLIT(:shas, ','), p.after\n    )\n)\nSELECT\n  j.id,\n  j.name AS jobName,\n  CONCAT(w.name, ' / ', j.name) AS name,\n  j.runner_name AS runnerName,\n  w.head_commit.author.email as authorEmail,\n  j.conclusion,\n  j.completed_at,\n  j.html_url,\n  j.head_sha,\n  p.timestamp AS head_sha_timestamp,\n  j.head_branch,\n  j.torchci_classification.captures AS failure_captures,\n  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,\n  j.torchci_classification.context AS failure_context,\n  j._event_time AS time,\nFROM\n  commons.workflow_run w\n  JOIN commons.workflow_job j ON w.id = j.run_id HINT(join_broadcast = true)\n  -- Do a left join here because the push table won't have any information about\n  -- commits from forked repo\n  LEFT JOIN relevant_pushes p ON p.after = j.head_sha HINT(join_strategy = lookup)\nWHERE\n  ARRAY_CONTAINS(\n    SPLIT(: shas, ','),\n    j.head_sha\n  )\n  AND j.conclusion IN ('failure', 'cancelled')\n",
+      "default_parameters": [
+        {
+          "name": "shas",
+          "type": "string",
+          "value": "ba1da47e8fa95ca0dd8b2d63430f7eb54fdbbccb"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push",
+      "commons.workflow_job",
+      "commons.workflow_run"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:22:01Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

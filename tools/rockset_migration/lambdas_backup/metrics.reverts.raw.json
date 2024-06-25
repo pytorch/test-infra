@@ -1,0 +1,45 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "darthsuo@gmail.com",
+  "last_updated": "2022-05-18T17:43:34Z",
+  "name": "reverts",
+  "version_count": 1,
+  "collections": [
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "darthsuo@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-05-18T17:43:34Z",
+    "name": "reverts",
+    "version": "f5bc84a10c4065a3",
+    "description": null,
+    "sql": {
+      "query": "SELECT\n    COUNT(*) as num\nFROM\n    push\nWHERE\n    push.ref IN ('refs/heads/master', 'refs/heads/main')\n    AND push.repository.owner.name = 'pytorch'\n    AND push.repository.name = 'pytorch'\n    AND (\n        push.head_commit.message LIKE 'Revert %'\n        OR push.head_commit.message LIKE 'Back out%'\n    )\n    AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n",
+      "default_parameters": [
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-02-09T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-02-16T00:06:32.839Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:28:35Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-17T17:23:57Z",
+      "last_execution_error_message": "No value specified for query parameter \"stopTime\". Please provide a value for this parameter and try again."
+    },
+    "public_access_id": null
+  }
+}

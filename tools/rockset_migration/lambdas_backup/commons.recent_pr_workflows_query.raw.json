@@ -1,0 +1,56 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "csl@fb.com",
+  "last_updated": "2024-06-07T18:36:41Z",
+  "name": "recent_pr_workflows_query",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.pull_request",
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "csl@fb.com",
+    "created_by_apikey_name": "AKey",
+    "created_at": "2024-06-07T18:36:41Z",
+    "name": "recent_pr_workflows_query",
+    "version": "db6b28f729e52892",
+    "description": "retrieve the CI check results in the past N minutes, as well as the other workflows from the same PRs that were previously run/pending",
+    "sql": {
+      "query": "-- This workflow is used by Dr.CI to get all the jobs from pull requests. The failures will then be\n-- classified into new failures and unrelated failures such as broken trunk, flaky, unstable, etc.\nWITH relevant_shas as (\n  select j.head_sha\n  from workflow_job j\n  where\n    PARSE_TIMESTAMP_ISO8601(j.completed_at) > (\n      CURRENT_TIMESTAMP() - MINUTES(: numMinutes)\n    )\n    AND :prNumber = 0\n  union\n  select pr.head.sha as head_sha\n  from commons.pull_request pr\n  where pr.number = :prNumber\n),\nrecent_prs AS (\n  SELECT\n    distinct pull_request.head.sha AS sha,\n    pull_request.number AS number,\n    push.head_commit.timestamp AS timestamp,\n  FROM\n    relevant_shas r\n    JOIN commons.pull_request pull_request ON r.head_sha = pull_request.head.sha HINT(join_broadcast = true)\n    -- Do a left join here because the push table won't have any information about\n    -- commits from forked repo\n    LEFT JOIN commons.push push ON r.head_sha = push.after HINT(join_strategy = lookup)\n  WHERE\n    pull_request.base.repo.full_name =: repo\n)\nSELECT\n  w.id AS workflowId,\n  w.workflow_id as workflowUniqueId,\n  j.id,\n  j.runner_name AS runnerName,\n  w.head_commit.author.email as authorEmail,\n  CONCAT(w.name, ' / ', j.name) AS name,\n  j.name AS jobName,\n  j.conclusion,\n  j.completed_at,\n  j.html_url,\n  j.head_branch,\n  recent_prs.number AS pr_number,\n  recent_prs.sha AS head_sha,\n  recent_prs.timestamp AS head_sha_timestamp,\n  j.torchci_classification.captures AS failure_captures,\n  IF(\n    j.torchci_classification.line IS NULL,\n    null,\n    ARRAY_CREATE(j.torchci_classification.line)\n  ) AS failure_lines,\n  j.torchci_classification.context AS failure_context,\n  j._event_time AS time\nFROM\n  commons.workflow_run w\n  JOIN (\n    commons.workflow_job j\n    JOIN recent_prs ON j.head_sha = recent_prs.sha HINT(join_strategy = lookup)\n  ) ON w.id = j.run_id HINT(join_broadcast = true)\nUNION\nSELECT\n  null AS workflowId,\n  w.workflow_id as workflowUniqueId,\n  w.id,\n  null AS runnerName,\n  w.head_commit.author.email as authorEmail,\n  w.name AS name,\n  w.name AS jobName,\n  w.conclusion,\n  w.completed_at,\n  w.html_url,\n  w.head_branch,\n  recent_prs.number AS pr_number,\n  w.head_sha,\n  recent_prs.timestamp AS head_sha_timestamp,\n  null AS failure_captures,\n  null AS failure_lines,\n  null AS failure_context,\n  w._event_time as time\nFROM\n  commons.workflow_run w\n  JOIN recent_prs ON w.head_sha = recent_prs.sha HINT(join_broadcast = true)\nORDER BY\n  time DESC\n",
+      "default_parameters": [
+        {
+          "name": "numMinutes",
+          "type": "int",
+          "value": "15"
+        },
+        {
+          "name": "prNumber",
+          "type": "int",
+          "value": "0"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch/pytorch"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push",
+      "commons.pull_request",
+      "commons.workflow_job",
+      "commons.workflow_run"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:22:00Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-13T22:00:58Z",
+      "last_execution_error_message": "Value `cl` for parameter \"prNumber\" (specified type \"int\") is invalid. Please update the type or update the value to be JSON compliant. and try again."
+    },
+    "public_access_id": null
+  }
+}

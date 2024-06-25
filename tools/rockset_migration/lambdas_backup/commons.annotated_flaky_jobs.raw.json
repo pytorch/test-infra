@@ -1,0 +1,59 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-10-13T21:06:11Z",
+  "name": "annotated_flaky_jobs",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "commons.job_annotation"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-10-13T21:06:11Z",
+    "name": "annotated_flaky_jobs",
+    "version": "bd991c8c9782f339",
+    "description": null,
+    "sql": {
+      "query": "select\n    job.head_sha as sha,\n    CONCAT(w.name, ' / ', job.name) as jobName,\n    job.id,\n    job.conclusion,\n    job.html_url as htmlUrl,\n    CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        CAST(job.id as string)\n    ) as logUrl,\n    DATE_DIFF(\n        'SECOND',\n        PARSE_TIMESTAMP_ISO8601(job.started_at),\n        PARSE_TIMESTAMP_ISO8601(job.completed_at)\n    ) as durationS,\n    w.repository.full_name as repo,\n    ARRAY_CREATE(job.torchci_classification.line) as failureLines,\n    job.torchci_classification.captures as failureCaptures,\n    ARRAY_CREATE(job.torchci_classification.line_num) as failureLineNumbers,\nfrom\n    commons.job_annotation a\n    join commons.workflow_job job on job.id = a.jobID\n    join commons.workflow_run w on w.id = job.run_id\n    and w.head_repository.full_name = a.repo and a.repo = :repo\nwhere\n    a.annotation != 'BROKEN_TRUNK'\n    and w.head_branch = :branch\n    and job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    and job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\norder by\n    job._event_time\n",
+      "default_parameters": [
+        {
+          "name": "branch",
+          "type": "string",
+          "value": "main"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch/pytorch"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-10-15T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2023-09-19T00:06:32.839Z"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job",
+      "commons.job_annotation"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

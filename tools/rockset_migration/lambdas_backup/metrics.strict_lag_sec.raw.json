@@ -1,0 +1,45 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "nikita.shulga@gmail.com",
+  "last_updated": "2023-04-17T14:07:54Z",
+  "name": "strict_lag_sec",
+  "version_count": 1,
+  "collections": [
+    "commons.push"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "nikita.shulga@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-04-17T14:07:54Z",
+    "name": "strict_lag_sec",
+    "version": "e0ab723990d6f2a2",
+    "description": "How many seconds viable/strict lags behind master",
+    "sql": {
+      "query": "WITH master as (\n    SELECT\n        PARSE_TIMESTAMP_ISO8601(push.head_commit.timestamp) as master\n    FROM\n        push\n    WHERE\n        push.ref = :head\n        AND push.repository.owner.name = 'pytorch'\n        AND push.repository.name = :repo\n        AND push.head_commit is not null\n    ORDER BY\n        push._event_time desc\n    LIMIT\n        1\n), strict as (\n    SELECT\n        PARSE_TIMESTAMP_ISO8601(push.head_commit.timestamp) as strict\n    FROM\n        push\n    WHERE\n        push.ref = 'refs/heads/viable/strict'\n        AND push.repository.owner.name = 'pytorch'\n        AND push.repository.name = :repo\n        AND push.head_commit is not null\n    ORDER BY\n        push._event_time desc\n    LIMIT\n        1\n)\nSELECT\n    DATE_DIFF('second', strict, master) as strict_lag_sec\nFROM\n    master,\n    strict\n",
+      "default_parameters": [
+        {
+          "name": "head",
+          "type": "string",
+          "value": "refs/heads/main"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch"
+        }
+      ]
+    },
+    "collections": [
+      "commons.push"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:22:22Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-01-25T20:35:19Z",
+      "last_execution_error_message": "RESOURCE_EXHAUSTED: The instance size you are using does not have the memory capacity to execute the current workload. Please upgrade to a larger instance size, or reduce the rate or complexity of the queries you are running. This occurred while running IndexFilterOperator."
+    },
+    "public_access_id": null
+  }
+}
