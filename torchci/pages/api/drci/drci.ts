@@ -41,7 +41,7 @@ import {
   removeJobNameSuffix,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
-import s3client from "lib/s3";
+import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -275,6 +275,7 @@ where
     and repo = :repo
   `;
   const rocksetClient = getRocksetClient();
+  const s3client = getS3Client();
 
   const rocksetMergeBases = new Map(
     (
