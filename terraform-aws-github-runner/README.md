@@ -6,6 +6,7 @@ This is a terraform module that sets up self hosted github runners on AWS along 
 To use the changes made to these files:
 1. Merge the PR to `main` and wait for the `Create Release Tag` workflow to run (or trigger it manually). This will give your commit a unique release tag.
 1. In the terraform script that consumes this module, go to the `Terrafile` file and modify the `tag` for `terraform-aws-github-runner` to point to the new release tag.
+1. Now when you apply the terraform code that uses this module, it'll pull in your changes (for PyTorch CI, there are workflows you trigger in pytorch-gha-infra and ci-infra for this step).
 
 # Directories
 
