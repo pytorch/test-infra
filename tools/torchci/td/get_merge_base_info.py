@@ -5,6 +5,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List
+
 import boto3  # type: ignore
 from torchci.rockset_utils import query_rockset
 from torchci.td.utils import list_past_year_shas, run_command
