@@ -187,8 +187,6 @@ describe("verify-drci-functionality", () => {
         (body) => JSON.stringify(body).includes("merge_commit_sha")
       )
       .reply(200, { results: [] }) // query to get the previous merge commit sha
-      .post((url) => url.includes("merge_bases"))
-      .reply(200, { results: [] }) // query to insert back to rockset
       .post(
         (url) => url.includes("self/queries"),
         (body) => JSON.stringify(body).includes("issue_comment")
