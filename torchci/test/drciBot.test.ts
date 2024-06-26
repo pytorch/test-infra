@@ -1,5 +1,7 @@
+import { S3Client } from "@aws-sdk/client-s3";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import * as getS3Client from "lib/s3";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/drciBot";
@@ -23,6 +25,15 @@ describe("verify-drci-functionality", () => {
     nock("https://raw.githubusercontent.com")
       .get((url) => url.includes("rules.json"))
       .reply(200, []);
+
+    const mockS3 = {
+      send: jest.fn(),
+    };
+    jest.mock("aws-sdk", () => ({
+      S3: jest.fn().mockImplementation(() => mockS3),
+    }));
+    const mockS3Client = jest.spyOn(getS3Client, "getS3Client");
+    mockS3Client.mockImplementation(() => mockS3 as unknown as S3Client);
   });
 
   afterEach(() => {
