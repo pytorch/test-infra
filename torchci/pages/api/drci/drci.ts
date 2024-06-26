@@ -1,3 +1,4 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { fetchJSON } from "lib/bot/utils";
 import {
   CANCELLED_STEP_ERROR,
@@ -40,6 +41,7 @@ import {
   removeJobNameSuffix,
 } from "lib/jobUtils";
 import getRocksetClient from "lib/rockset";
+import s3client from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -297,7 +299,6 @@ where
       })
     ).results?.map((v) => [v.head_sha, v])
   );
-  const newData: any[] = [];
 
   await forAllPRs(
     workflowsByPR,
@@ -315,13 +316,25 @@ where
         pr_info.merge_base_date =
           diff.data.merge_base_commit.commit.committer?.date ?? "";
 
-        newData.push({
-          sha: pr_info.head_sha,
-          merge_base: pr_info.merge_base,
-          changed_files: diff.data.files?.map((e) => e.filename),
-          merge_base_commit_date: pr_info.merge_base_date ?? "",
-          repo: `${OWNER}/${repo}`,
-        });
+        try {
+          const data = {
+            sha: pr_info.head_sha,
+            merge_base: pr_info.merge_base,
+            changed_files: diff.data.files?.map((e) => e.filename),
+            merge_base_commit_date: pr_info.merge_base_date ?? "",
+            repo: `${OWNER}/${repo}`,
+            _id: `${OWNER}-${repo}-${pr_info.head_sha}`,
+          };
+          s3client.send(
+            new PutObjectCommand({
+              Bucket: "ossci-raw-job-status",
+              Key: `merge_bases/${OWNER}/${repo}/${pr_info.head_sha}`,
+              Body: JSON.stringify(data),
+            })
+          );
+        } catch (e) {
+          console.error("Failed to upload to S3", e);
+        }
       } else {
         pr_info.merge_base = rocksetMergeBase.merge_base;
         pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
@@ -339,9 +352,6 @@ where
       pr_info.merge_base_date = "";
     }
   );
-  rocksetClient.documents.addDocuments("commons", "merge_bases", {
-    data: newData,
-  });
 }
 
 export async function getBaseCommitJobs(
