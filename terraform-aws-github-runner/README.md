@@ -2,6 +2,11 @@
 
 This is a terraform module that sets up self hosted github runners on AWS along with the infra needed to autoscale them
 
+# Release
+To use the changes made to these files:
+1. Merge the PR to `main` and wait for the `Create Release Tag` workflow to run (or trigger it manually). This will give your commit a unique release tag.
+1. In the terraform script that consumes this module, go to the `Terrafile` file and modify the `tag` for `terraform-aws-github-runner` to point to the new release tag.
+
 # Directories
 
 ```
