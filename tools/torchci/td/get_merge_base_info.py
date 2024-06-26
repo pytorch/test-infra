@@ -99,7 +99,6 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 ContentEncoding="gzip",
                 ContentType="application/json",
             )
-            print("uploaded")
         except Exception as e:
             return e
 
