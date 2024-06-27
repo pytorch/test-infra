@@ -64,7 +64,7 @@ jobs:
       os: linux
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
-      with_rocm: ${{ inputs.with_rocm }}
+      with-rocm: ${{ inputs.with_rocm }}
   generate-windows-matrix:
     if:  (inputs.os == 'windows' || inputs.os == 'all')
     uses: ./.github/workflows/generate_binary_build_matrix.yml
