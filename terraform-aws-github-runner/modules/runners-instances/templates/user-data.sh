@@ -5,7 +5,7 @@ set -euxo pipefail
 function retry {
   local retries=7
   local count=0
-  until `$@`; do
+  until $@; do
     exit=$?
     wait=$((2 ** $count))
     count=$(($count + 1))
@@ -36,36 +36,36 @@ if ! command -v curl 2>/dev/null; then
   sudo $PKG_MANAGER install -y curl
 fi
 
-sudo retry $PKG_MANAGER update -y
+retry sudo $PKG_MANAGER update -y
 
 if ! command -v jq 2>/dev/null; then
   echo "Installing jq"
-  sudo retry $PKG_MANAGER install -y jq
+  retry sudo $PKG_MANAGER install -y jq
 fi
 if ! command -v git 2>/dev/null; then
   echo "Installing git"
-  sudo retry $PKG_MANAGER install -y git
+  retry sudo $PKG_MANAGER install -y git
 fi
 if ! command -v pip3 2>/dev/null; then
   echo "Installing git"
-  sudo retry $PKG_MANAGER install -y pip
+  retry sudo $PKG_MANAGER install -y pip
 fi
 
 %{ if enable_cloudwatch_agent ~}
-sudo retry $PKG_MANAGER install amazon-cloudwatch-agent -y
+retry sudo $PKG_MANAGER install amazon-cloudwatch-agent -y
 amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${ssm_key_cloudwatch_agent_config}
 %{ endif ~}
 
 # Install docker
 if [ "$(uname -m)" == "aarch64" ]; then
-  sudo retry $PKG_MANAGER install -y docker
+  retry sudo $PKG_MANAGER install -y docker
 else
   if command -v amazon-linux-extras 2>/dev/null; then
     echo "Installing docker using amazon-linux-extras"
-    sudo retry amazon-linux-extras install docker
+    retry sudo amazon-linux-extras install docker
   else
     echo "Installing docker using dnf"
-    sudo retry dnf install docker -y
+    retry sudo dnf install docker -y
   fi
 fi
 
@@ -75,8 +75,8 @@ usermod -a -G docker ec2-user
 USER_NAME=ec2-user
 ${install_config_runner}
 
-sudo retry $PKG_MANAGER groupinstall -y 'Development Tools'
-sudo retry $PKG_MANAGER install -y 'kernel-devel-uname-r == $(uname -r)'
+retry sudo $PKG_MANAGER groupinstall -y 'Development Tools'
+retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)"
 
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
@@ -84,24 +84,24 @@ echo "NVIDIA driver install required"
 if [[ "$OS_ID" =~ ^amzn.* ]]; then
     if [[ "$OS_ID" =~ "amzn2023" ]] ; then
       echo "On Amazon Linux 2023, installing kernel-modules-extra"
-      sudo retry dnf install kernel-modules-extra -y
+      retry sudo dnf install kernel-modules-extra -y
     fi
     echo Installing Development Tools
     sudo modprobe backlight
 fi
-sudo retry curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-550.54.15.run'
-sudo retry /bin/bash /tmp/nvidia_driver -s --no-drm
+retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-550.54.15.run'
+retry sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
 if [[ "$OS_ID" =~ ^amzn.* ]]; then
     if [[ "$OS_ID" == ^amzn2023* ]]; then
-      sudo retry dnf install -y dnf-plugins-core
-      sudo retry dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
+      retry sudo dnf install -y dnf-plugins-core
+      retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
     else
-      sudo retry yum install -y yum-utils
-      sudo retry yum-config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
+      retry sudo yum install -y yum-utils
+      retry sudo yum-config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
     fi
     echo Installing nvidia-docker tools
-    sudo retry $PKG_MANAGER install -y nvidia-docker2
+    retry sudo $PKG_MANAGER install -y nvidia-docker2
     sudo systemctl restart docker
 fi
 %{ endif ~}
