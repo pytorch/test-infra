@@ -28,7 +28,7 @@ EOF
 cd /home/$USER_NAME
 mkdir actions-runner && cd actions-runner
 
-aws s3 cp ${s3_location_runner_distribution} actions-runner.tar.gz
+retry aws s3 cp ${s3_location_runner_distribution} actions-runner.tar.gz
 tar xzf ./actions-runner.tar.gz
 rm -rf actions-runner.tar.gz
 
@@ -51,7 +51,7 @@ while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-dec
     sleep 1
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
-aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
+retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 
 export RUNNER_ALLOW_RUNASROOT=1
 os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)
@@ -59,14 +59,14 @@ if [[ "$os_id" =~ ^ubuntu.* ]]; then
   sudo ./bin/installdependencies.sh
 elif uname -a | grep 'amzn2023' > /dev/null; then
   echo "Installing dependencies for Amazon Linux 2023"
-  sudo dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
+  sudo retry dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
 fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
 
 # Set tag as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)
-aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
+retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
 
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}
