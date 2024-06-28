@@ -306,7 +306,7 @@ export async function getRunnerTypes(
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
-  const aphaNumericStr = /^[a-zA-Z0-9.]+$/;
+  const alphaNumericStr = /^[a-zA-Z0-9.]+$/;
 
   return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
@@ -362,11 +362,11 @@ export async function getRunnerTypes(
         [...result.entries()].filter(
           ([, runnerType]) =>
             typeof runnerType.runnerTypeName === 'string' &&
-            aphaNumericStr.test(runnerType.runnerTypeName) &&
+            alphaNumericStr.test(runnerType.runnerTypeName) &&
             typeof runnerType.instance_type === 'string' &&
-            aphaNumericStr.test(runnerType.instance_type) &&
+            alphaNumericStr.test(runnerType.instance_type) &&
             ['linux', 'windows'].includes(runnerType.os) &&
-            (runnerType.labels?.every((label) => typeof label === 'string' && aphaNumericStr.test(label)) ?? true),
+            (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true),
         ),
       );
 
