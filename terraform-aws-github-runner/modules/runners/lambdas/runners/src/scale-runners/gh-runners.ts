@@ -306,7 +306,7 @@ export async function getRunnerTypes(
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
-  const alphaNumericStr = /^[a-zA-Z0-9.\-]+$/;
+  const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
 
   return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
