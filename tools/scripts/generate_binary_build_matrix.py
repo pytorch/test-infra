@@ -58,6 +58,7 @@ WINDOWS = "windows"
 # Accelerator architectures
 CPU = "cpu"
 CPU_AARCH64 = "cpu-aarch64"
+CUDA_AARCH64 = "cuda-aarch64"
 CUDA = "cuda"
 ROCM = "rocm"
 
@@ -103,6 +104,8 @@ def arch_type(arch_version: str) -> str:
         return ROCM
     elif arch_version == CPU_AARCH64:
         return CPU_AARCH64
+    elif arch_version == CUDA_AARCH64:
+        return CUDA_AARCH64
     else:  # arch_version should always be CPU in this case
         return CPU
 
@@ -154,6 +157,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         },
         CPU: "pytorch/manylinux-builder:cpu",
         CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
+        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
     }
     CONDA_CONTAINER_IMAGES = {
         **{
@@ -188,6 +192,7 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         CPU: "cpu",
         CPU_AARCH64: CPU,
+        CUDA_AARCH64: "cu124",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
     }.get(gpu_arch_type, gpu_arch_version)
@@ -490,7 +495,7 @@ def generate_wheels_matrix(
         if os == LINUX_AARCH64:
             # Only want the one arch as the CPU type is different and
             # uses different build/test scripts
-            arches = [CPU_AARCH64]
+            arches = [CPU_AARCH64, CUDA_AARCH64]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
