@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import main, mock, TestCase
 
 from update_disabled_issues import (
@@ -83,7 +84,7 @@ MOCK_UNSTABLE_DATA = [
 
 @mock.patch("test_update_disabled_issues.get_disable_issues")
 class TestUpdateDisabledIssues(TestCase):
-    def test_filter_disable_issues(self, mock_get_disable_issues):
+    def test_filter_disable_issues(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = sorted(
             MOCK_DATA, key=lambda x: x["number"]
         )
@@ -98,7 +99,7 @@ class TestUpdateDisabledIssues(TestCase):
             [item["number"] for item in disabled_jobs], [32132, 42345, 94861]
         )
 
-    def test_condense_disable_tests(self, mock_get_disable_issues):
+    def test_condense_disable_tests(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = MOCK_DATA
 
         disabled_issues = get_disable_issues("dummy token")
@@ -125,7 +126,7 @@ class TestUpdateDisabledIssues(TestCase):
             results,
         )
 
-    def test_condense_disable_jobs(self, mock_get_disable_issues):
+    def test_condense_disable_jobs(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = MOCK_DATA
 
         disabled_issues = get_disable_issues("dummy token")
@@ -173,7 +174,7 @@ class TestUpdateDisabledIssues(TestCase):
             results,
         )
 
-    def test_unstable_jobs(self, mock_get_disable_issues):
+    def test_unstable_jobs(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
 
         unstable_issues = get_disable_issues("dummy token", prefix=UNSTABLE_PREFIX)
@@ -216,7 +217,7 @@ class TestUpdateDisabledIssues(TestCase):
             results,
         )
 
-    def test_unauthorized_condense_disable_jobs(self, mock_get_disable_issues):
+    def test_unauthorized_condense_disable_jobs(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = MOCK_DATA
 
         disabled_issues = get_disable_issues("dummy token")
@@ -237,10 +238,10 @@ class TestUpdateDisabledIssues(TestCase):
         # Nothing should be disabled here because of the lack of permission
         self.assertFalse(results)
 
-    def test_unauthorized_unstable_jobs(self, mock_get_disable_issues):
+    def test_unauthorized_unstable_jobs(self, mock_get_disable_issues: Any) -> None:
         mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
 
-        unstable_issues = get_disable_issues("dummy token", MOCK_UNSTABLE_DATA)
+        unstable_issues = get_disable_issues("dummy token", MOCK_UNSTABLE_DATA)  # type: ignore[arg-type]
 
         _, unstable_jobs = filter_disable_issues(
             unstable_issues, prefix=UNSTABLE_PREFIX

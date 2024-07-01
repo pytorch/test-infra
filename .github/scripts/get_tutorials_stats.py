@@ -124,7 +124,7 @@ def get_file_names(
     return rc
 
 
-def table_exists(table_name: str) -> bool:
+def table_exists(table_name: str) -> Optional[bool]:
     """
     Determines whether a table exists. As a side effect, stores the table in
     a member variable.

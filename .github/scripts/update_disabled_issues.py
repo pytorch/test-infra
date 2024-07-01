@@ -148,7 +148,7 @@ def can_disable_jobs(owner: str, repo: str, username: str, token: str) -> bool:
 
 def condense_disable_tests(
     disable_issues: List[Dict[str, Any]],
-) -> Dict[str, Tuple]:
+) -> Dict[str, Tuple[str, str, List[str]]]:
     disabled_test_from_issues = {}
     for item in disable_issues:
         issue_url = item["url"]
@@ -184,7 +184,7 @@ def condense_disable_jobs(
     repo: str,
     token: str,
     prefix: str = DISABLED_PREFIX,
-) -> Dict[str, Tuple]:
+) -> Dict[str, Tuple[str, str, str, str, str, str]]:
     disabled_job_from_issues = {}
     for item in disable_issues:
         issue_url = item["url"]
@@ -225,7 +225,7 @@ def condense_disable_jobs(
     return disabled_job_from_issues
 
 
-def dump_json(data: Dict[str, Any], filename: str):
+def dump_json(data: Dict[str, Any], filename: str) -> None:
     with open(filename, mode="w") as file:
         json.dump(data, file, sort_keys=True, indent=2)
 
