@@ -1,0 +1,33 @@
+[project]
+name = 'bosco'
+version = '0.0.1'
+
+[tool.black]
+color = true
+# We use single-quotes like much of the Python standard library.
+skip-string-normalization = true
+
+[tool.coverage.report]
+# Require 100% code coverage for now.
+fail_under = 100
+
+[tool.coverage.run]
+branch = true
+# If we run coverage with an installed package, like in CI, we need to
+# explicitly state what code we are interested in coverage for. This
+# also works correctly when running locally.
+source = ['bosco']
+
+[tool.mypy]
+# If running coverage and pytest with --create-environment, we will
+# build the package in build/ before installing it. If we run mypy
+# locally after this is done, it will see duplicate files in the
+# build/ directory if we don't exclude them here.
+exclude = 'build/'
+strict = true
+
+[tool.pytest.ini_options]
+addopts = [
+     # https://docs.pytest.org/en/7.3.x/explanation/goodpractices.html#which-import-mode
+     '--import-mode=importlib',
+]
