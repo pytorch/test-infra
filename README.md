@@ -20,8 +20,8 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 │   └── websites                         # Several websites supported by TestInfra
 │       ├── download.pytorch.org
 │       └── metrics.pytorch.org
-├── setup-ssh                            # Shh access setup to CI workers
-├── stats                                # CI related stats commited automatically by a bot
+├── setup-ssh                            # SSH access setup to CI workers
+├── stats                                # CI related stats committed automatically by a bot
 ├── terraform-aws-github-runner          # Terraform modules and templates used in CI
 ├── tools                                # Tools and scripts
 |   ├── clang-tidy-checks
