@@ -1,0 +1,19 @@
+# We use a local package to share code across our scripts.
+
+[project]
+name = 'boscoci'
+version = '0.0.1'
+
+[tool.black]
+color = true
+# We use single-quotes like much of the Python standard library.
+skip-string-normalization = true
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+addopts = [
+     # https://docs.pytest.org/en/7.3.x/explanation/goodpractices.html#which-import-mode
+    '--import-mode=importlib',
+]
