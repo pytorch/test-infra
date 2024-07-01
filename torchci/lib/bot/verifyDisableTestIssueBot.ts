@@ -181,10 +181,7 @@ export function formValidationComment(
   body +=
     "action will disable the test for all platforms if no platforms list is specified. \n";
   body +=
-    "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
-  body += `${Array.from(supportedPlatforms.keys())
-    .sort((a, b) => a.localeCompare(b))
-    .join(", ")}.</body>`;
+    "```\nPlatforms: case-insensitive, list, of, platforms\n```\n</body>";
 
   return validationCommentStart + body + validationCommentEnd;
 }
