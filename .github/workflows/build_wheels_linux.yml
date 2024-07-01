@@ -186,6 +186,16 @@ jobs:
           cache-key: ${{ inputs.cache-key }}
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
+
+      # Used to host cibuildwheel
+      - uses: actions/setup-python@v5
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.18.1
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.18.1
+
       - name: Build the wheel (python-build-package)
         if: ${{ inputs.build-platform == 'python-build-package' }}
         working-directory: ${{ inputs.repository }}
@@ -197,6 +207,7 @@ jobs:
           ${CONDA_RUN} python -m pip install build
           echo "Successfully installed Python build package"
           ${CONDA_RUN} python -m build --wheel
+
       - name: Build the wheel (setup-py)
         if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}
@@ -208,6 +219,7 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
+
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
