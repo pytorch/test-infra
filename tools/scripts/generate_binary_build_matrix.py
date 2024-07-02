@@ -81,6 +81,7 @@ WHEEL_CONTAINER_IMAGES: Dict[str, str]
 LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
+LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-stable"
@@ -117,7 +118,10 @@ def validation_runner(arch_type: str, os: str) -> str:
         else:
             return LINUX_CPU_RUNNER
     elif os == LINUX_AARCH64:
-        return LINUX_AARCH64_RUNNER
+        if arch_type == CUDA_AARCH64:
+            return LINUX_AARCH64_GPU_RUNNER
+        else:
+            return LINUX_AARCH64_RUNNER
     elif os == WINDOWS:
         if arch_type == CUDA:
             return WIN_GPU_RUNNER
