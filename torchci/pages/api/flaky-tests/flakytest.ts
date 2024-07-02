@@ -53,13 +53,26 @@ where
   t.name like :name
   and t.classname like :suite
   and t.file like :file
-  and j.name not like '%rerun_disabled_tests%'
+group by
+  t.name,
+  t.classname,
+  t.file,
+  t.invoking_file,
+  j.conclusion,
+  j.id,
+  j.name,
+  j.html_url,
+  j.started_at,
+  j.torchci_classification.line,
+  j.torchci_classification.line_num,
+  j.torchci_classification.captures,
+  w.head_branch,
+  j.head_sha
 order by
   PARSE_TIMESTAMP_ISO8601(j.started_at) desc
 limit
   :limit
-
-  `;
+`;
   const rocksetClient = getRocksetClient();
   const flakyTestQuery = await rocksetClient.queries.query({
     sql: {
