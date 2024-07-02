@@ -43,6 +43,7 @@ QUERY = """
     m.job,
     m.build_environment,
     m.test_config,
+    m.confidence_ratings,
 FROM
     metrics.metrics m -- CROSS JOIN UNNEST (heuristics) h
 where
@@ -211,9 +212,121 @@ def get_num_heuristics_prioritized_by(data):
     plt.clf()
 
 
+def plot_line(x, y, label, avg=None):
+    (line,) = plt.plot(
+        x,
+        y,
+        label=label,
+    )
+    if avg:
+        num, name = avg
+        plt.hlines(
+            y=num,
+            xmin=0,
+            xmax=1,
+            linestyles="--",
+            label=name,
+            color=line.get_color(),
+        )
+
+
+def plot_percentile_with_avg(l, label):
+    x = [(x + 1) / len(l) for x in range(0, len(l))]
+    avg_val = avg(l)
+    plot_line(
+        x,
+        sorted(l),
+        label,
+        avg=(avg_val, f"average: {round(avg_val, 2)}"),
+    )
+
+
+def get_position_percent(d, failed_test):
+    if failed_test in d:
+        return sorted(d.keys(), key=lambda x: d[x], reverse=True).index(
+            failed_test
+        ) / len(d)
+    return 1
+
+
+def get_rating_percent(d, failed_test):
+    if failed_test in d:
+        return d[failed_test] / max(d.values())
+    return 0
+
+
+def save_fig(filename):
+    plt.legend(bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
+    plt.tight_layout()
+    plt.savefig(OUTPUT_FOLDER / f"{filename}.png")
+    plt.clf()
+
+
+def evaluate_confidence_ratings(data):
+    non_null_confidence_ratings = [
+        x for x in data if x["confidence_ratings"] is not None
+    ]
+    aggregate_info = {
+        "positions": [],
+        "ratings/max": [],
+        "per heuristic": defaultdict(
+            lambda: {
+                "positions": [],
+                "ratings/max": [],
+            }
+        ),
+    }
+
+    norm_dict = {
+        # "PreviouslyFailedInPR": 500,
+        # "EditedByPR": 100,
+    }
+
+    for row in non_null_confidence_ratings:
+        failed_test = row["test_name"]
+        aggregated_ratings_dict = defaultdict(float)
+        for heuristic, ratings_dict in row["confidence_ratings"].items():
+            if ratings_dict is None:
+                continue
+            for tf, rating in ratings_dict.items():
+                aggregated_ratings_dict[tf] += rating * norm_dict.get(heuristic, 1)
+            aggregate_info["per heuristic"][heuristic]["positions"].append(
+                get_position_percent(ratings_dict, failed_test)
+            )
+            aggregate_info["per heuristic"][heuristic]["ratings/max"].append(
+                get_rating_percent(ratings_dict, failed_test)
+            )
+
+        aggregate_info["positions"].append(
+            get_position_percent(aggregated_ratings_dict, failed_test)
+        )
+        aggregate_info["ratings/max"].append(
+            get_rating_percent(aggregated_ratings_dict, failed_test)
+        )
+
+    plot_percentile_with_avg(aggregate_info["positions"], "position")
+    for heuristic, info in aggregate_info["per heuristic"].items():
+        plot_percentile_with_avg(info["positions"], heuristic)
+    save_fig("confidence_ratings_position")
+
+    plot_percentile_with_avg(aggregate_info["ratings/max"], "rating/max")
+    for heuristic, info in aggregate_info["per heuristic"].items():
+        plot_percentile_with_avg(info["ratings/max"], heuristic)
+    save_fig("confidence_ratings_ratings")
+
+    print(
+        len([x for x in aggregate_info["positions"] if x == 1])
+        / len(aggregate_info["positions"])
+    )
+    exit(0)
+
+
 if __name__ == "__main__":
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    plt.figure(figsize=(10, 6))
+
     rockset_data = query_rockset(QUERY, use_cache=True)
+    evaluate_confidence_ratings(rockset_data)
 
     make_csv(
         to_array(get_heuristics_eval(rockset_data), "heuristic"),
