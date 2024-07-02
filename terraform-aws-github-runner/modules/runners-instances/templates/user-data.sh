@@ -5,7 +5,7 @@ set -euxo pipefail
 function retry {
   local retries=7
   local count=0
-  until $@; do
+  until "$@"; do
     exit=$?
     wait=$((2 ** $count))
     count=$(($count + 1))
