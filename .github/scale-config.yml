@@ -117,7 +117,7 @@ runner_types:
     is_ephemeral: false
     max_available: 1200
     os: linux
-  linux.g6.4xlarge.nvidia.gpu:
+  linux.g6.4xlarge.experimental.nvidia.gpu:
     disk_size: 150
     instance_type: g6.4xlarge
     is_ephemeral: false
