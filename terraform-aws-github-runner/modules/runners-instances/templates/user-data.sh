@@ -5,7 +5,7 @@ set -euxo pipefail
 function retry {
   local retries=7
   local count=0
-  until $@; do
+  until "$@"; do
     exit=$?
     wait=$((2 ** $count))
     count=$(($count + 1))
@@ -76,13 +76,13 @@ USER_NAME=ec2-user
 ${install_config_runner}
 
 retry sudo $PKG_MANAGER groupinstall -y 'Development Tools'
-retry sudo $PKG_MANAGER install -y "kernel-devel == $(uname -r)" || true
+retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
 
 # Needed since kernel 4.14.336-257.562 is not currently available in package managers
 (
   pushd /usr/src/kernels/
   aws s3 cp s3://ossci-linux/4.14.336-257.562.amzn2.x86_64.tar.gz .
-  tar xvzf 4.14.336-257.562.amzn2.x86_64.tar.gz
+  tar xzf 4.14.336-257.562.amzn2.x86_64.tar.gz
 )
 
 
