@@ -82,7 +82,7 @@ retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
 (
   pushd /usr/src/kernels/
   aws s3 cp s3://ossci-linux/4.14.336-257.562.amzn2.x86_64.tar.gz .
-  tar xvzf 4.14.336-257.562.amzn2.x86_64.tar.gz
+  tar xzf 4.14.336-257.562.amzn2.x86_64.tar.gz
 )
 
 
