@@ -76,7 +76,7 @@ USER_NAME=ec2-user
 ${install_config_runner}
 
 retry sudo $PKG_MANAGER groupinstall -y 'Development Tools'
-retry sudo $PKG_MANAGER install -y "kernel-devel == $(uname -r)" || true
+retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
 
 # Needed since kernel 4.14.336-257.562 is not currently available in package managers
 (
