@@ -72,7 +72,7 @@ export default function Page() {
       </h3>
       {!hasSearch ? (
         <div>
-          Please click the blue boxes with '%' and enter a test name/class/file
+          Please click the blue boxes with `%` and enter a test name/class/file
           to search for a specific test.
         </div>
       ) : data === undefined ? (
