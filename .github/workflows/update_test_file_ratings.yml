@@ -1,10 +1,6 @@
 name: Update test file ratings for TD Heuristics
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/update_test_file_ratings.yml"
-      - "tools/torchci/td"
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
@@ -14,6 +10,7 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   update-test-file-ratings:
@@ -37,6 +34,12 @@ jobs:
           pip3 install boto3==1.19.12 rockset==1.0.3
           cd test-infra/tools/torchci
           pip3 install -e .
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/upload_to_ossci_raw_job_status
+          aws-region: us-east-1
 
       - name: Get merge base info
         run: |
