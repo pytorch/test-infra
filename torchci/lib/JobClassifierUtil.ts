@@ -196,9 +196,9 @@ export function classifyGroup(
 
   // Check if the job has been marked as unstable but doesn't include the
   // unstable keyword.
-  if (assignedGroup?.persistent && !showUnstableGroup) {
-    // Persistent groups (mem leak check, rerun disabled tests) should not be
-    // overwritten unless you are hiding the unstable jobs
+  if (!showUnstableGroup && assignedGroup?.persistent) {
+    // If the unstable group is not being shown, then persistent groups (mem
+    // leak check, rerun disabled tests) should not be overwritten
     return assignedGroup.name;
   }
 
