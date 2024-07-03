@@ -28,7 +28,7 @@ EOF
 # TODO (huydhn): Remove this after moving to AmazonLinux2023
 fallback_to_node16() {
   # https://github.blog/changelog/2024-03-07-github-actions-all-actions-will-run-on-node20-instead-of-node16-by-default/
-  echo "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true" >> $RUNNER_ENV
+  export ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true
 }
 
 cd /home/$USER_NAME
