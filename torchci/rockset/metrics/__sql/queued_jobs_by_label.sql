@@ -48,6 +48,7 @@ SELECT
   COUNT(*) AS count,
   MAX(queue_s) AS avg_queue_s,
   machine_type,
+  CURRENT_TIMESTAMP() AS _event_time
 FROM
   queued_jobs
 GROUP BY
