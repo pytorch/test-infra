@@ -47,6 +47,7 @@ build {
     elevated_password = ""
     scripts = [
       "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
+      "${path.root}/scripts/Installers/Initialize-Python3.ps1",
       "${path.root}/scripts/Installers/Install-Conda-Dependencies.ps1",
       "${path.root}/scripts/Installers/Install-Pip-Dependencies.ps1",
     ]
@@ -93,6 +94,7 @@ build {
     scripts = [
       "${path.root}/scripts/Helpers/Reset-UserData.ps1",
       "${path.root}/scripts/Installers/Install-Choco-GenerateProfile.ps1",
+      "${path.root}/scripts/Installers/Initialize-Python3.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
     ]
   }

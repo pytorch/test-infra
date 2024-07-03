@@ -14,7 +14,7 @@ if (-Not (Test-Path -Path $parentDir)) {
 
 # Miniconda3-latest-Windows-x86_64 nows use Python3.10 which will causes conflicts
 # later on when installing
-$condaFilename = "Miniconda3-py39_22.11.1-1-Windows-x86_64.exe"
+$condaFilename = "Miniconda3-py39_24.4.0-0-Windows-x86_64.exe"
 $condaURI = "https://repo.anaconda.com/miniconda/$condaFileName"
 
 Write-Output "Downloading Miniconda from $condaURI to $downloadDir, please wait ..."
@@ -34,14 +34,3 @@ if (-Not (Test-Path -Path $condaHook -PathType Leaf)) {
 
 # Clean up the temp file
 Remove-Item -Path "$downloadDir\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_profiles
-$PS_PROFILE = "$PSHOME\Microsoft.PowerShell_profile.ps1"
-
-$PYTHON_PATH = '$Env:PATH += ' + "';$installationDir'"
-
-# Add conda path to the powershell profile to make its commands, i.e. python, available when logging
-# in to Windows runners or when the CI uses powershell
-Add-Content "$PS_PROFILE" "$PYTHON_PATH"
-
-$Env:PATH += ";$installationDir"
