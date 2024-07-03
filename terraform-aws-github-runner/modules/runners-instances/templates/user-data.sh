@@ -14,6 +14,7 @@ function metric_report () {
     local namespace="GHARunners/all"
     if [ ! -z "$environment"]; then
         namespace="GHARunners/$environment"
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value || true
     fi
 
     if [ ! -z "$INSTANCE_ID" ]; then
