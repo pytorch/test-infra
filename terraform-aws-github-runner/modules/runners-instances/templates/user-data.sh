@@ -2,6 +2,42 @@
 
 set -euxo pipefail
 
+function metric_report () {
+    local metric_name=$1
+    local value=$2
+
+    # it is useful to not have a namespace and send all errors here, in case we can't get the environment for some reason
+    # this should not be the case, as this environment variable is set externally
+    # it is important to have the || true at the end, as we dont want to interrupt the scritp at failure and trigger an infinite loop
+    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value || true
+
+    local namespace="GHARunners/all"
+    if [ ! -z "$environment"]; then
+        namespace="GHARunners/$environment"
+    fi
+
+    if [ ! -z "$INSTANCE_ID" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --dimensions "InstanceId=$INSTANCE_ID" || true
+    fi
+    if [ ! -z "$REGION" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --dimensions "Region=$REGION" || true
+    fi
+    if [ ! -z "$OS_ID" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --dimensions "os=$OS_ID" || true
+    fi
+    if [ ! -z "$OS_ID" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --dimensions GHRunnerId=$GH_RUNNER_ID || true
+    fi
+}
+
+function err_report () {
+    echo "Error on line $1"
+    metric_report "linux_userdata.error" 1
+    exit 1
+}
+
+trap 'err_report $LINENO' ERR
+
 function retry {
   local retries=7
   local count=0
@@ -21,6 +57,8 @@ function retry {
 }
 
 exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+
+metric_report "linux_userdata.execution" 1
 
 OS_ID=$(. /etc/os-release;echo $ID$VERSION_ID)
 if [[ "$OS_ID" =~ ^amzn2023* ]]; then
@@ -85,7 +123,6 @@ retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
   tar xzf 4.14.336-257.562.amzn2.x86_64.tar.gz
 )
 
-
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 echo "NVIDIA driver install required"
@@ -117,3 +154,5 @@ fi
 ${post_install}
 
 ./svc.sh start
+
+metric_report "linux_userdata.success" 1
