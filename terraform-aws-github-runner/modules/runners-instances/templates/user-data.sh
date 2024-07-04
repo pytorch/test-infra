@@ -9,7 +9,7 @@ function metric_report () {
     aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value --region us-east-1 || true
 
     local namespace="GHARunners/all"
-    if [ ! -z "${environment}"]; then
+    if [ ! -z "${environment}" ]; then
         namespace="GHARunners/${environment}"
         aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 || true
     fi
