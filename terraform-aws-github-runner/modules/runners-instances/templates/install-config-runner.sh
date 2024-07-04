@@ -1,4 +1,4 @@
-set -euxo pipefail
+set -exo pipefail
 
 install_hooks() {
   pushd /home/$USER_NAME
@@ -55,9 +55,15 @@ else
 fi
 
 echo wait for configuration
+RETRY_LEFT=600
 while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value") == null ]]; do
     echo Waiting for configuration ...
     sleep 1
+    RETRY_LEFT=$((RETRY_LEFT-1))
+    if [[ $RETRY_LEFT -eq 0 ]]; then
+        echo "Timeout waiting for configuration"
+        false  # the script should fail when a command returns non-zero, and then send logs about it
+    fi
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
 retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
