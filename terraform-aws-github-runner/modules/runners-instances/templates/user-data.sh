@@ -6,46 +6,6 @@ function metric_report () {
     local metric_name=$1
     local value=$2
 
-    # it is useful to not have a namespace and send all errors here, in case we can't get the environment for some reason
-    # this should not be the case, as this environment variable is set externally
-    # it is important to have the || true at the end, as we dont want to interrupt the scritp at failure and trigger an infinite loop
-    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value --region us-east-1 || true
-
-    local namespace="GHARunners/all"
-    if [ ! -z "${environment}"]; then
-        namespace="GHARunners/${environment}"
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 || true
-    fi
-
-    if [ ! -z "$INSTANCE_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "InstanceId=$INSTANCE_ID" || true
-    fi
-    if [ ! -z "$REGION" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "Region=$REGION" || true
-    fi
-    if [ ! -z "$OS_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "os=$OS_ID" || true
-    fi
-    if [ ! -z "$OS_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions GHRunnerId=$GH_RUNNER_ID || true
-    fi
-}
-
-function err_report () {
-    echo "Error on line $1"
-    metric_report "linux_userdata.error" 1
-    exit 1
-}
-
-trap 'err_report $LINENO' ERR
-
-function metric_report () {
-    local metric_name=$1
-    local value=$2
-
-    # it is useful to not have a namespace and send all errors here, in case we can't get the environment for some reason
-    # this should not be the case, as this environment variable is set externally
-    # it is important to have the || true at the end, as we dont want to interrupt the scritp at failure and trigger an infinite loop
     aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value || true
 
     local namespace="GHARunners/all"
