@@ -139,6 +139,7 @@ PACKAGE_ALLOW_LIST = {
     "portalocker",
     "pytorch_triton",
     "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
     "requests",
     "sympy",
     "tbb",
