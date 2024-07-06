@@ -261,7 +261,7 @@ jobs:
               ls -lah "${EXTRA_DATA_OUTPUT}"
 
               # If this set to true, we will try to see if there is already an extra
-              # data archive of the same name and md5 uploaded to AWS Device Farm
+              # data archive of the same name and checksum uploaded to AWS Device Farm
               if [[ "${EXTRA_DATA_USE_CACHED_COPY}" == true ]]; then
                 # Find existing uploads with the same name
                 EXISTING_UPLOADS=$(aws devicefarm list-uploads \
