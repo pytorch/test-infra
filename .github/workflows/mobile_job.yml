@@ -86,11 +86,18 @@ on:
       # The extra data archive could be large, so it's better to keep them on S3
       extra-data:
         description: |
-          Either a link to a zip archive on S3 to be uploaded to the test device or
-          an existing ARN, for example, exported models
+          A link to a zip archive on S3 to be uploaded to the test device
         required: false
         type: string
         default: ''
+      extra-data-use-cached-copy:
+        description: |
+          If the extra data zip archive remains unchanged, we can use its existing copy
+          on AWS to make the job faster. Note that AWS deletes the copy after 30 days
+          even if it is still used and the job will reupload the file when this happens
+        required: false
+        type: string
+        default: true
 
 jobs:
   job:
@@ -233,16 +240,54 @@ jobs:
         shell: bash
         working-directory: test-infra/tools/device-farm-runner
         env:
+          PROJECT_ARN: ${{ inputs.project-arn }}
           EXTRA_DATA: ${{ inputs.extra-data }}
+          EXTRA_DATA_USE_CACHED_COPY: ${{ inputs.extra-data-use-cached-copy }}
         run: |
           set -ex
 
           if [ -n "${EXTRA_DATA}" ]; then
             if [[ "${EXTRA_DATA}" == http* ]]; then
-              EXTRA_DATA_OUTPUT="extra-data.zip"
+              # Create a new empty directory to keep the file
+              mkdir extra && pushd extra
+              # Download the extra data archive
+              curl -sO "${EXTRA_DATA}"
+              popd
 
-              curl -s "${EXTRA_DATA}" -o "${EXTRA_DATA_OUTPUT}"
+              EXTRA_DATA_FILE=$(ls extra | head -n 1)
+              EXTRA_DATA_OUTPUT="extra/${EXTRA_DATA_FILE}"
+              EXTRA_DATA_CHECKSUM=($(sha256sum "${EXTRA_DATA_OUTPUT}"))
+
               ls -lah "${EXTRA_DATA_OUTPUT}"
+
+              # If this set to true, we will try to see if there is already an extra
+              # data archive of the same name and md5 uploaded to AWS Device Farm
+              if [[ "${EXTRA_DATA_USE_CACHED_COPY}" == true ]]; then
+                # Find existing uploads with the same name
+                EXISTING_UPLOADS=$(aws devicefarm list-uploads \
+                  --arn "${PROJECT_ARN}" \
+                  --region us-west-2 \
+                  --type EXTERNAL_DATA \
+                  --query 'uploads[?contains(name, "${EXTRA_DATA_FILE}")].{arn: arn, name: name, url: url}')
+
+                # Find the one with the same checksum
+                echo "${EXISTING_UPLOADS}" | jq -r ".[].url" | while read -r URL
+                do
+                  mkdir temp && pushd temp
+                  curl -sO "${URL}"
+                  popd
+
+                  ls -lah temp/
+                  EXISTING_CHECKSUM=($(sha256sum temp/*))
+                  # Cache-hit, use the ARN
+                  if [[ "${EXTRA_DATA_CHECKSUM}" == "${EXISTING_CHECKSUM}" ]]; then
+                    EXTRA_DATA_OUTPUT=$(echo "${EXISTING_UPLOADS}" | jq -r '.[] | select(.url == "$URL").arn')
+                    echo "Found an existing copy of ${EXTRA_DATA_FILE} at ${EXTRA_DATA_OUTPUT}, skipping upload..."
+                    break
+                  fi
+                  rm -r temp
+                done
+              fi
             else
               EXTRA_DATA_OUTPUT="${EXTRA_DATA}"
             fi
