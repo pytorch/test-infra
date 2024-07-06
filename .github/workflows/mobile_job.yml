@@ -259,6 +259,7 @@ jobs:
               EXTRA_DATA_FILE=$(basename "${EXTRA_DATA_OUTPUT}")
 
               ls -lah "${EXTRA_DATA_OUTPUT}"
+              echo "${EXTRA_DATA_CHECKSUM}"
 
               # If this set to true, we will try to see if there is already an extra
               # data archive of the same name and checksum uploaded to AWS Device Farm
@@ -282,7 +283,7 @@ jobs:
 
                   # Cache-hit, use the ARN
                   if [[ "${EXTRA_DATA_CHECKSUM}" == "${EXISTING_CHECKSUM}" ]]; then
-                    EXTRA_DATA_OUTPUT=$(echo "${EXISTING_UPLOADS}" | jq -r '.[] | select(.url == "$URL").arn')
+                    EXTRA_DATA_OUTPUT=$(echo "${EXISTING_UPLOADS}" | jq -r ".[] | select(.url == \"$URL\").arn")
                     echo "Found an existing copy of ${EXTRA_DATA_FILE} at ${EXTRA_DATA_OUTPUT}, skipping upload..."
                     break
                   fi
