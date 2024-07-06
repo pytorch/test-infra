@@ -268,7 +268,7 @@ jobs:
                   --arn "${PROJECT_ARN}" \
                   --region us-west-2 \
                   --type EXTERNAL_DATA \
-                  --query 'uploads[?contains(name, "${EXTRA_DATA_FILE}")].{arn: arn, name: name, url: url}')
+                  --query "uploads[?contains(name, '${EXTRA_DATA_FILE}')].{arn: arn, name: name, url: url}")
 
                 # Find the one with the same checksum
                 echo "${EXISTING_UPLOADS}" | jq -r ".[].url" | while read -r URL
