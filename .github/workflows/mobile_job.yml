@@ -249,7 +249,7 @@ jobs:
           if [ -n "${EXTRA_DATA}" ]; then
             if [[ "${EXTRA_DATA}" == http* ]]; then
               # Create a new empty directory to keep the file
-              rm -r extra && mkdir extra && pushd extra
+              mkdir -p extra && pushd extra
               # Download the extra data archive
               curl -sO "${EXTRA_DATA}"
               popd
@@ -273,7 +273,7 @@ jobs:
                 # Find the one with the same checksum
                 echo "${EXISTING_UPLOADS}" | jq -r ".[].url" | while read -r URL
                 do
-                  rm -r temp && mkdir temp && pushd temp
+                  mkdir -p temp && pushd temp
                   curl -sO "${URL}"
                   popd
 
