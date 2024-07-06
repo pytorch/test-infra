@@ -249,14 +249,14 @@ jobs:
           if [ -n "${EXTRA_DATA}" ]; then
             if [[ "${EXTRA_DATA}" == http* ]]; then
               # Create a new empty directory to keep the file
-              mkdir extra && pushd extra
+              rm -r extra && mkdir extra && pushd extra
               # Download the extra data archive
               curl -sO "${EXTRA_DATA}"
               popd
 
-              EXTRA_DATA_FILE=$(ls extra | head -n 1)
-              EXTRA_DATA_OUTPUT="extra/${EXTRA_DATA_FILE}"
-              EXTRA_DATA_CHECKSUM=($(sha256sum "${EXTRA_DATA_OUTPUT}"))
+              EXTRA_DATA_OUTPUT=$(find extra -maxdepth 1 -type f | head -n 1)
+              EXTRA_DATA_CHECKSUM=$(sha256sum "${EXTRA_DATA_OUTPUT}" | cut -d" " -f 1)
+              EXTRA_DATA_FILE=$(basename "${EXTRA_DATA_OUTPUT}")
 
               ls -lah "${EXTRA_DATA_OUTPUT}"
 
@@ -273,12 +273,13 @@ jobs:
                 # Find the one with the same checksum
                 echo "${EXISTING_UPLOADS}" | jq -r ".[].url" | while read -r URL
                 do
-                  mkdir temp && pushd temp
+                  rm -r temp && mkdir temp && pushd temp
                   curl -sO "${URL}"
                   popd
 
-                  ls -lah temp/
-                  EXISTING_CHECKSUM=($(sha256sum temp/*))
+                  EXISTING_DATA=$(find temp -maxdepth 1 -type f | head -n 1)
+                  EXISTING_CHECKSUM=$(sha256sum "${EXISTING_DATA}" | cut -d" " -f 1)
+
                   # Cache-hit, use the ARN
                   if [[ "${EXTRA_DATA_CHECKSUM}" == "${EXISTING_CHECKSUM}" ]]; then
                     EXTRA_DATA_OUTPUT=$(echo "${EXISTING_UPLOADS}" | jq -r '.[] | select(.url == "$URL").arn')
