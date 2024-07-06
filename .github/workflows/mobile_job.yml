@@ -272,7 +272,7 @@ jobs:
                   --query "uploads[?contains(name, '${EXTRA_DATA_FILE}')].{arn: arn, name: name, url: url}")
 
                 # Find the one with the same checksum
-                echo "${EXISTING_UPLOADS}" | jq -r ".[].url" | while read -r URL
+                while read -r URL
                 do
                   mkdir -p temp && pushd temp
                   curl -sO "${URL}"
@@ -288,7 +288,8 @@ jobs:
                     break
                   fi
                   rm -r temp
-                done
+                # This is to avoid using subshell https://mywiki.wooledge.org/BashFAQ/024
+                done < <(echo "${EXISTING_UPLOADS}" | jq -r ".[].url")
               fi
             else
               EXTRA_DATA_OUTPUT="${EXTRA_DATA}"
