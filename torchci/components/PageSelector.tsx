@@ -21,7 +21,7 @@ export default function PageSelector({
               page: params.page - 1,
             })}
           >
-            Prev
+            Newer
           </Link>
         </span>
       ) : (
@@ -35,7 +35,7 @@ export default function PageSelector({
           page: params.page + 1,
         })}
       >
-        Next
+        Older
       </Link>
     </div>
   );
