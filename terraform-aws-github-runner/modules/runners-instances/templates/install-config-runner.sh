@@ -1,26 +1,95 @@
 set -exo pipefail
 
+RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
+
+if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
+  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
+  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
+else
+  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+fi
+
 install_hooks() {
   pushd /home/$USER_NAME
 
-  CLEANUP_SCRIPT=/home/$USER_NAME/runner-scripts/cleanup.sh
+  BEFORE_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/before_job.sh
+  AFTER_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/after_job.sh
+  UTILS_SCRIPT=/home/$USER_NAME/runner-scripts/utils.sh
+
   # https://github.com/pytorch/test-infra/issues/5246, install pre and post-job hooks
   # to chown everything under actions-runner to $USER_NAME so that the runner can clean
   # up these files
   mkdir -p runner-scripts
-  cat > $CLEANUP_SCRIPT <<EOF
+  cat > $UTILS_SCRIPT <<EOF
 #!/bin/bash
-sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner || true
+function metric_report () {
+    local metric_name=$1
+    local value=$2
+    local on_ami_experiment="standardAMI"
+
+    if [[ -e /home/$USER_NAME/on-ami-experiment ]]; then
+      on_ami_experiment="onAMIExperiment"
+    fi
+
+    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value --region us-east-1 || true
+
+    local namespace="GHARunners/all"
+    if [ ! -z "${environment}" ]; then
+        namespace="GHARunners/${environment}"
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 || true
+    fi
+
+    if [ ! -z "$REGION" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "Region=$REGION" || true
+    fi
+    if [ ! -z "$OS_ID" ]; then
+        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "os=$OS_ID" || true
+    fi
+    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "OnAMIExperiment=$on_ami_experiment" || true
+}
 EOF
-  chmod 755 $CLEANUP_SCRIPT
+  chmod 755 $UTILS_SCRIPT
+  cat > $BEFORE_JOB_SCRIPT <<EOF
+#!/bin/bash
+. /home/$USER_NAME/runner-scripts/utils.sh
 
-  RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
+sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+metric_report "runner_scripts.before_job" 1
+
+pushd /home/$USER_NAME/actions-runner/_diag
+for filename in Worker_*; do
+  mv "$filename" "old_${filename}"
+done
+popd
+EOF
+  chmod 755 $BEFORE_JOB_SCRIPT
+  cat > $AFTER_JOB_SCRIPT <<EOF
+#!/bin/bash
+. /home/$USER_NAME/runner-scripts/utils.sh
+
+sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+metric_report "runner_scripts.after_job" 1
+
+grep "Job result after all job steps finish: Succeeded" Worker_*  ; FOUND=$?
+if [ \$FOUND -eq 0 ]; then
+  echo "Job result after all job steps finish: Succeeded"
+  metric_report "runner_scripts.job_succeeded" 1
+else
+  echo "Job result after all job steps finish: Failed/Cancelled"
+  metric_report "runner_scripts.job_failed_canceled" 1
+
+  if [ -e /home/$USER_NAME/on-ami-experiment ]; then
+    echo "Job failed on AMI experiment, stopping the instance"
+    sudo /home/$USER_NAME/actions-runner/svc.sh stop
+fi
+EOF
+  chmod 755 $AFTER_JOB_SCRIPT
+
   # https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/running-scripts-before-or-after-a-job
-  STARTED_HOOK="ACTIONS_RUNNER_HOOK_JOB_STARTED=$CLEANUP_SCRIPT"
-  COMPLETED_HOOK="ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$CLEANUP_SCRIPT"
-
-  echo $STARTED_HOOK >> $RUNNER_ENV
-  echo $COMPLETED_HOOK >> $RUNNER_ENV
+  echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$BEFORE_JOB_SCRIPT" >> $RUNNER_ENV
+  echo "ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$AFTER_JOB_SCRIPT" >> $RUNNER_ENV
 
   popd
 }
@@ -45,15 +114,6 @@ fallback_to_node16
 
 ${arm_patch}
 
-if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
-  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
-else
-  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
-fi
-
 echo wait for configuration
 RETRY_LEFT=600
 while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value") == null ]]; do
@@ -66,6 +126,10 @@ while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-dec
     fi
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
+if echo "$CONFIG" | grep -q "#ON_AMI_EXPERIMENT"; then
+  CONFIG=$(echo "$CONFIG" | sed 's/ #ON_AMI_EXPERIMENT//g')
+  touch /home/$USER_NAME/on-ami-experiment
+fi
 retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 
 export RUNNER_ALLOW_RUNASROOT=1

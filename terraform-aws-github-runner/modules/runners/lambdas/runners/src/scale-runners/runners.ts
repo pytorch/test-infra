@@ -21,6 +21,11 @@ export interface RunnerInputParameters {
   runnerType: RunnerType;
 }
 
+export interface AmiExpermient {
+  ami: string;
+  percentageInstances: number;
+}
+
 export interface RunnerType {
   instance_type: string;
   os: string;
@@ -30,6 +35,7 @@ export interface RunnerType {
   is_ephemeral: boolean;
   ami?: string;
   labels?: Array<string>;
+  ami_experiment?: AmiExpermient;
 }
 
 export interface DescribeInstancesResultRegion {
@@ -250,6 +256,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
 async function addSSMParameterRunnerConfig(
   instances: EC2.InstanceList,
   runnerParameters: RunnerInputParameters,
+  customAmiExperiment: boolean,
   ssm: SSM,
   metrics: Metrics,
   awsRegion: string,
@@ -259,7 +266,12 @@ async function addSSMParameterRunnerConfig(
     console.debug(`[${awsRegion}] No SSM parameter to be created, empty list of instances`);
     return;
   }
-  const runnerConfig = await runnerParameters.runnerConfig(awsRegion);
+
+  let runnerConfig = await runnerParameters.runnerConfig(awsRegion);
+  if (customAmiExperiment) {
+    runnerConfig = `${runnerConfig} #ON_AMI_EXPERIMENT`;
+  }
+
   const createdSSMParams = await Promise.all(
     /* istanbul ignore next */
     instances.map(async (i: EC2.Instance) => {
@@ -365,6 +377,23 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Value: runnerParameters.orgName,
       });
     }
+    let customAmi = runnerParameters.runnerType.ami;
+    let customAmiExperiment = false;
+    if (runnerParameters.runnerType.ami_experiment) {
+      if (runnerParameters.runnerType.ami_experiment.percentageInstances < 1) {
+        const random = Math.random();
+        if (random < runnerParameters.runnerType.ami_experiment.percentageInstances) {
+          console.info(
+            `[createRunner]: AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
+              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentageInstances}) ` +
+              `using AMI: ${runnerParameters.runnerType.ami_experiment.ami}`,
+          );
+          customAmi = runnerParameters.runnerType.ami_experiment.ami;
+          customAmiExperiment = true;
+        }
+      }
+      console.info(`[createRunner]: Using AMI experiment for ${runnerParameters.runnerType.runnerTypeName}`);
+    }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
     const errors: Array<[string, unknown, string]> = [];
 
@@ -435,8 +464,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                     },
                   ],
                 };
-                if (runnerParameters.runnerType.ami) {
-                  params.ImageId = runnerParameters.runnerType.ami;
+                if (customAmi) {
+                  params.ImageId = customAmi;
                 }
                 return ec2.runInstances(params).promise();
               },
@@ -446,10 +475,17 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
             console.info(
               `Created instance(s) [${awsRegion}] [${vpcId}] [${subnet}]`,
-              ` [${runnerParameters.runnerType.runnerTypeName}]${labelsStrLog}: `,
+              ` [${runnerParameters.runnerType.runnerTypeName}] [AMI?:${customAmi}] ${labelsStrLog}: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
-            addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
+            addSSMParameterRunnerConfig(
+              runInstancesResponse.Instances,
+              runnerParameters,
+              customAmiExperiment,
+              ssm,
+              metrics,
+              awsRegion,
+            );
 
             // breaks
             return awsRegion;
