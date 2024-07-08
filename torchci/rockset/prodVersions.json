@@ -108,8 +108,8 @@
     "validation_jobs_red_past_day": "aecb798a574ba2ff"
   },
   "benchmarks": {
-    "oss_ci_benchmark_llms": "656fe095f7e9a3ab",
-    "oss_ci_benchmark_branches": "76446d877defb748",
-    "oss_ci_benchmark_names": "98a212e928df968b"
+    "oss_ci_benchmark_llms": "3aa20b17f4627823",
+    "oss_ci_benchmark_branches": "0077d50647fa005c",
+    "oss_ci_benchmark_names": "aae4d31197103b8a"
   }
 }
