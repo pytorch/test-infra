@@ -25,7 +25,7 @@ export default function PageSelector({
           </Link>
         </span>
       ) : (
-        <span>Prev</span>
+        <span>Newer</span>
       )}{" "}
       |{" "}
       <Link
