@@ -60,7 +60,7 @@ metric_report "runner_scripts.before_job" 1
 
 pushd /home/$USER_NAME/actions-runner/_diag
 for filename in Worker_*; do
-  mv "$filename" "old_${filename}"
+  mv "$filename" "old_$filename"
 done
 popd
 EOF
