@@ -306,6 +306,8 @@ export async function getRunnerTypes(
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
+  const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
+
   return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
     try {
@@ -350,12 +352,32 @@ export async function getRunnerTypes(
             disk_size: runner_type.disk_size,
             /* istanbul ignore next */
             is_ephemeral: runner_type.is_ephemeral || false,
+            labels: runner_type.labels,
+            ami: runner_type.ami,
           },
         ]),
       );
 
+      const filteredResult: Map<string, RunnerType> = new Map(
+        [...result.entries()].filter(
+          ([, runnerType]) =>
+            typeof runnerType.runnerTypeName === 'string' &&
+            alphaNumericStr.test(runnerType.runnerTypeName) &&
+            typeof runnerType.instance_type === 'string' &&
+            alphaNumericStr.test(runnerType.instance_type) &&
+            ['linux', 'windows'].includes(runnerType.os) &&
+            (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true),
+        ),
+      );
+
+      if (result.size != filteredResult.size) {
+        console.error(
+          `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
+        );
+      }
+
       status = 'success';
-      return result;
+      return filteredResult;
     } catch (e) {
       console.error(`[getRunnerTypes]: ${e}`);
       throw e;

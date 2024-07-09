@@ -37,13 +37,13 @@ runner_types:
     disk_size: 200
     instance_type: c7i.metal-24xl
     is_ephemeral: false
-    max_available: 30
+    max_available: 150
     os: linux
   linux.16xlarge.spr:
     disk_size: 200
     instance_type: c7i.16xlarge
     is_ephemeral: false
-    max_available: 30
+    max_available: 150
     os: linux
   linux.12xlarge.ephemeral:
     disk_size: 200
@@ -55,7 +55,7 @@ runner_types:
     disk_size: 150
     instance_type: g3.16xlarge
     is_ephemeral: false
-    max_available: 30
+    max_available: 150
     os: linux
   linux.24xlarge:
     disk_size: 150
@@ -117,6 +117,12 @@ runner_types:
     is_ephemeral: false
     max_available: 1200
     os: linux
+  linux.g6.4xlarge.experimental.nvidia.gpu:
+    disk_size: 150
+    instance_type: g6.4xlarge
+    is_ephemeral: false
+    max_available: 30
+    os: linux    
   linux.large:
     max_available: 1200
     disk_size: 15

@@ -1,5 +1,6 @@
 import { fetchJSON } from "lib/bot/utils";
 import {
+  CANCELLED_STEP_ERROR,
   fetchIssueLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
@@ -548,10 +549,14 @@ export function constructResultsComment(
   const unrelatedFailureCount =
     flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
-    (job) => job.conclusion !== "cancelled"
+    (job) =>
+      job.conclusion !== "cancelled" &&
+      !job.failure_captures.includes(CANCELLED_STEP_ERROR)
   );
   const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
-    (job) => job.conclusion === "cancelled"
+    (job) =>
+      job.conclusion === "cancelled" ||
+      job.failure_captures.includes(CANCELLED_STEP_ERROR)
   );
   const failing =
     failedJobs.length +

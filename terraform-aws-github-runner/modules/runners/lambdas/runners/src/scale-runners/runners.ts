@@ -29,6 +29,7 @@ export interface RunnerType {
   runnerTypeName: string;
   is_ephemeral: boolean;
   ami?: string;
+  labels?: Array<string>;
 }
 
 export interface DescribeInstancesResultRegion {
@@ -367,6 +368,10 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
     const errors: Array<[string, unknown, string]> = [];
 
+    const labelsStrLog = `${
+      runnerParameters.runnerType.labels ? ' [' + runnerParameters.runnerType.labels.join(',') + ']' : ''
+    }`;
+
     const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
     for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
       const runnerSubnetSequence = await getCreateRunnerSubnetSequence(runnerParameters, awsRegion, metrics);
@@ -387,7 +392,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         try {
           console.debug(
             `[${awsRegion}] [${vpcId}] [${subnet}] Attempting to create ` +
-              `instance ${runnerParameters.runnerType.instance_type}`,
+              `instance ${runnerParameters.runnerType.instance_type}${labelsStrLog}`,
           );
           const runInstancesResponse = await expBackOff(() => {
             return metrics.trackRequestRegion(
@@ -441,7 +446,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
             console.info(
               `Created instance(s) [${awsRegion}] [${vpcId}] [${subnet}]`,
-              ` [${runnerParameters.runnerType.runnerTypeName}]: `,
+              ` [${runnerParameters.runnerType.runnerTypeName}]${labelsStrLog}: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
             addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
@@ -451,8 +456,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           } else {
             const msg =
               `[${awsRegion}] [${vpcId}] [${subnet}] [${runnerParameters.runnerType.instance_type}] ` +
-              `[${runnerParameters.runnerType.runnerTypeName}] ec2.runInstances returned empty list of instaces ` +
-              `created, but exit without throwing any exception (?!?!?!)`;
+              `[${runnerParameters.runnerType.runnerTypeName}]${labelsStrLog} ec2.runInstances returned ` +
+              `empty list of instaces created, but exit without throwing any exception (?!?!?!)`;
             errors.push([msg, undefined, awsRegion]);
             console.warn(msg);
           }
@@ -461,7 +466,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
             `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
             `[${vpcId}] ` +
             `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
-            `${runnerParameters.runnerType.instance_type}: ${e}`;
+            `${runnerParameters.runnerType.instance_type}${labelsStrLog}: ${e}`;
           errors.push([msg, e, awsRegion]);
           console.warn(msg);
         }
@@ -500,14 +505,15 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         excSumm += ` "${excep}": ${count},`;
       });
       throw new Error(
-        `[${runnerParameters.runnerType.instance_type}] Giving up creating instance, all regions, ` +
+        `[${runnerParameters.runnerType.instance_type}]${labelsStrLog} Giving up creating instance, all regions, ` +
           `availability zones and subnets failed. Total exceptions: ${errors.length}; Exceptions count:${excSumm}`,
       );
     } else {
       /* istanbul ignore next */
       throw new Error(
-        `[${runnerParameters.runnerType.instance_type}] Failed to runInstances without any exception captured! ` +
-          `Check AWS_REGIONS_TO_VPC_IDS, VPC_ID_TO_SECURITY_GROUP_IDS and VPC_ID_TO_SUBNET_IDS environment variables!`,
+        `[${runnerParameters.runnerType.instance_type}]${labelsStrLog} Failed to runInstances ` +
+          `without any exception captured! Check AWS_REGIONS_TO_VPC_IDS, ` +
+          `VPC_ID_TO_SECURITY_GROUP_IDS and VPC_ID_TO_SUBNET_IDS environment variables!`,
       );
     }
   } catch (e) {

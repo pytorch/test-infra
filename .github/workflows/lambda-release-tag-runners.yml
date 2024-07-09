@@ -1,7 +1,12 @@
+name: Create Release Tag
+
 on:
   workflow_dispatch: {}
-
-name: Create Release Tag
+  push: # Automatically tag as release eligible changes to autoscaler lambdas once merged to main
+    branches:
+      - main
+    paths:
+      - 'terraform-aws-github-runnerr/**'
 
 jobs:
   tag:

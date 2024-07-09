@@ -27,6 +27,7 @@ ACCEPTED_SUBDIR_PATTERNS = [
     r"cu[0-9]+",            # for cuda
     r"rocm[0-9]+\.[0-9]+",  # for rocm
     "cpu",
+    "xpu",
 ]
 PREFIXES = [
     "whl",
@@ -139,6 +140,7 @@ PACKAGE_ALLOW_LIST = {
     "portalocker",
     "pytorch_triton",
     "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
     "requests",
     "sympy",
     "tbb",
