@@ -9,7 +9,7 @@ SELECT
     AVG(q.avg_queue_s) as avg_queue_s,
     q.machine_type,
 FROM
-    commons.queue_times_test q
+    metrics.queeu_times_historical q
 WHERE
     q.time >= PARSE_DATETIME_ISO8601(:startTime) AT TIME ZONE :timezone
     AND q.time < PARSE_DATETIME_ISO8601(:stopTime) AT TIME ZONE :timezone
