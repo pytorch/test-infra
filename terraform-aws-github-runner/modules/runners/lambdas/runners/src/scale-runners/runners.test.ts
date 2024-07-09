@@ -25,7 +25,7 @@ const mockEC2 = {
   runInstances: jest.fn().mockReturnValue({ promise: mockEC2runInstances }),
   terminateInstances: jest.fn().mockReturnValue({ promise: mockEC2terminateInstances }),
   describeImages: jest.fn().mockReturnValue({
-    promise: jest.fn().mockImplementation(async() => {
+    promise: jest.fn().mockImplementation(async () => {
       return {
         Images: [
           { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
