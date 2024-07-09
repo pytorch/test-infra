@@ -32,10 +32,13 @@ const response = await client.queryLambdas.executeQueryLambda(
   {}
 );
 
+const unixTime = parseInt(
+  (new Date(response.results[0].time).getTime() / 1000).toFixed(0)
+)
 s3client.send(
   new PutObjectCommand({
     Bucket: "ossci-raw-job-status",
-    Key: `queue_times_historical/${response.results[0]._event_time}`,
+    Key: `queue_times_historical/${unixTime}.json`,
     Body: JSON.stringify(response.results),
   })
 );
