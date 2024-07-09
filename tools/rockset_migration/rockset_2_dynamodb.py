@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import logging
+import pickle
 import hashlib
 import json
 import os
@@ -51,6 +53,8 @@ def generate_partition_key(repo: str, doc: Dict[str, Any]) -> str:
     Generate an unique partition key for the document on DynamoDB
     """
     workflow_id = doc.get("workflow_id", "")
+    if workflow_id:
+        doc["workflow_id"] = int(workflow_id)
     job_id = doc.get("job_id", "")
     test_name = doc.get("test_name", "")
     filename = doc.get("filename", "")
@@ -80,13 +84,14 @@ def copy(
     ):
         dedup = set()
         count += len(docs)
+        failures = []
         print(f"Writing {len(docs)} ({count}) documents to DynamoDB {dynamodb_table}")
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#batch-writing
         with boto3.resource("dynamodb").Table(dynamodb_table).batch_writer() as batch:
             for doc in docs:
                 event_time = doc.get("_event_time", None)
                 if event_time:
-                    timestamp = int(round(parser.parse(event_time).timestamp() * 1000))
+                    timestamp = int(round(parser.parse(str(event_time)).timestamp() * 1000))
                 else:
                     timestamp = int(round(time.time() * 1000))
 
@@ -95,16 +100,33 @@ def copy(
                 del doc["_id"]
                 del doc["_meta"]
 
-                if generate_partition_key:
-                    doc["dynamoKey"] = generate_partition_key(repo, doc)
-                    if doc["dynamoKey"] in dedup:
-                        continue
-                    dedup.add(doc["dynamoKey"])
+                try:
+                    if generate_partition_key:
+                        doc["dynamoKey"] = generate_partition_key(repo, doc)
+                        if doc["dynamoKey"] in dedup:
+                            continue
+                        dedup.add(doc["dynamoKey"])
+                except TypeError:
+                    failures.append(doc)
+                    # Record and ignore broken records
+                    logging.warning("...%s failures", len(failures))
+                    continue
 
                 # This is to move away the _event_time field from Rockset, which we cannot use when
                 # reimport the data
                 doc["timestamp"] = timestamp
-                batch.put_item(Item=doc)
+
+                try:
+                    batch.put_item(Item=doc)
+                except TypeError:
+                    failures.append(doc)
+                    # Record and ignore broken records
+                    logging.warning("...%s failures", len(failures))
+                    continue
+
+        if failures:
+            with open("failures.dump", "wb") as f:
+                pickle.dump(failures, f)
 
 
 def main() -> None:
