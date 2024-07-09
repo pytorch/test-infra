@@ -34,7 +34,7 @@ const response = await client.queryLambdas.executeQueryLambda(
 
 const unixTime = parseInt(
   (new Date(response.results[0].time).getTime() / 1000).toFixed(0)
-)
+);
 s3client.send(
   new PutObjectCommand({
     Bucket: "ossci-raw-job-status",
