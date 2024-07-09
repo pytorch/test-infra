@@ -375,7 +375,7 @@ export async function getRunnerTypes(
             (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
             (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
             (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
-            (typeof runnerType.ami_experiment?.percentageInstances === 'number' ||
+            (typeof runnerType.ami_experiment?.percentage === 'number' ||
               runnerType.ami_experiment === undefined),
         ),
       );
