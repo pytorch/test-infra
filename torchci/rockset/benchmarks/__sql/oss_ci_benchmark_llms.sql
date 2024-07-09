@@ -16,7 +16,7 @@ SELECT
     CAST(o.target AS FLOAT), 0.0
   ) AS target,
   FORMAT_ISO8601(
-    DATE_TRUNC(: granularity, w._event_time)
+    DATE_TRUNC(: granularity,TIMESTAMP_MILLIS(o.timestamp))
   ) AS granularity_bucket,
   o.dtype,
   o.device,
@@ -24,7 +24,9 @@ FROM
   benchmarks.oss_ci_benchmark_v2 o
   LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id
 WHERE
-  (
+  TIMESTAMP_MILLIS(o.timestamp) >= PARSE_DATETIME_ISO8601(: startTime)
+  AND TIMESTAMP_MILLIS(o.timestamp) < PARSE_DATETIME_ISO8601(: stopTime)
+  AND (
     ARRAY_CONTAINS(
       SPLIT(: branches, ','),
       w.head_branch
