@@ -23,6 +23,9 @@ aws-config = "1.5.4"
 aws-sdk-s3 = "1.40.0"
 aws-sdk-dynamodb = "1.37.0"
 serde_dynamo = { version = "4.2.14", features = ["aws-sdk-dynamodb+1"] }
+aws-sdk-bedrockruntime = "1.38.0"
+aws-smithy-runtime-api = "1.7.1"
+insta = { version = "1.20.0", features = ["redactions", "yaml"] }
   [dependencies.serde]
   version = "1.0.144"
   features = [ "derive" ]

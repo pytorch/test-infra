@@ -11,6 +11,8 @@ use log_classifier::network::{
 };
 use log_classifier::rule::RuleSet;
 use log_classifier::rule_match::SerializedMatch;
+use log_classifier::bedrock;
+
 
 struct ShouldWriteDynamo(bool);
 
