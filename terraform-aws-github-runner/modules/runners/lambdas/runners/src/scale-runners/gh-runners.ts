@@ -354,7 +354,7 @@ export async function getRunnerTypes(
             /* istanbul ignore next */
             is_ephemeral: runner_type.is_ephemeral || false,
             /* istanbul ignore next */
-            labels: runner_type.labels?.split(',').map((label: string) => label.trim()),
+            labels: runner_type.labels?.map((label: string) => label.trim()),
             max_available: runner_type.max_available,
             os: runner_type.os,
             runnerTypeName: prop,
