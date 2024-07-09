@@ -1,13 +1,14 @@
 //! Various utilities for interacting with the external world.
 use anyhow::{Context, Result};
+use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb as dynamodb;
 use aws_sdk_s3 as s3;
-use aws_sdk_s3::types::ByteStream;
+use aws_sdk_s3::primitives::ByteStream;
 use bytes::buf::Buf;
 use bytes::Bytes;
-use dynamodb::model::{AttributeAction, AttributeValueUpdate};
+use dynamodb::types::{AttributeAction, AttributeValueUpdate};
 use flate2::read::GzDecoder;
-use serde_dynamo::aws_sdk_dynamodb_0_18::to_attribute_value;
+use serde_dynamo::aws_sdk_dynamodb_1::to_attribute_value;
 use std::io::Read;
 use tracing::info;
 
@@ -17,12 +18,15 @@ static BUCKET_NAME: &str = "ossci-raw-job-status";
 
 /// Creates an S3 client instance preconfigured with the right credentials/region.
 pub async fn get_s3_client() -> s3::Client {
-    let config = aws_config::from_env().region("us-east-1").load().await;
+    let config = aws_config::defaults(BehaviorVersion::v2024_03_28())
+        .region("us-east-1")
+        .load()
+        .await;
     s3::Client::new(&config)
 }
 
 pub async fn get_dynamo_client() -> dynamodb::Client {
-    let config = aws_config::load_from_env().await;
+    let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
     dynamodb::Client::new(&config)
 }
 
