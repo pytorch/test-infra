@@ -345,15 +345,19 @@ export async function getRunnerTypes(
         (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
           prop,
           {
-            runnerTypeName: prop,
-            instance_type: runner_type.instance_type,
-            os: runner_type.os,
-            max_available: runner_type.max_available,
+            /* istanbul ignore next */
+            ami_experiment: runner_type.ami_experiment,
+            /* istanbul ignore next */
+            ami: runner_type.ami?.trim(),
             disk_size: runner_type.disk_size,
+            instance_type: runner_type.instance_type,
             /* istanbul ignore next */
             is_ephemeral: runner_type.is_ephemeral || false,
-            labels: runner_type.labels,
-            ami: runner_type.ami,
+            /* istanbul ignore next */
+            labels: runner_type.labels?.split(',').map((label: string) => label.trim()),
+            max_available: runner_type.max_available,
+            os: runner_type.os,
+            runnerTypeName: prop,
           },
         ]),
       );
@@ -366,7 +370,13 @@ export async function getRunnerTypes(
             typeof runnerType.instance_type === 'string' &&
             alphaNumericStr.test(runnerType.instance_type) &&
             ['linux', 'windows'].includes(runnerType.os) &&
-            (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true),
+            (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
+            (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+            (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
+            (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
+            (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
+            (typeof runnerType.ami_experiment?.percentageInstances === 'number' ||
+              runnerType.ami_experiment === undefined),
         ),
       );
 
@@ -374,6 +384,8 @@ export async function getRunnerTypes(
         console.error(
           `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
         );
+        console.error(`Original runner types: ${JSON.stringify(result)}`);
+        console.error(`Filtered runner types: ${JSON.stringify(filteredResult)}`);
       }
 
       status = 'success';
