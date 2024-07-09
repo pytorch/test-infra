@@ -138,7 +138,7 @@ if [[ "$os_id" =~ ^ubuntu.* ]]; then
   sudo ./bin/installdependencies.sh
 elif uname -a | grep 'amzn2023' > /dev/null; then
   echo "Installing dependencies for Amazon Linux 2023"
-  sudo retry dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
+  retry sudo dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
 fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
