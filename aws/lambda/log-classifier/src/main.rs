@@ -98,9 +98,13 @@ async fn main() -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use insta::assert_snapshot;
+    use log_classifier::bedrock::create_log_snippet;
+    use log_classifier::bedrock::make_query;
     use log_classifier::engine::evaluate_rule;
     use log_classifier::rule::Rule;
     use regex::Regex;
+    use std::fs;
 
     #[test]
     fn basic_evaluate_rule() {
@@ -259,10 +263,48 @@ mod test {
         );
     }
 
+    #[test]
+    fn test_create_log_snippet() {
+        // Read the input log file
+        let log_content = fs::read_to_string("fixtures/error_log1.txt");
+        let log = Log::new(log_content.unwrap());
+        // Define the error line and number of lines for the snippet
+        let error_line = "##[error]Process completed with exit code 1.";
+        let num_lines = 100;
+
+        // Call the function
+        let result = create_log_snippet(log, error_line, num_lines);
+        // Convert result to a string
+        let result_string = result.join("\n");
+        // Assert against the snapshot
+        assert_snapshot!(result_string);
+    }
     // Actually download some id.
     // #[tokio::test]
     // async fn test_real() {
     //    let foo = handle(12421522599, "pytorch/vision", ShouldWriteDynamo(false)).await;
     //    panic!("{:#?}", foo);
+    // }
+
+    // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
+    // #[tokio::test]
+    // async fn test_make_query() {
+    //     // Read the input log file
+    //     let log_content = fs::read_to_string("fixtures/error_log1.txt")
+    //         .expect("FIXTURES/error_log1.txt should exist!");
+    //     let log = Log::new(log_content);
+    //     // Define the error line and number of lines for the snippet
+    //     let error_line = "##[error]Process completed with exit code 1.";
+    //     let num_lines = 100;
+
+    //     // Call the function
+    //     let result = create_log_snippet(log, error_line, num_lines);
+
+    //     // Convert result to a string
+    //     let result_string = result.join("\n");
+
+    //     // Call the make_query function
+    //     let query_result = make_query(&result_string).await;
+    //     panic!("The query result is | {:#?}", query_result.unwrap());
     // }
 }
