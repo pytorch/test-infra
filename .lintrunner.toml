@@ -109,6 +109,8 @@ exclude_patterns=[
     '**/*.ipynb',
     '**/*.ps1',
     '**/*.ptl',
+    '**/fixtures/**',
+    '**/snapshots/**',
 ]
 command = [
     'python3',
@@ -125,6 +127,8 @@ include_patterns = ['**']
 exclude_patterns = [
     '**/*.diff',
     '**/*.patch',
+    '**/fixtures/**',
+    '**/snapshots/**',
 ]
 command = [
     'python3',
@@ -149,6 +153,8 @@ exclude_patterns = [
     '**/.gitattributes',
     '**/.gitmodules',
     '.lintrunner.toml',
+    '**/fixtures/**',
+    '**/snapshots/**',
 ]
 command = [
     'python3',
@@ -204,6 +210,8 @@ exclude_patterns = [
     '**/git-pre-commit',
     '**/git-clang-format',
     '**/gradlew',
+    '**/fixtures/**',
+    '**/snapshots/**',
 ]
 command = [
     'python3',
@@ -265,7 +273,7 @@ is_formatter = true
 [[linter]]
 code = 'COPYRIGHT'
 include_patterns = ['**']
-exclude_patterns = ['.lintrunner.toml']
+exclude_patterns = ['.lintrunner.toml', '**/fixtures/**']
 command = [
     'python3',
     'tools/linter/adapters/grep_linter.py',
