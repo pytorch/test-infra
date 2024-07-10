@@ -14,17 +14,11 @@ function metric_report () {
         aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 || true
     fi
 
-    if [ ! -z "$INSTANCE_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "InstanceId=$INSTANCE_ID" || true
-    fi
     if [ ! -z "$REGION" ]; then
         aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "Region=$REGION" || true
     fi
     if [ ! -z "$OS_ID" ]; then
         aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "os=$OS_ID" || true
-    fi
-    if [ ! -z "$OS_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions GHRunnerId=$GH_RUNNER_ID || true
     fi
 }
 

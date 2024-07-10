@@ -1,26 +1,160 @@
 set -exo pipefail
 
+RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
+
+if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
+  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
+  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
+else
+  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+fi
+
 install_hooks() {
   pushd /home/$USER_NAME
 
-  CLEANUP_SCRIPT=/home/$USER_NAME/runner-scripts/cleanup.sh
+  BEFORE_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/before_job.sh
+  AFTER_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/after_job.sh
+  UTILS_SCRIPT=/home/$USER_NAME/runner-scripts/utils.sh
+  LOGS_MONITOR=/home/$USER_NAME/runner-scripts/logs_monitor.sh
+
+  MONITOR_SYSTEMD_SERVICE=/etc/systemd/system/gh-daemon-monitor.service
+  MONITOR_SYSTEMD_PATH=/etc/systemd/system/gh-daemon-monitor.path
+
   # https://github.com/pytorch/test-infra/issues/5246, install pre and post-job hooks
   # to chown everything under actions-runner to $USER_NAME so that the runner can clean
   # up these files
   mkdir -p runner-scripts
-  cat > $CLEANUP_SCRIPT <<EOF
+  cat > $UTILS_SCRIPT <<EOF
 #!/bin/bash
-sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner || true
+function metric_report () {
+    local metric_name=\$1
+    local value=\$2
+    local on_ami_experiment="standardAMI"
+
+    if [[ -e /home/$USER_NAME/on-ami-experiment ]]; then
+      on_ami_experiment="onAMIExperiment"
+    fi
+
+    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "GHARunners/all" --value \$value --region us-east-1 || true
+
+    local namespace="GHARunners/all"
+    if [ ! -z "${environment}" ]; then
+        namespace="GHARunners/${environment}"
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 || true
+    fi
+
+    if [ ! -z "$REGION" ]; then
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "Region=$REGION" || true
+    fi
+    if [ ! -z "$OS_ID" ]; then
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "os=$OS_ID" || true
+    fi
+    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "OnAMIExperiment=\$on_ami_experiment" || true
+}
 EOF
-  chmod 755 $CLEANUP_SCRIPT
+  chmod 755 $UTILS_SCRIPT
+  cat > $BEFORE_JOB_SCRIPT <<EOF
+#!/bin/bash
+. /home/$USER_NAME/runner-scripts/utils.sh
 
-  RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
+sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+metric_report "runner_scripts.before_job" 1
+EOF
+  chmod 755 $BEFORE_JOB_SCRIPT
+  cat > $AFTER_JOB_SCRIPT <<EOF
+#!/bin/bash
+. /home/$USER_NAME/runner-scripts/utils.sh
+
+sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+metric_report "runner_scripts.after_job" 1
+EOF
+  chmod 755 $AFTER_JOB_SCRIPT
+  cat > $LOGS_MONITOR <<EOF
+#!/bin/bash
+
+. /home/$USER_NAME/runner-scripts/utils.sh
+
+CURR_LOGS_FILE="/home/$USER_NAME/.curr_logs"
+PROC_LOGS_FILE="/home/$USER_NAME/.proc_logs"
+
+function update_curr_logs_file {
+    pushd /home/$USER_NAME/actions-runner/_diag >/dev/null
+    ls -a Worker_* | cat | sort > \$CURR_LOGS_FILE
+    popd >/dev/null
+}
+
+function get_unprocced_files {
+    diff --new-line-format="" --unchanged-line-format="" <(sort \$CURR_LOGS_FILE) <(sort \$PROC_LOGS_FILE)
+}
+
+exec > >(tee -a /var/log/gh-daemon-monitor.log | logger -t gh-daemon-monitor -s 2>/dev/console) 2>&1
+
+update_curr_logs_file
+
+while read file; do
+    echo "Checking \$file..."
+    FULL_PATH_FILE="/home/$USER_NAME/actions-runner/_diag/\$file"
+
+    LINE=\$(grep 'Job result after all job steps finish:' \$FULL_PATH_FILE)
+
+    if [[ ! -z "\$LINE" ]]; then
+        echo "File \$file have a job output: '\$LINE'"
+        STATUS=\$(echo "\$LINE" | cut -d ':' -f 4 | xargs)
+
+        if [ "\$STATUS" == "Succeeded" ]; then
+            echo "Job \$file succeeded"
+            metric_report "runner_scripts.job_succeeded" 1
+        elif [ "\$STATUS" == "Failed" ]; then
+            echo "Job \$file failed"
+            metric_report "runner_scripts.job_failed" 1
+            if [ -e /home/$USER_NAME/on-ami-experiment ]; then
+                echo "Job failed on AMI experiment, stopping the instance"
+                pushd /home/$USER_NAME/actions-runner ; ./svc.sh stop ; popd
+            fi
+        elif [ "\$STATUS" == "Cancelled" ]; then
+            echo "Job \$file cancelled"
+            metric_report "runner_scripts.job_cancelled" 1
+        elif [ "\$STATUS" == "Skipped" ]; then
+            echo "Job \$file skipped"
+            metric_report "runner_scripts.job_skipped" 1
+        else
+            echo "Job \$file unknown status: \$STATUS"
+            metric_report "runner_scripts.job_unknown" 1
+        fi
+
+        echo \$file >> \$PROC_LOGS_FILE
+    fi
+done < <(get_unprocced_files)
+EOF
+  chmod 755 $LOGS_MONITOR
+  cat > $MONITOR_SYSTEMD_SERVICE <<EOF
+[Unit]
+Description=monitor updates on logs from github daemon
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=$LOGS_MONITOR
+EOF
+  chmod 644 $MONITOR_SYSTEMD_SERVICE
+  cat > $MONITOR_SYSTEMD_PATH <<EOF
+[Path]
+PathChanged=/home/$USER_NAME/actions-runner/_diag
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod 644 $MONITOR_SYSTEMD_PATH
+
+  systemctl daemon-reload
+  systemctl enable gh-daemon-monitor.path
+  systemctl start gh-daemon-monitor.path
+
   # https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/running-scripts-before-or-after-a-job
-  STARTED_HOOK="ACTIONS_RUNNER_HOOK_JOB_STARTED=$CLEANUP_SCRIPT"
-  COMPLETED_HOOK="ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$CLEANUP_SCRIPT"
-
-  echo $STARTED_HOOK >> $RUNNER_ENV
-  echo $COMPLETED_HOOK >> $RUNNER_ENV
+  echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$BEFORE_JOB_SCRIPT" >> $RUNNER_ENV
+  echo "ACTIONS_RUNNER_HOOK_JOB_COMPLETED=$AFTER_JOB_SCRIPT" >> $RUNNER_ENV
 
   popd
 }
@@ -45,15 +179,6 @@ fallback_to_node16
 
 ${arm_patch}
 
-if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
-  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
-else
-  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
-fi
-
 echo wait for configuration
 RETRY_LEFT=600
 while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value") == null ]]; do
@@ -66,6 +191,12 @@ while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-dec
     fi
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
+echo "Configuration received: '$CONFIG'"
+
+if echo "$CONFIG" | grep -q "#ON_AMI_EXPERIMENT"; then
+  CONFIG=$(echo "$CONFIG" | sed 's/ #ON_AMI_EXPERIMENT//g')
+  touch /home/$USER_NAME/on-ami-experiment
+fi
 retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 
 export RUNNER_ALLOW_RUNASROOT=1
@@ -74,7 +205,7 @@ if [[ "$os_id" =~ ^ubuntu.* ]]; then
   sudo ./bin/installdependencies.sh
 elif uname -a | grep 'amzn2023' > /dev/null; then
   echo "Installing dependencies for Amazon Linux 2023"
-  sudo retry dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
+  retry sudo dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
 fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
