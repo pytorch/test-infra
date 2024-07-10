@@ -3,7 +3,6 @@ name: Update test file ratings for TD Heuristics
 on:
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
-  push:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
@@ -48,56 +47,56 @@ jobs:
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
-      # - name: Generate file test ratings
-      #   run: |
-      #     set -ex
-      #     python3 test-infra/tools/torchci/td/historical_file_failure_correlation.py
-      #     python3 test-infra/tools/torchci/td/historical_class_failure_correlation.py
-      #     python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
-      #     # Do not run this one, it won't change
-      #     # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
+      - name: Generate file test ratings
+        run: |
+          set -ex
+          python3 test-infra/tools/torchci/td/historical_file_failure_correlation.py
+          python3 test-infra/tools/torchci/td/historical_class_failure_correlation.py
+          python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
+          # Do not run this one, it won't change
+          # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
 
-      #   env:
-      #     ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
-      # - name: Push file to test file correlations to test-infra repository
-      #   if: github.event_name != 'pull_request'
-      #   uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-      #   env:
-      #     API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     source_file: "file_test_rating.json"
-      #     destination_repo: "pytorch/test-infra"
-      #     destination_folder: "stats"
-      #     destination_branch: generated-stats
-      #     user_email: "test-infra@pytorch.org"
-      #     user_name: "Pytorch Test Infra"
-      #     commit_message: "Updating file to test file correlations"
+      - name: Push file to test file correlations to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "file_test_rating.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating file to test file correlations"
 
-      # - name: Push file to test class correlations to test-infra repository
-      #   if: github.event_name != 'pull_request'
-      #   uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-      #   env:
-      #     API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     source_file: "file_test_class_rating.json"
-      #     destination_repo: "pytorch/test-infra"
-      #     destination_folder: "stats"
-      #     destination_branch: generated-stats
-      #     user_email: "test-infra@pytorch.org"
-      #     user_name: "Pytorch Test Infra"
-      #     commit_message: "Updating file to test class correlations"
+      - name: Push file to test class correlations to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "file_test_class_rating.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating file to test class correlations"
 
-      # - name: Push historical edited files heuristic to test-infra repository
-      #   if: github.event_name != 'pull_request'
-      #   uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-      #   env:
-      #     API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     source_file: "td_heuristic_historical_edited_files.json"
-      #     destination_repo: "pytorch/test-infra"
-      #     destination_folder: "stats"
-      #     destination_branch: generated-stats
-      #     user_email: "test-infra@pytorch.org"
-      #     user_name: "Pytorch Test Infra"
-      #     commit_message: "Updating TD heuristic: historical edited files"
+      - name: Push historical edited files heuristic to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "td_heuristic_historical_edited_files.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating TD heuristic: historical edited files"

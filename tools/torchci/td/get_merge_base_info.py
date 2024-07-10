@@ -32,6 +32,9 @@ select
 from
     unnest(SPLIT(:shas, ',') as sha) as shas
     left outer join commons.merge_bases mb on mb.sha = shas.sha
+where
+    mb.sha is null
+    or mb.repo is null
 """
 
 DUP_MERGE_BASE_INFO = """
@@ -121,6 +124,6 @@ if __name__ == "__main__":
                 NOT_IN_MERGE_BASES_TABLE,
                 {"shas": ",".join(main_branch_shas[i : i + interval])},
             )
-        ][:50]
+        ]
         upload_merge_base_info(shas)
         print(f"{i} to {i + interval} done")
