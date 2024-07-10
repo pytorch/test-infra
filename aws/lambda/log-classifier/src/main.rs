@@ -31,7 +31,7 @@ async fn handle(
 
     // Do some preprocessing.
     let start = Instant::now();
-    let log = Log::new(raw_log);
+    let log = Log::new(raw_log, repo, job_id).await;
     info!("preproc: {:?}", start.elapsed());
 
     // Run the matching
@@ -102,21 +102,21 @@ mod test {
     use log_classifier::rule::Rule;
     use regex::Regex;
 
-    #[test]
-    fn basic_evaluate_rule() {
+    #[tokio::test]
+    async fn basic_evaluate_rule() {
         let rule = Rule {
             name: "test".into(),
             pattern: r"^test".parse().unwrap(),
             priority: 100,
         };
 
-        let log = Log::new("test foo".into());
+        let log = Log::new("test foo".into(), "pytorch/pytorch", 0).await;
         let match_ = evaluate_rule(&rule, &log);
         assert_eq!(match_.unwrap().line_number, 1);
     }
 
-    #[test]
-    fn escape_codes_are_stripped() {
+    #[tokio::test]
+    async fn escape_codes_are_stripped() {
         let mut ruleset = RuleSet::new();
         ruleset.add("foo", r"^test foo");
         let log = Log::new(
@@ -125,14 +125,17 @@ mod test {
             2022-08-26T17:16:41.9362224Z lol!lol\n\
             "
             .into(),
-        );
+            "pytorch/pytorch",
+            0,
+        )
+        .await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 1);
         assert_eq!(match_.rule.name, "foo");
     }
 
-    #[test]
-    fn timestamp_is_stripped() {
+    #[tokio::test]
+    async fn timestamp_is_stripped() {
         let mut ruleset = RuleSet::new();
         ruleset.add("foo", r"^test");
         let log = Log::new(
@@ -141,14 +144,17 @@ mod test {
             2022-08-26T17:16:41.9362224Z lol!lol\n\
             "
             .into(),
-        );
+            "pytorch/pytorch",
+            0,
+        )
+        .await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 1);
         assert_eq!(match_.rule.name, "foo");
     }
 
-    #[test]
-    fn evaluate_rulset_respects_priority() {
+    #[tokio::test]
+    async fn evaluate_rulset_respects_priority() {
         let mut ruleset = RuleSet::new();
         ruleset.add("higher priority", r"^lol!");
         ruleset.add("lower priority", r"^test");
@@ -158,14 +164,17 @@ mod test {
             lol!lol\n\
             "
             .into(),
-        );
+            "pytorch/pytorch",
+            0,
+        )
+        .await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 2);
         assert_eq!(match_.rule.name, "higher priority");
     }
 
-    #[test]
-    fn ignore_skips_match() {
+    #[tokio::test]
+    async fn ignore_skips_match() {
         let mut ruleset = RuleSet::new();
         ruleset.add("test", r"^test");
         let log = Log::new(
@@ -175,13 +184,14 @@ mod test {
             =========== If your build fails, please take a look at the log above for possible reasons ===========\n\
             "
                 .into(),
-        );
+            "pytorch/pytorch", 0
+        ).await;
         let match_ = evaluate_ruleset(&ruleset, &log);
         assert!(match_.is_none());
     }
 
-    #[test]
-    fn match_before_ignore() {
+    #[tokio::test]
+    async fn match_before_ignore() {
         let mut ruleset = RuleSet::new();
         ruleset.add("test", r"^test");
         let log = Log::new(
@@ -191,13 +201,14 @@ mod test {
             =========== If your build fails, please take a look at the log above for possible reasons ===========\n\
             "
                 .into(),
-        );
+            "pytorch/pytorch", 0
+        ).await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 1);
     }
 
-    #[test]
-    fn match_after_ignore() {
+    #[tokio::test]
+    async fn match_after_ignore() {
         let mut ruleset = RuleSet::new();
         ruleset.add("test", r"^test");
         let log = Log::new(
@@ -207,13 +218,14 @@ mod test {
             testt\n\
             "
                 .into(),
-        );
+            "pytorch/pytorch", 0
+        ).await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 3);
     }
 
-    #[test]
-    fn later_match_wins() {
+    #[tokio::test]
+    async fn later_match_wins() {
         let mut ruleset = RuleSet::new();
         ruleset.add("test", r"^test");
         let log = Log::new(
@@ -222,7 +234,10 @@ mod test {
             testt\n\
             "
             .into(),
-        );
+            "pytorch/pytorch",
+            0,
+        )
+        .await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 2);
     }
@@ -236,8 +251,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn gather_optional_context() {
+    #[tokio::test]
+    async fn gather_optional_context() {
         let mut ruleset = RuleSet::new();
         ruleset.add("test", r"^test");
         let log = Log::new(
@@ -248,7 +263,10 @@ mod test {
             testt\n\
             "
             .into(),
-        );
+            "pytorch/pytorch",
+            0,
+        )
+        .await;
         let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
         assert_eq!(match_.line_number, 4);
 
@@ -262,7 +280,7 @@ mod test {
     // Actually download some id.
     // #[tokio::test]
     // async fn test_real() {
-    //    let foo = handle(12421522599, "pytorch/vision", ShouldWriteDynamo(false)).await;
-    //    panic!("{:#?}", foo);
+    //     let foo = handle(25541101065, "pytorch/pytorch", ShouldWriteDynamo(false), 12).await;
+    //     panic!("{:#?}", foo);
     // }
 }
