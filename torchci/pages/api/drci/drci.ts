@@ -317,11 +317,18 @@ where
         pr_info.merge_base_date =
           diff.data.merge_base_commit.commit.committer?.date ?? "";
 
+        const diffWithMergeBase = await octokit.rest.repos.compareCommits({
+          owner: OWNER,
+          repo: repo,
+          base: pr_info.merge_base,
+          head: pr_info.head_sha,
+        });
+
         try {
           const data = {
             sha: pr_info.head_sha,
             merge_base: pr_info.merge_base,
-            changed_files: diff.data.files?.map((e) => e.filename),
+            changed_files: diffWithMergeBase.data.files?.map((e) => e.filename),
             merge_base_commit_date: pr_info.merge_base_date ?? "",
             repo: `${OWNER}/${repo}`,
             _id: `${OWNER}-${repo}-${pr_info.head_sha}`,
