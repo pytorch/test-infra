@@ -338,6 +338,7 @@ where
               Bucket: "ossci-raw-job-status",
               Key: `merge_bases/${OWNER}/${repo}/${pr_info.head_sha}`,
               Body: JSON.stringify(data),
+              ContentType: "application/json",
             })
           );
         } catch (e) {
