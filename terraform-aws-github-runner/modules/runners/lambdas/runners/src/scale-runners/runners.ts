@@ -446,7 +446,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         } else {
           console.debug(
             `[createRunner]: Skipped AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
-              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `);
+              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `,
+          );
         }
       }
     }
