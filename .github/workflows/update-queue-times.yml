@@ -5,7 +5,7 @@ on:
     # Run every 15 minutes
     - cron: "*/15 * * * *"
   workflow_dispatch:
-  pull_request:
+  push:
 
 defaults:
   run:
