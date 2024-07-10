@@ -94,7 +94,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
             json.dump(data, body)
             S3_RESOURCE.Object(
                 f"ossci-raw-job-status",
-                f"merge_bases/pytorch/pytorch/{sha}",
+                f"merge_bases/pytorch/pytorch/{sha}.gzip",
             ).put(
                 Body=gzip.compress(body.getvalue().encode()),
                 ContentEncoding="gzip",
