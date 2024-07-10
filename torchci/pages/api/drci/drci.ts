@@ -336,7 +336,7 @@ where
           s3client.send(
             new PutObjectCommand({
               Bucket: "ossci-raw-job-status",
-              Key: `merge_bases/${OWNER}/${repo}/${pr_info.head_sha}`,
+              Key: `merge_bases/${OWNER}/${repo}/${pr_info.head_sha}.gzip`,
               Body: JSON.stringify(data),
               ContentType: "application/json",
             })
