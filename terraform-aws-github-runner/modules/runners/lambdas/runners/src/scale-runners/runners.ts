@@ -432,19 +432,23 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     let customAmi = runnerParameters.runnerType.ami;
     let customAmiExperiment = false;
     if (runnerParameters.runnerType.ami_experiment) {
+      console.info(`[createRunner]: Using AMI experiment for ${runnerParameters.runnerType.runnerTypeName}`);
       if (runnerParameters.runnerType.ami_experiment.percentage < 1) {
         const random = Math.random();
         if (random < runnerParameters.runnerType.ami_experiment.percentage) {
           console.info(
-            `[createRunner]: AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
+            `[createRunner]: Joined AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
               `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) ` +
               `using AMI: ${runnerParameters.runnerType.ami_experiment.ami}`,
           );
           customAmi = runnerParameters.runnerType.ami_experiment.ami;
           customAmiExperiment = true;
+        } else {
+          console.debug(
+            `[createRunner]: Skipped AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
+              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `);
         }
       }
-      console.info(`[createRunner]: Using AMI experiment for ${runnerParameters.runnerType.runnerTypeName}`);
     }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
     const errors: Array<[string, unknown, string]> = [];

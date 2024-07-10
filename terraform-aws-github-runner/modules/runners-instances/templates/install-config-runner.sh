@@ -17,6 +17,10 @@ install_hooks() {
   BEFORE_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/before_job.sh
   AFTER_JOB_SCRIPT=/home/$USER_NAME/runner-scripts/after_job.sh
   UTILS_SCRIPT=/home/$USER_NAME/runner-scripts/utils.sh
+  LOGS_MONITOR=/home/$USER_NAME/runner-scripts/logs_monitor.sh
+
+  MONITOR_SYSTEMD_SERVICE=/etc/systemd/system/gh-daemon-monitor.service
+  MONITOR_SYSTEMD_PATH=/etc/systemd/system/gh-daemon-monitor.path
 
   # https://github.com/pytorch/test-infra/issues/5246, install pre and post-job hooks
   # to chown everything under actions-runner to $USER_NAME so that the runner can clean
@@ -25,29 +29,29 @@ install_hooks() {
   cat > $UTILS_SCRIPT <<EOF
 #!/bin/bash
 function metric_report () {
-    local metric_name=$1
-    local value=$2
+    local metric_name=\$1
+    local value=\$2
     local on_ami_experiment="standardAMI"
 
     if [[ -e /home/$USER_NAME/on-ami-experiment ]]; then
       on_ami_experiment="onAMIExperiment"
     fi
 
-    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "GHARunners/all" --value $value --region us-east-1 || true
+    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "GHARunners/all" --value \$value --region us-east-1 || true
 
     local namespace="GHARunners/all"
     if [ ! -z "${environment}" ]; then
         namespace="GHARunners/${environment}"
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 || true
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 || true
     fi
 
     if [ ! -z "$REGION" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "Region=$REGION" || true
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "Region=$REGION" || true
     fi
     if [ ! -z "$OS_ID" ]; then
-        aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "os=$OS_ID" || true
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "os=$OS_ID" || true
     fi
-    aws cloudwatch put-metric-data --metric-name "$metric_name" --namespace "$namespace" --value $value --region us-east-1 --dimensions "OnAMIExperiment=$on_ami_experiment" || true
+    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "OnAMIExperiment=\$on_ami_experiment" || true
 }
 EOF
   chmod 755 $UTILS_SCRIPT
@@ -57,12 +61,6 @@ EOF
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 metric_report "runner_scripts.before_job" 1
-
-pushd /home/$USER_NAME/actions-runner/_diag
-for filename in Worker_*; do
-  mv "$filename" "old_$filename"
-done
-popd
 EOF
   chmod 755 $BEFORE_JOB_SCRIPT
   cat > $AFTER_JOB_SCRIPT <<EOF
@@ -71,21 +69,88 @@ EOF
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 metric_report "runner_scripts.after_job" 1
-
-grep "Job result after all job steps finish: Succeeded" Worker_*  ; FOUND=$?
-if [ \$FOUND -eq 0 ]; then
-  echo "Job result after all job steps finish: Succeeded"
-  metric_report "runner_scripts.job_succeeded" 1
-else
-  echo "Job result after all job steps finish: Failed/Cancelled"
-  metric_report "runner_scripts.job_failed_canceled" 1
-
-  if [ -e /home/$USER_NAME/on-ami-experiment ]; then
-    echo "Job failed on AMI experiment, stopping the instance"
-    sudo /home/$USER_NAME/actions-runner/svc.sh stop
-fi
 EOF
   chmod 755 $AFTER_JOB_SCRIPT
+  cat > $LOGS_MONITOR <<EOF
+#!/bin/bash
+
+. /home/$USER_NAME/runner-scripts/utils.sh
+
+CURR_LOGS_FILE="/home/$USER_NAME/.curr_logs"
+PROC_LOGS_FILE="/home/$USER_NAME/.proc_logs"
+
+function update_curr_logs_file {
+    pushd /home/$USER_NAME/actions-runner/_diag >/dev/null
+    ls -a Worker_* | cat | sort > \$CURR_LOGS_FILE
+    popd >/dev/null
+}
+
+function get_unprocced_files {
+    diff --new-line-format="" --unchanged-line-format="" <(sort \$CURR_LOGS_FILE) <(sort \$PROC_LOGS_FILE)
+}
+
+exec > >(tee -a /var/log/gh-daemon-monitor.log | logger -t gh-daemon-monitor -s 2>/dev/console) 2>&1
+
+update_curr_logs_file
+
+while read file; do
+    echo "Checking \$file..."
+    FULL_PATH_FILE="/home/$USER_NAME/actions-runner/_diag/\$file"
+
+    LINE=\$(grep 'Job result after all job steps finish:' \$FULL_PATH_FILE)
+
+    if [[ ! -z "\$LINE" ]]; then
+        echo "File \$file have a job output: '\$LINE'"
+        STATUS=\$(echo "\$LINE" | cut -d ':' -f 4 | xargs)
+
+        if [ "\$STATUS" == "Succeeded" ]; then
+            echo "Job \$file succeeded"
+            metric_report "runner_scripts.job_succeeded" 1
+        elif [ "\$STATUS" == "Failed" ]; then
+            echo "Job \$file failed"
+            metric_report "runner_scripts.job_failed" 1
+            if [ -e /home/$USER_NAME/on-ami-experiment ]; then
+                echo "Job failed on AMI experiment, stopping the instance"
+                pushd /home/$USER_NAME/actions-runner ; ./svc.sh stop ; popd
+            fi
+        elif [ "\$STATUS" == "Cancelled" ]; then
+            echo "Job \$file cancelled"
+            metric_report "runner_scripts.job_cancelled" 1
+        elif [ "\$STATUS" == "Skipped" ]; then
+            echo "Job \$file skipped"
+            metric_report "runner_scripts.job_skipped" 1
+        else
+            echo "Job \$file unknown status: \$STATUS"
+            metric_report "runner_scripts.job_unknown" 1
+        fi
+
+        echo \$file >> \$PROC_LOGS_FILE
+    fi
+done < <(get_unprocced_files)
+EOF
+  chmod 755 $LOGS_MONITOR
+  cat > $MONITOR_SYSTEMD_SERVICE <<EOF
+[Unit]
+Description=monitor updates on logs from github daemon
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=$LOGS_MONITOR
+EOF
+  chmod 644 $MONITOR_SYSTEMD_SERVICE
+  cat > $MONITOR_SYSTEMD_PATH <<EOF
+[Path]
+PathChanged=/home/$USER_NAME/actions-runner/_diag
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod 644 $MONITOR_SYSTEMD_PATH
+
+  systemctl daemon-reload
+  systemctl enable gh-daemon-monitor.path
+  systemctl start gh-daemon-monitor.path
 
   # https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/running-scripts-before-or-after-a-job
   echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$BEFORE_JOB_SCRIPT" >> $RUNNER_ENV
@@ -126,6 +191,8 @@ while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-dec
     fi
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
+echo "Configuration received: '$CONFIG'"
+
 if echo "$CONFIG" | grep -q "#ON_AMI_EXPERIMENT"; then
   CONFIG=$(echo "$CONFIG" | sed 's/ #ON_AMI_EXPERIMENT//g')
   touch /home/$USER_NAME/on-ami-experiment
