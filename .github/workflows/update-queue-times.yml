@@ -26,6 +26,4 @@ jobs:
           aws-region: us-east-1
       - run: yarn node scripts/updateQueueTimes.mjs
         env:
-          OUR_AWS_ACCESS_KEY_ID: ${{ steps.aws_creds.outputs.aws-access-key-id }}
-          OUR_AWS_SECRET_ACCESS_KEY: ${{ steps.aws_creds.outputs.aws-secret-access-key }}
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
