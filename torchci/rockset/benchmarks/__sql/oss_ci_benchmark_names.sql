@@ -6,11 +6,11 @@ SELECT DISTINCT
   o.dtype,
   o.device,
 FROM
-  benchmarks.oss_ci_benchmark o
+  benchmarks.oss_ci_benchmark_v2 o
   LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id
 WHERE
-  o._event_time >= PARSE_DATETIME_ISO8601(: startTime)
-  AND o._event_time < PARSE_DATETIME_ISO8601(: stopTime)
+  TIMESTAMP_MILLIS(o.timestamp) >= PARSE_DATETIME_ISO8601(: startTime)
+  AND TIMESTAMP_MILLIS(o.timestamp) < PARSE_DATETIME_ISO8601(: stopTime)
   AND (
     ARRAY_CONTAINS(
       SPLIT(: filenames, ','),
