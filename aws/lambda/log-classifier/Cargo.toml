@@ -9,8 +9,6 @@ lambda_runtime = "0.6.0"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
 anyhow = "1.0.64"
-aws-config = "0.48.0"
-aws-sdk-s3 = "0.18.0"
 flate2 = "1.0.24"
 http = "0.2.8"
 once_cell = "1.14.0"
@@ -21,9 +19,10 @@ url = "2.2.2"
 bytes = "1.2.1"
 toml = "0.5.9"
 native-tls = { version = "0.2.10", features = ["vendored"] }
-aws-sdk-dynamodb = "0.18.0"
-serde_dynamo = { version = "4.0.6", features = ["aws-sdk-dynamodb+0_18"] }
-
+aws-config = "1.5.4"
+aws-sdk-s3 = "1.40.0"
+aws-sdk-dynamodb = "1.37.0"
+serde_dynamo = { version = "4.2.14", features = ["aws-sdk-dynamodb+1"] }
   [dependencies.serde]
   version = "1.0.144"
   features = [ "derive" ]
