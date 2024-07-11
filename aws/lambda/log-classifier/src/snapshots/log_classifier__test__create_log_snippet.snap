@@ -1,0 +1,104 @@
+---
+source: src/main.rs
+expression: result_string
+---
+  inflating: build/bin/wrapdim_test
+  inflating: build/bin/xla_tensor_test
+  inflating: build/bin/IListRef_test
+  inflating: build/bin/List_test
+  inflating: build/bin/KernelFunction_test
+  inflating: build/bin/kernel_function_legacy_test
+  inflating: build/bin/kernel_function_test
+  inflating: build/bin/kernel_lambda_legacy_test
+  inflating: build/bin/kernel_lambda_test
+  inflating: build/bin/kernel_stackbased_test
+  inflating: build/bin/make_boxed_from_unboxed_functor_test
+  inflating: build/bin/CppSignature_test
+  inflating: build/bin/op_allowlist_test
+  inflating: build/bin/backend_fallback_test
+  inflating: build/bin/op_registration_test
+  inflating: build/bin/inline_container_test
+  inflating: build/bin/cuda_apply_test
+  inflating: build/bin/cuda_allocator_test
+  inflating: build/bin/cuda_atomic_ops_test
+  inflating: build/bin/cuda_caching_host_allocator_test
+  inflating: build/bin/cuda_complex_math_test
+  inflating: build/bin/cuda_complex_test
+  inflating: build/bin/cuda_device_test
+  inflating: build/bin/cuda_cub_test
+  inflating: build/bin/cuda_dlconvertor_test
+  inflating: build/bin/cuda_distributions_test
+  inflating: build/bin/cuda_generator_test
+  inflating: build/bin/cuda_half_test
+  inflating: build/bin/cuda_integer_divider_test
+  inflating: build/bin/cuda_optional_test
+  inflating: build/bin/cuda_packedtensoraccessor_test
+  inflating: build/bin/cuda_reportMemoryUsage_test
+  inflating: build/bin/cuda_allocatorTraceTracker_test
+  inflating: build/bin/cuda_stream_test
+  inflating: build/bin/cuda_cudnn_test
+  inflating: build/bin/cuda_vectorized_test
+  inflating: build/bin/tutorial_tensorexpr
+  inflating: build/bin/ProcessGroupGlooTest
+  inflating: build/bin/ProcessGroupGlooAsyncTest
+  inflating: build/bin/ProcessGroupNCCLTest
+  inflating: build/bin/ProcessGroupNCCLErrorsTest
+  inflating: build/bin/test_tensorexpr
+  inflating: build/bin/test_jit
+   creating: .additional_ci_files/
+  inflating: .additional_ci_files/test-times.json
+  inflating: .additional_ci_files/test-class-times.json
+##[group]Run rm artifacts.zip
+rm artifacts.zip
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+##[endgroup]
+##[group]Run df -H
+df -H
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+##[endgroup]
+Filesystem      Size  Used Avail Use% Mounted on
+devtmpfs         34G     0   34G   0% /dev
+tmpfs            34G     0   34G   0% /dev/shm
+tmpfs            34G  455k   34G   1% /run
+tmpfs            34G     0   34G   0% /sys/fs/cgroup
+/dev/nvme0n1p1  162G   43G  119G  27% /
+Prepare all required actions
+Getting action download info
+##[group]Run ./.github/actions/download-td-artifacts
+with:
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+##[endgroup]
+##[group]Run seemethere/download-artifact-s3@v4
+with:
+  name: td_results
+  s3-bucket: gha-artifacts
+  region: us-east-1
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+##[endgroup]
+(node:28537) NOTE: We are formalizing our plans to enter AWS SDK for JavaScript (v2) into maintenance mode in 2023.
+2024-07-08T16:56:59.7679407Z
+Please migrate your code to use AWS SDK for JavaScript (v3).
+For more information, check the migration guide at https://a.co/7PzMCcy
+(Use `node --trace-warnings ...` to show where the warning was created)
+Found 0 objects with prefix pytorch/pytorch/9843060221/td_results/
+Artifact download has finished successfully
+##[group]Run mkdir -p .additional_ci_files
+mkdir -p .additional_ci_files
+mv td_results.json .additional_ci_files/td_results.json
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+##[endgroup]
+mv: cannot stat 'td_results.json': No such file or directory
+##[error]Process completed with exit code 1.
