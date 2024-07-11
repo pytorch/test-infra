@@ -1,13 +1,19 @@
+import gzip
+import io
+import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from torchci.rockset_utils import query_rockset, remove_from_rockset, upload_to_rockset
+import boto3  # type: ignore
+from torchci.rockset_utils import query_rockset
 from torchci.td.utils import list_past_year_shas, run_command
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+S3_RESOURCE = boto3.resource("s3")
 
 FAILED_TEST_SHAS_QUERY = """
 SELECT
@@ -43,17 +49,6 @@ having
 """
 
 
-def dedup_merge_base_info() -> None:
-    ids = []
-    for item in query_rockset(DUP_MERGE_BASE_INFO):
-        for val in item.values():
-            ids.extend(val)
-    interval = 500
-
-    for i in range(0, len(ids), interval):
-        remove_from_rockset("merge_bases", ids[i : i + interval])
-
-
 def run_command(command: str) -> str:
     cwd = REPO_ROOT / ".." / "pytorch"
     return (
@@ -87,24 +82,29 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 f"git show --no-patch --format=%ct {merge_base}"
             )
             timestamp = datetime.utcfromtimestamp(int(unix_timestamp)).isoformat() + "Z"
-            docs.append(
-                {
-                    "sha": sha,
-                    "merge_base": merge_base,
-                    "changed_files": changed_files.splitlines(),
-                    "merge_base_commit_date": timestamp,
-                    "repo": "pytorch/pytorch",
-                }
+            data = {
+                "sha": sha,
+                "merge_base": merge_base,
+                "changed_files": changed_files.splitlines(),
+                "merge_base_commit_date": timestamp,
+                "repo": "pytorch/pytorch",
+                "_id": f"pytorch-pytorch-{sha}",
+            }
+            body = io.StringIO()
+            json.dump(data, body)
+            S3_RESOURCE.Object(
+                f"ossci-raw-job-status",
+                f"merge_bases/pytorch/pytorch/{sha}.gzip",
+            ).put(
+                Body=gzip.compress(body.getvalue().encode()),
+                ContentEncoding="gzip",
+                ContentType="application/json",
             )
         except Exception as e:
             return e
 
-    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
-
 
 if __name__ == "__main__":
-    dedup_merge_base_info()
-
     failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)]
     interval = 100
     print(

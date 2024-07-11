@@ -1,6 +1,7 @@
 import {
   RunnerInputParameters,
   createRunner,
+  findAmiID,
   getParameterNameForRunner,
   listRunners,
   listSSMParameters,
@@ -12,6 +13,7 @@ import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 import nock from 'nock';
+import { locallyCached, clearLocalCache } from './cache';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
@@ -22,6 +24,18 @@ const mockEC2 = {
   describeInstances: jest.fn(),
   runInstances: jest.fn().mockReturnValue({ promise: mockEC2runInstances }),
   terminateInstances: jest.fn().mockReturnValue({ promise: mockEC2terminateInstances }),
+  describeImages: jest.fn().mockReturnValue({
+    promise: jest.fn().mockImplementation(async () => {
+      return {
+        Images: [
+          { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
+          { CreationDate: '2024-07-09T13:55:23+0000', ImageId: 'ami-AGDGADU113' },
+          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-113' },
+          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-1113' },
+        ],
+      };
+    }),
+  }),
 };
 const mockSSMdescribeParametersRet = jest.fn();
 const mockSSM = {
@@ -39,7 +53,16 @@ jest.mock('./utils', () => ({
   ...(jest.requireActual('./utils') as any),
   shuffleArrayInPlace: <T>(a: Array<T>) => a.sort(),
 }));
-
+jest.mock('./cache', () => ({
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ...(jest.requireActual('./cache') as any),
+  redisClearCacheKeyPattern: jest.fn(),
+  redisCached: jest
+    .fn()
+    .mockImplementation(async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
+      return await locallyCached(ns, k, t, fn);
+    }),
+}));
 jest.mock('./gh-auth');
 
 function createExpectedRunInstancesLinux(
@@ -47,6 +70,7 @@ function createExpectedRunInstancesLinux(
   subnetId: number,
   enableOrg = false,
   vpcIdx: string | undefined = undefined,
+  ami: string | undefined = undefined,
 ) {
   const vpcId = vpcIdx ?? Config.Instance.shuffledVPCsForAwsRegion(Config.Instance.awsRegion)[0];
   const tags = [
@@ -104,6 +128,7 @@ function createExpectedRunInstancesLinux(
         Tags: tags,
       },
     ],
+    ImageId: ami,
   };
 }
 
@@ -350,6 +375,44 @@ describe('terminateRunner', () => {
   });
 });
 
+describe('findAmiID', () => {
+  beforeEach(() => {
+    clearLocalCache();
+    mockEC2.terminateInstances.mockClear();
+
+    resetRunnersCaches();
+  });
+
+  it('lists twice, make sure is cached and sorted', async () => {
+    const result1 = await findAmiID(metrics, 'REGION', 'FILTER');
+    expect(mockEC2.describeImages).toBeCalledTimes(1);
+    expect(mockEC2.describeImages).toBeCalledWith({
+      Owners: ['amazon'],
+      Filters: [
+        {
+          Name: 'name',
+          Values: ['FILTER'],
+        },
+        {
+          Name: 'state',
+          Values: ['available'],
+        },
+      ],
+    });
+    expect(result1).toBe('ami-AGDGADU113');
+
+    const result2 = await findAmiID(metrics, 'REGION', 'FILTER');
+    expect(mockEC2.describeImages).toBeCalledTimes(1);
+    expect(result2).toBe('ami-AGDGADU113');
+
+    await findAmiID(metrics, 'REGION2', 'FILTER');
+    expect(mockEC2.describeImages).toBeCalledTimes(2);
+
+    await findAmiID(metrics, 'REGION', 'FILTER2');
+    expect(mockEC2.describeImages).toBeCalledTimes(3);
+  });
+});
+
 describe('createRunner', () => {
   describe('single region', () => {
     const mockRunInstances = { promise: jest.fn() };
@@ -444,6 +507,9 @@ describe('createRunner', () => {
         ],
       });
       mockSSM.putParameter.mockImplementation(() => mockPutParameter);
+
+      resetRunnersCaches();
+      clearLocalCache();
 
       jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     });
@@ -588,6 +654,54 @@ describe('createRunner', () => {
         Value: 'us-east-1-BLAH',
         Type: 'SecureString',
       });
+    });
+
+    it('creates ssm experiment parameters when joining experiment', async () => {
+      const runnerParameters = {
+        runnerConfig: runnerConfigFn,
+        environment: 'unit-test-env',
+        repoName: 'SomeAwesomeCoder/some-amazing-library',
+        orgName: undefined,
+        runnerType: {
+          instance_type: 'c5.2xlarge',
+          os: 'linux',
+          max_available: 200,
+          disk_size: 100,
+          runnerTypeName: 'linuxCpu',
+          is_ephemeral: true,
+          ami_experiment: {
+            ami: 'a random ami filter',
+            percentage: 0.1,
+          },
+        },
+      };
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0999);
+
+      await createRunner(runnerParameters, metrics);
+      expect(mockEC2.describeImages).toBeCalledTimes(1);
+      expect(mockEC2.describeImages).toBeCalledWith({
+        Owners: ['amazon'],
+        Filters: [
+          {
+            Name: 'name',
+            Values: ['a random ami filter'],
+          },
+          {
+            Name: 'state',
+            Values: ['available'],
+          },
+        ],
+      });
+      expect(mockSSM.putParameter).toBeCalledTimes(1);
+      expect(mockSSM.putParameter).toBeCalledWith({
+        Name: 'unit-test-env-i-1234',
+        Value: 'us-east-1-BLAH #ON_AMI_EXPERIMENT',
+        Type: 'SecureString',
+      });
+      expect(mockEC2.runInstances).toBeCalledTimes(1);
+      expect(mockEC2.runInstances).toBeCalledWith(
+        createExpectedRunInstancesLinux(runnerParameters, 0, false, undefined, 'ami-AGDGADU113'),
+      );
     });
 
     it('does not create ssm parameters when no instance is created', async () => {

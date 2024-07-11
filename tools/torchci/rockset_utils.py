@@ -24,26 +24,3 @@ def query_rockset(
         return get_rockset_client().sql(query, params=params).results
 
     return cache_query_rockset(query, params)
-
-
-def upload_to_rockset(
-    collection: str, docs: List[Any], workspace: str = "commons"
-) -> None:
-    client = get_rockset_client()
-    client.Documents.add_documents(
-        collection=collection,
-        data=docs,
-        workspace=workspace,
-    )
-
-
-def remove_from_rockset(
-    collection: str, ids: List[str], workspace: str = "commons"
-) -> None:
-    client = get_rockset_client()
-    ids_to_map = [{"id": id} for id in ids]
-    client.Documents.delete_documents(
-        collection=collection,
-        data=ids_to_map,
-        workspace=workspace,
-    )
