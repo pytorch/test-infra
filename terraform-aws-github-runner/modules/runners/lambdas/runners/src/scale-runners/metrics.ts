@@ -637,6 +637,38 @@ export class Metrics {
   }
 
   /* istanbul ignore next */
+  ec2DescribeImagesSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.describeImages.count`, 1);
+    this.countEntry(`aws.ec2.describeImages.success`, 1);
+    this.addEntry(`aws.ec2.describeImages.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeImages.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeImages.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeImages.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2DescribeImagesFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.describeImages.count`, 1);
+    this.countEntry(`aws.ec2.describeImages.failure`, 1);
+    this.addEntry(`aws.ec2.describeImages.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeImages.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeImages.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeImages.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
   ec2DescribeInstancesAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);

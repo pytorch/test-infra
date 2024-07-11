@@ -5,6 +5,7 @@ import { RunnerInfo, expBackOff, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics } from './metrics';
+import { redisCached } from './cache';
 
 export interface ListRunnerFilters {
   repoName?: string;
@@ -21,15 +22,21 @@ export interface RunnerInputParameters {
   runnerType: RunnerType;
 }
 
+export interface AmiExpermient {
+  ami: string;
+  percentage: number;
+}
+
 export interface RunnerType {
-  instance_type: string;
-  os: string;
-  max_available: number;
-  disk_size: number;
-  runnerTypeName: string;
-  is_ephemeral: boolean;
+  ami_experiment?: AmiExpermient;
   ami?: string;
+  disk_size: number;
+  instance_type: string;
+  is_ephemeral: boolean;
   labels?: Array<string>;
+  max_available: number;
+  os: string;
+  runnerTypeName: string;
 }
 
 export interface DescribeInstancesResultRegion {
@@ -44,6 +51,57 @@ const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTime
 
 export function resetRunnersCaches() {
   ssmParametersCache.reset();
+}
+
+export async function findAmiID(metrics: Metrics, region: string, filter: string, owners = 'amazon'): Promise<string> {
+  const ec2 = new EC2({ region: region });
+  const filters = [
+    { Name: 'name', Values: [filter] },
+    { Name: 'state', Values: ['available'] },
+  ];
+  return redisCached('awsEC2', `findAmiID-${region}-${filter}-${owners}`, 10 * 60, 0.5, () => {
+    return expBackOff(() => {
+      return metrics.trackRequestRegion(
+        region,
+        metrics.ec2DescribeImagesSuccess,
+        metrics.ec2DescribeImagesFailure,
+        () => {
+          return ec2
+            .describeImages({ Owners: [owners], Filters: filters })
+            .promise()
+            .then((data: EC2.DescribeImagesResult) => {
+              /* istanbul ignore next */
+              if (data.Images?.length === 0) {
+                console.error(`No availabe images found for filter '${filter}'`);
+                throw new Error(`No availabe images found for filter '${filter}'`);
+              }
+              sortByCreationDate(data);
+              return data.Images?.shift()?.ImageId as string;
+            });
+        },
+      );
+    });
+  });
+}
+
+// Shamelessly stolen from https://ajahne.github.io/blog/javascript/aws/2019/05/15/getting-an-ami-id-nodejs.html
+function sortByCreationDate(data: EC2.DescribeImagesResult): void {
+  const images = data.Images as EC2.ImageList;
+  images.sort(function (a: EC2.Image, b: EC2.Image) {
+    const dateA: string = a['CreationDate'] as string;
+    const dateB: string = b['CreationDate'] as string;
+    if (dateA < dateB) {
+      return -1;
+    }
+    if (dateA > dateB) {
+      return 1;
+    }
+    // dates are equal
+    return 0;
+  });
+
+  // arrange the images by date in descending order
+  images.reverse();
 }
 
 export async function listRunners(
@@ -250,6 +308,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
 async function addSSMParameterRunnerConfig(
   instances: EC2.InstanceList,
   runnerParameters: RunnerInputParameters,
+  customAmiExperiment: boolean,
   ssm: SSM,
   metrics: Metrics,
   awsRegion: string,
@@ -259,7 +318,12 @@ async function addSSMParameterRunnerConfig(
     console.debug(`[${awsRegion}] No SSM parameter to be created, empty list of instances`);
     return;
   }
-  const runnerConfig = await runnerParameters.runnerConfig(awsRegion);
+
+  let runnerConfig = await runnerParameters.runnerConfig(awsRegion);
+  if (customAmiExperiment) {
+    runnerConfig = `${runnerConfig} #ON_AMI_EXPERIMENT`;
+  }
+
   const createdSSMParams = await Promise.all(
     /* istanbul ignore next */
     instances.map(async (i: EC2.Instance) => {
@@ -365,6 +429,28 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Value: runnerParameters.orgName,
       });
     }
+    let customAmi = runnerParameters.runnerType.ami;
+    let customAmiExperiment = false;
+    if (runnerParameters.runnerType.ami_experiment) {
+      console.info(`[createRunner]: Using AMI experiment for ${runnerParameters.runnerType.runnerTypeName}`);
+      if (runnerParameters.runnerType.ami_experiment.percentage < 1) {
+        const random = Math.random();
+        if (random < runnerParameters.runnerType.ami_experiment.percentage) {
+          console.info(
+            `[createRunner]: Joined AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
+              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) ` +
+              `using AMI: ${runnerParameters.runnerType.ami_experiment.ami}`,
+          );
+          customAmi = runnerParameters.runnerType.ami_experiment.ami;
+          customAmiExperiment = true;
+        } else {
+          console.debug(
+            `[createRunner]: Skipped AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
+              `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `,
+          );
+        }
+      }
+    }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
     const errors: Array<[string, unknown, string]> = [];
 
@@ -399,7 +485,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               awsRegion,
               metrics.ec2RunInstancesAWSCallSuccess,
               metrics.ec2RunInstancesAWSCallFailure,
-              () => {
+              async () => {
                 const params: EC2.RunInstancesRequest = {
                   MaxCount: 1,
                   MinCount: 1,
@@ -435,10 +521,10 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                     },
                   ],
                 };
-                if (runnerParameters.runnerType.ami) {
-                  params.ImageId = runnerParameters.runnerType.ami;
+                if (customAmi) {
+                  params.ImageId = await findAmiID(metrics, awsRegion, customAmi);
                 }
-                return ec2.runInstances(params).promise();
+                return await ec2.runInstances(params).promise();
               },
             );
           });
@@ -446,10 +532,17 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
             console.info(
               `Created instance(s) [${awsRegion}] [${vpcId}] [${subnet}]`,
-              ` [${runnerParameters.runnerType.runnerTypeName}]${labelsStrLog}: `,
+              ` [${runnerParameters.runnerType.runnerTypeName}] [AMI?:${customAmi}] ${labelsStrLog}: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
-            addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
+            addSSMParameterRunnerConfig(
+              runInstancesResponse.Instances,
+              runnerParameters,
+              customAmiExperiment,
+              ssm,
+              metrics,
+              awsRegion,
+            );
 
             // breaks
             return awsRegion;
