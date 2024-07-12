@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - csl/dynamo_clickhouse
     paths:
       - .github/workflows/dynamo-clickhouse-lambda.yml
       - aws/lambda/dynamo-clickhouse-replicator/**
@@ -33,7 +34,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
