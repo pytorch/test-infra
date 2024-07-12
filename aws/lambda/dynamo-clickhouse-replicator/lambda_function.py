@@ -142,7 +142,8 @@ def upsert_document(client: Any, record: Any) -> None:
     # to understand how to upsert works in ClickHouse and how to get the latest
     # records. A generic way is to use the FINAL keyword but their doc mentions
     # that it's slower https://clickhouse.com/docs/en/sql-reference/statements/select/from
-    client.query(f"INSERT INTO `{table}` FORMAT JSONEachRow {json.dumps(body)}")
+    res = client.query(f"INSERT INTO `{table}` FORMAT JSONEachRow {json.dumps(body)}")
+    print(res)
 
 
 def remove_document(client: Any, record: Any) -> None:
