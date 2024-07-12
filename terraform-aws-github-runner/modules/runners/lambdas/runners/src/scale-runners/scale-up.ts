@@ -83,8 +83,15 @@ export async function scaleUp(
       try {
         const createRunnerParams: RunnerInputParameters = {
           environment: Config.Instance.environment,
-          runnerConfig: (awsRegion: string) => {
-            return createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics, awsRegion);
+          runnerConfig: (awsRegion: string, experimentalRunner: boolean) => {
+            return createRunnerConfigArgument(
+              runnerType,
+              repo,
+              payload.installationId,
+              metrics,
+              awsRegion,
+              experimentalRunner,
+            );
           },
           runnerType: runnerType,
         };
@@ -132,11 +139,13 @@ async function createRunnerConfigArgument(
   installationId: number | undefined,
   metrics: Metrics,
   awsRegion: string,
+  experimentalRunner: boolean,
 ): Promise<string> {
-  const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
+  const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';
   const labelsArgument = [
     `AWS:${awsRegion}`,
     `${runnerType.runnerTypeName}`,
+    ...(experimentalRunner ? ['experimentalAMI'] : []),
     ...(Config.Instance.runnersExtraLabels ? Config.Instance.runnersExtraLabels.split(',') : []),
     ...(runnerType.labels ?? []),
   ].join(',');
