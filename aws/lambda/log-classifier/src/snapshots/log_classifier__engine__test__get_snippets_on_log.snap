@@ -1,0 +1,205 @@
+---
+source: src/engine.rs
+expression: result_string
+---
+Traceback (most recent call last):
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 467, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 462, in _make_request
+    httplib_response = conn.getresponse()
+  File "/opt/conda/envs/py_3.10/lib/python3.10/http/client.py", line 1375, in getresponse
+    response.begin()
+  File "/opt/conda/envs/py_3.10/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/opt/conda/envs/py_3.10/lib/python3.10/http/client.py", line 279, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/opt/conda/envs/py_3.10/lib/python3.10/socket.py", line 705, in readinto
+    return self._sock.recv_into(b)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/ssl.py", line 1307, in recv_into
+    return self.read(nbytes, buffer)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/ssl.py", line 1163, in read
+    return self._sslobj.read(len, buffer)
+TimeoutError: The read operation timed out
+2024-07-08T16:59:07.1207553Z
+During handling of the above exception, another exception occurred:
+2024-07-08T16:59:07.1208330Z
+Traceback (most recent call last):
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 801, in urlopen
+    retries = retries.increment(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/util/retry.py", line 552, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/packages/six.py", line 770, in reraise
+    raise value
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 715, in urlopen
+    httplib_response = self._make_request(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 469, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/urllib3/connectionpool.py", line 358, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='huggingface.co', port=443): Read timed out. (read timeout=10)
+2024-07-08T16:59:07.1265542Z
+During handling of the above exception, another exception occurred:
+2024-07-08T16:59:07.1266269Z
+Traceback (most recent call last):
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1722, in _get_metadata_or_catch_error
+    metadata = get_hf_file_metadata(url=url, proxies=proxies, timeout=etag_timeout, headers=headers)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1645, in get_hf_file_metadata
+    r = _request_wrapper(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 372, in _request_wrapper
+    response = _request_wrapper(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 395, in _request_wrapper
+    response = get_session().request(method=method, url=url, **params)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 66, in send
+    return super().send(request, *args, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/requests/adapters.py", line 713, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: (ReadTimeoutError("HTTPSConnectionPool(host='huggingface.co', port=443): Read timed out. (read timeout=10)"), '(Request ID: f75e69b1-bb0b-4f88-8996-05b3e99d1b45)')
+2024-07-08T16:59:07.1285320Z
+The above exception was the direct cause of the following exception:
+2024-07-08T16:59:07.1286374Z
+Traceback (most recent call last):
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/utils/hub.py", line 398, in cached_file
+    resolved_file = hf_hub_download(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1221, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1325, in _hf_hub_download_to_cache_dir
+    _raise_on_head_call_error(head_call_error, force_download, local_files_only)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1826, in _raise_on_head_call_error
+    raise LocalEntryNotFoundError(
+huggingface_hub.utils._errors.LocalEntryNotFoundError: An error happened while trying to locate the file on the Hub and we cannot find the requested files in the local cache. Please check your connection and try again or make sure your Internet connection is on.
+2024-07-08T16:59:07.1299428Z
+The above exception was the direct cause of the following exception:
+2024-07-08T16:59:07.1300173Z
+Traceback (most recent call last):
+  File "/var/lib/jenkins/workspace/benchmarks/dynamo/huggingface.py", line 404, in <module>
+    AutoConfig.from_pretrained("t5-small"),
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/models/auto/configuration_auto.py", line 1103, in from_pretrained
+    config_dict, unused_kwargs = PretrainedConfig.get_config_dict(pretrained_model_name_or_path, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/configuration_utils.py", line 634, in get_config_dict
+    config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/configuration_utils.py", line 689, in _get_config_dict
+    resolved_config_file = cached_file(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/utils/hub.py", line 442, in cached_file
+    raise EnvironmentError(
+OSError: We couldn't connect to 'https://huggingface.co' to load this file, couldn't find it in the cached files and it looks like t5-small is not the path to a directory containing a file named config.json.
+Checkout your internet connection or see how to run the library in offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'.
++ cleanup_workspace
++ echo 'sudo may print the following warning message that can be ignored. The chown command will still run.'
+sudo may print the following warning message that can be ignored. The chown command will still run.
++ echo '    sudo: setrlimit(RLIMIT_STACK): Operation not permitted'
+    sudo: setrlimit(RLIMIT_STACK): Operation not permitted
++ echo 'For more details refer to https://github.com/sudo-project/sudo/issues/42'
+For more details refer to https://github.com/sudo-project/sudo/issues/42
++ sudo chown -R 1000 /var/lib/jenkins/workspace
+##[error]Process completed with exit code 1.
+Prepare all required actions
+Getting action download info
+##[group]Run ./.github/actions/pytest-cache-upload
+with:
+  cache_dir: .pytest_cache
+  shard: 1
+  sha: c8ab2e8b637515b6488931f5e59f23848aae9991
+  test_config: inductor_huggingface
+  job_identifier: inductor_linux-focal-cuda12.1-py3.10-gcc9-sm86
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+  DOCKER_CONTAINER_ID: 5517005639eb2a5523bdd8699b890ed51972774d391d8acbbc153c14ab664a71
+##[endgroup]
+##[group]Run nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
+with:
+  shell: bash
+  timeout_minutes: 5
+  max_attempts: 5
+  retry_wait_seconds: 30
+  command: set -eu
+python3 -m pip install boto3==1.19.12
+
+  polling_interval_seconds: 1
+  warning_on_retry: true
+  continue_on_error: false
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+  DOCKER_CONTAINER_ID: 5517005639eb2a5523bdd8699b890ed51972774d391d8acbbc153c14ab664a71
+##[endgroup]
+Defaulting to user installation because normal site-packages is not writeable
+Collecting boto3==1.19.12
+  Downloading boto3-1.19.12-py3-none-any.whl (131 kB)
+Collecting botocore<1.23.0,>=1.22.12
+  Downloading botocore-1.22.12-py3-none-any.whl (8.1 MB)
+Collecting s3transfer<0.6.0,>=0.5.0
+  Downloading s3transfer-0.5.2-py3-none-any.whl (79 kB)
+Collecting jmespath<1.0.0,>=0.7.1
+  Downloading jmespath-0.10.0-py2.py3-none-any.whl (24 kB)
+Collecting python-dateutil<3.0.0,>=2.1
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Requirement already satisfied: urllib3<1.27,>=1.25.4 in /home/ec2-user/.local/lib/python3.7/site-packages (from botocore<1.23.0,>=1.22.12->boto3==1.19.12) (1.26.19)
+Collecting six>=1.5
+  Downloading six-1.16.0-py2.py3-none-any.whl (11 kB)
+Installing collected packages: six, python-dateutil, jmespath, botocore, s3transfer, boto3
+Successfully installed boto3-1.19.12 botocore-1.22.12 jmespath-0.10.0 python-dateutil-2.9.0.post0 s3transfer-0.5.2 six-1.16.0
+Command completed after 1 attempt(s).
+##[group]Run python3 .github/scripts/pytest_cache.py \
+python3 .github/scripts/pytest_cache.py \
+  --upload \
+  --cache_dir $GITHUB_WORKSPACE/$CACHE_DIR \
+  --pr_identifier $GITHUB_REF \
+  --job_identifier $JOB_IDENTIFIER \
+  --sha $SHA \
+  --test_config $TEST_CONFIG \
+  --shard $SHARD \
+  --repo $REPO \
+  --temp_dir $RUNNER_TEMP \
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+  DOCKER_CONTAINER_ID: 5517005639eb2a5523bdd8699b890ed51972774d391d8acbbc153c14ab664a71
+  CACHE_DIR: .pytest_cache
+  JOB_IDENTIFIER: inductor_linux-focal-cuda12.1-py3.10-gcc9-sm86
+  SHA: c8ab2e8b637515b6488931f5e59f23848aae9991
+  TEST_CONFIG: inductor_huggingface
+  SHARD: 1
+  REPO: pytorch/pytorch
+##[endgroup]
+PR identifier for `refs/heads/main` is `96e092540d6b3c4076e3d2bc6f1f9013`
+Uploading cache with args Namespace(bucket=None, cache_dir='/home/ec2-user/actions-runner/_work/pytorch/pytorch/.pytest_cache', download=False, job_identifier='inductor_linux-focal-cuda12.1-py3.10-gcc9-sm86', pr_identifier='refs/heads/main', repo='pytorch/pytorch', sha='c8ab2e8b637515b6488931f5e59f23848aae9991', shard='1', temp_dir='/home/ec2-user/actions-runner/_work/_temp', test_config='inductor_huggingface', upload=True)
+The pytest cache dir `/home/ec2-user/actions-runner/_work/pytorch/pytorch/.pytest_cache` does not exist. Skipping upload
+##[group]Run cat test/**/*_toprint.log || true
+cat test/**/*_toprint.log || true
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+  DOCKER_CONTAINER_ID: 5517005639eb2a5523bdd8699b890ed51972774d391d8acbbc153c14ab664a71
+##[endgroup]
+cat: test/**/*_toprint.log: No such file or directory
+##[group]Run kill "$MONITOR_SCRIPT_PID"
+kill "$MONITOR_SCRIPT_PID"
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env:
+  GIT_DEFAULT_BRANCH: main
+  GPU_FLAG: --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all
+  DOCKER_CONTAINER_ID: 5517005639eb2a5523bdd8699b890ed51972774d391d8acbbc153c14ab664a71
+  MONITOR_SCRIPT_PID: 28481
+##[endgroup]
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/upload-artifact@v3' (SHA:a8a3f3ad30e3422c9c7b888a15615d19a852ae32)
+##[group]Run ./.github/actions/upload-test-artifacts
+with:
+  file-suffix: test-inductor_huggingface-1-1-linux.g5.4xlarge.nvidia.gpu_27175320579
+  s3-bucket: gha-artifacts
+env:

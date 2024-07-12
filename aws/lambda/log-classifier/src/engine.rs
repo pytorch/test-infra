@@ -2,6 +2,8 @@ use crate::log::Log;
 use crate::rule::{Rule, RuleSet};
 use crate::rule_match::Match;
 use rayon::prelude::*;
+use std::cmp::max;
+use std::cmp::min;
 
 /// Evaluate `rule` against `log`. Returns a `Match` if there was a successful
 /// match, otherwise None.
@@ -43,4 +45,294 @@ pub fn evaluate_ruleset(ruleset: &RuleSet, log: &Log) -> Option<Match> {
         .par_iter()
         .flat_map(|rule| evaluate_rule(rule, log))
         .max_by(|a, b| a.rule.priority.cmp(&b.rule.priority))
+}
+
+/// Evaluates a ruleset against all lines of a log, returning matching line numbers.
+///
+/// # Arguments
+///
+/// * `ruleset` - A reference to the RuleSet to evaluate.
+/// * `log` - A reference to the Log to evaluate against.
+///
+/// # Returns
+///
+/// A vector of line numbers that match any rule in the ruleset.
+/// Note: Each rule in ruleset can only match 1 line which is the last line that matches the rule.
+pub fn evaluate_ruleset_all_lines(ruleset: &RuleSet, log: &Log) -> Vec<usize> {
+    let matches: Vec<Match> = ruleset
+        .rules
+        .par_iter()
+        .flat_map(|rule| evaluate_rule(rule, log))
+        .collect();
+    // combine captures into a single vector
+    let mut lines = Vec::new();
+    for m in matches {
+        lines.push(m.line_number);
+    }
+    lines
+}
+
+/// Merges line numbers into chunks based on specified size constraints.
+///
+/// # Arguments
+///
+/// * `log` - A reference to the Log structure containing the lines.
+/// * `line_numbers` - A vector of line numbers to be chunked.
+/// * `min_chunk_size` - The minimum size of each chunk.
+/// * `max_chunk_size` - The maximum size of each chunk.
+///
+/// # Returns
+///
+/// A vector of tuples, where each tuple contains the start and end line numbers of a chunk.
+///
+/// # Panics
+///
+/// This function will panic if:
+/// * `min_chunk_size` is greater than or equal to `max_chunk_size`.
+/// * Any line number is less than 1 or greater than the number of lines in the log.
+fn get_line_number_chunks(
+    log: &Log,
+    line_numbers: Vec<usize>,
+    min_chunk_size: usize,
+    max_chunk_size: usize,
+) -> Vec<(usize, usize)> {
+    // throw user error if min_chunk_size is greater than max_chunk_size
+    if min_chunk_size >= max_chunk_size {
+        panic!("min_chunk_size cannot be greater or equal to max_chunk_size");
+    }
+
+    // check if empty
+    if line_numbers.is_empty() {
+        return Vec::new();
+    }
+
+    // sort line numbers
+    let mut line_numbers = line_numbers;
+    line_numbers.sort();
+
+    // assert length of log is at least last line number and no negative line numbers
+    if *line_numbers.first().unwrap() < 1 || *line_numbers.last().unwrap() > log.lines.len() {
+        panic!("line numbers must be within the range of the log");
+    }
+
+    // merge line numbers into chunks
+    let mut merged_line_numbers = Vec::new();
+    let mut chunk = Vec::new();
+    // as we add min_chunk_size / 2 to both sides
+    let effective_max_chunk_size = max_chunk_size - min_chunk_size;
+    for line_number in line_numbers {
+        if chunk.is_empty() {
+            chunk.push(line_number);
+        } else if line_number - chunk.first().unwrap() < effective_max_chunk_size {
+            chunk.push(line_number);
+        } else {
+            let start = max(chunk.first().unwrap() - min_chunk_size / 2, 1);
+            let end = min(chunk.last().unwrap() + min_chunk_size / 2, log.lines.len());
+            merged_line_numbers.push((start, end));
+            chunk.clear();
+            chunk.push(line_number);
+        }
+    }
+
+    // add remaining chunk
+    if !chunk.is_empty() {
+        let start = max(chunk.first().unwrap() - min_chunk_size / 2, 1);
+        let end = min(chunk.last().unwrap() + min_chunk_size / 2, log.lines.len());
+        merged_line_numbers.push((start, end));
+    }
+
+    merged_line_numbers
+}
+
+/// Extracts snippets from a log based on specified line numbers and chunk sizes.
+///
+/// # Arguments
+///
+/// * `log` - A reference to the Log structure containing the lines.
+/// * `line_numbers` - A vector of line numbers to extract snippets around.
+/// * `min_chunk_size` - The minimum size of each chunk.
+/// * `max_chunk_size` - The maximum size of each chunk.
+///
+/// # Returns
+///
+/// A vector of strings, where each string is a snippet of log lines.
+///
+/// # Description
+///
+/// This function first calls `get_line_number_chunks` to group the specified line numbers
+/// into chunks. It then extracts the log lines for each chunk, concatenating them into
+/// a single string (snippet). Each line in the snippet is separated by a newline character.
+///
+/// If a line number in a chunk does not exist in the log, it is silently skipped.
+pub fn get_snippets(
+    log: &Log,
+    line_numbers: Vec<usize>,
+    min_chunk_size: usize,
+    max_chunk_size: usize,
+) -> Vec<String> {
+    let chunks = get_line_number_chunks(log, line_numbers, min_chunk_size, max_chunk_size);
+    chunks
+        .iter()
+        .map(|(start, end)| {
+            let mut snippet = String::new();
+            for i in *start..=*end {
+                if let Some(line) = log.lines.get(&i) {
+                    snippet.push_str(line);
+                    snippet.push('\n');
+                }
+            }
+            snippet
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use assert_unordered::assert_eq_unordered;
+    use insta::assert_snapshot;
+    use std::fs;
+
+    #[test]
+    fn test_evaluate_ruleset_all_lines_single_match() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add("test", r"^test");
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            "
+            .into(),
+        );
+        let matches = evaluate_ruleset_all_lines(&ruleset, &log);
+        assert_eq_unordered!(matches, [2].into());
+    }
+
+    #[test]
+    fn test_evaluate_ruleset_all_lines_multiple_match() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add("test", r"^test");
+        ruleset.add("test_foo", r"^test foo");
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            "
+            .into(),
+        );
+        let matches = evaluate_ruleset_all_lines(&ruleset, &log);
+        assert_eq_unordered!(matches, [2, 1].into());
+    }
+
+    #[test]
+    fn test_get_line_number_chunks_smoke_test() {
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            "
+            .into(),
+        );
+        let line_numbers = vec![1, 2];
+        let chunks = get_line_number_chunks(&log, line_numbers, 1, 2);
+        assert_eq_unordered!(chunks, [(1, 1), (2, 2)].into());
+    }
+
+    #[test]
+    fn test_get_line_number_chunks_multiple_chunks() {
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            "
+            .into(),
+        );
+        let line_numbers = vec![1, 2, 4];
+        let chunks = get_line_number_chunks(&log, line_numbers, 1, 3);
+        assert_eq_unordered!(chunks, [(1, 2), (4, 4)].into());
+    }
+
+    #[test]
+    fn test_get_line_number_chunks_empty() {
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            "
+            .into(),
+        );
+        let line_numbers = vec![];
+        let chunks = get_line_number_chunks(&log, line_numbers, 1, 2);
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn test_get_line_number_chunks_overlap() {
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            "
+            .into(),
+        );
+        let line_numbers = vec![1, 2, 3, 4, 5, 6];
+        let chunks = get_line_number_chunks(&log, line_numbers, 2, 4);
+        assert_eq_unordered!(chunks, [(1, 3), (2, 5), (4, 6)].into());
+    }
+
+    #[test]
+    fn test_get_snippets() {
+        let log = Log::new(
+            "\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            test foo\n\
+            test bar\n\
+            test baz\n\
+            "
+            .into(),
+        );
+        let line_numbers = vec![1, 2, 3, 4, 5, 6];
+        let snippets = get_snippets(&log, line_numbers, 2, 4);
+        assert_eq_unordered!(
+            snippets,
+            [
+                "test foo\ntest bar\ntest baz\n",
+                "test bar\ntest baz\ntest foo\ntest bar\n",
+                "test foo\ntest bar\ntest baz\n",
+            ]
+            .iter()
+            .map(|&s| String::from(s))
+            .collect()
+        );
+    }
+
+    #[test]
+    fn test_get_snippets_on_log() {
+        // Read the input log file
+        let log_content = fs::read_to_string("fixtures/error_log1.txt");
+        let log = Log::new(log_content.unwrap());
+        // Define the error line and number of lines for the snippet
+        let error_line = Vec::from([4047]);
+        let num_lines = 200;
+
+        // Call the function
+        let result = get_snippets(&log, error_line, num_lines, num_lines + 1);
+        // length is 1
+        assert_eq!(result.len(), 1);
+        // Convert result to a string
+        let result_string = result.join("\n");
+        // Assert against the snapshot
+        assert_snapshot!(result_string);
+    }
 }
