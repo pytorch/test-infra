@@ -1,7 +1,8 @@
 ---
-source: src/main.rs
+source: src/bedrock.rs
 expression: result_string
 ---
+  inflating: build/bin/weakref_test
   inflating: build/bin/wrapdim_test
   inflating: build/bin/xla_tensor_test
   inflating: build/bin/IListRef_test
