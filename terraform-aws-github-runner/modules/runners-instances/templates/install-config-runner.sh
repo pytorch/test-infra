@@ -37,11 +37,11 @@ function metric_report () {
       on_ami_experiment="onAMIExperiment"
     fi
 
-    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "GHARunners/all" --value \$value --region us-east-1 || true
+    aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "GHARunners/all/infra" --value \$value --region us-east-1 || true
 
-    local namespace="GHARunners/all"
+    local namespace="GHARunners/all/infra"
     if [ ! -z "${environment}" ]; then
-        namespace="GHARunners/${environment}"
+        namespace="GHARunners/${environment}/infra"
         aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 || true
     fi
 
