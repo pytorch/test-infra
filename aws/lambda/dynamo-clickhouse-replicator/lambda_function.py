@@ -137,7 +137,7 @@ def upsert_document(client: Any, record: Any) -> None:
     # TODO (huydhn) Inserting individual record is not efficient according
     # to ClickHouse doc, but we can try to improve this later. See more at
     # https://clickhouse.com/docs/en/optimize/bulk-inserts
-    print(f"UPSERTING {id} INTO {table}")
+    print(f"UPSERTING {id}: {json.dumps(body)} INTO {table}")
     # Checkout https://clickhouse.com/videos/how-to-upsert-rows-into-clickhouse
     # to understand how to upsert works in ClickHouse and how to get the latest
     # records. A generic way is to use the FINAL keyword but their doc mentions
