@@ -15,7 +15,7 @@ export interface ListRunnerFilters {
 }
 
 export interface RunnerInputParameters {
-  runnerConfig: (awsRegion: string) => Promise<string>;
+  runnerConfig: (awsRegion: string, experimentalRunner: boolean) => Promise<string>;
   environment: string;
   repoName?: string;
   orgName?: string;
@@ -319,7 +319,7 @@ async function addSSMParameterRunnerConfig(
     return;
   }
 
-  let runnerConfig = await runnerParameters.runnerConfig(awsRegion);
+  let runnerConfig = await runnerParameters.runnerConfig(awsRegion, customAmiExperiment);
   if (customAmiExperiment) {
     runnerConfig = `${runnerConfig} #ON_AMI_EXPERIMENT`;
   }

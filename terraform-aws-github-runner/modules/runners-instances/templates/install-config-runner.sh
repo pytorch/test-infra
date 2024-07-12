@@ -51,6 +51,11 @@ function metric_report () {
     if [ ! -z "$OS_ID" ]; then
         aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "os=$OS_ID" || true
     fi
+    while read line ; do
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "label=\$line,OnAMIExperiment=\$on_ami_experiment" || true
+        aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "label=\$line" || true
+    done < /home/$USER_NAME/runner-labels
+
     aws cloudwatch put-metric-data --metric-name "\$metric_name" --namespace "\$namespace" --value \$value --region us-east-1 --dimensions "OnAMIExperiment=\$on_ami_experiment" || true
 }
 EOF
@@ -167,6 +172,16 @@ fallback_to_node16() {
   echo $FALLBACK_TO_NODE16 >> $RUNNER_ENV
 }
 
+get_labels_from_config() {
+  while [[ "$#" -gt 0 ]]; do
+    case $1 in
+      --labels) target="$2"; shift ;;
+    esac
+    shift
+  done
+  echo $target | sed 's/,/\n/g'
+}
+
 cd /home/$USER_NAME
 mkdir actions-runner && cd actions-runner
 
@@ -191,13 +206,15 @@ while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-dec
     fi
 done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
-echo "Configuration received: '$CONFIG'"
+retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 
+echo "Configuration received: '$CONFIG'"
 if echo "$CONFIG" | grep -q "#ON_AMI_EXPERIMENT"; then
   CONFIG=$(echo "$CONFIG" | sed 's/ #ON_AMI_EXPERIMENT//g')
   touch /home/$USER_NAME/on-ami-experiment
 fi
-retry aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
+
+get_labels_from_config $CONFIG > /home/$USER_NAME/runner-labels
 
 export RUNNER_ALLOW_RUNASROOT=1
 os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)

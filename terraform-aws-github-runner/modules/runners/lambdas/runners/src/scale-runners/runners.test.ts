@@ -535,7 +535,7 @@ describe('createRunner', () => {
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
       expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
     });
 
     it('calls run instances with the correct config for repo && linux && organization', async () => {
@@ -559,7 +559,7 @@ describe('createRunner', () => {
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
       expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, true));
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
     });
 
     it('calls run instances with the correct config for repo && windows', async () => {
@@ -581,7 +581,7 @@ describe('createRunner', () => {
       await createRunner(runnerParameters, metrics);
 
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
       const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
       expect(mockEC2.runInstances).toBeCalledWith({
@@ -647,7 +647,7 @@ describe('createRunner', () => {
         metrics,
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
       expect(mockSSM.putParameter).toBeCalledTimes(1);
       expect(mockSSM.putParameter).toBeCalledWith({
         Name: 'unit-test-env-i-1234',
@@ -903,7 +903,7 @@ describe('createRunner', () => {
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
       expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 2));
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0]);
+      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0], false);
     });
 
     it('succeed, 2nd subnet and 1st region', async () => {
@@ -935,7 +935,7 @@ describe('createRunner', () => {
         createExpectedRunInstancesLinux(runnerParameters, 4, false, 'vpc-agdgaduwg113-12'),
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0]);
+      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0], false);
     });
 
     it('succeed, 1nd subnet and 2nd region', async () => {
@@ -983,7 +983,7 @@ describe('createRunner', () => {
         ),
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
-      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[1]);
+      expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[1], false);
     });
 
     it('fails, everywere', async () => {
