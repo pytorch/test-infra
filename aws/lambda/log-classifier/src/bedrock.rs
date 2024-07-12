@@ -1,5 +1,6 @@
 mod prompts;
 
+use crate::engine::get_snippets;
 use crate::log::Log;
 use aws_config::BehaviorVersion;
 use aws_sdk_bedrockruntime::operation::converse::ConverseError;
@@ -63,46 +64,6 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> Option<String> {
     None
 }
 
-/// Creates a snippet of the log that is n lines long.
-/// The end of the snippet is the specified error line.
-///
-/// # Arguments
-///
-/// * `log` - A reference to the Log structure containing the full log
-/// * `error_line` - A string slice that should be contained in the error line
-/// * `num_lines` - The maximum number of lines to include in the snippet
-///
-/// # Returns
-///
-/// A vector of strings representing the log snippet. If the error line is not found,
-/// an empty vector is returned.
-fn create_log_snippet(log: &Log, error_line: &str, num_lines: usize) -> Vec<String> {
-    let mut snippet: Vec<String> = Vec::new();
-    let mut found_error_line = false;
-
-    // Find the error line and collect lines up to it
-    for (_, line) in log.lines.iter().enumerate() {
-        let (_, line_content) = line;
-        snippet.push(line_content.to_string());
-        if line_content.contains(error_line) {
-            found_error_line = true;
-            break;
-        }
-    }
-
-    // If the error line is not found, return an empty vector
-    if !found_error_line {
-        return Vec::new();
-    }
-
-    // If the snippet is too large, shrink it to the size of num_lines by cutting off the beginning
-    if snippet.len() > num_lines {
-        snippet = snippet.split_at(snippet.len() - num_lines - 1).1.to_vec();
-    }
-
-    snippet
-}
-
 /// Makes a query to an AI model using the provided log snippet.
 ///
 /// This function creates a log snippet, sends it to two different AI models,
@@ -111,18 +72,25 @@ fn create_log_snippet(log: &Log, error_line: &str, num_lines: usize) -> Vec<Stri
 /// # Arguments
 ///
 /// * `log` - A reference to the Log structure containing the full log
-/// * `error_line` - A string slice that should be contained in the error line
+/// * `error_line` - The line number of the error
 /// * `num_lines` - The maximum number of lines to include in the log snippet
 ///
 /// # Returns
 ///
 /// An Option<String> containing the validated AI response, or None if no valid response was found.
-pub async fn make_query(log: &Log, error_line: &str, num_lines: usize) -> Option<String> {
+pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<String> {
     let model_id_primary = "anthropic.claude-3-haiku-20240307-v1:0";
     let model_id_secondary = "anthropic.claude-3-5-sonnet-20240620-v1:0";
+    let line_numbers = vec![*error_line];
 
-    let log_snippet = create_log_snippet(log, error_line, num_lines);
-    let input_text = log_snippet.join("\n");
+    let log_snippet = get_snippets(log, line_numbers, num_lines, num_lines + 1);
+
+    // ensure length is 1 of the log_snippet
+    if log_snippet.len() != 1 {
+        return None;
+    }
+
+    let input_text = log_snippet.first().unwrap();
 
     // Try the primary model
     let response = make_bedrock_call(&input_text, model_id_primary).await;
@@ -194,26 +162,8 @@ async fn make_bedrock_call(
 #[cfg(test)]
 mod test {
     use super::*;
-    use insta::assert_snapshot;
     use crate::log::Log;
     use std::fs;
-
-    #[test]
-    fn test_create_log_snippet() {
-        // Read the input log file
-        let log_content = fs::read_to_string("fixtures/error_log1.txt");
-        let log = Log::new(log_content.unwrap());
-        // Define the error line and number of lines for the snippet
-        let error_line = "##[error]Process completed with exit code 1.";
-        let num_lines = 100;
-
-        // Call the function
-        let result = create_log_snippet(&log, error_line, num_lines);
-        // Convert result to a string
-        let result_string = result.join("\n");
-        // Assert against the snapshot
-        assert_snapshot!(result_string);
-    }
 
     #[test]
     fn test_validate_output_in_log() {
@@ -259,8 +209,7 @@ mod test {
         assert_eq!(validation_log_partial_tag2, None);
     }
 
-
-    // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
+    // // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
     // #[tokio::test]
     // async fn test_make_query() {
     //     // Read the input log file
@@ -268,11 +217,11 @@ mod test {
     //         .expect("FIXTURES/error_log1.txt should exist!");
     //     let log = Log::new(log_content);
     //     // Define the error line and number of lines for the snippet
-    //     let error_line = "##[error]Process completed with exit code 1.";
-    //     let num_lines = 100;
+    //     let error_line = 4047;
+    //     let num_lines = 200;
 
     //     // Call the make_query function
-    //     let query_result = make_query(&log, error_line, num_lines).await;
+    //     let query_result = make_query(&log, &error_line, num_lines).await;
     //     panic!("The query result is | {:#?}", query_result.unwrap());
     // }
 }

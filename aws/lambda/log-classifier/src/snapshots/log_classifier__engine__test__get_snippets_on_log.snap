@@ -1,0 +1,5 @@
+---
+source: src/engine.rs
+expression: result_string
+---
+##[error]Process completed with exit code 1.
