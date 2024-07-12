@@ -145,7 +145,7 @@ async function createRunnerConfigArgument(
   const labelsArgument = [
     `AWS:${awsRegion}`,
     `${runnerType.runnerTypeName}`,
-    ...(experimentalRunner ? ['experimentalAMI'] : []),
+    ...(experimentalRunner ? ['experimental.ami'] : []),
     ...(Config.Instance.runnersExtraLabels ? Config.Instance.runnersExtraLabels.split(',') : []),
     ...(runnerType.labels ?? []),
   ].join(',');
