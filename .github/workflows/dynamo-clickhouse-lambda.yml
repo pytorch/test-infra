@@ -29,7 +29,6 @@ jobs:
   #     - run: pytest -v test_lambda_function.py
 
   deploy:
-    needs: test
     runs-on: ubuntu-22.04
     permissions:
       id-token: write
