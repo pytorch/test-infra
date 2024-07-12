@@ -1,0 +1,35 @@
+---
+source: src/engine.rs
+expression: result_string
+---
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/XNNPACK/config	remote.origin.url
+Entering 'third_party/benchmark'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/benchmark/config	remote.origin.url
+Entering 'third_party/cpp-httplib'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/cpp-httplib/config	remote.origin.url
+Entering 'third_party/cpuinfo'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/cpuinfo/config	remote.origin.url
+Entering 'third_party/cudnn_frontend'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/cudnn_frontend/config	remote.origin.url
+Entering 'third_party/cutlass'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/cutlass/config	remote.origin.url
+Entering 'third_party/eigen'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/eigen/config	remote.origin.url
+Entering 'third_party/fbgemm'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/fbgemm/config	remote.origin.url
+
+Entering 'third_party/foxi'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/foxi/config	remote.origin.url
+Entering 'third_party/gemmlowp/gemmlowp'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/gemmlowp/gemmlowp/config	remote.origin.url
+Entering 'third_party/gloo'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/gloo/config	remote.origin.url
+Entering 'third_party/googletest'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/googletest/config	remote.origin.url
+Entering 'third_party/ideep'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/ideep/config	remote.origin.url
+Entering 'third_party/ideep/mkl-dnn'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/ideep/modules/mkl-dnn/config	remote.origin.url
+Entering 'third_party/ittapi'
+file:/home/ec2-user/actions-runner/_work/pytorch/pytorch/.git/modules/third_party/ittapi/config	remote.origin.url
+Entering 'third_party/kineto'
