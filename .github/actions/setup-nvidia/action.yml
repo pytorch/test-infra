@@ -246,7 +246,9 @@ runs:
           echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
 
           # Fix https://github.com/NVIDIA/nvidia-docker/issues/1648 on runners with
-          # more than one GPUs. This just needs to be run once
+          # more than one GPUs. This just needs to be run once. The command fails
+          # on subsequent runs and complains that the mode is already on, but that's
+          # ok
           sudo nvidia-persistenced || true
           # This should show persistence mode ON
           nvidia-smi
