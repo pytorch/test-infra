@@ -326,7 +326,7 @@ function RevertInfoCopy({ job }: { job: JobData }) {
     info.push(testName);
   }
   info.push(job.htmlUrl);
-  info.push(`${location.host}/${job.repo}/commit/${job.sha}`);
+  info.push(`https://hud.pytorch.org/${job.repo}/commit/${job.sha}`);
   return CopyLink({
     textToCopy: info.join(" "),
     copyPrompt: "Revert Info",
