@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import re
@@ -13,23 +14,25 @@ def run_cmd_or_die(cmd):
         stdout=subprocess.PIPE,
         stdin=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+        bufsize=-1,
     )
-    p.stdin.write("set -e\n")
-    p.stdin.write(cmd)
-    p.stdin.write("\nexit $?\n")
-    p.stdin.close()
+    wrapped_stdin = io.TextIOWrapper(p.stdin, encoding="utf-8", errors='backslashreplace')
+    wrapped_stdin.write("set -e\n")
+    wrapped_stdin.write(cmd)
+    wrapped_stdin.write("\nexit $?\n")
+    wrapped_stdin.flush() 
+    wrapped_stdin.close()
 
+    wrapped_stdout = io.TextIOWrapper(p.stdout, encoding='utf-8', errors='backslashreplace')
     result = ""
     while p.poll() is None:
-        line = p.stdout.readline()
+        line = wrapped_stdout.readline()
         if line:
             print(line, end="")
         result += line
 
     # Read any remaining output
-    for line in p.stdout:
+    for line in wrapped_stdout:
         print(line, end="")
         result += line
 
