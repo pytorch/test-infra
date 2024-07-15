@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
+import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
 import TestInsightsLink from "./TestInsights";
@@ -81,6 +82,11 @@ export default function JobLinks({
     subInfo.push(testInsightsLink);
   }
 
+  const revertInfoCopy = RevertInfoCopy({ job: job });
+  if (revertInfoCopy != null) {
+    subInfo.push(revertInfoCopy);
+  }
+
   const disableTestButton = DisableTest({ job: job, label: "skipped" });
   if (disableTestButton != null) {
     subInfo.push(disableTestButton);
@@ -120,7 +126,11 @@ export default function JobLinks({
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED.* ([^ ]+\.py)::(.*)::(test_\S*)/;
-function getTestName(failureCapture: string, reproduction: boolean = false) {
+function getTestName(
+  failureCapture: string,
+  reproduction: boolean = false,
+  onlyTestName: boolean = false
+) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
     return unittestMatch[1];
@@ -129,6 +139,9 @@ function getTestName(failureCapture: string, reproduction: boolean = false) {
   if (pytestMatch !== null) {
     if (reproduction) {
       return `python ${pytestMatch[1]}.py -k ${pytestMatch[1]}::${pytestMatch[2]}::${pytestMatch[3]}`;
+    }
+    if (onlyTestName) {
+      return `${pytestMatch[1]}::${pytestMatch[2]}::${pytestMatch[3]}`;
     }
     return `${pytestMatch[3]} (__main__.${pytestMatch[2]})`;
   }
@@ -300,4 +313,23 @@ function DisableIssue({
       <button className={buttonStyle}>{linkText}</button>
     </a>
   );
+}
+
+function RevertInfoCopy({ job }: { job: JobData }) {
+  const info = [];
+  const testName = getTestName(
+    (job.failureLines && job.failureLines[0]) ?? "",
+    false,
+    true
+  );
+  if (testName !== null) {
+    info.push(testName);
+  }
+  info.push(job.htmlUrl);
+  info.push(`${location.host}/${job.repo}/commit/${job.sha}`);
+  return CopyLink({
+    textToCopy: info.join(" "),
+    copyPrompt: "Revert Info",
+    compressed: false,
+  });
 }

@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import useCopyClipboard from "react-use-clipboard";
+import Emoji from "./SmallerEmoji";
 
 export default function CopyLink({
   textToCopy,
   style,
+  copyPrompt = "Permalink",
   compressed = true, // Whether a small or large button should be used
 }: {
   textToCopy: string;
   style?: React.CSSProperties;
+  copyPrompt?: string;
   compressed?: boolean;
 }) {
   const [isCopied, setCopied] = useCopyClipboard(textToCopy);
@@ -21,14 +24,11 @@ export default function CopyLink({
     }, 3000);
   };
 
-  const copy_prompt = "Permalink";
-  const copy_ack = "Copied";
+  const copyAck = "Copied";
 
-  function getButtonText(baseIcon: string, elaboration: string) {
-    if (compressed) {
-      return baseIcon;
-    } else {
-      return `${baseIcon} ${elaboration}`;
+  function getButtonText(elaboration: string) {
+    if (!compressed) {
+      return elaboration;
     }
   }
 
@@ -38,12 +38,18 @@ export default function CopyLink({
   return (
     <button
       style={css_style}
-      title={isCopied ? copy_ack : copy_prompt}
+      title={isCopied ? copyAck : copyPrompt}
       onClick={onClick}
     >
-      {showCopied
-        ? getButtonText("✅", copy_ack)
-        : getButtonText("🔗", copy_prompt)}
+      {showCopied ? (
+        <>
+          <Emoji emoji="✅" /> {getButtonText(copyAck)}
+        </>
+      ) : (
+        <>
+          <Emoji emoji="🔗" /> {getButtonText(copyPrompt)}
+        </>
+      )}
     </button>
   );
 }
