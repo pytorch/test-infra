@@ -194,8 +194,8 @@ async fn make_bedrock_call(
 #[cfg(test)]
 mod test {
     use super::*;
-    use insta::assert_snapshot;
     use crate::log::Log;
+    use insta::assert_snapshot;
     use std::fs;
 
     #[test]
@@ -258,7 +258,6 @@ mod test {
         // Assert is validation_log_partial_tag2 is None
         assert_eq!(validation_log_partial_tag2, None);
     }
-
 
     // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
     // #[tokio::test]
