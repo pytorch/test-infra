@@ -36,10 +36,13 @@ jobs:
       script: |
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-cpu:
+    strategy:
+      matrix:
+        runner_type: ["linux.2xlarge", "ubuntu-22.04"]
     uses: ./.github/workflows/linux_job.yml
     with:
       job-name: "linux-py3.8-cpu"
-      runner: linux.2xlarge
+      runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: "recursive"
@@ -55,7 +58,7 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     strategy:
       matrix:
-        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
+        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu", "4-core-ubuntu-gpu-t4"]
     with:
       job-name: "linux-py3.8-cu121"
       runner: ${{ matrix.runner_type }}
