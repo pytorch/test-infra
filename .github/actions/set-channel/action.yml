@@ -2,7 +2,6 @@ name: Set Channel for Build Matrix Generation/Binary Build Step
 
 description: Add CHANNEL to GITHUB_ENV
 
-
 runs:
   using: composite
   steps:
