@@ -26,6 +26,7 @@ serde_dynamo = { version = "4.2.14", features = ["aws-sdk-dynamodb+1"] }
 aws-sdk-bedrockruntime = "1.38.0"
 aws-smithy-runtime-api = "1.7.1"
 insta = { version = "1.20.0", features = ["redactions", "yaml"] }
+assert_unordered = "0.3.5"
   [dependencies.serde]
   version = "1.0.144"
   features = [ "derive" ]
