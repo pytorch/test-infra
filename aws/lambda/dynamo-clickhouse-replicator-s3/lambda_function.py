@@ -76,7 +76,7 @@ def extract_key(record: Any) -> Optional[str]:
 
 def get_s3_object(bucket: str, key: str) -> Dict[str, Any]:
     response = s3.get_object(Bucket=bucket, Key=key)
-    return json.loads(esponse["Body"].read().decode("utf-8"))
+    return json.loads(response["Body"].read().decode("utf-8"))
 
 
 def upsert_document(client: Any, record: Any) -> None:
