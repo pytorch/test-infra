@@ -94,7 +94,7 @@ export default function JobLinks({
     }
   }
 
-  if (authenticated && job.failureLines) {
+  if (job.failureLines) {
     const reproComamnd = ReproductionCommand({
       job: job,
       separator: "",
@@ -119,7 +119,7 @@ export default function JobLinks({
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
-const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
+const pytestFailureRe = /^FAILED.* ([^ ]+\.py)::(.*)::(test_\S*)/;
 function getTestName(failureCapture: string, reproduction: boolean = false) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
@@ -128,9 +128,9 @@ function getTestName(failureCapture: string, reproduction: boolean = false) {
   const pytestMatch = failureCapture.match(pytestFailureRe);
   if (pytestMatch !== null) {
     if (reproduction) {
-      return `python ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
+      return `python ${pytestMatch[1]}.py -k ${pytestMatch[1]}::${pytestMatch[2]}::${pytestMatch[3]}`;
     }
-    return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
+    return `${pytestMatch[3]} (__main__.${pytestMatch[2]})`;
   }
   return null;
 }
