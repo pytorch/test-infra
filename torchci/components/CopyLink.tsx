@@ -1,16 +1,18 @@
 import React, { useState } from "react";
+import { FaCheck, FaLink, FaRegCopy } from "react-icons/fa";
 import useCopyClipboard from "react-use-clipboard";
-import Emoji from "./SmallerEmoji";
 
 export default function CopyLink({
   textToCopy,
   style,
   copyPrompt = "Permalink",
+  link = true, // Whether this is a link or not, controls the icon shown
   compressed = true, // Whether a small or large button should be used
 }: {
   textToCopy: string;
   style?: React.CSSProperties;
   copyPrompt?: string;
+  link?: boolean;
   compressed?: boolean;
 }) {
   const [isCopied, setCopied] = useCopyClipboard(textToCopy);
@@ -43,13 +45,21 @@ export default function CopyLink({
     >
       {showCopied ? (
         <>
-          <Emoji emoji="✅" /> {getButtonText(copyAck)}
+          <SmallIcon>
+            <FaCheck />
+          </SmallIcon>{" "}
+          {getButtonText(copyAck)}
         </>
       ) : (
         <>
-          <Emoji emoji="🔗" /> {getButtonText(copyPrompt)}
+          <SmallIcon>{link ? <FaLink /> : <FaRegCopy />}</SmallIcon>{" "}
+          {getButtonText(copyPrompt)}
         </>
       )}
     </button>
   );
+}
+
+function SmallIcon({ children }: { children: React.ReactNode }) {
+  return <span style={{ fontSize: "80%" }}>{children}</span>;
 }

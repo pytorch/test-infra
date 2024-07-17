@@ -3,7 +3,7 @@ import { useSession } from "next-auth/react";
 import React from "react";
 import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
-import { transformJobName } from "../lib/jobUtils";
+import { isFailedJob, transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
@@ -82,9 +82,11 @@ export default function JobLinks({
     subInfo.push(testInsightsLink);
   }
 
-  const revertInfoCopy = RevertInfoCopy({ job: job });
-  if (revertInfoCopy != null) {
-    subInfo.push(revertInfoCopy);
+  if (isFailedJob(job)) {
+    const revertInfoCopy = RevertInfoCopy({ job: job });
+    if (revertInfoCopy != null) {
+      subInfo.push(revertInfoCopy);
+    }
   }
 
   const disableTestButton = DisableTest({ job: job, label: "skipped" });
@@ -331,5 +333,6 @@ function RevertInfoCopy({ job }: { job: JobData }) {
     textToCopy: info.join(" "),
     copyPrompt: "Revert Info",
     compressed: false,
+    link: false,
   });
 }
