@@ -62,6 +62,8 @@ def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
 
     if key.startswith("merges"):
         return "merges"
+    if key.startswith("queue_times_historical"):
+        return "queue_times_historical"
     return None
 
 def extract_bucket(record: Any) -> Optional[str]:
