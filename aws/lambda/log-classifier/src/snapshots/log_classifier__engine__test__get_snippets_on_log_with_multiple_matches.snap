@@ -1,0 +1,36 @@
+---
+source: src/engine.rs
+expression: result_string
+---
+To execute this test, run the following from the base repo dir:
+    python test/inductor/test_triton_kernels.py -k KernelTests.test_triton_kernel_tracing_dynamic_True
+
+This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0
+- generated xml file: /var/lib/jenkins/workspace/test/test-reports/python-pytest/inductor.test_triton_kernels/inductor.test_triton_kernels-4cb79fa066a39504.xml -
+=========================== short test summary info ============================
+FAILED [0.0103s] inductor/test_triton_kernels.py::KernelTests::test_triton_kernel_tracing_dynamic_True - TypeError: unhashable type: non-nested SymInt
+
+To execute this test, run the following from the base repo dir:
+    python test/inductor/test_triton_kernels.py -k KernelTests.test_triton_kernel_tracing_dynamic_True
+
+This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+================== 1 failed, 182 deselected, 2 rerun in 0.36s ==================
+Got exit code 1
+
++ echo 'sudo may print the following warning message that can be ignored. The chown command will still run.'
+sudo may print the following warning message that can be ignored. The chown command will still run.
++ echo '    sudo: setrlimit(RLIMIT_STACK): Operation not permitted'
+    sudo: setrlimit(RLIMIT_STACK): Operation not permitted
++ echo 'For more details refer to https://github.com/sudo-project/sudo/issues/42'
+For more details refer to https://github.com/sudo-project/sudo/issues/42
++ sudo chown -R 1000 /var/lib/jenkins/workspace
+##[error]Process completed with exit code 1.
+Prepare all required actions
+Getting action download info
+##[group]Run ./.github/actions/pytest-cache-upload
+with:
+  cache_dir: .pytest_cache
+  shard: 1
+  sha: febadda107e5bfd78d32a276000a313b3b10f41b
+  test_config: default
