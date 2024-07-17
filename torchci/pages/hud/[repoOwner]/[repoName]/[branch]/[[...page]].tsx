@@ -587,16 +587,19 @@ function GroupedHudTable({
     refreshInterval: 300 * 1000, // refresh every 5 minutes
   });
 
-  const { shaGrid, groupNameMapping } = getGroupingData(
-    data.shaGrid,
-    data.jobNames,
-    unstableIssuesData ? unstableIssuesData.issues : []
-  );
-  const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-
+  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
+
+  const { shaGrid, groupNameMapping } = getGroupingData(
+    data.shaGrid,
+    data.jobNames,
+    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+    unstableIssuesData ? unstableIssuesData.issues : []
+  );
+
+  const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
   const router = useRouter();
   useEffect(() => {
@@ -604,8 +607,6 @@ function GroupedHudTable({
     // the value in local storage
     track(router, "groupingPreference", { useGrouping: useGrouping });
   }, [router, useGrouping]);
-
-  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = sortGroupNamesForHUD(groupNames);
