@@ -497,7 +497,9 @@ def classify_jobs(
     return jobs_to_alert_on, flaky_jobs
 
 
-def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
+def handle_flaky_tests_alert(
+    existing_alerts: List[Dict], dry_run: bool = False
+) -> Dict:
     if not existing_alerts:
         from_date = (
             datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
@@ -510,7 +512,7 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
             num_issues_with_flaky_tests_lables,
         )
         if num_issues_with_flaky_tests_lables == 0:
-            return create_issue(generate_no_flaky_tests_issue(), False)
+            return create_issue(generate_no_flaky_tests_issue(), dry_run=dry_run)
 
     print("No new alert for flaky tests bots.")
     return None
