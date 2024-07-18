@@ -65,6 +65,17 @@ EOF
 . /home/$USER_NAME/runner-scripts/utils.sh
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+
+# See all meta
+echo "Instance Type: $(curl http://169.254.169.254/latest/meta-data/instance-type)"
+echo "AMI Type: $(curl http://169.254.169.254/latest/meta-data/ami-id)"
+
+# The second line contains the runner type
+echo "Runner Type: $(sed -n '2p' /home/ec2-user/runner-labels)"
+
+# Print everything but the second line (runner type), comma separated
+echo "Other Labels: $(sed -n -e '1p' -e '3,$p' /home/ec2-user/runner-labels | paste -sd ',' -)"
+
 metric_report "runner_scripts.before_job" 1
 EOF
   chmod 755 $BEFORE_JOB_SCRIPT
