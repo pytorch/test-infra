@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'terraform-aws-github-runnerr/**'
+      - 'terraform-aws-github-runner/**'
 
 jobs:
   tag:
