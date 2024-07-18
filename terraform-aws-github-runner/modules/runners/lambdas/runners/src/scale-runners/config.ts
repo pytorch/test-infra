@@ -6,6 +6,7 @@ export class Config {
   readonly awsRegion: string;
   readonly awsRegionInstances: string[];
   readonly awsRegionsToVpcIds: Map<string, Array<string>>;
+  readonly azToSubnetIds: Map<string, Array<string>>;
   readonly cantHaveIssuesLabels: string[];
   readonly datetimeDeploy: string | undefined;
   readonly enableOrganizationRunners: boolean;
@@ -17,12 +18,12 @@ export class Config {
   readonly kmsKeyId: string | undefined;
   readonly lambdaTimeout: number;
   readonly launchTemplateNameLinux: string | undefined;
-  readonly launchTemplateNameLinuxNvidia: string | undefined;
   readonly launchTemplateNameLinuxARM64: string | undefined;
+  readonly launchTemplateNameLinuxNvidia: string | undefined;
   readonly launchTemplateNameWindows: string | undefined;
   readonly launchTemplateVersionLinux: string | undefined;
-  readonly launchTemplateVersionLinuxNvidia: string | undefined;
   readonly launchTemplateVersionLinuxARM64: string | undefined;
+  readonly launchTemplateVersionLinuxNvidia: string | undefined;
   readonly launchTemplateVersionWindows: string | undefined;
   readonly maxRetryScaleUpRecord: number;
   readonly minAvailableRunners: number;
@@ -38,11 +39,12 @@ export class Config {
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
   readonly secretsManagerSecretsId: string | undefined;
+  readonly sSMParamCleanupAgeDays: number;
+  readonly sSMParamMaxCleanupCount: number;
+  readonly subnetIdToAZ: Map<string, string>;
+  readonly subnetIdToVpcId: Map<string, string>;
   readonly vpcIdToSecurityGroupIds: Map<string, Array<string>>;
   readonly vpcIdToSubnetIds: Map<string, Array<string>>;
-  readonly subnetIdToVpcId: Map<string, string>;
-  readonly subnetIdToAZ: Map<string, string>;
-  readonly azToSubnetIds: Map<string, Array<string>>;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
@@ -98,6 +100,8 @@ export class Config {
     this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || 'test-infra';
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
+    this.sSMParamCleanupAgeDays = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '7');
+    this.sSMParamMaxCleanupCount = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '500');
     this.vpcIdToSecurityGroupIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SECURITY_GROUP_IDS);
     this.vpcIdToSubnetIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SUBNET_IDS);
     this.subnetIdToVpcId = new Map();

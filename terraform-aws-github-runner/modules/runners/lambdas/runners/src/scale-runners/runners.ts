@@ -198,11 +198,17 @@ export function getParameterNameForRunner(environment: string, instanceId: strin
   return `${environment}-${instanceId}`;
 }
 
-export async function listSSMParameters(metrics: Metrics, awsRegion: string): Promise<Set<string>> {
-  let parametersSet: Set<string> = ssmParametersCache.get(awsRegion) as Set<string>;
+export async function listSSMParameters(
+  metrics: Metrics,
+  awsRegion: string,
+): Promise<Map<string, SSM.ParameterMetadata>> {
+  let parametersSet: Map<string, SSM.ParameterMetadata> = ssmParametersCache.get(awsRegion) as Map<
+    string,
+    SSM.ParameterMetadata
+  >;
 
   if (parametersSet === undefined) {
-    parametersSet = new Set();
+    parametersSet = new Map<string, SSM.ParameterMetadata>();
     const ssm = new SSM({ region: awsRegion });
     let nextToken: string | undefined = undefined;
 
@@ -226,7 +232,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
       response.Parameters?.forEach((metadata) => {
         /* istanbul ignore next */
         if (metadata.Name) {
-          parametersSet.add(metadata.Name);
+          parametersSet.set(metadata.Name, metadata);
         }
       });
     } while (nextToken);
@@ -237,7 +243,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
   return parametersSet;
 }
 
-async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<void> {
+export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<boolean> {
   try {
     const ssm = new SSM({ region: awsRegion });
     await expBackOff(() => {
@@ -250,12 +256,14 @@ async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegi
         },
       );
     });
-    console.info(`[${awsRegion}] Parameter deleted: ${paramName}`);
+    console.debug(`[${awsRegion}] Parameter deleted: ${paramName}`);
+    return true;
   } catch (e) {
     /* istanbul ignore next */
     console.error(
       `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` + `deleting parameter ${paramName}: ${e}`,
     );
+    return false;
   }
 }
 
