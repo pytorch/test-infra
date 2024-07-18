@@ -3,10 +3,11 @@ name: Setup Linux
 description: Set up Docker workspace on EC2
 
 inputs:
-  nvidia-driver-version:
+  nvidia-driver:
     description: If set will install required nvidia driver
     required: false
-    default: ""
+    type: string
+    default: ''
 
 runs:
   using: composite
@@ -83,14 +84,14 @@ runs:
         echo "does=${needs}" >> $GITHUB_OUTPUT
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 && inputs.nvidia-driver-version == ""}}
+      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 && inputs.nvidia-driver == ''}}
       uses: pytorch/test-infra/.github/actions/setup-nvidia@main
 
     - name: Install nvidia driver specific version, nvidia-docker runtime, set GPU_FLAG
-      if: ${{ inputs.nvidia-driver-version != "" }}
+      if: ${{ inputs.nvidia-driver != '' }}
       uses: pytorch/test-infra/.github/actions/setup-nvidia@main
       with:
-        nvidia-driver: inputs.nvidia-driver-version
+        nvidia-driver: inputs.nvidia-driver
 
     - name: Kill any existing containers, clean up images
       shell: bash
