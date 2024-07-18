@@ -6,7 +6,7 @@ import os
 import re
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Set, Tuple
 
@@ -498,13 +498,7 @@ def classify_jobs(
 
 
 def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
-    if (
-        not existing_alerts
-        or datetime.fromisoformat(
-            existing_alerts[0]["createdAt"].replace("Z", "+00:00")
-        ).date()
-        != datetime.today().date()
-    ):
+    if not existing_alerts:
         from_date = (
             datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
         ).strftime("%Y-%m-%d")
@@ -598,7 +592,17 @@ def check_for_no_flaky_tests_alert(repo: str, branch: str):
     existing_no_flaky_tests_alerts = fetch_alerts(
         labels=[NO_FLAKY_TESTS_LABEL],
     )
-    handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
+    open_alerts = [
+        alert for alert in existing_no_flaky_tests_alerts if not alert["closed"]
+    ]
+    recent_open_alerts = [
+        existing_alert
+        for existing_alert in open_alerts
+        if datetime.now(timezone.utc)
+        - datetime.fromisoformat(existing_alert["createdAt"].replace("Z", "+00:00"))
+        < timedelta(days=7)
+    ]
+    handle_flaky_tests_alert(recent_open_alerts)
 
 
 def parse_args() -> argparse.Namespace:
