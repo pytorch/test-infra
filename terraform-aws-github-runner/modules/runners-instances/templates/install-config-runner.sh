@@ -66,11 +66,15 @@ EOF
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 
-instance_id=\$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-region=\$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+# Use the IDMS v2 token
+token=\$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s)
+
+# Use the token to fetch instance metadata
+instance_id=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/instance-id)
+region=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/placement/region)
 runner_type=\$(aws ec2 describe-tags --filters "Name=resource-id,Values=\$instance_id" "Name=key,Values=RunnerType" --query 'Tags[0].Value' --output text --region \$region)
-instance_type=\$(curl -s http://169.254.169.254/latest/meta-data/instance-type)
-ami_id=\$(curl -s http://169.254.169.254/latest/meta-data/ami-id)
+instance_type=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/instance-type)
+ami_id=$\(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/ami-id)
 
 echo "Runner Type: \$runner_type"
 echo "Instance Type: \$instance_type"
@@ -104,7 +108,7 @@ PROC_LOGS_FILE="/home/$USER_NAME/.proc_logs"
 
 function update_curr_logs_file {
     pushd /home/$USER_NAME/actions-runner/_diag >/dev/null
-    ls -a Worker_* | cat | sort > \$CURR_LOGS_FILE
+    ls -a Worker_* | cat | sort > $CURR_LOGS_FILE
     popd >/dev/null
 }
 
