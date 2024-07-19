@@ -81,7 +81,7 @@ export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
 
 export function filterThreshold(
   tests: FlakyTestData[],
-  threshold: number = 1
+  threshold: number = 2
 ): FlakyTestData[] {
   return tests.filter((test) => new Set(test.jobIds).size > threshold);
 }
