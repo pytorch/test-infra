@@ -66,14 +66,21 @@ EOF
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 
-instance_id=\$(curl http://169.254.169.254/latest/meta-data/instance-id)
-region=\$(curl http://169.254.169.254/latest/meta-data/placement/region)
+instance_id=\$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+region=\$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 runner_type=\$(aws ec2 describe-tags --filters "Name=resource-id,Values=\$instance_id" "Name=key,Values=RunnerType" --query 'Tags[0].Value' --output text --region \$region)
-instance_type=\$(curl http://169.254.169.254/latest/meta-data/instance-type)
-ami_id=$(curl http://169.254.169.254/latest/meta-data/ami-id)"
+instance_type=\$(curl -s http://169.254.169.254/latest/meta-data/instance-type)
+ami_id=\$(curl -s http://169.254.169.254/latest/meta-data/ami-id)
 
 echo "Runner Type: \$runner_type"
 echo "Instance Type: \$instance_type"
+
+case \$ami_id in
+  ami-0ce0c36d7a00b20e2) echo "AMI Name: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs";;
+  ami-06c68f701d8090592) echo "AMI Name: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64";;
+  *) echo "AMI Name: unknown";;
+esac
+
 echo "AMI ID: \$ami_id"
 
 metric_report "runner_scripts.before_job" 1
