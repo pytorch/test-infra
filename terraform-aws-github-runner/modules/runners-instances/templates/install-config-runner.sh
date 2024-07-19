@@ -65,6 +65,28 @@ EOF
 . /home/$USER_NAME/runner-scripts/utils.sh
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
+
+# Use the IDMS v2 token
+token=\$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 600" -s)
+
+# Use the token to fetch instance metadata
+instance_id=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/instance-id)
+region=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/placement/region)
+runner_type=\$(aws ec2 describe-tags --filters "Name=resource-id,Values=\$instance_id" "Name=key,Values=RunnerType" --query 'Tags[0].Value' --output text --region \$region)
+instance_type=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/instance-type)
+ami_id=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/ami-id)
+
+echo "Runner Type: \$runner_type"
+echo "Instance Type: \$instance_type"
+
+case \$ami_id in
+  ami-0ce0c36d7a00b20e2) echo "AMI Name: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs";;
+  ami-06c68f701d8090592) echo "AMI Name: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64";;
+  *) echo "AMI Name: unknown";;
+esac
+
+echo "AMI ID: \$ami_id"
+
 metric_report "runner_scripts.before_job" 1
 EOF
   chmod 755 $BEFORE_JOB_SCRIPT
@@ -86,7 +108,7 @@ PROC_LOGS_FILE="/home/$USER_NAME/.proc_logs"
 
 function update_curr_logs_file {
     pushd /home/$USER_NAME/actions-runner/_diag >/dev/null
-    ls -a Worker_* | cat | sort > \$CURR_LOGS_FILE
+    ls -a Worker_* | cat | sort > $CURR_LOGS_FILE
     popd >/dev/null
 }
 
