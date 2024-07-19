@@ -189,7 +189,7 @@ export function formValidationComment(
 
   body += `
 ### How to re-enable a test
-To re-enable the test globally, close the issue. If you wish to re-enable a test for only a subset of platforms, remove the platforms from the list in the issue body. This may take some time to propagate. If you wish to re-enable a test only for a PR, put \`Fixes #${issueNumber}\` in the PR body and rerun the test jobs. Note that if a test is flaky, it maybe be difficult to tell if the test is still flaky on the PR.
+To re-enable the test globally, close the issue. To re-enable a test for only a subset of platforms, remove the platforms from the list in the issue body. This may take some time to propagate. To re-enable a test only for a PR, put \`Fixes #${issueNumber}\` in the PR body and rerun the test jobs. Note that if a test is flaky, it maybe be difficult to tell if the test is still flaky on the PR.
 `;
 
   body += "</body>";
