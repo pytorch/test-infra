@@ -74,7 +74,7 @@ instance_id=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169
 region=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/placement/region)
 runner_type=\$(aws ec2 describe-tags --filters "Name=resource-id,Values=\$instance_id" "Name=key,Values=RunnerType" --query 'Tags[0].Value' --output text --region \$region)
 instance_type=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/instance-type)
-ami_id=$\(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/ami-id)
+ami_id=\$(curl -H "X-aws-ec2-metadata-token: \$token" -s http://169.254.169.254/latest/meta-data/ami-id)
 
 echo "Runner Type: \$runner_type"
 echo "Instance Type: \$instance_type"
