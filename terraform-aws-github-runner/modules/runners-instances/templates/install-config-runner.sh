@@ -66,15 +66,15 @@ EOF
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 
-# See all meta
-echo "Instance Type: $(curl http://169.254.169.254/latest/meta-data/instance-type)"
-echo "AMI Type: $(curl http://169.254.169.254/latest/meta-data/ami-id)"
+instance_id=\$(curl http://169.254.169.254/latest/meta-data/instance-id)
+region=\$(curl http://169.254.169.254/latest/meta-data/placement/region)
+runner_type=\$(aws ec2 describe-tags --filters "Name=resource-id,Values=\$instance_id" "Name=key,Values=RunnerType" --query 'Tags[0].Value' --output text --region \$region)
+instance_type=\$(curl http://169.254.169.254/latest/meta-data/instance-type)
+ami_id=$(curl http://169.254.169.254/latest/meta-data/ami-id)"
 
-# The second line contains the runner type. Ugly, but this is currently the most reliable way to get it.
-echo "Runner Type: \$(sed -n '2p' /home/$USER_NAME/runner-labels)"
-
-# Print everything but the second line (runner type), comma separated
-echo "Additional Runner Labels: \$(sed -n -e '1p' -e '3,\$p' /home/$USER_NAME/runner-labels | paste -sd ',' -)"
+echo "Runner Type: \$runner_type"
+echo "Instance Type: \$instance_type"
+echo "AMI ID: \$ami_id"
 
 metric_report "runner_scripts.before_job" 1
 EOF
