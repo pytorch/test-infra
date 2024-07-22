@@ -35,6 +35,10 @@ on:
         description: "Build with CPU?"
         default: "enable"
         type: string
+      with-xpu:
+        description: "Build with XPU?"
+        default: "enable"
+        type: string
       use-only-dl-pytorch-org:
         description: "Use only download.pytorch.org when generating wheel install command?"
         default: "false"
@@ -80,6 +84,7 @@ jobs:
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_ROCM: ${{ inputs.with-rocm }}
           WITH_CPU: ${{ inputs.with-cpu }}
+          WITH_XPU: ${{ inputs.with-xpu }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}
