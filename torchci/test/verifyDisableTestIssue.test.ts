@@ -47,7 +47,8 @@ describe("verify-disable-test-issue", () => {
       false,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
 
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
@@ -72,7 +73,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -100,7 +102,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -130,7 +133,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -158,7 +162,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -194,7 +199,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeTruthy();
@@ -217,7 +223,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();
@@ -240,7 +247,8 @@ describe("verify-disable-test-issue", () => {
       true,
       testName,
       platformsToSkip,
-      invalidPlatforms
+      invalidPlatforms,
+      0
     );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();
