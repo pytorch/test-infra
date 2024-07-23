@@ -7,7 +7,11 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { DTYPES } from "components/benchmark/compilers/common";
+import {
+  DEFAULT_DEVICE_NAME,
+  DEVICES,
+  DTYPES,
+} from "components/benchmark/compilers/common";
 import {
   SuitePicker,
   SUITES,
@@ -182,6 +186,7 @@ export default function Page() {
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -222,6 +227,11 @@ export default function Page() {
     const dtype: string = (router.query.dtype as string) ?? undefined;
     if (dtype !== undefined) {
       setDType(dtype);
+    }
+
+    const deviceName: string = (router.query.deviceName as string) ?? undefined;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -282,6 +292,11 @@ export default function Page() {
       type: "string",
       value: dtype,
     },
+    {
+      name: "device",
+      type: "string",
+      value: deviceName,
+    },
   ];
 
   return (
@@ -295,7 +310,9 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+            deviceName
+          )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -319,6 +336,12 @@ export default function Page() {
           setDType={setDType}
           dtypes={DTYPES}
           label={"Precision"}
+        />
+        <DTypePicker
+          dtype={deviceName}
+          setDType={setDeviceName}
+          dtypes={DEVICES}
+          label={"Device"}
         />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}

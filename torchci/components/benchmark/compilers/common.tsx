@@ -52,3 +52,8 @@ export const HELP_LINK =
   "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
 
 export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
+
+export const DEFAULT_DEVICE_NAME = "cuda";
+// TODO (huydhn): there is a way to avoid hard-coding dtypes and devices like how
+// the LLM micro-benchmark page is implemented
+export const DEVICES = ["cuda", "cpu-x86"];
