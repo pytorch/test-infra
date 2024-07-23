@@ -26,12 +26,12 @@ PYTHON_ARCHES_DICT = {
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1", "12.4"],
     "test": ["11.8", "12.1", "12.4"],
-    "release": ["11.8", "12.1"],
+    "release": ["11.8", "12.1", "12.4"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.0", "6.1"],
     "test": ["6.0", "6.1"],
-    "release": ["5.7", "6.0"],
+    "release": ["6.0", "6.1"],
 }
 
 CUDA_CUDDN_VERSIONS = {
@@ -65,7 +65,7 @@ ROCM = "rocm"
 
 CURRENT_NIGHTLY_VERSION = "2.5.0"
 CURRENT_CANDIDATE_VERSION = "2.4.0"
-CURRENT_STABLE_VERSION = "2.3.1"
+CURRENT_STABLE_VERSION = "2.4.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
