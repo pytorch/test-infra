@@ -252,14 +252,14 @@ jobs:
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
-          ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
+          ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
         if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ runner.temp }}
-          ALPINE_IMAGE: ${{ inputs.runner == 'linux.arm64.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
+          ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
         if: always()
