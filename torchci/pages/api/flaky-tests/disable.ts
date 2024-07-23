@@ -83,7 +83,11 @@ export function filterThreshold(
   tests: FlakyTestData[],
   threshold: number = 2
 ): FlakyTestData[] {
-  return tests.filter((test) => new Set(test.jobIds).size > threshold);
+  return tests.filter(
+    (test) =>
+      new Set(test.jobIds).size > threshold &&
+      test.suite != "TestSDPACudaOnlyCUDA" // TODO: Get rid of this when driss fixes the flakiness
+  );
 }
 
 export async function updateExistingIssueForFlakyTest(
