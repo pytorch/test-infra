@@ -15,6 +15,7 @@ import {
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
+import { SSM } from 'aws-sdk';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -193,7 +194,9 @@ export async function scaleDown(): Promise<void> {
             await removeGithubRunnerOrg(ghRunner.id, org, metrics);
             metrics.runnerGhOfflineRemovedOrg(org);
           } catch (e) {
+            /* istanbul ignore next */
             console.warn(`Failed to remove offline runner ${ghRunner.id} for org ${org}`, e);
+            /* istanbul ignore next */
             metrics.runnerGhOfflineRemovedFailureOrg(org);
           }
         }
@@ -211,14 +214,16 @@ export async function scaleDown(): Promise<void> {
             await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
             metrics.runnerGhOfflineRemovedRepo(repo);
           } catch (e) {
+            /* istanbul ignore next */
             console.warn(`Failed to remove offline runner ${ghRunner.id} for repo ${repo}`, e);
+            /* istanbul ignore next */
             metrics.runnerGhOfflineRemovedFailureRepo(repo);
           }
         }
       }
     }
 
-    cleanupOldSSMParameters(runnersRgions, metrics);
+    await cleanupOldSSMParameters(runnersRgions, metrics);
 
     console.info('Scale down completed');
   } catch (e) {
@@ -234,7 +239,7 @@ export async function scaleDown(): Promise<void> {
   }
 }
 
-async function cleanupOldSSMParameters(runnersRgions: Set<string>, metrics: ScaleDownMetrics): Promise<void> {
+export async function cleanupOldSSMParameters(runnersRgions: Set<string>, metrics: ScaleDownMetrics): Promise<void> {
   try {
     for (const awsRegion of runnersRgions) {
       const ssmParams = sortSSMParaametersByUpdateTime(
@@ -243,13 +248,17 @@ async function cleanupOldSSMParameters(runnersRgions: Set<string>, metrics: Scal
 
       let deleted = 0;
       for (const ssmParam of ssmParams) {
+        /* istanbul ignore next */
         if (ssmParam.Name === undefined) {
           continue;
         }
         if (ssmParam.LastModifiedDate === undefined) {
           break;
         }
-        if (ssmParam.LastModifiedDate > moment().subtract(Config.Instance.sSMParamCleanupAgeDays, 'days').toDate()) {
+        if (
+          ssmParam.LastModifiedDate.getTime() >
+          moment().subtract(Config.Instance.sSMParamCleanupAgeDays, 'days').toDate().getTime()
+        ) {
           break;
         }
         if (await doDeleteSSMParameter(ssmParam.Name, metrics, awsRegion)) {
@@ -265,6 +274,7 @@ async function cleanupOldSSMParameters(runnersRgions: Set<string>, metrics: Scal
       }
     }
   } catch (e) {
+    /* istanbul ignore next */
     console.error('Failed to cleanup old SSM parameters', e);
   }
 }

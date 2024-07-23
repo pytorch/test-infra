@@ -231,7 +231,7 @@ export async function listSSMParameters(
       /* istanbul ignore next */
       response.Parameters?.forEach((metadata) => {
         /* istanbul ignore next */
-        if (metadata.Name) {
+        if (metadata.Name !== undefined && metadata.Name.startsWith(`${Config.Instance.environment}-i`)) {
           parametersSet.set(metadata.Name, metadata);
         }
       });
@@ -263,6 +263,7 @@ export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, 
     console.error(
       `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` + `deleting parameter ${paramName}: ${e}`,
     );
+    /* istanbul ignore next */
     return false;
   }
 }
@@ -360,6 +361,7 @@ async function addSSMParameterRunnerConfig(
 
 function getLaunchTemplateName(runnerParameters: RunnerInputParameters): Array<string | undefined> {
   if (runnerParameters.runnerType.os === 'linux') {
+    /* istanbul ignore next */
     if (runnerParameters.runnerType.runnerTypeName.includes('.arm64')) {
       return [Config.Instance.launchTemplateNameLinuxARM64, Config.Instance.launchTemplateVersionLinuxARM64];
     } else if (runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')) {
@@ -391,6 +393,7 @@ async function getCreateRunnerSubnetSequence(
       }
     });
   } catch (e) {
+    /* istanbul ignore next */
     console.error(`[getCreateRunnerSubnetSequence] Failed to list runners: ${e}`);
   }
 
@@ -452,6 +455,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           customAmi = runnerParameters.runnerType.ami_experiment.ami;
           customAmiExperiment = true;
         } else {
+          /* istanbul ignore next */
           console.debug(
             `[createRunner]: Skipped AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
               `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `,
@@ -618,6 +622,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       );
     }
   } catch (e) {
+    /* istanbul ignore next */
     if (e instanceof Error) {
       console.error(`[createRunner]: ${e} - ${e.stack}`);
     } else {

@@ -150,6 +150,7 @@ describe('list instances', () => {
   const config = {
     awsRegion: 'us-east-1',
     shuffledAwsRegionInstances: ['us-east-1'],
+    environment: 'gi-ci',
   };
 
   beforeEach(() => {
@@ -263,16 +264,19 @@ describe('list instances', () => {
 describe('listSSMParameters', () => {
   beforeEach(() => {
     mockSSMdescribeParametersRet.mockClear();
-
     resetRunnersCaches();
+    const config = {
+      environment: 'gi-ci',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
 
   it('calls twice, check if cached, resets cache, calls again', async () => {
-    const api1 = ['lalala', 'helloWorld'];
-    const api2 = ['asdf', 'fdsa'];
-    const api3 = ['AGDGADUWG113', '33'];
-    const ret1 = new Set(api1.concat(api2));
-    const ret2 = new Set(api3);
+    const api1 = ['gi-ci-ilalala', 'gi-ci-ihelloWorld'];
+    const api2 = ['gi-ci-iasdf', 'gi-ci-ifdsa'];
+    const api3 = ['gi-ci-iAGDGADUWG113', 'gi-ci-i33'];
+    const ret1 = new Map(api1.concat(api2).map((s) => [s, { Name: s }]));
+    const ret2 = new Map(api3.map((s) => [s, { Name: s }]));
 
     mockSSMdescribeParametersRet.mockResolvedValueOnce({
       NextToken: 'token',
@@ -307,6 +311,10 @@ describe('terminateRunner', () => {
   beforeEach(() => {
     mockSSMdescribeParametersRet.mockClear();
     mockEC2.terminateInstances.mockClear();
+    const config = {
+      environment: 'gi-ci',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
 
     resetRunnersCaches();
   });
@@ -314,8 +322,8 @@ describe('terminateRunner', () => {
   it('calls terminateInstances', async () => {
     const runner: RunnerInfo = {
       awsRegion: Config.Instance.awsRegion,
-      instanceId: '1234',
-      environment: 'environ',
+      instanceId: 'i-1234',
+      environment: 'gi-ci',
     };
     mockSSMdescribeParametersRet.mockResolvedValueOnce({
       Parameters: [getParameterNameForRunner(runner.environment as string, runner.instanceId)].map((s) => {
@@ -448,6 +456,7 @@ describe('createRunner', () => {
       shuffledVPCsForAwsRegion: jest.fn().mockImplementation(() => {
         return ['vpc-agdgaduwg113'];
       }),
+      environment: 'gi-ci',
     };
     const mockDescribeInstances = { promise: jest.fn() };
 
@@ -819,6 +828,7 @@ describe('createRunner', () => {
       shuffledVPCsForAwsRegion: jest.fn().mockImplementation((awsRegion: string) => {
         return Array.from(regionToVpc.get(awsRegion) ?? []);
       }),
+      environment: 'gi-ci',
     };
     const runInstanceSuccess = {
       Instances: [
