@@ -171,6 +171,11 @@ jobs:
         run: |
           set -euxo pipefail
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
+      - name: Add XPU Env Vars in Build Env File
+        if: ${{ matrix.gpu_arch_type == 'xpu' }}
+        run: |
+          echo "set +u" >> "${BUILD_ENV_FILE}"
+          echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh" >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
         run: |
           set -euxo pipefail
