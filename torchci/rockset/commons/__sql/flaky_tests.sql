@@ -29,7 +29,7 @@
         if(
             TYPEOF(test_run.rerun) = 'object',
             test_run.rerun.text,
-            test_run.rerun[0].text
+            test_run.rerun[1].text
         )
     ) as sampleTraceback
 FROM
@@ -72,7 +72,7 @@ select
         if(
             TYPEOF(test_run.rerun) = 'object',
             test_run.rerun.text,
-            test_run.rerun[0].text
+            test_run.rerun[1].text
         )
     ) as sampleTraceback
 FROM

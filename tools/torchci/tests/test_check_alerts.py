@@ -1,9 +1,10 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest import main, TestCase
 from unittest.mock import patch
 
 from torchci.check_alerts import (
+    check_for_no_flaky_tests_alert,
     fetch_alerts_filter,
     filter_job_names,
     gen_update_comment,
@@ -197,26 +198,74 @@ class TestGitHubPR(TestCase):
         mock_date.today.return_value = datetime(2022, 10, 10)
         mock_get_num_issues_with_label.return_value = 5
 
-        res = handle_flaky_tests_alert([])
+        # No open alert issues, but also there are some flaky tests
+        res = handle_flaky_tests_alert([], dry_run=True)
         self.assertIsNone(res)
 
         existing_alerts = [
             {"createdAt": "2022-10-10T13:41:09Z"},
             {"createdAt": "2022-10-08T14:41:09Z"},
         ]
-        res = handle_flaky_tests_alert(existing_alerts)
+
+        # Open alert issue, and there are some flaky tests
+        res = handle_flaky_tests_alert(existing_alerts, dry_run=True)
         self.assertIsNone(res)
 
-        existing_alerts = [
-            {"createdAt": "2022-10-09T13:41:09Z"},
-            {"createdAt": "2022-10-08T14:41:09Z"},
-        ]
-        res = handle_flaky_tests_alert(existing_alerts)
-        self.assertIsNone(res)
-
+        # No open alert issue, and no flaky tests
         mock_get_num_issues_with_label.return_value = 0
-        res = handle_flaky_tests_alert(existing_alerts)
+        res = handle_flaky_tests_alert([], dry_run=True)
         self.assertDictEqual(res, mock_issue)
+
+        # Open alert issue, and no flaky tests
+        mock_get_num_issues_with_label.return_value = 0
+        res = handle_flaky_tests_alert(existing_alerts, dry_run=True)
+        self.assertIsNone(res)
+
+    @patch("torchci.check_alerts.fetch_alerts")
+    @patch("torchci.check_alerts.handle_flaky_tests_alert")
+    def test_check_for_no_flaky_tests_alert(
+        self,
+        mock_handle_flaky_tests_alert,
+        mock_fetch_alerts,
+    ):
+        # Issue is open but created too long ago
+        mock_fetch_alerts.return_value = [
+            {
+                "closed": False,
+                "createdAt": (
+                    datetime.now(timezone.utc) - timedelta(days=7.1)
+                ).isoformat(),
+            }
+        ]
+        check_for_no_flaky_tests_alert("dummy repo", "dummy branch")
+        first_argument = mock_handle_flaky_tests_alert.call_args.args[0]
+        self.assertListEqual(first_argument, [])
+
+        # Issue is open and recent
+        mock_fetch_alerts.return_value = [
+            {
+                "closed": False,
+                "createdAt": (
+                    datetime.now(timezone.utc) - timedelta(days=6.9)
+                ).isoformat(),
+            }
+        ]
+        check_for_no_flaky_tests_alert("dummy repo", "dummy branch")
+        first_argument = mock_handle_flaky_tests_alert.call_args.args[0]
+        self.assertDictEqual(first_argument[0], mock_fetch_alerts.return_value[0])
+
+        # Issue is closed and recent
+        mock_fetch_alerts.return_value = [
+            {
+                "closed": True,
+                "createdAt": (
+                    datetime.now(timezone.utc) - timedelta(days=6.9)
+                ).isoformat(),
+            }
+        ]
+        check_for_no_flaky_tests_alert("dummy repo", "dummy branch")
+        first_argument = mock_handle_flaky_tests_alert.call_args.args[0]
+        self.assertListEqual(first_argument, [])
 
     # test filter job names
     def test_job_filter(self):

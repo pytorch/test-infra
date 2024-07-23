@@ -15,6 +15,7 @@ def run_cmd_or_die(cmd):
         stderr=subprocess.STDOUT,
         bufsize=1,
         universal_newlines=True,
+        errors="backslashreplace",
     )
     p.stdin.write("set -e\n")
     p.stdin.write(cmd)
