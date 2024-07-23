@@ -716,8 +716,8 @@ def main(args: List[str]) -> None:
     options = parser.parse_args(args)
 
     assert (
-        options.with_cuda or options.with_rocm or options.with_cpu
-    ), "Must build with either CUDA, ROCM, or CPU support."
+        options.with_cuda or options.with_rocm or options.with_xpu or options.with_cpu
+    ), "Must build with either CUDA, ROCM, XPU, or CPU support."
 
     build_matrix = generate_build_matrix(
         options.package_type,
