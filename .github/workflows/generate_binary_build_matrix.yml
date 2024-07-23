@@ -37,7 +37,7 @@ on:
         type: string
       with-xpu:
         description: "Build with XPU?"
-        default: "enable"
+        default: "disable"
         type: string
       use-only-dl-pytorch-org:
         description: "Use only download.pytorch.org when generating wheel install command?"
