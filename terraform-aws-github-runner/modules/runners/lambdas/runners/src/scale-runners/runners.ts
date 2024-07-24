@@ -198,11 +198,17 @@ export function getParameterNameForRunner(environment: string, instanceId: strin
   return `${environment}-${instanceId}`;
 }
 
-export async function listSSMParameters(metrics: Metrics, awsRegion: string): Promise<Set<string>> {
-  let parametersSet: Set<string> = ssmParametersCache.get(awsRegion) as Set<string>;
+export async function listSSMParameters(
+  metrics: Metrics,
+  awsRegion: string,
+): Promise<Map<string, SSM.ParameterMetadata>> {
+  let parametersSet: Map<string, SSM.ParameterMetadata> = ssmParametersCache.get(awsRegion) as Map<
+    string,
+    SSM.ParameterMetadata
+  >;
 
   if (parametersSet === undefined) {
-    parametersSet = new Set();
+    parametersSet = new Map<string, SSM.ParameterMetadata>();
     const ssm = new SSM({ region: awsRegion });
     let nextToken: string | undefined = undefined;
 
@@ -225,8 +231,8 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
       /* istanbul ignore next */
       response.Parameters?.forEach((metadata) => {
         /* istanbul ignore next */
-        if (metadata.Name) {
-          parametersSet.add(metadata.Name);
+        if (metadata.Name !== undefined && metadata.Name.startsWith(`${Config.Instance.environment}-i`)) {
+          parametersSet.set(metadata.Name, metadata);
         }
       });
     } while (nextToken);
@@ -237,7 +243,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
   return parametersSet;
 }
 
-async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<void> {
+export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<boolean> {
   try {
     const ssm = new SSM({ region: awsRegion });
     await expBackOff(() => {
@@ -250,12 +256,15 @@ async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegi
         },
       );
     });
-    console.info(`[${awsRegion}] Parameter deleted: ${paramName}`);
+    console.debug(`[${awsRegion}] Parameter deleted: ${paramName}`);
+    return true;
   } catch (e) {
     /* istanbul ignore next */
     console.error(
       `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` + `deleting parameter ${paramName}: ${e}`,
     );
+    /* istanbul ignore next */
+    return false;
   }
 }
 
@@ -352,6 +361,7 @@ async function addSSMParameterRunnerConfig(
 
 function getLaunchTemplateName(runnerParameters: RunnerInputParameters): Array<string | undefined> {
   if (runnerParameters.runnerType.os === 'linux') {
+    /* istanbul ignore next */
     if (runnerParameters.runnerType.runnerTypeName.includes('.arm64')) {
       return [Config.Instance.launchTemplateNameLinuxARM64, Config.Instance.launchTemplateVersionLinuxARM64];
     } else if (runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')) {
@@ -383,6 +393,7 @@ async function getCreateRunnerSubnetSequence(
       }
     });
   } catch (e) {
+    /* istanbul ignore next */
     console.error(`[getCreateRunnerSubnetSequence] Failed to list runners: ${e}`);
   }
 
@@ -444,6 +455,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           customAmi = runnerParameters.runnerType.ami_experiment.ami;
           customAmiExperiment = true;
         } else {
+          /* istanbul ignore next */
           console.debug(
             `[createRunner]: Skipped AMI experiment for ${runnerParameters.runnerType.runnerTypeName} ` +
               `(${random} > ${runnerParameters.runnerType.ami_experiment.percentage}) `,
@@ -610,6 +622,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       );
     }
   } catch (e) {
+    /* istanbul ignore next */
     if (e instanceof Error) {
       console.error(`[createRunner]: ${e} - ${e.stack}`);
     } else {
