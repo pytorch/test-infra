@@ -34,7 +34,7 @@ import {
   runnerMinimumTimeExceeded,
   scaleDown,
   sortRunnersByLaunchTime,
-  sortSSMParaametersByUpdateTime,
+  sortSSMParametersByUpdateTime,
 } from './scale-down';
 import { RequestError } from '@octokit/request-error';
 import { SSM } from 'aws-sdk';
@@ -937,9 +937,9 @@ describe('scale-down', () => {
     });
   });
 
-  describe('sortSSMParaametersByUpdateTime', () => {
+  describe('sortSSMParametersByUpdateTime', () => {
     it('two undefined', async () => {
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: undefined,
@@ -956,7 +956,7 @@ describe('scale-down', () => {
 
     it('undefined valid', async () => {
       const dt = moment(new Date()).toDate();
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: undefined,
@@ -973,7 +973,7 @@ describe('scale-down', () => {
 
     it('valid undefined', async () => {
       const dt = moment(new Date()).toDate();
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: dt,
@@ -991,7 +991,7 @@ describe('scale-down', () => {
     it('bigger smaller', async () => {
       const dt1 = moment(new Date()).add(50, 'seconds').toDate();
       const dt2 = moment(new Date()).subtract(50, 'seconds').toDate();
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: dt1,
@@ -1009,7 +1009,7 @@ describe('scale-down', () => {
     it('smaller bigger', async () => {
       const dt1 = moment(new Date()).add(50, 'seconds').toDate();
       const dt2 = moment(new Date()).subtract(50, 'seconds').toDate();
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: dt2,
@@ -1026,7 +1026,7 @@ describe('scale-down', () => {
 
     it('equal', async () => {
       const launchTime = moment(new Date()).subtract(50, 'seconds').toDate();
-      const ret = sortSSMParaametersByUpdateTime([
+      const ret = sortSSMParametersByUpdateTime([
         {
           Name: 'WG113',
           LastModifiedDate: launchTime,

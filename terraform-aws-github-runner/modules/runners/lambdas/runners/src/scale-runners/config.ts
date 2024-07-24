@@ -101,7 +101,7 @@ export class Config {
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     this.sSMParamCleanupAgeDays = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '7');
-    this.sSMParamMaxCleanupCount = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '50');
+    this.sSMParamMaxCleanupCount = Number(process.env.SSM_PARAM_CLEANUP_MAX_COUNT || '50');
     this.vpcIdToSecurityGroupIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SECURITY_GROUP_IDS);
     this.vpcIdToSubnetIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SUBNET_IDS);
     this.subnetIdToVpcId = new Map();

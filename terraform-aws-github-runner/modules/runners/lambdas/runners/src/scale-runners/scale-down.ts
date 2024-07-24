@@ -44,7 +44,7 @@ export async function scaleDown(): Promise<void> {
       },
     );
 
-    const runnersRgions = new Set<string>(
+    const runnersRegions = new Set<string>(
       Array.from(runnersDict.values()).flatMap((runners) => runners.map((runner) => runner.awsRegion)),
     );
 
@@ -223,7 +223,7 @@ export async function scaleDown(): Promise<void> {
       }
     }
 
-    await cleanupOldSSMParameters(runnersRgions, metrics);
+    await cleanupOldSSMParameters(runnersRegions, metrics);
 
     console.info('Scale down completed');
   } catch (e) {
@@ -239,10 +239,10 @@ export async function scaleDown(): Promise<void> {
   }
 }
 
-export async function cleanupOldSSMParameters(runnersRgions: Set<string>, metrics: ScaleDownMetrics): Promise<void> {
+export async function cleanupOldSSMParameters(runnersRegions: Set<string>, metrics: ScaleDownMetrics): Promise<void> {
   try {
-    for (const awsRegion of runnersRgions) {
-      const ssmParams = sortSSMParaametersByUpdateTime(
+    for (const awsRegion of runnersRegions) {
+      const ssmParams = sortSSMParametersByUpdateTime(
         Array.from((await listSSMParameters(metrics, awsRegion)).values()),
       );
 
@@ -428,7 +428,7 @@ export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {
   });
 }
 
-export function sortSSMParaametersByUpdateTime(ssmParams: Array<SSM.ParameterMetadata>): Array<SSM.ParameterMetadata> {
+export function sortSSMParametersByUpdateTime(ssmParams: Array<SSM.ParameterMetadata>): Array<SSM.ParameterMetadata> {
   return ssmParams.sort((a, b): number => {
     if (a.LastModifiedDate === undefined && b.LastModifiedDate === undefined) return 0;
     if (a.LastModifiedDate === undefined) return 1;
