@@ -108,7 +108,7 @@ PROC_LOGS_FILE="/home/$USER_NAME/.proc_logs"
 
 function update_curr_logs_file {
     pushd /home/$USER_NAME/actions-runner/_diag >/dev/null
-    ls -a Worker_* | cat | sort > $CURR_LOGS_FILE
+    ls -a Worker_* | cat | sort > \$CURR_LOGS_FILE
     popd >/dev/null
 }
 
