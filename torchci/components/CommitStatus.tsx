@@ -7,7 +7,6 @@ import {
 import { CommitData, IssueData, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
