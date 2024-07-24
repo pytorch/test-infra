@@ -61,6 +61,7 @@ CPU_AARCH64 = "cpu-aarch64"
 CUDA_AARCH64 = "cuda-aarch64"
 CUDA = "cuda"
 ROCM = "rocm"
+XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.5.0"
@@ -107,6 +108,8 @@ def arch_type(arch_version: str) -> str:
         return CPU_AARCH64
     elif arch_version == CUDA_AARCH64:
         return CUDA_AARCH64
+    elif arch_version == XPU:
+        return XPU
     else:  # arch_version should always be CPU in this case
         return CPU
 
@@ -160,6 +163,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
             for gpu_arch in ROCM_ARCHES
         },
         CPU: "pytorch/manylinux-builder:cpu",
+        XPU: "pytorch/manylinux2_28-builder:xpu",
         CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
     }
@@ -199,6 +203,7 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
         CUDA_AARCH64: "cu124",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
+        XPU: "xpu",
     }.get(gpu_arch_type, gpu_arch_version)
 
 
@@ -327,6 +332,7 @@ def generate_conda_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
@@ -383,6 +389,7 @@ def generate_libtorch_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
@@ -472,6 +479,7 @@ def generate_wheels_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
@@ -510,6 +518,10 @@ def generate_wheels_matrix(
             if os == LINUX:
                 arches += ROCM_ARCHES
 
+        if with_xpu == ENABLE:
+            if os == LINUX:
+                arches += [XPU]
+
     if limit_pr_builds:
         python_versions = [python_versions[0]]
 
@@ -523,7 +535,7 @@ def generate_wheels_matrix(
                 continue
             gpu_arch_version = (
                 ""
-                if arch_version in [CPU, CPU_AARCH64]
+                if arch_version in [CPU, CPU_AARCH64, XPU]
                 else arch_version
             )
 
@@ -579,6 +591,7 @@ def generate_build_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
     build_python_only: str,
@@ -602,6 +615,7 @@ def generate_build_matrix(
                     with_cuda,
                     with_rocm,
                     with_cpu,
+                    with_xpu,
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
                     use_split_build == "true",
@@ -653,6 +667,13 @@ def main(args: List[str]) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_CPU", ENABLE),
     )
+    parser.add_argument(
+        "--with-xpu",
+        help="Build with XPU?",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("WITH_XPU", ENABLE),
+    )
     # By default this is false for this script but expectation is that the caller
     # workflow will default this to be true most of the time, where a pull
     # request is synchronized and does not contain the label "ciflow/binaries/all"
@@ -695,8 +716,8 @@ def main(args: List[str]) -> None:
     options = parser.parse_args(args)
 
     assert (
-        options.with_cuda or options.with_rocm or options.with_cpu
-    ), "Must build with either CUDA, ROCM, or CPU support."
+        options.with_cuda or options.with_rocm or options.with_xpu or options.with_cpu
+    ), "Must build with either CUDA, ROCM, XPU, or CPU support."
 
     build_matrix = generate_build_matrix(
         options.package_type,
@@ -705,6 +726,7 @@ def main(args: List[str]) -> None:
         options.with_cuda,
         options.with_rocm,
         options.with_cpu,
+        options.with_xpu,
         options.limit_pr_builds,
         options.use_only_dl_pytorch_org,
         options.build_python_only,

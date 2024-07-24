@@ -16,6 +16,7 @@ class GenerateBuildMatrixTest(TestCase):
         cuda: bool,
         rocm: bool,
         cpu: bool,
+        xpu: bool,
         reference_output_file: str,
         build_python_only: bool = False,
     ) -> None:
@@ -26,6 +27,7 @@ class GenerateBuildMatrixTest(TestCase):
             "enable" if cuda else "disable",
             "enable" if rocm else "disable",
             "enable" if cpu else "disable",
+            "enable" if xpu else "disable",
             "false",
             "false",
             "enable" if build_python_only else "disable",
@@ -47,6 +49,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_linux_wheel_cuda.json",
         )
 
@@ -57,6 +60,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_linux_conda_cuda.json",
         )
 
@@ -67,6 +71,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=False,
             rocm=False,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_macos_wheel.json",
         )
 
@@ -77,6 +82,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=False,
             rocm=False,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_macos_conda.json",
         )
 
@@ -87,6 +93,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_windows_wheel_cuda.json",
         )
 
@@ -97,6 +104,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=True,
+            xpu=True,
             reference_output_file="build_matrix_windows_conda_cuda.json",
         )
 
@@ -107,6 +115,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=False,
             cpu=True,
+            xpu=False,
             reference_output_file="build_matrix_linux_wheel_cuda_norocm.json",
         )
 
@@ -117,7 +126,19 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=False,
+            xpu=False,
             reference_output_file="build_matrix_linux_wheel_nocpu.json",
+        )
+    
+    def test_linux_wheel_cuda_xpu_nocpu(self):
+        self.matrix_compare_helper(
+            package_type="wheel",
+            operating_system="linux",
+            cuda=True,
+            rocm=False,
+            cpu=False,
+            xpu=True,
+            reference_output_file="build_matrix_linux_wheel_xpu.json",
         )
 
 
