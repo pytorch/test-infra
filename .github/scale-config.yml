@@ -147,6 +147,12 @@ runner_types:
     is_ephemeral: false
     max_available: 200
     os: linux
+  linux.arm64.m7g.metal:
+    disk_size: 256
+    instance_type: m7g.metal
+    is_ephemeral: false
+    max_available: 100
+    os: linux
   windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
