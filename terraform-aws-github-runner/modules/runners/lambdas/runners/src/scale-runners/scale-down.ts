@@ -264,7 +264,7 @@ export async function cleanupOldSSMParameters(runnersRegions: Set<string>, metri
         if (await doDeleteSSMParameter(ssmParam.Name, metrics, awsRegion)) {
           deleted += 1;
         }
-        if (deleted >= Config.Instance.sSMParamMaxCleanupCount) {
+        if (deleted >= Config.Instance.sSMParamMaxCleanupAllowance) {
           break;
         }
       }

@@ -95,7 +95,7 @@ const baseConfig = {
     return Array.from(subnetIds.get(awsRegion) ?? []).sort();
   }),
   sSMParamCleanupAgeDays: 7,
-  sSMParamMaxCleanupCount: MAX_SSM_PARAMETERS, // Easier to test
+  sSMParamMaxCleanupAllowance: MAX_SSM_PARAMETERS, // Easier to test
 };
 
 describe('scale-down', () => {
@@ -1435,7 +1435,7 @@ describe('scale-down', () => {
       expect(mockedListSSMParameters).toBeCalledTimes(1);
     });
 
-    it('Stops when deleted >= Config.Instance.sSMParamMaxCleanupCount', async () => {
+    it('Stops when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
@@ -1457,7 +1457,7 @@ describe('scale-down', () => {
       expect(mockedListSSMParameters).toBeCalledTimes(1);
     });
 
-    it('Breaks when deleted >= Config.Instance.sSMParamMaxCleanupCount', async () => {
+    it('Breaks when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
