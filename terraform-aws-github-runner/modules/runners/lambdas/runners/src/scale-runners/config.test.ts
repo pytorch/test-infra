@@ -189,7 +189,7 @@ describe('Config', () => {
     expect(Config.Instance.launchTemplateVersionLinuxNvidia).toBe('LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA');
     expect(Config.Instance.launchTemplateVersionWindows).toBe('LAUNCH_TEMPLATE_VERSION_WINDOWS');
     expect(Config.Instance.minAvailableRunners).toBe(10);
-    expect(Config.Instance.minimumRunningTimeInMinutes).toBe(10);
+    expect(Config.Instance.minimumRunningTimeInMinutes).toBe(60);
     expect(Config.Instance.mustHaveIssuesLabels).toEqual([]);
     expect(Config.Instance.runnerGroupName).toBeUndefined();
     expect(Config.Instance.runnersExtraLabels).toBeUndefined();

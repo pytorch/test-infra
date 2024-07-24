@@ -217,7 +217,7 @@ fallback_to_node16
 ${arm_patch}
 
 echo wait for configuration
-RETRY_LEFT=600
+RETRY_LEFT=1200  # 20 minutes
 while [[ $(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value") == null ]]; do
     echo Waiting for configuration ...
     sleep 1

@@ -78,7 +78,7 @@ export class Config {
     /* istanbul ignore next */
     this.minAvailableRunners = mnAvalRuns > 0 ? mnAvalRuns : 1;
     /* istanbul ignore next */
-    const mnRunMin = Number(process.env.MINIMUM_RUNNING_TIME_IN_MINUTES || '10');
+    const mnRunMin = Number(process.env.MINIMUM_RUNNING_TIME_IN_MINUTES || '60');
     /* istanbul ignore next */
     this.minimumRunningTimeInMinutes = mnRunMin > 0 ? mnRunMin : 1;
     /* istanbul ignore next */

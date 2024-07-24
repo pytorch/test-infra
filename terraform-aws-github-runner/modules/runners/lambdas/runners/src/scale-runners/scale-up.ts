@@ -240,8 +240,8 @@ async function allRunnersBusy(
     console.info(`Available (${availableCount}) runners is bellow minimum ${Config.Instance.minAvailableRunners}`);
     // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
     if (isEphemeral) {
-      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.3);
-      return Math.random() < ratio ? 2 : 1;
+      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.5);
+      return Math.random() < ratio ? 3 : 1;
     } else {
       return 1;
     }
