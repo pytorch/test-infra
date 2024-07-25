@@ -273,10 +273,12 @@ export function computeCompilationTime(
           (compiler: string) => {
             const l = compTime[bucket][workflowId][suite][compiler].length;
             const m =
-              compTime[bucket][workflowId][suite][compiler].reduce(
-                (total: number, v: number) => total + v,
-                0
-              ) / l;
+              l !== 0
+                ? compTime[bucket][workflowId][suite][compiler].reduce(
+                    (total: number, v: number) => total + v,
+                    0
+                  ) / l
+                : 0;
 
             returnedCompTime.push({
               granularity_bucket: bucket,
@@ -346,10 +348,12 @@ export function computeMemoryCompressionRatio(
           (compiler: string) => {
             const l = memory[bucket][workflowId][suite][compiler].length;
             const m =
-              memory[bucket][workflowId][suite][compiler].reduce(
-                (total: number, v: number) => total + v,
-                0
-              ) / l;
+              l !== 0
+                ? memory[bucket][workflowId][suite][compiler].reduce(
+                    (total: number, v: number) => total + v,
+                    0
+                  ) / l
+                : 0;
 
             returnedMemory.push({
               granularity_bucket: bucket,
