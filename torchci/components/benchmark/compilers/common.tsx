@@ -53,7 +53,16 @@ export const HELP_LINK =
 
 export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
 
-export const DEFAULT_DEVICE_NAME = "cuda";
+export const DEFAULT_DEVICE_NAME = "cuda (a100)";
 // TODO (huydhn): there is a way to avoid hard-coding dtypes and devices like how
 // the LLM micro-benchmark page is implemented
-export const DEVICES = ["cuda", "cpu-x86"];
+export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
+  "cuda (a100)": "cuda",
+  "cpu (x86)": "cpu_x86",
+  "cpu (aarch64)": "cpu_aarch64",
+};
+export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
+  "cuda (a100)": "inductor-A100-perf-nightly",
+  "cpu (x86)": "inductor-perf-nightly-x86",
+  "cpu (aarch64)": "inductor-perf-nightly-aarch64",
+};

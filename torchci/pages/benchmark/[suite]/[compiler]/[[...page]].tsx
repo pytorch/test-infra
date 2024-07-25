@@ -12,7 +12,8 @@ import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   COMPILER_NAMES_TO_DISPLAY_NAMES,
   DEFAULT_DEVICE_NAME,
-  DEVICES,
+  DISPLAY_NAMES_TO_DEVICE_NAMES,
+  DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
@@ -46,6 +47,7 @@ function Report({
   suite,
   mode,
   dtype,
+  deviceName,
   compiler,
   model,
   lBranchAndCommit,
@@ -60,6 +62,7 @@ function Report({
   suite: string;
   mode: string;
   dtype: string;
+  deviceName: string;
   compiler: string;
   model: string;
   lBranchAndCommit: BranchAndCommit;
@@ -146,7 +149,10 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        workflowName={
+          DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName] ??
+          "inductor-a100-perf-nightly"
+        }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
@@ -168,6 +174,7 @@ function Report({
         suite={suite}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         compiler={compiler}
         model={model}
         lPerfData={{
@@ -323,7 +330,7 @@ export default function Page() {
     {
       name: "device",
       type: "string",
-      value: deviceName,
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
     },
   ];
 
@@ -371,7 +378,7 @@ export default function Page() {
         <DTypePicker
           dtype={deviceName}
           setDType={setDeviceName}
-          dtypes={DEVICES}
+          dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
           label={"Device"}
         />
         <BranchAndCommitPicker
@@ -414,6 +421,7 @@ export default function Page() {
           suite={suite}
           mode={mode}
           dtype={dtype}
+          deviceName={deviceName}
           compiler={compiler}
           model={model}
           lBranchAndCommit={{ branch: lBranch, commit: lCommit }}

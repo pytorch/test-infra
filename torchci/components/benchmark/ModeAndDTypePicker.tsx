@@ -6,7 +6,7 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
-export const DEFAULT_MODE = "training";
+export const DEFAULT_MODE = "inference";
 // The value is the default dtype for that mode
 export const MODES: { [k: string]: string } = {
   training: "amp",

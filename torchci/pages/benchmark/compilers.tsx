@@ -9,7 +9,8 @@ import {
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   DEFAULT_DEVICE_NAME,
-  DEVICES,
+  DISPLAY_NAMES_TO_DEVICE_NAMES,
+  DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
 import {
@@ -45,6 +46,7 @@ function Report({
   suite,
   mode,
   dtype,
+  deviceName,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -55,6 +57,7 @@ function Report({
   suite: string;
   mode: string;
   dtype: string;
+  deviceName: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
@@ -134,7 +137,10 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        workflowName={
+          DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName] ??
+          "inductor-a100-perf-nightly"
+        }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
@@ -145,6 +151,7 @@ function Report({
         granularity={granularity}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
@@ -295,7 +302,7 @@ export default function Page() {
     {
       name: "device",
       type: "string",
-      value: deviceName,
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
     },
   ];
 
@@ -340,7 +347,7 @@ export default function Page() {
         <DTypePicker
           dtype={deviceName}
           setDType={setDeviceName}
-          dtypes={DEVICES}
+          dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
           label={"Device"}
         />
         <BranchAndCommitPicker
@@ -380,6 +387,7 @@ export default function Page() {
         suite={suite}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />

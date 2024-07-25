@@ -11,8 +11,10 @@ import {
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
 import {
+  DEFAULT_DEVICE_NAME,
   DEFAULT_MODE,
   DEFAULT_REPO_NAME,
+  DISPLAY_NAMES_TO_DEVICE_NAMES,
   DTYPES,
 } from "components/benchmark/torchao/common";
 import { SuitePicker, SUITES } from "components/benchmark/torchao/SuitePicker";
@@ -37,6 +39,7 @@ function Report({
   suite,
   mode,
   dtype,
+  deviceName,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
@@ -47,6 +50,7 @@ function Report({
   suite: string;
   mode: string;
   dtype: string;
+  deviceName: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
@@ -137,6 +141,7 @@ function Report({
         granularity={granularity}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
@@ -178,6 +183,7 @@ export default function Page() {
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -218,6 +224,11 @@ export default function Page() {
     const dtype: string = (router.query.dtype as string) ?? undefined;
     if (dtype !== undefined) {
       setDType(dtype);
+    }
+
+    const deviceName: string = (router.query.deviceName as string) ?? undefined;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -278,6 +289,11 @@ export default function Page() {
       type: "string",
       value: dtype,
     },
+    {
+      name: "device",
+      type: "string",
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    },
   ];
 
   return (
@@ -291,7 +307,9 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+            deviceName
+          )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -315,6 +333,12 @@ export default function Page() {
           setDType={setDType}
           dtypes={DTYPES}
           label={"Precision"}
+        />
+        <DTypePicker
+          dtype={deviceName}
+          setDType={setDeviceName}
+          dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
+          label={"Device"}
         />
         <BranchAndCommitPicker
           queryName={"torchao_query_branches"}
@@ -353,6 +377,7 @@ export default function Page() {
         suite={suite}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
       />
