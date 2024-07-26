@@ -24,15 +24,9 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install requests yaml
+          pip install requests pyyaml
 
       - name: Validate Scale Config
         run: |
-          ls
-          echo "---updir"
-          ls .github
-          echo
-          echo "PWD"
           pwd
-          ls -l /home/runner/work/test-infra/test-infra/.github/scale-config.yml
           python3 .github/scripts/validate_scale_config.py
