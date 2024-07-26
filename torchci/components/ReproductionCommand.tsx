@@ -1,32 +1,55 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
+import { getTestName } from "./JobLinks";
 
-export default function ReproductionCommand({
-  job,
-  separator,
-  testName,
-}: {
-  job: JobData;
-  separator: string;
-  testName: string | null;
-}) {
-  if (job === null || testName === null) {
-    return null;
-  }
+export default function ReproductionCommand({ job }: { job: JobData }) {
+  const [reproComamnd, setReproCommand] = useState<string | null>("");
+  useEffect(() => {
+    setReproCommand(getReproCommand(job));
+  }, [job.failureCaptures, job.jobName]);
 
-  if (job.conclusion === "pending") {
-    return null;
-  }
-
-  if (!job.jobName?.includes("test")) {
+  if (
+    job === null ||
+    job.conclusion === "pending" ||
+    !job.jobName?.includes("test") ||
+    reproComamnd === null
+  ) {
     return null;
   }
 
   return (
     <span>
-      {separator}
-      <CopyLink textToCopy={testName} />
+      <CopyLink textToCopy={reproComamnd} link={false} />
     </span>
   );
+}
+
+function getReproCommand(job: JobData) {
+  if (
+    job === null ||
+    job.failureLines === null ||
+    job.failureLines === undefined
+  ) {
+    return null;
+  }
+  const testName = getTestName(job.failureLines[0] ?? "");
+  if (testName === null) {
+    return null;
+  }
+  const { file, testName: name } = testName;
+  if (file === null) {
+    return null;
+  }
+  const command = `python ${file} -k ${name}`;
+  if (job.jobName?.includes("dynamo")) {
+    return `PYTORCH_TEST_WITH_DYNAMO=1 ${command}`;
+  }
+  if (job.jobName?.includes("inductor")) {
+    return `PYTORCH_TEST_WITH_INDUCTOR=1 ${command}`;
+  }
+  if (job.jobName?.includes("slow")) {
+    return `PYTORCH_TEST_WITH_SLOW=1 ${command}`;
+  }
+  return command;
 }
