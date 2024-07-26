@@ -105,8 +105,6 @@ export default function JobLinks({
   if (job.failureLines) {
     const reproComamnd = ReproductionCommand({
       job: job,
-      separator: "",
-      testName: getTestName(job.failureLines[0] ?? "", true),
     });
     if (reproComamnd != null) {
       subInfo.push(reproComamnd);
@@ -126,26 +124,24 @@ export default function JobLinks({
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
-const pytestFailureRe = /^FAILED.* ([^ ]+\.py)::(.*)::(test_\S*)/;
-function getTestName(
-  failureCapture: string,
-  reproduction: boolean = false,
-  onlyTestName: boolean = false
-) {
-  const unittestMatch = failureCapture.match(unittestFailureRe);
+const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.*) \(.*(Test.*)\)/;
+const pytestFailureRe = /^(?:FAILED|ERROR).* ([^ ]+\.py)::(.*)::(test_\S*)/;
+export function getTestName(failureLine: string) {
+  const unittestMatch = failureLine.match(unittestFailureRe);
   if (unittestMatch !== null) {
-    return unittestMatch[1];
+    return {
+      file: null,
+      testName: unittestMatch[1],
+      suite: unittestMatch[2],
+    };
   }
-  const pytestMatch = failureCapture.match(pytestFailureRe);
+  const pytestMatch = failureLine.match(pytestFailureRe);
   if (pytestMatch !== null) {
-    if (reproduction) {
-      return `python ${pytestMatch[1]}.py -k ${pytestMatch[1]}::${pytestMatch[2]}::${pytestMatch[3]}`;
-    }
-    if (onlyTestName) {
-      return `${pytestMatch[1]}::${pytestMatch[2]}::${pytestMatch[3]}`;
-    }
-    return `${pytestMatch[3]} (__main__.${pytestMatch[2]})`;
+    return {
+      file: pytestMatch[1],
+      testName: pytestMatch[3],
+      suite: pytestMatch[2],
+    };
   }
   return null;
 }
@@ -319,13 +315,9 @@ function DisableIssue({
 
 function RevertInfoCopy({ job }: { job: JobData }) {
   const info = [];
-  const testName = getTestName(
-    (job.failureLines && job.failureLines[0]) ?? "",
-    false,
-    true
-  );
-  if (testName !== null) {
-    info.push(testName);
+  const testName = getTestName((job.failureLines && job.failureLines[0]) ?? "");
+  if (testName !== null && testName.file !== null) {
+    info.push(`${testName.file}::${testName.suite}::${testName.testName}`);
   }
   info.push(`[GH job link](${job.htmlUrl})`);
   info.push(
