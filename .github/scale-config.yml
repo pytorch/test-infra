@@ -311,17 +311,3 @@ runner_types:
     is_ephemeral: false
     os: linux
     ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
-  amz2023.linux.arm64.2xlarge:
-    disk_size: 256
-    instance_type: t4g.2xlarge
-    is_ephemeral: false
-    max_available: 200
-    os: linux
-    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
-  amz2023.linux.arm64.m7g.4xlarge:
-    disk_size: 256
-    instance_type: m7g.4xlarge
-    is_ephemeral: false
-    max_available: 200
-    os: linux
-    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
