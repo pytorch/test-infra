@@ -106,7 +106,7 @@ export default function JobLinks({
     const reproComamnd = ReproductionCommand({
       job: job,
     });
-    if (reproComamnd) {
+    if (reproComamnd != null) {
       subInfo.push(reproComamnd);
     }
   }
