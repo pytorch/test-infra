@@ -14,7 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -28,4 +31,7 @@ jobs:
 
       - name: Validate Scale Config
         run: |
+          ls
+          echo "---updir"
+          ls ..
           python3 .github/scale-config.py
