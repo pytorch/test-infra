@@ -31,4 +31,7 @@ jobs:
           ls
           echo "---updir"
           ls ..
+          echo
+          echo "PWD"
+          pwd
           python3 .github/scale-config.py
