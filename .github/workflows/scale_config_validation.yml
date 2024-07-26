@@ -34,4 +34,5 @@ jobs:
           echo
           echo "PWD"
           pwd
+          ls -l /home/runner/work/test-infra/test-infra/.github/scale-config.py
           python3 .github/scale-config.py
