@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install requests pyyaml
+          pip install requests==2.32.3 pyyaml==6.0.1
 
       - name: Validate Scale Config
         run: |
