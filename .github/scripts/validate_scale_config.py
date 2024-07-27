@@ -1,4 +1,5 @@
-# Takes the scale-config.yml file in test-infra/.github/scale-config.yml and runs the following validations against it:
+# Takes the scale-config.yml file in test-infra/.github/scale-config.yml and runs the following
+# validations against it:
 # 1. Internal validation: Ensure that every linux runner type listed has a corresponding runner type with the
 #    prefix "amz2023." that contains all the same settings except for the ami
 # 2. External validation: Ensure that every runner type listed (linux & windows) have corresponding runner types in
