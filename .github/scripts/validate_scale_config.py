@@ -29,6 +29,7 @@ GITHUB_PYTORCH_REPO_RAW_URL = "https://raw.githubusercontent.com/pytorch/pytorch
 PREFIX_LF = "lf."
 PREFIX_LF_CANARY = "lf.c."
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate scale-config.yml file")
 
