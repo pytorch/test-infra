@@ -26,6 +26,8 @@ RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
 GITHUB_PYTORCH_REPO_RAW_URL = "https://raw.githubusercontent.com/pytorch/pytorch/main/"
 
+PREFIX_LF = "lf."
+PREFIX_LF_CANARY = "lf.c."
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate scale-config.yml file")
@@ -276,31 +278,31 @@ def main() -> None:
     if generate_files:
         print(f"Generating updated {pytorch_lf_scale_config_path}")
         generate_repo_scale_config(
-            scale_config_path, pytorch_lf_scale_config_path, "lf."
+            scale_config_path, pytorch_lf_scale_config_path, PREFIX_LF
         )
 
         print(f"Generating updated {pytorch_lf_canary_scale_config_path}")
         generate_repo_scale_config(
-            scale_config_path, pytorch_lf_canary_scale_config_path, "lf.c."
+            scale_config_path, pytorch_lf_canary_scale_config_path, PREFIX_LF_CANARY
         )
 
     if not validate_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
         pytorch_scale_config[RUNNER_TYPE_CONFIG_KEY],
-        "lf.",
+        PREFIX_LF,
     ):
         print(
-            f"Consistency validation failed after generating {pytorch_lf_scale_config_path}"
+            f"Consistency validation failed between {pytorch_scale_config} and {pytorch_lf_scale_config_path}"
         )
         validation_success = False
 
     if not validate_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
         pytorch_canary_scale_config[RUNNER_TYPE_CONFIG_KEY],
-        "lf.c.",
+        PREFIX_LF_CANARY,
     ):
         print(
-            f"Consistency validation failed after generating {pytorch_lf_canary_scale_config_path}"
+            f"Consistency validation failed bewteen {pytorch_scale_config} and {pytorch_lf_canary_scale_config_path}"
         )
         validation_success = False
 
