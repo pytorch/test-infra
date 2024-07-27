@@ -316,11 +316,11 @@ def main() -> None:
         print(
             "Please run `python .github/scripts/validate_scale_config.py --test-infra-repo-root [path] "
             "--pytorch-repo-root [path]` locally to validate the scale-config.yml file and generate the "
-            "updated pytorch scale config files"
+            "updated pytorch scale config files."
         )
         print(
-            "If this passes locally and you already have a PR open to update the pytorch scale config "
-            "files, you can ignore this failure in CI"
+            "If this script passes locally and you already have a PR open on pytorch/pytorch with the "
+            " relevant changes, you can merge that pytorch/pytorch PR first to make this job pass."
         )
         exit(1)
 
