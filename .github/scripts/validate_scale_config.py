@@ -11,9 +11,10 @@ import argparse
 import os
 import tempfile
 
+import urllib.request
+
 from typing import Any, cast, Dict
 
-import requests
 import yaml
 
 AMAZON_2023_PREFIX = "amz2023."
@@ -52,7 +53,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def compare_runner_types(
+def runner_types_are_equivalent(
     runner1_type: str,
     runner1_config: Dict[str, str],
     runner2_type: str,
@@ -61,26 +62,28 @@ def compare_runner_types(
 ) -> bool:
     are_same = True
 
-    # see if they have the same set of keys
+    if ignore_ami:
+        # Remove the ami key from the configs
+        runner1_config = runner1_config.copy()
+        runner1_config.pop("ami", None)
+        runner2_config = runner2_config.copy()
+        runner2_config.pop("ami", None)
+
+    # See if they have the same set of keys, potentially excluding the ami.
     # Get they keys that they do not both have:
     keys_not_in_both = set(runner1_config.keys()).symmetric_difference(
         set(runner2_config.keys())
     )
-    if len(keys_not_in_both) > 0:
-        if len(keys_not_in_both) == 1 and "ami" in keys_not_in_both and ignore_ami:
-            pass
-        else:
-            print(
-                f"Runner type {runner1_type} and {runner2_type} do not contain matching configs: "
-                f"{keys_not_in_both} is missing"
-            )
-            are_same = False
+
+    if keys_not_in_both:
+        print(
+            f"Runner type {runner1_type} and {runner2_type} do not contain matching configs: "
+            f"{keys_not_in_both} is missing"
+        )
+        are_same = False
 
     # Check if they have the same values for the same keys
     for key in runner1_config:
-        if ignore_ami and key == "ami":
-            continue
-
         if key not in runner2_config:
             continue  # This was already caught in the previous check
 
@@ -128,7 +131,7 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
                 errors_found = True
                 continue
 
-        if not compare_runner_types(
+        if not runner_types_are_equivalent(
             base_runner_type,
             runner_types[base_runner_type],
             amz2023_runner_type,
@@ -163,13 +166,12 @@ def is_consistent_across_configs(
             errors_found = True
             continue
 
-        if not compare_runner_types(
+        errors_found |= not runner_types_are_equivalent(
             source_runner_type,
             source_config[source_runner_type],
             dest_runner_type,
             dest_config[dest_runner_type],
-        ):
-            errors_found = True
+        )
 
     return not errors_found
 
@@ -183,7 +185,7 @@ def generate_repo_scale_config(
     """
 
     print(f"Generating updated {dest_config_file}")
-    source_config = load_scale_config(source_config_file)
+    source_config = load_yaml_file(source_config_file)
     base_runner_types = set(source_config[RUNNER_TYPE_CONFIG_KEY].keys())
 
     with open(source_config_file, "r") as f:
@@ -208,7 +210,7 @@ def generate_repo_scale_config(
             f.write(line)
 
 
-def load_scale_config(scale_config_path: str) -> Dict[str, Any]:
+def load_yaml_file(scale_config_path: str) -> Dict[str, Any]:
     # Verify file exists
     if not os.path.exists(scale_config_path):
         print(
@@ -221,17 +223,14 @@ def load_scale_config(scale_config_path: str) -> Dict[str, Any]:
 
 
 def download_file(url: str, local_filename: str) -> None:
-    # Send a GET request to the URL
-    response = requests.get(url)
-
-    # Raise an exception if the request was unsuccessful
-    response.raise_for_status()
+    with urllib.request.urlopen(url) as response:
+        content = response.read()
 
     os.makedirs(os.path.dirname(local_filename), exist_ok=True)
 
     # Write the content to a local file
     with open(local_filename, "wb") as f:
-        f.write(response.content)
+        f.write(content)
 
 
 def pull_temp_config_from_github_repo(config_path: str) -> str:
@@ -271,13 +270,12 @@ def main() -> None:
 
     scale_config_path = os.path.join(args.test_infra_repo_root, SCALE_CONFIG_PATH)
 
-    scale_config = load_scale_config(scale_config_path)
+    scale_config = load_yaml_file(scale_config_path)
     validation_success = True
-    print(f"Validating internal consistency of {scale_config_path}")
+
     if not is_config_consistent_internally(scale_config[RUNNER_TYPE_CONFIG_KEY]):
         validation_success = False
-        print("scale-config.yml is not internally consistent")
-    print()
+        print("scale-config.yml is not internally consistent\n")
 
     if generate_files:
         generate_repo_scale_config(
@@ -287,10 +285,10 @@ def main() -> None:
         generate_repo_scale_config(
             scale_config_path, pt_lf_canary_scale_config_path, PREFIX_LF_CANARY
         )
-        print()
+        print("Generated updated pytorch/pytorch scale config files\n")
 
-    pt_scale_config = load_scale_config(pt_lf_scale_config_path)
-    pytorch_canary_scale_config = load_scale_config(pt_lf_canary_scale_config_path)
+    pt_scale_config = load_yaml_file(pt_lf_scale_config_path)
+    pytorch_canary_scale_config = load_yaml_file(pt_lf_canary_scale_config_path)
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
@@ -298,10 +296,9 @@ def main() -> None:
         PREFIX_LF,
     ):
         print(
-            f"Consistency validation failed between {scale_config_path} and {pt_lf_scale_config_path}"
+            f"Consistency validation failed between {scale_config_path} and {pt_lf_scale_config_path}\n"
         )
         validation_success = False
-        print()
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
@@ -309,19 +306,17 @@ def main() -> None:
         PREFIX_LF_CANARY,
     ):
         print(
-            f"Consistency validation failed bewteen {scale_config_path} and {pt_lf_canary_scale_config_path}"
+            f"Consistency validation failed between {scale_config_path} and {pt_lf_canary_scale_config_path}\n"
         )
         validation_success = False
-        print()
 
     # # Delete the temp dir, if it was created
     # if temp_dir and os.path.exists(temp_dir):
     #     os.rmdir(temp_dir)
 
     if not validation_success:
-        print("Validation failed")
-        print()
         print(
+            "Validation failed\n\n"
             "Please run `python .github/scripts/validate_scale_config.py --test-infra-repo-root [path] "
             "--pytorch-repo-root [path]` locally to validate the scale-config.yml file and generate the "
             "updated pytorch/pytorch scale config files.\n\n"
@@ -330,8 +325,6 @@ def main() -> None:
             " relevant changes, you can merge that pytorch/pytorch PR first to make this job pass."
         )
         exit(1)
-
-    exit(0)
 
 
 if __name__ == "__main__":
