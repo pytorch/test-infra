@@ -137,7 +137,7 @@ jobs:
           ref: "main"
           path: builder
       - name: Setup SSH
-        uses: ./.github/actions/setup-ssh
+        uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
       - name: Set linux aarch64 CI

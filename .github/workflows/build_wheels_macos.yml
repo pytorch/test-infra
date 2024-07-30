@@ -105,7 +105,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - name: Setup SSH
-        uses: ./.github/actions/setup-ssh
+        uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
       - uses: ./test-infra/.github/actions/set-channel
