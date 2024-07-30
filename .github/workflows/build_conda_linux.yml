@@ -147,7 +147,6 @@ jobs:
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
-            --solver=libmamba \
             --python "${PYTHON_VERSION}" \
             --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
@@ -199,6 +198,7 @@ jobs:
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
             -c defaults \
+            --solver=libmamba \
             "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
             ${CONSTRAINTS} \
             --override-channels
