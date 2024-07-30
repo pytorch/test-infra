@@ -222,6 +222,10 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
+      - name: Teardown Linux
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-linux
+        
   upload:
     needs: build
     uses: ./.github/workflows/_binary_conda_upload.yml
