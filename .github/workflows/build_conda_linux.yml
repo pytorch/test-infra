@@ -177,7 +177,7 @@ jobs:
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
-          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}" conda=24.5.0
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           if [[ "${GPU_ARCH}" = "cuda" ]]; then
