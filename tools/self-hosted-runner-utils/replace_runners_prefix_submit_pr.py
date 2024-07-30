@@ -1,7 +1,7 @@
 #!/bin/bash
 
 """
-This script is used to replace the prefix of the runners in the scale config file and submit PRs to the repos,
+This script is used to replace the prefix of the runners from the scale config file on GH workflows and submit PRs to the repos,
 
 it is a **hacky script** that is useful to help test new runners in partner repos to quickly open PRs agains them and run CI.
 
