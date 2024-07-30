@@ -233,8 +233,6 @@ def download_file(url: str, local_filename: str) -> None:
     with open(local_filename, "wb") as f:
         f.write(response.content)
 
-    print(f"Downloaded file to {local_filename}")
-
 
 def pull_temp_config_from_github_repo(config_path: str) -> str:
     config_url = GITHUB_PYTORCH_REPO_RAW_URL + config_path
@@ -274,14 +272,12 @@ def main() -> None:
     scale_config_path = os.path.join(args.test_infra_repo_root, SCALE_CONFIG_PATH)
 
     scale_config = load_scale_config(scale_config_path)
-    pt_scale_config = load_scale_config(pt_lf_scale_config_path)
-    pytorch_canary_scale_config = load_scale_config(pt_lf_canary_scale_config_path)
-
     validation_success = True
-    print(f"Validating self consistency of {scale_config_path}")
+    print(f"Validating internal consistency of {scale_config_path}")
     if not is_config_consistent_internally(scale_config[RUNNER_TYPE_CONFIG_KEY]):
         validation_success = False
-        print("scale-config.yml is not internally consistent\n")
+        print("scale-config.yml is not internally consistent")
+    print()
 
     if generate_files:
         generate_repo_scale_config(
@@ -291,6 +287,10 @@ def main() -> None:
         generate_repo_scale_config(
             scale_config_path, pt_lf_canary_scale_config_path, PREFIX_LF_CANARY
         )
+        print()
+
+    pt_scale_config = load_scale_config(pt_lf_scale_config_path)
+    pytorch_canary_scale_config = load_scale_config(pt_lf_canary_scale_config_path)
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
@@ -298,9 +298,10 @@ def main() -> None:
         PREFIX_LF,
     ):
         print(
-            f"Consistency validation failed between {pt_scale_config} and {pt_lf_scale_config_path}"
+            f"Consistency validation failed between {scale_config_path} and {pt_lf_scale_config_path}"
         )
         validation_success = False
+        print()
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
@@ -308,9 +309,10 @@ def main() -> None:
         PREFIX_LF_CANARY,
     ):
         print(
-            f"Consistency validation failed bewteen {pt_scale_config} and {pt_lf_canary_scale_config_path}"
+            f"Consistency validation failed bewteen {scale_config_path} and {pt_lf_canary_scale_config_path}"
         )
         validation_success = False
+        print()
 
     # # Delete the temp dir, if it was created
     # if temp_dir and os.path.exists(temp_dir):
@@ -322,9 +324,8 @@ def main() -> None:
         print(
             "Please run `python .github/scripts/validate_scale_config.py --test-infra-repo-root [path] "
             "--pytorch-repo-root [path]` locally to validate the scale-config.yml file and generate the "
-            "updated pytorch scale config files."
-        )
-        print(
+            "updated pytorch/pytorch scale config files.\n\n"
+            "Note: You still need to fix internal consistency errors yourself.\n\n"
             "If this script passes locally and you already have a PR open on pytorch/pytorch with the "
             " relevant changes, you can merge that pytorch/pytorch PR first to make this job pass."
         )
