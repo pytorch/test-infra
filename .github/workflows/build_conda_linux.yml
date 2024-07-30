@@ -130,7 +130,7 @@ jobs:
         run: |
           set -euxo pipefail
           # shellcheck disable=SC2086
-          ${CONDA_RUN} conda install torch -c "pytorch-${CHANNEL}"
+          ${CONDA_RUN} conda install pytorch -c "pytorch-${CHANNEL}"
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
