@@ -142,6 +142,7 @@ jobs:
           export Python3_ROOT_DIR=${CONDA_ENV}
           export Python3_EXECUTABLE="${CONDA_ENV}"
 
+          ${CONDA_RUN} conda info
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
@@ -175,6 +176,9 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
+          export PATH=$CONDA_ENV/bin:$CONDA_ENV:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+          export Python3_ROOT_DIR=${CONDA_ENV}
+          export Python3_EXECUTABLE="${CONDA_ENV}"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}" conda=24.5.0
