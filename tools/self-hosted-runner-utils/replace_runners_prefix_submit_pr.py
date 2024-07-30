@@ -1,5 +1,13 @@
 #!/bin/bash
 
+"""
+This script is used to replace the prefix of the runners in the scale config file and submit PRs to the repos,
+
+it is a **hacky script** that is useful to help test new runners in partner repos to quickly open PRs agains them and run CI.
+
+it depends on git and gh command line tools, so make sure you have them installed and configured.
+"""
+
 import argparse
 from datetime import datetime
 import fnmatch
@@ -27,7 +35,7 @@ REPOS = [
 
 
 def get_opts() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--scale-config", type=str, required=True)
     parser.add_argument("--temp-folder", type=str, default="/Users/jschmidt/.the_tmp_repl_runners")
     parser.add_argument("--prefix", type=str, default="amz2023.")
