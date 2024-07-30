@@ -94,7 +94,11 @@ def compare_runner_types(
     return are_same
 
 
-def validate_internal(runner_types: Dict[str, Dict[str, str]]) -> bool:
+def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
+    """
+    Ensure that for every linux runner type in the config, there is a corresponding runner type with the
+    prefix "amz2023." that contains all the same settings except for the ami
+    """
     errors_found = False
 
     for runner_type in runner_types:
@@ -136,11 +140,15 @@ def validate_internal(runner_types: Dict[str, Dict[str, str]]) -> bool:
     return not errors_found
 
 
-def validate_across_configs(
+def is_consistent_across_configs(
     source_config: Dict[str, Dict[str, str]],
     dest_config: Dict[str, Dict[str, str]],
     expected_prefix: str,
 ) -> bool:
+    """
+    Validate that every runner type in the source_config has a corresponding runner type in the dest_config
+    where the dest_config has the expected_prefix added
+    """
     errors_found = False
 
     # Every entry in the source_config should be in the dest_config with
@@ -170,9 +178,11 @@ def generate_repo_scale_config(
     source_config_file: str, dest_config_file: str, expected_prefix: str
 ) -> None:
     """
-    Generate the new scale config file with the same layout as the original file
+    Generate the new scale config file with the same layout as the original file,
+    but with the expected_prefix added to the runner types
     """
 
+    print(f"Generating updated {dest_config_file}")
     source_config = load_scale_config(source_config_file)
     base_runner_types = set(source_config[RUNNER_TYPE_CONFIG_KEY].keys())
 
@@ -226,85 +236,79 @@ def download_file(url: str, local_filename: str) -> None:
     print(f"Downloaded file to {local_filename}")
 
 
+def pull_temp_config_from_github_repo(config_path: str) -> str:
+    config_url = GITHUB_PYTORCH_REPO_RAW_URL + config_path
+
+    temp_dir = tempfile.mkdtemp()
+    config_path = os.path.join(temp_dir, config_path)
+    download_file(config_url, config_path)
+
+    return config_path
+
+
 def main() -> None:
     args = parse_args()
 
     generate_files = False
-    temp_dir = None
     if args.pytorch_repo_root is None:
         print(
             "Using github's pytorch/pytorch repository as the source for the pytorch scale config files"
         )
 
-        pytorch_lf_scale_config_url = (
-            GITHUB_PYTORCH_REPO_RAW_URL + PYTORCH_LF_SCALE_CONFIG_PATH
+        pt_lf_scale_config_path = pull_temp_config_from_github_repo(
+            PYTORCH_LF_SCALE_CONFIG_PATH
         )
-        pytorch_lf_canary_scale_config_url = (
-            GITHUB_PYTORCH_REPO_RAW_URL + PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
-        )
-
-        temp_dir = tempfile.mkdtemp()
-        pytorch_lf_scale_config_path = os.path.join(
-            temp_dir, PYTORCH_LF_SCALE_CONFIG_PATH
-        )
-        pytorch_lf_canary_scale_config_path = os.path.join(
-            temp_dir, PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
-        )
-
-        download_file(pytorch_lf_scale_config_url, pytorch_lf_scale_config_path)
-        download_file(
-            pytorch_lf_canary_scale_config_url, pytorch_lf_canary_scale_config_path
+        pt_lf_canary_scale_config_path = pull_temp_config_from_github_repo(
+            PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
         )
     else:
         # Running locally
         generate_files = True
-        pytorch_lf_scale_config_path = os.path.join(
+        pt_lf_scale_config_path = os.path.join(
             args.pytorch_repo_root, PYTORCH_LF_SCALE_CONFIG_PATH
         )
-        pytorch_lf_canary_scale_config_path = os.path.join(
+        pt_lf_canary_scale_config_path = os.path.join(
             args.pytorch_repo_root, PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
         )
 
     scale_config_path = os.path.join(args.test_infra_repo_root, SCALE_CONFIG_PATH)
 
     scale_config = load_scale_config(scale_config_path)
-    pytorch_scale_config = load_scale_config(pytorch_lf_scale_config_path)
-    pytorch_canary_scale_config = load_scale_config(pytorch_lf_canary_scale_config_path)
+    pt_scale_config = load_scale_config(pt_lf_scale_config_path)
+    pytorch_canary_scale_config = load_scale_config(pt_lf_canary_scale_config_path)
 
     validation_success = True
     print(f"Validating self consistency of {scale_config_path}")
-    if not validate_internal(scale_config[RUNNER_TYPE_CONFIG_KEY]):
+    if not is_config_consistent_internally(scale_config[RUNNER_TYPE_CONFIG_KEY]):
         validation_success = False
         print("scale-config.yml is not internally consistent\n")
 
     if generate_files:
-        print(f"Generating updated {pytorch_lf_scale_config_path}")
         generate_repo_scale_config(
-            scale_config_path, pytorch_lf_scale_config_path, PREFIX_LF
+            scale_config_path, pt_lf_scale_config_path, PREFIX_LF
         )
 
-        print(f"Generating updated {pytorch_lf_canary_scale_config_path}")
         generate_repo_scale_config(
-            scale_config_path, pytorch_lf_canary_scale_config_path, PREFIX_LF_CANARY
+            scale_config_path, pt_lf_canary_scale_config_path, PREFIX_LF_CANARY
         )
 
-    if not validate_across_configs(
+    if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
-        pytorch_scale_config[RUNNER_TYPE_CONFIG_KEY],
+        pt_scale_config[RUNNER_TYPE_CONFIG_KEY],
         PREFIX_LF,
     ):
         print(
-            f"Consistency validation failed between {pytorch_scale_config} and {pytorch_lf_scale_config_path}"
+            f"Consistency validation failed between {pt_scale_config} and {pt_lf_scale_config_path}"
         )
         validation_success = False
 
-    if not validate_across_configs(
+    if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
         pytorch_canary_scale_config[RUNNER_TYPE_CONFIG_KEY],
         PREFIX_LF_CANARY,
     ):
         print(
-            f"Consistency validation failed bewteen {pytorch_scale_config} and {pytorch_lf_canary_scale_config_path}"
+            f"Consistency validation failed bewteen {pt_scale_config} and {pt_lf_canary_scale_config_path}"
         )
         validation_success = False
 
