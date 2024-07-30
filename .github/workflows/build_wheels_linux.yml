@@ -264,6 +264,9 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+      - name: Teardown Linux
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-linux
 
   upload:
     needs: build

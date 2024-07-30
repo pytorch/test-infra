@@ -255,6 +255,9 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
+      - uses: ./test-infra/.github/actions/teardown-windows
+        if: always()
+        name: Teardown Windows
 
   upload:
     needs: build
