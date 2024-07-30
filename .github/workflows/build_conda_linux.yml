@@ -191,6 +191,7 @@ jobs:
             CONSTRAINT_BUILD="=${BUILD_VERSION}"
           fi
 
+          ${CONDA_RUN_SMOKE} conda info
           ${CONDA_RUN_SMOKE} conda install \
             --yes \
             -vv \
@@ -198,7 +199,6 @@ jobs:
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
             -c defaults \
-            --solver=libmamba \
             "${PACKAGE_NAME}${CONSTRAINT_BUILD}" \
             ${CONSTRAINTS} \
             --override-channels
