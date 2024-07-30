@@ -126,6 +126,11 @@ jobs:
         run: |
           set -euxo pipefail
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
+      - name: Install torch dependency
+        run: |
+          set -euxo pipefail
+          # shellcheck disable=SC2086
+          ${CONDA_RUN} conda install torch==${PYTORCH_VERSION} -c "pytorch-${CHANNEL}"
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
