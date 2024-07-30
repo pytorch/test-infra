@@ -13,10 +13,9 @@ FROM
 WHERE
   TIMESTAMP_MILLIS(p.timestamp) >= PARSE_DATETIME_ISO8601(: startTime)
   AND TIMESTAMP_MILLIS(p.timestamp) < PARSE_DATETIME_ISO8601(: stopTime)
-  AND p.filename LIKE '%_performance'
   AND p.filename LIKE CONCAT(
     '%_', : dtypes, '_', : mode, '_', : device,
-    '_%'
+    '_performance%'
   )
 ORDER BY
   w.head_branch,
