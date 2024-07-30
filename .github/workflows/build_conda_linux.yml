@@ -156,6 +156,13 @@ jobs:
         with:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
+      # NB: Upload GitHub. In case we need to debug the build
+      - name: Upload artifact to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -168,6 +175,13 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
+
+          # Please note these are required changes to make sure our conda environment take precedence before
+          # any other environments https://github.com/conda-incubator/setup-miniconda#conda-incubatorsetup-miniconda
+          # such as test environment created by default.
+          export PATH=$CONDA_ENV/bin:$CONDA_ENV:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+          export Python3_ROOT_DIR=${CONDA_ENV}
+          export Python3_EXECUTABLE="${CONDA_ENV}"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
@@ -211,13 +225,6 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      # NB: Only upload to GitHub after passing smoke tests
-      - name: Upload artifact to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/distr/
 
   upload:
     needs: build
