@@ -222,9 +222,9 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
-      - name: Teardown Linux
+      - name: Wait for ssh session
         if: ${{ always() }}
-        uses: ./test-infra/.github/actions/teardown-linux
+        uses: ./test-infra/.github/actions/wait-for-ssh
         
   upload:
     needs: build
