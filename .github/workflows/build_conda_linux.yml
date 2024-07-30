@@ -181,7 +181,7 @@ jobs:
           export Python3_EXECUTABLE="${CONDA_ENV}"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
-          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}" conda=24.5.0
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           if [[ "${GPU_ARCH}" = "cuda" ]]; then
