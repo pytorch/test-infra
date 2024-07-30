@@ -94,6 +94,10 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: Setup SSH
+        uses: ./.github/actions/setup-ssh
+        with:
+          github-secret: ${{ github.token }}
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
@@ -156,6 +160,13 @@ jobs:
         with:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
+      # NB: Only upload to GitHub before smoke test to enable debugging
+      - name: Upload artifact to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/distr/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -211,13 +222,6 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      # NB: Only upload to GitHub after passing smoke tests
-      - name: Upload artifact to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/distr/
 
   upload:
     needs: build

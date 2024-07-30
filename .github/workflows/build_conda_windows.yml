@@ -94,6 +94,12 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - uses: ./test-infra/.github/actions/setup-ssh
+        name: Setup SSH
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
