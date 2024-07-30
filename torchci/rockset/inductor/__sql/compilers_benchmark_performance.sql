@@ -21,10 +21,9 @@ WITH performance_results AS (
   FROM
     inductor.torch_dynamo_perf_stats_v2
   WHERE
-    filename LIKE '%_performance'
-    AND filename LIKE CONCAT(
+    filename LIKE CONCAT(
       '%_', : dtypes, '_', : mode, '_', : device,
-      '_%'
+      '_performance%'
     )
     AND TIMESTAMP_MILLIS(timestamp) >= PARSE_DATETIME_ISO8601(:startTime)
     AND TIMESTAMP_MILLIS(timestamp) < PARSE_DATETIME_ISO8601(:stopTime)
@@ -46,10 +45,9 @@ accuracy_results AS (
   FROM
     inductor.torch_dynamo_perf_stats_v2
   WHERE
-    filename LIKE '%_accuracy'
-    AND filename LIKE CONCAT(
+    filename LIKE CONCAT(
       '%_', : dtypes, '_', : mode, '_', : device,
-      '_%'
+      '_accuracy%'
     )
     AND TIMESTAMP_MILLIS(timestamp) >= PARSE_DATETIME_ISO8601(:startTime)
     AND TIMESTAMP_MILLIS(timestamp) < PARSE_DATETIME_ISO8601(:stopTime)

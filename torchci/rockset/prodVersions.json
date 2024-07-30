@@ -82,8 +82,8 @@
     "queue_times_historical_pct": "f815ad1732928bb6"
   },
   "inductor": {
-    "compilers_benchmark_performance": "948afbaf5797a1eb",
-    "compilers_benchmark_performance_branches": "7523024a30c6b32f",
+    "compilers_benchmark_performance": "442c41fbbc0eb758",
+    "compilers_benchmark_performance_branches": "a07ce298be770d63",
     "torchao_query": "89dd8524b4784c7b",
     "torchao_query_branches": "dae2141eab66e839"
   },
