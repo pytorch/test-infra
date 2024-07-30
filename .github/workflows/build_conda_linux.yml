@@ -193,7 +193,7 @@ jobs:
 
           ${CONDA_RUN_SMOKE} conda install \
             --yes \
-            --quiet \
+            -vv \
             -c "${CONDA_LOCAL_CHANNEL}" \
             -c pytorch-"${CHANNEL}" \
             -c nvidia \
