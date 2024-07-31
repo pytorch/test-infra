@@ -188,7 +188,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
-  const issueTitle = `DISABLED ${testName}`;
+  const issueTitle = `DISABLED ${testName.testName} (__main__.${testName.suite})`;
   const issueBody = formatDisableTestBody(job);
 
   const issues: IssueData[] = data.issues;
