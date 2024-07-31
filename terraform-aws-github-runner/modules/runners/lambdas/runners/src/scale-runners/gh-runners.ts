@@ -1,5 +1,5 @@
 import { Repo, getRepoKey, expBackOff } from './utils';
-import { RunnerType } from './runners';
+import { RunnerType, RunnerTypeScaleConfig } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 import { locallyCached, redisCached, clearLocalCacheNamespace, redisClearCacheKeyPattern } from './cache';
 
@@ -340,7 +340,7 @@ export async function getRunnerTypes(
       console.debug(`'${filepath}' contents: ${configYml}`);
 
       const config = YAML.parse(configYml);
-      const result: Map<string, RunnerType> = new Map(
+      const result: Map<string, RunnerTypeScaleConfig> = new Map(
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
           prop,
@@ -358,9 +358,28 @@ export async function getRunnerTypes(
             max_available: runner_type.max_available,
             os: runner_type.os,
             runnerTypeName: prop,
+            variants: runner_type.variants,
           },
         ]),
       );
+
+      Array.from(result.keys()).forEach((key) => {
+        const runnerType = result.get(key);
+        if (!runnerType?.variants) {
+          return;
+        }
+
+        if (runnerType.variants.size > 0) {
+          Array.from(runnerType.variants.keys()).forEach((variant) => {
+            const variantType = runnerType.variants.get(variant);
+            if (!variantType) {
+              return;
+            }
+
+            result.set(`${variant}.${key}`, { ...runnerType, ...variantType, runnerTypeName: `${variant}.${key}` });
+          });
+        }
+      });
 
       const filteredResult: Map<string, RunnerType> = new Map(
         [...result.entries()].filter(

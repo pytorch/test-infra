@@ -669,7 +669,20 @@ runner_types:
       os: linux
       max_available: 1
       disk_size: 150
-      is_ephemeral: false`;
+      is_ephemeral: false
+    linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      max_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        ephemeral:
+          is_ephemeral: true
+        large_disk:
+          disk_size: 300
+        amzn23:
+          ami: ami-123`;
 
   it('gets the contents, twice', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
@@ -710,6 +723,18 @@ runner_types:
             is_ephemeral: false,
           },
         ],
+        [
+          'linux.4xlarge',
+          {
+            runnerTypeName: 'linux.4xlarge',
+            instance_type: 'c5.2xlarge',
+            os: 'linux',
+            max_available: 1,
+            disk_size: 150,
+            is_ephemeral: false,
+          },
+        ],
+
       ]),
     );
     expect(await getRunnerTypes(repo, metrics)).toEqual(
