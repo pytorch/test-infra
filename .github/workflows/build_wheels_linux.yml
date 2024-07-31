@@ -81,7 +81,7 @@ on:
         type: string
       wheel-build-extra-args:
         description: Extra arguments to pass to the python build wheel command
-        requried: false
+        required: false
         default: ""
         type: string
     secrets:
