@@ -111,8 +111,11 @@ if __name__ == "__main__":
         f"There are {len(failed_test_shas)} shas, uploading in intervals of {interval}"
     )
     for i in range(0, len(failed_test_shas), interval):
-        pull_shas(failed_test_shas[i : i + interval])
-        upload_merge_base_info(failed_test_shas[i : i + interval])
+        try:
+            pull_shas(failed_test_shas[i : i + interval])
+            upload_merge_base_info(failed_test_shas[i : i + interval])
+        except Exception as e:
+            print(e)
 
     interval = 500
     main_branch_shas = list_past_year_shas()
