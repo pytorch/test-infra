@@ -120,18 +120,18 @@ if __name__ == "__main__":
     )
     for i in range(0, len(failed_test_shas), interval):
         pull_shas(failed_test_shas[i : i + interval])
-        # upload_merge_base_info(failed_test_shas[i : i + interval])
+        upload_merge_base_info(failed_test_shas[i : i + interval])
 
-    # interval = 500
-    # main_branch_shas = list_past_year_shas()
-    # print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
-    # for i in range(0, len(main_branch_shas), interval):
-    #     shas = [
-    #         x["head_sha"]
-    #         for x in query_rockset(
-    #             NOT_IN_MERGE_BASES_TABLE,
-    #             {"shas": ",".join(main_branch_shas[i : i + interval])},
-    #         )
-    #     ]
-    #     upload_merge_base_info(shas)
-    #     print(f"{i} to {i + interval} done")
+    interval = 500
+    main_branch_shas = list_past_year_shas()
+    print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
+    for i in range(0, len(main_branch_shas), interval):
+        shas = [
+            x["head_sha"]
+            for x in query_rockset(
+                NOT_IN_MERGE_BASES_TABLE,
+                {"shas": ",".join(main_branch_shas[i : i + interval])},
+            )
+        ]
+        upload_merge_base_info(shas)
+        print(f"{i} to {i + interval} done")
