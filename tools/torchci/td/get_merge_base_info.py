@@ -24,6 +24,7 @@ FROM
     left outer join commons.merge_bases mb on j.head_sha = mb.sha
 where
     mb.merge_base is null
+    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
@@ -62,10 +63,17 @@ def run_command(command: str) -> str:
 
 
 def pull_shas(shas: List[str]) -> None:
-    all_shas = " ".join(shas)
-    run_command(
-        f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
-    )
+    fetch_command = "git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin"
+    try:
+        all_shas = " ".join(shas)
+        run_command(f"{fetch_command} {all_shas}")
+    except Exception as e:
+        print(e)
+        for sha in shas:
+            try:
+                run_command(f"{fetch_command} {sha}")
+            except Exception as e:
+                print(e)
 
 
 def upload_merge_base_info(shas: List[str]) -> None:
@@ -111,22 +119,19 @@ if __name__ == "__main__":
         f"There are {len(failed_test_shas)} shas, uploading in intervals of {interval}"
     )
     for i in range(0, len(failed_test_shas), interval):
-        try:
-            pull_shas(failed_test_shas[i : i + interval])
-            upload_merge_base_info(failed_test_shas[i : i + interval])
-        except Exception as e:
-            print(e)
+        pull_shas(failed_test_shas[i : i + interval])
+        # upload_merge_base_info(failed_test_shas[i : i + interval])
 
-    interval = 500
-    main_branch_shas = list_past_year_shas()
-    print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
-    for i in range(0, len(main_branch_shas), interval):
-        shas = [
-            x["head_sha"]
-            for x in query_rockset(
-                NOT_IN_MERGE_BASES_TABLE,
-                {"shas": ",".join(main_branch_shas[i : i + interval])},
-            )
-        ]
-        upload_merge_base_info(shas)
-        print(f"{i} to {i + interval} done")
+    # interval = 500
+    # main_branch_shas = list_past_year_shas()
+    # print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
+    # for i in range(0, len(main_branch_shas), interval):
+    #     shas = [
+    #         x["head_sha"]
+    #         for x in query_rockset(
+    #             NOT_IN_MERGE_BASES_TABLE,
+    #             {"shas": ",".join(main_branch_shas[i : i + interval])},
+    #         )
+    #     ]
+    #     upload_merge_base_info(shas)
+    #     print(f"{i} to {i + interval} done")
