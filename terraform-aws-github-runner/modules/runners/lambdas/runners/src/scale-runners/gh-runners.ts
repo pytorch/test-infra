@@ -358,20 +358,20 @@ export async function getRunnerTypes(
             max_available: runner_type.max_available,
             os: runner_type.os,
             runnerTypeName: prop,
-            variants: runner_type.variants,
+            variants: new Map(Object.entries(runner_type.variants || {})),
           },
         ]),
       );
 
       Array.from(result.keys()).forEach((key) => {
         const runnerType = result.get(key);
-        if (!runnerType?.variants) {
+        if (runnerType?.variants === undefined) {
           return;
         }
 
         if (runnerType.variants.size > 0) {
           Array.from(runnerType.variants.keys()).forEach((variant) => {
-            const variantType = runnerType.variants.get(variant);
+            const variantType = runnerType.variants?.get(variant);
             if (!variantType) {
               return;
             }
@@ -382,28 +382,34 @@ export async function getRunnerTypes(
       });
 
       const filteredResult: Map<string, RunnerType> = new Map(
-        [...result.entries()].filter(
-          ([, runnerType]) =>
-            typeof runnerType.runnerTypeName === 'string' &&
-            alphaNumericStr.test(runnerType.runnerTypeName) &&
-            typeof runnerType.instance_type === 'string' &&
-            alphaNumericStr.test(runnerType.instance_type) &&
-            ['linux', 'windows'].includes(runnerType.os) &&
-            (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
-            (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
-            (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
-            (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
-            (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
-            (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
-        ),
+        [...result.entries()]
+          .filter(
+            ([, runnerType]) =>
+              typeof runnerType.runnerTypeName === 'string' &&
+              alphaNumericStr.test(runnerType.runnerTypeName) &&
+              typeof runnerType.instance_type === 'string' &&
+              alphaNumericStr.test(runnerType.instance_type) &&
+              ['linux', 'windows'].includes(runnerType.os) &&
+              (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
+              (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+              (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
+              (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
+              (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
+              (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
+          )
+          .map(([key, runnerType]) => {
+            const rt: RunnerTypeScaleConfig = { ...runnerType };
+            delete rt.variants;
+            return [key, rt];
+          }),
       );
 
       if (result.size != filteredResult.size) {
         console.error(
           `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
         );
-        console.error(`Original runner types: ${JSON.stringify(result)}`);
-        console.error(`Filtered runner types: ${JSON.stringify(filteredResult)}`);
+        console.error(`Original runner types: ${JSON.stringify(Array.from(result.keys()).sort())}`);
+        console.error(`Filtered runner types: ${JSON.stringify(Array.from(filteredResult.keys()).sort())}`);
       }
 
       status = 'success';

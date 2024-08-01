@@ -679,10 +679,69 @@ runner_types:
       variants:
         ephemeral:
           is_ephemeral: true
-        large_disk:
+        largedisk:
           disk_size: 300
-        amzn23:
+        ami123:
           ami: ami-123`;
+
+  const getRunnerTypeResponse = new Map([
+    [
+      'linux.2xlarge',
+      {
+        runnerTypeName: 'linux.2xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'linux.4xlarge',
+      {
+        runnerTypeName: 'linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
+      },
+    ],
+    [
+      'largedisk.linux.4xlarge',
+      {
+        runnerTypeName: 'largedisk.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 300,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'ami123.linux.4xlarge',
+      {
+        runnerTypeName: 'ami123.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+        ami: 'ami-123',
+      },
+    ],
+  ]);
 
   it('gets the contents, twice', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
@@ -710,48 +769,8 @@ runner_types:
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     await resetGHRunnersCaches();
-    expect(await getRunnerTypes(repo, metrics)).toEqual(
-      new Map([
-        [
-          'linux.2xlarge',
-          {
-            runnerTypeName: 'linux.2xlarge',
-            instance_type: 'c5.2xlarge',
-            os: 'linux',
-            max_available: 1,
-            disk_size: 150,
-            is_ephemeral: false,
-          },
-        ],
-        [
-          'linux.4xlarge',
-          {
-            runnerTypeName: 'linux.4xlarge',
-            instance_type: 'c5.2xlarge',
-            os: 'linux',
-            max_available: 1,
-            disk_size: 150,
-            is_ephemeral: false,
-          },
-        ],
-
-      ]),
-    );
-    expect(await getRunnerTypes(repo, metrics)).toEqual(
-      new Map([
-        [
-          'linux.2xlarge',
-          {
-            runnerTypeName: 'linux.2xlarge',
-            instance_type: 'c5.2xlarge',
-            os: 'linux',
-            max_available: 1,
-            disk_size: 150,
-            is_ephemeral: false,
-          },
-        ],
-      ]),
-    );
+    expect(await getRunnerTypes(repo, metrics)).toEqual(getRunnerTypeResponse);
+    expect(await getRunnerTypes(repo, metrics)).toEqual(getRunnerTypeResponse);
 
     expect(mockCreateGithubAuth).toBeCalledTimes(2);
     expect(mockCreateGithubAuth).toBeCalledWith(undefined, 'app', Config.Instance.ghesUrlApi, metrics);

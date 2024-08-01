@@ -48,7 +48,7 @@ export interface RunnerType extends RunnerTypeOptional {
 }
 
 export interface RunnerTypeScaleConfig extends RunnerType {
-  variants: Map<string, RunnerTypeOptional>;
+  variants?: Map<string, RunnerTypeOptional>;
 }
 
 export interface DescribeInstancesResultRegion {
