@@ -84,6 +84,19 @@ on:
         required: false
         default: ""
         type: string
+      pip-install-torch-extra-args:
+        # NOTE: Why does this exist?
+        # Well setuptools / python packaging doesn't actually allow you to specify dependencies
+        # that come from other index URLs when you are building a package for "security" purposes.
+        # Unfortunately for us our nightlies (torch, torchvision, etc.) only exist on download.pytorch.org
+        # which means that if our users depend on things like torchvision then they need to have
+        # an ability to install these dependencies from download.pytorch.org, as part of the build process
+        # which currently the do not have the ability to do through normal means, hence this parameter
+        # Reference: https://discuss.python.org/t/specifying-extra-index-url-in-setup-cfg-option-dependencies/19377
+        description: Extra arguments to pass to the command that install base torch dependency
+        required: false
+        default: ""
+        type: string
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -187,7 +200,7 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
-          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
