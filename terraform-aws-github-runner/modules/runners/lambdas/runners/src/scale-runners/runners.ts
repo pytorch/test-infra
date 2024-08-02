@@ -27,16 +27,28 @@ export interface AmiExpermient {
   percentage: number;
 }
 
-export interface RunnerType {
+export interface RunnerTypeOptional {
   ami_experiment?: AmiExpermient;
   ami?: string;
+  disk_size?: number;
+  instance_type?: string;
+  is_ephemeral?: boolean;
+  labels?: Array<string>;
+  max_available?: number;
+  os?: string;
+}
+
+export interface RunnerType extends RunnerTypeOptional {
   disk_size: number;
   instance_type: string;
   is_ephemeral: boolean;
-  labels?: Array<string>;
   max_available: number;
   os: string;
   runnerTypeName: string;
+}
+
+export interface RunnerTypeScaleConfig extends RunnerType {
+  variants?: Map<string, RunnerTypeOptional>;
 }
 
 export interface DescribeInstancesResultRegion {
