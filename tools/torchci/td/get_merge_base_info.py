@@ -24,6 +24,7 @@ FROM
     left outer join commons.merge_bases mb on j.head_sha = mb.sha
 where
     mb.merge_base is null
+    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
@@ -62,10 +63,17 @@ def run_command(command: str) -> str:
 
 
 def pull_shas(shas: List[str]) -> None:
-    all_shas = " ".join(shas)
-    run_command(
-        f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
-    )
+    fetch_command = "git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin"
+    try:
+        all_shas = " ".join(shas)
+        run_command(f"{fetch_command} {all_shas}")
+    except Exception as e:
+        print(e)
+        for sha in shas:
+            try:
+                run_command(f"{fetch_command} {sha}")
+            except Exception as e:
+                print(e)
 
 
 def upload_merge_base_info(shas: List[str]) -> None:
