@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 
-def run_cmd_or_die(cmd):
+def run_cmd_or_die(cmd: str) -> str:
     print(f"Running command: {cmd}")
     p = subprocess.Popen(
         "/bin/bash",
@@ -17,6 +17,7 @@ def run_cmd_or_die(cmd):
         universal_newlines=True,
         errors="backslashreplace",
     )
+    assert p.stdin is not None and p.stdout is not None
     p.stdin.write("set -e\n")
     p.stdin.write(cmd)
     p.stdin.write("\nexit $?\n")
@@ -40,7 +41,7 @@ def run_cmd_or_die(cmd):
     return result
 
 
-def main():
+def main() -> None:
     all_secrets = json.loads(os.environ["ALL_SECRETS"])
     secrets_names = [x for x in sys.argv[1].split(" ") if x]
     if not secrets_names:
