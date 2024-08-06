@@ -49,7 +49,7 @@ runner_types:
     disk_size: 200
     instance_type: c5.9xlarge
     is_ephemeral: true
-    max_available: 20
+    max_available: 100
     os: linux
   linux.12xlarge.ephemeral:
     disk_size: 200
