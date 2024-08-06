@@ -216,11 +216,9 @@ runner_types:
     is_ephemeral: false
     max_available: 100
     os: linux
-<<<<<<< HEAD
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
-=======
   windows.g4dn.xlarge:
     disk_size: 256
     instance_type: g4dn.xlarge
@@ -233,7 +231,6 @@ runner_types:
     is_ephemeral: false
     max_available: 100
     os: windows
->>>>>>> c47fb0cb6 (add new instance type for windows for smoke tests #103104)
   windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
