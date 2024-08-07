@@ -61,7 +61,7 @@ runner_types:
     disk_size: 200
     instance_type: c5.9xlarge
     is_ephemeral: true
-    max_available: 20
+    max_available: 50
     os: linux
     variants:
       amz2023:
@@ -178,7 +178,7 @@ runner_types:
     disk_size: 150
     instance_type: g6.4xlarge
     is_ephemeral: false
-    max_available: 30
+    max_available: 50
     os: linux
     variants:
       amz2023:

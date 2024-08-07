@@ -1,7 +1,6 @@
 # Takes the scale-config.yml file in test-infra/.github/scale-config.yml and runs the following
 # validations against it:
-# 1. Internal validation: Ensure that every linux runner type listed has a corresponding runner type with the
-#    prefix "amz2023." that contains all the same settings except for the ami
+# 1. Internal validation: Ensure that every linux runner type listed has the corresponding Amazon 2023 variant
 # 2. External validation: Ensure that every runner type listed (linux & windows) have corresponding runner types in
 #    pytorch/pytorch's .github/lf-scale-config.yml and .github/lf-canary-scale-config.yml that have the "lf."
 #    "lf.c." prefixes added correspondingly
@@ -120,9 +119,9 @@ def runner_types_are_equivalent(
 
         elif key in {"variants", "ami_experiment"}:
             # These are dictionaries, so we need to compare them as JSON strings
-            if json.dumps(runner1_config[key], sort_keys=True) == json.dumps(runner2_config[key], sort_keys=True):
+            if json.dumps(runner1_config[key], sort_keys=True) != json.dumps(runner2_config[key], sort_keys=True):
                 print(
-                    f"Runner type {runner1_type} and {runner2_type} have different {key} "
+                    f"Runner type {runner1_type} and {runner2_type} have different '{key}' "
                     f"{runner1_config[key]} vs {runner2_config[key]}"
                 )
                 are_same = False
@@ -352,6 +351,8 @@ def main() -> None:
     if not is_config_consistent_internally(scale_config[RUNNER_TYPE_CONFIG_KEY]):
         validation_success = False
         print("scale-config.yml is not internally consistent\n")
+    else:
+        print("scale-config.yml is internally consistent\n")
 
     if generate_files:
         generate_repo_scale_config(
@@ -375,6 +376,8 @@ def main() -> None:
             f"Consistency validation failed between {scale_config_path} and {pt_lf_scale_config_path}\n"
         )
         validation_success = False
+    else:
+        print("scale-config.yml is consistent with pytorch/pytorch scale config\n")
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
@@ -385,6 +388,8 @@ def main() -> None:
             f"Consistency validation failed between {scale_config_path} and {pt_lf_canary_scale_config_path}\n"
         )
         validation_success = False
+    else:
+        print("scale-config.yml is consistent with pytorch/pytorch canary scale config\n")
 
     # # Delete the temp dir, if it was created
     # if temp_dir and os.path.exists(temp_dir):
@@ -401,6 +406,8 @@ def main() -> None:
             " relevant changes, you can merge that pytorch/pytorch PR first to make this job pass."
         )
         exit(1)
+    else:
+        print("All validations successful")
 
 
 if __name__ == "__main__":
