@@ -8,6 +8,9 @@
 # This script assumes that it is being run from the root of the test-infra repository
 
 import argparse
+import copy
+import json
+import jsonschema
 import os
 import tempfile
 
@@ -17,7 +20,8 @@ from typing import Any, cast, Dict
 
 import yaml
 
-AMAZON_2023_PREFIX = "amz2023."
+AMAZON_2023_PREFIX = "amz2023"
+AMAZON_2023_AMI_PREFIX = "al2023-ami-2023"
 
 # Paths relative to their respective repositories
 SCALE_CONFIG_PATH = ".github/scale-config.yml"
@@ -31,6 +35,30 @@ GITHUB_PYTORCH_REPO_RAW_URL = "https://raw.githubusercontent.com/pytorch/pytorch
 PREFIX_LF = "lf."
 PREFIX_LF_CANARY = "lf.c."
 
+_RUNNER_BASE_JSCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "ami_experiment": {"type": "object"},
+        "ami": {"type": "string"},
+        "disk_size": {"type": "number"},
+        "instance_type": {"type": "string"},
+        "is_ephemeral": {"type": "boolean"},
+        "labels": {"type": "array", "items": {"type": "string"}},
+        "max_available": {"type": "number"},
+        "os": {"type": "string", "enum": ["linux", "windows"]},
+    }
+}
+
+RUNNER_JSCHEMA = copy.deepcopy(_RUNNER_BASE_JSCHEMA)
+RUNNER_JSCHEMA["properties"]["variants"] = {
+    "type": "object",
+    "patternProperties": {
+        "^[a-zA-Z0-9]+$": _RUNNER_BASE_JSCHEMA,
+    },
+    "additionalProperties": False,
+}
+RUNNER_JSCHEMA["required"] = ["disk_size", "instance_type", "is_ephemeral", "max_available", "os"]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate scale-config.yml file")
@@ -58,16 +86,8 @@ def runner_types_are_equivalent(
     runner1_config: Dict[str, str],
     runner2_type: str,
     runner2_config: Dict[str, str],
-    ignore_ami: bool = False,
 ) -> bool:
     are_same = True
-
-    if ignore_ami:
-        # Remove the ami key from the configs
-        runner1_config = runner1_config.copy()
-        runner1_config.pop("ami", None)
-        runner2_config = runner2_config.copy()
-        runner2_config.pop("ami", None)
 
     # See if they have the same set of keys, potentially excluding the ami.
     # Get they keys that they do not both have:
@@ -76,9 +96,10 @@ def runner_types_are_equivalent(
     )
 
     if keys_not_in_both:
+        is_are = "is" if len(keys_not_in_both) == 1 else "are"
         print(
             f"Runner type {runner1_type} and {runner2_type} do not contain matching configs: "
-            f"{keys_not_in_both} is missing"
+            f"{keys_not_in_both} {is_are} missing"
         )
         are_same = False
 
@@ -87,7 +108,26 @@ def runner_types_are_equivalent(
         if key not in runner2_config:
             continue  # This was already caught in the previous check
 
-        if runner1_config[key] != runner2_config[key]:
+        if key == "labels":
+            # Labels are defined as list, used as list in every part of the autoscale app,
+            # but interpreted as set by the github daemon
+            if set(runner1_config[key]) != set(runner2_config[key]):
+                print(
+                    f"Runner type {runner1_type} and {runner2_type} have different additional labels: "
+                    f"{runner1_config[key]} vs {runner2_config[key]}"
+                )
+                are_same = False
+
+        elif key in {"variants", "ami_experiment"}:
+            # These are dictionaries, so we need to compare them as JSON strings
+            if json.dumps(runner1_config[key], sort_keys=True) == json.dumps(runner2_config[key], sort_keys=True):
+                print(
+                    f"Runner type {runner1_type} and {runner2_type} have different {key} "
+                    f"{runner1_config[key]} vs {runner2_config[key]}"
+                )
+                are_same = False
+
+        elif runner1_config[key] != runner2_config[key]:
             print(
                 f"Runner type {runner1_type} and {runner2_type} have different configurations "
                 f"for key {key}: {runner1_config[key]} vs {runner2_config[key]}"
@@ -98,47 +138,83 @@ def runner_types_are_equivalent(
 
 
 def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
-    """
-    Ensure that for every linux runner type in the config, there is a corresponding runner type with the
-    prefix "amz2023." that contains all the same settings except for the ami
+    f"""
+    Ensure that for every linux runner type in the config:
+
+    1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/main/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
+    2 - they have a max_available of at least 50
+    3 - they have a valid {AMAZON_2023_PREFIX} variant, that overrides only the ami
     """
     errors_found = False
 
-    for runner_type in runner_types:
-        # Skip the windows runner types
-        if runner_type.startswith("windows"):
+    for runner_type, runner_config in runner_types.items():
+        try:
+            jsonschema.validate(runner_config, RUNNER_JSCHEMA)
+        except jsonschema.ValidationError as e:
+            print(f"Runner type {runner_type} has invalid configuration: {e.message}")
+            errors_found = True
+            # continue, as the syntax is invalid and we can't trust the rest of the config
+            # so the next part of the code might break
             continue
 
-        if not runner_type.startswith("amz2023."):
-            base_runner_type = runner_type
-            amz2023_runner_type = f"{AMAZON_2023_PREFIX}{runner_type}"
-
-            if amz2023_runner_type not in runner_types:
-                print(
-                    f"Runner type {base_runner_type} does not have a corresponding {amz2023_runner_type} runner type"
-                )
-                errors_found = True
-                continue
-
-        else:
-            base_runner_type = runner_type[len(AMAZON_2023_PREFIX) :]
-            amz2023_runner_type = runner_type
-
-            if base_runner_type not in runner_types:
-                print(
-                    f"Runner type {amz2023_runner_type} does not have a corresponding {base_runner_type} runner type"
-                )
-                errors_found = True
-                continue
-
-        if not runner_types_are_equivalent(
-            base_runner_type,
-            runner_types[base_runner_type],
-            amz2023_runner_type,
-            runner_types[amz2023_runner_type],
-            ignore_ami=True,
-        ):
+        # Ensure that the max_available is at least 50
+        # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than 50
+        # will very easily trigger alerts of not enough runners
+        if runner_config["max_available"] < 50:
+            print(
+                f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
+                f"which is less than the minimum required value of 50"
+            )
             errors_found = True
+
+        # Next validations are for linux runners only
+        if runner_config.get("os").lower() == "windows":
+            continue
+
+        # Validations now are to guarantee that Amazon 2023 is a variant of the runner type
+        # this is why we `continue` on errors instead of only setting errors_found to True
+        # this should be the last validation for this runner type
+        if "variants" not in runner_config:
+            print(f"Runner type {runner_type} does not contain any variants")
+            errors_found = True
+            continue
+
+        if AMAZON_2023_PREFIX not in runner_config["variants"]:
+            print(
+                f"Runner type {runner_type} does not have a corresponding {AMAZON_2023_PREFIX} variant"
+            )
+            errors_found = True
+            continue
+
+        amzn_variant = runner_config["variants"][AMAZON_2023_PREFIX]
+
+        if "ami" not in amzn_variant:
+            print(
+                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} does not have an ami"
+            )
+            errors_found = True
+            continue
+
+        if "ami" in runner_config and amzn_variant["ami"] == runner_config["ami"]:
+            print(
+                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} has the same ami as the runner type"
+            )
+            errors_found = True
+            continue
+
+        if not amzn_variant["ami"].startswith(AMAZON_2023_AMI_PREFIX):
+            print(
+                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} ami does not start with {AMAZON_2023_AMI_PREFIX}"
+            )
+            errors_found = True
+            continue
+
+        if len(amzn_variant) != 1:
+            print(
+                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} contains extra configurations, this variant is expected to only have amazon 2023 AMI as the configuration"
+            )
+            errors_found = True
+            continue
 
     return not errors_found
 
