@@ -376,7 +376,16 @@ export async function getRunnerTypes(
               return;
             }
 
-            result.set(`${variant}.${key}`, { ...runnerType, ...variantType, runnerTypeName: `${variant}.${key}` });
+            let variantRunnTypeName: string;
+            if (key.startsWith('lf.c.')) {
+              variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
+            } else if (key.startsWith('lf.')) {
+              variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
+            } else {
+              variantRunnTypeName = `${variant}.${key}`;
+            }
+
+            result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
           });
         }
       });
