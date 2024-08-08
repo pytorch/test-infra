@@ -9,13 +9,14 @@
 import argparse
 import copy
 import json
-import jsonschema
 import os
 import tempfile
 
 import urllib.request
 
 from typing import Any, cast, Dict
+
+import jsonschema
 
 import yaml
 
@@ -47,7 +48,7 @@ _RUNNER_BASE_JSCHEMA = {
         "labels": {"type": "array", "items": {"type": "string"}},
         "max_available": {"type": "number"},
         "os": {"type": "string", "enum": ["linux", "windows"]},
-    }
+    },
 }
 
 RUNNER_JSCHEMA = copy.deepcopy(_RUNNER_BASE_JSCHEMA)
@@ -58,7 +59,14 @@ RUNNER_JSCHEMA["properties"]["variants"] = {
     },
     "additionalProperties": False,
 }
-RUNNER_JSCHEMA["required"] = ["disk_size", "instance_type", "is_ephemeral", "max_available", "os"]
+RUNNER_JSCHEMA["required"] = [
+    "disk_size",
+    "instance_type",
+    "is_ephemeral",
+    "max_available",
+    "os",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate scale-config.yml file")
@@ -120,7 +128,9 @@ def runner_types_are_equivalent(
 
         elif key in {"variants", "ami_experiment"}:
             # These are dictionaries, so we need to compare them as JSON strings
-            if json.dumps(runner1_config[key], sort_keys=True) != json.dumps(runner2_config[key], sort_keys=True):
+            if json.dumps(runner1_config[key], sort_keys=True) != json.dumps(
+                runner2_config[key], sort_keys=True
+            ):
                 print(
                     f"Runner type {runner1_type} and {runner2_type} have different '{key}' "
                     f"{runner1_config[key]} vs {runner2_config[key]}"
@@ -390,7 +400,9 @@ def main() -> None:
         )
         validation_success = False
     else:
-        print("scale-config.yml is consistent with pytorch/pytorch canary scale config\n")
+        print(
+            "scale-config.yml is consistent with pytorch/pytorch canary scale config\n"
+        )
 
     # # Delete the temp dir, if it was created
     # if temp_dir and os.path.exists(temp_dir):
