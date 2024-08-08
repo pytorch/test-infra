@@ -14,7 +14,6 @@
     "flaky_workflows_jobs": "3ac657ca40327f94",
     "failed_workflow_jobs": "a91753fbbf82d470",
     "get_workflow_jobs": "6ed2029b19691a4b",
-    "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "219d8bcff926d6c8",
     "test_time_per_file_periodic_jobs": "fd632fe67c910f3a",
     "test_time_per_oncall": "a85f4d3243d90f51",
