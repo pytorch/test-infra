@@ -97,6 +97,11 @@ on:
         required: false
         default: false
         type: boolean
+      nvidia-driver:
+        description: If set will install required nvidia driver
+        required: false
+        type: string
+        default: ''
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -148,6 +153,8 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+        with:
+          nvidia-driver: inputs.nvidia-driver
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
