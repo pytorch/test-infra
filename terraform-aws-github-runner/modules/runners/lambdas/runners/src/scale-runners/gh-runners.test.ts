@@ -682,7 +682,25 @@ runner_types:
         largedisk:
           disk_size: 300
         ami123:
-          ami: ami-123`;
+          ami: ami-123
+    lf.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      max_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        ephemeral:
+          is_ephemeral: true
+    lf.c.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      max_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        ephemeral:
+          is_ephemeral: true`;
 
   const getRunnerTypeResponse = new Map([
     [
@@ -739,6 +757,50 @@ runner_types:
         disk_size: 150,
         is_ephemeral: false,
         ami: 'ami-123',
+      },
+    ],
+    [
+      'lf.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
+      },
+    ],
+    [
+      'lf.c.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.c.ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
       },
     ],
   ]);
