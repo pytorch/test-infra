@@ -79,7 +79,8 @@ CONDA_CONTAINER_IMAGES: Dict[str, str]
 LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str]
 WHEEL_CONTAINER_IMAGES: Dict[str, str]
 
-LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
+LINUX_CUDA_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
+LINUX_ROCM_RUNNER = "linux.rocm.gpu.binaries_validation"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
@@ -117,7 +118,9 @@ def arch_type(arch_version: str) -> str:
 def validation_runner(arch_type: str, os: str) -> str:
     if os == LINUX:
         if arch_type == CUDA:
-            return LINUX_GPU_RUNNER
+            return LINUX_CUDA_RUNNER
+        elif arch_type == ROCM:
+            return LINUX_ROCM_RUNNER
         else:
             return LINUX_CPU_RUNNER
     elif os == LINUX_AARCH64:
