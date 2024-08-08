@@ -852,6 +852,602 @@ runner_types:
     });
   });
 
+  it('validates scale-config changes', async () => {
+    const oldScaleConfigYaml = `
+runner_types:
+  linux.12xlarge:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+  linux.10xlarge.avx2:
+    disk_size: 200
+    instance_type: m4.10xlarge
+    is_ephemeral: false
+    max_available: 450
+    os: linux
+  linux.24xl.spr-metal:
+    disk_size: 200
+    instance_type: c7i.metal-24xl
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+  linux.16xlarge.spr:
+    disk_size: 200
+    instance_type: c7i.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+  linux.9xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.9xlarge
+    is_ephemeral: true
+    max_available: 50
+    os: linux
+  linux.12xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: true
+    max_available: 300
+    os: linux
+  linux.16xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+  linux.24xlarge:
+    disk_size: 150
+    instance_type: c5.24xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+  linux.2xlarge:
+    disk_size: 150
+    instance_type: c5.2xlarge
+    is_ephemeral: false
+    max_available: 3120
+    os: linux
+  linux.4xlarge:
+    disk_size: 150
+    instance_type: c5.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+  linux.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+  linux.8xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.8xlarge
+    is_ephemeral: false
+    max_available: 400
+    os: linux
+  linux.g4dn.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.12xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+  linux.g4dn.metal.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.metal
+    is_ephemeral: false
+    max_available: 300
+    os: linux
+  linux.g5.48xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.48xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+  linux.g5.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.12xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+  linux.g5.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.4xlarge
+    is_ephemeral: false
+    max_available: 2400
+    os: linux
+  linux.g6.4xlarge.experimental.nvidia.gpu:
+    disk_size: 150
+    instance_type: g6.4xlarge
+    is_ephemeral: false
+    max_available: 50
+    os: linux
+  linux.large:
+    max_available: 1200
+    disk_size: 15
+    instance_type: c5.large
+    is_ephemeral: false
+    os: linux
+  linux.arm64.2xlarge:
+    disk_size: 256
+    instance_type: t4g.2xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+  linux.arm64.m7g.4xlarge:
+    disk_size: 256
+    instance_type: m7g.4xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+  linux.arm64.m7g.metal:
+    disk_size: 256
+    instance_type: m7g.metal
+    is_ephemeral: false
+    max_available: 100
+    os: linux
+  windows.4xlarge:
+    disk_size: 256
+    instance_type: c5d.4xlarge
+    is_ephemeral: true
+    max_available: 420
+    os: windows
+  windows.4xlarge.nonephemeral:
+    disk_size: 256
+    instance_type: c5d.4xlarge
+    is_ephemeral: false
+    max_available: 420
+    os: windows
+  windows.8xlarge.nvidia.gpu:
+    disk_size: 256
+    instance_type: p3.2xlarge
+    is_ephemeral: true
+    max_available: 300
+    os: windows
+  windows.8xlarge.nvidia.gpu.nonephemeral:
+    disk_size: 256
+    instance_type: p3.2xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: windows
+  windows.g5.4xlarge.nvidia.gpu:
+    disk_size: 256
+    instance_type: g5.4xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: windows
+
+  ### Setup runner types to test the Amazon Linux 2023 AMI
+  amz2023.linux.12xlarge:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.10xlarge.avx2:
+    disk_size: 200
+    instance_type: m4.10xlarge
+    is_ephemeral: false
+    max_available: 450
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.24xl.spr-metal:
+    disk_size: 200
+    instance_type: c7i.metal-24xl
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.16xlarge.spr:
+    disk_size: 200
+    instance_type: c7i.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.9xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.9xlarge
+    is_ephemeral: true
+    max_available: 50
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.12xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: true
+    max_available: 300
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.16xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.24xlarge:
+    disk_size: 150
+    instance_type: c5.24xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.2xlarge:
+    disk_size: 150
+    instance_type: c5.2xlarge
+    is_ephemeral: false
+    max_available: 3120
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.4xlarge:
+    disk_size: 150
+    instance_type: c5.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.8xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.8xlarge
+    is_ephemeral: false
+    max_available: 400
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g4dn.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.12xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g4dn.metal.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.metal
+    is_ephemeral: false
+    max_available: 300
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g5.48xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.48xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g5.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.12xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g5.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.4xlarge
+    is_ephemeral: false
+    max_available: 2400
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.g6.4xlarge.experimental.nvidia.gpu:
+    disk_size: 150
+    instance_type: g6.4xlarge
+    is_ephemeral: false
+    max_available: 50
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.large:
+    max_available: 1200
+    disk_size: 15
+    instance_type: c5.large
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  amz2023.linux.arm64.2xlarge:
+    disk_size: 256
+    instance_type: t4g.2xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+  amz2023.linux.arm64.m7g.4xlarge:
+    disk_size: 256
+    instance_type: m7g.4xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+  amz2023.linux.arm64.m7g.metal:
+    disk_size: 256
+    instance_type: m7g.metal
+    is_ephemeral: false
+    max_available: 100
+    os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+`;
+    const newScaleConfigYaml = `
+runner_types:
+  linux.12xlarge:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.10xlarge.avx2:
+    disk_size: 200
+    instance_type: m4.10xlarge
+    is_ephemeral: false
+    max_available: 450
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.24xl.spr-metal:
+    disk_size: 200
+    instance_type: c7i.metal-24xl
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.16xlarge.spr:
+    disk_size: 200
+    instance_type: c7i.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.9xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.9xlarge
+    is_ephemeral: true
+    max_available: 50
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.12xlarge.ephemeral:
+    disk_size: 200
+    instance_type: c5.12xlarge
+    is_ephemeral: true
+    max_available: 300
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.16xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.16xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.24xlarge:
+    disk_size: 150
+    instance_type: c5.24xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.2xlarge:
+    disk_size: 150
+    instance_type: c5.2xlarge
+    is_ephemeral: false
+    max_available: 3120
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.4xlarge:
+    disk_size: 150
+    instance_type: c5.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.4xlarge
+    is_ephemeral: false
+    max_available: 1000
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.8xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g3.8xlarge
+    is_ephemeral: false
+    max_available: 400
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g4dn.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.12xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g4dn.metal.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.metal
+    is_ephemeral: false
+    max_available: 300
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g5.48xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.48xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g5.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.12xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g5.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g5.4xlarge
+    is_ephemeral: false
+    max_available: 2400
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.g6.4xlarge.experimental.nvidia.gpu:
+    disk_size: 150
+    instance_type: g6.4xlarge
+    is_ephemeral: false
+    max_available: 50
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.large:
+    max_available: 1200
+    disk_size: 15
+    instance_type: c5.large
+    is_ephemeral: false
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+  linux.arm64.2xlarge:
+    disk_size: 256
+    instance_type: t4g.2xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+  linux.arm64.m7g.4xlarge:
+    disk_size: 256
+    instance_type: m7g.4xlarge
+    is_ephemeral: false
+    max_available: 200
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+  linux.arm64.m7g.metal:
+    disk_size: 256
+    instance_type: m7g.metal
+    is_ephemeral: false
+    max_available: 100
+    os: linux
+    variants:
+      amz2023:
+        ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+  windows.4xlarge:
+    disk_size: 256
+    instance_type: c5d.4xlarge
+    is_ephemeral: true
+    max_available: 420
+    os: windows
+  windows.4xlarge.nonephemeral:
+    disk_size: 256
+    instance_type: c5d.4xlarge
+    is_ephemeral: false
+    max_available: 420
+    os: windows
+  windows.8xlarge.nvidia.gpu:
+    disk_size: 256
+    instance_type: p3.2xlarge
+    is_ephemeral: true
+    max_available: 300
+    os: windows
+  windows.8xlarge.nvidia.gpu.nonephemeral:
+    disk_size: 256
+    instance_type: p3.2xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: windows
+  windows.g5.4xlarge.nvidia.gpu:
+    disk_size: 256
+    instance_type: g5.4xlarge
+    is_ephemeral: false
+    max_available: 250
+    os: windows
+`;
+
+    const repo = { owner: 'owner', repo: 'repo' };
+    const token1 = 'token1';
+    const token2 = 'token2';
+    const repoId = 'mockReturnValueOnce1';
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getRepoInstallation = jest.fn().mockResolvedValue({
+      data: { id: repoId },
+    });
+    const mockedOctokit = {
+      apps: { getRepoInstallation: getRepoInstallation },
+      repos: {
+        getContent: jest
+          .fn()
+          .mockResolvedValueOnce({
+            data: { content: Buffer.from(oldScaleConfigYaml).toString('base64') },
+            status: 200,
+          })
+          .mockResolvedValueOnce({
+            data: { content: Buffer.from(newScaleConfigYaml).toString('base64') },
+            status: 200,
+          }),
+      },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce(token1);
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce(token2);
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce(token1);
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce(token2);
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+
+    await resetGHRunnersCaches();
+    const response1 = await getRunnerTypes(repo, metrics);
+    await resetGHRunnersCaches();
+    expect(await getRunnerTypes(repo, metrics)).toEqual(response1);
+
+    expect(mockedOctokit.repos.getContent).toBeCalledTimes(2);
+  });
+
   it('return is not 200', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
     const mockCreateGithubAuth = mocked(createGithubAuth);
