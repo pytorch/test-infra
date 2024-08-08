@@ -44,7 +44,13 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ValidateArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: Any,
+        namespace: Any,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values) and values.endswith(".zip")
         ):
@@ -55,7 +61,13 @@ class ValidateArchive(Action):
 
 
 class ValidateExtraDataArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: Any,
+        namespace: Any,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This parameter is optional and can accept an empty string, or it can be
         # an existing ARN, or a local zip archive to be uploaded to AWS
         if (
@@ -72,7 +84,13 @@ class ValidateExtraDataArchive(Action):
 
 
 class ValidateApp(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: Any,
+        namespace: Any,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This can be a local file or an existing app that has previously been uploaded
         # to AWS
         if values.startswith(AWS_ARN_PREFIX) or (
@@ -88,7 +106,13 @@ class ValidateApp(Action):
 
 
 class ValidateTestSpec(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: Any,
+        namespace: Any,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values)
             and (values.endswith(".yml") or values.endswith(".yaml"))
@@ -251,9 +275,9 @@ def upload_file_to_s3(
 
 def print_highlights(
     file_name: str,
-    highlight: Pattern,
+    highlight: Pattern[str],
     indent: int = 0,
-):
+) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     It's a bit too verbose, so this is a workaround to print only the relevant
