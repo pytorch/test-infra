@@ -21,6 +21,7 @@ import yaml
 
 AMAZON_2023_PREFIX = "amz2023"
 AMAZON_2023_AMI_PREFIX = "al2023-ami-2023"
+MAX_AVAILABLE_MINIMUM = 50
 
 # Paths relative to their respective repositories
 SCALE_CONFIG_PATH = ".github/scale-config.yml"
@@ -140,7 +141,7 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
     f"""
     Ensure that for every linux runner type in the config:
 
-    1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/main/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
+    1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
     2 - they have a max_available of at least 50
     3 - they have a valid {AMAZON_2023_PREFIX} variant, that overrides only the ami
     """
@@ -156,18 +157,18 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
             # so the next part of the code might break
             continue
 
-        # Ensure that the max_available is at least 50
-        # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than 50
+        # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
+        # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
-        if runner_config["max_available"] < 50:
+        if runner_config["max_available"] < MAX_AVAILABLE_MINIMUM:
             print(
                 f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
-                f"which is less than the minimum required value of 50"
+                f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
             )
             errors_found = True
 
         # Next validations are for linux runners only
-        if runner_config.get("os").lower() == "windows":
+        if runner_config.get("os").lower() != "linux":
             continue
 
         # Validations now are to guarantee that Amazon 2023 is a variant of the runner type
