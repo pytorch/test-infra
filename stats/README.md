@@ -1,1 +1,2 @@
-slow-tests.json and disabled-tests-condensed.json files are now in the [generated-stats branch](https://github.com/pytorch/test-infra/tree/generated-stats/stats).
+The disabled-tests-condensed.json files is now in the [generated-stats branch](https://github.com/pytorch/test-infra/tree/generated-stats/stats).
+The slow-tests.json was been moved to [test/slow_tests.json in pytorch/pytorch](https://github.com/pytorch/pytorch/blob/9d5c85c499fc03e774fd8173de73ee939ae0bed8/test/slow_tests.json#L1) since immediate marking of slow tests is not needed unlike disabled tests, and it causes confusion due to lack of visibilty when a test is marked or unmarked slow through this json.
