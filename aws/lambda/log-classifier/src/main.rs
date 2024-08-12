@@ -5,6 +5,7 @@ use std::time::Instant;
 use tracing::info;
 
 use log_classifier::engine::evaluate_ruleset;
+use log_classifier::bedrock::make_query;
 use log_classifier::log::Log;
 use log_classifier::network::{
     download_log, get_dynamo_client, get_s3_client, upload_classification_dynamo,
@@ -23,6 +24,10 @@ async fn handle(
     should_write_dynamo: ShouldWriteDynamo,
     context_depth: usize,
 ) -> Result<String> {
+
+    // delete this in a future pr
+    let TURN_LLM_ON = false;
+
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
@@ -42,8 +47,23 @@ async fn handle(
 
     match maybe_match {
         Some(best_match) => {
+            let body: String;
             let match_json = SerializedMatch::new(&best_match, &log, context_depth);
-            let body = serde_json::to_string_pretty(&match_json)?;
+            // check if match has the lowest priority in the ruleset
+            if best_match.rule.name == ruleset.rules.last().unwrap().name && TURN_LLM_ON {
+                // kick off the llm to get the rule
+                let query_result = make_query(&log, &best_match.line_number, 100).await;
+                match query_result {
+                    Some(query_result) => {
+                        body = query_result;
+                    }
+                    None => {
+                        body = serde_json::to_string_pretty(&match_json)?;
+                    }
+                }
+            } else {
+                body = serde_json::to_string_pretty(&match_json)?;
+            }
             info!("match: {}", body);
             if should_write_dynamo.0 {
                 let client = get_dynamo_client().await;
