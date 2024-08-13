@@ -4,8 +4,8 @@ use anyhow::Result;
 use std::time::Instant;
 use tracing::info;
 
-use log_classifier::engine::evaluate_ruleset;
 use log_classifier::bedrock::make_query;
+use log_classifier::engine::evaluate_ruleset;
 use log_classifier::log::Log;
 use log_classifier::network::{
     download_log, get_dynamo_client, get_s3_client, upload_classification_dynamo,
