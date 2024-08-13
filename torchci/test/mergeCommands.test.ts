@@ -52,6 +52,21 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com");
     await probot.receive(merge_event);
     await probot.receive(revert_event);
+    await probot.receive(rebase_event);
+    handleScope(scope);
+  });
+
+  test("no space no event", async () => {
+    const merge_event = requireDeepCopy("./fixtures/issue_comment.json");
+    merge_event.payload.comment.body = "> @pytorchbotmerge";
+    const revert_event = requireDeepCopy("./fixtures/issue_comment.json");
+    revert_event.payload.comment.body = "> @pytorchmergebotrevert";
+    const rebase_event = requireDeepCopy("./fixtures/issue_comment.json");
+    rebase_event.payload.comment.body = "> @pytorchbotrebase";
+    const scope = nock("https://api.github.com");
+    await probot.receive(merge_event);
+    await probot.receive(revert_event);
+    await probot.receive(rebase_event);
     handleScope(scope);
   });
 
@@ -123,6 +138,55 @@ describe("merge-bot", () => {
     handleScope(scope);
     handleScope(additionalScopes);
   });
+
+  test("merge command with multiple spaces on pytorch/pytorch pull request triggers", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot                    merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`"labels":["ciflow/trunk"]`);
+        return true;
+      })
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+        );
+        return true;
+      })
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
+
+    const additionalScopes = [
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.issue.user.login,
+        "write"
+      ),
+    ];
+
+    await probot.receive(event);
+    handleScope(scope);
+    handleScope(additionalScopes);
+  });
+
 
   test("merge command on pytorch/pytorch pull request does not trigger dispatch if no write permissions for label", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
