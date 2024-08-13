@@ -24,7 +24,6 @@ async fn handle(
     should_write_dynamo: ShouldWriteDynamo,
     context_depth: usize,
 ) -> Result<String> {
-
     // delete this in a future pr
     let client = get_s3_client().await;
     // Download the log from S3.
