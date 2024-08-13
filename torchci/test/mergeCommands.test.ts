@@ -187,7 +187,6 @@ describe("merge-bot", () => {
     handleScope(additionalScopes);
   });
 
-
   test("merge command on pytorch/pytorch pull request does not trigger dispatch if no write permissions for label", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
