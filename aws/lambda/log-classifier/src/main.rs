@@ -24,7 +24,6 @@ async fn handle(
     should_write_dynamo: ShouldWriteDynamo,
     context_depth: usize,
 ) -> Result<String> {
-
     // delete this in a future pr
     let TURN_LLM_ON = false;
 
