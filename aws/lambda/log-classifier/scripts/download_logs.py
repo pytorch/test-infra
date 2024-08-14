@@ -62,7 +62,6 @@ def download_log(save_location, job_id):
     """
     base_url = "https://ossci-raw-job-status.s3.amazonaws.com/log/"
     url = f"{base_url}{job_id}"
-    print(url)
     try:
         # Send a GET request to the URL
         response = requests.get(url)
@@ -90,16 +89,24 @@ if __name__ == "__main__":
     # if save location doesn't exist, create it
     if not os.path.exists(args.save_location):
         os.makedirs(args.save_location)
+    # if there is content in the save location, raise an error and ask the user to delete the content
+    if os.listdir(args.save_location):
+        raise ValueError(f"The save location is not empty. Please delete the content before running the script. You can run the following command to delete the content:\n rm -rf {args.save_location}/*")
 
     data = read_log_dataset(args.log_dataset_location)
 
     # select a random sample of the data
     data = random.sample(data, args.num_logs)
 
+    # add save location to data dictionary
+    for item in data:
+        item["save_location"] = f"{args.save_location}/{item['id']}.txt"
+
     for item in data[:args.num_logs]:
         print(f"Downloading log for job ID: {item['id']}")
         download_log(args.save_location, item["id"])
 
-    # save the random data to a file in the save location as metadata in json format
+    # save the random data to a file in the save location as metadata in json format pretty printed
+
     with open(f"{args.save_location}/metadata.json", "w") as file:
-        json.dump(data, file)
+        json.dump(data, file, indent=4)
