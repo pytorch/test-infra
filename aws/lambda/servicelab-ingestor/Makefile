@@ -5,7 +5,7 @@ prepare: clean
 	zip -g servicelab-ingestor.zip lambda_function.py
 
 deploy: prepare
-	aws lambda update-function-code --function-name servicelab-ingestor --zip-file fileb://servicelab-ingestor.zip
+	aws lambda update-function-code --function-name servicelab-ingestor-lambda --zip-file fileb://servicelab-ingestor.zip
 
 clean:
 	rm -rf servicelab-ingestor.zip packages
