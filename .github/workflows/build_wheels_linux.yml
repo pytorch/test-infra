@@ -194,6 +194,7 @@ jobs:
         run: |
           echo "set +u" >> "${BUILD_ENV_FILE}"
           echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh" >> "${BUILD_ENV_FILE}"
+          echo "source /opt/intel/oneapi/pti/latest/env/vars.sh" >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
         run: |
           set -euxo pipefail
