@@ -129,3 +129,7 @@ docs/_build/
 .python-version
 
 /_logs
+
+# log classifier data
+
+aws/lambda/log-classifier/data/dataset/
