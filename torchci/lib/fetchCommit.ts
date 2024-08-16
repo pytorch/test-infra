@@ -5,6 +5,7 @@ import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
+import { queryClickhouseSaved } from "./clickhouse";
 
 export default async function fetchCommit(
   owner: string,
@@ -15,30 +16,16 @@ export default async function fetchCommit(
   const octokit = await getOctokit(owner, repo);
   const rocksetClient = getRocksetClient();
 
-  const [githubResponse, commitJobsQuery] = await Promise.all([
+  const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "commit_jobs_query",
-      rocksetVersions.commons.commit_jobs_query as string,
-      {
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: `${owner}/${repo}`,
-          },
-        ],
-      }
-    ),
+    await queryClickhouseSaved("commit_jobs_query", {
+      repo: `${owner}/${repo}`,
+      sha: sha,
+    }),
   ]);
 
-  let jobs = commitJobsQuery.results!;
+  let jobs = response as any[];
+
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want
   // to avoid noising up the display with many duplicate jobs.
