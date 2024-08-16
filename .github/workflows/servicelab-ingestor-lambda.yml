@@ -1,8 +1,6 @@
 name: Test and deploy the lambda to ingest ServiceLab results from S3
 
 on:
-  # DEBUG: TO BE REMOVED
-  pull_request:
   push:
     branches:
       - main
