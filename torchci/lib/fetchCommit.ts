@@ -13,7 +13,6 @@ export default async function fetchCommit(
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
-  const rocksetClient = getRocksetClient();
 
   const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
