@@ -3,7 +3,6 @@ import { Octokit } from "octokit";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
-import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
 export default async function fetchCommit(
