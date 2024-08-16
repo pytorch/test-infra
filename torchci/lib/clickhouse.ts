@@ -28,7 +28,7 @@ export async function queryClickhouse(
   return await res.json();
 }
 
-export function queryClickhouseSaved(
+export async function queryClickhouseSaved(
   queryName: string,
   inputParams: Record<string, unknown>
 ) {
@@ -48,7 +48,7 @@ export function queryClickhouseSaved(
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
-  return queryClickhouse(query, Object.fromEntries(queryParams));
+  return await queryClickhouse(query, Object.fromEntries(queryParams));
 }
 
 export function enableClickhouse() {
