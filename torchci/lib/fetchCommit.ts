@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
-import { queryClickhouseSaved, enableClickhouse } from "./clickhouse";
+import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
