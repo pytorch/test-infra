@@ -25,6 +25,7 @@ export default async function fetchCommit(
   ]);
 
   let jobs = response as any[];
+  console.log(jobs)
 
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want
