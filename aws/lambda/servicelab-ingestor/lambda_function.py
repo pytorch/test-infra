@@ -1,27 +1,33 @@
-import datetime
-import gzip
+import csv
 import json
 import os
+import re
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from warnings import warn
 
 import boto3
 import clickhouse_connect
+from dateutil import parser
 
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
+CLICKHOUSE_TABLE = "servicelab_torch_dynamo_perf_stats"
 
 S3_CLIENT = boto3.client("s3")
 # https://clickhouse.com/docs/en/integrations/python
-# CLICKHOUSE_CLIENT = clickhouse_connect.get_client(
-#     host=CLICKHOUSE_ENDPOINT,
-#     user=CLICKHOUSE_USERNAME,
-#     password=CLICKHOUSE_PASSWORD,
-#     secure=True,
-# )
+CLICKHOUSE_CLIENT = clickhouse_connect.get_client(
+    host=CLICKHOUSE_ENDPOINT,
+    user=CLICKHOUSE_USERNAME,
+    password=CLICKHOUSE_PASSWORD,
+    secure=True,
+)
+
+METADATA_REGEX = re.compile(
+    r"pytorch/benchmarks/dynamo/manifold/(?P<experiment_id>\d+)/(?P<trial_id>\d+)/(?P<compiler>\w+)-(?P<model>\w+)-(?P<mode>\w+)-(?P<benchmark_type>\w+)-\w+\.\w+\.\d+_(?P<retry>\d+)\.(?P<experiment_type>\w+)-\w+\.csv"
+)
 
 
 class EventType(Enum):
@@ -34,8 +40,7 @@ def lambda_handler(event: Any, context: Any) -> None:
         event_name = record.get("eventName", "")
         try:
             if event_name.startswith(EventType.PUT.value):
-                warn(f"PUT {event_name} in {json.dumps(record)}")
-                # upsert_document(clickhouse_client, record)
+                upsert_document(record)
             else:
                 warn(f"Unrecognized event type {event_name} in {json.dumps(record)}")
 
@@ -54,56 +59,102 @@ def extract_key(record: Any) -> Optional[str]:
     return record.get("s3", {}).get("object", {}).get("key", None)
 
 
-def get_s3_object(bucket: str, key: str):
-    response = s3.get_object(Bucket=bucket, Key=key)
-    return response["Body"].read()
+def extract_metadata(record: Any) -> Dict[str, Any]:
+    key = extract_key(record)
+    m = re.match(METADATA_REGEX, key)
+    if not m:
+        return {}
+
+    return {
+        "id": key.replace(".csv", ""),
+        "servicelab_experiment_id": m["experiment_id"],
+        "servicelab_experiment_type": m["experiment_type"],
+        "servicelab_trial_id": m["trial_id"],
+        "epoch_timestamp": int(
+            parser.parse(record.get("eventTime")).timestamp() * 1000
+        ),
+        "compiler": m["compiler"],
+        "mode": m["mode"],
+        # TODO (huydhn): Only TorchBench models are supported for now, not HF or TIMM
+        "suite": "torchbench",
+        # TODO (huydhn): Figure out a way to not hardcode this field
+        "dtype": "bfloat16" if m["mode"] == "inference" else "amp",
+        "benchmark_type": m["benchmark_type"],
+    }
 
 
-def to_utf8(body):
-    return body.decode("utf-8")
+def read_csv(bucket: str, key: str):
+    response = S3_CLIENT.get_object(Bucket=bucket, Key=key)
+    for r in csv.DictReader(
+        response["Body"].read().decode("utf-8").split("\n"), delimiter=","
+    ):
+        yield r
 
 
-def unzip(body):
-    return gzip.decompress(body)
-
-
-def read_no_zip_json(body):
-    return [json.loads(to_utf8(body))]
-
-
-def upsert_document(client: Any, record: Any) -> None:
+def upsert_document(record: Any) -> None:
     """
     Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
     update the document in place, but rather adding a new record for the update
     """
     bucket, key = extract_bucket(record), extract_key(record)
-    print(f"bucket: {bucket}, key: {key}")
     if not bucket or not key:
         return
 
-    table = extract_clickhouse_table_name(bucket, key)
-    if not table:
-        return
-    print(f"table: {table}")
-
-    body = get_s3_object(bucket, key)
-    body = OBJECT_CONVERTER.get(table, read_no_zip_json)(body)
-    print(f"body size: {len(body)}")
-    if not body:
+    metadata = extract_metadata(record)
+    if not metadata:
         return
 
-    batch_size = 100
-    for i in range(0, len(body), batch_size):
-        body_str = ""
-        for item in body[i : i + batch_size]:
-            body_str += json.dumps(item) + "\n"
+    count = 0
+    body_str = ""
+    for r in read_csv(bucket, key):
+        count += 1
 
-        # TODO (huydhn) Inserting individual record is not efficient according
-        # to ClickHouse doc, but we can try to improve this later. See more at
-        # https://clickhouse.com/docs/en/optimize/bulk-inserts
-        print(f"UPSERTING {key}: {body_str[:1000]} INTO {table}")
-        # Checkout https://clickhouse.com/videos/how-to-upsert-rows-into-clickhouse
-        # to understand how to upsert works in ClickHouse and how to get the latest
-        # records. A generic way is to use the FINAL keyword but their doc mentions
-        # that it's slower https://clickhouse.com/docs/en/sql-reference/statements/select/from
-        client.query(f"INSERT INTO `{table}` FORMAT JSONEachRow {body_str}")
+        # Populate the record metadata
+        r.update(metadata)
+        body_str += json.dumps(r) + "\n"
+
+    if body_str:
+        print(f"UPSERTING {count} records into {CLICKHOUSE_TABLE}")
+        CLICKHOUSE_CLIENT.query(
+            f"INSERT INTO `{CLICKHOUSE_TABLE}` FORMAT JSONEachRow {body_str}"
+        )
+
+
+if os.getenv("DEBUG", "0") == "1":
+    mock_body = {
+        "Records": [
+            {
+                "eventVersion": "2.1",
+                "eventSource": "aws:s3",
+                "awsRegion": "us-east-1",
+                "eventTime": "2024-08-16T17:03:21.686Z",
+                "eventName": "ObjectCreated:Put",
+                "userIdentity": {
+                    "principalId": "AWS:AROAUPVRELQNILZ34DHTP:hyperloop_worker@svc"
+                },
+                "requestParameters": {"sourceIPAddress": ""},
+                "responseElements": {"x-amz-request-id": "", "x-amz-id-2": ""},
+                "s3": {
+                    "s3SchemaVersion": "1.0",
+                    "configurationId": "deebdf19-9805-4e91-8b87-fcc7c1197872",
+                    "bucket": {
+                        "name": "ossci-benchmarks",
+                        "ownerIdentity": {"principalId": "A30JR6FIYKGDQS"},
+                        "arn": "arn:aws:s3:::ossci-benchmarks",
+                    },
+                    "object": {
+                        "key": "pytorch/benchmarks/dynamo/manifold/3901375723/3902231115/defaults-nanogpt-training-performance-benchmark_torchbench_run_nanogpt_training.benchmark_torchbench_run_nanogpt_training.3902231115_1.a-tmp694bm90e.csv",
+                        "size": 310,
+                        "eTag": "cb5cc0599d7a8283606316f2ff58b49c",
+                        "sequencer": "0066BF8659A2FDB5EE",
+                    },
+                },
+            }
+        ]
+    }
+    print(
+        lambda_handler(
+            mock_body,
+            None,
+        )
+    )
