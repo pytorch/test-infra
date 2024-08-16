@@ -43,12 +43,12 @@ export function queryClickhouseSaved(
   const paramsText = require(`clickhouse_queries/${queryName}/params.json`);
 
   const queryParams = new Map(
-    Object.entries(paramsText).map(([key, value]) => [key, inputParams[key]])
+    Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
   return queryClickhouse(query, Object.fromEntries(queryParams));
 }
 
-export function useClickhouse() {
+export function enableClickhouse() {
   // Use this to quickly toggle between clickhouse and rockset
   return process.env.USE_CLICKHOUSE == "true";
 }

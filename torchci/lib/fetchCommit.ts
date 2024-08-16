@@ -1,14 +1,14 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
-import { queryClickhouseSaved, useClickhouse } from "./clickhouse";
+import { queryClickhouseSaved, enableClickhouse } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
 async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
-  if (useClickhouse()) {
+  if (enableClickhouse()) {
     const response = queryClickhouseSaved("commit_jobs_query", {
       repo: `${owner}/${repo}`,
       sha: sha,
