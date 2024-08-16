@@ -152,9 +152,4 @@ if os.getenv("DEBUG", "0") == "1":
             }
         ]
     }
-    print(
-        lambda_handler(
-            mock_body,
-            None,
-        )
-    )
+    lambda_handler(mock_body, None)
