@@ -39,7 +39,7 @@ export function queryClickhouseSaved(
    *
    * This function will filter the inputParams to only include the parameters that are in the query params json file
    */
-  const query = readFileSync(`clickhouse_queries/${queryName}/sql.sql`, "utf8");
+  const query = readFileSync(`clickhouse_queries/${queryName}/query.sql`, "utf8");
   const paramsText = require(`clickhouse_queries/${queryName}/params.json`);
 
   const queryParams = new Map(

@@ -52,7 +52,7 @@ export default async function fetchCommit(
     await fetchDatabaseInfo(owner, repo, sha),
   ]);
 
-  let jobs = response as any[]
+  let jobs = response as any[];
 
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want
