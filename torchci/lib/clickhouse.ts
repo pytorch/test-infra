@@ -47,3 +47,8 @@ export function queryClickhouseSaved(
   );
   return queryClickhouse(query, Object.fromEntries(queryParams));
 }
+
+export function useClickhouse() {
+  // Use this to quickly toggle between clickhouse and rockset
+  return process.env.USE_CLICKHOUSE == "true";
+}
