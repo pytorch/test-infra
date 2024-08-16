@@ -65,19 +65,11 @@ variable "instance_type" {
 variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
-  }
 }
 
 variable "ami_filter_linux_arm64" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["amzn2-ami-hvm-2.*-arm64-gp2"]
-  }
 }
 
 variable "ami_owners_linux_arm64" {
@@ -89,10 +81,6 @@ variable "ami_owners_linux_arm64" {
 variable "ami_filter_windows" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["Windows_Server-2019-English-Full-ContainersLatest-*"]
-  }
 }
 
 variable "ami_owners_linux" {

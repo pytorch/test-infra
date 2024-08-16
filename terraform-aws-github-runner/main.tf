@@ -181,11 +181,13 @@ module "runners_instances" {
   instance_type         = var.instance_type
   block_device_mappings = var.block_device_mappings
 
-  runner_architecture = local.runner_architecture
-  ami_owners_linux    = var.ami_owners_linux
-  ami_owners_windows  = var.ami_owners_windows
-  ami_filter_linux    = var.ami_filter_linux
-  ami_filter_windows  = var.ami_filter_windows
+  runner_architecture       = local.runner_architecture
+  ami_owners_linux          = var.ami_owners_linux
+  ami_owners_linux_arm64    = var.ami_owners_linux_arm64
+  ami_owners_windows        = var.ami_owners_windows
+  ami_filter_linux          = var.ami_filter_linux
+  ami_filter_linux_arm64    = var.ami_filter_linux_arm64
+  ami_filter_windows        = var.ami_filter_windows
 
   github_app            = var.github_app
   runner_as_root        = var.runner_as_root
