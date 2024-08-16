@@ -1,0 +1,57 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-05-09T02:55:58Z",
+  "name": "individual_test_stats_per_workflow_per_oncall",
+  "version_count": 1,
+  "collections": [
+    "commons.price_per_config",
+    "metrics.aggregated_test_metrics_with_preproc"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-09T02:55:58Z",
+    "name": "individual_test_stats_per_workflow_per_oncall",
+    "version": "559b6735965f1eb2",
+    "description": null,
+    "sql": {
+      "query": "WITH\n    workflow_summed_table AS (\n        SELECT\n            workflow_id,\n            -- sum by job name to get total over all shards\n            SUM(sum_duration_in_second) as sum_duration_in_second,\n            oncalls,\n            date,\n            workflow_name,\n            test_class,\n            test_file,\n            config_job_name,\n            config_shard_name,\n        FROM\n            metrics.aggregated_test_metrics_with_preproc\n        WHERE\n            DATE_TRUNC('DAY', date) = DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: queryDate))\n            AND workflow_name =: workflow_name\n        GROUP BY\n            workflow_id,\n            workflow_name,\n            test_class,\n            test_file,\n            date,\n            oncalls,\n            config_job_name,\n            config_shard_name\n    ),\n    filtered_table AS (\n        SELECT\n            AVG(sum_duration_in_second) as avg_duration_in_second,\n            COUNT(DISTINCT(workflow_id)) as workflow_occurences,\n            oncalls,\n            date,\n            workflow_name,\n            test_class,\n            test_file,\n            config_job_name,\n            config_shard_name,\n        FROM\n            workflow_summed_table\n        WHERE\n            DATE_TRUNC('DAY', date) = DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: queryDate))\n        GROUP BY\n            workflow_name,\n            test_class,\n            test_file,\n            date,\n            oncalls,\n            config_job_name,\n            config_shard_name\n    ),\n    filtered_with_costs AS (\n        SELECT\n            t.avg_duration_in_second as avg_duration_in_second,\n            t.oncalls,\n            t.date,\n            t.workflow_name,\n            t.test_class,\n            t.test_file,\n            t.workflow_occurences as workflow_occurences,\n            t.config_job_name,\n            t.config_shard_name,\n            CASE\n                WHEN p.price IS NULL THEN 0\n                ELSE CAST(p.price AS float) * t.avg_duration_in_second / 60 / 60\n            END as estimated_price\n        FROM\n            filtered_table as t\n            LEFT JOIN commons.price_per_config p ON (\n                t.config_job_name = p.job_name\n                AND t.config_shard_name = p.shard_name\n            )\n    ),\n    test_runs AS (\n        SELECT\n            count(*) as the_count,\n            REPLACE(REPLACE(t2.oncall, 'module: ', ''), 'oncall: ', '') as oncall,\n            t.workflow_name as workflow_type,\n            -- summing over job name here as it contains information on each shard\n            SUM(t.avg_duration_in_second) AS avg_duration_in_second,\n            SUM(t.estimated_price) as estimated_price_per_run_in_dollars,\n            t.date as granularity_bucket,\n            t.test_class as test_class,\n            t.test_file as test_file,\n            t.workflow_occurences,\n            t.config_job_name,\n            t.config_shard_name\n        FROM\n            filtered_with_costs as t,\n            UNNEST(t.oncalls AS oncall) AS t2\n        WHERE\n            REPLACE(REPLACE(t2.oncall, 'module: ', ''), 'oncall: ', '') =: oncall\n        GROUP BY\n            t2.oncall,\n            t.config_job_name,\n            t.config_shard_name,\n            t.date,\n            t.test_class,\n            t.test_file,\n            t.workflow_name,\n            t.workflow_occurences\n        ORDER BY\n            avg_duration_in_second DESC\n    ),\n    test_runs_averaged as (\n        SELECT\n            oncall,\n            workflow_type,\n            granularity_bucket,\n            test_class,\n            test_file,\n            TRUNC(\n                SUM(\n                    estimated_price_per_run_in_dollars * workflow_occurences\n                ) / SUM(workflow_occurences),\n                2\n            ) as est_cost_per_run,\n            TRUNC(\n                SUM(\n                    estimated_price_per_run_in_dollars * workflow_occurences\n                ),\n                2\n            ) as est_cost_per_day,\n            SUM(avg_duration_in_second) as avg_duration_in_second\n        FROM\n            test_runs\n        GROUP BY\n            oncall,\n            workflow_type,\n            granularity_bucket,\n            test_class,\n            test_file\n    )\nSELECT\n    *,\nFROM\n    test_runs_averaged\nWHERE\n    avg_duration_in_second >=: thresholdInSecond\nORDER BY\n    avg_duration_in_second DESC\n",
+      "default_parameters": [
+        {
+          "name": "oncall",
+          "type": "string",
+          "value": "functorch"
+        },
+        {
+          "name": "queryDate",
+          "type": "string",
+          "value": "2023-04-11T00:06:32.839Z"
+        },
+        {
+          "name": "thresholdInSecond",
+          "type": "int",
+          "value": "60"
+        },
+        {
+          "name": "workflow_name",
+          "type": "string",
+          "value": "pull"
+        }
+      ]
+    },
+    "collections": [
+      "commons.price_per_config",
+      "metrics.aggregated_test_metrics_with_preproc"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-03-01T01:56:12Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-03-01T01:52:42Z",
+      "last_execution_error_message": "Query timeout reached. To extend the query timeout, run an async query by setting `async` to true. Otherwise, please upgrade to a larger Virtual Instance or contact Rockset customer support for assistance constructing a more efficient query."
+    },
+    "public_access_id": null
+  }
+}

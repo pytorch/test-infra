@@ -7,7 +7,6 @@ import {
 import { CommitData, IssueData, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
@@ -116,9 +115,6 @@ export default function CommitStatus({
   isCommitPage: boolean;
   unstableIssues: IssueData[];
 }) {
-  const session = useSession();
-  const isAuthenticated = session.status === "authenticated";
-
   // Populate the repo field if it's not yet set in the job data
   jobs.forEach((job) => {
     job.repo = job.repo ?? `${repoOwner}/${repoName}`;
@@ -174,13 +170,12 @@ export default function CommitStatus({
         unstableIssues={unstableIssues}
         repoFullName={`${repoOwner}/${repoName}`}
       />
-      {isAuthenticated && isCommitPage && (
+      {isCommitPage && (
         <WorkflowDispatcher
           repoOwner={repoOwner}
           repoName={repoName}
           commit={commit}
           jobs={jobs}
-          session={session.data}
         />
       )}
     </>

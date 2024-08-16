@@ -1,0 +1,34 @@
+{
+  "workspace": "torchbench",
+  "last_updated_by": "xzhao9@meta.com",
+  "last_updated": "2023-11-01T15:07:51Z",
+  "name": "torchbench_list_userbenchmarks",
+  "version_count": 1,
+  "collections": [
+    "torchbench.torchbench-userbenchmark"
+  ],
+  "latest_version": {
+    "workspace": "torchbench",
+    "created_by": "xzhao9@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-11-01T15:07:51Z",
+    "name": "torchbench_list_userbenchmarks",
+    "version": "fcfa85c5d1056e8f",
+    "description": "List unique userbenchmark names",
+    "sql": {
+      "query": "SELECT DISTINCT\n    name\nFROM\n    torchbench.\"torchbench-userbenchmark\"\nWHERE name is not NULL",
+      "default_parameters": []
+    },
+    "collections": [
+      "torchbench.torchbench-userbenchmark"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T07:41:08Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

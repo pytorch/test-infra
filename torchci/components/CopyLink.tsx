@@ -1,13 +1,18 @@
 import React, { useState } from "react";
+import { FaCheck, FaLink, FaRegCopy } from "react-icons/fa";
 import useCopyClipboard from "react-use-clipboard";
 
 export default function CopyLink({
   textToCopy,
   style,
+  copyPrompt = "Permalink",
+  link = true, // Whether this is a link or not, controls the icon shown
   compressed = true, // Whether a small or large button should be used
 }: {
   textToCopy: string;
   style?: React.CSSProperties;
+  copyPrompt?: string;
+  link?: boolean;
   compressed?: boolean;
 }) {
   const [isCopied, setCopied] = useCopyClipboard(textToCopy);
@@ -21,14 +26,11 @@ export default function CopyLink({
     }, 3000);
   };
 
-  const copy_prompt = "Permalink";
-  const copy_ack = "Copied";
+  const copyAck = "Copied";
 
-  function getButtonText(baseIcon: string, elaboration: string) {
-    if (compressed) {
-      return baseIcon;
-    } else {
-      return `${baseIcon} ${elaboration}`;
+  function getButtonText(elaboration: string) {
+    if (!compressed) {
+      return elaboration;
     }
   }
 
@@ -38,12 +40,26 @@ export default function CopyLink({
   return (
     <button
       style={css_style}
-      title={isCopied ? copy_ack : copy_prompt}
+      title={isCopied ? copyAck : copyPrompt}
       onClick={onClick}
     >
-      {showCopied
-        ? getButtonText("✅", copy_ack)
-        : getButtonText("🔗", copy_prompt)}
+      {showCopied ? (
+        <>
+          <SmallIcon>
+            <FaCheck />
+          </SmallIcon>{" "}
+          {getButtonText(copyAck)}
+        </>
+      ) : (
+        <>
+          <SmallIcon>{link ? <FaLink /> : <FaRegCopy />}</SmallIcon>{" "}
+          {getButtonText(copyPrompt)}
+        </>
+      )}
     </button>
   );
+}
+
+function SmallIcon({ children }: { children: React.ReactNode }) {
+  return <span style={{ fontSize: "80%" }}>{children}</span>;
 }

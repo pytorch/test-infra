@@ -23,6 +23,9 @@ const SUPPORTED_WORKFLOWS = [
   "nightly",
   "periodic",
   "inductor",
+  "inductor-periodic",
+  "rocm",
+  "inductor_rocm",
 ];
 
 function Panel({

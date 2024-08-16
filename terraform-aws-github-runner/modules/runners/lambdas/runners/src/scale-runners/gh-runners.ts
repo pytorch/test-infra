@@ -1,5 +1,5 @@
 import { Repo, getRepoKey, expBackOff } from './utils';
-import { RunnerType } from './runners';
+import { RunnerType, RunnerTypeScaleConfig } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 import { locallyCached, redisCached, clearLocalCacheNamespace, redisClearCacheKeyPattern } from './cache';
 
@@ -306,6 +306,8 @@ export async function getRunnerTypes(
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
+  const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
+
   return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
     try {
@@ -338,24 +340,89 @@ export async function getRunnerTypes(
       console.debug(`'${filepath}' contents: ${configYml}`);
 
       const config = YAML.parse(configYml);
-      const result: Map<string, RunnerType> = new Map(
+      const result: Map<string, RunnerTypeScaleConfig> = new Map(
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
           prop,
           {
-            runnerTypeName: prop,
-            instance_type: runner_type.instance_type,
-            os: runner_type.os,
-            max_available: runner_type.max_available,
+            /* istanbul ignore next */
+            ami_experiment: runner_type.ami_experiment,
+            /* istanbul ignore next */
+            ami: runner_type.ami?.trim(),
             disk_size: runner_type.disk_size,
+            instance_type: runner_type.instance_type,
             /* istanbul ignore next */
             is_ephemeral: runner_type.is_ephemeral || false,
+            /* istanbul ignore next */
+            labels: runner_type.labels?.map((label: string) => label.trim()),
+            max_available: runner_type.max_available,
+            os: runner_type.os,
+            runnerTypeName: prop,
+            variants: new Map(Object.entries(runner_type.variants || {})),
           },
         ]),
       );
 
+      Array.from(result.keys()).forEach((key) => {
+        const runnerType = result.get(key);
+        if (runnerType?.variants === undefined) {
+          return;
+        }
+
+        if (runnerType.variants.size > 0) {
+          Array.from(runnerType.variants.keys()).forEach((variant) => {
+            const variantType = runnerType.variants?.get(variant);
+            if (!variantType) {
+              return;
+            }
+
+            let variantRunnTypeName: string;
+            if (key.startsWith('lf.c.')) {
+              variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
+            } else if (key.startsWith('lf.')) {
+              variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
+            } else {
+              variantRunnTypeName = `${variant}.${key}`;
+            }
+
+            result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
+          });
+        }
+      });
+
+      const filteredResult: Map<string, RunnerType> = new Map(
+        [...result.entries()]
+          .filter(
+            ([, runnerType]) =>
+              typeof runnerType.runnerTypeName === 'string' &&
+              alphaNumericStr.test(runnerType.runnerTypeName) &&
+              typeof runnerType.instance_type === 'string' &&
+              alphaNumericStr.test(runnerType.instance_type) &&
+              ['linux', 'windows'].includes(runnerType.os) &&
+              (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
+              (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+              (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
+              (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
+              (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
+              (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
+          )
+          .map(([key, runnerType]) => {
+            const rt: RunnerTypeScaleConfig = { ...runnerType };
+            delete rt.variants;
+            return [key, rt];
+          }),
+      );
+
+      if (result.size != filteredResult.size) {
+        console.error(
+          `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
+        );
+        console.error(`Original runner types: ${JSON.stringify(Array.from(result.keys()).sort())}`);
+        console.error(`Filtered runner types: ${JSON.stringify(Array.from(filteredResult.keys()).sort())}`);
+      }
+
       status = 'success';
-      return result;
+      return filteredResult;
     } catch (e) {
       console.error(`[getRunnerTypes]: ${e}`);
       throw e;

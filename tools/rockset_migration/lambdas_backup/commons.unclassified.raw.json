@@ -1,0 +1,36 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "darthsuo@gmail.com",
+  "last_updated": "2022-09-08T07:14:29Z",
+  "name": "unclassified",
+  "version_count": 1,
+  "collections": [],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "darthsuo@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-09-08T07:14:29Z",
+    "name": "unclassified",
+    "version": "1b31a2d8f4ab7230",
+    "description": "up to n unclassified failed job ids from the last day",
+    "sql": {
+      "query": "SELECT\n\tjob.html_url,\n    CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        CAST(job.id as string)\n    ) as log_url,\n    job.id as id,\nFROM\n    commons.workflow_job job\n    JOIN commons.workflow_run workflow on job.run_id = workflow.id\nWHERE\n\tjob.conclusion = 'failure'\n    AND job._event_time > (CURRENT_TIMESTAMP() - HOURS(24))\n    AND job.torchci_classification IS NULL\nORDER BY\n\tjob._event_time ASC\nLIMIT :n\n",
+      "default_parameters": [
+        {
+          "name": "n",
+          "type": "int",
+          "value": "1000"
+        }
+      ]
+    },
+    "collections": [],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

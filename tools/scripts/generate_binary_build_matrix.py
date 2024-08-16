@@ -19,19 +19,19 @@ import sys
 from typing import Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "nightly": ["3.9", "3.10", "3.11", "3.12"],
     "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1", "12.4"],
     "test": ["11.8", "12.1", "12.4"],
-    "release": ["11.8", "12.1"],
+    "release": ["11.8", "12.1", "12.4"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.0", "6.1"],
     "test": ["6.0", "6.1"],
-    "release": ["5.7", "6.0"],
+    "release": ["6.0", "6.1"],
 }
 
 CUDA_CUDDN_VERSIONS = {
@@ -58,13 +58,15 @@ WINDOWS = "windows"
 # Accelerator architectures
 CPU = "cpu"
 CPU_AARCH64 = "cpu-aarch64"
+CUDA_AARCH64 = "cuda-aarch64"
 CUDA = "cuda"
 ROCM = "rocm"
+XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.5.0"
 CURRENT_CANDIDATE_VERSION = "2.4.0"
-CURRENT_STABLE_VERSION = "2.3.1"
+CURRENT_STABLE_VERSION = "2.4.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -80,6 +82,7 @@ WHEEL_CONTAINER_IMAGES: Dict[str, str]
 LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
+LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-stable"
@@ -103,6 +106,10 @@ def arch_type(arch_version: str) -> str:
         return ROCM
     elif arch_version == CPU_AARCH64:
         return CPU_AARCH64
+    elif arch_version == CUDA_AARCH64:
+        return CUDA_AARCH64
+    elif arch_version == XPU:
+        return XPU
     else:  # arch_version should always be CPU in this case
         return CPU
 
@@ -114,7 +121,10 @@ def validation_runner(arch_type: str, os: str) -> str:
         else:
             return LINUX_CPU_RUNNER
     elif os == LINUX_AARCH64:
-        return LINUX_AARCH64_RUNNER
+        if arch_type == CUDA_AARCH64:
+            return LINUX_AARCH64_GPU_RUNNER
+        else:
+            return LINUX_AARCH64_RUNNER
     elif os == WINDOWS:
         if arch_type == CUDA:
             return WIN_GPU_RUNNER
@@ -153,7 +163,9 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
             for gpu_arch in ROCM_ARCHES
         },
         CPU: "pytorch/manylinux-builder:cpu",
+        XPU: "pytorch/manylinux2_28-builder:xpu",
         CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
+        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
     }
     CONDA_CONTAINER_IMAGES = {
         **{
@@ -188,8 +200,10 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         CPU: "cpu",
         CPU_AARCH64: CPU,
+        CUDA_AARCH64: "cu124",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
+        XPU: "xpu",
     }.get(gpu_arch_type, gpu_arch_version)
 
 
@@ -287,8 +301,13 @@ def get_wheel_install_command(
     desired_cuda: str,
     python_version: str,
     use_only_dl_pytorch_org: bool,
+    use_split_build: bool = False,
 ) -> str:
-
+    if use_split_build:
+        if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
+            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
+        else:
+            raise ValueError("Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds.")
     if  channel == RELEASE and (not use_only_dl_pytorch_org) and (
         (gpu_arch_version == "12.1" and os == LINUX)
         or (
@@ -313,8 +332,10 @@ def generate_conda_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
+    use_split_build: bool = False,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     python_versions = list(PYTHON_ARCHES)
@@ -368,8 +389,10 @@ def generate_libtorch_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
+    use_split_build: bool = False,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -456,8 +479,10 @@ def generate_wheels_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
+    use_split_build: bool = False,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -482,7 +507,7 @@ def generate_wheels_matrix(
         if os == LINUX_AARCH64:
             # Only want the one arch as the CPU type is different and
             # uses different build/test scripts
-            arches = [CPU_AARCH64]
+            arches = [CPU_AARCH64, CUDA_AARCH64]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
@@ -493,6 +518,10 @@ def generate_wheels_matrix(
             if os == LINUX:
                 arches += ROCM_ARCHES
 
+        if with_xpu == ENABLE:
+            if os == LINUX:
+                arches += [XPU]
+
     if limit_pr_builds:
         python_versions = [python_versions[0]]
 
@@ -500,19 +529,14 @@ def generate_wheels_matrix(
     for python_version in python_versions:
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
-            # Disable py3.12 builds for ROCm because of triton dependency
-            # on llnl-hatchet, which doesn't have py3.12 wheels available
-            if gpu_arch_type == ROCM and python_version == "3.12":
-                continue
             gpu_arch_version = (
                 ""
-                if arch_version in [CPU, CPU_AARCH64]
+                if arch_version in [CPU, CPU_AARCH64, XPU]
                 else arch_version
             )
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
-            ret.append(
-                {
+            entry = {
                     "python_version": python_version,
                     "gpu_arch_type": gpu_arch_type,
                     "gpu_arch_version": gpu_arch_version,
@@ -535,8 +559,17 @@ def generate_wheels_matrix(
                     "channel": channel,
                     "upload_to_base_bucket": upload_to_base_bucket,
                     "stable_version": CURRENT_VERSION,
+                    "use_split_build": False,
                 }
-            )
+            ret.append(entry)
+            if use_split_build and (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
+                entry = entry.copy()
+                entry["build_name"] = f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-split".replace(
+                    ".", "_"
+                )
+                entry["use_split_build"] = True
+                ret.append(entry)
+
     return ret
 
 
@@ -554,9 +587,11 @@ def generate_build_matrix(
     with_cuda: str,
     with_rocm: str,
     with_cpu: str,
+    with_xpu: str,
     limit_pr_builds: str,
     use_only_dl_pytorch_org: str,
     build_python_only: str,
+    use_split_build: str = "false",
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -576,8 +611,10 @@ def generate_build_matrix(
                     with_cuda,
                     with_rocm,
                     with_cpu,
+                    with_xpu,
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
+                    use_split_build == "true",
                 )
             )
 
@@ -626,6 +663,13 @@ def main(args: List[str]) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_CPU", ENABLE),
     )
+    parser.add_argument(
+        "--with-xpu",
+        help="Build with XPU?",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("WITH_XPU", ENABLE),
+    )
     # By default this is false for this script but expectation is that the caller
     # workflow will default this to be true most of the time, where a pull
     # request is synchronized and does not contain the label "ciflow/binaries/all"
@@ -657,11 +701,19 @@ def main(args: List[str]) -> None:
         default=os.getenv("BUILD_PYTHON_ONLY", ENABLE),
     )
 
+    parser.add_argument(
+        "--use-split-build",
+        help="Use split build for wheel",
+        type=str,
+        choices=["true", "false"],
+        default=os.getenv("USE_SPLIT_BUILD", DISABLE),
+    )
+
     options = parser.parse_args(args)
 
     assert (
-        options.with_cuda or options.with_rocm or options.with_cpu
-    ), "Must build with either CUDA, ROCM, or CPU support."
+        options.with_cuda or options.with_rocm or options.with_xpu or options.with_cpu
+    ), "Must build with either CUDA, ROCM, XPU, or CPU support."
 
     build_matrix = generate_build_matrix(
         options.package_type,
@@ -670,9 +722,11 @@ def main(args: List[str]) -> None:
         options.with_cuda,
         options.with_rocm,
         options.with_cpu,
+        options.with_xpu,
         options.limit_pr_builds,
         options.use_only_dl_pytorch_org,
         options.build_python_only,
+        options.use_split_build,
     )
 
     print(json.dumps(build_matrix))

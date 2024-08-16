@@ -1,0 +1,49 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "csl@fb.com",
+  "last_updated": "2024-04-24T17:29:55Z",
+  "name": "commit_jobs_query",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run",
+    "circleci.job"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "csl@fb.com",
+    "created_by_apikey_name": "AKey",
+    "created_at": "2024-04-24T17:29:55Z",
+    "name": "commit_jobs_query",
+    "version": "10d4a302d49906bb",
+    "description": null,
+    "sql": {
+      "query": "-- This query is used by HUD commit and pull request pages to get all jobs belong\n-- to specific commit hash. They can then be displayed on those pages.\nWITH\n    job AS (\n        SELECT\n            job._event_time AS time,\n            workflow.head_sha AS sha,\n            job.name AS job_name,\n            workflow.name AS workflow_name,\n            job.id,\n            workflow.id AS workflow_id,\n            workflow.artifacts_url AS github_artifact_url,\n            job.conclusion,\n            job.html_url,\n            IF(\n: repo = 'pytorch/pytorch',\n                CONCAT(\n                    'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n                    CAST(job.id AS string)\n                ),\n                CONCAT(\n                    'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n: repo,\n                    '/',\n                    CAST(job.id AS string)\n                )\n            ) AS log_url,\n            DATE_DIFF(\n                'SECOND',\n                job._event_time,\n                PARSE_TIMESTAMP_ISO8601(job.started_at)\n            ) AS queue_time_s,\n            DATE_DIFF(\n                'SECOND',\n                PARSE_TIMESTAMP_ISO8601(job.started_at),\n                PARSE_TIMESTAMP_ISO8601(job.completed_at)\n            ) AS duration_s,\n            job.torchci_classification.line,\n            job.torchci_classification.captures,\n            job.torchci_classification.line_num,\n            job.torchci_classification.context,\n            job.runner_name AS runner_name,\n            workflow.head_commit.author.email AS authorEmail,\n        FROM\n            workflow_job job\n            INNER JOIN workflow_run workflow ON workflow.id = job.run_id\n        WHERE\n            job.name != 'ciflow_should_run'\n            AND job.name != 'generate-test-matrix'\n            AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA\n            AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA\n            AND workflow.head_sha =: sha\n            AND job.head_sha =: sha\n            AND workflow.repository.full_name =: repo\n        UNION\n        -- Handle CircleCI\n        -- IMPORTANT: this needs to have the same order AS the query above\n        SELECT\n            job._event_time AS time,\n            job.pipeline.vcs.revision AS sha,\n            -- Swap workflow and job name for consistency with GHA naming style.\n            job.workflow.name AS job_name,\n            job.job.name AS workflow_name,\n            job.job.number AS id,\n            null AS workflow_id,\n            null AS github_artifact_id,\n            CASE\n                WHEN job.job.status = 'failed' THEN 'failure'\n                WHEN job.job.status = 'canceled' THEN 'cancelled'\n                ELSE job.job.status\n            END AS conclusion,\n            -- cirleci doesn't provide a url, piece one together out of the info we have\n            CONCAT(\n                'https://app.circleci.com/pipelines/github/',\n: repo,\n                '/',\n                CAST(job.pipeline.number AS string),\n                '/workflows/',\n                job.workflow.id,\n                '/jobs/',\n                CAST(job.job.number AS string)\n            ) AS html_url,\n            -- logs aren't downloaded currently, just reuse html_url\n            html_url AS log_url,\n            null AS queue_time_s,\n            -- for circle ci, the event time comes after the end time, so its not reliable for queueing\n            DATE_DIFF(\n                'SECOND',\n                PARSE_TIMESTAMP_ISO8601(job.job.started_at),\n                PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)\n            ) AS duration_s,\n            -- Classifications not yet supported\n            null,\n            null,\n            null,\n            null,\n            -- Don't care about runner name from CircleCI\n            null AS runner_name,\n            null AS authorEmail,\n        FROM\n            circleci.job job\n        WHERE\n            job.pipeline.vcs.revision =: sha\n            AND CONCAT(job.organization.name, '/', job.project.name) =: repo\n        UNION\n        SELECT\n            workflow._event_time AS time,\n            workflow.head_sha AS sha,\n            workflow.name AS job_name,\n            'Workflow Startup Failure' AS workflow_name,\n            workflow.id,\n            null AS workflow_id,\n            workflow.artifacts_url AS github_artifact_url,\n            IF(\n                workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',\n                'failure',\n                workflow.conclusion\n            ) as conclusion,\n            workflow.html_url,\n            null AS log_url,\n            DATE_DIFF(\n                'SECOND',\n                workflow._event_time,\n                PARSE_TIMESTAMP_ISO8601(workflow.run_started_at)\n            ) AS queue_time_s,\n            null AS duration_s,\n            null as line,\n            null as captures,\n            null as line_num,\n            null as context,\n            null AS runner_name,\n            workflow.head_commit.author.email AS authorEmail,\n        FROM\n            workflow_run workflow\n        WHERE\n            workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA\n            AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA\n            AND workflow.head_sha =: sha\n            AND workflow.repository.full_name =: repo\n    )\nSELECT\n    sha,\n    workflow_name AS workflowName,\n    job_name AS jobName,\n    CONCAT(workflow_name, ' / ', job_name) AS name,\n    CAST(id AS string) AS id,\n    CAST(workflow_id AS string) AS workflowId,\n    github_artifact_url AS githubArtifactUrl,\n    CASE\n        WHEN conclusion IS NULL THEN 'pending'\n        ELSE conclusion\n    END AS conclusion,\n    html_url AS htmlUrl,\n    log_url AS logUrl,\n    duration_s AS durationS,\n    queue_time_s AS queueTimeS,\n    ARRAY_CREATE(line) AS failureLines,\n    ARRAY_CREATE(line_num) AS failureLineNumbers,\n    captures AS failureCaptures,\n    context AS failureContext,\n    runner_name AS runnerName,\n    authorEmail,\n    time,\nFROM\n    job\nORDER BY\n    name,\n    time DESC\n",
+      "default_parameters": [
+        {
+          "name": "repo",
+          "type": "string",
+          "value": "pytorch/pytorch"
+        },
+        {
+          "name": "sha",
+          "type": "string",
+          "value": "155ffe8e1cf26e6a3d7f4f9dafeff1a1f26481aa"
+        }
+      ]
+    },
+    "collections": [
+      "circleci.job",
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:31:13Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-05-15T16:19:49Z",
+      "last_execution_error_message": "RESOURCE_EXHAUSTED: The instance size you are using does not have the memory capacity to execute the current workload. Please upgrade to a larger instance size, or reduce the rate or complexity of the queries you are running."
+    },
+    "public_access_id": null
+  }
+}

@@ -19,15 +19,14 @@ WITH performance_results AS (
     workflow_id,
     CAST(job_id AS INT) AS job_id,
   FROM
-    inductor.torch_dynamo_perf_stats
+    inductor.torch_dynamo_perf_stats_v2
   WHERE
-    filename LIKE '%_performance'
-    AND filename LIKE CONCAT(
+    filename LIKE CONCAT(
       '%_', : dtypes, '_', : mode, '_', : device,
-      '_%'
+      '_performance%'
     )
-    AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND TIMESTAMP_MILLIS(timestamp) >= PARSE_DATETIME_ISO8601(:startTime)
+    AND TIMESTAMP_MILLIS(timestamp) < PARSE_DATETIME_ISO8601(:stopTime)
     AND (workflow_id = :workflowId OR :workflowId = 0)    
 ),
 accuracy_results AS (
@@ -44,15 +43,14 @@ accuracy_results AS (
     workflow_id,
     CAST(job_id AS INT) AS job_id,
   FROM
-    inductor.torch_dynamo_perf_stats
+    inductor.torch_dynamo_perf_stats_v2
   WHERE
-    filename LIKE '%_accuracy'
-    AND filename LIKE CONCAT(
+    filename LIKE CONCAT(
       '%_', : dtypes, '_', : mode, '_', : device,
-      '_%'
+      '_accuracy%'
     )
-    AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND TIMESTAMP_MILLIS(timestamp) >= PARSE_DATETIME_ISO8601(:startTime)
+    AND TIMESTAMP_MILLIS(timestamp) < PARSE_DATETIME_ISO8601(:stopTime)
     AND (workflow_id = :workflowId OR :workflowId = 0)
     AND accuracy != 'model_fail_to_load'
     AND accuracy != 'eager_fail_to_run'

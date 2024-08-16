@@ -1,0 +1,40 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "kerryz@fb.com",
+  "last_updated": "2022-04-26T01:36:02Z",
+  "name": "workflow_jobs_for_sha",
+  "version_count": 2,
+  "collections": [
+    "commons.workflow_job"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "kerryz@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-04-26T01:36:02Z",
+    "name": "workflow_jobs_for_sha",
+    "version": "1bc5f57540846184",
+    "description": null,
+    "sql": {
+      "query": "select\n    w.name,\n    w.conclusion\nfrom\n    commons.workflow_job w\n    inner join (\n        select\n            max(job._event_time),\n            name\n        from\n            commons.workflow_job job\n        group by\n            name\n    ) max_time on max_time.name = w.name\nwhere\n    w.head_sha = :sha\ngroup by\n    name,\n    conclusion\n",
+      "default_parameters": [
+        {
+          "name": "sha",
+          "type": "string",
+          "value": "cab3849ee0a61e6ba368c2332d367d2553fbc53c"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

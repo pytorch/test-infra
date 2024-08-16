@@ -83,8 +83,15 @@ export async function scaleUp(
       try {
         const createRunnerParams: RunnerInputParameters = {
           environment: Config.Instance.environment,
-          runnerConfig: (awsRegion: string) => {
-            return createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics, awsRegion);
+          runnerConfig: (awsRegion: string, experimentalRunner: boolean) => {
+            return createRunnerConfigArgument(
+              runnerType,
+              repo,
+              payload.installationId,
+              metrics,
+              awsRegion,
+              experimentalRunner,
+            );
           },
           runnerType: runnerType,
         };
@@ -132,12 +139,16 @@ async function createRunnerConfigArgument(
   installationId: number | undefined,
   metrics: Metrics,
   awsRegion: string,
+  experimentalRunner: boolean,
 ): Promise<string> {
-  const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
-  const labelsArgument =
-    Config.Instance.runnersExtraLabels !== undefined
-      ? `AWS:${awsRegion},${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
-      : `AWS:${awsRegion},${runnerType.runnerTypeName}`;
+  const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';
+  const labelsArgument = [
+    `AWS:${awsRegion}`,
+    `${runnerType.runnerTypeName}`,
+    ...(experimentalRunner ? ['experimental.ami'] : []),
+    ...(Config.Instance.runnersExtraLabels ? Config.Instance.runnersExtraLabels.split(',') : []),
+    ...(runnerType.labels ?? []),
+  ].join(',');
 
   if (Config.Instance.enableOrganizationRunners) {
     /* istanbul ignore next */
@@ -229,8 +240,8 @@ async function allRunnersBusy(
     console.info(`Available (${availableCount}) runners is bellow minimum ${Config.Instance.minAvailableRunners}`);
     // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
     if (isEphemeral) {
-      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.3);
-      return Math.random() < ratio ? 2 : 1;
+      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.5);
+      return Math.random() < ratio ? 3 : 1;
     } else {
       return 1;
     }

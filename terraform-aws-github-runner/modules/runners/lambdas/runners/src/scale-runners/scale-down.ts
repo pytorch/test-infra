@@ -13,8 +13,9 @@ import {
   resetGHRunnersCaches,
 } from './gh-runners';
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
-import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
+import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
+import { SSM } from 'aws-sdk';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -27,6 +28,7 @@ export async function scaleDown(): Promise<void> {
   );
 
   try {
+    console.info('Scale down started');
     // Ensure a clean cache before attempting each scale down event
     resetRunnersCaches();
     await resetGHRunnersCaches();
@@ -40,6 +42,10 @@ export async function scaleDown(): Promise<void> {
         if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
         return `${itm.runnerType}#${itm.repo}`;
       },
+    );
+
+    const runnersRegions = new Set<string>(
+      Array.from(runnersDict.values()).flatMap((runners) => runners.map((runner) => runner.awsRegion)),
     );
 
     if (runnersDict.size === 0) {
@@ -188,7 +194,9 @@ export async function scaleDown(): Promise<void> {
             await removeGithubRunnerOrg(ghRunner.id, org, metrics);
             metrics.runnerGhOfflineRemovedOrg(org);
           } catch (e) {
+            /* istanbul ignore next */
             console.warn(`Failed to remove offline runner ${ghRunner.id} for org ${org}`, e);
+            /* istanbul ignore next */
             metrics.runnerGhOfflineRemovedFailureOrg(org);
           }
         }
@@ -206,12 +214,18 @@ export async function scaleDown(): Promise<void> {
             await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
             metrics.runnerGhOfflineRemovedRepo(repo);
           } catch (e) {
+            /* istanbul ignore next */
             console.warn(`Failed to remove offline runner ${ghRunner.id} for repo ${repo}`, e);
+            /* istanbul ignore next */
             metrics.runnerGhOfflineRemovedFailureRepo(repo);
           }
         }
       }
     }
+
+    await cleanupOldSSMParameters(runnersRegions, metrics);
+
+    console.info('Scale down completed');
   } catch (e) {
     /* istanbul ignore next */
     metrics.exception();
@@ -222,6 +236,46 @@ export async function scaleDown(): Promise<void> {
     sndMetricsTimout.metrics = undefined;
     sndMetricsTimout.setTimeout = undefined;
     await metrics.sendMetrics();
+  }
+}
+
+export async function cleanupOldSSMParameters(runnersRegions: Set<string>, metrics: ScaleDownMetrics): Promise<void> {
+  try {
+    for (const awsRegion of runnersRegions) {
+      const ssmParams = sortSSMParametersByUpdateTime(
+        Array.from((await listSSMParameters(metrics, awsRegion)).values()),
+      );
+
+      let deleted = 0;
+      for (const ssmParam of ssmParams) {
+        /* istanbul ignore next */
+        if (ssmParam.Name === undefined) {
+          continue;
+        }
+        if (ssmParam.LastModifiedDate === undefined) {
+          break;
+        }
+        if (
+          ssmParam.LastModifiedDate.getTime() >
+          moment().subtract(Config.Instance.sSMParamCleanupAgeDays, 'days').toDate().getTime()
+        ) {
+          break;
+        }
+        if (await doDeleteSSMParameter(ssmParam.Name, metrics, awsRegion)) {
+          deleted += 1;
+        }
+        if (deleted >= Config.Instance.sSMParamMaxCleanupAllowance) {
+          break;
+        }
+      }
+
+      if (deleted > 0) {
+        console.info(`Deleted ${deleted} old SSM parameters in ${awsRegion}`);
+      }
+    }
+  } catch (e) {
+    /* istanbul ignore next */
+    console.error('Failed to cleanup old SSM parameters', e);
   }
 }
 
@@ -370,6 +424,17 @@ export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {
     if (b.launchTime === undefined) return -1;
     if (a.launchTime < b.launchTime) return -1;
     if (a.launchTime > b.launchTime) return 1;
+    return 0;
+  });
+}
+
+export function sortSSMParametersByUpdateTime(ssmParams: Array<SSM.ParameterMetadata>): Array<SSM.ParameterMetadata> {
+  return ssmParams.sort((a, b): number => {
+    if (a.LastModifiedDate === undefined && b.LastModifiedDate === undefined) return 0;
+    if (a.LastModifiedDate === undefined) return 1;
+    if (b.LastModifiedDate === undefined) return -1;
+    if (a.LastModifiedDate < b.LastModifiedDate) return -1;
+    if (a.LastModifiedDate > b.LastModifiedDate) return 1;
     return 0;
   });
 }

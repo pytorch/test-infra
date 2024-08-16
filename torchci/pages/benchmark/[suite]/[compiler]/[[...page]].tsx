@@ -11,6 +11,9 @@ import {
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   COMPILER_NAMES_TO_DISPLAY_NAMES,
+  DEFAULT_DEVICE_NAME,
+  DISPLAY_NAMES_TO_DEVICE_NAMES,
+  DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
@@ -44,6 +47,7 @@ function Report({
   suite,
   mode,
   dtype,
+  deviceName,
   compiler,
   model,
   lBranchAndCommit,
@@ -58,6 +62,7 @@ function Report({
   suite: string;
   mode: string;
   dtype: string;
+  deviceName: string;
   compiler: string;
   model: string;
   lBranchAndCommit: BranchAndCommit;
@@ -144,7 +149,10 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-a100-perf-nightly"}
+        workflowName={
+          DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName] ??
+          "inductor-a100-perf-nightly"
+        }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
@@ -166,6 +174,7 @@ function Report({
         suite={suite}
         mode={mode}
         dtype={dtype}
+        deviceName={deviceName}
         compiler={compiler}
         model={model}
         lPerfData={{
@@ -208,6 +217,7 @@ export default function Page() {
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -243,6 +253,11 @@ export default function Page() {
     const dtype: string = (router.query.dtype as string) ?? undefined;
     if (dtype !== undefined) {
       setDType(dtype);
+    }
+
+    const deviceName: string = (router.query.deviceName as string) ?? undefined;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -312,6 +327,11 @@ export default function Page() {
       type: "string",
       value: dtype,
     },
+    {
+      name: "device",
+      type: "string",
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    },
   ];
 
   return (
@@ -327,7 +347,9 @@ export default function Page() {
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
-            )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+              deviceName
+            )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
             (model === undefined ? "" : `&model=${model}`)
           }
         />
@@ -352,6 +374,12 @@ export default function Page() {
           setDType={setDType}
           dtypes={DTYPES}
           label={"Precision"}
+        />
+        <DTypePicker
+          dtype={deviceName}
+          setDType={setDeviceName}
+          dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
+          label={"Device"}
         />
         <BranchAndCommitPicker
           queryName={branchQueryName}
@@ -393,6 +421,7 @@ export default function Page() {
           suite={suite}
           mode={mode}
           dtype={dtype}
+          deviceName={deviceName}
           compiler={compiler}
           model={model}
           lBranchAndCommit={{ branch: lBranch, commit: lCommit }}

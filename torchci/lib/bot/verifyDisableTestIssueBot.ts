@@ -125,7 +125,8 @@ export function formValidationComment(
   authorized: boolean,
   testName: string,
   platformsToSkip: string[],
-  invalidPlatforms: string[]
+  invalidPlatforms: string[],
+  issueNumber: number
 ): string {
   const platformMsg =
     platformsToSkip.length === 0
@@ -184,8 +185,14 @@ export function formValidationComment(
     "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
   body += `${Array.from(supportedPlatforms.keys())
     .sort((a, b) => a.localeCompare(b))
-    .join(", ")}.</body>`;
+    .join(", ")}.\n\n`;
 
+  body += `
+### How to re-enable a test
+To re-enable the test globally, close the issue. To re-enable a test for only a subset of platforms, remove the platforms from the list in the issue body. This may take some time to propagate. To re-enable a test only for a PR, put \`Fixes #${issueNumber}\` in the PR body and rerun the test jobs. Note that if a test is flaky, it maybe be difficult to tell if the test is still flaky on the PR.
+`;
+
+  body += "</body>";
   return validationCommentStart + body + validationCommentEnd;
 }
 
@@ -259,7 +266,8 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
           authorized,
           target,
           platformsToSkip,
-          invalidPlatforms
+          invalidPlatforms,
+          number
         )
       : formJobValidationComment(username, authorized, target, prefix);
 

@@ -102,18 +102,18 @@ export default function WorkflowDispatcher({
   repoName,
   commit,
   jobs,
-  session,
 }: {
   repoOwner: string;
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
-  session: any;
 }) {
+  const session = useSession();
   if (
     session === undefined ||
-    session["accessToken"] === undefined ||
-    session["user"] == undefined
+    session.data === null ||
+    session.data["accessToken"] === undefined ||
+    session.data["user"] == undefined
   ) {
     return <></>;
   }
@@ -124,7 +124,7 @@ export default function WorkflowDispatcher({
   }
 
   const supportedWorkflows = SUPPORTED_WORKFLOWS[repo];
-  const accessToken = session["accessToken"];
+  const accessToken = session.data["accessToken"];
 
   return (
     <div>

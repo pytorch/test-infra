@@ -275,11 +275,15 @@ describe('scaleUp', () => {
       metrics,
     );
 
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
       `--url ${config.ghesUrlHost}/owner --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
         `extra-label  --runnergroup group_one`,
     );
-    expect(mockedCreateRegistrationTokenForOrg).toBeCalledTimes(1);
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
+      `--url ${config.ghesUrlHost}/owner --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `experimental.ami,extra-label --ephemeral --runnergroup group_one`,
+    );
+    expect(mockedCreateRegistrationTokenForOrg).toBeCalledTimes(2);
     expect(mockedCreateRegistrationTokenForOrg).toBeCalledWith(repo.owner, metrics, 2);
   });
 
@@ -357,11 +361,15 @@ describe('scaleUp', () => {
       metrics,
     );
 
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
       `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
         `extra-label `,
     );
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `experimental.ami,extra-label --ephemeral`,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(2);
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
   });
 
@@ -439,11 +447,15 @@ describe('scaleUp', () => {
       metrics,
     );
 
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
       `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
         `extra-label `,
     );
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `experimental.ami,extra-label --ephemeral`,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(2);
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 0);
   });
 
@@ -521,11 +533,15 @@ describe('scaleUp', () => {
       metrics,
     );
 
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
       `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
         `extra-label `,
     );
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `experimental.ami,extra-label --ephemeral`,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(2);
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, undefined);
   });
 
@@ -636,9 +652,13 @@ describe('scaleUp', () => {
       metrics,
     );
 
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
       `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge` +
         ` --ephemeral`,
+    );
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `experimental.ami --ephemeral`,
     );
   });
 

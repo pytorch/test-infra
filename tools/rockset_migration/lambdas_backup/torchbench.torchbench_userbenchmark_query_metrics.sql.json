@@ -1,0 +1,15 @@
+{
+  "query": "SELECT * FROM torchbench.\"torchbench-userbenchmark\"\n  WHERE name = :userbenchmark \n  AND REGEXP_LIKE(\"torchbench-userbenchmark\".environ.pytorch_git_version, :commit);",
+  "default_parameters": [
+    {
+      "name": "commit",
+      "type": "string",
+      "value": "4a4af8fb1c"
+    },
+    {
+      "name": "userbenchmark",
+      "type": "string",
+      "value": "torch-nightly"
+    }
+  ]
+}

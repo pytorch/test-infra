@@ -182,21 +182,31 @@ export function sortGroupNamesForHUD(groupNames: string[]): string[] {
 
 export function classifyGroup(
   jobName: string,
+  showUnstableGroup: boolean,
   unstableIssues?: IssueData[]
 ): string {
   const openUnstableIssues = getOpenUnstableIssues(jobName, unstableIssues);
-  // Double check first if the job has been marked as unstable but doesn't include
-  // the unstable keyword
+  let assignedGroup = undefined;
+  for (const group of groups) {
+    if (jobName.match(group.regex)) {
+      assignedGroup = group;
+      break;
+    }
+  }
+
+  // Check if the job has been marked as unstable but doesn't include the
+  // unstable keyword.
+  if (!showUnstableGroup && assignedGroup?.persistent) {
+    // If the unstable group is not being shown, then persistent groups (mem
+    // leak check, rerun disabled tests) should not be overwritten
+    return assignedGroup.name;
+  }
+
   if (openUnstableIssues !== undefined && openUnstableIssues.length !== 0) {
     return GROUP_UNSTABLE;
   }
 
-  for (const group of groups) {
-    if (jobName.match(group.regex)) {
-      return group.name;
-    }
-  }
-  return GROUP_OTHER;
+  return assignedGroup === undefined ? GROUP_OTHER : assignedGroup.name;
 }
 
 export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
@@ -290,13 +300,14 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
 export function getGroupingData(
   shaGrid: RowData[],
   jobNames: string[],
+  showUnstableGroup: boolean,
   unstableIssues?: IssueData[]
 ) {
   // Construct Job Groupping Mapping
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
   const jobToGroupName = new Map<string, string>(); // job -> group
   for (const name of jobNames) {
-    const groupName = classifyGroup(name, unstableIssues);
+    const groupName = classifyGroup(name, showUnstableGroup, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);

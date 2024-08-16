@@ -79,6 +79,24 @@ on:
         description: The comma-separated list of CUDA arch to be uploaded to pypi
         default: ""
         type: string
+      build-command:
+        description: The build command to use if build-platform is python-build-package
+        required: false
+        default: "python -m build --wheel"
+        type: string
+      pip-install-torch-extra-args:
+        # NOTE: Why does this exist?
+        # Well setuptools / python packaging doesn't actually allow you to specify dependencies
+        # that come from other index URLs when you are building a package for "security" purposes.
+        # Unfortunately for us our nightlies (torch, torchvision, etc.) only exist on download.pytorch.org
+        # which means that if our users depend on things like torchvision then they need to have
+        # an ability to install these dependencies from download.pytorch.org, as part of the build process
+        # which currently the do not have the ability to do through normal means, hence this parameter
+        # Reference: https://discuss.python.org/t/specifying-extra-index-url-in-setup-cfg-option-dependencies/19377
+        description: Extra arguments to pass to the command that install base torch dependency
+        required: false
+        default: ""
+        type: string
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -171,13 +189,19 @@ jobs:
         run: |
           set -euxo pipefail
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
+      - name: Add XPU Env Vars in Build Env File
+        if: ${{ matrix.gpu_arch_type == 'xpu' }}
+        run: |
+          echo "set +u" >> "${BUILD_ENV_FILE}"
+          echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh" >> "${BUILD_ENV_FILE}"
+          echo "source /opt/intel/oneapi/pti/latest/env/vars.sh" >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
-          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -196,7 +220,7 @@ jobs:
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python -m pip install build
           echo "Successfully installed Python build package"
-          ${CONDA_RUN} python -m build --wheel
+          ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Build the wheel (setup-py)
         if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}

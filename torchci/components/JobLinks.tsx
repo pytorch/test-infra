@@ -3,8 +3,9 @@ import { useSession } from "next-auth/react";
 import React from "react";
 import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
-import { transformJobName } from "../lib/jobUtils";
+import { isFailedJob, transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
+import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
 import TestInsightsLink from "./TestInsights";
@@ -81,6 +82,13 @@ export default function JobLinks({
     subInfo.push(testInsightsLink);
   }
 
+  if (isFailedJob(job)) {
+    const revertInfoCopy = RevertInfoCopy({ job: job });
+    if (revertInfoCopy != null) {
+      subInfo.push(revertInfoCopy);
+    }
+  }
+
   const disableTestButton = DisableTest({ job: job, label: "skipped" });
   if (disableTestButton != null) {
     subInfo.push(disableTestButton);
@@ -94,11 +102,9 @@ export default function JobLinks({
     }
   }
 
-  if (authenticated && job.failureLines) {
+  if (job.failureLines) {
     const reproComamnd = ReproductionCommand({
       job: job,
-      separator: "",
-      testName: getTestName(job.failureLines[0] ?? "", true),
     });
     if (reproComamnd != null) {
       subInfo.push(reproComamnd);
@@ -118,19 +124,24 @@ export default function JobLinks({
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
-const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
-function getTestName(failureCapture: string, reproduction: boolean = false) {
-  const unittestMatch = failureCapture.match(unittestFailureRe);
+const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.*) \(.*(Test.*)\)/;
+const pytestFailureRe = /([\w\\\/]+\.py)::(.*)::(test_\w*)/;
+export function getTestName(failureLine: string) {
+  const unittestMatch = failureLine.match(unittestFailureRe);
   if (unittestMatch !== null) {
-    return unittestMatch[1];
+    return {
+      file: null,
+      testName: unittestMatch[1],
+      suite: unittestMatch[2],
+    };
   }
-  const pytestMatch = failureCapture.match(pytestFailureRe);
+  const pytestMatch = failureLine.match(pytestFailureRe);
   if (pytestMatch !== null) {
-    if (reproduction) {
-      return `python ${pytestMatch[0]}.py ${pytestMatch[1]}.${pytestMatch[2]}`;
-    }
-    return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
+    return {
+      file: pytestMatch[1],
+      testName: pytestMatch[3],
+      suite: pytestMatch[2],
+    };
   }
   return null;
 }
@@ -177,7 +188,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
-  const issueTitle = `DISABLED ${testName}`;
+  const issueTitle = `DISABLED ${testName.testName} (__main__.${testName.suite})`;
   const issueBody = formatDisableTestBody(job);
 
   const issues: IssueData[] = data.issues;
@@ -300,4 +311,22 @@ function DisableIssue({
       <button className={buttonStyle}>{linkText}</button>
     </a>
   );
+}
+
+function RevertInfoCopy({ job }: { job: JobData }) {
+  const info = [];
+  const testName = getTestName((job.failureLines && job.failureLines[0]) ?? "");
+  if (testName !== null && testName.file !== null) {
+    info.push(`${testName.file}::${testName.suite}::${testName.testName}`);
+  }
+  info.push(`[GH job link](${job.htmlUrl})`);
+  info.push(
+    `[HUD commit link](https://hud.pytorch.org/${job.repo}/commit/${job.sha})`
+  );
+  return CopyLink({
+    textToCopy: info.join(" "),
+    copyPrompt: "Revert Info",
+    compressed: false,
+    link: false,
+  });
 }

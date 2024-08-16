@@ -1,0 +1,20 @@
+{
+  "query": "with successful_jobs as (\n    select\n        DATE_DIFF(\n            'second',\n            workflow._event_time,\n            CURRENT_TIMESTAMP()\n        ) as last_success_seconds_ago,\n        workflow.head_sha,\n        workflow.name name\n    from\n        workflow_job workflow\n        JOIN push on workflow.head_sha = push.head_commit.id\n    where\n        push.ref = 'refs/heads/master'\n        AND push.repository.owner.name = 'pytorch'\n        AND push.repository.name = 'pytorch'\n        AND workflow.conclusion = 'success'\n        AND workflow.name in (:jobName1, :jobName2)\n    order by\n        workflow._event_time desc\n),\nsuccessful_commits as (\n    select\n        min(last_success_seconds_ago) seconds_ago,\n        count(DISTINCT name) distinct_names,\n        head_sha\n    from\n        successful_jobs\n    group by\n        head_sha\n)\nselect\n    seconds_ago as last_success_seconds_ago\nfrom\n    successful_commits\nwhere\n    distinct_names >= 2\norder by\n    seconds_ago\nlimit\n    1",
+  "default_parameters": [
+    {
+      "name": "jobCount",
+      "type": "int",
+      "value": "2"
+    },
+    {
+      "name": "jobName1",
+      "type": "string",
+      "value": "docs push / build-docs (python)"
+    },
+    {
+      "name": "jobName2",
+      "type": "string",
+      "value": "docs push / build-docs (cpp)"
+    }
+  ]
+}
