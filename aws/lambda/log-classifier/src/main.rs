@@ -25,8 +25,6 @@ async fn handle(
     context_depth: usize,
 ) -> Result<String> {
     // delete this in a future pr
-    let TURN_LLM_ON = false;
-
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
@@ -49,7 +47,8 @@ async fn handle(
             let body: String;
             let match_json = SerializedMatch::new(&best_match, &log, context_depth);
             // check if match has the lowest priority in the ruleset
-            if best_match.rule.name == ruleset.rules.last().unwrap().name && TURN_LLM_ON {
+
+            if best_match.rule.name == ruleset.rules.last().unwrap().name {
                 // kick off the llm to get the rule
                 let query_result = make_query(&log, &best_match.line_number, 100).await;
                 match query_result {
