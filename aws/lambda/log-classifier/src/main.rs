@@ -47,6 +47,7 @@ async fn handle(
             let body: String;
             let match_json = SerializedMatch::new(&best_match, &log, context_depth);
             // check if match has the lowest priority in the ruleset
+
             if best_match.rule.name == ruleset.rules.last().unwrap().name {
                 // kick off the llm to get the rule
                 let query_result = make_query(&log, &best_match.line_number, 100).await;

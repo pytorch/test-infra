@@ -30,6 +30,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.10xlarge.avx2:
     disk_size: 200
     instance_type: m4.10xlarge
@@ -39,6 +41,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.24xl.spr-metal:
     disk_size: 200
     instance_type: c7i.metal-24xl
@@ -48,6 +52,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.16xlarge.spr:
     disk_size: 200
     instance_type: c7i.16xlarge
@@ -57,6 +63,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.9xlarge.ephemeral:
     disk_size: 200
     instance_type: c5.9xlarge
@@ -66,6 +74,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.12xlarge.ephemeral:
     disk_size: 200
     instance_type: c5.12xlarge
@@ -75,6 +85,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.16xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.16xlarge
@@ -84,15 +96,19 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.24xlarge:
     disk_size: 150
     instance_type: c5.24xlarge
     is_ephemeral: false
-    max_available: 250
+    max_available: 500
     os: linux
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.2xlarge:
     disk_size: 150
     instance_type: c5.2xlarge
@@ -102,6 +118,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.4xlarge:
     disk_size: 150
     instance_type: c5.4xlarge
@@ -111,6 +129,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.4xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.4xlarge
@@ -120,6 +140,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.8xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.8xlarge
@@ -129,6 +151,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g4dn.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g4dn.12xlarge
@@ -138,6 +162,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g4dn.metal.nvidia.gpu:
     disk_size: 150
     instance_type: g4dn.metal
@@ -147,6 +173,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g5.48xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.48xlarge
@@ -156,6 +184,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g5.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.12xlarge
@@ -165,6 +195,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g5.4xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g5.4xlarge
@@ -174,6 +206,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.g6.4xlarge.experimental.nvidia.gpu:
     disk_size: 150
     instance_type: g6.4xlarge
@@ -183,6 +217,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.large:
     max_available: 1200
     disk_size: 15
@@ -192,6 +228,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   linux.arm64.2xlarge:
     disk_size: 256
     instance_type: t4g.2xlarge
@@ -201,6 +239,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-arm64-gp2
   linux.arm64.m7g.4xlarge:
     disk_size: 256
     instance_type: m7g.4xlarge
@@ -210,6 +250,8 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-arm64-gp2
   linux.arm64.m7g.metal:
     disk_size: 256
     instance_type: m7g.metal
@@ -219,6 +261,20 @@ runner_types:
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
+      am2:
+        ami: amzn2-ami-hvm-2.0.20240306.2-arm64-gp2
+  windows.g4dn.xlarge:
+    disk_size: 256
+    instance_type: g4dn.xlarge
+    is_ephemeral: true
+    max_available: 100
+    os: windows
+  windows.g4dn.xlarge.nonephemeral:
+    disk_size: 256
+    instance_type: g4dn.xlarge
+    is_ephemeral: false
+    max_available: 100
+    os: windows
   windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
