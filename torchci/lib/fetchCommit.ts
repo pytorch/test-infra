@@ -8,7 +8,7 @@ import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
 async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
-  if (enableClickhouse()) {
+  if (false) {
     const response = queryClickhouseSaved("commit_jobs_query", {
       repo: `${owner}/${repo}`,
       sha: sha,
