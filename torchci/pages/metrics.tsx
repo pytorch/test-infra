@@ -17,6 +17,7 @@ import {
 } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { ClickHouseCheckBox } from "components/ClickHouseCheckBox";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
@@ -28,20 +29,34 @@ import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
+import { usePreference } from "lib/useGroupingPreference";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
-function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-    JSON.stringify([
-      ...params,
-      {
-        name: "timezone",
-        type: "string",
-        value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
-    ])
-  )}`;
+function MasterCommitRedPanel({
+  params,
+  useClickHouse,
+}: {
+  params: RocksetParam[] | {};
+  useClickHouse: boolean;
+}) {
+  const url = useClickHouse
+    ? `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
+        JSON.stringify({
+          ...params,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        })
+      )}`
+    : `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
+        JSON.stringify([
+          ...(params as RocksetParam[]),
+          {
+            name: "timezone",
+            type: "string",
+            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
+        ])
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -435,6 +450,12 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
+  // TODO (huydhn): Clean this up once ClickHouse migration finishes
+  const [useClickHouse, setUseClickHouse] = usePreference(
+    "useClickHouse",
+    false
+  );
+
   const timeParams: RocksetParam[] = [
     {
       name: "startTime",
@@ -447,6 +468,10 @@ export default function Page() {
       value: stopTime,
     },
   ];
+  const timeParamsClickHouse = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
@@ -497,9 +522,19 @@ export default function Page() {
         />
       </Stack>
 
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <ClickHouseCheckBox
+          useClickHouse={useClickHouse}
+          setUseClickHouse={setUseClickHouse}
+        />
+      </Stack>
+
       <Grid container spacing={2}>
         <Grid item md={6} xs={12} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} />
+          <MasterCommitRedPanel
+            params={useClickHouse ? timeParamsClickHouse : timeParams}
+            useClickHouse={useClickHouse}
+          />
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
