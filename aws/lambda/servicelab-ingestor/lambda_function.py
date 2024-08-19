@@ -114,7 +114,7 @@ def upsert_document(record: Any) -> None:
         body_str += json.dumps(r) + "\n"
 
     if body_str:
-        print(f"UPSERTING {count} records into {CLICKHOUSE_TABLE}")
+        print(f"INSERTING {count} records into {CLICKHOUSE_TABLE}")
         CLICKHOUSE_CLIENT.query(
             f"INSERT INTO `{CLICKHOUSE_TABLE}` FORMAT JSONEachRow {body_str}"
         )
