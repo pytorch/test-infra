@@ -1,5 +1,7 @@
 -- This query is used by HUD commit and pull request pages to get all jobs belong
 -- to specific commit hash. They can then be displayed on those pages.
+-- Based off of https://github.com/pytorch/test-infra/blob/c84f2b91cd104d3bbff5d99c4459059119050b95/torchci/rockset/commons/__sql/commit_jobs_query.sql#L1
+-- CircleCI has been removed
 WITH job AS (
     SELECT
         job.started_at AS time,
@@ -51,55 +53,6 @@ WITH job AS (
         AND workflow.head_sha = {sha: String }
         AND job.head_sha = {sha: String }
         AND workflow.repository. 'full_name' = {repo: String } --         UNION
-        --         -- Handle CircleCI
-        --         -- IMPORTANT: this needs to have the same order AS the query above
-        --         SELECT
-        --             job._event_time AS time,
-        --             job.pipeline.vcs.revision AS sha,
-        --             -- Swap workflow and job name for consistency with GHA naming style.
-        --             job.workflow.name AS job_name,
-        --             job.job.name AS workflow_name,
-        --             job.job.number AS id,
-        --             null AS workflow_id,
-        --             null AS github_artifact_id,
-        --             CASE
-        --                 WHEN job.job.status = 'failed' THEN 'failure'
-        --                 WHEN job.job.status = 'canceled' THEN 'cancelled'
-        --                 ELSE job.job.status
-        --             END AS conclusion,
-        --             -- cirleci doesn't provide a url, piece one together out of the info we have
-        --             CONCAT(
-        --                 'https://app.circleci.com/pipelines/github/',
-        -- : repo,
-        --                 '/',
-        --                 CAST(job.pipeline.number AS string),
-        --                 '/workflows/',
-        --                 job.workflow.id,
-        --                 '/jobs/',
-        --                 CAST(job.job.number AS string)
-        --             ) AS html_url,
-        --             -- logs aren't downloaded currently, just reuse html_url
-        --             html_url AS log_url,
-        --             null AS queue_time_s,
-        --             -- for circle ci, the event time comes after the end time, so its not reliable for queueing
-        --             DATE_DIFF(
-        --                 'SECOND',
-        --                 PARSE_TIMESTAMP_ISO8601(job.job.started_at),
-        --                 PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
-        --             ) AS duration_s,
-        --             -- Classifications not yet supported
-        --             null,
-        --             null,
-        --             null,
-        --             null,
-        --             -- Don't care about runner name from CircleCI
-        --             null AS runner_name,
-        --             null AS authorEmail,
-        --         FROM
-        --             circleci.job job
-        --         WHERE
-        --             job.pipeline.vcs.revision =: sha
-        --             AND CONCAT(job.organization.name, '/', job.project.name) =: repo
     UNION ALL
     SELECT
         workflow.created_at AS time,
