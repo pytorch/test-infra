@@ -1,19 +1,29 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
-import { queryClickhouseSaved } from "./clickhouse";
+import {
+  coerceBoolNum,
+  enableClickhouse,
+  numToNullableStr,
+  queryClickhouseSaved,
+} from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
 async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
-  if (false) {
-    const response = queryClickhouseSaved("commit_jobs_query", {
+  if (enableClickhouse()) {
+    const response = await queryClickhouseSaved("commit_jobs_query", {
       repo: `${owner}/${repo}`,
       sha: sha,
     });
-    return response;
+    const withTypes = coerceBoolNum(response);
+    for (const row of withTypes) {
+      row.id = numToNullableStr(row.id);
+      row.workflowId = numToNullableStr(row.workflowId);
+    }
+    return withTypes;
   } else {
     const rocksetClient = getRocksetClient();
     const response = await rocksetClient.queryLambdas.executeQueryLambda(
@@ -66,7 +76,10 @@ export default async function fetchCommit(
   // and then merging them back together
   const [workflows, onlyJobs] = _.partition(
     jobs,
-    (job) => job.workflowId === null || job.workflowId === undefined
+    (job) =>
+      job.workflowId === null ||
+      job.workflowId === undefined ||
+      job.workflowId === 0
   );
 
   const filteredJobs = removeCancelledJobAfterRetry<JobData>(onlyJobs);

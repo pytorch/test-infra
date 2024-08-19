@@ -35,8 +35,8 @@ WITH job AS (
     job.runner_name AS runner_name,
     workflow.head_commit.'author'.'email' AS authorEmail
   FROM
-    workflow_job job
-    INNER JOIN workflow_run workflow ON workflow.id = job.run_id
+    workflow_job job final
+    INNER JOIN workflow_run workflow final ON workflow.id = job.run_id
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
@@ -122,7 +122,7 @@ WITH job AS (
     '' AS runner_name,
     workflow.head_commit.author.email AS authorEmail
   FROM
-    workflow_run workflow
+    workflow_run workflow final
   WHERE
     workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
     AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
@@ -139,7 +139,7 @@ SELECT
   github_artifact_url AS githubArtifactUrl,
   if(
     conclusion = '', 'pending', conclusion
-  ),
+  ) as conclusion,
   html_url AS htmlUrl,
   log_url AS logUrl,
   duration_s AS durationS,
