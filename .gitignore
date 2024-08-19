@@ -2,6 +2,7 @@
 .venv
 .idea
 .lintbin
+.linttemp
 
 *.env
 *.zip
