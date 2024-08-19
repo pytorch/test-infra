@@ -449,6 +449,8 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
+
+  // TODO (huydhn): Clean this up once ClickHouse migration finishes
   const [useClickHouse, setUseClickHouse] = usePreference(
     "useClickHouse",
     false
