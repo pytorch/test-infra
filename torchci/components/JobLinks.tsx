@@ -156,7 +156,7 @@ This test was disabled because it is failing on main branch ([recent examples]($
 }
 
 function DisableTest({ job, label }: { job: JobData; label: string }) {
-  console.log(job.failureLines)
+  console.log(job.failureLines);
   const hasFailureClassification =
     job.failureLines != null && job.failureLines.every((line) => line !== null);
   const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
