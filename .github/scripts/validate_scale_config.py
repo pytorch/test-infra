@@ -205,13 +205,6 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
             errors_found = True
             continue
 
-        if "ami" in runner_config and amzn_variant["ami"] == runner_config["ami"]:
-            print(
-                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} has the same ami as the runner type"
-            )
-            errors_found = True
-            continue
-
         if not amzn_variant["ami"].startswith(AMAZON_2023_AMI_PREFIX):
             print(
                 f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} ami does not start with {AMAZON_2023_AMI_PREFIX}"
