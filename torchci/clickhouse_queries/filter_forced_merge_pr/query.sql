@@ -11,16 +11,13 @@ WITH all_merges AS (
     ignore_current,
     is_failed,
     pr_num,
-    merge_commit_sha,
+    merge_commit_sha
   FROM
-    commons.merges
+    merges
   WHERE
-    owner = : owner
-    AND project = : project
-    AND ARRAY_CONTAINS(
-      SPLIT(: shas, ','),
-      merge_commit_sha
-    )
+    owner = {owner: String}
+    AND project = {project: String}
+    AND merge_commit_sha IN {shas: Array(String)}
 ),
 -- A legit force merge needs to satisfy one of the two conditions below:
 -- 1. skip_mandatory_checks is true (-f) and failed_checks_count > 0 (with failures) or pending_checks_count > 0 (impatience).
