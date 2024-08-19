@@ -40,7 +40,8 @@ export async function queryClickhouseSaved(
    * This function will filter the inputParams to only include the parameters that are in the query params json file
    */
   const query = readFileSync(
-    `clickhouse_queries/${queryName}/query.sql`,
+    // https://stackoverflow.com/questions/74924100/vercel-error-enoent-no-such-file-or-directory
+    `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
     "utf8"
   );
   const paramsText = require(`clickhouse_queries/${queryName}/params.json`);
