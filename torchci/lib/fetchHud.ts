@@ -1,7 +1,7 @@
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
-import queryClickHouse from "./clickhouse";
+import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
@@ -47,14 +47,38 @@ export default async function fetchHud(params: HudParams): Promise<{
   );
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr = await queryClickHouse({
-    owner: params.repoOwner,
-    project: params.repoName,
-    // Passing an array of string to ClickHouse query API is a bit complicated, it
-    // requires dumping the array as JSON string and also uses single quote, i.e.
-    // ['a', 'b', 'c']
-    shas: JSON.stringify(shas).replaceAll('"', "'"),
-  });
+  const filterForcedMergePr = enableClickhouse()
+    ? ((await queryClickhouseSaved("filter_forced_merge_pr", {
+        owner: params.repoOwner,
+        project: params.repoName,
+        shas: shas,
+      })) as any[])
+    : (
+        await rocksetClient.queryLambdas.executeQueryLambda(
+          "commons",
+          "filter_forced_merge_pr",
+          rocksetVersions.commons.filter_forced_merge_pr,
+          {
+            parameters: [
+              {
+                name: "shas",
+                type: "string",
+                value: shas.join(","),
+              },
+              {
+                name: "owner",
+                type: "string",
+                value: params.repoOwner,
+              },
+              {
+                name: "project",
+                type: "string",
+                value: params.repoName,
+              },
+            ],
+          }
+        )
+      ).results;
 
   const forcedMergeShas = new Set(
     _.map(filterForcedMergePr, (r) => {
