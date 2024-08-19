@@ -274,6 +274,9 @@ function LogWithLineSelector({
   });
   // undefined means that no line is selected, so the log viewer is closed
   const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);
+  if (lineNumbers.length === 0) {
+    lineNumbers = [0];
+  }
   return (
     <>
       {lineNumbers.map((line, index) => (

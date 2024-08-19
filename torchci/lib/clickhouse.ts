@@ -56,29 +56,3 @@ export function enableClickhouse() {
   // Use this to quickly toggle between clickhouse and rockset
   return process.env.USE_CLICKHOUSE == "true";
 }
-
-export function coerceBoolNum(data: any[]) {
-  // Coerces the types of an output from clickhouse to bool or number if
-  // possible since clickhouse returns strings.  Does not yet handle nested
-  // objects/tuples.
-  for (const row of data) {
-    for (const key in row) {
-      if (row[key] === "true") {
-        row[key] = true;
-      } else if (row[key] === "false") {
-        row[key] = false;
-      } else if (!isNaN(row[key])) {
-        row[key] = Number(row[key]);
-      }
-    }
-  }
-  return data;
-}
-
-export function numToNullableStr(val: number) {
-  // Some code expects nullable strings for values that are usually numbers
-  if (val === 0) {
-    return null;
-  }
-  return val.toString();
-}

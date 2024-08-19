@@ -2,9 +2,7 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
 import {
-  coerceBoolNum,
   enableClickhouse,
-  numToNullableStr,
   queryClickhouseSaved,
 } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
@@ -18,12 +16,15 @@ async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
       repo: `${owner}/${repo}`,
       sha: sha,
     });
-    const withTypes = coerceBoolNum(response);
-    for (const row of withTypes) {
-      row.id = numToNullableStr(row.id);
-      row.workflowId = numToNullableStr(row.workflowId);
+
+    for (const row of response) {
+      row.id = row.id == 0 ? null : row.id;
+      row.workflowId = row.workflowId == 0 ? null : row.workflowId;
+      row.durationS = parseInt(row.durationS);
+      row.queueTimeS = parseInt(row.queueTimeS);
+      row.time = row.time + 'Z'
     }
-    return withTypes;
+    return response;
   } else {
     const rocksetClient = getRocksetClient();
     const response = await rocksetClient.queryLambdas.executeQueryLambda(
@@ -63,6 +64,7 @@ export default async function fetchCommit(
   ]);
 
   let jobs = response as any[];
+  console.log(response)
 
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want

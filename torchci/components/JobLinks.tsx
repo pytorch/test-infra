@@ -40,7 +40,7 @@ export default function JobLinks({
     );
   }
 
-  if (job.failureCaptures != null) {
+  if (job.failureCaptures != null && job.failureLines?.length != 0) {
     subInfo.push(
       <a
         target="_blank"
@@ -156,6 +156,7 @@ This test was disabled because it is failing on main branch ([recent examples]($
 }
 
 function DisableTest({ job, label }: { job: JobData; label: string }) {
+  console.log(job.failureLines)
   const hasFailureClassification =
     job.failureLines != null && job.failureLines.every((line) => line !== null);
   const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
