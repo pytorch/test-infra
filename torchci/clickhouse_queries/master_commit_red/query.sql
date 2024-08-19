@@ -7,7 +7,7 @@ WITH all_jobs AS (
       WHEN job.conclusion = 'failure' THEN 'red'
       WHEN job.conclusion = 'timed_out' THEN 'red'
       WHEN job.conclusion = 'cancelled' THEN 'red'
-      WHEN job.conclusion IS NULL THEN 'pending'
+      WHEN job.conclusion = '' THEN 'pending'
       ELSE 'green'
     END as conclusion,
     push.head_commit.'id' AS sha
