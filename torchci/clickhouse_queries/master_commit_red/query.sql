@@ -1,4 +1,4 @@
---- This query is used to show the percentage of trunk red commits on HUD metrics page
+--- This query is used to show the histogram of trunk red commits on HUD metrics page
 --- during a period of time
 WITH all_jobs AS (
   SELECT
@@ -31,8 +31,8 @@ WITH all_jobs AS (
     )
     AND push.repository.'owner'.'name' = 'pytorch'
     AND push.repository.'name' = 'pytorch'
-    AND push.head_commit.'timestamp' >= {startTime: DateTime('UTC')}
-    AND push.head_commit.'timestamp' < {stopTime: DateTime('UTC')}
+    AND push.head_commit.'timestamp' >= {startTime: DateTime64(3)}
+    AND push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
 ),
 commit_overall_conclusion AS (
   SELECT

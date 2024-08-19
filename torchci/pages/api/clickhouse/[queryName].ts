@@ -6,8 +6,9 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const queryName = req.query.queryName as string;
-
-  const response = await queryClickhouseSaved(queryName, req.query);
-
+  const response = await queryClickhouseSaved(
+    queryName,
+    JSON.parse(req.query.parameters as string)
+  );
   res.status(200).json(response);
 }

@@ -41,7 +41,7 @@ function MasterCommitRedPanel({
   useClickHouse: boolean;
 }) {
   const url = useClickHouse
-    ? `/api/clickhouse/master_commit_red?query=${encodeURIComponent(
+    ? `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
         JSON.stringify({
           ...params,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -49,7 +49,7 @@ function MasterCommitRedPanel({
       )}`
     : `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
         JSON.stringify([
-          ...params,
+          ...(params as RocksetParam[]),
           {
             name: "timezone",
             type: "string",
@@ -467,8 +467,8 @@ export default function Page() {
     },
   ];
   const timeParamsClickHouse = {
-    startTime: startTime.utc().format("YYYY-MM-DD HH:mm:ss"),
-    stopTime: stopTime.utc().format("YYYY-MM-DD HH:mm:ss"),
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
