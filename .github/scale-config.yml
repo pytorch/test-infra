@@ -27,6 +27,7 @@ runner_types:
     is_ephemeral: false
     max_available: 1000
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -38,6 +39,7 @@ runner_types:
     is_ephemeral: false
     max_available: 450
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -49,6 +51,7 @@ runner_types:
     is_ephemeral: false
     max_available: 150
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -60,6 +63,7 @@ runner_types:
     is_ephemeral: false
     max_available: 150
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -71,6 +75,7 @@ runner_types:
     is_ephemeral: true
     max_available: 50
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -82,6 +87,7 @@ runner_types:
     is_ephemeral: true
     max_available: 300
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -93,6 +99,7 @@ runner_types:
     is_ephemeral: false
     max_available: 150
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -104,6 +111,7 @@ runner_types:
     is_ephemeral: false
     max_available: 500
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -115,6 +123,7 @@ runner_types:
     is_ephemeral: false
     max_available: 3120
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -126,6 +135,7 @@ runner_types:
     is_ephemeral: false
     max_available: 1000
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -137,6 +147,7 @@ runner_types:
     is_ephemeral: false
     max_available: 1000
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -148,6 +159,7 @@ runner_types:
     is_ephemeral: false
     max_available: 400
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -159,6 +171,7 @@ runner_types:
     is_ephemeral: false
     max_available: 250
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -170,6 +183,7 @@ runner_types:
     is_ephemeral: false
     max_available: 300
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -181,6 +195,7 @@ runner_types:
     is_ephemeral: false
     max_available: 200
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -192,6 +207,7 @@ runner_types:
     is_ephemeral: false
     max_available: 150
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -203,6 +219,7 @@ runner_types:
     is_ephemeral: false
     max_available: 2400
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -214,6 +231,7 @@ runner_types:
     is_ephemeral: false
     max_available: 50
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -225,6 +243,7 @@ runner_types:
     instance_type: c5.large
     is_ephemeral: false
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
@@ -236,6 +255,7 @@ runner_types:
     is_ephemeral: false
     max_available: 200
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
@@ -247,6 +267,7 @@ runner_types:
     is_ephemeral: false
     max_available: 200
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
@@ -258,6 +279,7 @@ runner_types:
     is_ephemeral: false
     max_available: 100
     os: linux
+    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64

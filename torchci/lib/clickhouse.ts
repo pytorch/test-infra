@@ -1,41 +1,57 @@
-export default async function queryClickHouse(queryVariables: {
-  [k: string]: string;
-}) {
-  if (
-    typeof process.env.CLICKHOUSE_ENDPOINT === "undefined" ||
-    typeof process.env.CLICKHOUSE_API_KEY_ID === "undefined" ||
-    typeof process.env.CLICKHOUSE_API_KEY_SECRET === "undefined"
-  ) {
-    throw "CLICKHOUSE_ENDPOINT or CLICKHOUSE_API_KEY_ID or CLICKHOUSE_API_KEY_SECRET is not defined, add it to your .env.local file";
-  }
+import { createClient } from "@clickhouse/client";
+import { readFileSync } from "fs";
 
-  const credential = `${process.env.CLICKHOUSE_API_KEY_ID}:${process.env.CLICKHOUSE_API_KEY_SECRET}`;
-  const response = await fetch(process.env.CLICKHOUSE_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Basic ${Buffer.from(credential).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      queryVariables: queryVariables,
-      format: "JSONEachRow",
-    }),
+export function getClickhouseClient() {
+  return createClient({
+    host: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
+    username: process.env.CLICKHOUSE_HUD_USER_USERNAME ?? "default",
+    password: process.env.CLICKHOUSE_HUD_USER_PASSWORD ?? "",
+  });
+}
+
+export async function queryClickhouse(
+  query: string,
+  params: Record<string, unknown>
+) {
+  /**
+   * queryClickhouse
+   * @param query: string, the sql query
+   * @param params: Record<string, unknown>, the parameters to the query ex { sha: "abcd" }
+   */
+  const clickhouseClient = getClickhouseClient();
+  const res = await clickhouseClient.query({
+    query,
+    format: "JSONEachRow",
+    query_params: params,
   });
 
-  if (!response.ok) {
-    return [];
-  }
+  return await res.json();
+}
 
-  const records = await response.json();
-  if (!records || !records.data) {
-    return [];
-  }
-  // Map the column to their values on each row
-  const columns = records.data.columns;
-  return records.data.rows.map((r: any) => {
-    const record: { [k: string]: any } = {};
-    r.forEach((v: any, i: number) => (record[columns[i].name] = v));
-    return record;
-  });
+export async function queryClickhouseSaved(
+  queryName: string,
+  inputParams: Record<string, unknown>
+) {
+  /**
+   * queryClickhouseSaved
+   * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
+   * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
+   *
+   * This function will filter the inputParams to only include the parameters that are in the query params json file
+   */
+  const query = readFileSync(
+    `clickhouse_queries/${queryName}/query.sql`,
+    "utf8"
+  );
+  const paramsText = require(`clickhouse_queries/${queryName}/params.json`);
+
+  const queryParams = new Map(
+    Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
+  );
+  return await queryClickhouse(query, Object.fromEntries(queryParams));
+}
+
+export function enableClickhouse() {
+  // Use this to quickly toggle between clickhouse and rockset
+  return process.env.USE_CLICKHOUSE == "true";
 }

@@ -1,23 +1,22 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
+import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
-export default async function fetchCommit(
-  owner: string,
-  repo: string,
-  sha: string
-): Promise<{ commit: CommitData; jobs: JobData[] }> {
-  // Retrieve commit data from GitHub
-  const octokit = await getOctokit(owner, repo);
-  const rocksetClient = getRocksetClient();
-
-  const [githubResponse, commitJobsQuery] = await Promise.all([
-    octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await rocksetClient.queryLambdas.executeQueryLambda(
+async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
+  if (false) {
+    const response = queryClickhouseSaved("commit_jobs_query", {
+      repo: `${owner}/${repo}`,
+      sha: sha,
+    });
+    return response;
+  } else {
+    const rocksetClient = getRocksetClient();
+    const response = await rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "commit_jobs_query",
       rocksetVersions.commons.commit_jobs_query as string,
@@ -35,10 +34,26 @@ export default async function fetchCommit(
           },
         ],
       }
-    ),
+    );
+    return response.results!;
+  }
+}
+
+export default async function fetchCommit(
+  owner: string,
+  repo: string,
+  sha: string
+): Promise<{ commit: CommitData; jobs: JobData[] }> {
+  // Retrieve commit data from GitHub
+  const octokit = await getOctokit(owner, repo);
+
+  const [githubResponse, response] = await Promise.all([
+    octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
+    await fetchDatabaseInfo(owner, repo, sha),
   ]);
 
-  let jobs = commitJobsQuery.results!;
+  let jobs = response as any[];
+
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want
   // to avoid noising up the display with many duplicate jobs.
