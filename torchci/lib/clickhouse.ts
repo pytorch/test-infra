@@ -12,7 +12,7 @@ export function getClickhouseClient() {
 export async function queryClickhouse(
   query: string,
   params: Record<string, unknown>
-) {
+): Promise<any[]> {
   /**
    * queryClickhouse
    * @param query: string, the sql query
@@ -25,7 +25,7 @@ export async function queryClickhouse(
     query_params: params,
   });
 
-  return await res.json();
+  return (await res.json()) as any[];
 }
 
 export async function queryClickhouseSaved(

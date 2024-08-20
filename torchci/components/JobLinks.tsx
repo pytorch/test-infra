@@ -40,7 +40,7 @@ export default function JobLinks({
     );
   }
 
-  if (job.failureCaptures != null) {
+  if (job.failureCaptures != null && job.failureLines?.length != 0) {
     subInfo.push(
       <a
         target="_blank"
