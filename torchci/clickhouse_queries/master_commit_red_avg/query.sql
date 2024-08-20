@@ -66,7 +66,7 @@ all_reds AS (
   HAVING
     COUNT(sha) > 10 -- Filter out jobs that didn't run anything.
     AND SUM(
-      IF(conclusion IS NULL, 1, 0)
+      IF(conclusion = '', 1, 0)
     ) = 0 -- Filter out commits that still have pending jobs.
 ),
 avg_reds AS (
