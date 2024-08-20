@@ -487,9 +487,17 @@ export default function Page() {
 
   // Query both broken trunk and flaky red % in one query to some
   // save CPU usage. This query is quite expensive to run
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(timeParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify({
+          ...timeParamsClickHouse,
+          // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
+          workflowNames: ["lint", "pull", "trunk"],
+        })
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(timeParams)
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
