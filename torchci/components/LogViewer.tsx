@@ -274,6 +274,9 @@ function LogWithLineSelector({
   });
   // undefined means that no line is selected, so the log viewer is closed
   const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);
+  // TODO: Remove this. This is a hack to make sure that that the log viewer
+  // will always show up. It gets around some differences in output between
+  // rockset and clickhouse
   if (lineNumbers.length === 0) {
     lineNumbers = [0];
   }

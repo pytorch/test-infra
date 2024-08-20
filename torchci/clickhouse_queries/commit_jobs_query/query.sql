@@ -103,6 +103,7 @@ SELECT
     log_url AS logUrl,
     duration_s AS durationS,
     queue_time_s AS queueTimeS,
+    -- Convert to arrays
     if(line = '', [ ], [ line ]) AS failureLines,
     if(line_num = 0, [ ], [ line_num ]) AS failureLineNumbers,
     captures AS failureCaptures,
