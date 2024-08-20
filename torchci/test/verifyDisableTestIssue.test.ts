@@ -325,30 +325,41 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("ERROR")).toBeFalsy();
   });
 
-  test("various getExpectedPlatformLabels tests", async () => {
-    expect(await bot.getExpectedPlatformLabels(["linux"], ["random"])).toEqual([
-      [],
-      [],
-    ]);
+  test("various getExpectedPlatformModuleLabels tests", async () => {
     expect(
-      await bot.getExpectedPlatformLabels(["inductor"], ["random"])
+      await bot.getExpectedPlatformModuleLabels(["linux"], ["random"])
+    ).toEqual([[], []]);
+    expect(
+      await bot.getExpectedPlatformModuleLabels(["inductor"], ["random"])
     ).toEqual([["oncall: pt2"], []]);
     expect(
-      await bot.getExpectedPlatformLabels(["linux"], ["random", "module: rocm"])
+      await bot.getExpectedPlatformModuleLabels(
+        ["linux"],
+        ["random", "module: rocm"]
+      )
     ).toEqual([[], ["module: rocm"]]);
     expect(
-      await bot.getExpectedPlatformLabels(["rocm"], ["random", "module: rocm"])
+      await bot.getExpectedPlatformModuleLabels(
+        ["rocm"],
+        ["random", "module: rocm"]
+      )
     ).toEqual([["module: rocm"], []]);
     expect(
-      await bot.getExpectedPlatformLabels(
+      await bot.getExpectedPlatformModuleLabels(
         ["dynamo", "inductor"],
         ["random", "module: rocm"]
       )
     ).toEqual([["oncall: pt2"], ["module: rocm"]]);
     expect(
-      await bot.getExpectedPlatformLabels(
+      await bot.getExpectedPlatformModuleLabels(
         ["linux", "rocm"],
         ["random", "module: rocm"]
+      )
+    ).toEqual([[], ["module: rocm"]]);
+    expect(
+      await bot.getExpectedPlatformModuleLabels(
+        ["linux", "rocm"],
+        ["random", "module: rocm", "oncall: pt2"]
       )
     ).toEqual([[], ["module: rocm"]]);
   });
