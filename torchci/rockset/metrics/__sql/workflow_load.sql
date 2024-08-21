@@ -23,7 +23,7 @@ WHERE
         'inductor-A100-perf-nightly',
         'inductor-cu124',
         'rocm',
-        'inductor_rocm'
+        'inductor-rocm'
     )
     AND workflow.repository.full_name like :repo
 GROUP BY
