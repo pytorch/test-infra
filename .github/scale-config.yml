@@ -75,7 +75,7 @@ runner_types:
     is_ephemeral: true
     max_available: 50
     os: linux
-    ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
+    ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
     variants:
       amz2023:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64
