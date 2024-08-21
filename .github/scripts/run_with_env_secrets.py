@@ -7,7 +7,7 @@ import sys
 
 
 def run_cmd_or_die(cmd):
-    print(f"Running command: {cmd}")
+    print(f"Running command: {cmd}", file=sys.stderr)
     p = subprocess.Popen(
         "/bin/bash",
         stdout=subprocess.PIPE,
@@ -26,12 +26,12 @@ def run_cmd_or_die(cmd):
     while p.poll() is None:
         line = p.stdout.readline()
         if line:
-            print(line, end="")
+            print(line, end="", file=sys.stderr)
         result += line
 
     # Read any remaining output
     for line in p.stdout:
-        print(line, end="")
+        print(line, end="", file=sys.stderr)
         result += line
 
     exit_code = p.returncode
