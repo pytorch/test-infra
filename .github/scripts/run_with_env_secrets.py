@@ -12,7 +12,7 @@ def run_cmd_or_die(cmd):
         "/bin/bash",
         stdout=subprocess.PIPE,
         stdin=subprocess.PIPE,
-        stderr=subprocess.STDERR,
+        stderr=subprocess.STDOUT,
         bufsize=1,
         universal_newlines=True,
         errors="backslashreplace",
