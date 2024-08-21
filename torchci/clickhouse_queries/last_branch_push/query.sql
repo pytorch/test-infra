@@ -8,7 +8,6 @@ where
     push.ref = { branch : String }
     AND push.repository.owner.name = 'pytorch'
     AND push.repository.name = 'pytorch'
-    AND push.head_commit is not null
 order by
     push.head_commit.timestamp desc
 limit
