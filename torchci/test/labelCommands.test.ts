@@ -284,7 +284,9 @@ describe("label-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`{"labels":["skip-pr-sanity-check"]}`);
+        expect(JSON.stringify(body)).toContain(
+          `{"labels":["skip-pr-sanity-check"]}`
+        );
         return true;
       })
       .reply(200, {});
