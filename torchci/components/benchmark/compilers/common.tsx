@@ -26,6 +26,7 @@ export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
   inductor_aot_inductor: "aot_inductor",
   inductor_with_cudagraphs_freezing: "cudagraphs_freezing",
   inductor_cudagraphs_low_precision: "cudagraphs_low_precision",
+  inductor_export: "export",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
@@ -36,6 +37,7 @@ export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   aot_inductor: "inductor_aot_inductor",
   cudagraphs_freezing: "inductor_with_cudagraphs_freezing",
   cudagraphs_low_precision: "inductor_cudagraphs_low_precision",
+  export: "inductor_export",
 };
 export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
