@@ -106,7 +106,7 @@ export function computePassrate(
     // because we only measure its pass rate but not speedup.
     if (
       (isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
-        (record.speedup !== 0.0 || compiler === "inductor_export")) ||
+        (record.speedup !== 0.0 || compiler === "export")) ||
       accuracy === "pass_due_to_skip"
     ) {
       passCount[bucket][workflowId][suite][compiler] += 1;
