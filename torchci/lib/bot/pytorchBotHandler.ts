@@ -454,6 +454,26 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         "Can't add ciflow labels to an Issue."
       );
     }
+
+    // Labels only people with write access to the repo should be able to add
+    const labels_requiring_write_access: string[] = ["skip-pr-sanity-check"];
+    const write_required_labels = labelsToAdd.filter((l: string) =>
+      labels_requiring_write_access.some(
+        (write_required_label) => write_required_label === l
+      )
+    );
+
+    if (
+      write_required_labels.length > 0 &&
+      !(await this.hasWritePermissions(ctx.payload?.comment?.user?.login))
+    ) {
+      return await this.addComment(
+        "Only people with write access to the repo can add these labels: " +
+          write_required_labels.join(", ") +
+          ". Please ping one of the reviewers for help."
+      );
+    }
+
     if (
       ciflowLabels.length > 0 &&
       !(await this.hasWorkflowRunningPermissions(

@@ -26,5 +26,14 @@
     "color": "574CBB",
     "default": false,
     "description": "Trigger trunk jobs on your pull request"
+  },
+  {
+    "id": 1663721063,
+    "node_id": "LA_AAAAA-j9z87aX_Jl",
+    "url": "https://api.github.com/repos/pytorch/pytorch/labels/skip-pr-sanity-check",
+    "name": "skip-pr-sanity-check",
+    "color": "574CBB",
+    "default": false,
+    "description": "Skips PR size check"
   }
 ]
