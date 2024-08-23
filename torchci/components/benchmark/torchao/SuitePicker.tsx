@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 
 export const SUITES: { [k: string]: string } = {
-  timm_models: "TIMM models",
+  huggingface: "Huggingface",
 };
 
 export function SuitePicker({
