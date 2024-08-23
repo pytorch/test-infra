@@ -3,6 +3,7 @@ import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicke
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
+import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DTypePicker,
   ModePicker,
@@ -132,6 +133,24 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
+      <SummaryPanel
+        dashboard={"torchao"}
+        startTime={startTime}
+        stopTime={stopTime}
+        granularity={granularity}
+        mode={mode}
+        dtype={dtype}
+        deviceName={deviceName}
+        lPerfData={{
+          ...lBranchAndCommit,
+          data: lData,
+        }}
+        rPerfData={{
+          ...rBranchAndCommit,
+          data: rData,
+        }}
+        all_suites={SUITES}
+      />      
     </div>
   );
 }
