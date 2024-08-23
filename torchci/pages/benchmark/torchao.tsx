@@ -134,33 +134,6 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
-      <SummaryPanel
-        dashboard={"torchao"}
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
-        mode={mode}
-        dtype={dtype}
-        deviceName={deviceName}
-        lPerfData={{
-          ...lBranchAndCommit,
-          data: lData,
-        }}
-        rPerfData={{
-          ...rBranchAndCommit,
-          data: rData,
-        }}
-        all_suites={SUITES}
-      />
-      <GraphPanel
-        queryName={"torchao_query"}
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
-      />
     </div>
   );
 }
