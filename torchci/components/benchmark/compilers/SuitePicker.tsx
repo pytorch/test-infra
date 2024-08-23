@@ -8,8 +8,6 @@ import {
 
 export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
-  huggingface: "Huggingface",
-  timm_models: "TIMM models",
 };
 
 export function SuitePicker({
