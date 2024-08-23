@@ -3,8 +3,6 @@ import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicke
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-#import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
-#import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DTypePicker,
   ModePicker,
