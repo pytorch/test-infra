@@ -42,21 +42,21 @@ function MasterCommitRedPanel({
 }) {
   const url = useClickHouse
     ? `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
-      JSON.stringify({
-        ...params,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      })
-    )}`
+        JSON.stringify({
+          ...params,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        })
+      )}`
     : `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-      JSON.stringify([
-        ...(params as RocksetParam[]),
-        {
-          name: "timezone",
-          type: "string",
-          value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
-      ])
-    )}`;
+        JSON.stringify([
+          ...(params as RocksetParam[]),
+          {
+            name: "timezone",
+            type: "string",
+            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
+        ])
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -489,15 +489,15 @@ export default function Page() {
   // save CPU usage. This query is quite expensive to run
   const url = useClickHouse
     ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-      JSON.stringify({
-        ...timeParamsClickHouse,
-        // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-        workflowNames: ["lint", "pull", "trunk"],
-      })
-    )}`
+        JSON.stringify({
+          ...timeParamsClickHouse,
+          // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
+          workflowNames: ["lint", "pull", "trunk"],
+        })
+      )}`
     : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-      JSON.stringify(timeParams)
-    )}`;
+        JSON.stringify(timeParams)
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -968,8 +968,8 @@ export default function Page() {
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = params.value
                     ? `failure?failureCaptures=${encodeURIComponent(
-                      JSON.stringify(params.row.captures)
-                    )}`
+                        JSON.stringify(params.row.captures)
+                      )}`
                     : "failure";
                   return <a href={url}>{params.value}</a>;
                 },
@@ -995,12 +995,14 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={12}>
-          <br /><br />
+          <br />
+          <br />
           <Typography variant="h3" gutterBottom>
             Linux Foundation vs Meta Fleets
           </Typography>
           <p>
-            These panels show the <b>delta</b> between states of the same job run on the Linux Foundation and Meta fleets.
+            These panels show the <b>delta</b> between states of the same job
+            run on the Linux Foundation and Meta fleets.
           </p>
         </Grid>
 
@@ -1048,8 +1050,6 @@ export default function Page() {
             groupByFieldName={"job_name"}
           />
         </Grid>
-
-
 
         <Grid item xs={12} height={ROW_HEIGHT}>
           <TimeSeriesPanel
