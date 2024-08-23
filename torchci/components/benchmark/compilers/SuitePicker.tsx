@@ -10,8 +10,6 @@ export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
-  dynamic: "[Dynamic]",
-  blueberries: "[Blueberries]",
 };
 
 export function SuitePicker({
