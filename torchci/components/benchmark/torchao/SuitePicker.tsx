@@ -7,6 +7,7 @@ import {
 } from "@mui/material";
 
 export const SUITES: { [k: string]: string } = {
+  torchbench: "Torchbench",  
   huggingface: "Huggingface",
 };
 
