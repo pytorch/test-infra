@@ -41,14 +41,15 @@ resource "aws_lambda_function" "scale_up" {
       KMS_KEY_ID                           = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                       = var.lambda_timeout_scale_up
       LAUNCH_TEMPLATE_NAME_LINUX           = var.launch_template_name_linux
-      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA    = var.launch_template_name_linux_nvidia
       LAUNCH_TEMPLATE_NAME_LINUX_ARM64     = var.launch_template_name_linux_arm64
+      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA    = var.launch_template_name_linux_nvidia
       LAUNCH_TEMPLATE_NAME_WINDOWS         = var.launch_template_name_windows
       LAUNCH_TEMPLATE_VERSION_LINUX        = var.launch_template_version_linux
-      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = var.launch_template_version_linux_nvidia
       LAUNCH_TEMPLATE_VERSION_LINUX_ARM64  = var.launch_template_version_linux_arm64
+      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = var.launch_template_version_linux_nvidia
       LAUNCH_TEMPLATE_VERSION_WINDOWS      = var.launch_template_version_windows
       MAX_RETRY_SCALEUP_RECORD             = "10"
+      MIN_AVAILABLE_RUNNERS                = var.min_available_runners
       MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
       REDIS_ENDPOINT                       = var.redis_endpoint
       REDIS_LOGIN                          = var.redis_login
@@ -56,9 +57,9 @@ resource "aws_lambda_function" "scale_up" {
       RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
       RETRY_SCALE_UP_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
-      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
       SCALE_CONFIG_REPO                    = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
+      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
