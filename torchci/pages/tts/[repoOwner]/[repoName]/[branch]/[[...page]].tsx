@@ -25,7 +25,7 @@ const SUPPORTED_WORKFLOWS = [
   "inductor",
   "inductor-periodic",
   "rocm",
-  "inductor-rocm"
+  "inductor-rocm",
 ];
 
 function Panel({
