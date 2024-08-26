@@ -915,6 +915,7 @@ export default function Page() {
             yAxisRenderer={(value) => value}
           />
         </Grid>
+
         <JobsDuration
           title={"Job time-to-signal, all branches"}
           branchName={"%"}
@@ -990,6 +991,78 @@ export default function Page() {
             yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <br />
+          <br />
+          <Typography variant="h3" gutterBottom>
+            Linux Foundation vs Meta Fleets
+          </Typography>
+          <p>
+            These panels show the <b>delta</b> between states of the same job
+            run on the Linux Foundation and Meta fleets.
+          </p>
+        </Grid>
+
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"LF vs Meta: Success rate delta"}
+            queryName={"lf_rollover_health"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"day"}
+            timeFieldName={"bucket"}
+            yAxisLabel={"rate delta"}
+            yAxisFieldName={"success_rate_delta"}
+            yAxisRenderer={(value) => value}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"LF vs Meta: Failure rate delta"}
+            queryName={"lf_rollover_health"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"day"}
+            timeFieldName={"bucket"}
+            yAxisLabel="rate delta"
+            yAxisFieldName={"failure_rate_delta"}
+            yAxisRenderer={(value) => value}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"LF vs Meta: Cancelled rate delta"}
+            queryName={"lf_rollover_health"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"day"}
+            timeFieldName={"bucket"}
+            yAxisLabel={"rate delta"}
+            yAxisFieldName={"cancelled_rate_delta"}
+            yAxisRenderer={(value) => value}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"LF vs Meta: Duration increase ratio"}
+            queryName={"lf_rollover_health"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"day"}
+            timeFieldName={"bucket"}
+            yAxisLabel="increase ratio"
+            yAxisFieldName={"success_duration_increase_ratio"}
+            yAxisRenderer={(value) => value}
+            groupByFieldName={"job_name"}
           />
         </Grid>
       </Grid>
