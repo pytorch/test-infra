@@ -127,6 +127,7 @@ module "runners" {
   runner_extra_labels             = var.runner_extra_labels
   idle_config                     = var.idle_config
   secretsmanager_secrets_id       = var.secretsmanager_secrets_id
+  min_available_runners           = var.min_available_runners
 
   lambda_zip                = var.runners_lambda_zip
   lambda_timeout_scale_up   = var.runners_scale_up_lambda_timeout

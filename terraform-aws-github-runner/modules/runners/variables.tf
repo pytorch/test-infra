@@ -296,3 +296,8 @@ variable "scale_config_repo_path" {
   default     = ""
   type        = string
 }
+
+variable "min_available_runners" {
+  description = "Minimum number of runners to keep available."
+  type        = number
+}

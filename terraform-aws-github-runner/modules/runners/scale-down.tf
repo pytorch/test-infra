@@ -39,13 +39,14 @@ resource "aws_lambda_function" "scale_down" {
       GITHUB_APP_KEY_BASE64           = var.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
+      MIN_AVAILABLE_RUNNERS           = var.min_available_runners
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       REDIS_ENDPOINT                  = var.redis_endpoint
       REDIS_LOGIN                     = var.redis_login
-      SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       SCALE_CONFIG_REPO               = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
+      SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
         sort(distinct([
