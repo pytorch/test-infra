@@ -388,7 +388,7 @@ class S3Index:
     def upload_libtorch_html(self) -> None:
         for subdir in self.subdirs:
             index_html = self.to_libtorch_html(subdir=subdir)
-            for (bucket in INDEX_BUCKETS):
+            for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/{self.html_name} to {bucket.name}")
                 bucket.Object(
                     key=f"{subdir}/{self.html_name}"
@@ -402,7 +402,7 @@ class S3Index:
     def upload_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
             index_html = self.to_simple_packages_html(subdir=subdir)
-            for (bucket in INDEX_BUCKETS):
+            for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
                 bucket.Object(
                     key=f"{subdir}/index.html"
@@ -415,7 +415,7 @@ class S3Index:
             for pkg_name in self.get_package_names(subdir=subdir):
                 compat_pkg_name = pkg_name.lower().replace("_", "-")
                 index_html = self.to_simple_package_html(subdir=subdir, package_name=pkg_name)
-                for (bucket in INDEX_BUCKETS):
+                for bucket in INDEX_BUCKETS:
                     print(f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to {bucket.name}")
                     bucket.Object(
                         key=f"{subdir}/{compat_pkg_name}/index.html"
