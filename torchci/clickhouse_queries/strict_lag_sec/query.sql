@@ -5,7 +5,7 @@ WITH master as (
         push
     WHERE
         push.ref = {head: String }
-        AND push.repository.owner.name = 'pytorch'
+        AND push.repository.owner.name = {owner: String }
         AND push.repository.name = {repo: String }
         AND push.head_commit.id != ''
     ORDER BY
@@ -19,7 +19,7 @@ WITH master as (
         push
     WHERE
         push.ref = 'refs/heads/viable/strict'
-        AND push.repository.owner.name = 'pytorch'
+        AND push.repository.owner.name = {owner: String }
         AND push.repository.name = {repo: String }
         AND push.head_commit.id != ''
     ORDER BY

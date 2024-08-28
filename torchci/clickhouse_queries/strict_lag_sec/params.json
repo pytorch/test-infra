@@ -1,4 +1,5 @@
 {
   "repo": "String",
-  "head": "String"
+  "head": "String",
+  "owner": "String"
 }

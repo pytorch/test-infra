@@ -683,7 +683,11 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={
                 useClickHouse
-                  ? { repo: "pytorch", head: "refs/heads/main" }
+                  ? {
+                      repo: "pytorch",
+                      owner: "pytorch",  // Not a parameter for the rockset query
+                      head: "refs/heads/main",
+                    }
                   : []
               }
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
