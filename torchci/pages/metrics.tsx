@@ -707,28 +707,38 @@ export default function Page() {
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "branch",
-                  type: "string",
-                  value: "refs/heads/main",
-                },
-              ]}
+              queryParams={
+                useClickHouse
+                  ? { branch: "refs/heads/main" }
+                  : [
+                      {
+                        name: "branch",
+                        type: "string",
+                        value: "refs/heads/main",
+                      },
+                    ]
+              }
               badThreshold={(_) => false} // never bad
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last nightly push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "branch",
-                  type: "string",
-                  value: "refs/heads/nightly",
-                },
-              ]}
+              queryParams={
+                useClickHouse
+                  ? { branch: "refs/heads/nightly" }
+                  : [
+                      {
+                        name: "branch",
+                        type: "string",
+                        value: "refs/heads/nightly",
+                      },
+                    ]
+              }
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
