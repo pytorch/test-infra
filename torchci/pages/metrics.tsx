@@ -815,8 +815,9 @@ export default function Page() {
               queryCollection={"commons"}
               metricName={"num"}
               valueRenderer={(value) => value}
-              queryParams={timeParams}
+              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
               badThreshold={(_) => false}
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>

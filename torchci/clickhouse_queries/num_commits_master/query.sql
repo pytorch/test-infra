@@ -1,4 +1,3 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 select
     SUM(LENGTH(p.commits)) as num
 from
@@ -6,5 +5,5 @@ from
 where
     p.repository.full_name = 'pytorch/pytorch'
     and p.ref = 'refs/heads/main'
-    AND p._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    AND p._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND p.head_commit.'timestamp' >= {startTime: DateTime64(3)}
+    AND p.head_commit.'timestamp' < {stopTime: DateTime64(3)}
