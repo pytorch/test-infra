@@ -685,7 +685,7 @@ export default function Page() {
                 useClickHouse
                   ? {
                       repo: "pytorch",
-                      owner: "pytorch",  // Not a parameter for the rockset query
+                      owner: "pytorch", // Not a parameter for the rockset query
                       head: "refs/heads/main",
                     }
                   : []
