@@ -1,0 +1,11 @@
+{
+  "granularity": "String",
+  "label": "String",
+  "platform": "String",
+  "repo": "String",
+  "startTime": "DateTime64(3)",
+  "state": "String",
+  "stopTime": "DateTime64(3)",
+  "timezone": "String",
+  "triaged": "String"
+}

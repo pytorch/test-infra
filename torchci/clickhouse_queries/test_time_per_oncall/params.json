@@ -1,0 +1,6 @@
+{
+  "endDate": "String",
+  "oncall": "String",
+  "startDate": "String",
+  "workflow_type": "String"
+}

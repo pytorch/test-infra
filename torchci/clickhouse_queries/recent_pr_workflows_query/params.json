@@ -1,0 +1,5 @@
+{
+  "numMinutes": "Int64",
+  "prNumber": "Int64",
+  "repo": "String"
+}

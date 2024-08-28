@@ -1,0 +1,9 @@
+{
+  "branch": "String",
+  "granularity": "String",
+  "percentile": "Float64",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)",
+  "timezone": "String",
+  "workflowNames": "String"
+}
