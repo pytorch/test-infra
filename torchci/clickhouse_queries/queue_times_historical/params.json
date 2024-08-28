@@ -1,0 +1,5 @@
+{
+    "granularity": "String",
+    "startTime": "String",
+    "stopTime": "String"
+}

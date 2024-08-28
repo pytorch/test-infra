@@ -898,6 +898,7 @@ export default function Page() {
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
+            useClickhouse={useClickHouse}
           />
         </Grid>
 

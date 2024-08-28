@@ -222,6 +222,7 @@ export default function TimeSeriesPanel({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
+  useClickhouse,
 }: {
   title: string;
   queryCollection?: string;
@@ -235,16 +236,24 @@ export default function TimeSeriesPanel({
   yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
+  useClickhouse?: boolean;
 }) {
   // - Granularity
   // - Group by
   // - Time field
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify([
-      ...queryParams,
-      { name: "granularity", type: "string", value: granularity },
-    ])
-  )}`;
+  const url = !useClickhouse
+    ? `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify([
+          ...queryParams,
+          { name: "granularity", type: "string", value: granularity },
+        ])
+      )}`
+    : `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify([
+          ...queryParams,
+          { name: "granularity", type: "string", value: granularity },
+        ])
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
