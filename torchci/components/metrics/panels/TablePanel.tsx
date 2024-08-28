@@ -24,19 +24,25 @@ export default function TablePanel({
   helpLink,
   // An optional flag to show the table footer
   showFooter,
+  useClickHouse = false,
 }: {
   title: string;
   queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
   showFooter?: boolean;
+  useClickHouse?: boolean;
 }) {
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
