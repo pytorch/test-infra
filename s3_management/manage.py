@@ -20,12 +20,7 @@ import boto3
 
 S3 = boto3.resource('s3')
 CLIENT = boto3.client('s3')
-
-# bucket for download.pytorch.org
 BUCKET = S3.Bucket('pytorch')
-# bucket mirror just to hold index used with META CDN
-BUCKET_META_CDN = S3.Bucket('pytorch-test')
-INDEX_BUCKETS = {BUCKET, BUCKET_META_CDN}
 
 ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz")
 ACCEPTED_SUBDIR_PATTERNS = [
@@ -387,44 +382,38 @@ class S3Index:
 
     def upload_libtorch_html(self) -> None:
         for subdir in self.subdirs:
-            index_html = self.to_libtorch_html(subdir=subdir)
-            for bucket in INDEX_BUCKETS:
-                print(f"INFO Uploading {subdir}/{self.html_name} to {bucket.name}")
-                bucket.Object(
-                    key=f"{subdir}/{self.html_name}"
-                ).put(
-                    ACL='public-read',
-                    CacheControl='no-cache,no-store,must-revalidate',
-                    ContentType='text/html',
-                    Body=index_html
-                )
+            print(f"INFO Uploading {subdir}/{self.html_name}")
+            BUCKET.Object(
+                key=f"{subdir}/{self.html_name}"
+            ).put(
+                ACL='public-read',
+                CacheControl='no-cache,no-store,must-revalidate',
+                ContentType='text/html',
+                Body=self.to_libtorch_html(subdir=subdir)
+            )
 
     def upload_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
-            index_html = self.to_simple_packages_html(subdir=subdir)
-            for bucket in INDEX_BUCKETS:
-                print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
-                bucket.Object(
-                    key=f"{subdir}/index.html"
+            print(f"INFO Uploading {subdir}/index.html")
+            BUCKET.Object(
+                key=f"{subdir}/index.html"
+            ).put(
+                ACL='public-read',
+                CacheControl='no-cache,no-store,must-revalidate',
+                ContentType='text/html',
+                Body=self.to_simple_packages_html(subdir=subdir)
+            )
+            for pkg_name in self.get_package_names(subdir=subdir):
+                compat_pkg_name = pkg_name.lower().replace("_", "-")
+                print(f"INFO Uploading {subdir}/{compat_pkg_name}/index.html")
+                BUCKET.Object(
+                    key=f"{subdir}/{compat_pkg_name}/index.html"
                 ).put(
                     ACL='public-read',
                     CacheControl='no-cache,no-store,must-revalidate',
                     ContentType='text/html',
-                    Body=index_html
+                    Body=self.to_simple_package_html(subdir=subdir, package_name=pkg_name)
                 )
-            for pkg_name in self.get_package_names(subdir=subdir):
-                compat_pkg_name = pkg_name.lower().replace("_", "-")
-                index_html = self.to_simple_package_html(subdir=subdir, package_name=pkg_name)
-                for bucket in INDEX_BUCKETS:
-                    print(f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to {bucket.name}")
-                    bucket.Object(
-                        key=f"{subdir}/{compat_pkg_name}/index.html"
-                    ).put(
-                        ACL='public-read',
-                        CacheControl='no-cache,no-store,must-revalidate',
-                        ContentType='text/html',
-                        Body=index_html
-                    )
 
     def save_libtorch_html(self) -> None:
         for subdir in self.subdirs:
