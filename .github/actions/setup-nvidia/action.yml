@@ -85,6 +85,8 @@ runs:
                           echo "Failed to get NVIDIA driver version ($INSTALLED_DRIVER_VERSION). Continuing"
                       elif [ "$INSTALLED_DRIVER_VERSION" != "$DRIVER_VERSION" ]; then
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has been installed, but we expect to have $DRIVER_VERSION instead. Continuing"
+                          # First Uninstall old driver
+                          sudo nvidia-uninstall -s
                       else
                           HAS_NVIDIA_DRIVER=1
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
@@ -104,6 +106,9 @@ runs:
                       sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
 
                       set +e
+                      # unload any possible nvidia processes
+                      sudo kill 9 $(pgrep nvidia)
+                      # install nvidia driver
                       sudo /bin/bash /tmp/nvidia_driver -s --no-drm
                       NVIDIA_INSTALLATION_STATUS=$?
 
