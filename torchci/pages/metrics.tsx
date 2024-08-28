@@ -681,8 +681,13 @@ export default function Page() {
               queryName={"strict_lag_sec"}
               metricName={"strict_lag_sec"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[]}
+              queryParams={
+                useClickHouse
+                  ? { repo: "pytorch", head: "refs/heads/main" }
+                  : []
+              }
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# disabled tests"}
