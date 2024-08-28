@@ -786,8 +786,9 @@ export default function Page() {
               queryName={"reverts"}
               metricName={"num"}
               valueRenderer={(value: string) => value}
-              queryParams={timeParams}
+              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
               badThreshold={(value) => value > 10}
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# commits"}
