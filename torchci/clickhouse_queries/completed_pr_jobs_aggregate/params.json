@@ -1,0 +1,4 @@
+{
+  "from_days_ago": "Int64",
+  "to_days_ago": "Int64"
+}

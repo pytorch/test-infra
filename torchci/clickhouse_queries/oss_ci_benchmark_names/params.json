@@ -1,0 +1,7 @@
+{
+  "filenames": "String",
+  "granularity": "String",
+  "repo": "String",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)"
+}

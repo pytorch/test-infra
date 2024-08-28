@@ -1,0 +1,8 @@
+{
+  "granularity": "String",
+  "label": "String",
+  "startTime": "DateTime64(3)",
+  "started_pattern": "String",
+  "stopTime": "DateTime64(3)",
+  "timezone": "String"
+}

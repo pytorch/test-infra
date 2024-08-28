@@ -1,0 +1,7 @@
+{
+  "pctile": "String",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)",
+  "timezone": "String",
+  "workersTypes": "String"
+}

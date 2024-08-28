@@ -1,0 +1,6 @@
+{
+  "branch": "String",
+  "percentile": "Float64",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)"
+}

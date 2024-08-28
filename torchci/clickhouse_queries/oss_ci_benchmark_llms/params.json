@@ -1,0 +1,13 @@
+{
+  "branches": "String",
+  "commits": "String",
+  "devices": "String",
+  "dtypes": "String",
+  "filenames": "String",
+  "getJobId": "Bool",
+  "granularity": "String",
+  "names": "String",
+  "repo": "String",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)"
+}
