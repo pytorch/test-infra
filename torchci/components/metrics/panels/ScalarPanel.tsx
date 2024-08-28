@@ -69,18 +69,24 @@ export default function ScalarPanel({
   metricName,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  useClickHouse = false,
 }: {
   title: string;
   queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   valueRenderer: (_value: any) => string;
   metricName: string;
   badThreshold: (_value: any) => boolean;
+  useClickHouse?: boolean;
 }) {
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
