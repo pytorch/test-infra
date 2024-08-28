@@ -1,4 +1,3 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 -- Gets percentage of total force merges, force merges with failures, and force merges without failures (impatient)
 -- Specifically this query tracks the force merges kpi and metric on HUD
 --
@@ -8,13 +7,13 @@
 --   merge_type: If set, will return only data about the requested force merge type.
 --               Can be one of: "All", "Impatience", "Failures", or " " (to get everything)
 WITH issue_comments AS (
-  SELECT
+ SELECT
     issue_comment.user.login,
     issue_comment.author_association,
     issue_comment.body,
     issue_comment.issue_url,
     issue_comment.html_url,
-    issue_comment.created,
+    issue_comment.created_at,
     CAST(
       SUBSTR(
         issue_comment.issue_url,
@@ -24,7 +23,7 @@ WITH issue_comments AS (
       ) AS INT
     ) AS pr_num
   FROM
-    commons.issue_comment
+    issue_comment final
   WHERE
     (
       issue_comment.body LIKE '%pytorchbot merge%'
@@ -34,6 +33,8 @@ WITH issue_comments AS (
     AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
     AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
     AND issue_comment.issue_url LIKE '%https://api.github.com/repos/pytorch/pytorch/issues/%'
+    AND issue_comment.created_at >= {startTime: DateTime64(3)}
+    AND issue_comment.created_at < {stopTime: DateTime64(3)}
 ),
 all_merges AS (
   SELECT
@@ -45,16 +46,14 @@ all_merges AS (
     m.is_failed,
     m.pr_num,
     m.merge_commit_sha,
-    max(c.created) AS time,
+    max(c.created_at) AS time
   FROM
-    commons.merges m
+    merges m
     INNER JOIN issue_comments c ON m.pr_num = c.pr_num
   WHERE
     m.owner = 'pytorch'
     AND m.project = 'pytorch'
     AND m.merge_commit_sha != '' -- only consider successful merges
-    AND m._event_time >= PARSE_DATETIME_ISO8601(: startTime)
-    AND m._event_time < PARSE_DATETIME_ISO8601(: stopTime)
   GROUP BY
     m.skip_mandatory_checks,
     m.failed_checks,
@@ -116,22 +115,21 @@ results AS (
       1,
       0
     ) AS force_merge_with_failures,
-    CAST(time as DATE) AS date
+    IF(
+      {one_bucket: Bool},
+      'Overall',
+      formatDateTime(
+        DATE_TRUNC({granularity: String}, time),
+        '%Y-%m-%d'
+      )
+    ) AS bucket
   FROM
     merges_identifying_force_merges
   ORDER BY
-    date DESC
-),
-bucketed_counts AS (
+    time DESC
+) , bucketed_counts AS (
   SELECT
-    IF(
-      : one_bucket,
-      'Overall',
-      FORMAT_TIMESTAMP(
-        '%Y-%m-%d',
-        DATE_TRUNC(: granularity, date)
-      )
-    ) AS granularity_bucket,
+    bucket as granularity_bucket,
     SUM(force_merge_with_failures) AS with_failures_cnt,
     SUM(force_merge) - SUM(force_merge_with_failures) AS impatience_cnt,
     COUNT(*) AS total,
@@ -160,7 +158,7 @@ rolling_raw_stats AS (
     SUM(total) OVER(
       ORDER BY
         granularity_bucket ROWS 1 PRECEDING
-    ) AS total,
+    ) AS total
   FROM
     bucketed_counts
 ),
@@ -169,7 +167,7 @@ stats_per_bucket AS (
     granularity_bucket,
     with_failures_cnt * 100.0 / total AS with_failures_percent,
     impatience_cnt * 100.0 / total AS impatience_percent,
-    total_force_merge_cnt * 100.0 / total AS force_merge_percent,
+    total_force_merge_cnt * 100.0 / total AS force_merge_percent
   FROM
     rolling_raw_stats
 ),
@@ -207,8 +205,8 @@ filtered_result AS (
   FROM
     final_table
   WHERE
-    TRIM(: merge_type) = ''
-    OR name LIKE CONCAT('%', : merge_type, '%')
+    TRIM({merge_type: String}) = ''
+    OR name LIKE CONCAT('%', {merge_type: String}, '%')
 )
 SELECT
   *
