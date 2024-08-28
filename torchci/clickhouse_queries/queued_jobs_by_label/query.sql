@@ -1,6 +1,4 @@
 --- This query is used by HUD metrics page to get the list of queued jobs grouped by their labels
-SET
-    final = 1;
 WITH queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.started_at, CURRENT_TIMESTAMP()) AS queue_s,
@@ -47,3 +45,4 @@ GROUP BY
     machine_type
 ORDER BY
     count DESC
+SETTINGS final = 1

@@ -853,6 +853,7 @@ export default function Page() {
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
             dataGridProps={{ getRowId: (el: any) => el.machine_type }}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
