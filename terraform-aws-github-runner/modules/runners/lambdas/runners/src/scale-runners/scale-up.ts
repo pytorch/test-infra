@@ -236,11 +236,13 @@ async function allRunnersBusy(
 
   // Have a fail safe just in case we're likely to need more runners
   const availableCount = runnersWithLabel.length - busyCount;
-  if (availableCount < Config.Instance.minAvailableRunners) {
-    console.info(`Available (${availableCount}) runners is bellow minimum ${Config.Instance.minAvailableRunners}`);
+  // Min runners for scale-up must be at least 1 otherwise scale-up won't ever increase runners
+  const minRunners = Config.Instance.minAvailableRunners > 0 ? Config.Instance.minAvailableRunners : 1;
+  if (availableCount < minRunners) {
+    console.info(`Available (${availableCount}) runners is below minimum ${minRunners}`);
     // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
     if (isEphemeral) {
-      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.5);
+      const ratio: number = availableCount / (minRunners * 1.5);
       return Math.random() < ratio ? 3 : 1;
     } else {
       return 1;
