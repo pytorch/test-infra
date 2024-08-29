@@ -294,6 +294,10 @@ name = 'npm error'
 pattern = '^npm ERR! code .*'
 
 [[rule]]
+name = 'No release notes label'
+pattern = '^# This PR needs a `release notes:` label.*'
+
+[[rule]]
 name = 'ghstack merge check error'
 pattern = '^Mergeability Error: .*'
 
