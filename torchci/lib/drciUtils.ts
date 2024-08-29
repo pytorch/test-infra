@@ -40,6 +40,7 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "pr-sanity-checks",
   // TODO (huydhn): Figure out a way to do flaky check accurately for build jobs
   "/ build",
+  "check-labels",
 ];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
