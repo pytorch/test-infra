@@ -631,20 +631,30 @@ export default function Page() {
               queryName={"ttrs_percentiles"}
               metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
-              queryParams={[
-                {
-                  name: "one_bucket",
-                  type: "bool",
-                  value: "True",
-                },
-                {
-                  name: "percentile_to_get",
-                  type: "float",
-                  value: "0.90",
-                },
-                ...timeParams,
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      ...timeParamsClickHouse,
+                      one_bucket: true,
+                      percentile_to_get: 0.9,
+                      workflow: "pull",
+                    }
+                  : [
+                      {
+                        name: "one_bucket",
+                        type: "bool",
+                        value: "True",
+                      },
+                      {
+                        name: "percentile_to_get",
+                        type: "float",
+                        value: "0.90",
+                      },
+                      ...timeParams,
+                    ]
+              }
               badThreshold={(value) => value > 50}
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
@@ -652,20 +662,30 @@ export default function Page() {
               queryName={"ttrs_percentiles"}
               metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
-              queryParams={[
-                {
-                  name: "one_bucket",
-                  type: "bool",
-                  value: "True",
-                },
-                {
-                  name: "percentile_to_get",
-                  type: "float",
-                  value: "0.75",
-                },
-                ...timeParams,
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      ...timeParamsClickHouse,
+                      one_bucket: true,
+                      percentile_to_get: 0.75,
+                      workflow: "pull",
+                    }
+                  : [
+                      {
+                        name: "one_bucket",
+                        type: "bool",
+                        value: "True",
+                      },
+                      {
+                        name: "percentile_to_get",
+                        type: "float",
+                        value: "0.75",
+                      },
+                      ...timeParams,
+                    ]
+              }
               badThreshold={(value) => value > 40}
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>

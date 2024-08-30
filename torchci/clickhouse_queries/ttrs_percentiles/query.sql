@@ -66,7 +66,7 @@ merged_pr_shas AS (
     join pr.labels as label
     join pr_shas s on pr_shas.pr_number = pr.number
   WHERE
-    pr.closed_at IS NOT NULL -- Ensure the PR was actaully merged
+    pr.closed_at != '' -- Ensure the PR was actaully merged
     AND label.name = 'Merged'
 ),
 -- Get all the workflows run against the PR and find the steps & stats we care about
