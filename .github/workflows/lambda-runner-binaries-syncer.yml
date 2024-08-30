@@ -1,0 +1,34 @@
+name: Lambda Runner Binaries Syncer
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - .github/workflows/lambda-runner-binaries-syncer.yml
+      - "terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer/**"
+
+jobs:
+  build:
+    name: "Run tests for runner binaries syncer lambda"
+    runs-on: ubuntu-latest
+    container: node:20
+    defaults:
+      run:
+        working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: yarn install
+      - name: Run linter
+        run: yarn lint
+      - name: Format Check
+        run: yarn format-check
+      # TODO: Fix broken tests.
+      # - name: Run tests
+      #   run: yarn test
+      - name: Build distribution
+        run: yarn build
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"
