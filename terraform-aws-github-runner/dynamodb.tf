@@ -181,3 +181,80 @@ resource "aws_dynamodb_table" "torchci-tutorial-filenames" {
         type = "S"
     }
 }
+
+resource "aws_dynamodb_table" "torchci-tutorial-metadata" {
+    name           = "torchci-tutorial-metadata"
+    hash_key = "commit_id"
+    range_key = "date"
+    billing_mode   = "PROVISIONED"
+    read_capacity = 10
+    write_capacity = 10
+    stream_enabled = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+    attribute {
+        name = "commit_id"
+        type = "S"
+    }
+    attribute {
+        name = "date"
+        type = "S"
+    }
+}
+
+resource "aws_dynamodb_table" "torchci-workflow-job" {
+    name           = "torchci-workflow-job"
+    hash_key = "dynamoKey"
+    billing_mode   = "PAY_PER_REQUEST"
+    stream_enabled = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+    attribute {
+        name = "dynamoKey"
+        type = "S"
+    }
+}
+
+resource "aws_dynamodb_table" "torchci-workflow-run" {
+    name           = "torchci-workflow-run"
+    hash_key = "dynamoKey"
+    billing_mode   = "PAY_PER_REQUEST"
+    stream_enabled = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+    attribute {
+        name = "dynamoKey"
+        type = "S"
+    }
+}
+
+resource "aws_dynamodb_table" "trymerge_event" {
+    name           = "trymerge_event"
+    hash_key = "dynamoKey"
+    range_key = "timestamp"
+    billing_mode   = "PAY_PER_REQUEST"
+    stream_enabled = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+    attribute {
+        name = "dynamoKey"
+        type = "S"
+    }
+    attribute {
+        name = "timestamp"
+        type = "N"
+    }
+}
+
+resource "aws_dynamodb_table" "trymerge_event_comment" {
+    name           = "trymerge_event_comment"
+    hash_key = "dynamoKey"
+    range_key = "timestamp"
+    billing_mode   = "PAY_PER_REQUEST"
+    stream_enabled = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+    attribute {
+        name = "dynamoKey"
+        type = "S"
+    }
+    attribute {
+        name = "timestamp"
+        type = "N"
+    }
+}
