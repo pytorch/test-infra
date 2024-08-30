@@ -10,7 +10,6 @@
 --                 entire time range AS one big bucket and returns percnetiles accordingly
 
 WITH
-
 -- Get all PRs that were merged into master, and get all the SHAs for commits from that PR which CI jobs ran against
 -- We need the shas because some jobs (like trunk) don't have a PR they explicitly ran against, but they _were_ run against
 -- a commit from a PR
@@ -27,10 +26,18 @@ pr_shas AS (
     INNER JOIN default.workflow_run r final ON j.run_id = r.id
   WHERE
     1 = 1
-    AND j.started_at > {startTime: DateTime64(3)}
-    AND r.run_started_at > {startTime: DateTime64(3)}
-    AND j.started_at < {stopTime: DateTime64(3)}
-    AND r.run_started_at < {stopTime: DateTime64(3)}
+    and j.id in (
+      select id from
+      materialized_views.workflow_job_by_started_at
+      where started_at > {startTime: DateTime64(3)}
+      and started_at < {stopTime: DateTime64(3)}
+    )
+    and r.id in (
+      select id from
+      materialized_views.workflow_run_by_run_started_at
+      where run_started_at > {startTime: DateTime64(3)}
+      and run_started_at < {stopTime: DateTime64(3)}
+    )
     AND LENGTH(r.pull_requests) = 1
     AND r.pull_requests[1].'head'.'repo'.'name' = 'pytorch'
     AND r.name IN ('pull', 'trunk', 'Lint') -- Ensure we don't pull in random PRs we don't care about
@@ -81,11 +88,15 @@ commit_job_durations AS (
     r.id AS workflow_run_id,
     s.url as url -- for debugging
   FROM
-    default.workflow_job j final
+     default.workflow_job j final
      JOIN merged_pr_shas s ON j.head_sha = s.sha
      JOIN default.workflow_run r final ON j.run_id = r.id
   WHERE
     r.name = {workflow: String} -- Stick to pull workflows to reduce noise. Trendlines are the same within other workflows
+    and j.id in (
+      select id from materialized_views.workflow_job_by_head_sha mv
+      where mv.head_sha in (select sha from merged_pr_shas)
+    )
     AND j.conclusion = 'failure' -- we just care about failed jobs
     AND j.run_attempt = 1 -- only look at the first run attempt since reruns will either 1) succeed, so are irrelevant or 2) repro the failure, biasing our data
     and j.name NOT LIKE 'lintrunner%'
