@@ -83,7 +83,7 @@ pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Opti
     let model_id_secondary = "anthropic.claude-3-5-sonnet-20240620-v1:0";
     let line_numbers = vec![*error_line];
 
-    let log_snippet = get_snippets(log, line_numbers, num_lines, num_lines + 1);
+    let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
 
     // ensure length is 1 of the log_snippet
     if log_snippet.len() != 1 {
