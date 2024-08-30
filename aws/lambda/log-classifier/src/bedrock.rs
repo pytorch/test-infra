@@ -210,18 +210,18 @@ mod test {
     }
 
     // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
-    #[tokio::test]
-    async fn test_make_query() {
-        // Read the input log file
-        let log_content = fs::read_to_string("fixtures/error_log1.txt")
-            .expect("FIXTURES/error_log1.txt should exist!");
-        let log = Log::new(log_content);
-        // Define the error line and number of lines for the snippet
-        let error_line = 4047;
-        let num_lines = 200;
+    // #[tokio::test]
+    // async fn test_make_query() {
+    //     // Read the input log file
+    //     let log_content = fs::read_to_string("fixtures/error_log1.txt")
+    //         .expect("FIXTURES/error_log1.txt should exist!");
+    //     let log = Log::new(log_content);
+    //     // Define the error line and number of lines for the snippet
+    //     let error_line = 4047;
+    //     let num_lines = 200;
 
-        // Call the make_query function
-        let query_result = make_query(&log, &error_line, num_lines).await;
-        panic!("The query result is | {:#?}", query_result.unwrap());
-    }
+    //     // Call the make_query function
+    //     let query_result = make_query(&log, &error_line, num_lines).await;
+    //     panic!("The query result is | {:#?}", query_result.unwrap());
+    // }
 }
