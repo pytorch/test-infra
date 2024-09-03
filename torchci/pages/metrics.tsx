@@ -580,20 +580,30 @@ export default function Page() {
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={[
-                {
-                  name: "one_bucket",
-                  type: "bool",
-                  value: "True",
-                },
-                {
-                  name: "merge_type",
-                  type: "string",
-                  value: "Failure",
-                },
-                ...timeParams,
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      ...timeParamsClickHouse,
+                      merge_type: "Failure",
+                      one_bucket: true,
+                      granularity: "week", // Not used but ClickHouse requires it
+                    }
+                  : [
+                      {
+                        name: "one_bucket",
+                        type: "bool",
+                        value: "True",
+                      },
+                      {
+                        name: "merge_type",
+                        type: "string",
+                        value: "Failure",
+                      },
+                      ...timeParams,
+                    ]
+              }
               badThreshold={(value) => value > 8.5}
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"% force merges due to impatience"}
@@ -601,20 +611,30 @@ export default function Page() {
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={[
-                {
-                  name: "one_bucket",
-                  type: "bool",
-                  value: "True",
-                },
-                {
-                  name: "merge_type",
-                  type: "string",
-                  value: "Impatience",
-                },
-                ...timeParams,
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      ...timeParamsClickHouse,
+                      merge_type: "Impatience",
+                      one_bucket: true,
+                      granularity: "week", // Not used but ClickHouse requires it
+                    }
+                  : [
+                      {
+                        name: "one_bucket",
+                        type: "bool",
+                        value: "True",
+                      },
+                      {
+                        name: "merge_type",
+                        type: "string",
+                        value: "Impatience",
+                      },
+                      ...timeParams,
+                    ]
+              }
               badThreshold={(value) => value > 10}
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
