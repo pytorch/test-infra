@@ -698,8 +698,9 @@ export default function Page() {
               queryName={"disabled_test_total"}
               metricName={"number_of_open_disabled_tests"}
               valueRenderer={(value) => value}
-              queryParams={[]}
+              queryParams={useClickHouse ? { state: "open" } : []}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
