@@ -125,7 +125,7 @@ jobs:
           echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
 
       - name: Download artifacts (if any)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         if: ${{ inputs.download-artifact != '' }}
         with:
           name: ${{ inputs.download-artifact }}
