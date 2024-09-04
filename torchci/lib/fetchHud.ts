@@ -72,7 +72,7 @@ export default async function fetchHud(params: HudParams): Promise<{
     params.repoName,
     shas
   );
-  const hudQuery = response as any[];
+  let results = response as any[];
 
   // Check if any of these commits are forced merge
   const filterForcedMergePr = enableClickhouse()
@@ -125,7 +125,6 @@ export default async function fetchHud(params: HudParams): Promise<{
   );
 
   const commitsBySha = _.keyBy(commits, "sha");
-  let results = hudQuery;
 
   if (params.filter_reruns) {
     results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));
