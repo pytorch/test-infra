@@ -104,28 +104,38 @@ async function backfillWorkflowJob(
     console.log(`Failed to find job id ${id}: ${error}`);
     console.log(`Marking job id ${id} as incomplete`);
     console.log(`Querying dynamo entry for job id ${id}`);
-    const dynamoEntry = await queryClickhouse(
-      `SELECT
+    const dynamoEntry = (
+      await client.queries.query({
+        sql: {
+          query: `
+SELECT
     *
 FROM
     workflow_job j
 WHERE
     j.dynamoKey = '${dynamo_key}'
 `,
+        },
+      })
+    ).results;
+    const chDynamoEntry = await queryClickhouse(
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}'`,
       {}
     );
-    if (dynamoEntry.length === 0) {
+
+    if (dynamoEntry.length === 0 && chDynamoEntry.length === 0) {
       console.log(`No dynamo entry found for job id ${id}`);
       return;
     }
-    const result = dynamoEntry.results[0];
+    const result =
+      chDynamoEntry === 0 ? dynamoEntry.results[0] : chDynamoEntry[0];
     console.log(`Writing job ${id} to DynamoDB:`);
     const thing = {
       TableName: table,
       Item: {
         ...result,
         data_quality: "incomplete",
-        backfill: "not-found",
+        backfill: false,
       },
     };
     console.log(thing);
@@ -171,6 +181,7 @@ const chJobsWithNoConclusion = await queryClickhouse(
         workflow_job j final
     WHERE
         j.conclusion = ''
+        and j.backfill
         and j.id in (
             select
                 id
@@ -271,6 +282,7 @@ const chQueuedJobs = await queryClickhouse(
         workflow_job j final
     WHERE
         j.status = 'queued'
+        and j.backfill
         and j.id in (
             select
                 id
@@ -352,6 +364,7 @@ const chUnclassifiedJobs = await queryClickhouse(
         default .workflow_job j final
     where
         j.torchci_classification.line = ''
+        and j.backfill
         and j.conclusion in [ 'failure',
         'cancelled' ]
         and j.name != 'ciflow_should_run'
