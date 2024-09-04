@@ -57,6 +57,7 @@ SELECT
     log_url as logUrl,
     duration_s as durationS,
     repo as repo,
+    -- Like commit_jobs_query we need to convert these to arrays
     if(line = '', [ ], [ line ]) AS failureLines,
     if(line_num = 0, [ ], [ line_num ]) AS failureLineNumbers,
     captures as failureCaptures,
