@@ -1,4 +1,3 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 WITH job AS (
     SELECT
         job.head_sha as sha,
