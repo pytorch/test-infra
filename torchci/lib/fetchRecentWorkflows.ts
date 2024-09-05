@@ -1,4 +1,5 @@
 import rocksetVersions from "rockset/prodVersions.json";
+import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
 import getRocksetClient from "./rockset";
 import { RecentWorkflowsData } from "./types";
 
@@ -7,6 +8,13 @@ export async function fetchRecentWorkflows(
   prNumber: string = "0",
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
+  if (enableClickhouse()) {
+    return await queryClickhouseSaved("recent_pr_workflows_query", {
+      numMinutes,
+      prNumber,
+      repo,
+    });
+  }
   const rocksetClient = getRocksetClient();
   const recentWorkflowsQuery =
     await rocksetClient.queryLambdas.executeQueryLambda(
@@ -39,6 +47,11 @@ export async function fetchRecentWorkflows(
 export async function fetchFailedJobsFromCommits(
   shas: string[]
 ): Promise<RecentWorkflowsData[]> {
+  if (enableClickhouse()) {
+    return await queryClickhouseSaved("commit_failed_jobs", {
+      shas,
+    });
+  }
   const rocksetClient = getRocksetClient();
   const commitFailedJobsQuery =
     await rocksetClient.queryLambdas.executeQueryLambda(

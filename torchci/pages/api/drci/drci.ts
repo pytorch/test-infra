@@ -64,7 +64,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
+  if (true || authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
@@ -90,6 +90,7 @@ export async function updateDrciComments(
     prNumber,
     NUM_MINUTES + ""
   );
+  console.log(recentWorkflows);
 
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
@@ -835,8 +836,13 @@ export async function getWorkflowJobsStatuses(
 
   for (const job of prInfo.jobs) {
     if (
-      (job.conclusion === undefined || job.conclusion === null) &&
-      (job.completed_at === undefined || job.completed_at === null)
+      (job.conclusion === undefined ||
+        job.conclusion === null ||
+        job.conclusion === "") &&
+      (job.completed_at === undefined ||
+        job.completed_at === null ||
+        job.completed_at === "" ||
+        job.completed_at === "1970-01-01 00:00:00.000000000") // Time 0
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {

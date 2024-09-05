@@ -1,41 +1,36 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 -- This query is used by Dr.CI to get all the failed jobs from the base commit. They can then be
 -- used to decide if a failure is due to broken trunk
 with relevant_pushes as (
   select
-    p.head_commit.timestamp,
-    p.after
-  from commons.push p
+    p.head_commit.timestamp as timestamp,
+    p.head_commit.'id' as after
+  from default.push p final
   where
-    ARRAY_CONTAINS(
-      SPLIT(:shas, ','), p.after
-    )
+    p.head_commit.'id' in {shas: Array(String)}
 )
 SELECT
   j.id,
   j.name AS jobName,
   CONCAT(w.name, ' / ', j.name) AS name,
   j.runner_name AS runnerName,
-  w.head_commit.author.email as authorEmail,
+  w.head_commit.'author'.'email' as authorEmail,
   j.conclusion,
   j.completed_at,
   j.html_url,
   j.head_sha,
   p.timestamp AS head_sha_timestamp,
   j.head_branch,
-  j.torchci_classification.captures AS failure_captures,
-  IF(j.torchci_classification.line IS NULL, null, ARRAY_CREATE(j.torchci_classification.line)) AS failure_lines,
-  j.torchci_classification.context AS failure_context,
-  j._event_time AS time,
+  j.torchci_classification.'captures' AS failure_captures,
+  IF(j.torchci_classification.'line' = '', [], [j.torchci_classification.'line']) AS failure_lines,
+  j.torchci_classification.'context' AS failure_context,
+  j.created_at AS time
 FROM
-  commons.workflow_run w
-  JOIN commons.workflow_job j ON w.id = j.run_id HINT(join_broadcast = true)
+  default.workflow_run w final
+  JOIN default.workflow_job j final ON w.id = j.run_id
   -- Do a left join here because the push table won't have any information about
   -- commits from forked repo
-  LEFT JOIN relevant_pushes p ON p.after = j.head_sha HINT(join_strategy = lookup)
+  LEFT JOIN relevant_pushes p ON p.after = j.head_sha
 WHERE
-  ARRAY_CONTAINS(
-    SPLIT(: shas, ','),
-    j.head_sha
-  )
+  j.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
+  and w.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
   AND j.conclusion IN ('failure', 'cancelled')
