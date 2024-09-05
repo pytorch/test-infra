@@ -1,7 +1,7 @@
 name: Wait for SSH session on Linux
 
 description: Stuff that should always run at the end of a linux job
-
+# test
 inputs:
   skip-wait-ssh:
     description: If set, don't wait for ssh to drain before tearing down
