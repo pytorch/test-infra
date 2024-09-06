@@ -597,7 +597,12 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test(" test flaky rule regex", async () => {
-    const originalWorkflows = [failedA, failedG, failedH, failedI];
+    const originalWorkflows = [
+      failedA, // failure
+      failedG, // failure, matches rule, but is build -> failure
+      failedH, // failure, matches rule -> flaky
+      failedI, // failure, matches rule -> flaky
+    ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
@@ -625,9 +630,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         ],
         new Map()
       );
-    expect(failedJobs.length).toBe(1);
+    expect(failedJobs.length).toBe(2);
     expect(brokenTrunkJobs.length).toBe(0);
-    expect(flakyJobs.length).toBe(3);
+    expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
 
@@ -787,7 +792,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       })
     );
 
-    const originalWorkflows = [failedA, failedB];
+    const originalWorkflows = [failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
@@ -798,7 +803,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(0);
-    expect(flakyJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(0);
   });
 
