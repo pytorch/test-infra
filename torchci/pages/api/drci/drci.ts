@@ -527,7 +527,7 @@ function constructResultsJobsSections(
     }
 
     output += "\n";
-    if (job.failure_captures) {
+    if (job.failure_captures && job.failure_captures.length > 0) {
       output += `    \`${job.failure_captures[0]}\`\n`;
     }
   }
@@ -836,8 +836,13 @@ export async function getWorkflowJobsStatuses(
 
   for (const job of prInfo.jobs) {
     if (
-      (job.conclusion === undefined || job.conclusion === null) &&
-      (job.completed_at === undefined || job.completed_at === null)
+      (job.conclusion === undefined ||
+        job.conclusion === null ||
+        job.conclusion === "") &&
+      (job.completed_at === undefined ||
+        job.completed_at === null ||
+        job.completed_at === "" ||
+        job.completed_at === "1970-01-01 00:00:00.000000000") // Time 0
     ) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
