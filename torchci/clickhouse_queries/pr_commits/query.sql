@@ -39,6 +39,7 @@ shas_with_info AS (
   FROM
     default.push p final
     JOIN shas s ON p.head_commit.id = s.sha
+  -- Make the query faster by using a materialized view with a more relevant primary key
   where p.head_commit.'timestamp' in (select timestamp from materialized_views.push_by_sha where id in (select sha from shas))
 )
 SELECT
