@@ -273,7 +273,6 @@ runner_types:
         ami: al2023-ami-2023.5.20240701.0-kernel-6.1-arm64
       am2:
         ami: amzn2-ami-hvm-2.0.20240306.2-arm64-gp2
-        
   linux.arm64.2xlarge:
     disk_size: 256
     instance_type: t4g.2xlarge
