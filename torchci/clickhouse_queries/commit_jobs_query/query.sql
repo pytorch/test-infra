@@ -50,8 +50,8 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND workflow.head_sha = {sha: String }
-        AND job.head_sha = {sha: String }
+        AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
+        AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha = {sha: String})
         AND workflow.repository. 'full_name' = {repo: String } --         UNION
     UNION ALL
     SELECT
@@ -87,7 +87,7 @@ WITH job AS (
     WHERE
         workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND workflow.head_sha = {sha: String }
+        AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND workflow.repository.full_name = {repo: String }
 )
 SELECT

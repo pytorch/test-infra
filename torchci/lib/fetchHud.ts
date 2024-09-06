@@ -8,6 +8,47 @@ import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 
+async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
+  if (enableClickhouse()) {
+    const response = await queryClickhouseSaved("hud_query", {
+      repo: `${owner}/${repo}`,
+      shas: shas,
+    });
+
+    for (const row of response) {
+      row.id = row.id == 0 ? null : row.id;
+      if (row.failureAnnotation === "") {
+        // Rockset returns nothing if the left join doesn't have a match but CH returns empty string
+        // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
+        delete row.failureAnnotation;
+      }
+    }
+    return response;
+  } else {
+    const rocksetClient = getRocksetClient();
+    const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "hud_query",
+      rocksetVersions.commons.hud_query,
+      {
+        parameters: [
+          {
+            name: "shas",
+            type: "string",
+            value: shas.join(","),
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: `${owner}/${repo}`,
+          },
+        ],
+      }
+    );
+    return hudQuery.results!;
+  }
+}
+
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
   jobNames: string[];
@@ -22,29 +63,16 @@ export default async function fetchHud(params: HudParams): Promise<{
     page: params.page,
   });
   const commits = branch.data.map(commitDataFromResponse);
+  const rocksetClient = getRocksetClient();
 
   // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);
-  const rocksetClient = getRocksetClient();
-  const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "hud_query",
-    rocksetVersions.commons.hud_query,
-    {
-      parameters: [
-        {
-          name: "shas",
-          type: "string",
-          value: shas.join(","),
-        },
-        {
-          name: "repo",
-          type: "string",
-          value: `${params.repoOwner}/${params.repoName}`,
-        },
-      ],
-    }
+  const response = await fetchDatabaseInfo(
+    params.repoOwner,
+    params.repoName,
+    shas
   );
+  let results = response as any[];
 
   // Check if any of these commits are forced merge
   const filterForcedMergePr = enableClickhouse()
@@ -97,7 +125,6 @@ export default async function fetchHud(params: HudParams): Promise<{
   );
 
   const commitsBySha = _.keyBy(commits, "sha");
-  let results = hudQuery.results;
 
   if (params.filter_reruns) {
     results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));
