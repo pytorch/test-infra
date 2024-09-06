@@ -824,6 +824,7 @@ export async function getWorkflowJobsStatuses(
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
+  const failedJobs: RecentWorkflowsData[] = [];
 
   // This map holds the list of the base failures for broken trunk jobs or the similar
   // failures for flaky jobs
@@ -867,6 +868,11 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
+      if (isExcludedFromFlakiness(job)) {
+        failedJobs.push(job);
+        continue;
+      }
+
       const flakyRule = isFlaky(job, flakyRules);
       if (flakyRule !== undefined) {
         flakyJobs.push(job);
@@ -883,7 +889,7 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
-      if ((await isLogClassifierFailed(job)) && !isExcludedFromFlakiness(job)) {
+      if (await isLogClassifierFailed(job)) {
         flakyJobs.push(job);
         relatedInfo.set(
           job.id,
@@ -971,8 +977,6 @@ export async function getWorkflowJobsStatuses(
       preprocessFailedJobs.push(job);
     }
   }
-
-  const failedJobs: RecentWorkflowsData[] = [];
 
   // Verify that the failed job is unique and there is no similar flaky, broken trunk,
   // or unstable jobs in the same pull request. If there are some, these failures are
