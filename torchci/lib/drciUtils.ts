@@ -404,7 +404,8 @@ export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
     _.find(
       EXCLUDED_FROM_FLAKINESS,
       (exclude: string) =>
-        job.name !== undefined && job.name.toLowerCase().includes(exclude.toLowerCase())
+        job.name !== undefined &&
+        job.name.toLowerCase().includes(exclude.toLowerCase())
     ) !== undefined
   );
 }
