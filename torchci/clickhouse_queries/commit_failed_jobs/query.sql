@@ -9,17 +9,17 @@ with relevant_pushes as (
     p.head_commit.'id' in {shas: Array(String)}
 )
 SELECT
-  j.id,
+  j.id as id,
   j.name AS jobName,
   CONCAT(w.name, ' / ', j.name) AS name,
   j.runner_name AS runnerName,
   w.head_commit.'author'.'email' as authorEmail,
-  j.conclusion,
-  j.completed_at,
-  j.html_url,
-  j.head_sha,
+  j.conclusion as conclusion,
+  j.completed_at as completed_at,
+  j.html_url as html_url,
+  j.head_sha as head_sha,
   p.timestamp AS head_sha_timestamp,
-  j.head_branch,
+  j.head_branch as head_branch,
   j.torchci_classification.'captures' AS failure_captures,
   IF(j.torchci_classification.'line' = '', [], [j.torchci_classification.'line']) AS failure_lines,
   j.torchci_classification.'context' AS failure_context,
