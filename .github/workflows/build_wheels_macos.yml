@@ -69,6 +69,10 @@ on:
         required: false
         type: boolean
         default: true
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 60
+        type: number
 
 permissions:
   id-token: write
@@ -89,7 +93,7 @@ jobs:
     runs-on: ${{ inputs.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
         run: |
