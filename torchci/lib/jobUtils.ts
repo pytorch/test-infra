@@ -11,7 +11,6 @@ import {
 import _, { isEqual } from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
 import TrieSearch from "trie-search";
-import { queryClickhouse } from "./clickhouse";
 import getRocksetClient from "./rockset";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
