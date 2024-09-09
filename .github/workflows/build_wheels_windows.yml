@@ -64,6 +64,10 @@ on:
         required: false
         type: string
         default: recursive
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 60
+        type: number
 
 permissions:
   id-token: write
@@ -88,7 +92,7 @@ jobs:
         shell: bash -l {0}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.timeout }}
     steps:
       - uses: actions/checkout@v3
         with:

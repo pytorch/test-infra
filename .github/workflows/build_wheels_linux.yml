@@ -97,6 +97,10 @@ on:
         required: false
         default: ""
         type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 120
+        type: number
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -124,9 +128,7 @@ jobs:
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
-    # If a build is taking longer than 60 minutes on these runners we need
-    # to have a conversation
-    timeout-minutes: 120
+    timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
         shell: bash -l {0}
