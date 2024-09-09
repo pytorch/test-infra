@@ -34,23 +34,24 @@ export interface JobData extends BasicJobData {
 // Used by Dr.CI
 export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
-  workflowId?: string;
+  name: string; // In BasicJobData, but required here
+  workflowId: number;
   // Each workflow file has an id. In rockset this is workflow_run.workflow_id.
   // This can be used to group normal workflows (ex trunk) and those that failed
   // to run (ex .github/workflows/trunk.yml) together even when they have
   // different names.
-  workflowUniqueId?: number;
-  jobName?: string;
-  id: string;
-  completed_at: string | null;
+  workflowUniqueId: number;
+  jobName: string;
+  id: number;
+  completed_at: string;
   html_url: string;
   head_sha: string;
-  head_sha_timestamp?: string;
-  head_branch?: string | null;
-  pr_number?: number;
+  head_sha_timestamp: string;
+  head_branch: string;
+  pr_number: number;
   failure_captures: string[];
-  failure_lines?: string[] | null;
-  failure_context?: string[] | null;
+  failure_lines: string[];
+  failure_context: string[];
 }
 
 export interface Artifact {

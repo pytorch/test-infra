@@ -1,6 +1,13 @@
+import dayjs from "dayjs";
 import { Octokit } from "octokit";
 import { Context, Probot } from "probot";
 import urllib from "urllib";
+
+export function isTime0(time: string): boolean {
+  return dayjs.utc(time) == dayjs.unix(0)
+}
+
+export const TIME_0 = "1970-01-01 00:00:00.000000000";
 
 export function repoKey(
   context: Context | Context<"pull_request.labeled">

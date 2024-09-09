@@ -10,19 +10,27 @@ WITH relevant_shas as (
   from default.pull_request pr final
   where pr.number = {prNumber: Int64}
 ),
+relevant_pushes as (
+  -- optimization because push is currently ordered by timestamp
+  select push.head_commit.'timestamp' as timestamp, push.head_commit.'id' as id
+  from default.push final
+  where push.head_commit.'timestamp' in (select timestamp from materialized_views.push_by_sha where id in relevant_shas)
+),
 recent_prs AS (
   SELECT
     distinct pull_request.head.'sha' AS sha,
     pull_request.number AS number,
-    push.head_commit.'timestamp' AS timestamp
+    push.timestamp AS timestamp
   FROM
     relevant_shas r
     JOIN default.pull_request pull_request final ON r.head_sha = pull_request.head.'sha'
     -- Do a left join here because the push table won't have any information about
     -- commits from forked repo
-    LEFT JOIN default.push push final ON r.head_sha = push.head_commit.'id'
+    LEFT JOIN relevant_pushes push ON r.head_sha = push.id
   WHERE
     pull_request.base.'repo'.'full_name' = {repo: String}
+    -- Filter pull request table to be smaller to amke query faster
+    and pull_request.number in (select number from materialized_views.pr_by_sha where head_sha in (select head_sha from relevant_shas))
 )
 SELECT
   w.id AS workflowId,
@@ -56,15 +64,15 @@ where
   and j.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in (select sha from recent_prs))
 UNION all
 SELECT
-  null AS workflowId,
+  0 AS workflowId,
   w.workflow_id as workflowUniqueId,
   w.id as id,
-  null AS runnerName,
+  '' AS runnerName,
   w.head_commit.'author'.'email' as authorEmail,
   w.name AS name,
   w.name AS jobName,
   w.conclusion as conclusion,
-  null as completed_at,
+  toDateTime64(0, 9) as completed_at,
   w.html_url as html_url,
   w.head_branch as head_branch,
   recent_prs.number AS pr_number,
@@ -81,3 +89,5 @@ WHERE
   w.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in (select sha from recent_prs))
 ORDER BY
   time DESC
+-- Non experimental analyzer has problems with final...
+SETTINGS allow_experimental_analyzer=1

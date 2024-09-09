@@ -1,4 +1,3 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 SELECT
     issue.number,
     issue.title,
@@ -8,7 +7,7 @@ SELECT
     issue.updated_at,
     issue.author_association,
 FROM
-    issues AS issue
-    CROSS JOIN UNNEST(issue.labels AS label) AS labels
+    issues AS issue final
+    array join issue.labels AS label
 WHERE
-    labels.label.name =: label
+    label.name = {label: String}

@@ -1,5 +1,6 @@
 import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import {
@@ -12,8 +13,9 @@ import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import { Octokit } from "octokit";
-import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
+import { isDrCIEnabled, isPyTorchPyTorch, isTime0, TIME_0 } from "./bot/utils";
 import { IssueData } from "./types";
+dayjs.extend(utc);
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -247,23 +249,16 @@ export async function hasSimilarFailures(
   // NB: Using the job completed_at timestamp has many false positives, so it's
   // better that we only enable this feature when the head commit timestamp is
   // available and use it as the end date
-  if (
-    job.head_sha_timestamp === undefined ||
-    job.head_sha_timestamp === null ||
-    job.head_sha_timestamp === "" ||
-    job.head_sha_timestamp === "0"
-  ) {
+  if (isTime0(job.head_sha_timestamp)) {
     return;
   }
 
   // NB: Use the commit timestamp here instead of the job timestamp to avoid using
   // the wrong end date when a PR is reverted and the job reruns
-  const endDate = dayjs(job.head_sha_timestamp);
-  const startDate = dayjs(
-    baseCommitDate !== "" && baseCommitDate !== "0"
-      ? baseCommitDate
-      : job.head_sha_timestamp
-  ).subtract(lookbackPeriodInHours, "hour");
+  const endDate = dayjs.utc(job.head_sha_timestamp);
+  const startDate = dayjs
+    .utc(!isTime0(baseCommitDate) ? baseCommitDate : job.head_sha_timestamp)
+    .subtract(lookbackPeriodInHours, "hour");
 
   if (
     endDate.diff(startDate, "hour") >
@@ -297,9 +292,10 @@ export async function hasSimilarFailures(
   let foundSimilarFailure;
   for (const record of records) {
     // Convert the result in JobData to RecentWorkflowsData used by Dr.CI
+    // TODO remove `as any` when CH migration is complete?
     const failure: RecentWorkflowsData = {
-      workflowId: record.workflowId,
-      id: record.id as string,
+      workflowId: record.workflowId as any as number,
+      id: record.id as any as number,
       jobName: record.jobName as string,
       name: record.name as string,
       conclusion: record.conclusion as string,
@@ -308,9 +304,12 @@ export async function hasSimilarFailures(
       head_sha: record.sha as string,
       head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
-      failure_lines: record.failureLines,
-      failure_context: record.failureContext,
+      failure_lines: record.failureLines as string[],
+      failure_context: record.failureContext as string[],
       authorEmail: record.authorEmail,
+      workflowUniqueId: 0,
+      head_sha_timestamp: TIME_0,
+      pr_number: 0,
     };
 
     const isEligibleCommit = await isEligibleCommitForSimilarFailureCheck(
@@ -367,14 +366,9 @@ export function isInfraFlakyJob(job: RecentWorkflowsData): boolean {
   // was allowed to go through as flaky
   return (
     job.conclusion === "failure" &&
-    job.workflowId !== null &&
-    job.workflowId !== undefined &&
-    (job.failure_lines === null ||
-      job.failure_lines === undefined ||
-      job.failure_lines.join("") === "") &&
-    (job.runnerName === null ||
-      job.runnerName === undefined ||
-      job.runnerName === "")
+    job.workflowId !== 0 &&
+    (job.failure_lines.length == 0 || job.failure_lines.join("") === "") &&
+    job.runnerName === ""
   );
 }
 
@@ -383,15 +377,13 @@ export async function isLogClassifierFailed(
 ): Promise<boolean> {
   // Having no workflow ID means that this is a workflow run, not a workflow job.
   // We don't want to apply the log classifier check for a workflow run
-  if (job.workflowId === null || job.workflowId === undefined) {
+  if (job.workflowId === 0) {
     return false;
   }
 
   // This covers the case when there is no log on S3 or log classifier fails to triggered
   const hasFailureLines =
-    job.failure_lines !== null &&
-    job.failure_lines !== undefined &&
-    job.failure_lines.join("") !== "";
+    job.failure_lines.length !== 0 && job.failure_lines.join("") !== "";
   const hasLog = await hasS3Log(job);
 
   return job.conclusion === "failure" && (!hasFailureLines || !hasLog);
@@ -404,7 +396,7 @@ export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
     _.find(
       EXCLUDED_FROM_FLAKINESS,
       (exclude: string) =>
-        job.name !== undefined &&
+        job.name !== "" &&
         job.name.toLowerCase().includes(exclude.toLowerCase())
     ) !== undefined
   );
@@ -433,11 +425,7 @@ export function getSuppressedLabels(
   job: RecentWorkflowsData,
   labels: string[]
 ): string[] {
-  if (
-    job.jobName === undefined ||
-    job.jobName === null ||
-    !(job.jobName in SUPPRESSED_JOB_BY_LABELS)
-  ) {
+  if (job.jobName === "" || !(job.jobName in SUPPRESSED_JOB_BY_LABELS)) {
     return [];
   }
 
@@ -447,7 +435,7 @@ export function getSuppressedLabels(
 export function isExcludedFromSimilarityPostProcessing(
   job: RecentWorkflowsData
 ): boolean {
-  if (job.failure_captures === null || job.failure_captures === undefined) {
+  if (job.failure_captures.length === 0) {
     return false;
   }
 
