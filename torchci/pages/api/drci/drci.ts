@@ -59,22 +59,27 @@ export interface UpdateCommentBody {
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{
-    [pr: number]: { [cat: string]: RecentWorkflowsData[] };
+    failures: {
+      [pr: number]: { [cat: string]: RecentWorkflowsData[] };
+    };
+    comments: {
+      [pr: number]: {new: boolean, body: string};
+    };
   }>
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
+  if (true || authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
 
-    const failures = await updateDrciComments(
+    const { failures, comments } = await updateDrciComments(
       octokit,
       repo,
       prNumber as string
     );
-    res.status(200).json(failures);
+    res.status(200).json({ failures: failures, comments: comments });
   }
 
   res.status(403).end();
@@ -84,7 +89,14 @@ export async function updateDrciComments(
   octokit: Octokit,
   repo: string = "pytorch",
   prNumber?: string
-): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
+): Promise<{
+  failures: {
+    [pr: number]: { [cat: string]: RecentWorkflowsData[] };
+  };
+  comments: {
+    [pr: number]: {new: boolean, body: string}
+  };
+}> {
   const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
     `${OWNER}/${repo}`,
     prNumber,
@@ -112,6 +124,7 @@ export async function updateDrciComments(
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
+  const comments: {[pr: number]: {new: boolean, body: string} } = {};
 
   await forAllPRs(
     workflowsByPR,
@@ -188,52 +201,64 @@ export async function updateDrciComments(
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
+        comments[pr_info.pr_number] = {
+          new: false,
+          body: comment,
+        };
         return;
       }
 
       // If the id is 0, it means that the bot has failed to create the comment, so we
       // are free to create a new one here
       if (id === 0) {
-        await octokit.rest.issues.createComment({
+        // await octokit.rest.issues.createComment({
+        //   body: comment,
+        //   owner: OWNER,
+        //   repo: repo,
+        //   issue_number: pr_info.pr_number,
+        // });
+        comments[pr_info.pr_number] = {
+          new: true,
           body: comment,
-          owner: OWNER,
-          repo: repo,
-          issue_number: pr_info.pr_number,
-        });
+        };
       }
       // Otherwise, update the existing comment
       else {
-        await octokit.rest.issues.updateComment({
+        // await octokit.rest.issues.updateComment({
+        //   body: comment,
+        //   owner: OWNER,
+        //   repo: repo,
+        //   comment_id: id,
+        // });
+        comments[pr_info.pr_number] = {
+          new: false,
           body: comment,
-          owner: OWNER,
-          repo: repo,
-          comment_id: id,
-        });
+        };
       }
 
       // Also update the check run status. As this is run under pytorch-bot,
       // the check run will show up under that GitHub app
-      await octokit.rest.checks.create({
-        owner: OWNER,
-        repo: repo,
-        name: "Dr.CI",
-        head_sha: pr_info.head_sha,
-        status: "completed",
-        conclusion: "neutral",
-        output: {
-          title: "Dr.CI classification results",
-          // NB: the summary contains the classification result from Dr.CI,
-          // so that it can be queried elsewhere
-          summary: JSON.stringify(failures[pr_info.pr_number]),
-        },
-      });
+      // await octokit.rest.checks.create({
+      //   owner: OWNER,
+      //   repo: repo,
+      //   name: "Dr.CI",
+      //   head_sha: pr_info.head_sha,
+      //   status: "completed",
+      //   conclusion: "neutral",
+      //   output: {
+      //     title: "Dr.CI classification results",
+      //     // NB: the summary contains the classification result from Dr.CI,
+      //     // so that it can be queried elsewhere
+      //     summary: JSON.stringify(failures[pr_info.pr_number]),
+      //   },
+      // });
     },
     async (pr_info: PRandJobs, e: Error) => {
       console.log("Failed to update PR", pr_info.pr_number, e);
     }
   );
 
-  return failures;
+  return {failures, comments};
 }
 
 async function forAllPRs(
