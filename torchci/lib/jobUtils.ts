@@ -11,7 +11,6 @@ import {
 import _, { isEqual } from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
 import TrieSearch from "trie-search";
-import { queryClickhouse } from "./clickhouse";
 import getRocksetClient from "./rockset";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
@@ -366,45 +365,6 @@ export async function isSameAuthor(
   // * Draft commit
   // * Cherry picking
   return isSameEmail || isSameCommitUsername || isSamePrUsername;
-}
-
-export async function getPRMergeCommits(
-  owner: string,
-  repo: string,
-  prNumbers: number[]
-): Promise<Map<number, string[]>> {
-  // Sort by comment ID desc because we don't want to depend on _event_time in
-  // general
-  const query = `
-SELECT
-  pr_num,
-  merge_commit_sha,
-FROM
-  default.merges
-WHERE
-  pr_num in {pr_nums: Array(Int64)}
-  AND owner = {owner: String}
-  AND project = {project: String}
-  AND merge_commit_sha != ''
-ORDER BY
-  comment_id DESC
-`;
-
-  const results = await queryClickhouse(query, {
-    pr_nums: prNumbers,
-    owner,
-    project: repo,
-  });
-
-  // If the array is empty, the PR hasn't been merged yet
-  return results.reduce((acc: { [prNumber: number]: string[] }, row: any) => {
-    if (!acc[row.pr_num]) {
-      acc[row.pr_num] = [];
-    }
-
-    acc[row.pr_num].push(row.merge_commit_sha);
-    return acc;
-  }, new Map<number, string[]>());
 }
 
 export function isFailureFromPrevMergeCommit(

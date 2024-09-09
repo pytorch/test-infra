@@ -14,6 +14,7 @@ import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import { Octokit } from "octokit";
 import { isDrCIEnabled, isPyTorchPyTorch, isTime0, TIME_0 } from "./bot/utils";
+import { queryClickhouse } from "./clickhouse";
 import { IssueData } from "./types";
 dayjs.extend(utc);
 
@@ -463,4 +464,43 @@ export function hasSimilarFailuresInSamePR(
   }
 
   return;
+}
+
+export async function getPRMergeCommits(
+  owner: string,
+  repo: string,
+  prNumbers: number[]
+): Promise<Map<number, string[]>> {
+  // Sort by comment ID desc because we don't want to depend on _event_time in
+  // general
+  const query = `
+SELECT
+  pr_num,
+  merge_commit_sha,
+FROM
+  default.merges
+WHERE
+  pr_num in {pr_nums: Array(Int64)}
+  AND owner = {owner: String}
+  AND project = {project: String}
+  AND merge_commit_sha != ''
+ORDER BY
+  comment_id DESC
+`;
+
+  const results = await queryClickhouse(query, {
+    pr_nums: prNumbers,
+    owner,
+    project: repo,
+  });
+
+  // If the array is empty, the PR hasn't been merged yet
+  return results.reduce((acc: { [prNumber: number]: string[] }, row: any) => {
+    if (!acc[row.pr_num]) {
+      acc[row.pr_num] = [];
+    }
+
+    acc[row.pr_num].push(row.merge_commit_sha);
+    return acc;
+  }, new Map<number, string[]>());
 }
