@@ -23,7 +23,11 @@ RELEASE_DICT = {
     "2.2.1": { 'torch': '2.2.1', 'torchvision': '0.17.1', 'torchaudio': '2.2.1', 'torchtext': '0.17.1', 'torchdata': '0.7.1'},
     "2.2.2": { 'torch': '2.2.2', 'torchvision': '0.17.2', 'torchaudio': '2.2.2', 'torchtext': '0.17.2', 'torchdata': '0.7.1'},
     "2.3.0": { 'torch': '2.3.0', 'torchvision': '0.18.0', 'torchaudio': '2.3.0', 'torchtext': '0.18.0', 'torchdata': '0.7.1'},
-    "2.3.1": { 'torch': '2.3.1', 'torchvision': '0.18.1', 'torchaudio': '2.3.1', 'torchtext': '0.18.1', 'torchdata': '0.7.1'}
+    "2.3.1": { 'torch': '2.3.1', 'torchvision': '0.18.1', 'torchaudio': '2.3.1', 'torchtext': '0.18.1', 'torchdata': '0.7.1'},
+    "2.4.0": { 'torch': '2.4.0', 'torchvision': '0.19.0', 'torchaudio': '2.4.0', 'torchtext': '0.18.1', 'torchdata': '0.7.1'},
+    "2.4.1": { 'torch': '2.4.1', 'torchvision': '0.19.1', 'torchaudio': '2.4.1', 'torchtext': '0.18.1', 'torchdata': '0.7.1'},
+    "2.5.0": { 'torch': '2.5.0', 'torchvision': '0.20.0', 'torchaudio': '2.5.0', 'torchtext': '0.18.1', 'torchdata': '0.7.1'},
+    "2.5.1": { 'torch': '2.5.1', 'torchvision': '0.20.1', 'torchaudio': '2.5.1', 'torchtext': '0.18.1', 'torchdata': '0.7.1'},
 }
 
 
