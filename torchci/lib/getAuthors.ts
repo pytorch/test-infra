@@ -1,6 +1,6 @@
 import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
-import getRocksetClient from "./rockset";
+import { queryClickhouse } from "./clickhouse";
 
 // NB: Surprisingly, jest cannot mock function in the same module so we need to
 // keep this function here in its own module so that it can be mocked.  See the
@@ -21,84 +21,20 @@ export async function getAuthors(jobs: RecentWorkflowsData[]): Promise<{
   // events. We need both events because pull_request is when a PR is created while
   // push is for a commit is pushed in PR or committed into trunk
   const query = `
-WITH email AS (
-  SELECT
-    w.head_commit.id AS sha,
-    w.head_commit.author.email
-  FROM
-    commons.workflow_run w
-  WHERE
-    ARRAY_CONTAINS(
-      SPLIT(: shas, ','),
-      w.head_commit.id
-    )
-  GROUP BY
-    sha,
-    email
-),
-commit_username AS (
-  SELECT
-    p.after AS sha,
-    p.head_commit.author.username
-  FROM
-    commons.push p
-  WHERE
-    ARRAY_CONTAINS(
-      SPLIT(: shas, ','),
-      p.after
-    )
-  GROUP BY
-    sha,
-    username
-),
-pr_username AS (
-  SELECT
-    pr.head.sha AS sha,
-    pr.user.login
-  FROM
-    commons.pull_request pr
-  WHERE
-    ARRAY_CONTAINS(
-      SPLIT(: shas, ','),
-      pr.head.sha
-    )
-  GROUP BY
-    sha,
-    login
-)
 SELECT
-  email.sha,
+  sha,
   email,
-  IF(
-    commit_username.username IS NULL,
-    '', commit_username.username
-  ) AS commit_username,
-  IF(
-    pr_username.login IS NULL, '', pr_username.login
-  ) AS pr_username,
+  username AS commit_username,
+  login as pr_username
 FROM
-  email
-  LEFT JOIN commit_username ON email.sha = commit_username.sha
-  LEFT JOIN pr_username ON email.sha = pr_username.sha
+  materialized_views.commit_authors final
+where
+  sha in {shas: Array(String)}
   `;
 
-  const rocksetClient = getRocksetClient();
-  const results = (
-    await rocksetClient.queries.query({
-      sql: {
-        query: query,
-        parameters: [
-          {
-            name: "shas",
-            type: "string",
-            value: _.map(jobs, (job: RecentWorkflowsData) => job.head_sha).join(
-              ","
-            ),
-          },
-        ],
-      },
-    })
-  ).results;
+  const results = await queryClickhouse(query, {
+    shas: _.map(jobs, (job: RecentWorkflowsData) => job.head_sha),
+  });
 
-  return results !== undefined ? _.keyBy(results, (record) => record.sha) : {};
+  return _.keyBy(results, (record) => record.sha);
 }
