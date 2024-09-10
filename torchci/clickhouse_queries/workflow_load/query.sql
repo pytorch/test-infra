@@ -1,18 +1,22 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 SELECT
-    FORMAT_ISO8601(
-        DATE_TRUNC(
-            :granularity,
-            PARSE_TIMESTAMP_ISO8601(workflow.created_at) AT TIME ZONE :timezone
-        )
+    DATE_TRUNC(
+        {granularity: String},
+        workflow.created_at
     ) AS granularity_bucket,
     workflow.name,
-    COUNT(*) as count,
+    COUNT(*) as count
 FROM
-    workflow_run workflow
+    default.workflow_run workflow final
 WHERE
-    PARSE_TIMESTAMP_ISO8601(workflow.created_at) >= PARSE_DATETIME_ISO8601(:startTime)
-    AND PARSE_TIMESTAMP_ISO8601(workflow.created_at) < PARSE_DATETIME_ISO8601(:stopTime)
+    -- optimization to make query faster
+    workflow.id in (
+        select id from materialized_views.workflow_run_by_created_at
+        where created_at >= {startTime: DateTime64(9)}
+        AND created_at <= {stopTime: DateTime64(9)}
+    )
+    -- re check for final
+    and workflow.created_at >= {startTime: DateTime64(9)}
+    AND workflow.created_at <= {stopTime: DateTime64(9)}
     AND workflow.name IN (
         'pull',
         'trunk',
@@ -26,7 +30,7 @@ WHERE
         'rocm',
         'inductor-rocm'
     )
-    AND workflow.repository.full_name like :repo
+    AND workflow.repository.'full_name' like {repo: String}
 GROUP BY
     granularity_bucket,
     workflow.name
