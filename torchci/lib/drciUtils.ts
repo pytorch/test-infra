@@ -2,7 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
-import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { fetchIssuesByLabelCH } from "lib/fetchIssuesByLabel";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -196,7 +196,7 @@ export async function upsertDrCiComment(
   );
   const existingDrciID = existingDrciData.id;
   const existingDrciComment = existingDrciData.body;
-  const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+  const sev = getActiveSEVs(await fetchIssuesByLabelCH("ci: sev"));
   const drciComment = formDrciComment(
     prNum,
     owner,

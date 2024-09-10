@@ -3,6 +3,10 @@
 // the error and where it is imported from if vercel fails to deploy.
 import { createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
+// Import itself to ensure that mocks can be applied, see
+// https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
+// https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
+import * as thisModule from "./clickhouse";
 
 export function getClickhouseClient() {
   return createClient({
@@ -53,7 +57,10 @@ export async function queryClickhouseSaved(
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
-  return await queryClickhouse(query, Object.fromEntries(queryParams));
+  return await thisModule.queryClickhouse(
+    query,
+    Object.fromEntries(queryParams)
+  );
 }
 
 export function enableClickhouse() {
