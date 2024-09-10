@@ -595,12 +595,12 @@ export function constructResultsComment(
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
     (job) =>
       job.conclusion !== "cancelled" &&
-      !job.failure_captures.includes(CANCELLED_STEP_ERROR)
+      !job.failure_captures?.includes(CANCELLED_STEP_ERROR)
   );
   const cancelledJobs: RecentWorkflowsData[] = failedJobs.filter(
     (job) =>
       job.conclusion === "cancelled" ||
-      job.failure_captures.includes(CANCELLED_STEP_ERROR)
+      job.failure_captures?.includes(CANCELLED_STEP_ERROR)
   );
   const failing =
     failedJobs.length +
