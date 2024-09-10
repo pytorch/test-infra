@@ -1075,25 +1075,10 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"day"}
+            granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid>
-
-        <Grid item xs={12} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"LF vs Meta: Failure rate delta"}
-            queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={[]}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel="rate delta"
-            yAxisFieldName={"failure_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
           />
@@ -1105,7 +1090,7 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"day"}
+            granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"cancelled_rate_delta"}
@@ -1120,7 +1105,7 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"day"}
+            granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
