@@ -1075,7 +1075,7 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"hour"}
+            granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
@@ -1090,7 +1090,7 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"hour"}
+            granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"cancelled_rate_delta"}
@@ -1105,7 +1105,7 @@ export default function Page() {
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"hour"}
+            granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
