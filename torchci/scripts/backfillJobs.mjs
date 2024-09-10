@@ -20,9 +20,9 @@ function getDynamoClient() {
 
 function getClickhouseClient() {
   return createClient({
-    host: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
-    username: process.env.CLICKHOUSE_HUD_USER_USERNAME ?? "default",
-    password: process.env.CLICKHOUSE_HUD_USER_PASSWORD ?? "",
+    host: process.env.CLICKHOUSE_HUD_USER_URL,
+    username: process.env.CLICKHOUSE_HUD_USER_USERNAME,
+    password: process.env.CLICKHOUSE_HUD_USER_PASSWORD,
   });
 }
 
@@ -104,10 +104,18 @@ async function backfillWorkflowJob(
     console.log(`Failed to find job id ${id}: ${error}`);
     console.log(`Marking job id ${id} as incomplete`);
     console.log(`Querying dynamo entry for job id ${id}`);
-    const dynamoEntry = (
-      await client.queries.query({
-        sql: {
-          query: `
+
+    let rows = await queryClickhouse(
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}'`,
+      {}
+    );
+
+    if (rows.length === 0) {
+      console.log(`No entry found in CH for job id ${id}`);
+      rows = (
+        await client.queries.query({
+          sql: {
+            query: `
 SELECT
     *
 FROM
@@ -115,20 +123,18 @@ FROM
 WHERE
     j.dynamoKey = '${dynamo_key}'
 `,
-        },
-      })
-    ).results;
-    const chDynamoEntry = await queryClickhouse(
-      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}'`,
-      {}
-    );
+          },
+        })
+      ).results;
+    }
 
-    if (dynamoEntry.length === 0 && chDynamoEntry.length === 0) {
-      console.log(`No dynamo entry found for job id ${id}`);
+    if (rows.length === 0) {
+      console.log(`No entry found in Rockset for job id ${id}`);
       return;
     }
-    const result =
-      chDynamoEntry === 0 ? dynamoEntry.results[0] : chDynamoEntry[0];
+
+    const result = rows[0];
+
     console.log(`Writing job ${id} to DynamoDB:`);
     const thing = {
       TableName: table,
