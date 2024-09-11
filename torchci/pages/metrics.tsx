@@ -957,30 +957,25 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    {
-                      name: "repo",
-                      type: "string",
-                      value: "pytorch/pytorch",
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={[
+              {
+                name: "timezone",
+                type: "string",
+                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+              {
+                name: "repo",
+                type: "string",
+                value: "pytorch/pytorch",
+              },
+              ...timeParams,
+            ]}
             granularity={"hour"}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
             yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1085,7 +1080,7 @@ export default function Page() {
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
             yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
+            // groupByFieldName={"job_name"}
           />
         </Grid>
 
@@ -1129,6 +1124,20 @@ export default function Page() {
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
+            yAxisRenderer={(value) => value}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Percentage of jobs rolled over to Linux Foundation"}
+            queryName={"lf_rollover_percentage"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"day"}
+            timeFieldName={"bucket"}
+            yAxisLabel="Percentage rolled over to LF"
+            yAxisFieldName={"percentage_lf"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
           />
