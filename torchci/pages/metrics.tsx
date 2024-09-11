@@ -957,25 +957,30 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
-              {
-                name: "repo",
-                type: "string",
-                value: "pytorch/pytorch",
-              },
-              ...timeParams,
-            ]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                : [
+                    {
+                      name: "timezone",
+                      type: "string",
+                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    },
+                    {
+                      name: "repo",
+                      type: "string",
+                      value: "pytorch/pytorch",
+                    },
+                    ...timeParams,
+                  ]
+            }
             granularity={"hour"}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
             yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1080,7 +1085,7 @@ export default function Page() {
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
             yAxisRenderer={(value) => value}
-            // groupByFieldName={"job_name"}
+            groupByFieldName={"job_name"}
           />
         </Grid>
 
