@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - csl/dynamo_clickhouse
     paths:
       - .github/workflows/clickhouse-replicator-s3-lambda.yml
       - aws/lambda/clickhouse-replicator-s3/**
