@@ -7,9 +7,10 @@ import { PRData } from "./types";
 async function fetchHistoricalCommits(
   owner: string,
   repo: string,
-  prNumber: string
+  prNumber: string,
+  useClickhouse: boolean
 ) {
-  if (enableClickhouse()) {
+  if (useClickhouse || enableClickhouse()) {
     return await queryClickhouseSaved("pr_commits", {
       pr_num: prNumber,
       owner,
@@ -49,7 +50,8 @@ export default async function fetchPR(
   owner: string,
   repo: string,
   prNumber: string,
-  octokit: Octokit
+  octokit: Octokit,
+  useClickhouse: boolean = false
 ): Promise<PRData> {
   // We pull data from both Rockset and Github to get all commits, including
   // the ones that have been force merged out of the git history.
@@ -67,7 +69,7 @@ export default async function fetchPR(
       pull_number: parseInt(prNumber),
       per_page: 100,
     }),
-    fetchHistoricalCommits(owner, repo, prNumber),
+    fetchHistoricalCommits(owner, repo, prNumber, useClickhouse),
   ]);
   const title = pull.data.title;
   const body = pull.data.body ?? "";

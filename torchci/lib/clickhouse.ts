@@ -1,5 +1,13 @@
+// This file can't be imported by files on the client side (ex .tsx) due to
+// lacking modules (ex fs) and required environment variables.  Run `yarn run
+// build` to see the error and where it is imported from if vercel fails to
+// deploy.
 import { createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
+// Import itself to ensure that mocks can be applied, see
+// https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
+// https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
+import * as thisModule from "./clickhouse";
 
 export function getClickhouseClient() {
   return createClient({
@@ -38,7 +46,11 @@ export async function queryClickhouseSaved(
    * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
    * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
    *
-   * This function will filter the inputParams to only include the parameters that are in the query params json file
+   * This function will filter the inputParams to only include the parameters
+   * that are in the query params json file.
+   *
+   * During local development, if this fails due to "cannot find module ...
+   * params.json", delete the .next folder and try again.
    */
   const query = readFileSync(
     // https://stackoverflow.com/questions/74924100/vercel-error-enoent-no-such-file-or-directory
@@ -50,7 +62,10 @@ export async function queryClickhouseSaved(
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
-  return await queryClickhouse(query, Object.fromEntries(queryParams));
+  return await thisModule.queryClickhouse(
+    query,
+    Object.fromEntries(queryParams)
+  );
 }
 
 export function enableClickhouse() {

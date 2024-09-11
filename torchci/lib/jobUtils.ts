@@ -168,7 +168,7 @@ export function getDisabledTestIssues(
   job: RecentWorkflowsData,
   disabledTestIssues: IssueData[]
 ): IssueData[] {
-  if (!job.name || !job.failure_captures || job.failure_captures.length === 0) {
+  if (job.name == "" || job.failure_captures.length === 0) {
     return [];
   }
 
@@ -205,7 +205,7 @@ export function getDisabledTestIssues(
         platformsMatch.groups.platforms
           .split(",")
           .map((platform) => platform.trim()),
-        (platform) => job.name!.includes(platform)
+        (platform) => job.name.includes(platform)
       );
     });
 
@@ -365,59 +365,6 @@ export async function isSameAuthor(
   // * Draft commit
   // * Cherry picking
   return isSameEmail || isSameCommitUsername || isSamePrUsername;
-}
-
-export async function getPRMergeCommits(
-  owner: string,
-  repo: string,
-  prNumber: number
-): Promise<string[]> {
-  // Sort by comment ID desc because we don't want to depend on _event_time in
-  // general
-  const query = `
-SELECT
-  merge_commit_sha,
-FROM
-  commons.merges
-WHERE
-  pr_num = :pr_num
-  AND owner = :owner
-  AND project = :project
-  AND merge_commit_sha != ''
-ORDER BY
-  comment_id DESC
-`;
-
-  const rocksetClient = getRocksetClient();
-  const results = (
-    await rocksetClient.queries.query({
-      sql: {
-        query: query,
-        parameters: [
-          {
-            name: "pr_num",
-            type: "int",
-            value: prNumber.toString(),
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: owner,
-          },
-          {
-            name: "project",
-            type: "string",
-            value: repo,
-          },
-        ],
-      },
-    })
-  ).results;
-
-  // If the result is empty, the PR hasn't been merged yet
-  return results !== undefined
-    ? _.map(results, (record) => record.merge_commit_sha)
-    : [];
 }
 
 export function isFailureFromPrevMergeCommit(
