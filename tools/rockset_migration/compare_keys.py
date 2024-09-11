@@ -8,7 +8,13 @@ from typing import Any, List
 import os
 import rockset
 
-from dynamo2ch import ADAPTERS, get_dynamo_client, unmarshal, upload_to_clickhouse, get_clickhouse_client
+from dynamo2ch import (
+    ADAPTERS,
+    get_dynamo_client,
+    unmarshal,
+    upload_to_clickhouse,
+    get_clickhouse_client,
+)
 
 
 CLICKHOUSE_ENDPOINT = os.environ.get("CLICKHOUSE_ENDPOINT", "localhost")
@@ -45,7 +51,9 @@ def insert_missing_keys(ch_table: str, keys: List[str]):
         )
 
         body = unmarshal({"M": res["Items"][0]})
-        body = ADAPTERS.get(CLICKHOUSE_TABLE_TO_DYNAMO_TABLE[ch_table], lambda x: x)(body)
+        body = ADAPTERS.get(CLICKHOUSE_TABLE_TO_DYNAMO_TABLE[ch_table], lambda x: x)(
+            body
+        )
         records.append(body)
     upload_to_clickhouse(records, ch_table)
 

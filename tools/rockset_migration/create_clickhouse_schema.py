@@ -8,14 +8,17 @@ from typing import Dict, List
 from rockset_queries import get_query_lambdas
 from torchci.rockset_utils import query_rockset
 
+
 class Field:
     full_name: List[str]
     type: List[str]
     used: bool = False
     nullable: bool = False
     nested_fields: Dict[str, "Field"]
+
     def short_name(self):
         return ".".join(self.full_name)
+
     def __init__(self, full_name: List[str]):
         self.full_name = full_name
         self.type = []
@@ -23,6 +26,7 @@ class Field:
 
     def __str__(self):
         return f"{self.short_name()} {self.type} {self.nullable} {self.used} {self.nested_fields}"
+
     def __repr__(self):
         return str(self)
 
@@ -47,9 +51,16 @@ class Field:
                 if "*" not in self.nested_fields:
                     clickhouse_type = "Array(InvalidType cannot find * nested field)"
                 else:
-                    clickhouse_type = f"Array({self.nested_fields['*'].get_clickhouse_type()})"
+                    clickhouse_type = (
+                        f"Array({self.nested_fields['*'].get_clickhouse_type()})"
+                    )
             elif clickhouse_type == "Tuple":
-                children_types = ', '.join([f"{f.full_name[-1]} {f.get_clickhouse_type()}" for f in self.nested_fields.values()])
+                children_types = ", ".join(
+                    [
+                        f"{f.full_name[-1]} {f.get_clickhouse_type()}"
+                        for f in self.nested_fields.values()
+                    ]
+                )
                 clickhouse_type = f"Tuple({children_types})"
             types.append(clickhouse_type)
         if len(types) > 1:
@@ -59,7 +70,6 @@ class Field:
         if self.nullable and allow_nullable:
             return f"Nullable({final_type})"
         return final_type
-
 
 
 def get_rockset_schema(table_name: str, allow_nullable=False):
@@ -89,6 +99,7 @@ def get_rockset_schema(table_name: str, allow_nullable=False):
             field.type.append(row["type"])
 
     return schema_as_dict
+
 
 def get_table_field_usages(table_name: str):
     lambdas = get_query_lambdas()
@@ -142,16 +153,19 @@ def nest_fields(schema_as_dict: Dict[str, Field]):
             curr = nested
             for i, parent in enumerate(field.full_name[:-1]):
                 if parent not in curr:
-                    curr[parent] = Field(field.full_name[:i+1])
+                    curr[parent] = Field(field.full_name[: i + 1])
                     curr[parent].type.append("object")
                 curr = curr[parent].nested_fields
             curr[field.full_name[-1]] = field
     return nested
 
+
 def gen_schema(fields: Dict[str, Field], allow_nullable=False):
     schema = []
     for field in fields.values():
-        schema.append(f"`{field.short_name()}` {field.get_clickhouse_type(allow_nullable)}")
+        schema.append(
+            f"`{field.short_name()}` {field.get_clickhouse_type(allow_nullable)}"
+        )
     return ",\n".join(schema)
 
 
