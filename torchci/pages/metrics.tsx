@@ -1136,10 +1136,8 @@ export default function Page() {
             queryParams={[]}
             granularity={"day"}
             timeFieldName={"bucket"}
-            yAxisLabel="Percentage rolled over to LF"
             yAxisFieldName={"percentage_lf"}
-            yAxisRenderer={(value) => `{value}%`}
-            groupByFieldName={"job_name"}
+            yAxisRenderer={(value) => value + "%"}
           />
         </Grid>
       </Grid>
