@@ -46,7 +46,11 @@ export async function queryClickhouseSaved(
    * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
    * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
    *
-   * This function will filter the inputParams to only include the parameters that are in the query params json file
+   * This function will filter the inputParams to only include the parameters
+   * that are in the query params json file.
+   *
+   * During local development, if this fails due to "cannot find module ...
+   * params.json", delete the .next folder and try again.
    */
   const query = readFileSync(
     // https://stackoverflow.com/questions/74924100/vercel-error-enoent-no-such-file-or-directory
