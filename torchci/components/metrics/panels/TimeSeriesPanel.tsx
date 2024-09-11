@@ -48,7 +48,7 @@ export function seriesWithInterpolatedTimes(
     t = startTime;
   for (let i = 0; t.isBefore(stopTime) && i < times.length; i++) {
     prevT = t;
-    t = dayjs(times[i]);
+    t = dayjs.utc(times[i]);
 
     let timeGap = t.diff(prevT, granularity);
     if (timeGap > 1.15) {
@@ -75,7 +75,7 @@ export function seriesWithInterpolatedTimes(
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
-      dayjs(k).toISOString()
+      dayjs.utc(k).toISOString()
     );
 
     // Fill with 0, see the above comment on interpolation.
@@ -176,7 +176,8 @@ export function TimeSeriesPanelWithData({
         trigger: "item",
         formatter: (params: any) =>
           `${params.seriesName}` +
-          `<br/>${dayjs(params.value[0])
+          `<br/>${dayjs
+            .utc(params.value[0])
             .local()
             .format(timeFieldDisplayFormat)}<br/>` +
           `${getTooltipMarker(params.color)}` +
@@ -222,11 +223,12 @@ export default function TimeSeriesPanel({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
+  useClickHouse = false,
 }: {
   title: string;
   queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   granularity: Granularity;
   groupByFieldName?: string;
   timeFieldName: string;
@@ -235,16 +237,24 @@ export default function TimeSeriesPanel({
   yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
+  useClickHouse?: boolean;
 }) {
   // - Granularity
   // - Group by
   // - Time field
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify([
-      ...queryParams,
-      { name: "granularity", type: "string", value: granularity },
-    ])
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify({
+          ...(queryParams as {}),
+          granularity: granularity as string,
+        })
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify([
+          ...(queryParams as RocksetParam[]),
+          { name: "granularity", type: "string", value: granularity },
+        ])
+      )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -254,13 +264,23 @@ export default function TimeSeriesPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
-  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
+  let startTime, stopTime;
+  if (useClickHouse) {
+    startTime = (queryParams as any)["startTime"];
+    stopTime = (queryParams as any)["stopTime"];
+  } else {
+    startTime = (queryParams as RocksetParam[]).find(
+      (p) => p.name === "startTime"
+    )?.value;
+    stopTime = (queryParams as RocksetParam[]).find(
+      (p) => p.name === "stopTime"
+    )?.value;
+  }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset
-  startTime = dayjs(startTime).startOf(granularity);
-  stopTime = dayjs(stopTime).endOf(granularity);
+  startTime = dayjs.utc(startTime).startOf(granularity);
+  stopTime = dayjs.utc(stopTime).endOf(granularity);
 
   const series = seriesWithInterpolatedTimes(
     data,
