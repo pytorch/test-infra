@@ -1,6 +1,7 @@
-// This file can't be imported by .tsx files due to client/server stuff (ex not
-// being able to import fs, not having env vars). Run `yarn run build` to see
-// the error and where it is imported from if vercel fails to deploy.
+// This file can't be imported by files on the client side (ex .tsx) due to
+// lacking modules (ex fs) and required environment variables.  Run `yarn run
+// build` to see the error and where it is imported from if vercel fails to
+// deploy.
 import { createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
 // Import itself to ensure that mocks can be applied, see

@@ -6,12 +6,11 @@ export async function fetchRecentWorkflows(
   prNumber: string = "0",
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
-  const res = await queryClickhouseSaved("recent_pr_workflows_query", {
+  return await queryClickhouseSaved("recent_pr_workflows_query", {
     numMinutes,
     prNumber,
     repo,
   });
-  return res;
 }
 
 export async function fetchFailedJobsFromCommits(
