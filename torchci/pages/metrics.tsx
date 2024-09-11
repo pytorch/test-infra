@@ -1138,7 +1138,7 @@ export default function Page() {
             timeFieldName={"bucket"}
             yAxisLabel="Percentage rolled over to LF"
             yAxisFieldName={"percentage_lf"}
-            yAxisRenderer={(value) => value}
+            yAxisRenderer={(value) => `{value}%`}
             groupByFieldName={"job_name"}
           />
         </Grid>
