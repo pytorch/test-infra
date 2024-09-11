@@ -1,0 +1,33 @@
+name: Test and deploy clickhouse-replicator-dynamo lambda
+
+on:
+  push:
+    branches:
+      - main
+      - csl/dynamo_clickhouse
+    paths:
+      - .github/workflows/clickhouse-replicator-lambda-dynamo.yml
+      - aws/lambda/clickhouse-replicator-dynamo/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/clickhouse-replicator-dynamo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/test_gha_workflow_dynamo_clickhouse_replicator_lambda
+          aws-region: us-east-1
+      - run: make deploy
