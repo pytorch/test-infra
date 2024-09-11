@@ -6,7 +6,7 @@ on:
       - main
       - csl/dynamo_clickhouse
     paths:
-      - .github/workflows/clickhouse-replicator-lambda-s3.yml
+      - .github/workflows/clickhouse-replicator-s3-lambda.yml
       - aws/lambda/clickhouse-replicator-s3/**
 
 defaults:
