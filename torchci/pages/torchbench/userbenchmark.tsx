@@ -15,7 +15,7 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 const queryCollection = "torchbench";

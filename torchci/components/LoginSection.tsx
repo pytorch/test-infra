@@ -1,5 +1,5 @@
 import { signIn, useSession } from "next-auth/react";
-import React, { useState } from "react";
+import { useState } from "react";
 import LoggedInMenu from "./LoggedInMenu";
 import styles from "./LoginSection.module.css";
 

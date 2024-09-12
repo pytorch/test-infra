@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import { getTestName } from "./JobLinks";
