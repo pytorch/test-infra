@@ -138,12 +138,12 @@ export function SummaryPanel({
 
                     // Higher TPS
                     if (r - l > RELATIVE_THRESHOLD * l) {
-                      styles.ok;
+                      return styles.ok;
                     }
 
                     // Lower TPS
                     if (l - r > RELATIVE_THRESHOLD * r) {
-                      styles.error;
+                      return styles.error;
                     }
                   }
 
