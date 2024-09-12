@@ -80,7 +80,7 @@
     "get_workers_on_period": "ae5cf853350477c7",
     "queue_times_historical_pct": "f815ad1732928bb6",
     "lf_rollover_health": "b3eb4ffc761a224a",
-    "lf_rollover_percentage": "d929a5c2b0e731db"
+    "lf_rollover_percentage": "423f2523aa1e85b2"
   },
   "inductor": {
     "compilers_benchmark_performance": "442c41fbbc0eb758",
