@@ -991,19 +991,27 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
-              ...timeParams,
-            ]}
+            queryParams={
+              useClickHouse
+                ? {
+                    ...timeParamsClickHouse,
+                    granlarity: "hour",
+                  }
+                : [
+                    {
+                      name: "timezone",
+                      type: "string",
+                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    },
+                    ...timeParams,
+                  ]
+            }
             granularity={"hour"}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
