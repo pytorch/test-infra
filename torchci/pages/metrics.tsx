@@ -1139,7 +1139,7 @@ export default function Page() {
             queryName={"lf_rollover_percentage"}
             queryCollection={"metrics"}
             queryParams={[]}
-            granularity={"day"}
+            granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
