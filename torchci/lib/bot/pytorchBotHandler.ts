@@ -6,10 +6,10 @@ import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
-  hasWritePermissions as _hasWP,
   addLabels,
   CachedConfigTracker,
   hasApprovedPullRuns,
+  hasWritePermissions as _hasWP,
   isFirstTimeContributor,
   isPyTorchOrg,
   isPyTorchPyTorch,
