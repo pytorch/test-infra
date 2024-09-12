@@ -1118,6 +1118,19 @@ export default function Page() {
             groupByFieldName={"job_name"}
           />
         </Grid>
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Percentage of jobs rolled over to Linux Foundation"}
+            queryName={"lf_rollover_percentage"}
+            queryCollection={"metrics"}
+            queryParams={[]}
+            granularity={"hour"}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
+          />
+        </Grid>
       </Grid>
     </div>
   );
