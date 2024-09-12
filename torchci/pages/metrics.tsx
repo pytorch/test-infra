@@ -1079,7 +1079,13 @@ export default function Page() {
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -1094,7 +1100,13 @@ export default function Page() {
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -1109,7 +1121,13 @@ export default function Page() {
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
