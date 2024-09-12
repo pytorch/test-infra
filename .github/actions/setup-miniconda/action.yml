@@ -12,7 +12,8 @@ inputs:
     description: Miniconda version to install
     required: false
     type: string
-    default: "23.1.0-1"
+    # https://conda.org/blog/2024-07-23-july-releases to support the default conda-libmamba-solver
+    default: "24.7.1-0"
   environment-file:
     description: Environment file to install dependencies from
     required: false
@@ -40,7 +41,7 @@ runs:
         uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+          key: miniconda-${{ inputs.miniconda-version }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
 
       - name: Install miniconda (${{ inputs.miniconda-version }})
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
