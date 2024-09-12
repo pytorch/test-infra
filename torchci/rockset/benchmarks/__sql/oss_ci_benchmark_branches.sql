@@ -21,6 +21,18 @@ WHERE
     )
     OR : filenames = ''
   )
+  -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
+  AND (
+    FORMAT(
+      '{} ({})',
+      o.device,
+      IF(
+        o.arch IS NULL, 'NVIDIA A100-SXM4-40GB',
+        o.arch
+      )
+    ) = : deviceArch
+    OR : deviceArch = ''
+  )
   AND o.metric IS NOT NULL
   AND w.html_url LIKE CONCAT('%', : repo, '%')
   AND o.dtype IS NOT NULL

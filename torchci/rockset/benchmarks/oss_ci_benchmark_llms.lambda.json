@@ -12,7 +12,7 @@
       "value": ""
     },
     {
-      "name": "devices",
+      "name": "deviceArch",
       "type": "string",
       "value": ""
     },
