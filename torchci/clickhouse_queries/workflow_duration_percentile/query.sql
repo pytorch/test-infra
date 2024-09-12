@@ -1,32 +1,26 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
-SELECT
-    duration_sec,
-    name,
-FROM (
-    SELECT
-    	tts.*,
-    	PERCENT_RANK() OVER (PARTITION BY name ORDER BY duration_sec DESC) AS percentile
-    FROM (
-    	SELECT
-        	DATE_DIFF(
-        		'second',
-            	PARSE_TIMESTAMP_ISO8601(workflow.created_at),
-            	PARSE_TIMESTAMP_ISO8601(workflow.updated_at)
-        	) as duration_sec,
-      		name,
-    	FROM
-        	commons.workflow_run workflow
-    	WHERE
-    		conclusion = 'success'
-            AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-        	AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        	AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-            AND workflow.run_attempt = 1
-    ) AS tts
-) AS p
-WHERE
-	percentile >= (1.0 - :percentile)
-ORDER BY
-	duration_sec DESC
-LIMIT
-	1
+-- IMO not the best way to calculate this metric, as it should be max across
+-- workflow names grouped by sha and then take percentile, but this matches the
+-- Rockset query most closely
+with tts as (
+	SELECT
+		DATE_DIFF(
+			'second',
+			workflow.created_at,
+			workflow.updated_at
+		) as duration_sec,
+		name,
+	FROM
+		default.workflow_run workflow final
+	WHERE
+		conclusion = 'success'
+		AND lower(workflow.name) in {workflowNames: Array(String)}
+		AND workflow.created_at >= {startTime: DateTime64(3)}
+		AND workflow.created_at < {stopTime: DateTime64(3)}
+		AND workflow.run_attempt = 1
+), tts_by_name as (
+  SELECT
+	quantileExact({percentile: Float32})(tts.duration_sec) as duration_sec
+  FROM tts
+  group by name
+)
+select max(duration_sec) as duration_sec from tts_by_name
