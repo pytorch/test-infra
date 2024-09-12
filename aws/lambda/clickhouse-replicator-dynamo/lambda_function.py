@@ -4,7 +4,7 @@ import os
 import re
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
 import clickhouse_connect
@@ -48,6 +48,7 @@ class EventType(Enum):
 def lambda_handler(event: Any, context: Any) -> None:
     # https://clickhouse.com/docs/en/integrations/python
     counts = defaultdict(int)
+    docs_to_upsert = defaultdict(list)
     for record in event["Records"]:
         event_name = record.get("eventName", "")
         try:
@@ -55,7 +56,8 @@ def lambda_handler(event: Any, context: Any) -> None:
                 event_name == EventType.INSERT.value
                 or event_name == EventType.MODIFY.value
             ):
-                upsert_document(record)
+                table, doc = get_doc_for_upsert(record)
+                docs_to_upsert[table].append(doc)
             elif event_name == EventType.REMOVE.value:
                 remove_document(record)
             else:
@@ -64,6 +66,9 @@ def lambda_handler(event: Any, context: Any) -> None:
             counts[event_name] += 1
         except Exception as error:
             warn(f"Failed to process {json.dumps(record)}: {error}")
+
+    for table, docs in docs_to_upsert.items():
+        upsert_documents(table, docs)
 
     print(f"Finish processing {json.dumps(counts)}")
 
@@ -149,11 +154,7 @@ def handle_workflow_job(record: Any) -> Any:
     return record
 
 
-def upsert_document(record: Any) -> None:
-    """
-    Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
-    update the document in place, but rather adding a new record for the update
-    """
+def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, Any]]:
     table = extract_dynamodb_table(record)
     if not table:
         return
@@ -165,19 +166,24 @@ def upsert_document(record: Any) -> None:
         body = handle_workflow_job(body)
 
     id = extract_dynamodb_key(record)
+    print(f"Parsing {id}: {json.dumps(body)}")
     if not id:
         return
+    return table, body
 
-    # TODO (huydhn) Inserting individual record is not efficient according
-    # to ClickHouse doc, but we can try to improve this later. See more at
-    # https://clickhouse.com/docs/en/optimize/bulk-inserts
-    print(f"UPSERTING {id}: {json.dumps(body)} INTO {table}")
-    # Checkout https://clickhouse.com/videos/how-to-upsert-rows-into-clickhouse
-    # to understand how to upsert works in ClickHouse and how to get the latest
-    # records. A generic way is to use the FINAL keyword but their doc mentions
-    # that it's slower https://clickhouse.com/docs/en/sql-reference/statements/select/from
+
+def upsert_documents(table: str, documents: List[Any]) -> None:
+    """
+    Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
+    update the document in place, but rather adding a new record for the update
+    """
+    body = ""
+    for document in documents:
+        body += json.dumps(document) + "\n"
+
+    print(f"UPSERTING {len(documents)} INTO {table}")
     res = get_clickhouse_client().query(
-        f"INSERT INTO `{table}` FORMAT JSONEachRow {json.dumps(body)}"
+        f"INSERT INTO fortesting.`{table}` SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
     )
     print(res)
 
