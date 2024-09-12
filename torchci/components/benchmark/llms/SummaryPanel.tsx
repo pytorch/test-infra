@@ -2,6 +2,7 @@ import { Grid } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
+  IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
 } from "components/benchmark/llms/common";
@@ -132,14 +133,18 @@ export function SummaryPanel({
                       return styles.error;
                     }
 
-                    // Higher TPS
+                    // Higher value
                     if (r - l > RELATIVE_THRESHOLD * l) {
-                      return styles.ok;
+                      return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                        ? styles.ok
+                        : styles.error;
                     }
 
-                    // Lower TPS
+                    // Lower value
                     if (l - r > RELATIVE_THRESHOLD * r) {
-                      return styles.error;
+                      return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                        ? styles.error
+                        : styles.ok;
                     }
                   }
 
