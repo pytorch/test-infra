@@ -1,4 +1,3 @@
-import React from "react";
 import { JobData } from "../lib/types";
 import JobLinks from "./JobLinks";
 import LogViewer from "./LogViewer";

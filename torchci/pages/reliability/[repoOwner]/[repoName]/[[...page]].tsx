@@ -20,7 +20,7 @@ import { approximateFailureByTypePercent } from "lib/metricUtils";
 import { RocksetParam } from "lib/rockset";
 import { JobAnnotation } from "lib/types";
 import { useRouter } from "next/router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 

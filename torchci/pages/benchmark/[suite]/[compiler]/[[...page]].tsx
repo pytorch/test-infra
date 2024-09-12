@@ -33,7 +33,7 @@ import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 

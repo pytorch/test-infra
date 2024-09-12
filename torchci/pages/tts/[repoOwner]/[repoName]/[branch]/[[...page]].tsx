@@ -13,7 +13,7 @@ import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
 import { useRouter } from "next/router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
 

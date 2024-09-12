@@ -1,5 +1,4 @@
 import { Artifact } from "lib/types";
-import React from "react";
 
 export default function JobArtifact({
   name,

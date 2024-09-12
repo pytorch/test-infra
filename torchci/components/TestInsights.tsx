@@ -1,4 +1,3 @@
-import React from "react";
 import { JobData } from "../lib/types";
 
 // The following jobs are not supported at the moment because neither the monitoring
