@@ -21,9 +21,18 @@ FROM
             AND workflow.repository.'full_name' = 'pytorch/pytorch'
             AND workflow.created_at >= {startTime: DateTime64(3)}
             AND workflow.created_at < {stopTime: DateTime64(3)}
+            AND workflow.id in (
+                select id from materialized_views.workflow_run_by_created_at
+                WHERE created_at >= {startTime: DateTime64(3)} and created_at < {stopTime: DateTimettrs_percentiles64(3)}
+            )
+            AND job.id in (
+                select id from materialized_views.workflow_job_by_created_at
+                WHERE created_at >= {startTime: DateTime64(3)} and created_at < {stopTime: DateTime64(3)}
+            )
             AND job.conclusion = 'success'
             AND workflow.head_branch LIKE {branch: String}
             AND workflow.run_attempt = 1
     ) AS tts
 group by name
 order by tts_sec * count desc
+settings allow_experimental_analyzer=1;
