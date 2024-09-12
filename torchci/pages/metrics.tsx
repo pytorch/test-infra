@@ -983,6 +983,7 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1064,6 +1065,7 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1073,6 +1075,7 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <Grid item xs={6} height={ROW_HEIGHT}>
