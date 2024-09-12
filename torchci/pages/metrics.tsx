@@ -1091,21 +1091,6 @@ export default function Page() {
 
         <Grid item xs={12} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"LF vs Meta: Failure rate delta"}
-            queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={[]}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel="rate delta"
-            yAxisFieldName={"failure_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid>
-
-        <Grid item xs={12} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
