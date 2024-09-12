@@ -514,3 +514,13 @@ export async function createRegistrationTokenOrg(
     throw e;
   }
 }
+
+export async function getGitHubRateLimit(installationId: number, metrics: Metrics): Promise<void> {
+  const ghAuth = await createGithubAuth(installationId, 'installation', Config.Instance.ghesUrlApi, metrics);
+  const githubInstallationClient = await createOctoClient(ghAuth, Config.Instance.ghesUrl);
+  const rateLimit = await githubInstallationClient.rateLimit.get();
+  const limit = Number(rateLimit.headers['x-ratelimit-limit']);
+  const remaining = Number(rateLimit.headers['x-ratelimit-remaining']);
+  const used = Number(rateLimit.headers['x-ratelimit-used']);
+  metrics.getGitHubRateLimit(limit, remaining, used);
+}

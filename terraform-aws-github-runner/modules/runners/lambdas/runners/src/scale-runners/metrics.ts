@@ -242,6 +242,14 @@ export class Metrics {
 
   // GitHub API CALLS
   /* istanbul ignore next */
+  getGitHubRateLimit(limit: number, remaining: number, used: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.addEntry(`gh.calls.ratelimit.limit`, limit);
+    this.addEntry(`gh.calls.ratelimit.remaining`, remaining);
+    this.addEntry(`gh.calls.ratelimit.used`, used);
+  }
+
+  /* istanbul ignore next */
   createAppAuthGHCallSuccess(ms: number) {
     this.countEntry(`gh.calls.total`, 1);
     this.countEntry(`gh.calls.createAppAuth.count`, 1);
