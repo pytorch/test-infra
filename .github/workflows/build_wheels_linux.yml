@@ -79,11 +79,6 @@ on:
         description: The comma-separated list of CUDA arch to be uploaded to pypi
         default: ""
         type: string
-      wheel-build-extra-args:
-        description: Extra arguments to pass to the python build wheel command
-        required: false
-        default: ""
-        type: string
       pip-install-torch-extra-args:
         # NOTE: Why does this exist?
         # Well setuptools / python packaging doesn't actually allow you to specify dependencies
