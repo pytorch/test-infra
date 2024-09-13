@@ -140,7 +140,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
-        PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
+        PYTHON_ARCHES = "3.9"
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
