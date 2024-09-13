@@ -20,8 +20,6 @@ import jsonschema
 
 import yaml
 
-AMAZON_2023_PREFIX = "amz2023"
-AMAZON_2023_AMI_PREFIX = "al2023-ami-2023"
 MAX_AVAILABLE_MINIMUM = 50
 
 # Paths relative to their respective repositories
@@ -153,7 +151,6 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
 
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
     2 - they have a max_available of at least 50
-    3 - they have a valid {AMAZON_2023_PREFIX} variant, that overrides only the ami
     """
     errors_found = False
 
@@ -176,48 +173,6 @@ def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> 
                 f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
             )
             errors_found = True
-
-        # Next validations are for linux runners only
-        if runner_config.get("os").lower() != "linux":
-            continue
-
-        # Validations now are to guarantee that Amazon 2023 is a variant of the runner type
-        # this is why we `continue` on errors instead of only setting errors_found to True
-        # this should be the last validation for this runner type
-        if "variants" not in runner_config:
-            print(f"Runner type {runner_type} does not contain any variants")
-            errors_found = True
-            continue
-
-        if AMAZON_2023_PREFIX not in runner_config["variants"]:
-            print(
-                f"Runner type {runner_type} does not have a corresponding {AMAZON_2023_PREFIX} variant"
-            )
-            errors_found = True
-            continue
-
-        amzn_variant = runner_config["variants"][AMAZON_2023_PREFIX]
-
-        if "ami" not in amzn_variant:
-            print(
-                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} does not have an ami"
-            )
-            errors_found = True
-            continue
-
-        if not amzn_variant["ami"].startswith(AMAZON_2023_AMI_PREFIX):
-            print(
-                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} ami does not start with {AMAZON_2023_AMI_PREFIX}"
-            )
-            errors_found = True
-            continue
-
-        if len(amzn_variant) != 1:
-            print(
-                f"Runner type {runner_type} variant {AMAZON_2023_PREFIX} contains extra configurations, this variant is expected to only have amazon 2023 AMI as the configuration"
-            )
-            errors_found = True
-            continue
 
     return not errors_found
 
