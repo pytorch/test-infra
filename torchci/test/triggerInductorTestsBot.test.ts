@@ -27,8 +27,18 @@ describe("trigger-inductor-tests-bot", () => {
     event.payload.repository.name = "deleteme";
 
     const scope = nock("https://api.github.com")
+      .post(
+        "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"ref":"main","inputs\":{"triton_commit":"main","pytorch_commit":"viable/strict"}}`
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
       .post("/repos/malfet/deleteme/issues/31/comments", (body) => {
-        expect(body.body).toBe("Inductor tests triggered");
+        expect(body.body).toBe("Inductor tests triggered successfully");
         return true;
       })
       .reply(200);
