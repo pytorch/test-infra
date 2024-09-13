@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12"],
-    "test": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "test": ["3.9", "3.10", "3.11", "3.12"],
     "release": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
@@ -30,7 +30,7 @@ CUDA_ARCHES_DICT = {
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.1", "6.2"],
-    "test": ["6.0", "6.1"],
+    "test": ["6.1", "6.2"],
     "release": ["6.0", "6.1"],
 }
 
