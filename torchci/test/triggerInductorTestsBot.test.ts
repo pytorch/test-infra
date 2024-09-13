@@ -48,6 +48,41 @@ describe("trigger-inductor-tests-bot", () => {
     scope.done();
   });
 
+  test("triggers inductor tests for triton repo", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "trigger inductor tests";
+    event.payload.comment.user.login = "pytorchbot";
+    event.payload.repository.owner.login = "triton-lang-test";
+    event.payload.repository.name = "triton";
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/triton-lang-test/triton/pulls/31")
+      .reply(200, {
+        head: {
+          sha: "custom_triton_sha",
+        },
+      })
+      .post(
+        "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"ref":"main","inputs\":{"triton_commit":"custom_triton_sha","pytorch_commit":"viable/strict"}}`
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post("/repos/triton-lang-test/triton/issues/31/comments", (body) => {
+        expect(body.body).toBe("Inductor tests triggered successfully");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+
+    scope.done();
+  });
+
   test("does not trigger for non-preapproved user", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "trigger inductor tests";
