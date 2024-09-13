@@ -1,93 +1,47 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
-    SELECT
-    test_run.name,
-    test_run.classname as suite,
-    test_run.file,
-    test_run.invoking_file,
-    SUM(
-        ELEMENT_AT(
-            JSON_PARSE(
-                REPLACE(test_run.skipped.message, 'True', 'true')
-            ),
-            'num_green'
+with workflows as (
+    select
+        id
+    from
+        default.workflow_run final
+    where
+        id in (
+            select id from materialized_views.workflow_run_by_created_at
+            where created_at > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
         )
-    ) as numGreen,
-    SUM(
-        ELEMENT_AT(
-            JSON_PARSE(
-                REPLACE(test_run.skipped.message, 'True', 'true')
-            ),
-            'num_red'
-        )
-    ) as numRed,
-    ARRAY_AGG(job.name) as jobNames,
-    ARRAY_AGG(job.id) as jobIds,
-    ARRAY_AGG(workflow.id) as workflowIds,
-    ARRAY_AGG(workflow.name) as workflowNames,
-    ARRAY_AGG(workflow.head_branch) as branches,
-    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,
-    ARBITRARY(
-        if(
-            TYPEOF(test_run.rerun) = 'object',
-            test_run.rerun.text,
-            test_run.rerun[1].text
-        )
-    ) as sampleTraceback
-FROM
-    commons.workflow_job job
-    INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)
-    INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id
-WHERE
-    test_run.skipped.message LIKE '{%"flaky": _rue%'
-    AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours))
-    AND test_run.name LIKE :name
-    AND test_run.classname LIKE :suite
-    AND test_run.file LIKE :file
-    AND job.name NOT LIKE '%rerun_disabled_tests%'
-GROUP BY
-    name,
-    suite,
-    file,
-    invoking_file
-UNION
+        and head_branch like {branch: String}
+        and repository.full_name = 'pytorch/pytorch'
+), jobs as (
+    select id
+    from default.workflow_job final
+    where
+        run_id in (select id from workflows)
+        and name not like '%rerun_disabled_tests%'
+)
 select
-    test_run.name,
+    test_run.name as name,
     test_run.classname as suite,
-    test_run.file,
-    test_run.invoking_file,
+    test_run.file as file,
+    test_run.invoking_file as invoking_file,
     COUNT(*) as numGreen,
-    SUM(
-        if(
-            TYPEOF(test_run.rerun) = 'object',
-            1,
-            Length(test_run.rerun)
-        )
-    ) as numRed,
+    SUM(Length(test_run.rerun)) as numRed,
     ARRAY_AGG(job.name) as jobNames,
     ARRAY_AGG(job.id) as jobIds,
     ARRAY_AGG(workflow.id) as workflowIds,
     ARRAY_AGG(workflow.name) as workflowNames,
     ARRAY_AGG(workflow.head_branch) as branches,
     ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,
-    ARBITRARY(
-        if(
-            TYPEOF(test_run.rerun) = 'object',
-            test_run.rerun.text,
-            test_run.rerun[1].text
-        )
-    ) as sampleTraceback
+    any(test_run.rerun[1].'text') as sampleTraceback
 FROM
-    commons.workflow_job job
-    INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)
-    INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id
+    default.workflow_job job final
+    INNER JOIN default.test_run_s3 test_run ON test_run.job_id = job.id
+    INNER JOIN default.workflow_run workflow final ON job.run_id = workflow.id
 where
-    test_run.rerun is not null
-    and test_run.failure is null
-    AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours))
-    AND test_run.name LIKE :name
-    AND test_run.classname LIKE :suite
-    AND test_run.file LIKE :file
-    AND job.name NOT LIKE '%rerun_disabled_tests%'
+    LENGTH(test_run.rerun) != 0
+    AND test_run.name LIKE {name: String}
+    AND test_run.classname LIKE {suite: String}
+    AND test_run.file LIKE {file: String}
+    and job.id in (select id from jobs)
+    and workflow.id in (select id from workflows)
 GROUP BY
     name,
     suite,

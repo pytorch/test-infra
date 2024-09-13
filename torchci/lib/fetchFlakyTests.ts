@@ -1,4 +1,5 @@
 import rocksetVersions from "rockset/prodVersions.json";
+import { queryClickhouseSaved } from "./clickhouse";
 import getRocksetClient from "./rockset";
 import { FlakyTestData } from "./types";
 
@@ -8,37 +9,12 @@ export default async function fetchFlakyTests(
   testSuite: string = "%",
   testFile: string = "%"
 ): Promise<FlakyTestData[]> {
-  const rocksetClient = getRocksetClient();
-  const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "flaky_tests",
-    rocksetVersions.commons.flaky_tests,
-    {
-      parameters: [
-        {
-          name: "numHours",
-          type: "int",
-          value: numHours,
-        },
-        {
-          name: "name",
-          type: "string",
-          value: `%${testName}%`,
-        },
-        {
-          name: "suite",
-          type: "string",
-          value: `%${testSuite}%`,
-        },
-        {
-          name: "file",
-          type: "string",
-          value: `%${testFile}%`,
-        },
-      ],
-    }
-  );
-  return flakyTestQuery.results ?? [];
+  return queryClickhouseSaved("flaky_tests", {
+    numHours,
+    name: testName,
+    suite: testSuite,
+    file: testFile,
+  });
 }
 
 export async function fetchFlakyTestsAcrossJobs(
