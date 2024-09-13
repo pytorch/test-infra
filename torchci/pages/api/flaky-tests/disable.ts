@@ -86,7 +86,11 @@ export function filterThreshold(
   return tests.filter(
     (test) =>
       new Set(test.jobIds).size > threshold &&
-      test.suite != "TestSDPACudaOnlyCUDA" // TODO: Get rid of this when driss fixes the flakiness
+      test.suite != "TestSDPACudaOnlyCUDA" && // TODO: Get rid of this when driss fixes the flakiness
+      !(
+        test.suite == "TestInductorOpInfoCPU" &&
+        test.jobNames.every((name) => name.includes("mac"))
+      ) // See https://github.com/pytorch/pytorch/issues/135885
   );
 }
 
