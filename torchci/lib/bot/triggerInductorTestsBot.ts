@@ -14,13 +14,14 @@ export default function triggerInductorTestsBot(app: Probot): void {
       const commenter = ctx.payload.comment.user.login;
       const orgRepo = `${ctx.payload.repository.owner.login}/${ctx.payload.repository.name}`;
       if (
-        commentBody.includes("trigger inductor tests") &&
+        commentBody.includes("@pytorchbot run pytorch tests") &&
         preapprovedUsers.includes(commenter) &&
         preapprovedRepos.includes(orgRepo)
       ) {
         const workflow_owner = "pytorch";
         const workflow_repo = "pytorch-integration-testing";
         const workflow_id = "triton-inductor.yml";
+        const pytorchCommit = "viable/strict";
 
         let tritonCommit = "main";
         // if on the triton repo, get the commit of the pr
@@ -41,7 +42,7 @@ export default function triggerInductorTestsBot(app: Probot): void {
             ref: "main",
             inputs: {
               triton_commit: tritonCommit,
-              pytorch_commit: "viable/strict",
+              pytorch_commit: pytorchCommit,
             },
           });
 
@@ -49,7 +50,7 @@ export default function triggerInductorTestsBot(app: Probot): void {
             owner: ctx.payload.repository.owner.login,
             repo: ctx.payload.repository.name,
             issue_number: ctx.payload.issue.number,
-            body: "Inductor tests triggered successfully",
+            body: `Inductor tests triggered successfully with pytorch commit: ${pytorchCommit} and triton commit: ${tritonCommit}`,
           });
         } catch (error) {
           console.error("Error triggering workflow:", error);

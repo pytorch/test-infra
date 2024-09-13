@@ -21,7 +21,7 @@ describe("trigger-inductor-tests-bot", () => {
 
   test("triggers inductor tests for preapproved user and repo", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
-    event.payload.comment.body = "trigger inductor tests";
+    event.payload.comment.body = "@pytorchbot run pytorch tests";
     event.payload.comment.user.login = "pytorchbot";
     event.payload.repository.owner.login = "malfet";
     event.payload.repository.name = "deleteme";
@@ -38,7 +38,9 @@ describe("trigger-inductor-tests-bot", () => {
       )
       .reply(200, {})
       .post("/repos/malfet/deleteme/issues/31/comments", (body) => {
-        expect(body.body).toBe("Inductor tests triggered successfully");
+        expect(body.body).toBe(
+          `Inductor tests triggered successfully with pytorch commit: viable/strict and triton commit: main`
+        );
         return true;
       })
       .reply(200);
@@ -50,7 +52,7 @@ describe("trigger-inductor-tests-bot", () => {
 
   test("triggers inductor tests for triton repo", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
-    event.payload.comment.body = "trigger inductor tests";
+    event.payload.comment.body = "@pytorchbot run pytorch tests";
     event.payload.comment.user.login = "pytorchbot";
     event.payload.repository.owner.login = "triton-lang-test";
     event.payload.repository.name = "triton";
@@ -73,7 +75,9 @@ describe("trigger-inductor-tests-bot", () => {
       )
       .reply(200, {})
       .post("/repos/triton-lang-test/triton/issues/31/comments", (body) => {
-        expect(body.body).toBe("Inductor tests triggered successfully");
+        expect(body.body).toBe(
+          `Inductor tests triggered successfully with pytorch commit: viable/strict and triton commit: custom_triton_sha`
+        );
         return true;
       })
       .reply(200);
@@ -85,7 +89,7 @@ describe("trigger-inductor-tests-bot", () => {
 
   test("does not trigger for non-preapproved user", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
-    event.payload.comment.body = "trigger inductor tests";
+    event.payload.comment.body = "@pytorchbot run pytorch tests";
     event.payload.comment.user.login = "nonApprovedUser";
     event.payload.repository.owner.login = "malfet";
     event.payload.repository.name = "deleteme";
@@ -99,7 +103,7 @@ describe("trigger-inductor-tests-bot", () => {
 
   test("does not trigger for non-preapproved repo", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
-    event.payload.comment.body = "trigger inductor tests";
+    event.payload.comment.body = "@pytorchbot run pytorch tests";
     event.payload.comment.user.login = "pytorchbot";
     event.payload.repository.owner.login = "fakeorg";
     event.payload.repository.name = "fakerepo";
