@@ -46,6 +46,16 @@ jobs:
       upload-artifact: my-cool-artifact
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3:
+    uses: ./.github/workflows/windows_job.yml
+    with:
+      runner: windows.4xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
   test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/windows_job.yml
