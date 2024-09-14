@@ -11,7 +11,7 @@ import { JobAnnotation, JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { TimeRangePicker } from "pages/metrics";
-import React, { useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 
 function SimilarFailedJobs({

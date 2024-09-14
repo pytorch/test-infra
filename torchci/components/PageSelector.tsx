@@ -1,6 +1,5 @@
 import { formatHudUrlForRoute, HudParams } from "lib/types";
 import Link from "next/link";
-import React from "react";
 
 export default function PageSelector({
   params,

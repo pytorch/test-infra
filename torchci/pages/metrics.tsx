@@ -1079,7 +1079,13 @@ export default function Page() {
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -1091,25 +1097,16 @@ export default function Page() {
 
         <Grid item xs={12} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"LF vs Meta: Failure rate delta"}
-            queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={[]}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel="rate delta"
-            yAxisFieldName={"failure_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid>
-
-        <Grid item xs={12} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -1124,13 +1121,38 @@ export default function Page() {
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[]}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
+          />
+        </Grid>
+        <Grid item xs={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Percentage of jobs rolled over to Linux Foundation"}
+            queryName={"lf_rollover_percentage"}
+            queryCollection={"metrics"}
+            queryParams={[
+              {
+                name: "days_ago",
+                type: "int",
+                value: timeRange,
+              },
+            ]}
+            granularity={"hour"}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
           />
         </Grid>
       </Grid>

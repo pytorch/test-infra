@@ -23,6 +23,21 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
+      - name: Install dependencies - Runner Binaries Syncer
+        run: yarn install
+        working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer
+      - name: Build distribution - Runner Binaries Syncer
+        run: yarn build
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"
+        working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer
+      - name: Copy js to root - Runner Binaries Syncer
+        run: cp terraform-aws-github-runner/modules/runners/lambdas/runners/dist/index.js .
+      - name: create lambda zip - Runner Binaries Syncer
+        uses: montudor/action-zip@v1
+        with:
+          args: zip runner-binaries-syncer.zip index.js
+
       - name: Install dependencies - Runners
         run: yarn install
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
@@ -55,6 +70,6 @@ jobs:
 
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "runners.zip,webhook.zip"
+          artifacts: "runner-binaries-syncer.zip,runners.zip,webhook.zip"
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}

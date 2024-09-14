@@ -1,5 +1,4 @@
 import { signIn, signOut, useSession } from "next-auth/react";
-import React from "react";
 
 export default function MePage() {
   const session = useSession();

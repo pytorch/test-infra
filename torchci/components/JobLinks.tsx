@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
-import React from "react";
 import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
