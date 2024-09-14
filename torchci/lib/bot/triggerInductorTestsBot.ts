@@ -14,7 +14,7 @@ export default function triggerInductorTestsBot(app: Probot): void {
       const commenter = ctx.payload.comment.user.login;
       const orgRepo = `${ctx.payload.repository.owner.login}/${ctx.payload.repository.name}`;
       if (
-        commentBody.includes("@pytorchbot run pytorch tests") &&
+        commentBody.includes("@pytorch run pytorch tests") &&
         preapprovedUsers.includes(commenter) &&
         preapprovedRepos.includes(orgRepo)
       ) {
