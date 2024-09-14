@@ -85,7 +85,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       upload-artifact: my-cool-artifact
-      use-s3: true
+      upload-artifact-to-s3: true
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
   test-download-artifact:
