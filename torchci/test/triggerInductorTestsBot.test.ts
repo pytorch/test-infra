@@ -27,9 +27,7 @@ describe("trigger-inductor-tests-bot", () => {
     event.payload.repository.name = "deleteme";
 
     const scope = nock("https://api.github.com")
-      .post(
-        "/repos/triton-lang-test/triton/issues/comments/890173751/reactions"
-      )
+      .post("/repos/malfet/deleteme/issues/comments/890173751/reactions")
       .reply(200, {})
       .post(
         "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
