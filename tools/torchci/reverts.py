@@ -48,6 +48,7 @@ class ErrorRaisingArgumentParser(argparse.ArgumentParser):
     default argument parser exits.
     Reference: https://stackoverflow.com/questions/73441232/raise-exception-if-argumentparser-encounters-unknown-argument
     """
+
     def error(self, message):
         raise ValueError(message)
 
