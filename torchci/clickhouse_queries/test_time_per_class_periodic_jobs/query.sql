@@ -1,43 +1,51 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
--- same as test_time_per_class query except for the first select
+-- same as test_time_per_file query except for the first select
 WITH good_periodic_sha AS (
     select
         job.head_sha as sha
     from
-        commons.workflow_job job
-        JOIN commons.workflow_run workflow on workflow.id = job.run_id
-        JOIN push on workflow.head_commit.id = push.head_commit.id
+        default.workflow_job job final
+        JOIN default.workflow_run workflow final on workflow.id = job.run_id
+        JOIN default.push on workflow.head_commit.'id' = push.head_commit.'id'
     where
         workflow.name = 'periodic'
         AND workflow.head_branch LIKE 'main'
+        and workflow.repository.'full_name' = 'pytorch/pytorch'
     group by
         job.head_sha,
-        push._event_time
+        push.head_commit.'timestamp'
     having
-        BOOL_AND(
+        groupBitAnd(
             job.conclusion = 'success'
             and job.conclusion is not null
-        )
+        ) = 1
     order by
-        push._event_time desc
+        push.head_commit.'timestamp' desc
     limit
         3
 ), workflow AS (
     SELECT
         id
     FROM
-        commons.workflow_run w
-        INNER JOIN good_periodic_sha c on w.head_sha = c.sha
-        and w.name = 'periodic'
+        default.workflow_run final
+    where
+        id in (
+            SELECT id FROM materialized_views.workflow_run_by_head_sha w
+            where head_sha in (select sha from good_periodic_sha)
+        )
+        and name = 'periodic'
 ),
 job AS (
     SELECT
         j.name,
         j.id,
-        j.run_id,
+        j.run_id
     FROM
-        commons.workflow_job j
-        INNER JOIN workflow w on w.id = j.run_id
+        default.workflow_job j final
+    where j.id in (
+        select id from materialized_views.workflow_job_by_head_sha
+        where head_sha in (select sha from good_periodic_sha)
+    )
+    and j.run_id in (select id from workflow)
 ),
 class_duration_per_job AS (
     SELECT
@@ -45,15 +53,15 @@ class_duration_per_job AS (
         test_run.classname as classname,
         SUM(time) as time,
         REGEXP_EXTRACT(job.name, '^(.*) /', 1) as base_name,
-        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) as test_config,
+        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) as test_config
     FROM
-        commons.test_run_summary test_run
-        /* `test_run` is ginormous and `job` is small, so lookup join is essential */
-        INNER JOIN job ON test_run.job_id = job.id HINT(join_strategy = lookup)
+        default.test_run_summary test_run
+        INNER JOIN job ON test_run.job_id = job.id
     WHERE
         /* cpp tests do not populate `file` for some reason. */
         /* Exclude them as we don't include them in our slow test infra */
-        test_run.file IS NOT NULL
+        test_run.file != ''
+        and test_run.workflow_id in (select id from workflow)
     GROUP BY
         test_run.invoking_file,
         test_run.classname,

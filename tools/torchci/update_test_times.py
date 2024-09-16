@@ -1,14 +1,9 @@
 import json
-import os
 from collections import defaultdict
-from pathlib import Path
 
 import requests
-import rockset
+from torchci.clickhouse import query_clickhouse_saved
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-
-PROD_VERSIONS_FILE = REPO_ROOT / "torchci" / "rockset" / "prodVersions.json"
 TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
 TEST_CLASS_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-class-times.json"
 
@@ -18,15 +13,15 @@ TEST_TIME_PER_CLASS_QUERY_NAME = "test_time_per_class"
 TEST_TIME_PER_CLASS_PERIODIC_JOBS_QUERY_NAME = "test_time_per_class_periodic_jobs"
 
 
-def get_file_data_from_rockset():
-    return get_data_from_rockset(file_mode=True)
+def get_file_data_from_db():
+    return get_data_from_db(file_mode=True)
 
 
-def get_class_data_from_rockset():
-    return get_data_from_rockset(file_mode=False)
+def get_class_data_from_db():
+    return get_data_from_db(file_mode=False)
 
 
-def get_data_from_rockset(file_mode: bool):
+def get_data_from_db(file_mode: bool):
     general_query_name = (
         TEST_TIME_PER_FILE_QUERY_NAME if file_mode else TEST_TIME_PER_CLASS_QUERY_NAME
     )
@@ -36,23 +31,9 @@ def get_data_from_rockset(file_mode: bool):
         else TEST_TIME_PER_CLASS_PERIODIC_JOBS_QUERY_NAME
     )
 
-    rockset_client = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    )
-    with open(PROD_VERSIONS_FILE) as f:
-        prod_versions = json.load(f)
-
-    rockset_result = rockset_client.QueryLambdas.execute_query_lambda(
-        query_lambda=general_query_name,
-        version=prod_versions["commons"][general_query_name],
-        workspace="commons",
-    ).results
-    periodic_rockset_result = rockset_client.QueryLambdas.execute_query_lambda(
-        query_lambda=periodic_query_name,
-        version=prod_versions["commons"][periodic_query_name],
-        workspace="commons",
-    ).results
-    return rockset_result + periodic_rockset_result
+    db_result = query_clickhouse_saved(general_query_name, {})
+    periodic_db_result = query_clickhouse_saved(periodic_query_name, {})
+    return db_result + periodic_db_result
 
 
 def download_old_test_file_times():
@@ -95,7 +76,7 @@ def convert_test_class_times_to_default_dict(d):
     return new_d
 
 
-def gen_test_file_times(rockset_results, old_test_times):
+def gen_test_file_times(db_results, old_test_times):
     # Use old test times because sometimes we want to manually edit the test
     # times json and want those changes to persist.  Unfortunately this means
     # that the test times json grows and never shrinks, but we can edit the json
@@ -103,7 +84,7 @@ def gen_test_file_times(rockset_results, old_test_times):
     test_times = convert_test_file_times_to_default_dict(old_test_times)
     test_times_no_build_env = defaultdict(lambda: defaultdict(list))
     test_times_no_test_config = defaultdict(list)
-    for row in rockset_results:
+    for row in db_results:
         test_times[row["base_name"]][row["test_config"]][row["file"]] = row["time"]
         test_times_no_build_env[row["test_config"]][row["file"]].append(row["time"])
         test_times_no_test_config[row["file"]].append(row["time"])
@@ -123,7 +104,7 @@ def gen_test_file_times(rockset_results, old_test_times):
     return test_times
 
 
-def gen_test_class_times(rockset_results, old_test_times):
+def gen_test_class_times(db_results, old_test_times):
     # Use old test times because sometimes we want to manually edit the test
     # times json and want those changes to persist.  Unfortunately this means
     # that the test times json grows and never shrinks, but we can edit the json
@@ -134,7 +115,7 @@ def gen_test_class_times(rockset_results, old_test_times):
         lambda: defaultdict(lambda: defaultdict(list))
     )
     test_times_no_test_config = defaultdict(lambda: defaultdict(list))
-    for row in rockset_results:
+    for row in db_results:
         test_times[row["base_name"]][row["test_config"]][row["file"]][
             row["classname"]
         ] = row["time"]
@@ -164,14 +145,14 @@ def gen_test_class_times(rockset_results, old_test_times):
 
 def main() -> None:
     test_file_times = gen_test_file_times(
-        get_file_data_from_rockset(), download_old_test_file_times()
+        get_file_data_from_db(), download_old_test_file_times()
     )
 
     with open("test-times.json", "w") as f:
         f.write(json.dumps(test_file_times, indent=2, sort_keys=True))
 
     test_class_times = gen_test_class_times(
-        get_class_data_from_rockset(), download_old_test_class_times()
+        get_class_data_from_db(), download_old_test_class_times()
     )
 
     with open("test-class-times.json", "w") as f:

@@ -23,14 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Set up python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: Install Dependencies
-        run: pip3 install boto3==1.19.12 rockset==1.0.3
+        run: python -m pip install boto3==1.19.12 clickhouse-connect==0.7.16 requests==2.26.0
 
       - name: Update test times
         run: |
-          python3 -m torchci.update_test_times
+          python -m torchci.update_test_times
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: Push test file times file to this repository
         if: github.event_name != 'pull_request'
