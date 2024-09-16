@@ -44,7 +44,8 @@ WHERE
 
 class ErrorRaisingArgumentParser(argparse.ArgumentParser):
     """
-    Raises an error on unrecognized arguments since the normal one simply exits.
+    Raises an exception on unrecognized arguments that can be caught.  The
+    normal argument parser simply exits.
     Reference: https://stackoverflow.com/questions/73441232/raise-exception-if-argumentparser-encounters-unknown-argument
     """
     def error(self, message):
