@@ -242,8 +242,23 @@ export class Metrics {
 
   // GitHub API CALLS
   /* istanbul ignore next */
-  getGitHubRateLimit(limit: number, remaining: number, used: number) {
+  getGitHubRateLimitSuccess(ms: number) {
     this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.count`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.success`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  getGitHubRateLimitFailure(ms: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.count`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.failure`, 1);
+    this.countEntry(`gh.calls.getGitHubRateLimit.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  gitHubRateLimitStats(limit: number, remaining: number, used: number) {
     this.addEntry(`gh.calls.ratelimit.limit`, limit);
     this.addEntry(`gh.calls.ratelimit.remaining`, remaining);
     this.addEntry(`gh.calls.ratelimit.used`, used);

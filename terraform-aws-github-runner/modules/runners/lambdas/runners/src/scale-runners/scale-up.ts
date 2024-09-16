@@ -54,7 +54,8 @@ export async function scaleUp(
 
   metrics.runRepo(repo);
   metrics.run();
-  getGitHubRateLimit(Number(payload.installationId), metrics);
+
+  getGitHubRateLimit(repo, Number(payload.installationId), metrics);
 
   const runnerTypes = await getRunnerTypes(
     {
