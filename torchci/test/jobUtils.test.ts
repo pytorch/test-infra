@@ -1,4 +1,5 @@
 import { TIME_0 } from "lib/bot/utils";
+import { isSameAuthor } from "lib/drciUtils";
 import {
   BasicJobData,
   IssueData,
@@ -13,7 +14,6 @@ import {
   isDisabledTestMentionedInPR,
   isFailureFromPrevMergeCommit,
   isRecentlyCloseDisabledTest,
-  isSameAuthor,
   isSameContext,
   isSameFailure,
   removeCancelledJobAfterRetry,

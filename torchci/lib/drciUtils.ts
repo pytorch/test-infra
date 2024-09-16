@@ -6,7 +6,6 @@ import { fetchIssuesByLabelCH } from "lib/fetchIssuesByLabel";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
-  isSameAuthor,
   isSameFailure,
 } from "lib/jobUtils";
 import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
@@ -15,6 +14,11 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import { isDrCIEnabled, isPyTorchPyTorch, isTime0, TIME_0 } from "./bot/utils";
 import { queryClickhouseSaved } from "./clickhouse";
+// Import itself to ensure that mocks can be applied, see
+// https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
+// https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
+import * as thisModule from "./drciUtils";
+import { getAuthors } from "./getAuthors";
 import { IssueData } from "./types";
 dayjs.extend(utc);
 
@@ -344,7 +348,7 @@ export async function hasSimilarFailures(
       isSameFailure(job, failure) &&
       // Run this check last because it costs one query to query for the commit
       // author of the failure
-      !(await isSameAuthor(job, failure)) &&
+      !(await thisModule.isSameAuthor(job, failure)) &&
       foundSimilarFailure === undefined
     ) {
       // Save the first similar failure (the one with the highest score) and continue
@@ -488,4 +492,40 @@ export async function getPRMergeCommits(
     acc[row.pr_num].push(row.merge_commit_sha);
     return acc;
   }, new Map<number, string[]>());
+}
+
+export async function isSameAuthor(
+  job: RecentWorkflowsData,
+  failure: RecentWorkflowsData
+): Promise<boolean> {
+  const authors = await getAuthors([job, failure]);
+  // Extract the authors for each job
+  const jobAuthor =
+    job.head_sha in authors
+      ? authors[job.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+  const failureAuthor =
+    failure.head_sha in authors
+      ? authors[failure.head_sha]
+      : { email: "", commit_username: "", pr_username: "" };
+
+  const isSameEmail =
+    jobAuthor.email !== "" &&
+    failureAuthor.email !== "" &&
+    jobAuthor.email === failureAuthor.email;
+  const isSameCommitUsername =
+    jobAuthor.commit_username !== "" &&
+    failureAuthor.commit_username !== "" &&
+    jobAuthor.commit_username === failureAuthor.commit_username;
+  const isSamePrUsername =
+    jobAuthor.pr_username !== "" &&
+    failureAuthor.pr_username !== "" &&
+    jobAuthor.pr_username === failureAuthor.pr_username;
+
+  // This function exists because we don't want to wrongly count similar failures
+  // from commits of the same author as flaky. Some common cases include:
+  // * ghstack
+  // * Draft commit
+  // * Cherry picking
+  return isSameEmail || isSameCommitUsername || isSamePrUsername;
 }

@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
-import { getAuthors } from "lib/getAuthors";
 import {
   BasicJobData,
   IssueData,
@@ -329,42 +328,6 @@ export async function backfillMissingLog(
     }
   );
   return res.status === 200;
-}
-
-export async function isSameAuthor(
-  job: RecentWorkflowsData,
-  failure: RecentWorkflowsData
-): Promise<boolean> {
-  const authors = await getAuthors([job, failure]);
-  // Extract the authors for each job
-  const jobAuthor =
-    job.head_sha in authors
-      ? authors[job.head_sha]
-      : { email: "", commit_username: "", pr_username: "" };
-  const failureAuthor =
-    failure.head_sha in authors
-      ? authors[failure.head_sha]
-      : { email: "", commit_username: "", pr_username: "" };
-
-  const isSameEmail =
-    jobAuthor.email !== "" &&
-    failureAuthor.email !== "" &&
-    jobAuthor.email === failureAuthor.email;
-  const isSameCommitUsername =
-    jobAuthor.commit_username !== "" &&
-    failureAuthor.commit_username !== "" &&
-    jobAuthor.commit_username === failureAuthor.commit_username;
-  const isSamePrUsername =
-    jobAuthor.pr_username !== "" &&
-    failureAuthor.pr_username !== "" &&
-    jobAuthor.pr_username === failureAuthor.pr_username;
-
-  // This function exists because we don't want to wrongly count similar failures
-  // from commits of the same author as flaky. Some common cases include:
-  // * ghstack
-  // * Draft commit
-  // * Cherry picking
-  return isSameEmail || isSameCommitUsername || isSamePrUsername;
 }
 
 export function isFailureFromPrevMergeCommit(

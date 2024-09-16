@@ -1,4 +1,4 @@
-import getRocksetClient from "lib/rockset";
+import { queryClickhouse } from "./clickhouse";
 
 const ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK: { [sha: string]: boolean } =
   {};
@@ -19,33 +19,17 @@ export async function isEligibleCommitForSimilarFailureCheck(
   const query = `
 SELECT DISTINCT
   last_commit_sha,
-  merge_commit_sha,
-  _event_time
+  merge_commit_sha
 FROM
-  commons.merges
+  default.merges
 WHERE
   (
-    last_commit_sha = : sha
+    last_commit_sha = {sha: String}
     AND merge_commit_sha != ''
   )
-  OR merge_commit_sha = : sha
+  OR merge_commit_sha = {sha: String}
 `;
-
-  const rocksetClient = getRocksetClient();
-  const results = (
-    await rocksetClient.queries.query({
-      sql: {
-        query: query,
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-        ],
-      },
-    })
-  ).results;
+  const results = await queryClickhouse(query, { sha });
 
   ELIGIBLE_COMMITS_FOR_SIMILAR_FAILURE_CHECK[sha] =
     results !== undefined && results.length !== 0 ? true : false;

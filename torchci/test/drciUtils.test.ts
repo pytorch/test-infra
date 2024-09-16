@@ -4,6 +4,7 @@ import { TIME_0 } from "lib/bot/utils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as commitUtils from "../lib/commitUtils";
+import * as drciUtils from "../lib/drciUtils";
 import {
   getSuppressedLabels,
   hasSimilarFailures,
@@ -47,7 +48,7 @@ describe("Test various utils used by Dr.CI", () => {
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
-    const mockJobUtils = jest.spyOn(jobUtils, "isSameAuthor");
+    const mockJobUtils = jest.spyOn(drciUtils, "isSameAuthor");
     mockJobUtils.mockImplementation(() => Promise.resolve(false));
     const mockCommitUtils = jest.spyOn(
       commitUtils,
