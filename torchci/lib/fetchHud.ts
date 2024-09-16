@@ -58,7 +58,7 @@ export default async function fetchHud(params: HudParams): Promise<{
   const branch = await octokit.rest.repos.listCommits({
     owner: params.repoOwner,
     repo: params.repoName,
-    sha: params.branch,
+    sha: decodeURIComponent(params.branch),
     per_page: params.per_page,
     page: params.page,
   });
