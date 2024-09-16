@@ -65,8 +65,6 @@ export async function queryClickhouseSaved(
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
-  console.log(queryName);
-  console.log(queryParams);
   return await thisModule.queryClickhouse(
     query,
     Object.fromEntries(queryParams)
