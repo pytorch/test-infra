@@ -183,7 +183,7 @@ def upsert_documents(table: str, documents: List[Any]) -> None:
 
     print(f"UPSERTING {len(documents)} INTO {table}")
     res = get_clickhouse_client().query(
-        f"INSERT INTO fortesting.`{table}` SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
+        f"INSERT INTO default.`{table}` SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
     )
     print(res)
 
