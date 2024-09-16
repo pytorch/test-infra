@@ -1,4 +1,5 @@
 import { Context, Probot } from "probot";
+import { reactOnComment } from "./utils";
 
 export default function triggerInductorTestsBot(app: Probot): void {
   const preapprovedUsers = ["pytorchbot", "PaliC"]; // List of preapproved users
@@ -24,6 +25,9 @@ export default function triggerInductorTestsBot(app: Probot): void {
         const pytorchCommit = "viable/strict";
 
         let tritonCommit = "main";
+
+        reactOnComment(ctx, "+1");
+
         // if on the triton repo, get the commit of the pr
         if (orgRepo === tritonRepo) {
           const pr = await ctx.octokit.pulls.get({

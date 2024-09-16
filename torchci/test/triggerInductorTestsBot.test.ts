@@ -27,6 +27,8 @@ describe("trigger-inductor-tests-bot", () => {
     event.payload.repository.name = "deleteme";
 
     const scope = nock("https://api.github.com")
+      .post("/repos/malfet/deleteme/issues/comments/890173751/reactions")
+      .reply(200, {})
       .post(
         "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
         (body) => {
@@ -58,6 +60,10 @@ describe("trigger-inductor-tests-bot", () => {
     event.payload.repository.name = "triton";
 
     const scope = nock("https://api.github.com")
+      .post(
+        "/repos/triton-lang-test/triton/issues/comments/890173751/reactions"
+      )
+      .reply(200, {})
       .get("/repos/triton-lang-test/triton/pulls/31")
       .reply(200, {
         head: {
