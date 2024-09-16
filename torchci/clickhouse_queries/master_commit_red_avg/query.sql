@@ -1,47 +1,56 @@
 --- This query is used to show the average of trunk red commits on HUD metrics page
 --- during a period of time
-WITH all_jobs AS (
+with pushes as (
+  SELECT
+    push.head_commit.'id' AS sha
+  FROM
+    default.push FINAL
+  WHERE
+    push.ref IN ('refs/heads/master', 'refs/heads/main')
+    AND push.repository.'owner'.'name' = 'pytorch'
+    AND push.repository.'name' = 'pytorch'
+    AND push.head_commit.'timestamp' >= {startTime : DateTime64(3)}
+    AND push.head_commit.'timestamp' < {stopTime : DateTime64(3)}
+), all_jobs AS (
   SELECT
     job.conclusion AS conclusion,
-    push.head_commit.'id' AS sha,
+    push.sha AS sha,
     ROW_NUMBER() OVER(
       PARTITION BY job.name,
-      push.head_commit.'id'
+      push.sha
       ORDER BY
         job.run_attempt DESC
     ) AS row_num
   FROM
-    workflow_job job FINAL
-    JOIN workflow_run FINAL ON workflow_run.id = workflow_job.run_id
-    JOIN push FINAL ON workflow_run.head_commit.'id' = push.head_commit.'id'
+    default.workflow_job job FINAL
+    JOIN default.workflow_run FINAL ON workflow_run.id = workflow_job.run_id
+    JOIN pushes push ON workflow_run.head_sha = push.sha
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
     AND (
       -- Limit it to workflows which block viable/strict upgrades
-      has(
-        {workflowNames : Array(String)},
-        LOWER(workflow_run.name)
-      )
+      lower(workflow_run.name) in {workflowNames:Array(String)}
       OR workflow_run.name like 'linux-binary%'
     )
     AND job.name NOT LIKE '%rerun_disabled_tests%'
     AND job.name NOT LIKE '%mem_leak_check%'
     AND job.name NOT LIKE '%unstable%'
     AND workflow_run.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-    AND push.ref IN (
-      'refs/heads/master', 'refs/heads/main'
+    and workflow_run.id in (
+        select id from materialized_views.workflow_run_by_head_sha
+        where head_sha in (select sha from pushes)
     )
-    AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = 'pytorch'
-    AND push.head_commit.'timestamp' >= {startTime : DateTime64(3)}
-    AND push.head_commit.'timestamp' < {stopTime : DateTime64(3)}
+    and job.id in (
+        select id from materialized_views.workflow_job_by_head_sha
+        where head_sha in (select sha from pushes)
+    )
 ),
 all_reds AS (
   SELECT
     CAST(
       SUM(
-        CASE 
+        CASE
           WHEN conclusion = 'failure' THEN 1
           WHEN conclusion = 'timed_out' THEN 1
           WHEN conclusion = 'cancelled' THEN 1

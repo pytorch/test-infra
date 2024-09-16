@@ -1,20 +1,19 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 select
     DATE_DIFF(
         'second',
-        workflow._event_time,
+        workflow.created_at,
         CURRENT_TIMESTAMP()
     ) as last_success_seconds_ago
 from
-    workflow_run workflow
-    JOIN push on workflow.head_commit.id = push.head_commit.id
+    default.workflow_run workflow final
+    JOIN default.push final on workflow.head_commit.'id' = push.head_commit.'id'
 where
     push.ref IN ('refs/heads/master', 'refs/heads/main')
-    AND push.repository.owner.name = 'pytorch'
-    AND push.repository.name = 'pytorch'
+    AND push.repository.'owner'.'name' = 'pytorch'
+    AND push.repository.'name' = 'pytorch'
     AND workflow.conclusion = 'success'
-    AND workflow.name = :workflowName
+    AND workflow.name = {workflowName: String}
 order by
-    workflow._event_time desc
+    workflow.created_at DESC
 LIMIT
     1

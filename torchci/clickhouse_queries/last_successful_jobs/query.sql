@@ -1,23 +1,22 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 with successful_jobs as (
     select
         DATE_DIFF(
             'second',
-            job._event_time,
+            job.created_at,
             CURRENT_TIMESTAMP()
         ) as last_success_seconds_ago,
-        job.head_sha,
-        job.name name
+        job.head_sha as head_sha,
+        job.name as name
     from
-        workflow_job job
-        JOIN workflow_run workflow on workflow.id = job.run_id
+        default.workflow_job job final
+        JOIN default.workflow_run workflow final on workflow.id = job.run_id
     where
-        workflow.repository.full_name = 'pytorch/pytorch'
+        workflow.repository.'full_name' = 'pytorch/pytorch'
         AND workflow.head_branch IN ('master', 'main')
         AND job.conclusion = 'success'
-        AND ARRAY_CONTAINS(SPLIT(:jobNames, ';'), job.name)
+        AND job.name in {jobNames: Array(String)}
     order by
-        job._event_time desc
+        job.created_at DESC
 ),
 successful_commits as (
     select
@@ -34,7 +33,7 @@ select
 from
     successful_commits
 where
-    distinct_names >= LENGTH(SPLIT(:jobNames, ';'))
+    distinct_names >= LENGTH({jobNames: Array(String)})
 order by
     seconds_ago
 limit

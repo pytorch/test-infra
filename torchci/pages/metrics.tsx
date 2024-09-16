@@ -138,13 +138,15 @@ function TTSPanel({
   metricHeaderName,
   metricName,
   branchName,
+  useClickHouse = false,
 }: {
   title: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   metricHeaderName: string;
   metricName: string;
   branchName: string;
+  useClickHouse?: boolean;
 }) {
   return (
     <TablePanel
@@ -185,6 +187,7 @@ function TTSPanel({
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
+      useClickHouse={useClickHouse}
     />
   );
 }
@@ -357,10 +360,12 @@ function WorkflowDuration({
   percentileParam,
   timeParams,
   workflowNames,
+  useClickHouse = false,
 }: {
   percentileParam: RocksetParam;
   timeParams: RocksetParam[];
   workflowNames: string[];
+  useClickHouse?: boolean;
 }) {
   const ttsPercentile = percentileParam.value;
 
@@ -381,16 +386,25 @@ function WorkflowDuration({
       queryName={queryName}
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
-      queryParams={[
-        {
-          name: "workflowNames",
-          type: "string",
-          value: workflowNames.join(","),
-        },
-        percentileParam,
-        ...timeParams,
-      ]}
+      queryParams={
+        useClickHouse
+          ? {
+              ...RStoCHTimeParams(timeParams),
+              workflowNames: workflowNames,
+              percentile: ttsPercentile,
+            }
+          : [
+              {
+                name: "workflowNames",
+                type: "string",
+                value: workflowNames.join(","),
+              },
+              percentileParam,
+              ...timeParams,
+            ]
+      }
       badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
+      useClickHouse={useClickHouse}
     />
   );
 }
@@ -402,6 +416,7 @@ function JobsDuration({
   metricName,
   percentileParam,
   timeParams,
+  useClickHouse = false,
 }: {
   title: string;
   branchName: string;
@@ -409,19 +424,26 @@ function JobsDuration({
   metricName: string;
   percentileParam: RocksetParam;
   timeParams: RocksetParam[];
+  useClickHouse?: boolean;
 }) {
   const ttsPercentile = percentileParam.value;
 
   let metricHeaderName: string = `p${ttsPercentile * 100}`;
-  let queryParams: RocksetParam[] = [
-    {
-      name: "branch",
-      type: "string",
-      value: branchName,
-    },
-    percentileParam,
-    ...timeParams,
-  ];
+  let queryParams: RocksetParam[] | {} = useClickHouse
+    ? {
+        ...RStoCHTimeParams(timeParams),
+        branch: branchName,
+        percentile: ttsPercentile,
+      }
+    : [
+        {
+          name: "branch",
+          type: "string",
+          value: branchName,
+        },
+        percentileParam,
+        ...timeParams,
+      ];
 
   // -1 is the specical case where we will show the avg instead
   if (ttsPercentile === -1) {
@@ -438,12 +460,26 @@ function JobsDuration({
         metricName={metricName}
         metricHeaderName={metricHeaderName}
         branchName={branchName}
+        useClickHouse={useClickHouse}
       />
     </Grid>
   );
 }
 
 const ROW_HEIGHT = 375;
+
+function RStoCHTimeParams(params: RocksetParam[]) {
+  return {
+    startTime: params
+      .find((p) => p.name === "startTime")
+      ?.value.utc()
+      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: params
+      .find((p) => p.name === "stopTime")
+      ?.value.utc()
+      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+}
 
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
@@ -468,10 +504,7 @@ export default function Page() {
       value: stopTime,
     },
   ];
-  const timeParamsClickHouse = {
-    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-  };
+  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
@@ -509,6 +542,14 @@ export default function Page() {
       : data[0]["broken_trunk_red"];
   const flakyRed =
     data === undefined || data.length === 0 ? undefined : data[0]["flaky_red"];
+
+  // The new names are fixed at build-docs-${{ DOC_TYPE }}-${{ PUSHED }}. The PUSHED parameter will always be
+  // true here because docs are pushed to GitHub, for example, nightly
+  const docsJobNames = [
+    "docs push / build-docs-python-true",
+    "docs push / build-docs-cpp-true",
+    "docs push / build-docs-functorch-true",
+  ];
 
   return (
     <div>
@@ -805,31 +846,42 @@ export default function Page() {
               queryName={"last_successful_workflow"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "workflowName",
-                  type: "string",
-                  value: "docker-builds",
-                },
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      workflowName: "docker-builds",
+                    }
+                  : [
+                      {
+                        name: "workflowName",
+                        type: "string",
+                        value: "docker-builds",
+                      },
+                    ]
+              }
               badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
+              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "jobNames",
-                  type: "string",
-                  value:
-                    // The new names are fixed at build-docs-${{ DOC_TYPE }}-${{ PUSHED }}. The PUSHED parameter will always be
-                    // true here because docs are pushed to GitHub, for example, nightly
-                    "docs push / build-docs-python-true;docs push / build-docs-cpp-true;docs push / build-docs-functorch-true",
-                },
-              ]}
+              queryParams={
+                useClickHouse
+                  ? {
+                      jobNames: docsJobNames,
+                    }
+                  : [
+                      {
+                        name: "jobNames",
+                        type: "string",
+                        value: docsJobNames.join(","),
+                      },
+                    ]
+              }
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -874,6 +926,7 @@ export default function Page() {
               percentileParam={percentileParam}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
+              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -930,6 +983,7 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -937,19 +991,27 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
-              ...timeParams,
-            ]}
+            queryParams={
+              useClickHouse
+                ? {
+                    ...timeParamsClickHouse,
+                    granlarity: "hour",
+                  }
+                : [
+                    {
+                      name: "timezone",
+                      type: "string",
+                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    },
+                    ...timeParams,
+                  ]
+            }
             granularity={"hour"}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -991,6 +1053,7 @@ export default function Page() {
           metricName={"tts_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1000,6 +1063,7 @@ export default function Page() {
           metricName={"tts_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1009,6 +1073,7 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1018,6 +1083,7 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
+          useClickHouse={useClickHouse}
         />
 
         <Grid item xs={6} height={ROW_HEIGHT}>

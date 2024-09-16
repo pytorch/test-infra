@@ -18,8 +18,8 @@ FROM (
     	WHERE
     		conclusion = 'success'
             AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-        	AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        	AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+        	AND PARSE_DATETIME_ISO8601(workflow.created_at) >= PARSE_DATETIME_ISO8601(:startTime)
+        	AND PARSE_DATETIME_ISO8601(workflow.created_at) < PARSE_DATETIME_ISO8601(:stopTime)
             AND workflow.run_attempt = 1
     ) AS tts
 ) AS p

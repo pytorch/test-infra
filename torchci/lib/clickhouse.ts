@@ -31,7 +31,10 @@ export async function queryClickhouse(
     query,
     format: "JSONEachRow",
     query_params: params,
-    clickhouse_settings: { output_format_json_quote_64bit_integers: 0 },
+    clickhouse_settings: {
+      output_format_json_quote_64bit_integers: 0,
+      date_time_output_format: "iso",
+    },
   });
 
   return (await res.json()) as any[];

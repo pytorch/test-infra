@@ -74,7 +74,7 @@
     "strict_lag_sec": "e0ab723990d6f2a2",
     "queue_times_historical": "2069a7304a266f6c",
     "workflow_duration_avg": "7bae00900097a486",
-    "workflow_duration_percentile": "0b28cf65de7cfe07",
+    "workflow_duration_percentile": "cc92aa19e3f35c3f",
     "workflow_load": "600c129bd22a6569",
     "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f",
     "get_workers_on_period": "ae5cf853350477c7",

@@ -1,5 +1,7 @@
 --- This query is used by HUD metrics page to get the list of queued jobs grouped by their labels
-WITH queued_jobs AS (
+WITH possible_queued_jobs as (
+    select id, run_id from default.workflow_job where status = 'queued'
+), queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.started_at, CURRENT_TIMESTAMP()) AS queue_s,
         CONCAT(workflow.name, ' / ', job.name) AS name,
@@ -18,10 +20,12 @@ WITH queued_jobs AS (
             IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ])
         ) AS machine_type
     FROM
-        workflow_job job
-        JOIN workflow_run workflow ON workflow.id = job.run_id
+        default.workflow_job job final
+        JOIN default.workflow_run workflow final ON workflow.id = job.run_id
     WHERE
-        workflow.repository. 'full_name' = 'pytorch/pytorch'
+        job.id in (select id from possible_queued_jobs)
+        and workflow.id in (select run_id from possible_queued_jobs)
+        and workflow.repository. 'full_name' = 'pytorch/pytorch'
         AND job.status = 'queued'
         AND job.started_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         /* These two conditions are workarounds for GitHub's broken API. Sometimes */
@@ -45,4 +49,4 @@ GROUP BY
     machine_type
 ORDER BY
     count DESC
-SETTINGS final = 1
+SETTINGS allow_experimental_analyzer = 1;
