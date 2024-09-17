@@ -42,8 +42,19 @@ WHERE
 """
 
 
+class ErrorRaisingArgumentParser(argparse.ArgumentParser):
+    """
+    Raises an exception on unrecognized arguments that can be caught.  The
+    default argument parser exits.
+    Reference: https://stackoverflow.com/questions/73441232/raise-exception-if-argumentparser-encounters-unknown-argument
+    """
+
+    def error(self, message):
+        raise ValueError(message)
+
+
 def parse_body(revert: Dict[str, str]) -> None:
-    parser = argparse.ArgumentParser()
+    parser = ErrorRaisingArgumentParser()
     subparser = parser.add_subparsers()
     group = subparser.add_parser("revert")
 
