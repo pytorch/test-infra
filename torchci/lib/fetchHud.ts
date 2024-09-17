@@ -1,15 +1,20 @@
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
-import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 
-async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
-  if (enableClickhouse()) {
+async function fetchDatabaseInfo(
+  owner: string,
+  repo: string,
+  shas: string[],
+  useCH: boolean
+) {
+  if (useCH) {
     const response = await queryClickhouseSaved("hud_query", {
       repo: `${owner}/${repo}`,
       shas: shas,
@@ -70,12 +75,13 @@ export default async function fetchHud(params: HudParams): Promise<{
   const response = await fetchDatabaseInfo(
     params.repoOwner,
     params.repoName,
-    shas
+    shas,
+    params.use_ch
   );
   let results = response as any[];
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr = enableClickhouse()
+  const filterForcedMergePr = params.use_ch
     ? ((await queryClickhouseSaved("filter_forced_merge_pr", {
         owner: params.repoOwner,
         project: params.repoName,

@@ -1,6 +1,7 @@
 import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
+import { useCHContext } from "components/UseClickhouseProvider";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -17,8 +18,11 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
+  const useCH = useCHContext().useCH;
   const { data: commitData, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
+    sha != null
+      ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
+      : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute

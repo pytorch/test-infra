@@ -17,19 +17,18 @@ import {
 } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { ClickHouseCheckBox } from "components/ClickHouseCheckBox";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
+import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { RocksetParam } from "lib/rockset";
-import { usePreference } from "lib/useGroupingPreference";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -487,10 +486,7 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(7);
 
   // TODO (huydhn): Clean this up once ClickHouse migration finishes
-  const [useClickHouse, setUseClickHouse] = usePreference(
-    "useClickHouse",
-    false
-  );
+  const { useCH: useClickHouse } = useCHContext();
 
   const timeParams: RocksetParam[] = [
     {
@@ -568,13 +564,6 @@ export default function Page() {
         <TtsPercentilePicker
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
-        />
-      </Stack>
-
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <ClickHouseCheckBox
-          useClickHouse={useClickHouse}
-          setUseClickHouse={setUseClickHouse}
         />
       </Stack>
 

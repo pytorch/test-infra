@@ -3,6 +3,7 @@
 import { CommitData, JobData } from "lib/types";
 import useSWR from "swr";
 import { fetcher } from "../lib/GeneralUtils";
+import { useCHContext } from "./UseClickhouseProvider";
 
 export function WithCommitData({
   sha,
@@ -19,7 +20,9 @@ export function WithCommitData({
   }) => JSX.Element;
 }): JSX.Element {
   const { data, error } = useSWR(
-    `/api/${repoOwner}/${repoName}/commit/${sha}`,
+    `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${
+      useCHContext().useCH
+    }`,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
