@@ -2,7 +2,6 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
-import { fetchIssuesByLabelCH } from "lib/fetchIssuesByLabel";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -18,6 +17,7 @@ import { queryClickhouseSaved } from "./clickhouse";
 // https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
 import * as thisModule from "./drciUtils";
+import fetchIssuesByLabel from "./fetchIssuesByLabel";
 import { getAuthors } from "./getAuthors";
 import { IssueData } from "./types";
 dayjs.extend(utc);
@@ -200,7 +200,7 @@ export async function upsertDrCiComment(
   );
   const existingDrciID = existingDrciData.id;
   const existingDrciComment = existingDrciData.body;
-  const sev = getActiveSEVs(await fetchIssuesByLabelCH("ci: sev"));
+  const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const drciComment = formDrciComment(
     prNum,
     owner,
