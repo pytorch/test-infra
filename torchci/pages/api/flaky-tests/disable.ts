@@ -14,6 +14,7 @@ import { DisabledNonFlakyTestData, FlakyTestData, IssueData } from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
+import { ErrorsToNotDisable } from "../constants";
 
 const NUM_HOURS = 3;
 const NUM_HOURS_ACROSS_JOBS = 72;
@@ -75,7 +76,11 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
 export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
   // Remove the PR-only instances of flakiness, but don't modify data within
   return tests.filter(
-    (test) => test.branches.includes("master") || test.branches.includes("main")
+    (test) =>
+      (test.branches.includes("master") || test.branches.includes("main")) &&
+      !ErrorsToNotDisable.some((error) =>
+        error.test(test.sampleTraceback ?? "")
+      )
   );
 }
 
@@ -90,7 +95,10 @@ export function filterThreshold(
       !(
         test.suite == "TestInductorOpInfoCPU" &&
         test.jobNames.every((name) => name.includes("mac"))
-      ) // See https://github.com/pytorch/pytorch/issues/135885
+      ) && // See https://github.com/pytorch/pytorch/issues/135885
+      !ErrorsToNotDisable.some((error) =>
+        error.test(test.sampleTraceback ?? "")
+      )
   );
 }
 

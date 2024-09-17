@@ -26,6 +26,11 @@ const flakyTestA = {
   branches: ["master", "master", "master"],
 };
 
+const flakyTestAwithGenericError = {
+  ...flakyTestA,
+  sampleTraceback: "##[error]The operation was canceled.",
+};
+
 const flakyTestB = {
   file: "file_b.py",
   invoking_file: "file_b",
@@ -531,6 +536,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         branches: ["quick-fix", "ciflow/scheduled/22222"],
       },
       flakyTestE,
+      flakyTestAwithGenericError,
     ];
     const expectedFlakyTestsOnTrunk = [
       flakyTestA,
