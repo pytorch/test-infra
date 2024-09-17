@@ -62,7 +62,7 @@ export default function triggerInductorTestsBot(app: Probot): void {
             owner: ctx.payload.repository.owner.login,
             repo: ctx.payload.repository.name,
             issue_number: ctx.payload.issue.number,
-            body: "Failed to trigger Inductor tests. Please check the logs.",
+            body: `Failed to trigger Inductor tests. Please check the logs. Failed with error ${error}`,
           });
         }
       }
