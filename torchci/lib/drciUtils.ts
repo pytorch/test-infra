@@ -53,6 +53,12 @@ export const EXCLUDED_FROM_FLAKINESS = [
 // it increases the risk of getting misclassification. This guardrail can
 // be relaxed once we achieve better accuracy from the log classifier. This
 // sets the limit to 7 days
+
+export const ErrorsToNotDisable: RegExp[] = [
+  /^##\[error\]The operation was canceled\.$/,
+  // Add more regex patterns as needed
+];
+
 export const MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES = 7 * 24;
 // Mapping the job to the list of suppressed labels
 export const SUPPRESSED_JOB_BY_LABELS: { [job: string]: string[] } = {
@@ -321,6 +327,13 @@ export async function hasSimilarFailures(
       failure.head_sha
     );
     if (!isEligibleCommit) {
+      continue;
+    }
+    if (
+      failure.failure_captures.some((capture) =>
+        ErrorsToNotDisable.some((error) => error.test(capture))
+      )
+    ) {
       continue;
     }
 
