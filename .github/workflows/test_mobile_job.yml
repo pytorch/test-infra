@@ -19,10 +19,10 @@ jobs:
       # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
       runner: ubuntu-latest
       # There values are prepared beforehand for the test
-      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
-      ios-ipa-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/56b109f3-64b4-48c0-b1c8-b19dafc80647
-      ios-xctestrun-zip: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/8aeaf73f-3a42-4304-8eda-7a8d6b5a770c
-      test-spec: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/68677456-2999-47ec-a3a1-722db2b69b69
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
+      ios-ipa-archive: https://ossci-assets.s3.amazonaws.com/DeviceFarm.ipa
+      ios-xctestrun-zip: https://ossci-assets.s3.amazonaws.com/MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
+      test-spec: https://ossci-assets.s3.amazonaws.com/default-ios-device-farm-appium-test-spec.yml
 
   test-android-llama2-job:
     permissions:
@@ -34,9 +34,9 @@ jobs:
       runner: ubuntu-latest
       timeout: 120
       # There values are prepared beforehand for the test
-      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
       device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/e59f866a-30aa-4aa1-87b7-4510e5820dfa
-      android-app-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/8a7276b7-03ac-4053-8b09-1305c429f59d
-      android-test-archive: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/528113d6-2003-420b-aedb-4242b6d14254
-      test-spec: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/414cb54d-4d83-4576-8317-93244e4dc50e
-      extra-data: arn:aws:devicefarm:us-west-2:308535385114:upload:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/bd15825b-ddab-4e47-9fef-a9c8935778dd
+      android-app-archive: https://ossci-assets.s3.amazonaws.com/app-debug.apk
+      android-test-archive: https://ossci-assets.s3.amazonaws.com/app-debug-androidTest.apk
+      test-spec: https://ossci-assets.s3.amazonaws.com/android-llm-device-farm-test-spec.yml
+      extra-data: https://ossci-assets.s3.amazonaws.com/executorch-android-llama2-7b-0717.zip
