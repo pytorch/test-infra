@@ -32,6 +32,7 @@ jobs:
     with:
       device-type: android
       runner: ubuntu-latest
+      timeout: 120
       # There values are prepared beforehand for the test
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6
       device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:02a2cf0f-6d9b-45ee-ba1a-a086587469e6/e59f866a-30aa-4aa1-87b7-4510e5820dfa
