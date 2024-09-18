@@ -93,7 +93,7 @@ export function GraphPanel({
         return (
           record.name === modelName &&
           (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
-          (record.device === deviceName ||
+          (`${record.device} (${record.arch})` === deviceName ||
             deviceName === DEFAULT_DEVICE_NAME) &&
           record.metric === metric
         );
@@ -102,7 +102,8 @@ export function GraphPanel({
         const id = record.workflow_id;
         return (
           (id >= lWorkflowId && id <= rWorkflowId) ||
-          (id <= lWorkflowId && id >= rWorkflowId)
+          (id <= lWorkflowId && id >= rWorkflowId) ||
+          (lWorkflowId === undefined && rWorkflowId === undefined)
         );
       })
       .map((record: LLMsBenchmarkData) => {

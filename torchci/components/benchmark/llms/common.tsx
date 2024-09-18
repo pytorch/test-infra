@@ -40,6 +40,7 @@ export interface LLMsBenchmarkData {
   target: number;
   dtype: string;
   device: string;
+  arch: string;
   display?: string;
 }
 

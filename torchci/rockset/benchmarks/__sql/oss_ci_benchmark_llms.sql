@@ -4,22 +4,32 @@
 SELECT
   DISTINCT o.workflow_id,
   -- As the JSON response is pretty big, only return the field if it's needed
-  IF(:getJobId, o.job_id, NULL) AS job_id,
+  IF(: getJobId, o.job_id, NULL) AS job_id,
   o.name,
   o.metric,
   IF(
     o.actual IS NOT NULL,
-    CAST(o.actual AS FLOAT), 0.0
+    CAST(o.actual AS FLOAT),
+    0.0
   ) AS actual,
   IF(
     o.target IS NOT NULL,
-    CAST(o.target AS FLOAT), 0.0
+    CAST(o.target AS FLOAT),
+    0.0
   ) AS target,
   FORMAT_ISO8601(
-    DATE_TRUNC(: granularity,TIMESTAMP_MILLIS(o.timestamp))
+    DATE_TRUNC(
+      : granularity,
+      TIMESTAMP_MILLIS(o.timestamp)
+    )
   ) AS granularity_bucket,
   o.dtype,
   o.device,
+  -- NB: Default to NVIDIA A100-SXM4-40GB for old records without arch column
+  IF(
+    o.arch IS NULL, 'NVIDIA A100-SXM4-40GB',
+    o.arch
+  ) as arch,
 FROM
   benchmarks.oss_ci_benchmark_v2 o
   LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id
@@ -54,12 +64,17 @@ WHERE
     )
     OR : names = ''
   )
+  -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
   AND (
-    ARRAY_CONTAINS(
-      SPLIT(: devices, ','),
-      o.device
-    )
-    OR : devices = ''
+    FORMAT(
+      '{} ({})',
+      o.device,
+      IF(
+        o.arch IS NULL, 'NVIDIA A100-SXM4-40GB',
+        o.arch
+      )
+    ) = : deviceArch
+    OR : deviceArch = ''
   )
   AND (
     ARRAY_CONTAINS(

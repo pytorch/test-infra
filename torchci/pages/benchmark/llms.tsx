@@ -262,6 +262,11 @@ export default function Page() {
       type: "string",
       value: repoName,
     },
+    {
+      name: "deviceArch",
+      type: "string",
+      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    },
   ];
 
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
@@ -281,7 +286,7 @@ export default function Page() {
   ];
   const deviceNames: string[] = [
     DEFAULT_DEVICE_NAME,
-    ...(_.uniq(data.map((r: any) => r.device)) as string[]),
+    ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
   ];
   const dtypeNames: string[] = [
     DEFAULT_DTYPE_NAME,

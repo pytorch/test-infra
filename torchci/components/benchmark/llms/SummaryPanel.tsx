@@ -66,7 +66,7 @@ export function SummaryPanel({
               renderCell: (params: GridRenderCellParams<any>) => {
                 const name = params.value.name;
                 const dtype = params.value.dtype;
-                const device = params.value.device;
+                const deviceArch = `${params.value.device} (${params.value.arch})`;
                 if (name === undefined) {
                   return `Invalid model name`;
                 }
@@ -78,28 +78,32 @@ export function SummaryPanel({
                   name
                 )}&dtypeName=${encodeURIComponent(
                   dtype
-                )}&deviceName=${encodeURIComponent(device)}`;
+                )}&deviceName=${encodeURIComponent(deviceArch)}`;
+
                 const isNewModel =
-                  params.value.l === undefined && lCommit !== rCommit
-                    ? "(NEW!) "
-                    : "";
+                  params.value.l === undefined ? "(NEW!) " : "";
                 const isModelStopRunning =
                   params.value.r === undefined ? "❌" : "";
 
                 const displayName = name.includes(dtype)
-                  ? name.includes(device)
-                    ? name
-                    : `${name} (${device})`
-                  : name.includes(device)
-                  ? `${name} (${dtype})`
-                  : `${name} (${dtype} / ${device})`;
-
+                  ? name
+                  : `${name} (${dtype})`;
                 return (
                   <a href={url}>
                     {isNewModel}
                     {isModelStopRunning}&nbsp;<b>{displayName}</b>
                   </a>
                 );
+              },
+            },
+            {
+              field: "device_arch",
+              headerName: "Device",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const device = params.value.device;
+                const arch = params.value.arch;
+                return `${device} (${arch})`;
               },
             },
             ...metricNames.map((metric: string) => {

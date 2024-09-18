@@ -1,6 +1,5 @@
 import {
   BranchAndCommitPerfData,
-  DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
@@ -31,11 +30,6 @@ export function useBenchmark(
       name: "dtypes",
       type: "string",
       value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
-    },
-    {
-      name: "devices",
-      type: "string",
-      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     },
     {
       name: "getJobId",
@@ -88,6 +82,7 @@ export function combineLeftAndRight(
     const name = record.name;
     const dtype = record.dtype;
     const device = record.device;
+    const arch = record.arch;
     const metric = record.metric;
 
     if (!(name in dataGroupedByModel)) {
@@ -102,7 +97,11 @@ export function combineLeftAndRight(
       dataGroupedByModel[name][dtype][device] = {};
     }
 
-    dataGroupedByModel[name][dtype][device][metric] = {
+    if (!(arch in dataGroupedByModel[name][dtype][device])) {
+      dataGroupedByModel[name][dtype][device][arch] = {};
+    }
+
+    dataGroupedByModel[name][dtype][device][arch][metric] = {
       r: record,
     };
   });
@@ -113,6 +112,7 @@ export function combineLeftAndRight(
       const name = record.name;
       const dtype = record.dtype;
       const device = record.device;
+      const arch = record.arch;
       const metric = record.metric;
 
       if (!(name in dataGroupedByModel)) {
@@ -127,11 +127,15 @@ export function combineLeftAndRight(
         dataGroupedByModel[name][dtype][device] = {};
       }
 
-      if (!(metric in dataGroupedByModel[name][dtype][device])) {
-        dataGroupedByModel[name][dtype][device][metric] = {};
+      if (!(arch in dataGroupedByModel[name][dtype][device])) {
+        dataGroupedByModel[name][dtype][device][arch] = {};
       }
 
-      dataGroupedByModel[name][dtype][device][metric]["l"] = record;
+      if (!(metric in dataGroupedByModel[name][dtype][device][arch])) {
+        dataGroupedByModel[name][dtype][device][arch][metric] = {};
+      }
+
+      dataGroupedByModel[name][dtype][device][arch][metric]["l"] = record;
     });
   }
 
@@ -140,56 +144,69 @@ export function combineLeftAndRight(
   Object.keys(dataGroupedByModel).forEach((name: string) => {
     Object.keys(dataGroupedByModel[name]).forEach((dtype: string) => {
       Object.keys(dataGroupedByModel[name][dtype]).forEach((device: string) => {
-        const row: { [k: string]: any } = {
-          // Keep the name as as the row ID as DataGrid requires it
-          name: `${name} (${dtype} / ${device})`,
-        };
-
-        for (const metric in dataGroupedByModel[name][dtype][device]) {
-          const record = dataGroupedByModel[name][dtype][device][metric];
-          const hasL = "l" in record;
-          const hasR = "r" in record;
-
-          if (!("metadata" in row)) {
-            row["metadata"] = {
-              name: name,
-              dtype: dtype,
-              device: device,
-              l: hasL ? record["l"]["job_id"] : undefined,
-              r: hasR ? record["r"]["job_id"] : undefined,
+        Object.keys(dataGroupedByModel[name][dtype][device]).forEach(
+          (arch: string) => {
+            const row: { [k: string]: any } = {
+              // Keep the name as as the row ID as DataGrid requires it
+              name: `${name} (${dtype} / ${device} / ${arch})`,
             };
-          } else {
-            row["metadata"]["l"] =
-              row["metadata"]["l"] ??
-              (hasL ? record["l"]["job_id"] : undefined);
-            row["metadata"]["r"] =
-              row["metadata"]["r"] ??
-              (hasR ? record["r"]["job_id"] : undefined);
+
+            for (const metric in dataGroupedByModel[name][dtype][device][
+              arch
+            ]) {
+              const record =
+                dataGroupedByModel[name][dtype][device][arch][metric];
+              const hasL = "l" in record;
+              const hasR = "r" in record;
+
+              if (!("metadata" in row)) {
+                row["metadata"] = {
+                  name: name,
+                  dtype: dtype,
+                  device: device,
+                  arch: arch,
+                  l: hasL ? record["l"]["job_id"] : undefined,
+                  r: hasR ? record["r"]["job_id"] : undefined,
+                };
+              } else {
+                row["metadata"]["l"] =
+                  row["metadata"]["l"] ??
+                  (hasL ? record["l"]["job_id"] : undefined);
+                row["metadata"]["r"] =
+                  row["metadata"]["r"] ??
+                  (hasR ? record["r"]["job_id"] : undefined);
+              }
+
+              row["device_arch"] = {
+                device: device,
+                arch: arch,
+              };
+
+              row[metric] = {
+                l: hasL
+                  ? {
+                      actual: record["l"].actual,
+                      target: record["l"].target,
+                    }
+                  : {
+                      actual: 0,
+                      target: 0,
+                    },
+                r: hasR
+                  ? {
+                      actual: record["r"].actual,
+                      target: record["r"].target,
+                    }
+                  : {
+                      actual: 0,
+                      target: 0,
+                    },
+              };
+            }
+
+            data.push(row);
           }
-
-          row[metric] = {
-            l: hasL
-              ? {
-                  actual: record["l"].actual,
-                  target: record["l"].target,
-                }
-              : {
-                  actual: 0,
-                  target: 0,
-                },
-            r: hasR
-              ? {
-                  actual: record["r"].actual,
-                  target: record["r"].target,
-                }
-              : {
-                  actual: 0,
-                  target: 0,
-                },
-          };
-        }
-
-        data.push(row);
+        );
       });
     });
   });
