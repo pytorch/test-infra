@@ -24,7 +24,7 @@ import {
   OWNER,
 } from "lib/drciUtils";
 import { fetchCommitTimestamp } from "lib/fetchCommit";
-import { fetchIssuesByLabelCH } from "lib/fetchIssuesByLabel";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import fetchPR from "lib/fetchPR";
 import {
   fetchFailedJobsFromCommits,
@@ -101,10 +101,10 @@ export async function updateDrciComments(
   );
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
-  const sevs = getActiveSEVs(await fetchIssuesByLabelCH("ci: sev"));
+  const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
-  const unstableIssues: IssueData[] = await fetchIssuesByLabelCH("unstable");
-  const disabledTestIssues: IssueData[] = await fetchIssuesByLabelCH("skipped");
+  const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
+  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel("skipped");
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
