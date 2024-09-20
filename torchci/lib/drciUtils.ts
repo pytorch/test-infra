@@ -257,6 +257,14 @@ export async function hasSimilarFailures(
     return;
   }
 
+  if (
+    job.failure_captures.some((capture) =>
+      ErrorsToNotDisable.some((error) => error.test(capture))
+    )
+  ) {
+    return;
+  }
+
   // NB: Using the job completed_at timestamp has many false positives, so it's
   // better that we only enable this feature when the head commit timestamp is
   // available and use it as the end date
@@ -327,13 +335,6 @@ export async function hasSimilarFailures(
       failure.head_sha
     );
     if (!isEligibleCommit) {
-      continue;
-    }
-    if (
-      failure.failure_captures.some((capture) =>
-        ErrorsToNotDisable.some((error) => error.test(capture))
-      )
-    ) {
       continue;
     }
 
