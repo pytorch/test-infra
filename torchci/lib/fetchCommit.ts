@@ -22,9 +22,6 @@ async function fetchDatabaseInfo(
     for (const row of response) {
       row.id = row.id == 0 ? null : row.id;
       row.workflowId = row.workflowId == 0 ? null : row.workflowId;
-      row.durationS = parseInt(row.durationS);
-      row.queueTimeS = parseInt(row.queueTimeS);
-      row.time = row.time + "Z";
     }
     return response;
   } else {
