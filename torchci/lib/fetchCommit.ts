@@ -1,14 +1,19 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
-import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
-async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
-  if (enableClickhouse()) {
+async function fetchDatabaseInfo(
+  owner: string,
+  repo: string,
+  sha: string,
+  useCH: boolean
+) {
+  if (useCH) {
     const response = await queryClickhouseSaved("commit_jobs_query", {
       repo: `${owner}/${repo}`,
       sha: sha,
@@ -17,9 +22,6 @@ async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
     for (const row of response) {
       row.id = row.id == 0 ? null : row.id;
       row.workflowId = row.workflowId == 0 ? null : row.workflowId;
-      row.durationS = parseInt(row.durationS);
-      row.queueTimeS = parseInt(row.queueTimeS);
-      row.time = row.time + "Z";
     }
     return response;
   } else {
@@ -50,14 +52,15 @@ async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
 export default async function fetchCommit(
   owner: string,
   repo: string,
-  sha: string
+  sha: string,
+  useCH: boolean
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 
   const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await fetchDatabaseInfo(owner, repo, sha),
+    await fetchDatabaseInfo(owner, repo, sha, useCH),
   ]);
 
   let jobs = response as any[];

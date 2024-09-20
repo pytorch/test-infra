@@ -116,6 +116,7 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
+  use_ch: boolean;
 }
 
 export interface PRData {
@@ -228,6 +229,7 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
+    use_ch: input.use_ch === "true",
   };
 }
 
@@ -266,6 +268,10 @@ function formatHudURL(
 
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
+  }
+
+  if (params.use_ch) {
+    base += `&use_ch=true`;
   }
   return base;
 }

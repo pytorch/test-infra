@@ -1,6 +1,6 @@
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
-import { enableClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { queryClickhouseSaved } from "./clickhouse";
 import getRocksetClient from "./rockset";
 import { PRData } from "./types";
 
@@ -10,7 +10,7 @@ async function fetchHistoricalCommits(
   prNumber: string,
   useClickhouse: boolean
 ) {
-  if (useClickhouse || enableClickhouse()) {
+  if (useClickhouse) {
     return await queryClickhouseSaved("pr_commits", {
       pr_num: prNumber,
       owner,
