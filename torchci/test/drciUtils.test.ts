@@ -45,6 +45,10 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: mockHeadShaDate.format("YYYY-MM-DD HH:mm:ss"),
       head_branch: "whatever",
     });
+    const jobWithGenericError: RecentWorkflowsData = {
+      ...job,
+      failure_captures: ["##[error]The operation was canceled."],
+    };
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
@@ -301,6 +305,17 @@ describe("Test various utils used by Dr.CI", () => {
     expect(
       await hasSimilarFailures(
         job,
+        emptyBaseCommitDate,
+        [],
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toEqual(undefined);
+
+    // Found a match but it has a generic error
+    expect(
+      await hasSimilarFailures(
+        jobWithGenericError,
         emptyBaseCommitDate,
         [],
         lookbackPeriodInHours,
