@@ -121,6 +121,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
+      - name: Install XPU support package
+        if: ${{ matrix.gpu_arch_type == 'xpu' }}
+        run: |
+          cmd "/c .\\test-infra\\.github\\scripts\\install_xpu.bat"
       - name: Install torch dependency
         run: |
           source "${BUILD_ENV_FILE}"
@@ -190,7 +194,7 @@ jobs:
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+            ${CONDA_RUN} ${ENV_SCRIPT} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
