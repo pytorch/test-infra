@@ -63,7 +63,7 @@ def extract_metadata(record: Any) -> Dict[str, Any]:
     key = extract_key(record)
     m = re.match(METADATA_REGEX, key)
     if not m:
-        print(f"Fail to extract metadata from {key}")
+        print(f"Failed to extract metadata from {key}")
         return {}
 
     return {
