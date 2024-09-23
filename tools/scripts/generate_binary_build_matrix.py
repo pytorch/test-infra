@@ -3,11 +3,12 @@
 """Generates a matrix to be utilized through github actions
 
 Will output a condensed version of the matrix if on a pull request that only
-includes the latest version of python we support built on three different
+includes the latest version of python we support built on four different
 architectures:
     * CPU
     * Latest CUDA
     * Latest ROCM
+    * Latest XPU
 """
 
 
@@ -519,7 +520,7 @@ def generate_wheels_matrix(
                 arches += ROCM_ARCHES
 
         if with_xpu == ENABLE:
-            if os == LINUX:
+            if os == LINUX or os == WINDOWS:
                 arches += [XPU]
 
     if limit_pr_builds:
