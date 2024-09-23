@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 import requests
 
-from torchci.rockset_utils import query_rockset
+from torchci.clickhouse import query_clickhouse
 from torchci.utils import cache_json, run_command
 
 
@@ -28,11 +28,11 @@ def get_all_invoking_files() -> List[str]:
     select
         distinct invoking_file
     from
-        commons.test_run_summary t
+        default.test_run_summary t
     """
     return [
         x["invoking_file"].replace(".", "/")
-        for x in query_rockset(invoking_files, use_cache=True)
+        for x in query_clickhouse(invoking_files, {}, use_cache=True)
     ]
 
 
@@ -147,9 +147,9 @@ def get_merge_bases_dict() -> Dict[str, Dict[str, Any]]:
     # Returns dictionary of commit sha -> dictionary with info about that
     # commit, including changes files and merge base
     merge_bases_query = """
-    select * from merge_bases where repo is null or repo = 'pytorch/pytorch'
+    select * from default.merge_bases where repo = '' or repo = 'pytorch/pytorch'
     """
-    merge_bases_list = query_rockset(merge_bases_query)
+    merge_bases_list = query_clickhouse(merge_bases_query, {})
     return {s["sha"]: s for s in merge_bases_list}
 
 
@@ -161,15 +161,15 @@ def get_filtered_failed_tests() -> List[Dict[str, Any]]:
         t.name,
         t.classname,
         t.file,
-        j.head_sha,
+        j.head_sha
     FROM
-        commons.failed_tests_run t
-        join workflow_job j on t.job_id = j.id
+        default .failed_test_runs t
+        join default .workflow_job j final on t.job_id = j.id
     where
-        t.file is not null
-        and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
+        t.file != ''
+        and j.completed_at > CURRENT_TIMESTAMP() - interval 90 day
     """
-    failed_tests = query_rockset(failed_tests_query, use_cache=True)
+    failed_tests = query_clickhouse(failed_tests_query, {}, use_cache=True)
     return filter_tests(failed_tests, get_merge_bases_dict())
 
 
