@@ -144,7 +144,7 @@ PACKAGE_ALLOW_LIST = {
     "nvidia_nvjitlink_cu12",
     "packaging",
     "portalocker",
-    "pyre-extensions",
+    "pyre_extensions",
     "pytorch_triton",
     "pytorch_triton_rocm",
     "pytorch_triton_xpu",
