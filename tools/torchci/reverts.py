@@ -141,9 +141,7 @@ def main() -> None:
         comment_url = comment_match[1]
         db_revert = db_reverts[comment_url]
         parse_body(db_revert)
-        classification_dict[db_revert["code"]].append(
-            (gitlog_revert, db_revert)
-        )
+        classification_dict[db_revert["code"]].append((gitlog_revert, db_revert))
 
     assert sum(len(code) for code in classification_dict.values()) == len(
         gitlog_reverts
