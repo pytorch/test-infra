@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 import boto3  # type: ignore
-from torchci.rockset_utils import query_rockset
+from torchci.clickhouse import query_clickhouse
 from torchci.td.utils import list_past_year_shas, run_command
 
 
@@ -17,36 +17,28 @@ S3_RESOURCE = boto3.resource("s3")
 
 FAILED_TEST_SHAS_QUERY = """
 SELECT
-    DISTINCT j.head_sha,
+    DISTINCT j.head_sha as head_sha
 FROM
-    commons.failed_tests_run t
-    join workflow_job j on t.job_id = j.id
-    left outer join commons.merge_bases mb on j.head_sha = mb.sha
+    default.failed_test_runs t
+    join default.workflow_job j final on t.job_id = j.id
+    left outer join default.merge_bases mb on j.head_sha = mb.sha
 where
-    mb.merge_base is null
-    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
+    mb.merge_base = ''
+    and j.completed_at > CURRENT_TIMESTAMP() - interval 90 day
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
+with searching_for as (
+    SELECT arrayJoin({shas: Array(String)}) AS sha
+)
 select
-    shas.sha as head_sha
+    s.sha as head_sha
 from
-    unnest(SPLIT(:shas, ',') as sha) as shas
-    left outer join commons.merge_bases mb on mb.sha = shas.sha
+    searching_for s
+    left join default.merge_bases mb on mb.sha = s.sha
 where
-    mb.sha is null
-    or mb.repo is null
-"""
-
-DUP_MERGE_BASE_INFO = """
-select
-    ARRAY_AGG(m._id) as ids
-from
-    commons.merge_bases m
-group by
-    m.sha
-having
-    count(*) > 1
+    mb.sha = ''
+    or mb.repo = ''
 """
 
 
@@ -77,7 +69,6 @@ def pull_shas(shas: List[str]) -> None:
 
 
 def upload_merge_base_info(shas: List[str]) -> None:
-    docs = []
     for sha in shas:
         try:
             merge_base = run_command(f"git merge-base origin/main {sha}")
@@ -113,7 +104,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    failed_test_shas = [x["head_sha"] for x in query_rockset(FAILED_TEST_SHAS_QUERY)]
+    failed_test_shas = [x["head_sha"] for x in query_clickhouse(FAILED_TEST_SHAS_QUERY, {})]
     interval = 100
     print(
         f"There are {len(failed_test_shas)} shas, uploading in intervals of {interval}"
@@ -128,9 +119,9 @@ if __name__ == "__main__":
     for i in range(0, len(main_branch_shas), interval):
         shas = [
             x["head_sha"]
-            for x in query_rockset(
+            for x in query_clickhouse(
                 NOT_IN_MERGE_BASES_TABLE,
-                {"shas": ",".join(main_branch_shas[i : i + interval])},
+                {"shas": main_branch_shas[i : i + interval]},
             )
         ]
         upload_merge_base_info(shas)

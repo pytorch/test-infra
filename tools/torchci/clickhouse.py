@@ -1,10 +1,10 @@
 import json
 import os
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import clickhouse_connect
-from torchci.utils import REPO_ROOT
+from torchci.utils import REPO_ROOT, cache_json
 
 
 @lru_cache(maxsize=1)
@@ -37,13 +37,22 @@ def query_clickhouse_saved(queryName: str, inputParams: Dict[str, Any]) -> Any:
     return query_clickhouse(queryText, queryParams)
 
 
-def query_clickhouse(query: str, params: Dict[str, Any]) -> Any:
-    res = get_clickhouse_client().query(query, params)
-    json_res = []
-    # convert to json
-    for row in res.result_rows:
-        json_row = {}
-        for i, column in enumerate(res.column_names):
-            json_row[column] = row[i]
-        json_res.append(json_row)
-    return json_res
+def query_clickhouse(query: str, params: Dict[str, Any], use_cache: bool = False) -> Any:
+    """
+    Queries ClickHouse.  Returns datetime in YYYY-MM-DD HH:MM:SS format.
+    """
+    def convert_to_json_list(res: str) -> List[Dict[str, Any]]:
+        rows = []
+        for row in res.decode().split("\n"):
+            if row:
+                rows.append(json.loads(row))
+        return rows
+    if not use_cache:
+        res = get_clickhouse_client().raw_query(query, params, fmt="JSONEachRow")
+        return convert_to_json_list(res)
+    else:
+        @cache_json
+        def cache_query_clickhouse(query, params):
+            res = get_clickhouse_client().raw_query(query, params, fmt="JSONEachRow")
+            return convert_to_json_list(res)
+        return cache_query_clickhouse(query, params)
