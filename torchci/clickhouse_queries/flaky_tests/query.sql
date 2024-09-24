@@ -29,7 +29,7 @@ where
     AND test_run.file LIKE {file: String}
     and job.id in (select id from jobs)
     and workflow.id in (select run_id from jobs)
-    and workflow.head_branch like {branch: String}
+    and workflow.head_branch = 'main'
     and workflow.repository.'full_name' = 'pytorch/pytorch'
     and job.name not like '%rerun_disabled_tests%'
 GROUP BY
