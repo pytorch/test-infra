@@ -2,7 +2,7 @@ import { Context, Probot } from "probot";
 import { reactOnComment } from "./utils";
 
 export default function triggerInductorTestsBot(app: Probot): void {
-  const preapprovedUsers = ["pytorchbot", "PaliC"]; // List of preapproved users
+  const preapprovedUsers = ["pytorchbot", "PaliC", "huydhn"]; // List of preapproved users
   //   const tritonRepo = "triton-lang/triton"; // uncomment once this is good enough for triton
   const tritonRepo = "triton-lang-test/triton"; // delete once this is good enough for triton
   const preapprovedRepos = ["malfet/deleteme", tritonRepo]; // List of preapproved orgs/repos
