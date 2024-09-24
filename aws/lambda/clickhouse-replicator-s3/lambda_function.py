@@ -356,25 +356,25 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
 
 
 SUPPORTED_PATHS = {
-    "merges": "merges",
-    "queue_times_historical": "queue_times_historical",
-    "test_run": "test_run_s3",
-    "test_run_summary": "test_run_summary",
-    "merge_bases": "merge_bases",
-    "failed_test_runs": "failed_test_runs",
-    "rerun_disabled_tests": "rerun_disabled_tests",
-    "external_contribution_counts": "external_contribution_stats",
+    "merges": "default.merges",
+    "queue_times_historical": "default.queue_times_historical",
+    "test_run": "default.test_run_s3",
+    "test_run_summary": "default.test_run_summary",
+    "merge_bases": "default.merge_bases",
+    "failed_test_runs": "default.failed_test_runs",
+    "rerun_disabled_tests": "default.rerun_disabled_tests",
+    "external_contribution_counts": "misc.external_contribution_stats",
 }
 
 OBJECT_CONVERTER = {
-    "merges": merges_adapter,
-    "test_run_s3": handle_test_run_s3,
-    "failed_test_runs": handle_test_run_s3,
-    "test_run_summary": handle_test_run_summary,
-    "merge_bases": merge_bases_adapter,
-    "rerun_disabled_tests": rerun_disabled_tests_adapter,
-    "queue_times_historical": queue_times_historical_adapter,
-    "external_contribution_stats": external_contribution_stats_adapter,
+    "default.merges": merges_adapter,
+    "default.test_run_s3": handle_test_run_s3,
+    "default.failed_test_runs": handle_test_run_s3,
+    "default.test_run_summary": handle_test_run_summary,
+    "default.merge_bases": merge_bases_adapter,
+    "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
+    "default.queue_times_historical": queue_times_historical_adapter,
+    "misc.external_contribution_stats": external_contribution_stats_adapter,
 }
 
 
