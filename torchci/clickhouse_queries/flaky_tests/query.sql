@@ -1,21 +1,7 @@
-with workflows as (
-    select
-        id
-    from
-        default.workflow_run final
-    where
-        id in (
-            select id from materialized_views.workflow_run_by_created_at
-            where created_at > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
-        )
-        and head_branch like {branch: String}
-        and repository.full_name = 'pytorch/pytorch'
-), jobs as (
-    select id
-    from default.workflow_job final
-    where
-        run_id in (select id from workflows)
-        and name not like '%rerun_disabled_tests%'
+with jobs as (
+    select id, run_id
+    from materialized_views.workflow_job_by_completed_at
+    where completed_at > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
 )
 select
     test_run.name as name,
@@ -37,11 +23,15 @@ FROM
     INNER JOIN default.workflow_run workflow final ON job.run_id = workflow.id
 where
     LENGTH(test_run.rerun) != 0
+    AND LENGTH(test_run.failure) = 0
     AND test_run.name LIKE {name: String}
     AND test_run.classname LIKE {suite: String}
     AND test_run.file LIKE {file: String}
     and job.id in (select id from jobs)
-    and workflow.id in (select id from workflows)
+    and workflow.id in (select run_id from jobs)
+    and workflow.head_branch like {branch: String}
+    and workflow.repository.'full_name' = 'pytorch/pytorch'
+    and job.name not like '%rerun_disabled_tests%'
 GROUP BY
     name,
     suite,
