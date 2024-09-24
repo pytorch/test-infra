@@ -7,6 +7,7 @@ import {
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
+  getGitHubRateLimit,
 } from './gh-runners';
 
 import { Config } from './config';
@@ -53,6 +54,8 @@ export async function scaleUp(
 
   metrics.runRepo(repo);
   metrics.run();
+
+  getGitHubRateLimit(repo, Number(payload.installationId), metrics);
 
   const runnerTypes = await getRunnerTypes(
     {

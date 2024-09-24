@@ -514,3 +514,33 @@ export async function createRegistrationTokenOrg(
     throw e;
   }
 }
+
+export async function getGitHubRateLimit(repo: Repo, installationId: number, metrics: Metrics): Promise<void> {
+  try {
+    const { used, limit, remaining } = await locallyCached('ghRunners', 'getGitHubRateLimit', 10, async () => {
+      try {
+        const client = await createGitHubClientForRunnerRepo(repo, metrics);
+
+        const rateLimit = await expBackOff(() => {
+          return metrics.trackRequest(metrics.getGitHubRateLimitSuccess, metrics.getGitHubRateLimitFailure, () => {
+            return client.rateLimit.get();
+          });
+        });
+
+        const limit = Number(rateLimit.headers['x-ratelimit-limit']);
+        const remaining = Number(rateLimit.headers['x-ratelimit-remaining']);
+        const used = Number(rateLimit.headers['x-ratelimit-used']);
+
+        return { used, limit, remaining };
+      } catch (e) {
+        console.error(`[getGitHubRateLimit]: <anonymous> ${e}`);
+        throw e;
+      }
+    });
+
+    metrics.gitHubRateLimitStats(limit, remaining, used);
+  } catch (e) {
+    console.error(`[getGitHubRateLimit]: ${e}`);
+    throw e;
+  }
+}
