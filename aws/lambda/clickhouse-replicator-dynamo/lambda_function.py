@@ -26,6 +26,7 @@ SUPPORTED_TABLES = {
     "torchci-job-annotation": "job_annotation",
     "torchci-pull-request-review": "pull_request_review",
     "torchci-pull-request-review-comment": "pull_request_review_comment",
+    "torchci-metrics-ci-wait-time": "metrics_ci_wait_time",
 }
 
 
