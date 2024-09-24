@@ -117,6 +117,7 @@ PACKAGE_ALLOW_LIST = {
     "MarkupSafe",
     "mpmath",
     "mkl",
+    "mypy_extensions",
     "nestedtensor",
     "networkx",
     "numpy",
