@@ -128,7 +128,7 @@ jobs:
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         run: |
-          cmd "/c .\\test-infra\\.github\\scripts\\install_xpu.bat"
+          cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Install torch dependency
         run: |
           source "${BUILD_ENV_FILE}"
