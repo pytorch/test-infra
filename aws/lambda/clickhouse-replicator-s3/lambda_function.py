@@ -327,6 +327,34 @@ def queue_times_historical_adapter(table, bucket, key) -> None:
         get_clickhouse_client().query(get_insert_query("none"))
 
 
+def external_contribution_stats_adapter(table, bucket, key) -> None:
+    schema = """
+    `date` String,
+    `pr_count` Int64,
+    `user_count` Int64,
+    `users` Array(String)
+    """
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    def get_insert_query(compression):
+        return f"""
+        insert into {table}
+        select *, ('{bucket}', '{key}')
+        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}',
+            extra_credentials(
+                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
+            )
+        )
+        """
+
+    try:
+        get_clickhouse_client().query(get_insert_query("gzip"))
+    except Exception as e:
+        get_clickhouse_client().query(
+            f"insert into errors.gen_errors ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+        )
+
+
 SUPPORTED_PATHS = {
     "merges": "merges",
     "queue_times_historical": "queue_times_historical",
@@ -335,6 +363,7 @@ SUPPORTED_PATHS = {
     "merge_bases": "merge_bases",
     "failed_test_runs": "failed_test_runs",
     "rerun_disabled_tests": "rerun_disabled_tests",
+    "external_contribution_counts": "external_contribution_stats",
 }
 
 OBJECT_CONVERTER = {
@@ -345,6 +374,7 @@ OBJECT_CONVERTER = {
     "merge_bases": merge_bases_adapter,
     "rerun_disabled_tests": rerun_disabled_tests_adapter,
     "queue_times_historical": queue_times_historical_adapter,
+    "external_contribution_stats": external_contribution_stats_adapter,
 }
 
 
