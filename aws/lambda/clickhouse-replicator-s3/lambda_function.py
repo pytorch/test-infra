@@ -112,7 +112,7 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
         line::Int64,
         name,
         properties,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'type')},
+        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
         result,
         {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'type')},
         status,
