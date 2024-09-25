@@ -184,7 +184,7 @@ def upsert_documents(table: str, documents: List[Any]) -> None:
 
     print(f"UPSERTING {len(documents)} INTO {table}")
     res = get_clickhouse_client().query(
-        f"INSERT INTO `{table}` SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
+        f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
     )
     print(res)
 
@@ -205,5 +205,5 @@ def remove_document(record: Any) -> None:
 
     parameters = {"id": id}
     get_clickhouse_client().query(
-        f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
+        f"DELETE FROM {table} WHERE dynamoKey = %(id)s", parameters=parameters
     )
