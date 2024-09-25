@@ -3,12 +3,12 @@ import { RecentWorkflowsData } from "./types";
 
 export async function fetchRecentWorkflows(
   repo: string = "pytorch/pytorch",
-  prNumber: string = "0",
+  prNumbers: Array<number> = [],
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
   return await queryClickhouseSaved("recent_pr_workflows_query", {
     numMinutes,
-    prNumber,
+    prNumbers,
     repo,
   });
 }

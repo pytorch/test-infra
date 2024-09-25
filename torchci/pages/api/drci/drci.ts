@@ -74,7 +74,7 @@ export default async function handler(
     const failures = await updateDrciComments(
       octokit,
       repo,
-      prNumber as string
+      prNumber ? [prNumber as unknown as number] : []
     );
     res.status(200).json(failures);
   }
@@ -85,18 +85,26 @@ export default async function handler(
 export async function updateDrciComments(
   octokit: Octokit,
   repo: string = "pytorch",
-  prNumber?: string
+  prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
-  const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
-    `${OWNER}/${repo}`,
-    prNumber,
-    NUM_MINUTES + ""
-  );
+  const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
+    // Fetch in two separate queries because combinidng into one query took much
+    // longer to run on CH
+    fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
+    fetchRecentWorkflows(
+      `${OWNER}/${repo}`,
+      // Only fetch if we are not updating a specific PR
+      prNumbers.length == 0
+        ? await getPRsWithPendingJobInComment(`${OWNER}/${repo}`)
+        : [],
+      NUM_MINUTES + ""
+    ),
+  ]);
 
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
     repo,
-    recentWorkflows,
+    recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
   const head = get_head_branch(repo);
@@ -237,6 +245,29 @@ export async function updateDrciComments(
   );
 
   return failures;
+}
+
+/**
+ * Returns a list of PR numbers whose Dr. CI comments were updated recently and
+ * contain the hourglass icon, indicating that there is a pending job. Used for
+ * getting a list of PRs to backfill ex if Dr. CI fails to update the comment
+ * due to an error
+ * @param repo The repository to search for PRs in. E.g. "pytorch/pytorch"
+ * @returns A list of PR numbers
+ */
+async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
+  const query = `
+select
+    issue_url
+from
+    issue_comment final
+where
+    body like '<!-- drci-comment-start -->%'
+    and body like '%hourglass_flowing_sand%'
+    and issue_comment.updated_at > now() - interval 1 month
+    and issue_url like {repo: String}`;
+  const results = await queryClickhouse(query, { repo: `%${repo}%` });
+  return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
 
 async function forAllPRs(
@@ -1005,10 +1036,21 @@ export async function reorganizeWorkflows(
   recentWorkflows: RecentWorkflowsData[],
   octokit?: Octokit
 ): Promise<Map<number, PRandJobs>> {
+  // Dedup because the input can contain the same job multiple times due to the
+  // two queries for recent workflows and for comments with pending jobs
+  const dedupedRecentWorkflows = _.uniqBy(recentWorkflows, (workflow) =>
+    JSON.stringify([
+      workflow.id,
+      workflow.workflowId,
+      workflow.head_sha,
+      workflow.pr_number,
+      workflow.name,
+    ])
+  );
   const workflowsByPR: Map<number, PRandJobs> = new Map();
   const headShaTimestamps: Map<string, string> = new Map();
 
-  for (const workflow of recentWorkflows) {
+  for (const workflow of dedupedRecentWorkflows) {
     const prNumber = workflow.pr_number;
     if (!workflowsByPR.has(prNumber)) {
       let headShaTimestamp = workflow.head_sha_timestamp;

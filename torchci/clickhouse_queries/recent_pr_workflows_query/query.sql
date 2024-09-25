@@ -4,11 +4,11 @@ WITH relevant_shas as (
   select head_sha
   from materialized_views.workflow_job_by_completed_at
   where completed_at > now() - Interval {numMinutes: Int64} MINUTES
-  and {prNumber: Int64} = 0
+  and LENGTH({prNumbers: Array(Int64)}) = 0
   union all
   select pr.head.'sha' as head_sha
   from default.pull_request pr final
-  where pr.number = {prNumber: Int64}
+  where pr.number in {prNumbers: Array(Int64)}
 ),
 relevant_pushes as (
   -- optimization because push is currently ordered by timestamp

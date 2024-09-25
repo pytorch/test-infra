@@ -503,7 +503,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     const { ctx, prNum, repo } = this;
 
     await this.ackComment();
-    await updateDrciComments(ctx.octokit, repo, prNum.toString());
+    await updateDrciComments(ctx.octokit, repo, [prNum]);
   }
 
   async handleCherryPick(
