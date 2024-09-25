@@ -57,8 +57,8 @@ def lambda_handler(event: Any, context: Any) -> None:
                 event_name == EventType.INSERT.value
                 or event_name == EventType.MODIFY.value
             ):
-                table, doc = get_doc_for_upsert(record)
-                docs_to_upsert[table].append(doc)
+                table, id, doc = get_doc_for_upsert(record)
+                docs_to_upsert[table].append((id, doc))
             elif event_name == EventType.REMOVE.value:
                 remove_document(record)
             else:
@@ -68,8 +68,8 @@ def lambda_handler(event: Any, context: Any) -> None:
         except Exception as error:
             warn(f"Failed to process {json.dumps(record)}: {error}")
 
-    for table, docs in docs_to_upsert.items():
-        upsert_documents(table, docs)
+    for table, ids_and_docs in docs_to_upsert.items():
+        upsert_documents(table, ids_and_docs)
 
     print(f"Finish processing {json.dumps(counts)}")
 
@@ -155,7 +155,7 @@ def handle_workflow_job(record: Any) -> Any:
     return record
 
 
-def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, Any]]:
+def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, str, Any]]:
     table = extract_dynamodb_table(record)
     if not table:
         return
@@ -170,23 +170,40 @@ def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, Any]]:
     print(f"Parsing {id}: {json.dumps(body)}")
     if not id:
         return
-    return table, body
+    return table, id, body
 
 
-def upsert_documents(table: str, documents: List[Any]) -> None:
+def upsert_documents(table: str, documents: List[Tuple[str, Any]]) -> None:
     """
     Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
     update the document in place, but rather adding a new record for the update
     """
     body = ""
-    for document in documents:
+    for _, document in documents:
         body += json.dumps(document) + "\n"
 
     print(f"UPSERTING {len(documents)} INTO {table}")
-    res = get_clickhouse_client().query(
-        f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
-    )
-    print(res)
+    try:
+        res = get_clickhouse_client().query(
+            f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
+        )
+        print(res)
+    except Exception as error:
+        warn(f"Failed to upsert {len(documents)} into {table}: {error}")
+        id_bodies = ""
+        for id, _ in documents:
+            id_doc = {
+                "table": table,
+                "bucket": "dynamo",
+                "key": id,
+                "reason": str(error),
+            }
+            id_bodies += json.dumps(id_doc) + "\n"
+        get_clickhouse_client().query(
+            f"INSERT INTO errors.gen_errors SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
+        )
+        raise error
+>>>>>>> a71b68e3e (tc)
 
 
 def remove_document(record: Any) -> None:
