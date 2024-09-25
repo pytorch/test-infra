@@ -351,7 +351,7 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
         get_clickhouse_client().query(get_insert_query("gzip"))
     except Exception as e:
         get_clickhouse_client().query(
-            f"insert into errors.gen_errors ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+            f"insert into errors.gen_errors VALUES ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
         )
 
 
