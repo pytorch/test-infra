@@ -48,6 +48,10 @@ class EventType(Enum):
 
 def lambda_handler(event: Any, context: Any) -> None:
     # https://clickhouse.com/docs/en/integrations/python
+    handle_event(event, False)
+
+
+def handle_event(event: Any, dry_run: bool) -> None:
     counts = defaultdict(int)
     docs_to_upsert = defaultdict(list)
     for record in event["Records"]:
@@ -60,7 +64,7 @@ def lambda_handler(event: Any, context: Any) -> None:
                 table, id, doc = get_doc_for_upsert(record)
                 docs_to_upsert[table].append((id, doc))
             elif event_name == EventType.REMOVE.value:
-                remove_document(record)
+                remove_document(record, dry_run)
             else:
                 warn(f"Unrecognized event type {event_name} in {json.dumps(record)}")
 
@@ -69,7 +73,7 @@ def lambda_handler(event: Any, context: Any) -> None:
             warn(f"Failed to process {json.dumps(record)}: {error}")
 
     for table, ids_and_docs in docs_to_upsert.items():
-        upsert_documents(table, ids_and_docs)
+        upsert_documents(table, ids_and_docs, dry_run)
 
     print(f"Finish processing {json.dumps(counts)}")
 
@@ -173,20 +177,23 @@ def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, str, Any]]:
     return table, id, body
 
 
-def upsert_documents(table: str, documents: List[Tuple[str, Any]]) -> None:
+def upsert_documents(table: str, documents: List[Tuple[str, Any]], dry_run: bool) -> None:
     """
     Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
     update the document in place, but rather adding a new record for the update
     """
+
+    print(f"UPSERTING {len(documents)} INTO {table}")
     body = ""
     for _, document in documents:
         body += json.dumps(document) + "\n"
 
-    print(f"UPSERTING {len(documents)} INTO {table}")
+    query = f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
+    if dry_run:
+        print(query)
+        return
     try:
-        res = get_clickhouse_client().query(
-            f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
-        )
+        res = get_clickhouse_client().query(query)
         print(res)
     except Exception as error:
         warn(f"Failed to upsert {len(documents)} into {table}: {error}")
@@ -203,10 +210,9 @@ def upsert_documents(table: str, documents: List[Tuple[str, Any]]) -> None:
             f"INSERT INTO errors.gen_errors SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
         )
         raise error
->>>>>>> a71b68e3e (tc)
 
 
-def remove_document(record: Any) -> None:
+def remove_document(record: Any, dry_run: bool) -> None:
     """
     Remove a document. This is here for completeness as we don't remove records like ever
     """
@@ -221,6 +227,9 @@ def remove_document(record: Any) -> None:
     print(f"DELETING {id} FROM {table}")
 
     parameters = {"id": id}
-    get_clickhouse_client().query(
-        f"DELETE FROM {table} WHERE dynamoKey = %(id)s", parameters=parameters
-    )
+
+    query = f"DELETE FROM {table} WHERE dynamoKey = %(id)s"
+    if dry_run:
+        print(query)
+        return
+    get_clickhouse_client().query(query, parameters=parameters)
