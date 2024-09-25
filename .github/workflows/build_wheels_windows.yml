@@ -145,6 +145,8 @@ jobs:
           is_windows: 'enabled'
       - name: Build clean
         working-directory: ${{ inputs.repository }}
+        env:
+          ENV_SCRIPT: ${{ inputs.env-script }}
         run: |
           source "${BUILD_ENV_FILE}"
           if [[ -z "${ENV_SCRIPT}" ]]; then
