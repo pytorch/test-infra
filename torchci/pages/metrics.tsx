@@ -467,7 +467,7 @@ function JobsDuration({
 
 const ROW_HEIGHT = 375;
 
-function RStoCHTimeParams(params: RocksetParam[]) {
+export function RStoCHTimeParams(params: RocksetParam[]) {
   return {
     startTime: params
       .find((p) => p.name === "startTime")
