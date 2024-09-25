@@ -21,7 +21,7 @@ export default function triggerInductorTestsBot(app: Probot): void {
       ) {
         const workflow_owner = "pytorch";
         const workflow_repo = "pytorch-integration-testing";
-        const workflow_id = "triton-inductor.yml";
+        const workflow_id = "inductor.yml";
         const pytorchCommit = "viable/strict";
 
         let tritonCommit = "main";
