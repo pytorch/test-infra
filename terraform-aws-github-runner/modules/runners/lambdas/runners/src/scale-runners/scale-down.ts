@@ -103,7 +103,7 @@ export async function scaleDown(): Promise<void> {
         // We only limit the number of removed instances here for the reason: while sorting and getting info
         // on getRunner[Org|Repo] we send statistics that are relevant for monitoring
         if (
-          ghRunnersRemovable.length - removedRunners <= Config.Instance.minAvailableRunners &&
+          ghRunnersRemovable.length - removedRunners <= (await minRunners(ec2runner, metrics)) &&
           ghRunner !== undefined &&
           ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy &&
           !(await isEphemeralRunner(ec2runner, metrics))
@@ -385,6 +385,26 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
   const runnerTypes = await getRunnerTypes(repo, metrics);
 
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
+}
+
+export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<number> {
+  if (ec2runner.runnerType === undefined) {
+    return Config.Instance.minAvailableRunners;
+  }
+
+  const repo: Repo = (() => {
+    if (Config.Instance.enableOrganizationRunners) {
+      return {
+        owner: ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
+        repo: Config.Instance.scaleConfigRepo,
+      };
+    }
+    return getRepo(ec2runner.repo as string);
+  })();
+
+  const runnerTypes = await getRunnerTypes(repo, metrics);
+
+  return runnerTypes.get(ec2runner.runnerType)?.min_available ?? Config.Instance.minAvailableRunners;
 }
 
 export function isRunnerRemovable(

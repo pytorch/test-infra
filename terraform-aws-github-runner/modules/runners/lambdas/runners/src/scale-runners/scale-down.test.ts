@@ -441,7 +441,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(16);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
@@ -759,7 +759,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(16);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
       expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
