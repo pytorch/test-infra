@@ -2,11 +2,7 @@ name: Test and deploy clickhouse-replicator-dynamo-test lambda
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/clickhouse-replicator-dynamo-test-lambda.yml
-      - aws/lambda/clickhouse-replicator-dynamo-test/**
+
 
 defaults:
   run:
