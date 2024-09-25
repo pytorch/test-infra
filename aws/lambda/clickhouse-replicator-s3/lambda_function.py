@@ -104,17 +104,17 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
     select
         classname,
         duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'message')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'type')},
+        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'type')},
         file,
         invoking_file,
         job_id,
         line::Int64,
         name,
         properties,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'type')},
         result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'type')},
         status,
         {get_sys_err_out_parser('system-err')},
         {get_sys_err_out_parser('system-out')},
@@ -327,54 +327,24 @@ def queue_times_historical_adapter(table, bucket, key) -> None:
         get_clickhouse_client().query(get_insert_query("none"))
 
 
-def external_contribution_stats_adapter(table, bucket, key) -> None:
-    schema = """
-    `date` String,
-    `pr_count` Int64,
-    `user_count` Int64,
-    `users` Array(String)
-    """
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}',
-            extra_credentials(
-                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
-            )
-        )
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
-        )
-
-
 SUPPORTED_PATHS = {
-    "merges": "default.merges",
-    "queue_times_historical": "default.queue_times_historical",
-    "test_run": "default.test_run_s3",
-    "test_run_summary": "default.test_run_summary",
-    "merge_bases": "default.merge_bases",
-    "failed_test_runs": "default.failed_test_runs",
-    "rerun_disabled_tests": "default.rerun_disabled_tests",
-    "external_contribution_counts": "misc.external_contribution_stats",
+    "merges": "merges",
+    "queue_times_historical": "queue_times_historical",
+    "test_run": "test_run_s3",
+    "test_run_summary": "test_run_summary",
+    "merge_bases": "merge_bases",
+    "failed_test_runs": "failed_test_runs",
+    "rerun_disabled_tests": "rerun_disabled_tests",
 }
 
 OBJECT_CONVERTER = {
-    "default.merges": merges_adapter,
-    "default.test_run_s3": handle_test_run_s3,
-    "default.failed_test_runs": handle_test_run_s3,
-    "default.test_run_summary": handle_test_run_summary,
-    "default.merge_bases": merge_bases_adapter,
-    "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
-    "default.queue_times_historical": queue_times_historical_adapter,
-    "misc.external_contribution_stats": external_contribution_stats_adapter,
+    "merges": merges_adapter,
+    "test_run_s3": handle_test_run_s3,
+    "failed_test_runs": handle_test_run_s3,
+    "test_run_summary": handle_test_run_summary,
+    "merge_bases": merge_bases_adapter,
+    "rerun_disabled_tests": rerun_disabled_tests_adapter,
+    "queue_times_historical": queue_times_historical_adapter,
 }
 
 
