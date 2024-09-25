@@ -16,6 +16,7 @@ import {
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
   HUD_URL,
+  isExcludedFromBrokenTrunk,
   isExcludedFromFlakiness,
   isExcludedFromSimilarityPostProcessing,
   isInfraFlakyJob,
@@ -856,6 +857,11 @@ export async function getWorkflowJobsStatuses(
           job.id,
           getOpenUnstableIssues(job.name, unstableIssues)
         );
+        continue;
+      }
+
+      if (isExcludedFromBrokenTrunk(job)) {
+        failedJobs.push(job);
         continue;
       }
 

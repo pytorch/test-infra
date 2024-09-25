@@ -465,6 +465,17 @@ describe("Test various utils used by Dr.CI", () => {
     expect(isExcludedFromFlakiness(notExcludedJob)).toEqual(false);
   });
 
+  test("test isExcludedFromBrokenTrunk", () => {
+    const notExcludedJob: RecentWorkflowsData = getDummyJob({});
+    expect(drciUtils.isExcludedFromBrokenTrunk(notExcludedJob)).toEqual(false);
+
+    const excludedJob: RecentWorkflowsData = {
+      ...notExcludedJob,
+      name: "LinT / quick-checks / linux-job",
+    };
+    expect(drciUtils.isExcludedFromBrokenTrunk(excludedJob)).toEqual(true);
+  });
+
   test("test getSuppressedLabels", () => {
     const job: RecentWorkflowsData = getDummyJob({
       jobName: "not suppressed job",
