@@ -17,15 +17,15 @@ CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 SUPPORTED_TABLES = {
-    "torchci-workflow-job": "default.workflow_job",
-    "torchci-workflow-run": "default.workflow_run",
-    "torchci-push": "default.push",
-    "torchci-pull-request": "default.pull_request",
-    "torchci-issues": "default.issues",
-    "torchci-issue-comment": "default.issue_comment",
-    "torchci-job-annotation": "default.job_annotation",
-    "torchci-pull-request-review": "default.pull_request_review",
-    "torchci-pull-request-review-comment": "default.pull_request_review_comment",
+    "torchci-workflow-job": "fortesting.workflow_job",
+    "torchci-workflow-run": "fortesting.workflow_run",
+    "torchci-push": "fortesting.push",
+    "torchci-pull-request": "fortesting.pull_request",
+    "torchci-issues": "fortesting.issues",
+    "torchci-issue-comment": "fortesting.issue_comment",
+    "torchci-job-annotation": "fortesting.job_annotation",
+    "torchci-pull-request-review": "fortesting.pull_request_review",
+    "torchci-pull-request-review-comment": "fortesting.pull_request_review_comment",
     "torchci-metrics-ci-wait-time": "misc.metrics_ci_wait_time",
 }
 
@@ -50,6 +50,7 @@ def lambda_handler(event: Any, context: Any) -> None:
     # https://clickhouse.com/docs/en/integrations/python
     counts = defaultdict(int)
     docs_to_upsert = defaultdict(list)
+    print(json.dumps(event))
     for record in event["Records"]:
         event_name = record.get("eventName", "")
         try:
