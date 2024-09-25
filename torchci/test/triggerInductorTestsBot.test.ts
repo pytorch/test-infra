@@ -30,7 +30,7 @@ describe("trigger-inductor-tests-bot", () => {
       .post("/repos/malfet/deleteme/issues/comments/890173751/reactions")
       .reply(200, {})
       .post(
-        "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
+        "/repos/pytorch/pytorch-integration-testing/actions/workflows/inductor.yml/dispatches",
         (body) => {
           expect(JSON.stringify(body)).toContain(
             `{"ref":"main","inputs\":{"triton_commit":"main","pytorch_commit":"viable/strict"}}`
@@ -71,7 +71,7 @@ describe("trigger-inductor-tests-bot", () => {
         },
       })
       .post(
-        "/repos/pytorch/pytorch-integration-testing/actions/workflows/triton-inductor.yml/dispatches",
+        "/repos/pytorch/pytorch-integration-testing/actions/workflows/inductor.yml/dispatches",
         (body) => {
           expect(JSON.stringify(body)).toContain(
             `{"ref":"main","inputs\":{"triton_commit":"custom_triton_sha","pytorch_commit":"viable/strict"}}`
