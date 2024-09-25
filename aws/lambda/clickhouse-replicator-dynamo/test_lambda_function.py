@@ -8,4 +8,4 @@ if __name__ == "__main__":
     # try it out in the console.  Change the database to fortesting to check.
     with open(Path(__file__).parent / "sample_workflow_job.json") as f:
         event = json.load(f)
-    handle_event(event, dry_run=False)
+    handle_event(event, dry_run=True)
