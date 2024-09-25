@@ -17,15 +17,16 @@ CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 SUPPORTED_TABLES = {
-    "torchci-workflow-job": "workflow_job",
-    "torchci-workflow-run": "workflow_run",
-    "torchci-push": "push",
-    "torchci-pull-request": "pull_request",
-    "torchci-issues": "issues",
-    "torchci-issue-comment": "issue_comment",
-    "torchci-job-annotation": "job_annotation",
-    "torchci-pull-request-review": "pull_request_review",
-    "torchci-pull-request-review-comment": "pull_request_review_comment",
+    "torchci-workflow-job": "default.workflow_job",
+    "torchci-workflow-run": "default.workflow_run",
+    "torchci-push": "default.push",
+    "torchci-pull-request": "default.pull_request",
+    "torchci-issues": "default.issues",
+    "torchci-issue-comment": "default.issue_comment",
+    "torchci-job-annotation": "default.job_annotation",
+    "torchci-pull-request-review": "default.pull_request_review",
+    "torchci-pull-request-review-comment": "default.pull_request_review_comment",
+    "torchci-metrics-ci-wait-time": "misc.metrics_ci_wait_time",
 }
 
 
@@ -183,7 +184,7 @@ def upsert_documents(table: str, documents: List[Any]) -> None:
 
     print(f"UPSERTING {len(documents)} INTO {table}")
     res = get_clickhouse_client().query(
-        f"INSERT INTO default.`{table}` SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
+        f"INSERT INTO {table} SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {body}"
     )
     print(res)
 
@@ -204,5 +205,5 @@ def remove_document(record: Any) -> None:
 
     parameters = {"id": id}
     get_clickhouse_client().query(
-        f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
+        f"DELETE FROM {table} WHERE dynamoKey = %(id)s", parameters=parameters
     )
