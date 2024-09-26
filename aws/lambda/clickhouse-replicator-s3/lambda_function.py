@@ -544,21 +544,3 @@ def remove_document(record: Any) -> None:
     # get_clickhouse_client().query(
     #     f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
     # )
-
-
-if __name__ == "__main__":
-    lambda_handler({
-        "Records": [
-            {
-                "eventName": "ObjectCreated",
-                "s3": {
-                    "bucket": {
-                        "name": "torchci-aggregated-stats",
-                    },
-                    "object": {
-                        "key": "test_data_aggregates/2024-09-25",
-                    },
-                },
-            },
-        ],
-    }, None)
