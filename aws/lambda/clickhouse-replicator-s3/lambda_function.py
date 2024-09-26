@@ -355,6 +355,49 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
         )
 
 
+def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
+    schema = """
+    `avg_duration_in_second` Int64,
+    `avg_skipped` Int64,
+    `avg_tests` Int64,
+    `base_name` String,
+    `date` DateTime64(3),
+    `job_name` String,
+    `max_errors` Int64,
+    `max_failures` Int64,
+    `occurences` Int64,
+    `oncalls` Array(String),
+    `sum_duration_in_second` Int64,
+    `sum_skipped` Int64,
+    `sum_tests` Int64,
+    `test_class` String,
+    `test_config` String,
+    `test_file` String,
+    `workflow_id` Int64,
+    `workflow_name` String,
+    `workflow_run_attempt` Int64
+    """
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    def get_insert_query(compression):
+        return f"""
+        insert into {table}
+        select *, ('{bucket}', '{key}') as _meta
+        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}',
+            extra_credentials(
+                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
+            )
+        )
+        """
+
+    try:
+        get_clickhouse_client().query(get_insert_query("gzip"))
+    except Exception as e:
+        get_clickhouse_client().query(
+            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+        )
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -364,6 +407,7 @@ SUPPORTED_PATHS = {
     "failed_test_runs": "default.failed_test_runs",
     "rerun_disabled_tests": "default.rerun_disabled_tests",
     "external_contribution_counts": "misc.external_contribution_stats",
+    "test_data_aggregates": "misc.aggregated_test_metrics",
 }
 
 OBJECT_CONVERTER = {
@@ -375,6 +419,7 @@ OBJECT_CONVERTER = {
     "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
     "default.queue_times_historical": queue_times_historical_adapter,
     "misc.external_contribution_stats": external_contribution_stats_adapter,
+    "misc.aggregated_test_metrics": external_aggregated_test_metrics_adapter,
 }
 
 
