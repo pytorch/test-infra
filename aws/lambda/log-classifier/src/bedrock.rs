@@ -64,36 +64,25 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> Option<String> {
     None
 }
 
-/// Makes a query to an AI model using the provided log snippet.
+/// Makes a query to an AI model using the provided prompt.
 ///
-/// This function creates a log snippet, sends it to two different AI models,
-/// and validates the output. If a valid response is found, it is returned.
+/// This function sends the prompt to two different AI models and validates the output.
+/// If a valid response is found, it is returned.
 ///
 /// # Arguments
 ///
 /// * `log` - A reference to the Log structure containing the full log
-/// * `error_line` - The line number of the error
-/// * `num_lines` - The maximum number of lines to include in the log snippet
+/// * `prompt` - The prompt to send to the AI models
 ///
 /// # Returns
 ///
 /// An Option<String> containing the validated AI response, or None if no valid response was found.
-pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<String> {
+pub async fn make_query(log: &Log, prompt: &str) -> Option<String> {
     let model_id_primary = "anthropic.claude-3-haiku-20240307-v1:0";
     let model_id_secondary = "anthropic.claude-3-5-sonnet-20240620-v1:0";
-    let line_numbers = vec![*error_line];
-
-    let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
-
-    // ensure length is 1 of the log_snippet
-    if log_snippet.len() != 1 {
-        return None;
-    }
-
-    let input_text = log_snippet.first().unwrap();
 
     // Try the primary model
-    let response = make_bedrock_call(&input_text, model_id_primary).await;
+    let response = make_bedrock_call(prompt, model_id_primary).await;
     let validation = validate_output_in_log(
         &response
             .unwrap()
@@ -112,7 +101,7 @@ pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Opti
     }
 
     // If primary model fails, try the secondary model
-    let response = make_bedrock_call(&input_text, model_id_secondary).await;
+    let response = make_bedrock_call(prompt, model_id_secondary).await;
     let validation = validate_output_in_log(
         &response
             .unwrap()
@@ -134,14 +123,13 @@ pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Opti
 }
 
 async fn make_bedrock_call(
-    input_text: &String,
+    prompt: &str,
     model_id: &str,
 ) -> Result<ConverseOutput, SdkError<ConverseError, Response>> {
     let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
     let client = aws_sdk_bedrockruntime::Client::new(&config);
-    let prompt = FIND_ERROR_LINE_PROMPT.replace("{{LOG_SNIPPET}}", input_text);
 
-    let content_block = ContentBlock::Text(prompt);
+    let content_block = ContentBlock::Text(prompt.to_string());
 
     let prompt_message = Message::builder()
         .content(content_block)
@@ -158,6 +146,23 @@ async fn make_bedrock_call(
 
     Ok(response)
 }
+
+// rewri
+
+fn generate_prompt_error_line(log: &Log, error_line: &str, num_lines: usize) -> Option<String> {
+    let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
+
+    // ensure length is 1 of the log_snippet
+    if log_snippet.len() != 1 {
+        return None;
+    }
+
+    let input_text = log_snippet.first().unwrap();
+    let prompt = FIND_ERROR_LINE.replace("{{LOG_SNIPPET}}", input_text);
+    Some(prompt)
+
+}
+
 
 #[cfg(test)]
 mod test {
