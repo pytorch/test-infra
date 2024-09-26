@@ -355,6 +355,28 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
         )
 
 
+def general_adapter(table, bucket, key, schema, compression, format) -> None:
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    def get_insert_query(compression):
+        return f"""
+        insert into {table}
+        select *, ('{bucket}', '{key}') as _meta
+        from s3('{url}', '{format}', '{schema}', '{compression}',
+            extra_credentials(
+                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
+            )
+        )
+        """
+
+    try:
+        get_clickhouse_client().query(get_insert_query(compression))
+    except Exception as e:
+        get_clickhouse_client().query(
+            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+        )
+
+
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
     schema = """
     `avg_duration_in_second` Int64,
@@ -377,47 +399,7 @@ def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
     `workflow_name` String,
     `workflow_run_attempt` Int64
     """
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}') as _meta
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}',
-            extra_credentials(
-                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
-            )
-        )
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
-        )
-
-
-def general_adapter(table, bucket, key, schema, compression, format) -> None:
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}') as _meta
-        from s3('{url}', '{format}', '{schema}', '{compression}',
-            extra_credentials(
-                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
-            )
-        )
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query(compression))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
-        )
+    general_adapter(table, bucket, key, schema, "gzip", "JSONEachRow")
 
 
 def torchao_perf_stats_adapter(table, bucket, key) -> None:
@@ -562,3 +544,21 @@ def remove_document(record: Any) -> None:
     # get_clickhouse_client().query(
     #     f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
     # )
+
+
+if __name__ == "__main__":
+    lambda_handler({
+        "Records": [
+            {
+                "eventName": "ObjectCreated",
+                "s3": {
+                    "bucket": {
+                        "name": "torchci-aggregated-stats",
+                    },
+                    "object": {
+                        "key": "test_data_aggregates/2024-09-25",
+                    },
+                },
+            },
+        ],
+    }, None)
