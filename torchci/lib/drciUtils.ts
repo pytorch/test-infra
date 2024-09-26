@@ -49,6 +49,7 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "/ build",
   "check labels",
 ];
+export const EXCLUDED_FROM_BROKEN_TRUNK = ["lint"];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
 // be relaxed once we achieve better accuracy from the log classifier. This
@@ -408,17 +409,25 @@ export async function isLogClassifierFailed(
   return job.conclusion === "failure" && (!hasFailureLines || !hasLog);
 }
 
-export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
-  // Lintrunner job are generally stable and should be excluded from flakiness
-  // detection
+function isExcluded(job: RecentWorkflowsData, excludedJobs: string[]): boolean {
   return (
     _.find(
-      EXCLUDED_FROM_FLAKINESS,
+      excludedJobs,
       (exclude: string) =>
         job.name !== "" &&
         job.name.toLowerCase().includes(exclude.toLowerCase())
     ) !== undefined
   );
+}
+
+export function isExcludedFromBrokenTrunk(job: RecentWorkflowsData): boolean {
+  // Lintrunner job are generally stable and should be excluded from broken trunk
+  // detection
+  return isExcluded(job, EXCLUDED_FROM_BROKEN_TRUNK);
+}
+
+export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
+  return isExcluded(job, EXCLUDED_FROM_FLAKINESS);
 }
 
 export async function fetchIssueLabels(

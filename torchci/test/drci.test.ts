@@ -75,7 +75,7 @@ const pendingA = getDummyJob({
 });
 
 const failedA = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "failure",
   completed_at: "2022-07-13 19:34:03",
   html_url: "a",
@@ -88,7 +88,7 @@ const failedA = getDummyJob({
 });
 
 const failedASuccessfulRetry = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "success",
   completed_at: "2022-07-14 19:34:03",
   html_url: "a",
@@ -100,7 +100,7 @@ const failedASuccessfulRetry = getDummyJob({
 });
 
 const failedAFailedRetry = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "failure",
   completed_at: "2022-07-15 19:34:03",
   html_url: "a",
@@ -384,10 +384,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
-    const expectedFailureOrder = `* [Lint](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
-    \`mind blown\`
+    const expectedFailureOrder = `
 * [something](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
     \`cde\`
+* [somethingA](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
+    \`mind blown\`
 * [z-docs / build-docs (cpp)](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
     \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
