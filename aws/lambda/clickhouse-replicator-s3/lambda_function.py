@@ -398,6 +398,82 @@ def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
         )
 
 
+def general_adapter(table, bucket, key, schema, compression, format) -> None:
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    def get_insert_query(compression):
+        return f"""
+        insert into {table}
+        select *, ('{bucket}', '{key}') as _meta
+        from s3('{url}', '{format}', '{schema}', '{compression}',
+            extra_credentials(
+                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
+            )
+        )
+        """
+
+    try:
+        get_clickhouse_client().query(get_insert_query(compression))
+    except Exception as e:
+        get_clickhouse_client().query(
+            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+        )
+
+
+def torchao_perf_stats_adapter(table, bucket, key) -> None:
+    schema = """
+    `CachingAutotuner.benchmark_all_configs` String,
+    `GraphLowering.compile_to_module` String,
+    `GraphLowering.run` String,
+    `OutputGraph.call_user_compiler` String,
+    `Scheduler.__init__` String,
+    `Scheduler.codegen` String,
+    `WrapperCodeGen.generate` String,
+    `_compile.<locals>.compile_inner` String,
+    `_compile.compile_inner` String,
+    `abs_latency` String,
+    `accuracy` String,
+    `autograd_captures` String,
+    `autograd_compiles` String,
+    `batch_size` String,
+    `calls_captured` String,
+    `compilation_latency` String,
+    `compile_fx.<locals>.bw_compiler` String,
+    `compile_fx.<locals>.fw_compiler_base` String,
+    `compile_fx_inner` String,
+    `compression_ratio` String,
+    `create_aot_dispatcher_function` String,
+    `cudagraph_skips` String,
+    `dev` String,
+    `dynamo_peak_mem` String,
+    `eager_peak_mem` String,
+    `filename` String,
+    `graph_breaks` String,
+    `head_branch` String,
+    `head_repo` String,
+    `head_sha` String,
+    `job_id` String,
+    `name` String,
+    `run_attempt` String,
+    `runner` String,
+    `speedup` String,
+    `test_name` String,
+    `unique_graph_breaks` String,
+    `unique_graphs` String,
+    `workflow_id` String
+    """
+    general_adapter(table, bucket, key, schema, "none", "CSV")
+
+
+def torchbench_userbenchmark_adapter(table, bucket, key):
+    schema = """
+    `environ` String,
+    `metrics` String,
+    `name` String
+    """
+    general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -408,6 +484,8 @@ SUPPORTED_PATHS = {
     "rerun_disabled_tests": "default.rerun_disabled_tests",
     "external_contribution_counts": "misc.external_contribution_stats",
     "test_data_aggregates": "misc.aggregated_test_metrics",
+    "torchbench-csv/torchao": "benchmark.inductor_torchao_perf_stats",
+    "torchbench-userbenchmark": "benchmark.torchbench_userbenchmark",
 }
 
 OBJECT_CONVERTER = {
@@ -420,6 +498,8 @@ OBJECT_CONVERTER = {
     "default.queue_times_historical": queue_times_historical_adapter,
     "misc.external_contribution_stats": external_contribution_stats_adapter,
     "misc.aggregated_test_metrics": external_aggregated_test_metrics_adapter,
+    "benchmark.inductor_torchao_perf_stats": torchao_perf_stats_adapter,
+    "benchmark.torchbench_userbenchmark": torchbench_userbenchmark_adapter,
 }
 
 
