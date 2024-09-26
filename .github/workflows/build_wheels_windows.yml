@@ -192,6 +192,7 @@ jobs:
           ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
       - name: Smoke Test
         env:
+          ENV_SCRIPT: ${{ inputs.env-script }}
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
