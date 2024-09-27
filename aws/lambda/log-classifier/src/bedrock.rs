@@ -2,6 +2,7 @@ mod prompts;
 
 use crate::engine::get_snippets;
 use crate::log::Log;
+use crate::rule_match::SerializedMatch;
 use aws_config::BehaviorVersion;
 use aws_sdk_bedrockruntime::operation::converse::ConverseError;
 use aws_sdk_bedrockruntime::operation::converse::ConverseOutput;
@@ -12,7 +13,6 @@ use aws_smithy_runtime_api;
 use aws_smithy_runtime_api::client::result::SdkError;
 use aws_smithy_runtime_api::http::Response;
 use prompts::FIND_ERROR_LINE_PROMPT;
-use crate::rule_match::SerializedMatch;
 
 static AWS_BEDROCK_RULE_NAME: &str = "AWS Bedrock";
 
@@ -67,7 +67,11 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> (usize, Option<String>)
     (0, None)
 }
 
-async fn query_model(log: &Log, input_text: &String, model_name: &String) -> Option<SerializedMatch> {
+async fn query_model(
+    log: &Log,
+    input_text: &String,
+    model_name: &String,
+) -> Option<SerializedMatch> {
     // Try the primary model
     let response = make_bedrock_call(input_text, model_name).await;
     let (line_num, validation) = validate_output_in_log(
@@ -109,7 +113,11 @@ async fn query_model(log: &Log, input_text: &String, model_name: &String) -> Opt
 /// # Returns
 ///
 /// An Option<String> containing the validated AI response, or None if no valid response was found.
-pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<SerializedMatch> {
+pub async fn make_query(
+    log: &Log,
+    error_line: &usize,
+    num_lines: usize,
+) -> Option<SerializedMatch> {
     let model_id_primary = String::from("anthropic.claude-3-haiku-20240307-v1:0");
     let model_id_secondary = String::from("anthropic.claude-3-5-sonnet-20240620-v1:0");
     let line_numbers = vec![*error_line];
@@ -125,7 +133,7 @@ pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Opti
     return match query_model(log, &input_text, &model_id_primary).await {
         None => query_model(log, &input_text, &model_id_secondary).await,
         Some(r) => Some(r),
-    }
+    };
 }
 
 async fn make_bedrock_call(
