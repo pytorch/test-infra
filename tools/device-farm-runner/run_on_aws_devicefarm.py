@@ -1,4 +1,4 @@
-#, !/usr/bin/env python3
+# , !/usr/bin/env python3
 
 import datetime
 import logging
@@ -8,10 +8,10 @@ import re
 import string
 import sys
 import time
-from argparse import Action, ArgumentParser
+from argparse import Action, ArgumentParser, Namespace
 from enum import Enum
 from logging import info
-from typing import Any, Dict, List, Optional, Pattern
+from typing import Any, Dict, List, Optional, Pattern, Sequence, Union
 from warnings import warn
 
 import boto3
@@ -43,7 +43,13 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ValidateArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values) and values.endswith(".zip")
         ):
@@ -54,7 +60,13 @@ class ValidateArchive(Action):
 
 
 class ValidateExtraDataArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This parameter is optional and can accept an empty string, or it can be
         # an existing ARN, or a local zip archive to be uploaded to AWS
         if (
@@ -71,7 +83,13 @@ class ValidateExtraDataArchive(Action):
 
 
 class ValidateApp(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This can be a local file or an existing app that has previously been uploaded
         # to AWS
         if values.startswith(AWS_ARN_PREFIX) or (
@@ -87,7 +105,13 @@ class ValidateApp(Action):
 
 
 class ValidateTestSpec(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values)
             and (values.endswith(".yml") or values.endswith(".yaml"))
@@ -251,7 +275,7 @@ def upload_file_to_s3(
 def print_testspec(
     file_name: str,
     indent: int = 0,
-):
+) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
@@ -297,9 +321,7 @@ def print_test_artifacts(
 
             # Additional step to print the test output
             if filetype == "TESTSPEC_OUTPUT":
-                print_testspec(
-                    local_filename, indent + 2
-                )
+                print_testspec(local_filename, indent + 2)
 
     return gathered_artifacts
 
