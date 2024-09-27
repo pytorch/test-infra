@@ -175,7 +175,7 @@ mod test {
         let log = Log::new(log_content.unwrap());
         // Define the error line and number of lines for the snippet
         let error_line = "<error_line>##[error]Process completed with exit code 1.</error_line>";
-        let validation_result = validate_output_in_log(error_line, &log);
+        let (_, validation_result) = validate_output_in_log(error_line, &log);
         // Assert is error_line
         assert_eq!(
             validation_result,
@@ -195,19 +195,21 @@ mod test {
         let error_line_no_tag = "##[error]Process completed with exit code 1.";
         let error_line_partial_tag1 = "<error_line>##[error]Process completed with exit code 1.";
         let error_line_partial_tag2 = "##[error]Process completed with exit code 1.</error_line>";
-        let validation_log_too_long = validate_output_in_log(error_line_too_long, &log);
+        let (_, validation_log_too_long) = validate_output_in_log(error_line_too_long, &log);
         // Assert is validation_log_too_long is None
         assert_eq!(validation_log_too_long, None);
-        let validation_log_too_short = validate_output_in_log(error_line2_too_short, &log);
+        let (_, validation_log_too_short) = validate_output_in_log(error_line2_too_short, &log);
         // Assert is validation_log_too_short is None
         assert_eq!(validation_log_too_short, None);
-        let validation_log_no_tag = validate_output_in_log(error_line_no_tag, &log);
+        let (_, validation_log_no_tag) = validate_output_in_log(error_line_no_tag, &log);
         // Assert is validation_log_no_tag is None
         assert_eq!(validation_log_no_tag, None);
-        let validation_log_partial_tag1 = validate_output_in_log(error_line_partial_tag1, &log);
+        let (_, validation_log_partial_tag1) =
+            validate_output_in_log(error_line_partial_tag1, &log);
         // Assert is validation_log_partial_tag1 is None
         assert_eq!(validation_log_partial_tag1, None);
-        let validation_log_partial_tag2 = validate_output_in_log(error_line_partial_tag2, &log);
+        let (_, validation_log_partial_tag2) =
+            validate_output_in_log(error_line_partial_tag2, &log);
         // Assert is validation_log_partial_tag2 is None
         assert_eq!(validation_log_partial_tag2, None);
     }
