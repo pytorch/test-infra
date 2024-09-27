@@ -45,15 +45,15 @@ async fn handle(
     match maybe_match {
         Some(best_match) => {
             let body: String;
-            let match_json = SerializedMatch::new(&best_match, &log, context_depth);
-            // check if match has the lowest priority in the ruleset
+            let mut match_json = SerializedMatch::new(&best_match, &log, context_depth);
 
+            // check if match has the lowest priority in the ruleset
             if best_match.rule.name == ruleset.rules.last().unwrap().name {
                 // kick off the llm to get the rule
-                let query_result = make_query(&log, &best_match.line_number, 100).await;
-                match query_result {
-                    Some(query_result) => {
-                        body = query_result;
+                match make_query(&log, &best_match.line_number, 100).await {
+                    Some(llm_match_json) => {
+                        body = serde_json::to_string_pretty(&llm_match_json)?;
+                        match_json = llm_match_json;
                     }
                     None => {
                         body = serde_json::to_string_pretty(&match_json)?;

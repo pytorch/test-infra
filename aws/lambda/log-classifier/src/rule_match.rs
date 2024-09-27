@@ -13,12 +13,12 @@ pub struct Match {
 }
 
 /// The actual format that we insert to Rockset.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct SerializedMatch {
-    rule: String,
-    line: String,
-    line_num: usize,
-    captures: Vec<String>,
+    pub rule: String,
+    pub line: String,
+    pub line_num: usize,
+    pub captures: Vec<String>,
     /// The optional context where this failure occurs. This is a free-form
     /// stack of strings that includes the last commands before the failure
     pub context: Vec<String>,
