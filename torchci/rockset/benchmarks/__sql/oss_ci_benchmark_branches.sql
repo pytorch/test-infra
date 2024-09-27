@@ -5,7 +5,7 @@ SELECT
   w.head_sha,
   w.id,
   FORMAT_ISO8601(
-    DATE_TRUNC(: granularity, TIMESTAMP_MILLIS(o.timestamp))
+    DATE_TRUNC('day', TIMESTAMP_MILLIS(o.timestamp))
   ) AS event_time,
   o.filename
 FROM

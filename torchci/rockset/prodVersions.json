@@ -84,7 +84,7 @@
   },
   "inductor": {
     "compilers_benchmark_performance": "442c41fbbc0eb758",
-    "compilers_benchmark_performance_branches": "a07ce298be770d63",
+    "compilers_benchmark_performance_branches": "2d47c0ef6d04d7f1",
     "torchao_query": "89dd8524b4784c7b",
     "torchao_query_branches": "dae2141eab66e839"
   },
@@ -110,7 +110,7 @@
   },
   "benchmarks": {
     "oss_ci_benchmark_llms": "ec0dd4a03918ba0f",
-    "oss_ci_benchmark_branches": "c23c2d736b13edd4",
+    "oss_ci_benchmark_branches": "80fdbef4cf5b8360",
     "oss_ci_benchmark_names": "80824879afbc1c5b"
   }
 }
