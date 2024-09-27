@@ -12,6 +12,9 @@ use aws_smithy_runtime_api;
 use aws_smithy_runtime_api::client::result::SdkError;
 use aws_smithy_runtime_api::http::Response;
 use prompts::FIND_ERROR_LINE_PROMPT;
+use crate::rule_match::SerializedMatch;
+
+static AWS_BEDROCK_RULE_NAME: &str = "AWS Bedrock";
 
 /// Validates and extracts an error line from the AI model output and matches it with the log.
 ///
@@ -32,7 +35,7 @@ use prompts::FIND_ERROR_LINE_PROMPT;
 /// 2. It searches for this extracted content in the log.
 ///
 /// If both steps succeed, it returns the matching log line. Otherwise, it returns None.
-fn validate_output_in_log(ai_output: &str, log: &Log) -> Option<String> {
+fn validate_output_in_log(ai_output: &str, log: &Log) -> (usize, Option<String>) {
     // Extract content between <error_line> tags
     let start_tag = "<error_line>";
     let end_tag = "</error_line>";
@@ -50,18 +53,46 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> Option<String> {
     // If no error line is extracted from AI output, return None
     let error_line = match extracted_error_line {
         Some(line) => line,
-        None => return None,
+        None => return (0, None),
     };
 
     // Search for the extracted error line in the log
-    for (_, log_entry) in log.lines.iter() {
+    for (i, log_entry) in log.lines.iter() {
         if log_entry == &error_line {
-            return Some(log_entry.to_string());
+            return (*i, Some(log_entry.to_string()));
         }
     }
 
     // If no matching line is found in the log, return None
-    None
+    (0, None)
+}
+
+async fn query_model(log: &Log, input_text: &String, model_name: &String) -> Option<SerializedMatch> {
+    // Try the primary model
+    let response = make_bedrock_call(input_text, model_name).await;
+    let (line_num, validation) = validate_output_in_log(
+        &response
+            .unwrap()
+            .output
+            .unwrap()
+            .as_message()
+            .unwrap()
+            .content[0]
+            .as_text()
+            .unwrap()
+            .clone(),
+        &log,
+    );
+    return match validation {
+        None => None,
+        Some(validation) => Some(SerializedMatch {
+            rule: format!("{AWS_BEDROCK_RULE_NAME} {model_name}"),
+            line: validation.clone(),
+            captures: vec![validation.clone()],
+            line_num: line_num,
+            context: vec![],
+        }),
+    };
 }
 
 /// Makes a query to an AI model using the provided log snippet.
@@ -78,9 +109,9 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> Option<String> {
 /// # Returns
 ///
 /// An Option<String> containing the validated AI response, or None if no valid response was found.
-pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<String> {
-    let model_id_primary = "anthropic.claude-3-haiku-20240307-v1:0";
-    let model_id_secondary = "anthropic.claude-3-5-sonnet-20240620-v1:0";
+pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<SerializedMatch> {
+    let model_id_primary = String::from("anthropic.claude-3-haiku-20240307-v1:0");
+    let model_id_secondary = String::from("anthropic.claude-3-5-sonnet-20240620-v1:0");
     let line_numbers = vec![*error_line];
 
     let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
@@ -91,46 +122,10 @@ pub async fn make_query(log: &Log, error_line: &usize, num_lines: usize) -> Opti
     }
 
     let input_text = log_snippet.first().unwrap();
-
-    // Try the primary model
-    let response = make_bedrock_call(&input_text, model_id_primary).await;
-    let validation = validate_output_in_log(
-        &response
-            .unwrap()
-            .output
-            .unwrap()
-            .as_message()
-            .unwrap()
-            .content[0]
-            .as_text()
-            .unwrap()
-            .clone(),
-        &log,
-    );
-    if validation.is_some() {
-        return Some(validation.unwrap());
+    return match query_model(log, &input_text, &model_id_primary).await {
+        None => query_model(log, &input_text, &model_id_secondary).await,
+        Some(r) => Some(r),
     }
-
-    // If primary model fails, try the secondary model
-    let response = make_bedrock_call(&input_text, model_id_secondary).await;
-    let validation = validate_output_in_log(
-        &response
-            .unwrap()
-            .output
-            .unwrap()
-            .as_message()
-            .unwrap()
-            .content[0]
-            .as_text()
-            .unwrap()
-            .clone(),
-        &log,
-    );
-    if validation.is_some() {
-        return Some(validation.unwrap());
-    }
-
-    None
 }
 
 async fn make_bedrock_call(
