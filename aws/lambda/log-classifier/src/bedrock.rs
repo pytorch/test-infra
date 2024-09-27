@@ -93,7 +93,7 @@ async fn query_model(
             rule: format!("{AWS_BEDROCK_RULE_NAME} {model_name}"),
             line: validation.clone(),
             captures: vec![validation.clone()],
-            line_num: line_num,
+            line_num,
             context: vec![],
         }),
     };
