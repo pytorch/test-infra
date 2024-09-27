@@ -112,7 +112,8 @@ async fn query_model(
 ///
 /// # Returns
 ///
-/// An Option<String> containing the validated AI response, or None if no valid response was found.
+/// An Option<String> containing the validated AI response and its line number
+/// in the logs, or None if no valid response was found.
 pub async fn make_query(
     log: &Log,
     error_line: &usize,
