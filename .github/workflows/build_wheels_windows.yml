@@ -202,10 +202,10 @@ jobs:
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
-            ${CONDA_RUN} ${ENV_SCRIPT} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+            ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            ${CONDA_RUN} ${ENV_SCRIPT} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+            ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
