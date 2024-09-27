@@ -1,2 +1,0 @@
-clickhouse-connect==0.7.16
-pytest==7.4.0

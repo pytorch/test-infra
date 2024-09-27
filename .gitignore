@@ -136,4 +136,4 @@ docs/_build/
 aws/lambda/log-classifier/data/dataset/
 
 # Generated file
-/aws/lambda/clickhouse-replicator-dynamo/generated_query.sql
+/aws/lambda/clickhouse-replicator-dynamo-test/generated_query.sql
