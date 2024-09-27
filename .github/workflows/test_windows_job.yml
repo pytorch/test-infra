@@ -25,7 +25,7 @@ jobs:
   test-gpu:
     uses: ./.github/workflows/windows_job.yml
     with:
-      runner: windows.8xlarge.nvidia.gpu
+      runner: windows.g4dn.xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: ${{ 'true' }}
