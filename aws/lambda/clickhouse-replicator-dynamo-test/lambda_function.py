@@ -17,7 +17,7 @@ CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 SUPPORTED_TABLES = {
-    "torchci-workflow-job": "default.workflow_job",
+    "torchci-workflow-job": "fortesting.workflow_job",
     "torchci-workflow-run": "default.workflow_run",
     "torchci-push": "default.push",
     "torchci-pull-request": "default.pull_request",
