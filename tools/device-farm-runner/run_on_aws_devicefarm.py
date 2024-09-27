@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#, !/usr/bin/env python3
 
 import datetime
 import logging
@@ -27,7 +27,6 @@ AWS_REGION = "us-west-2"
 AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
 AWS_ARN_PREFIX = "arn:aws:devicefarm:"
 DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID}"
-TEST_SPEC_OUTPUT_HIGHLIGHT_HINT = re.compile(r"^\[PyTorch\] .*$")
 
 
 # Device Farm report type
@@ -249,20 +248,17 @@ def upload_file_to_s3(
     )
 
 
-def print_highlights(
+def print_testspec(
     file_name: str,
-    highlight: Pattern,
     indent: int = 0,
 ):
     """
     The test spec output from AWS Device Farm is the main output of the test job.
-    It's a bit too verbose, so this is a workaround to print only the relevant
-    parts
     """
+    info("::group::Test output")
     with open(file_name) as f:
-        for line in f:
-            if re.match(highlight, line):
-                info(f"{' ' * indent}{line.strip()}")
+        info(f.read())
+    info("::endgroup::")
 
 
 def print_test_artifacts(
@@ -299,10 +295,10 @@ def print_test_artifacts(
             )
             gathered_artifacts.append(artifact)
 
-            # Additional step to print highlights from the test output
+            # Additional step to print the test output
             if filetype == "TESTSPEC_OUTPUT":
-                print_highlights(
-                    local_filename, TEST_SPEC_OUTPUT_HIGHLIGHT_HINT, indent + 2
+                print_testspec(
+                    local_filename, indent + 2
                 )
 
     return gathered_artifacts
@@ -556,9 +552,10 @@ def main() -> None:
         warn(f"Failed to run {unique_prefix}: {error}")
         sys.exit(1)
     finally:
-        print_report(
+        artifacts = print_report(
             client, r.get("run"), ReportType.RUN, workflow_id, workflow_attempt
         )
+        print(artifacts)
 
     if not is_success(result):
         sys.exit(1)

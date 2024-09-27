@@ -273,6 +273,7 @@ jobs:
         run: |
           set -ex
 
+          echo "::group::Running iOS tests"
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --device-pool-arn "${DEVICE_POOL_ARN}" \
@@ -283,6 +284,7 @@ jobs:
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
             --workflow-attempt "${RUN_ATTEMPT}"
+          echo "::endgroup::"
 
       - name: Run Android tests on devices
         if: ${{ inputs.device-type == 'android' }}
@@ -303,6 +305,7 @@ jobs:
         run: |
           set -ex
 
+          echo "::group::Running Android tests"
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --device-pool-arn "${DEVICE_POOL_ARN}" \
@@ -313,3 +316,4 @@ jobs:
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
             --workflow-attempt "${RUN_ATTEMPT}"
+          echo "::endgroup::"
