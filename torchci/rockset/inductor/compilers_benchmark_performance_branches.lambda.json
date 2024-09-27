@@ -12,11 +12,6 @@
       "value": "amp"
     },
     {
-      "name": "granularity",
-      "type": "string",
-      "value": "day"
-    },
-    {
       "name": "mode",
       "type": "string",
       "value": "training"

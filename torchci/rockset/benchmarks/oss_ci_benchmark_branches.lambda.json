@@ -12,11 +12,6 @@
       "value": ""
     },
     {
-      "name": "granularity",
-      "type": "string",
-      "value": "day"
-    },
-    {
       "name": "repo",
       "type": "string",
       "value": "pytorch/pytorch"

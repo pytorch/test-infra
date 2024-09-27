@@ -1,6 +1,5 @@
 import { Stack, Typography } from "@mui/material";
 import { SHA_DISPLAY_LENGTH } from "components/benchmark/common";
-import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
 import { ReactNode } from "react";
 
@@ -27,8 +26,7 @@ export function CommitPanel({
         >
           {lBranchAndCommit.commit.substring(0, SHA_DISPLAY_LENGTH)}
         </a>{" "}
-        on {dayjs(lBranchAndCommit.date).format("YYYY/MM/DD")} comparing with{" "}
-        {rBranchAndCommit.branch} branch at commit{" "}
+        comparing with {rBranchAndCommit.branch} branch at commit{" "}
         <a
           href={`/${repoName}/commit/${rBranchAndCommit.commit}#${workflowName}`}
         >
