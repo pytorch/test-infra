@@ -283,15 +283,16 @@ def set_output(name: str, val: Any) -> None:
 
 
 def print_testspec(
+    report_name: str,
     file_name: str,
     indent: int = 0,
 ) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
-    print("::group::Test output")
+    print(f"::group::{report_name} test output")
     with open(file_name) as f:
-        info(f.read())
+        print(f.read())
     print("::endgroup::")
 
 
@@ -342,7 +343,7 @@ def print_test_artifacts(
 
             # Additional step to print the test output
             if filetype == "TESTSPEC_OUTPUT":
-                print_testspec(local_filename, indent + 2)
+                print_testspec(report_name, local_filename, indent + 2)
 
     return gathered_artifacts
 

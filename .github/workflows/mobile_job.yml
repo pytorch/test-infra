@@ -92,14 +92,23 @@ on:
         type: string
         default: ''
 
+    outputs:
+      artifacts:
+        description: |
+          The list of artifacts from AWS in JSON format returned to the caller
+        type: string
+        value: ${{ jobs.mobile.outputs.artifacts }}
+
 jobs:
-  job:
+  mobile:
     name: ${{ inputs.job-name }} (${{ inputs.device-type }})
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout }}
     permissions:
       id-token: write
       contents: read
+    outputs:
+      artifacts: ${{ inputs.device-type == 'ios' && steps.ios-test.outputs.artifacts || input.device-types == 'android' && steps.android-test.outputs.artifacts || '[]' }}
     steps:
       - name: Clean workspace
         run: |
@@ -255,6 +264,7 @@ jobs:
           echo "extra-data-output=${EXTRA_DATA_OUTPUT}" >> "${GITHUB_OUTPUT}"
 
       - name: Run iOS tests on devices
+        id: ios-test
         if: ${{ inputs.device-type == 'ios' }}
         shell: bash
         working-directory: test-infra/tools/device-farm-runner
@@ -273,7 +283,6 @@ jobs:
         run: |
           set -ex
 
-          echo "::group::Running iOS tests"
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --device-pool-arn "${DEVICE_POOL_ARN}" \
@@ -284,9 +293,9 @@ jobs:
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
             --workflow-attempt "${RUN_ATTEMPT}"
-          echo "::endgroup::"
 
       - name: Run Android tests on devices
+        id: android-test
         if: ${{ inputs.device-type == 'android' }}
         shell: bash
         working-directory: test-infra/tools/device-farm-runner
@@ -305,7 +314,6 @@ jobs:
         run: |
           set -ex
 
-          echo "::group::Running Android tests"
           ${CONDA_RUN} python run_on_aws_devicefarm.py \
             --project-arn "${PROJECT_ARN}" \
             --device-pool-arn "${DEVICE_POOL_ARN}" \
@@ -316,4 +324,3 @@ jobs:
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
             --workflow-attempt "${RUN_ATTEMPT}"
-          echo "::endgroup::"
