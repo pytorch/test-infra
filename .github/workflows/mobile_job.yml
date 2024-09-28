@@ -96,7 +96,6 @@ on:
       artifacts:
         description: |
           The list of artifacts from AWS in JSON format returned to the caller
-        type: string
         value: ${{ jobs.mobile.outputs.artifacts }}
 
 jobs:
@@ -108,7 +107,7 @@ jobs:
       id-token: write
       contents: read
     outputs:
-      artifacts: ${{ inputs.device-type == 'ios' && steps.ios-test.outputs.artifacts || input.device-types == 'android' && steps.android-test.outputs.artifacts || '[]' }}
+      artifacts: ${{ inputs.device-type == 'ios' && steps.ios-test.outputs.artifacts || inputs.device-type == 'android' && steps.android-test.outputs.artifacts || '[]' }}
     steps:
       - name: Clean workspace
         run: |

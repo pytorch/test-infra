@@ -38,8 +38,6 @@ class ReportType(Enum):
 
 
 DEVICE_FARM_BUCKET = "gha-artifacts"
-DYNAMODB_BENCHMARK_DB = "benchmark"
-DYNAMODB_BENCHMARK_TABLE = "oss_ci_benchmark_v2"
 
 logging.basicConfig(level=logging.INFO)
 
