@@ -281,7 +281,7 @@ def set_output(name: str, val: Any) -> None:
 
 
 def print_testspec(
-    report_name: str,
+    report_name: Optional[str],
     file_name: str,
     indent: int = 0,
 ) -> None:
@@ -299,7 +299,7 @@ def print_test_artifacts(
     test_arn: str,
     workflow_id: str,
     workflow_attempt: int,
-    report_name: str,
+    report_name: Optional[str],
     indent: int = 0,
 ) -> List[Dict[str, str]]:
     """
@@ -349,7 +349,8 @@ def print_test_artifacts(
 def print_report(
     client: Any,
     report: Dict[str, Any],
-    rtype: ReportType,
+    report_name: Optional[str],
+    report_type: ReportType,
     workflow_id: str,
     workflow_attempt: int,
     indent: int = 0,
@@ -363,37 +364,42 @@ def print_report(
         return []
 
     name = report["name"]
+    # Keep the top-level report name as the name of the whole test report, this
+    # is used to connect all artifacts from one report together
+    if not report_name:
+        report_name = name
     result = report["result"]
 
     extra_msg = ""
-    if rtype == ReportType.SUITE or is_success(result):
+    if report_type == ReportType.SUITE or is_success(result):
         counters = report["counters"]
         extra_msg = f"with stats {counters}"
 
     info(f"{' ' * indent}{name} {result} {extra_msg}")
 
     arn = report["arn"]
-    if rtype == ReportType.RUN:
+    if report_type == ReportType.RUN:
         more_reports = client.list_jobs(arn=arn)
-        next_rtype = ReportType.JOB
-    elif rtype == ReportType.JOB:
+        next_report_type = ReportType.JOB
+    elif report_type == ReportType.JOB:
         more_reports = client.list_suites(arn=arn)
-        next_rtype = ReportType.SUITE
-    elif rtype == ReportType.SUITE:
+        next_report_type = ReportType.SUITE
+    elif report_type == ReportType.SUITE:
         more_reports = client.list_tests(arn=arn)
-        next_rtype = ReportType.TEST
-    elif rtype == ReportType.TEST:
+        next_report_type = ReportType.TEST
+    elif report_type == ReportType.TEST:
         return print_test_artifacts(
-            client, arn, workflow_id, workflow_attempt, name, indent + 2
+            client, arn, workflow_id, workflow_attempt, report_name, indent + 2
         )
 
     artifacts = []
-    for more_report in more_reports.get(f"{next_rtype.value}s", []):
+    for more_report in more_reports.get(f"{next_report_type.value}s", []):
         artifacts.extend(
             print_report(
                 client,
                 more_report,
-                next_rtype,
+                report_name,
+                next_report_type,
                 workflow_id,
                 workflow_attempt,
                 indent + 2,
@@ -595,7 +601,7 @@ def main() -> None:
         sys.exit(1)
     finally:
         artifacts = print_report(
-            client, r.get("run"), ReportType.RUN, workflow_id, workflow_attempt
+            client, r.get("run"), None, ReportType.RUN, workflow_id, workflow_attempt
         )
         set_output("artifacts", json.dumps(artifacts))
 
