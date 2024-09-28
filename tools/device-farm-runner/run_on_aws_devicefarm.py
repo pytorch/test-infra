@@ -1,17 +1,17 @@
-# , !/usr/bin/env python3
+#!/usr/bin/env python3
 
+import json
 import datetime
 import logging
 import os
 import random
-import re
 import string
 import sys
 import time
 from argparse import Action, ArgumentParser, Namespace
 from enum import Enum
 from logging import info
-from typing import Any, Dict, List, Optional, Pattern, Sequence, Union
+from typing import Any, Dict, List, Optional
 from warnings import warn
 
 import boto3
@@ -38,6 +38,8 @@ class ReportType(Enum):
 
 
 DEVICE_FARM_BUCKET = "gha-artifacts"
+DYNAMODB_BENCHMARK_DB = "benchmark"
+DYNAMODB_BENCHMARK_TABLE = "oss_ci_benchmark_v2"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -272,6 +274,14 @@ def upload_file_to_s3(
     )
 
 
+def set_output(name: str, val: Any) -> None:
+    if os.getenv("GITHUB_OUTPUT"):
+        with open(str(os.getenv("GITHUB_OUTPUT")), "a") as env:
+            print(f"{name}={val}", file=env)
+    else:
+        print(f"::set-output name={name}::{val}")
+
+
 def print_testspec(
     file_name: str,
     indent: int = 0,
@@ -279,14 +289,19 @@ def print_testspec(
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
-    info("::group::Test output")
+    print("::group::Test output")
     with open(file_name) as f:
         info(f.read())
-    info("::endgroup::")
+    print("::endgroup::")
 
 
 def print_test_artifacts(
-    client: Any, test_arn: str, workflow_id: str, workflow_attempt: int, indent: int = 0
+    client: Any,
+    test_arn: str,
+    workflow_id: str,
+    workflow_attempt: int,
+    report_name: str,
+    indent: int = 0,
 ) -> List[Dict[str, str]]:
     """
     Return all artifacts from this specific test. There are 3 types of artifacts
@@ -313,10 +328,16 @@ def print_test_artifacts(
                 s3_key,
             )
 
+            s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+            artifact["s3_url"] = s3_url
+
             info(
                 f"{' ' * indent}Saving {artifact_type} {filename}.{extension} ({filetype}) "
-                + f"at https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+                + f"at {s3_url}"
             )
+
+            # Some more metadata to identify where the artifact comes from
+            artifact["report_name"] = report_name
             gathered_artifacts.append(artifact)
 
             # Additional step to print the test output
@@ -364,7 +385,7 @@ def print_report(
         next_rtype = ReportType.TEST
     elif rtype == ReportType.TEST:
         return print_test_artifacts(
-            client, arn, workflow_id, workflow_attempt, indent + 2
+            client, arn, workflow_id, workflow_attempt, name, indent + 2
         )
 
     artifacts = []
@@ -577,7 +598,7 @@ def main() -> None:
         artifacts = print_report(
             client, r.get("run"), ReportType.RUN, workflow_id, workflow_attempt
         )
-        print(artifacts)
+        set_output("artifacts", json.dumps(artifacts))
 
     if not is_success(result):
         sys.exit(1)
