@@ -99,6 +99,8 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
         ) as {name}
         """
 
+    # Cannot use general_adapter due to custom field for now()::DateTime64(9)
+    # time_inserted
     query = f"""
     insert into {table}
     select
@@ -158,14 +160,7 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
     try:
         get_clickhouse_client().query(query)
     except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def rerun_disabled_tests_adapter(table, bucket, key):
@@ -198,7 +193,21 @@ def handle_test_run_summary(table, bucket, key) -> None:
     `workflow_id` Int64,
     `workflow_run_attempt` Int64
     """
-    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    # Cannot use general_adapter due to custom field for now()::DateTime64(9)
+    def get_insert_query(compression):
+        return f"""
+        insert into {table} SETTINGS async_insert=1, wait_for_async_insert=1
+        select *, ('{bucket}', '{key}'), now()::DateTime64(9)
+        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
+        """
+
+    try:
+        get_clickhouse_client().query(get_insert_query("gzip"))
+    except Exception as e:
+        log_failure_to_clickhouse(table, bucket, key, e)
+
 
 def merges_adapter(table, bucket, key) -> None:
     schema = """
@@ -236,19 +245,7 @@ def merge_bases_adapter(table, bucket, key) -> None:
     `sha` String
     """
 
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except:
-        get_clickhouse_client().query(get_insert_query("none"))
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 
 def queue_times_historical_adapter(table, bucket, key) -> None:
@@ -269,6 +266,18 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
     `users` Array(String)
     """
     general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
+
+
+def log_failure_to_clickhouse(table, bucket, key, error) -> None:
+    error = {
+        "table": table,
+        "bucket": bucket,
+        "key": key,
+        "reason": str(error),
+    }
+    get_clickhouse_client().query(
+        f"insert into errors.gen_errors format JSONEachRow {json.dumps(error)}"
+    )
 
 
 def general_adapter(table, bucket, key, schema, compressions, format) -> None:
@@ -295,16 +304,7 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
                 exceptions.append(e)
         raise Exception(f"Failed to insert into {table} with {exceptions}")
     except Exception as e:
-        error = {
-            "table": table,
-            "bucket": bucket,
-            "key": key,
-            "reason": str(e),
-        }
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors format JSONEachRow {json.dumps(error)}"
-        )
-        print("here")
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:

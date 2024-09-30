@@ -25,7 +25,9 @@ from prefetch_generator import BackgroundGenerator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(REPO_ROOT))
-lambda_function = importlib.import_module("aws.lambda.clickhouse-replicator-s3.lambda_function")
+lambda_function = importlib.import_module(
+    "aws.lambda.clickhouse-replicator-s3.lambda_function"
+)
 sys.path.pop()
 
 
@@ -107,6 +109,8 @@ def scan_s3_bucket(bucket: str, prefix: str, last_evaluated_key: Optional[str] =
 
 
 ADAPTERS = lambda_function.OBJECT_CONVERTER
+
+
 def wait_for_async_and_save(
     async_res, stored_data_file, last_evaluated_key, item_count, stored_data
 ) -> None:
