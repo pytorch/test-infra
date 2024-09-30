@@ -105,5 +105,5 @@ if __name__ == "__main__":
         download_artifacts_from_sha(args.commit, args.repo)
         print(f"Saved to {REPO_ROOT / '_logs' / 'artifacts' / args.commit}")
     else:
-        download_log(args.commit)
+        download_logs_to_dir(args.commit)
         print(f"Saved to {REPO_ROOT / '_logs' / 'ci_logs' / args.commit}")
