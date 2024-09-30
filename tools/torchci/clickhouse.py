@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Any, Dict, List
 
 import clickhouse_connect
-from torchci.utils import REPO_ROOT, cache_json
+from torchci.utils import cache_json, REPO_ROOT
 
 
 @lru_cache(maxsize=1)
@@ -37,22 +37,28 @@ def query_clickhouse_saved(queryName: str, inputParams: Dict[str, Any]) -> Any:
     return query_clickhouse(queryText, queryParams)
 
 
-def query_clickhouse(query: str, params: Dict[str, Any], use_cache: bool = False) -> Any:
+def query_clickhouse(
+    query: str, params: Dict[str, Any], use_cache: bool = False
+) -> Any:
     """
     Queries ClickHouse.  Returns datetime in YYYY-MM-DD HH:MM:SS format.
     """
+
     def convert_to_json_list(res: str) -> List[Dict[str, Any]]:
         rows = []
         for row in res.decode().split("\n"):
             if row:
                 rows.append(json.loads(row))
         return rows
+
     if not use_cache:
         res = get_clickhouse_client().raw_query(query, params, fmt="JSONEachRow")
         return convert_to_json_list(res)
     else:
+
         @cache_json
         def cache_query_clickhouse(query, params):
             res = get_clickhouse_client().raw_query(query, params, fmt="JSONEachRow")
             return convert_to_json_list(res)
+
         return cache_query_clickhouse(query, params)
