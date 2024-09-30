@@ -105,6 +105,10 @@ runs:
         # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
         # to ignore because we already have the later green commit in visable/strict
         push_result=$(git push origin "${LATEST_VIABLE_SHA}:${STABLE_BRANCH}" 2>&1 || true)
-        echo "push_result=$push_result" >> "${GITHUB_OUTPUT}"
+        {
+          echo 'push_result<<EOF'
+          echo $push_result
+          echo EOF
+        } >> "${GITHUB_OUTPUT}"
         echo "${push_result}"
         echo "time=$(date +%s)" >> "${GITHUB_OUTPUT}"
