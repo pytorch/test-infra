@@ -11,7 +11,6 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
 import useSWR from "swr";
@@ -84,7 +83,7 @@ function Graphs({
   filter,
   toggleFilter,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: {};
   granularity: Granularity;
   ttsPercentile: number;
   checkboxRef: any;
@@ -107,7 +106,7 @@ function Graphs({
 
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
-  const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -130,13 +129,13 @@ function Graphs({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
-  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
+  let startTime = (queryParams as any)["startTime"];
+  let stopTime = (queryParams as any)["stopTime"];
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset
-  startTime = dayjs(startTime).startOf(granularity);
-  stopTime = dayjs(stopTime).endOf(granularity);
+  startTime = dayjs.utc(startTime).startOf(granularity);
+  stopTime = dayjs.utc(stopTime).endOf(granularity);
 
   const tts_true_series = seriesWithInterpolatedTimes(
     data,
@@ -232,43 +231,14 @@ export default function Page() {
     setFilter(next);
   }
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "percentile",
-      type: "float",
-      value: ttsPercentile,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: branch,
-    },
-    {
-      name: "workflowNames",
-      type: "string",
-      value: SUPPORTED_WORKFLOWS.join(","),
-    },
-  ];
+  const queryParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    granularity: granularity,
+    percentile: ttsPercentile,
+    branch: branch,
+    workflowNames: SUPPORTED_WORKFLOWS,
+  };
 
   const checkboxRef = useCallback(() => {
     const selectedJob = document.getElementById(jobName);
