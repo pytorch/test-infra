@@ -6,10 +6,12 @@ using screen/tmux.
 
 import datetime
 from functools import lru_cache
-import gzip
+import importlib
 import json
 from multiprocessing import Pool
 import os
+from pathlib import Path
+import sys
 import time
 from argparse import ArgumentParser
 from typing import Any, Optional
@@ -20,6 +22,11 @@ import boto3
 import clickhouse_connect
 import line_profiler
 from prefetch_generator import BackgroundGenerator
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(REPO_ROOT))
+lambda_function = importlib.import_module("aws.lambda.clickhouse-replicator-s3.lambda_function")
+sys.path.pop()
 
 
 CLICKHOUSE_ENDPOINT = os.environ.get("CLICKHOUSE_ENDPOINT", "localhost")
@@ -99,224 +106,7 @@ def scan_s3_bucket(bucket: str, prefix: str, last_evaluated_key: Optional[str] =
         yield obj.key
 
 
-def upload_to_clickhouse(records, table):
-    body = ""
-    for record in records:
-        body += json.dumps(record) + "\n"
-    # Async insert to maybe make insertions more efficient on the ClickHouse side
-    # https://clickhouse.com/docs/en/cloud/bestpractices/asynchronous-inserts
-    get_clickhouse_client().query(
-        f"INSERT INTO `{table}`  SETTINGS async_insert=1, wait_for_async_insert=1  FORMAT JSONEachRow {body}"
-    )
-
-
-def clean_up_query(query):
-    # Good for printing the query for debugging purposes
-    return " ".join([line.strip() for line in query.split("\n")])
-
-
-def handle_test_run_s3(bucket, key, table):
-    def get_sys_err_out_parser(name):
-        # system-err and system-out generally have either the format:
-        # Tuple(text String) or Array(Tuple(text String))
-        # This function returns a query that will parse out the text field into an array of strings
-        return f"""
-        if(
-            JSONArrayLength(`{name}`) is null,
-            if(
-                JSONHas(`{name}`, 'text'),
-                array(JSONExtractString(`{name}`, 'text')),
-                [ ]
-            ),
-            JSONExtractArrayRaw(JSON_QUERY(`{name}`, '$[*].text'))
-        ) as `{name}`
-        """
-
-    def get_skipped_failure_parser_helper(name, type, field_to_check_for_existence):
-        # skipped and failure generally have either the format:
-        # Tuple(stuff) or Array(Tuple(stuff)).
-        # The stuff varies. The type input should be the string `Tuple(stuff)`
-        # The field_to_check_for_existence is the field that is checked to see
-        # if the skip/rerun exists or if it should be an empty array.  It is a
-        # dictionary key in the tuple
-        return f"""
-        if(
-            JSONArrayLength({name}) is null,
-            if(
-                JSONHas({name}, '{field_to_check_for_existence}'),
-                array(
-                    JSONExtract(
-                        {name},
-                        '{type}'
-                    )
-                ),
-                [ ]
-            ),
-            JSONExtract(
-                {name},
-                'Array({type})'
-            )
-        ) as {name}
-        """
-
-    query = f"""
-    insert into {table}
-    select
-        classname,
-        duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'type')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'type')},
-        file,
-        invoking_file,
-        job_id,
-        line::Int64,
-        name,
-        properties,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'type')},
-        result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'type')},
-        status,
-        {get_sys_err_out_parser('system-err')},
-        {get_sys_err_out_parser('system-out')},
-        time,
-        time_inserted,
-        type_param,
-        value_param,
-        workflow_id,
-        workflow_run_attempt,
-        ('{bucket}', '{key}')
-    from
-        s3(
-            'https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}',
-            'JSONEachRow',
-            '
-            `classname` String,
-            `duration` Float32,
-            `error` String,
-            `failure` String,
-            `file` String,
-            `invoking_file` String,
-            `job_id` Int64,
-            `line` Float32,
-            `name` String,
-            `properties` Tuple(property Tuple(name String, value String)),
-            `rerun` String,
-            `result` String,
-            `skipped` String,
-            `status` String,
-            `system-err` String,
-            `system-out` String,
-            `time` Float32,
-            `time_inserted` DateTime64(9),
-            `type_param` String,
-            `value_param` String,
-            `workflow_id` Int64,
-            `workflow_run_attempt` Int32',
-            'gzip'
-        )
-    """
-    query = clean_up_query(query)
-    try:
-        get_clickhouse_client().query(query)
-    except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
-
-
-def merge_bases_adapter(bucket, key, table):
-    schema = """
-    `changed_files` Array(String),
-    `merge_base` String,
-    `merge_base_commit_date` DateTime64(3),
-    `repo` String,
-    `sha` String
-    """
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except:
-        get_clickhouse_client().query(get_insert_query("none"))
-
-
-def queue_times_historical_adapter(bucket, key, table):
-    schema = """
-    `avg_queue_s` Int64,
-    `machine_type` String,
-    `count` Int64,
-    `time` DateTime64(9)
-    """
-
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except:
-        get_clickhouse_client().query(get_insert_query("none"))
-
-
-def rerun_disabled_tests_adapter(bucket, key, table):
-    schema = """
-    `classname` String,
-    `filename` String,
-    `flaky` Bool,
-    `name` String,
-    `num_green` Int64,
-    `num_red` Int64,
-    `workflow_id` Int64,
-    `workflow_run_attempt` Int64
-    """
-
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
-
-
-ADAPTERS = {
-    "failed_test_runs": handle_test_run_s3,
-    "rerun_disabled_tests": rerun_disabled_tests_adapter,
-    "merge_bases": merge_bases_adapter,
-    "queue_times_historical_2": queue_times_historical_adapter,
-}
-
-
+ADAPTERS = lambda_function.OBJECT_CONVERTER
 def wait_for_async_and_save(
     async_res, stored_data_file, last_evaluated_key, item_count, stored_data
 ) -> None:
@@ -385,7 +175,7 @@ def backfill_s3(
 
         async_res.append(
             pool.apply_async(
-                ADAPTERS[clickhouse_table], args=(bucket, key, clickhouse_table)
+                ADAPTERS[clickhouse_table], args=(clickhouse_table, bucket, key)
             )
         )
 
