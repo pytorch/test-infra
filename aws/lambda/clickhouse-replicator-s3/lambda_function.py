@@ -391,7 +391,7 @@ def torchbench_userbenchmark_adapter(table, bucket, key):
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
-    "test_run": "fortesting.test_run_s3",
+    "test_run": "default.test_run_s3",
     "test_run_summary": "default.test_run_summary",
     "merge_bases": "default.merge_bases",
     "failed_test_runs": "default.failed_test_runs",
@@ -404,7 +404,7 @@ SUPPORTED_PATHS = {
 
 OBJECT_CONVERTER = {
     "default.merges": merges_adapter,
-    "fortesting.test_run_s3": handle_test_run_s3,
+    "default.test_run_s3": handle_test_run_s3,
     "default.failed_test_runs": handle_test_run_s3,
     "default.test_run_summary": handle_test_run_summary,
     "default.merge_bases": merge_bases_adapter,
