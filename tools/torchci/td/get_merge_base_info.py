@@ -20,25 +20,21 @@ SELECT
     DISTINCT j.head_sha as head_sha
 FROM
     default.failed_test_runs t
-    join default.workflow_job j final on t.job_id = j.id
-    left outer join default.merge_bases mb on j.head_sha = mb.sha
+    join default.workflow_job j on t.job_id = j.id
+    left anti join default.merge_bases mb on j.head_sha = mb.sha
 where
-    mb.merge_base = ''
-    and j.completed_at > CURRENT_TIMESTAMP() - interval 90 day
+    t.time_inserted > CURRENT_TIMESTAMP() - interval 90 days
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
-with searching_for as (
-    SELECT arrayJoin({shas: Array(String)}) AS sha
+with shas as (
+    select arrayJoin({shas: Array(String)}) as sha
 )
 select
     s.sha as head_sha
 from
-    searching_for s
-    left join default.merge_bases mb on mb.sha = s.sha
-where
-    mb.sha = ''
-    or mb.repo = ''
+    shas
+    left anti join default.merge_bases mb on mb.sha = shas.sha
 """
 
 
@@ -104,7 +100,9 @@ def upload_merge_base_info(shas: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    failed_test_shas = [x["head_sha"] for x in query_clickhouse(FAILED_TEST_SHAS_QUERY, {})]
+    failed_test_shas = [
+        x["head_sha"] for x in query_clickhouse(FAILED_TEST_SHAS_QUERY, {})
+    ]
     interval = 100
     print(
         f"There are {len(failed_test_shas)} shas, uploading in intervals of {interval}"
