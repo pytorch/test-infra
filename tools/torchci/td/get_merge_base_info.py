@@ -33,7 +33,7 @@ with shas as (
 select
     s.sha as head_sha
 from
-    shas
+    shas s
     left anti join default.merge_bases mb on mb.sha = shas.sha
 """
 
@@ -85,16 +85,17 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 "repo": "pytorch/pytorch",
                 "_id": f"pytorch-pytorch-{sha}",
             }
-            body = io.StringIO()
-            json.dump(data, body)
-            S3_RESOURCE.Object(
-                f"ossci-raw-job-status",
-                f"merge_bases/pytorch/pytorch/{sha}.gzip",
-            ).put(
-                Body=gzip.compress(body.getvalue().encode()),
-                ContentEncoding="gzip",
-                ContentType="application/json",
-            )
+            print(data)
+            # body = io.StringIO()
+            # json.dump(data, body)
+            # S3_RESOURCE.Object(
+            #     f"ossci-raw-job-status",
+            #     f"merge_bases/pytorch/pytorch/{sha}.gzip",
+            # ).put(
+            #     Body=gzip.compress(body.getvalue().encode()),
+            #     ContentEncoding="gzip",
+            #     ContentType="application/json",
+            # )
         except Exception as e:
             return e
 
