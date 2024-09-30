@@ -1,6 +1,6 @@
 import json
 
-from torchci.rockset_utils import query_rockset
+from torchci.clickhouse import query_clickhouse
 
 from torchci.td.utils import (
     calculate_generic_test_ratings,
@@ -17,11 +17,11 @@ SELECT
     t.file,
     j.head_sha,
 FROM
-    commons.failed_tests_run t
-    join workflow_job j on t.job_id = j.id
+    default.failed_test_runs t
+    join default.workflow_job j final on t.job_id = j.id
 where
     t.file is not null
-    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
+    and t.time_inserted > CURRENT_TIMESTAMP() - interval 90 day
 """
 
 
@@ -33,7 +33,7 @@ def extract_test_class_name(test_row):
 
 
 def main() -> None:
-    failed_tests = query_rockset(FAILED_TESTS_QUERY)
+    failed_tests = query_clickhouse(FAILED_TESTS_QUERY, {})
     print("done querying rockset", flush=True)
 
     merge_bases = get_merge_bases_dict()
