@@ -5,6 +5,7 @@ on:
   schedule:
     # At 15:10 (8:10 AM PST) on Monday
     - cron: 10 15 * * 1
+  push:
 
 jobs:
   revert_printer:
@@ -25,7 +26,7 @@ jobs:
       - id: generate-reverts-file
         run: |
           cd test-infra/tools
-          python3 -m pip install rockset==1.0.3
+          python3 -m pip install clickhouse-connect==0.7.16
           python3 -m torchci.reverts
           echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:
