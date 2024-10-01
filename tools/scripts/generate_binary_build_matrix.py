@@ -496,6 +496,7 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+        python_versions += ["3.13"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
