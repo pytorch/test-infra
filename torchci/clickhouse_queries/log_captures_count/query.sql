@@ -1,6 +1,6 @@
 with jobs as (
     select
-        j.torchci_classification.line as example,
+        j.torchci_classification.line as line,
         j.torchci_classification.captures as captures,
         j.run_id
     from
@@ -14,7 +14,7 @@ with jobs as (
 )
 select
     COUNT(*) as num,
-    any(example) as example,
+    any(line) as example,
     captures as captures
 from
     jobs j
