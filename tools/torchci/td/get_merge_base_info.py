@@ -85,17 +85,16 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 "repo": "pytorch/pytorch",
                 "_id": f"pytorch-pytorch-{sha}",
             }
-            print(data)
-            # body = io.StringIO()
-            # json.dump(data, body)
-            # S3_RESOURCE.Object(
-            #     f"ossci-raw-job-status",
-            #     f"merge_bases/pytorch/pytorch/{sha}.gzip",
-            # ).put(
-            #     Body=gzip.compress(body.getvalue().encode()),
-            #     ContentEncoding="gzip",
-            #     ContentType="application/json",
-            # )
+            body = io.StringIO()
+            json.dump(data, body)
+            S3_RESOURCE.Object(
+                f"ossci-raw-job-status",
+                f"merge_bases/pytorch/pytorch/{sha}.gzip",
+            ).put(
+                Body=gzip.compress(body.getvalue().encode()),
+                ContentEncoding="gzip",
+                ContentType="application/json",
+            )
         except Exception as e:
             return e
 
