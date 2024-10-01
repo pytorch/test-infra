@@ -1,21 +1,31 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+with jobs as (
+    select
+        j.torchci_classification.line as line,
+        j.torchci_classification.captures as captures,
+        j.run_id
+    from
+        default.workflow_job j final
+    where
+        j.id in (
+            select id from materialized_views.workflow_job_by_created_at
+            where created_at >= {startTime: DateTime64(3)} and created_at < {stopTime: DateTime64(3)}
+        )
+        and j.conclusion in ('cancelled', 'failure', 'time_out')
+)
 select
     COUNT(*) as num,
-    ARBITRARY(j.torchci_classification.line) as example,
-    j.torchci_classification.captures as captures,
-    ARRAY_JOIN(j.torchci_classification.captures, '%') as search_string
+    any(line) as example,
+    captures as captures
 from
-    workflow_job j
-    join workflow_run w on w.id = j.run_id
+    jobs j
+    join default.workflow_run w final on w.id = j.run_id
 where
-    j._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
-    and j._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
+    w.id in (select run_id from jobs)
     and w.head_branch = 'main'
-    and w.head_repository.full_name = 'pytorch/pytorch'
-    and j.conclusion in ('cancelled', 'failure', 'time_out')
+    and w.head_repository.'full_name' = 'pytorch/pytorch'
     AND w.event != 'workflow_run'
     AND w.event != 'repository_dispatch'
 group by
-    j.torchci_classification.captures
+    captures
 order by
     COUNT(*) desc

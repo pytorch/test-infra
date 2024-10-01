@@ -1080,7 +1080,7 @@ export default function Page() {
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
             queryCollection={"metrics"}
-            queryParams={[...timeParams]}
+            queryParams={useClickHouse ? timeParamsClickHouse : [...timeParams]}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
@@ -1100,8 +1100,9 @@ export default function Page() {
             ]}
             dataGridProps={{
               getRowId: (el: any) =>
-                el.search_string ? el.search_string : "null",
+                el.captures ? JSON.stringify(el.captures) : "null",
             }}
+            useClickHouse={useClickHouse}
           />
         </Grid>
         <Grid item xs={6} height={ROW_HEIGHT}>
