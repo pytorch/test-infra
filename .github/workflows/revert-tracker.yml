@@ -30,7 +30,9 @@ jobs:
           python3 -m torchci.reverts
           echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: Push file to this repository
         if: steps.generate-reverts-file.outputs.revert_file != 'None'
