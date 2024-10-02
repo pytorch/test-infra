@@ -580,21 +580,3 @@ def remove_document(record: Any) -> None:
     # get_clickhouse_client().query(
     #     f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
     # )
-
-
-lambda_handler(
-    {
-        "Records": [
-            {
-                "eventName": "ObjectCreated:Put",
-                "s3": {
-                    "bucket": {"name": "ossci-raw-job-status"},
-                    "object": {
-                        "key": "stable_pushes/pytorch/pytorch/0788d016d61a683f2348190bf9314b3c1b9265b4.json"
-                    },
-                },
-            }
-        ]
-    },
-    None,
-)
