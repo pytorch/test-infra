@@ -12,6 +12,7 @@ import {
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import TimeSeriesPanel, {
+  ChartType,
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
@@ -91,11 +92,11 @@ export function TimeRangePicker({
       case 3:
       case 7:
       case 14:
-        setGranularity("hour");
-        break;
-      case 30:
         setGranularity("day");
         break;
+      case 30:
+      case 60:
+        setGranularity("week");
       case 90:
       case 180:
       case 365:
@@ -119,8 +120,9 @@ export function TimeRangePicker({
           <MenuItem value={7}>Last 7 Days</MenuItem>
           <MenuItem value={14}>Last 14 Days</MenuItem>
           <MenuItem value={30}>Last Month</MenuItem>
-          <MenuItem value={90}>Last Quarter</MenuItem>
-          <MenuItem value={180}>Last Half</MenuItem>
+          <MenuItem value={60}>Last 2 Months</MenuItem>
+          <MenuItem value={90}>Last 3 Months</MenuItem>
+          <MenuItem value={180}>Last 6 Months</MenuItem>
           <MenuItem value={365}>Last Year</MenuItem>
           <MenuItem value={-1}>Custom</MenuItem>
         </Select>
@@ -142,6 +144,13 @@ export function TimeRangePicker({
     </>
   );
 }
+
+type CostCategory =
+  | "runner_type"
+  | "workflow_name"
+  | "job_name"
+  | "platform"
+  | "provider";
 
 const costDisplay = (value: number) => {
   if (value < 1000) {
@@ -170,6 +179,10 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
   const [granularity, setGranularity] = useState("day" as Granularity);
+  const [chartType, setChartType] = useState("stacked_bar" as ChartType);
+  const [searchFilters, setSearchFilters] = useState<Record<string, string>>(
+    {}
+  );
 
   const timeParamsClickHouse = {
     startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -177,12 +190,7 @@ export default function Page() {
   };
 
   const generateTimeSeriesGridItem = (
-    groupby:
-      | "runner_type"
-      | "workflow_name"
-      | "job_name"
-      | "platform"
-      | "provider",
+    groupby: CostCategory,
     yAxis: "cost" | "duration"
   ) => {
     return (
@@ -197,6 +205,33 @@ export default function Page() {
           yAxisFieldName={`total_${yAxis}`}
           yAxisRenderer={yAxis === "cost" ? costDisplay : hourDisplay}
           useClickHouse={true}
+          smooth={false}
+          chartType={chartType}
+          filter={searchFilters[groupby]}
+          sort_by="total"
+        />
+      </Grid>
+    );
+  };
+
+  const generateSearchBar = (type: string) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setTimeout(() => {
+        setSearchFilters((prev) => {
+          return { ...prev, [type]: value };
+        });
+      }, 500);
+    };
+
+    return (
+      <Grid item xs={12}>
+        <TextField
+          id={`outlined-basic-${type}`}
+          label={`Search ${type}`}
+          onChange={handleChange}
+          variant="outlined"
+          fullWidth
         />
       </Grid>
     );
@@ -229,19 +264,36 @@ export default function Page() {
             <MenuItem value={"month"}>Monthly</MenuItem>
           </Select>
         </FormControl>
+        <FormControl>
+          <InputLabel id="chart-select-label">Chart Type</InputLabel>
+          <Select
+            value={chartType}
+            label="Chart Type"
+            labelId="chart-select-label"
+            onChange={(e) => setChartType(e.target.value as ChartType)}
+          >
+            <MenuItem value={"stacked_bar"}>Stacked Bar</MenuItem>
+            <MenuItem value={"line"}>Line</MenuItem>
+          </Select>
+        </FormControl>
       </Stack>
 
       <Grid container spacing={2}>
         {generateTimeSeriesGridItem("workflow_name", "cost")}
         {generateTimeSeriesGridItem("workflow_name", "duration")}
+        {generateSearchBar("workflow_name")}
         {generateTimeSeriesGridItem("job_name", "cost")}
         {generateTimeSeriesGridItem("job_name", "duration")}
+        {generateSearchBar("job_name")}
         {generateTimeSeriesGridItem("runner_type", "cost")}
         {generateTimeSeriesGridItem("runner_type", "duration")}
+        {generateSearchBar("runner_type")}
         {generateTimeSeriesGridItem("platform", "cost")}
         {generateTimeSeriesGridItem("platform", "duration")}
+        {generateSearchBar("platform")}
         {generateTimeSeriesGridItem("provider", "cost")}
         {generateTimeSeriesGridItem("provider", "duration")}
+        {generateSearchBar("provider")}
       </Grid>
     </div>
   );

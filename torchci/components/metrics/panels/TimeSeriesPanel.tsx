@@ -14,7 +14,7 @@ import useSWR from "swr";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
-
+export type ChartType = "line" | "stacked_bar";
 // Adapted from echarts
 // see: https://github.com/apache/echarts/blob/master/src/util/format.ts
 export function getTooltipMarker(color: string) {
@@ -35,7 +35,11 @@ export function seriesWithInterpolatedTimes(
   groupByFieldName: string | undefined,
   timeFieldName: string,
   yAxisFieldName: string,
-  fillMissingData: boolean = true
+  fillMissingData: boolean = true,
+  smooth: boolean = true,
+  sort_by: "total" | "name" = "name",
+  graph_type: "line" | "stacked_bar" = "line",
+  filter: string | undefined = undefined
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
   // with 0.
@@ -71,7 +75,7 @@ export function seriesWithInterpolatedTimes(
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  const series = _.map(byGroup, (value, key) => {
+  var series = _.map(byGroup, (value, key) => {
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
@@ -92,19 +96,47 @@ export function seriesWithInterpolatedTimes(
       })
       .filter((t) => t !== undefined);
 
-    return {
+    var serie = {
       name: key,
-      type: "line",
+      type: graph_type === "line" ? "line" : "bar",
+
+      stack: "Total",
       symbol: "circle",
       symbolSize: 4,
       data,
       emphasis: {
         focus: "series",
       },
-      smooth: true,
+      smooth: smooth,
     };
+    if (graph_type === "stacked_bar") {
+      serie = {
+        ...serie,
+        stack: "Total",
+      };
+    }
+    return serie;
   });
-  return _.sortBy(series, (x) => x.name);
+  if (filter) {
+    series = series.filter((s) =>
+      s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+    );
+  }
+  if (sort_by === "name") {
+    return _.sortBy(series, (x) => x.name);
+  }
+
+  // wewant to sort by total values per group over the entire time range
+  // 1. calculate total values per group
+  var totalValues = _.mapValues(byGroup, (value) => {
+    return _.sumBy(value, (x) => x[yAxisFieldName]);
+  });
+  // 2. sort by total values
+  var sortedSeries = _.sortBy(series, (x) => {
+    return -totalValues[x.name];
+  });
+  console.log("number of items in sorted series", sortedSeries.length);
+  return sortedSeries;
 }
 
 export function TimeSeriesPanelWithData({
@@ -155,6 +187,12 @@ export function TimeSeriesPanelWithData({
       series,
       legend: {
         orient: "vertical",
+        // elipsis for long names
+        style: {
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100px",
+        },
         right: 10,
         top: "center",
         type: "scroll",
@@ -192,6 +230,7 @@ export function TimeSeriesPanelWithData({
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
         option={options}
+        notMerge={true}
       />
     </Paper>
   );
@@ -224,6 +263,10 @@ export default function TimeSeriesPanel({
   // Additional EChartsOption (ex max y value)
   additionalOptions,
   useClickHouse = false,
+  smooth = true,
+  chartType = "line",
+  sort_by = "name",
+  filter,
 }: {
   title: string;
   queryCollection?: string;
@@ -238,6 +281,10 @@ export default function TimeSeriesPanel({
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
   useClickHouse?: boolean;
+  smooth?: boolean;
+  chartType?: ChartType;
+  sort_by?: "total" | "name";
+  filter?: string;
 }) {
   // - Granularity
   // - Group by
@@ -289,8 +336,15 @@ export default function TimeSeriesPanel({
     granularity,
     groupByFieldName,
     timeFieldName,
-    yAxisFieldName
+    yAxisFieldName,
+    false,
+    smooth,
+    sort_by,
+    chartType,
+    filter
   );
+
+  console.log(`got ${series.length} data points for ${title}`);
 
   return (
     <TimeSeriesPanelWithData
