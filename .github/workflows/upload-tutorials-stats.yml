@@ -9,6 +9,7 @@ on:
     - cron: "0 0 * * *"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  push:
 
 jobs:
   get-tutorials-stats:
@@ -39,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3 -m pip install boto3==1.26.69 typing==3.7.4.3
+          python3 -m pip install boto3==1.26.69
 
       - name: Run the script
         run: |
