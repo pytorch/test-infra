@@ -139,6 +139,13 @@ export function seriesWithInterpolatedTimes(
   return sortedSeries;
 }
 
+function sumOfValuesForTimestamp(series: any, timestamp: string) {
+  return _.sumBy(series, (x: any) => {
+    const item = x.data.find((d: any) => d[0] === timestamp);
+    return item ? item[1] : 0;
+  });
+}
+
 export function TimeSeriesPanelWithData({
   // The time series data to be displayed
   data,
@@ -187,13 +194,7 @@ export function TimeSeriesPanelWithData({
       series,
       legend: {
         orient: "vertical",
-        // elipsis for long names
-        style: {
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          width: "100px",
-        },
-        right: 10,
+        left: "right",
         top: "center",
         type: "scroll",
         ...(groupByFieldName !== undefined && {
@@ -219,7 +220,14 @@ export function TimeSeriesPanelWithData({
             .local()
             .format(timeFieldDisplayFormat)}<br/>` +
           `${getTooltipMarker(params.color)}` +
-          `<b>${yAxisRenderer(params.value[1])}</b>`,
+          `<b>${yAxisRenderer(params.value[1])}</b>` +
+          // add total value to tooltip,
+          // only for stacked charts
+          (series[0].stack === "Total"
+            ? ` (Total: ${yAxisRenderer(
+                sumOfValuesForTimestamp(series, params.value[0])
+              )})`
+            : ""),
       },
     },
     additionalOptions
