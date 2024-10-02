@@ -267,6 +267,7 @@ jobs:
         uses: ./test-infra/.github/actions/get-workflow-job-id
         if: always()
         with:
+          working-directory: test-infra
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run iOS tests on devices
