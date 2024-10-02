@@ -312,7 +312,7 @@ jobs:
           s3-prefix: |
             device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
           path: |
-            test-infra/tools/device-farm-runner/ios-artifacts-${{ github.job }}.json
+            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
 
       - name: Run Android tests on devices
         id: android-test
@@ -357,4 +357,4 @@ jobs:
           s3-prefix: |
             device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
           path: |
-            test-infra/tools/device-farm-runner/android-artifacts-${{ github.job }}.json
+            test-infra/tools/device-farm-runner/android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
