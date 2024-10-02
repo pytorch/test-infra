@@ -279,6 +279,7 @@ jobs:
           DEVICE_TYPE: ${{ inputs.device-type }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
         run: |
           set -ex
 
@@ -291,7 +292,20 @@ jobs:
             --test-spec "${TEST_SPEC}" \
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
-            --workflow-attempt "${RUN_ATTEMPT}"
+            --workflow-attempt "${RUN_ATTEMPT}" \
+            --output "ios-artifacts-${JOB_ID}.json"
+
+      - name: Upload iOS artifacts to S3
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ inputs.device-type == 'ios' }}
+        with:
+          name: ios-artifacts
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+          path: |
+            test-infra/tools/device-farm-runner/ios-artifacts-${{ github.job }}.json
 
       - name: Run Android tests on devices
         id: android-test
@@ -310,6 +324,7 @@ jobs:
           DEVICE_TYPE: ${{ inputs.device-type }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
         run: |
           set -ex
 
@@ -322,4 +337,17 @@ jobs:
             --test-spec "${TEST_SPEC}" \
             --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
             --workflow-id "${RUN_ID}" \
-            --workflow-attempt "${RUN_ATTEMPT}"
+            --workflow-attempt "${RUN_ATTEMPT}" \
+            --output "android-artifacts-${JOB_ID}.json"
+
+      - name: Upload Android artifacts to S3
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ inputs.device-type == 'android' }}
+        with:
+          name: android-artifacts
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+          path: |
+            test-infra/tools/device-farm-runner/android-artifacts-${{ github.job }}.json

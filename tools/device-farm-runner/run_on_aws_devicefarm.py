@@ -190,6 +190,11 @@ def parse_args() -> Any:
         default=0,
         help="the workflow run attempt",
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="an optional file to write the list of artifacts from AWS in JSON format",
+    )
 
     return parser.parse_args()
 
@@ -272,12 +277,17 @@ def upload_file_to_s3(
     )
 
 
-def set_output(name: str, val: Any) -> None:
+def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
     if os.getenv("GITHUB_OUTPUT"):
         with open(str(os.getenv("GITHUB_OUTPUT")), "a") as env:
-            print(f"{name}={val}", file=env)
+            print(f"{gh_var_name}={val}", file=env)
     else:
-        print(f"::set-output name={name}::{val}")
+        print(f"::set-output name={gh_var_name}::{val}")
+
+    # Also write the value to file if it exists
+    if filename:
+        with open(filename, "w") as f:
+            print(val, file=f)
 
 
 def print_testspec(
@@ -603,7 +613,7 @@ def main() -> None:
         artifacts = print_report(
             client, r.get("run"), None, ReportType.RUN, workflow_id, workflow_attempt
         )
-        set_output("artifacts", json.dumps(artifacts))
+        set_output(json.dumps(artifacts), "artifacts", args.output)
 
     if not is_success(result):
         sys.exit(1)
