@@ -99,6 +99,8 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
         ) as {name}
         """
 
+    # Cannot use general_adapter due to custom field for now()::DateTime64(9)
+    # time_inserted
     query = f"""
     insert into {table}
     select
@@ -158,14 +160,7 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
     try:
         get_clickhouse_client().query(query)
     except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def rerun_disabled_tests_adapter(table, bucket, key):
@@ -180,26 +175,7 @@ def rerun_disabled_tests_adapter(table, bucket, key):
     `workflow_run_attempt` Int64
     """
 
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
 
 def handle_test_run_summary(table, bucket, key) -> None:
@@ -219,6 +195,7 @@ def handle_test_run_summary(table, bucket, key) -> None:
     """
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
 
+    # Cannot use general_adapter due to custom field for now()::DateTime64(9)
     def get_insert_query(compression):
         return f"""
         insert into {table} SETTINGS async_insert=1, wait_for_async_insert=1
@@ -229,14 +206,7 @@ def handle_test_run_summary(table, bucket, key) -> None:
     try:
         get_clickhouse_client().query(get_insert_query("gzip"))
     except Exception as e:
-        if "Expected not greater than" in str(e):
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', 'file is too large?')"
-            )
-        else:
-            get_clickhouse_client().query(
-                f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-            )
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def merges_adapter(table, bucket, key) -> None:
@@ -263,21 +233,7 @@ def merges_adapter(table, bucket, key) -> None:
     `unstable_checks` Array(Array(String))
     """
 
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("none"))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.{table}_ingest_errors values ('{key}', '{json.dumps(str(e))}')"
-        )
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
 def merge_bases_adapter(table, bucket, key) -> None:
@@ -289,19 +245,7 @@ def merge_bases_adapter(table, bucket, key) -> None:
     `sha` String
     """
 
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except:
-        get_clickhouse_client().query(get_insert_query("none"))
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 
 def queue_times_historical_adapter(table, bucket, key) -> None:
@@ -311,20 +255,7 @@ def queue_times_historical_adapter(table, bucket, key) -> None:
     `count` Int64,
     `time` DateTime64(9)
     """
-
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}')
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except:
-        get_clickhouse_client().query(get_insert_query("none"))
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 
 def external_contribution_stats_adapter(table, bucket, key) -> None:
@@ -334,28 +265,22 @@ def external_contribution_stats_adapter(table, bucket, key) -> None:
     `user_count` Int64,
     `users` Array(String)
     """
-    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-
-    def get_insert_query(compression):
-        return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}')
-        from s3('{url}', 'JSONEachRow', '{schema}', '{compression}',
-            extra_credentials(
-                role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
-            )
-        )
-        """
-
-    try:
-        get_clickhouse_client().query(get_insert_query("gzip"))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors VALUES ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
-        )
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
 
-def general_adapter(table, bucket, key, schema, compression, format) -> None:
+def log_failure_to_clickhouse(table, bucket, key, error) -> None:
+    error = {
+        "table": table,
+        "bucket": bucket,
+        "key": key,
+        "reason": str(error),
+    }
+    get_clickhouse_client().query(
+        f"insert into errors.gen_errors format JSONEachRow {json.dumps(error)}"
+    )
+
+
+def general_adapter(table, bucket, key, schema, compressions, format) -> None:
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
 
     def get_insert_query(compression):
@@ -370,11 +295,18 @@ def general_adapter(table, bucket, key, schema, compression, format) -> None:
         """
 
     try:
-        get_clickhouse_client().query(get_insert_query(compression))
-    except Exception as e:
-        get_clickhouse_client().query(
-            f"insert into errors.gen_errors values ('{table}', '{bucket}', '{key}', '{json.dumps(str(e))}')"
+        exceptions = []
+        for compression in compressions:
+            try:
+                get_clickhouse_client().query(get_insert_query(compression))
+                return
+            except Exception as e:
+                exceptions.append(e)
+        raise Exception(
+            f"Failed to insert into {table} with {[str(x) for x in exceptions]}"
         )
+    except Exception as e:
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
@@ -399,7 +331,7 @@ def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
     `workflow_name` String,
     `workflow_run_attempt` Int64
     """
-    general_adapter(table, bucket, key, schema, "gzip", "JSONEachRow")
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
 
 def torchao_perf_stats_adapter(table, bucket, key) -> None:
@@ -444,7 +376,7 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
     `unique_graphs` String,
     `workflow_id` String
     """
-    general_adapter(table, bucket, key, schema, "none", "CSV")
+    general_adapter(table, bucket, key, schema, ["none"], "CSV")
 
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
@@ -452,6 +384,38 @@ def torchbench_userbenchmark_adapter(table, bucket, key):
     `environ` String,
     `metrics` String,
     `name` String
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
+def ossci_uploaded_metrics_adapter(table, bucket, key):
+    schema = """
+    `repo` String,
+    `workflow` String,
+    `build_environment` String,
+    `job` String,
+    `test_config` String,
+    `pr_number` Int64,
+    `run_id` Int64,
+    `run_number` Int64,
+    `run_attempt` Int64,
+    `job_id` Int64,
+    `job_name` String,
+    `metric_name` String,
+    `calling_file` String,
+    `calling_module` String,
+    `calling_function` String,
+    `timestamp` DateTime64(9),
+    `info` String
+    """
+    general_adapter(table, bucket, key, schema, "gzip", "JSONEachRow")
+
+
+def stable_pushes_adapter(table, bucket, key):
+    schema = """
+    `sha` String,
+    `repository` String,
+    `timestamp` DateTime
     """
     general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
 
@@ -468,6 +432,8 @@ SUPPORTED_PATHS = {
     "test_data_aggregates": "misc.aggregated_test_metrics",
     "torchbench-csv/torchao": "benchmark.inductor_torchao_perf_stats",
     "torchbench-userbenchmark": "benchmark.torchbench_userbenchmark",
+    "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
+    "stable_pushes": "misc.stable_pushes",
 }
 
 OBJECT_CONVERTER = {
@@ -482,6 +448,8 @@ OBJECT_CONVERTER = {
     "misc.aggregated_test_metrics": external_aggregated_test_metrics_adapter,
     "benchmark.inductor_torchao_perf_stats": torchao_perf_stats_adapter,
     "benchmark.torchbench_userbenchmark": torchbench_userbenchmark_adapter,
+    "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
+    "misc.stable_pushes": stable_pushes_adapter,
 }
 
 

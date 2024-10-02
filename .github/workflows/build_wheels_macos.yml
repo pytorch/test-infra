@@ -39,6 +39,16 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
+      build-platform:
+        description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
+        required: false
+        type: string
+        default: 'setup-py'
+      build-command:
+        description: The build command to use if build-platform is python-build-package
+        required: false
+        default: "python3 -m build --wheel"
+        type: string
       env-var-script:
         description: "Script that sets Domain-Specific Environment Variables"
         default: ""
@@ -156,7 +166,27 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py clean
-      - name: Build the wheel (bdist_wheel)
+      - name: Build the wheel (python-build-package)
+        if: ${{ inputs.build-platform == 'python-build-package' }}
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          # shellcheck disable=SC1090
+          source "${BUILD_ENV_FILE}"
+
+          if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
+            export USE_OPENMP="0"
+          fi
+          PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
+          export PYTORCH_VERSION
+
+          ${CONDA_RUN} python3 -m pip install build
+          echo "Successfully installed Python build package"
+
+          ${CONDA_RUN} ${{ inputs.build-command }}
+      - name: Build the wheel (setup-py)
+        if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail

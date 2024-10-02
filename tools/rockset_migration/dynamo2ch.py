@@ -160,7 +160,7 @@ def upload_to_clickhouse(records, table):
     # Async insert to maybe make insertions more efficient on the ClickHouse side
     # https://clickhouse.com/docs/en/cloud/bestpractices/asynchronous-inserts
     get_clickhouse_client().query(
-        f"INSERT INTO `{table}`  SETTINGS async_insert=1, wait_for_async_insert=1  FORMAT JSONEachRow {body}"
+        f"INSERT INTO {table}  SETTINGS async_insert=1, wait_for_async_insert=1  FORMAT JSONEachRow {body}"
     )
 
 

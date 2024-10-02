@@ -38,6 +38,9 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/distributed.*fsdp/gi, "release notes: distributed (fsdp)"],
   [/distributed.*rpc/gi, "release notes: distributed (rpc)"],
   [/distributed.*elastic/gi, "release notes: distributed (torchelastic)"],
+  // export
+  [/torch\/export/gi, "release notes: export"],
+  [/torch\/_export/gi, "release notes: export"],
   // vulkan
   [/vulkan/gi, "release notes: vulkan"],
   // foreach_frontend
