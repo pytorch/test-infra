@@ -20,7 +20,7 @@ SELECT
     DISTINCT j.head_sha as head_sha
 FROM
     default.failed_test_runs t
-    join default.workflow_job j on t.job_id = j.id
+    join default.workflow_job j final on t.job_id = j.id
     left anti join default.merge_bases mb on j.head_sha = mb.sha
 where
     t.time_inserted > CURRENT_TIMESTAMP() - interval 90 days
