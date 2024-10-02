@@ -303,7 +303,7 @@ jobs:
           retention-days: 14
           s3-bucket: gha-artifacts
           s3-prefix: |
-            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
           path: |
             test-infra/tools/device-farm-runner/ios-artifacts-${{ github.job }}.json
 
@@ -348,6 +348,6 @@ jobs:
           retention-days: 14
           s3-bucket: gha-artifacts
           s3-prefix: |
-            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
           path: |
             test-infra/tools/device-farm-runner/android-artifacts-${{ github.job }}.json
