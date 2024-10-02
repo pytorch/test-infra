@@ -47,7 +47,7 @@ on:
       build-command:
         description: The build command to use if build-platform is python-build-package
         required: false
-        default: "python -m build --wheel"
+        default: "python3 -m build --wheel"
         type: string
       env-var-script:
         description: "Script that sets Domain-Specific Environment Variables"
@@ -181,7 +181,7 @@ jobs:
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
 
-          ${CONDA_RUN} python -m pip install build
+          ${CONDA_RUN} python3 -m pip install build
           echo "Successfully installed Python build package"
 
           ${CONDA_RUN} ${{ inputs.build-command }}
