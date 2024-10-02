@@ -456,6 +456,29 @@ def torchbench_userbenchmark_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
 
 
+def ossci_uploaded_metrics_adapter(table, bucket, key):
+    schema = """
+    `repo` String,
+    `workflow` String,
+    `build_environment` String,
+    `job` String,
+    `test_config` String,
+    `pr_number` Int64,
+    `run_id` Int64,
+    `run_number` Int64,
+    `run_attempt` Int64,
+    `job_id` Int64,
+    `job_name` String,
+    `metric_name` String,
+    `calling_file` String,
+    `calling_module` String,
+    `calling_function` String,
+    `timestamp` DateTime64(9),
+    `info` String
+    """
+    general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -468,6 +491,7 @@ SUPPORTED_PATHS = {
     "test_data_aggregates": "misc.aggregated_test_metrics",
     "torchbench-csv/torchao": "benchmark.inductor_torchao_perf_stats",
     "torchbench-userbenchmark": "benchmark.torchbench_userbenchmark",
+    "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
 }
 
 OBJECT_CONVERTER = {
@@ -482,6 +506,7 @@ OBJECT_CONVERTER = {
     "misc.aggregated_test_metrics": external_aggregated_test_metrics_adapter,
     "benchmark.inductor_torchao_perf_stats": torchao_perf_stats_adapter,
     "benchmark.torchbench_userbenchmark": torchbench_userbenchmark_adapter,
+    "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
 }
 
 
