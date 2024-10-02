@@ -479,6 +479,15 @@ def ossci_uploaded_metrics_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, "gzip", "JSONEachRow")
 
 
+def stable_pushes_adapter(table, bucket, key):
+    schema = """
+    `sha` String,
+    `repository` String,
+    `timestamp` DateTime
+    """
+    general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -492,6 +501,7 @@ SUPPORTED_PATHS = {
     "torchbench-csv/torchao": "benchmark.inductor_torchao_perf_stats",
     "torchbench-userbenchmark": "benchmark.torchbench_userbenchmark",
     "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
+    "stable_pushes": "misc.stable_pushes",
 }
 
 OBJECT_CONVERTER = {
@@ -507,6 +517,7 @@ OBJECT_CONVERTER = {
     "benchmark.inductor_torchao_perf_stats": torchao_perf_stats_adapter,
     "benchmark.torchbench_userbenchmark": torchbench_userbenchmark_adapter,
     "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
+    "misc.stable_pushes": stable_pushes_adapter,
 }
 
 
@@ -569,3 +580,21 @@ def remove_document(record: Any) -> None:
     # get_clickhouse_client().query(
     #     f"DELETE FROM `{table}` WHERE dynamoKey = %(id)s", parameters=parameters
     # )
+
+
+lambda_handler(
+    {
+        "Records": [
+            {
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "ossci-raw-job-status"},
+                    "object": {
+                        "key": "stable_pushes/pytorch/pytorch/0788d016d61a683f2348190bf9314b3c1b9265b4.json"
+                    },
+                },
+            }
+        ]
+    },
+    None,
+)
