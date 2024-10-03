@@ -3,6 +3,9 @@ name: Get workflow job id
 description: Get the ID of the workflow job that is currently running.
 
 inputs:
+  working-directory:
+    description: The working directory to use
+    default: ''
   github-token:
     description: GITHUB_TOKEN
     required: true
@@ -19,12 +22,12 @@ runs:
   using: composite
   steps:
     - name: Get job id and name or fail
-      # timeout-minutes is unsupported for composite workflows, see https://github.com/actions/runner/issues/1979
-      # timeout-minutes: 10
       shell: bash
       id: get-job-id
+      working-directory: ${{ inputs.working-directory }}
       run: |
         set -eux
+
         python3 .github/scripts/get_workflow_job_id.py "${GITHUB_RUN_ID}" "${RUNNER_NAME}"
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}

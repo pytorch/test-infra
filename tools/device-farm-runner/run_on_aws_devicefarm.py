@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 import datetime
+import json
 import logging
 import os
 import random
-import re
 import string
 import sys
 import time
-from argparse import Action, ArgumentParser
+from argparse import Action, ArgumentParser, Namespace
 from enum import Enum
 from logging import info
-from typing import Any, Dict, List, Optional, Pattern
+from typing import Any, Dict, List, Optional
 from warnings import warn
 
 import boto3
@@ -27,7 +27,6 @@ AWS_REGION = "us-west-2"
 AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
 AWS_ARN_PREFIX = "arn:aws:devicefarm:"
 DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID}"
-TEST_SPEC_OUTPUT_HIGHLIGHT_HINT = re.compile(r"^\[PyTorch\] .*$")
 
 
 # Device Farm report type
@@ -44,7 +43,13 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ValidateArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values) and values.endswith(".zip")
         ):
@@ -55,7 +60,13 @@ class ValidateArchive(Action):
 
 
 class ValidateExtraDataArchive(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This parameter is optional and can accept an empty string, or it can be
         # an existing ARN, or a local zip archive to be uploaded to AWS
         if (
@@ -72,7 +83,13 @@ class ValidateExtraDataArchive(Action):
 
 
 class ValidateApp(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         # This can be a local file or an existing app that has previously been uploaded
         # to AWS
         if values.startswith(AWS_ARN_PREFIX) or (
@@ -88,7 +105,13 @@ class ValidateApp(Action):
 
 
 class ValidateTestSpec(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         if values.startswith(AWS_ARN_PREFIX) or (
             os.path.isfile(values)
             and (values.endswith(".yml") or values.endswith(".yaml"))
@@ -166,6 +189,11 @@ def parse_args() -> Any:
         type=int,
         default=0,
         help="the workflow run attempt",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="an optional file to write the list of artifacts from AWS in JSON format",
     )
 
     return parser.parse_args()
@@ -249,24 +277,41 @@ def upload_file_to_s3(
     )
 
 
-def print_highlights(
+def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
+    if os.getenv("GITHUB_OUTPUT"):
+        with open(str(os.getenv("GITHUB_OUTPUT")), "a") as env:
+            print(f"{gh_var_name}={val}", file=env)
+    else:
+        print(f"::set-output name={gh_var_name}::{val}")
+
+    # Also write the value to file if it exists
+    if filename:
+        with open(filename, "w") as f:
+            print(val, file=f)
+
+
+def print_testspec(
+    job_name: Optional[str],
     file_name: str,
-    highlight: Pattern,
     indent: int = 0,
-):
+) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
-    It's a bit too verbose, so this is a workaround to print only the relevant
-    parts
     """
+    print(f"::group::{job_name} test output")
     with open(file_name) as f:
-        for line in f:
-            if re.match(highlight, line):
-                info(f"{' ' * indent}{line.strip()}")
+        print(f.read())
+    print("::endgroup::")
 
 
 def print_test_artifacts(
-    client: Any, test_arn: str, workflow_id: str, workflow_attempt: int, indent: int = 0
+    client: Any,
+    app_type: str,
+    test_arn: str,
+    workflow_id: str,
+    workflow_attempt: int,
+    job_name: Optional[str],
+    indent: int = 0,
 ) -> List[Dict[str, str]]:
     """
     Return all artifacts from this specific test. There are 3 types of artifacts
@@ -293,25 +338,32 @@ def print_test_artifacts(
                 s3_key,
             )
 
+            s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+            artifact["s3_url"] = s3_url
+
             info(
                 f"{' ' * indent}Saving {artifact_type} {filename}.{extension} ({filetype}) "
-                + f"at https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+                + f"at {s3_url}"
             )
+
+            # Some more metadata to identify where the artifact comes from
+            artifact["app_type"] = app_type
+            artifact["job_name"] = job_name
             gathered_artifacts.append(artifact)
 
-            # Additional step to print highlights from the test output
+            # Additional step to print the test output
             if filetype == "TESTSPEC_OUTPUT":
-                print_highlights(
-                    local_filename, TEST_SPEC_OUTPUT_HIGHLIGHT_HINT, indent + 2
-                )
+                print_testspec(job_name, local_filename, indent + 2)
 
     return gathered_artifacts
 
 
 def print_report(
     client: Any,
+    app_type: str,
     report: Dict[str, Any],
-    rtype: ReportType,
+    report_type: ReportType,
+    job_name: Optional[str],
     workflow_id: str,
     workflow_attempt: int,
     indent: int = 0,
@@ -325,37 +377,43 @@ def print_report(
         return []
 
     name = report["name"]
+    # Keep the top-level job name as the name of the whole report, this
+    # is used to connect all artifacts from one job together
+    if report_type == ReportType.JOB:
+        job_name = name
     result = report["result"]
 
     extra_msg = ""
-    if rtype == ReportType.SUITE or is_success(result):
+    if report_type == ReportType.SUITE or is_success(result):
         counters = report["counters"]
         extra_msg = f"with stats {counters}"
 
     info(f"{' ' * indent}{name} {result} {extra_msg}")
 
     arn = report["arn"]
-    if rtype == ReportType.RUN:
+    if report_type == ReportType.RUN:
         more_reports = client.list_jobs(arn=arn)
-        next_rtype = ReportType.JOB
-    elif rtype == ReportType.JOB:
+        next_report_type = ReportType.JOB
+    elif report_type == ReportType.JOB:
         more_reports = client.list_suites(arn=arn)
-        next_rtype = ReportType.SUITE
-    elif rtype == ReportType.SUITE:
+        next_report_type = ReportType.SUITE
+    elif report_type == ReportType.SUITE:
         more_reports = client.list_tests(arn=arn)
-        next_rtype = ReportType.TEST
-    elif rtype == ReportType.TEST:
+        next_report_type = ReportType.TEST
+    elif report_type == ReportType.TEST:
         return print_test_artifacts(
-            client, arn, workflow_id, workflow_attempt, indent + 2
+            client, app_type, arn, workflow_id, workflow_attempt, job_name, indent + 2
         )
 
     artifacts = []
-    for more_report in more_reports.get(f"{next_rtype.value}s", []):
+    for more_report in more_reports.get(f"{next_report_type.value}s", []):
         artifacts.extend(
             print_report(
                 client,
+                app_type,
                 more_report,
-                next_rtype,
+                next_report_type,
+                job_name,
                 workflow_id,
                 workflow_attempt,
                 indent + 2,
@@ -488,6 +546,7 @@ def main() -> None:
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
     )
 
+    app_type = ""
     if args.app.startswith(AWS_ARN_PREFIX):
         appfile_arn = args.app
         info(f"Use the existing app: {appfile_arn}")
@@ -505,11 +564,13 @@ def main() -> None:
         info(f"Uploaded app: {appfile_arn}")
 
     if args.ios_xctestrun:
+        app_type = "IOS_APP"
         test_to_run = generate_ios_xctestrun(
             client, project_arn, unique_prefix, args.ios_xctestrun, args.test_spec
         )
 
     if args.android_instrumentation_test:
+        app_type = "ANDROID_APP"
         test_to_run = generate_android_instrumentation_test(
             client,
             project_arn,
@@ -556,9 +617,16 @@ def main() -> None:
         warn(f"Failed to run {unique_prefix}: {error}")
         sys.exit(1)
     finally:
-        print_report(
-            client, r.get("run"), ReportType.RUN, workflow_id, workflow_attempt
+        artifacts = print_report(
+            client,
+            app_type,
+            r.get("run"),
+            ReportType.RUN,
+            None,
+            workflow_id,
+            workflow_attempt,
         )
+        set_output(json.dumps(artifacts), "artifacts", args.output)
 
     if not is_success(result):
         sys.exit(1)
