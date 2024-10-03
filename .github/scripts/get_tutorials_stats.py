@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import csv
 from functools import lru_cache
 import gzip
 import io
@@ -10,9 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore[import]
 
-METADATA_PATH = "ossci_tutorials_stats/metadata"
-FILENAMES_PATH = "ossci_tutorials_stats/filenames"
-
+METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
+FILENAMES_PATH = "ossci_tutorials_stats/filenames.csv"
 
 def run_command(cmd: str, cwd: Optional[str] = None) -> str:
     """
@@ -150,10 +150,7 @@ def upload_to_s3(
     docs: list[dict[str, Any]],
 ) -> None:
     print(f"Writing {len(docs)} documents to S3")
-    body = io.StringIO()
-    for doc in docs:
-        json.dump(doc, body)
-        body.write("\n")
+    body = conv_to_csv(docs)
 
     get_s3_resource().Object(
         f"{bucket_name}",
@@ -161,9 +158,21 @@ def upload_to_s3(
     ).put(
         Body=gzip.compress(body.getvalue().encode()),
         ContentEncoding="gzip",
-        ContentType="application/json",
+        ContentType="application/csv",
     )
     print("Done!")
+
+
+def conv_to_csv(json_data: List[Dict[str, Any]]) -> str:
+    # Will not handle nested
+    body = io.StringIO()
+    f = csv.writer(body)
+
+    alphabetized_keys = sorted(json_data[0].keys())
+
+    for item in json_data:
+        f.writerow([item[key] for key in alphabetized_keys])
+    return body
 
 
 def main() -> None:
@@ -171,29 +180,38 @@ def main() -> None:
     get_history_log = get_history(tutorials_dir)
     commits_to_files = get_file_names(tutorials_dir)
 
+    # Upload data to S3
+
     print(f"Uploading data to {METADATA_PATH}")
-    for i in get_history_log:
-        upload_to_s3(
-            "ossci-raw-job-status",
-            f"{METADATA_PATH}/{i[0]}.json",
-            {
-                "commit_id": i[0],
-                "author": i[1],
-                "date": i[2],
-                "title": i[3],
-                "number_of_changed_files": int(i[4]),
-                "lines_added": int(i[5]),
-                "lines_deleted": int(i[6]),
-            },
-        )
+    history_log = [
+        {
+            "commit_id": i[0],
+            "author": i[1],
+            "date": i[2],
+            "title": i[3],
+            "number_of_changed_files": int(i[4]),
+            "lines_added": int(i[5]),
+            "lines_deleted": int(i[6]),
+        }
+        for i in get_history_log
+    ]
+    upload_to_s3(
+        "ossci-raw-job-status",
+        f"{METADATA_PATH}",
+        history_log,
+    )
     print(f"Finished uploading data to {METADATA_PATH}")
+
     print(f"Uploading data to {FILENAMES_PATH}")
+    filenames = []
     for entry in commits_to_files:
         items = convert_to_dict(entry)
-        for item in items:
-            upload_to_s3(
-                "ossci-raw-job-status", f"{FILENAMES_PATH}/{entry[0]}.json", item
-            )
+        filenames.extend(items)
+    upload_to_s3(
+        "ossci-raw-job-status",
+        f"{FILENAMES_PATH}",
+        filenames,
+    )
     print(f"Finished uploading data to {FILENAMES_PATH}")
     print(f"Success!")
 
