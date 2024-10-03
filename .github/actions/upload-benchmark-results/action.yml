@@ -1,0 +1,36 @@
+name: Upload benchmark results
+
+inputs:
+  benchmark-results-dir:
+    description: 'The path to the directory with all the results in JSON format'
+    required: True
+  dry-run:
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        set -eux
+        python3 -mpip install awscli==1.32.18
+
+    # TODO (huydhn): Once the generic benchmark database is ready, this will be
+    # uploaded to S3 instead
+    - name: Upload benchmark results to DynamoDB
+      shell: bash
+      env:
+        BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -eux
+
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
+            --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
+            --dry-run
+        else
+          python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
+            --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}"
+        fi
