@@ -23,9 +23,9 @@ import yaml
 MAX_AVAILABLE_MINIMUM = 50
 
 # Paths relative to their respective repositories
-SCALE_CONFIG_PATH = ".github/scale-config.yml"
-PYTORCH_LF_SCALE_CONFIG_PATH = ".github/lf-scale-config.yml"
-PYTORCH_LF_CANARY_SCALE_CONFIG_PATH = ".github/lf-canary-scale-config.yml"
+META_SCALE_CONFIG_PATH = ".github/scale-config.yml"
+LF_SCALE_CONFIG_PATH = ".github/lf-scale-config.yml"
+LF_CANARY_SCALE_CONFIG_PATH = ".github/lf-canary-scale-config.yml"
 
 RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
@@ -282,27 +282,28 @@ def main() -> None:
 
     generate_files = False
     if args.pytorch_repo_root is None:
+        # This is expected during a CI run
         print(
             "Using github's pytorch/pytorch repository as the source for the pytorch scale config files"
         )
 
-        pt_lf_scale_config_path = pull_temp_config_from_github_repo(
-            PYTORCH_LF_SCALE_CONFIG_PATH
+        pytorch_lf_scale_config_path = pull_temp_config_from_github_repo(
+            LF_SCALE_CONFIG_PATH
         )
-        pt_lf_canary_scale_config_path = pull_temp_config_from_github_repo(
-            PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
+        pytorch_lf_canary_scale_config_path = pull_temp_config_from_github_repo(
+            LF_CANARY_SCALE_CONFIG_PATH
         )
     else:
         # Running locally
         generate_files = True
-        pt_lf_scale_config_path = os.path.join(
-            args.pytorch_repo_root, PYTORCH_LF_SCALE_CONFIG_PATH
+        pytorch_lf_scale_config_path = os.path.join(
+            args.pytorch_repo_root, LF_SCALE_CONFIG_PATH
         )
-        pt_lf_canary_scale_config_path = os.path.join(
-            args.pytorch_repo_root, PYTORCH_LF_CANARY_SCALE_CONFIG_PATH
+        pytorch_lf_canary_scale_config_path = os.path.join(
+            args.pytorch_repo_root, LF_CANARY_SCALE_CONFIG_PATH
         )
 
-    scale_config_path = os.path.join(args.test_infra_repo_root, SCALE_CONFIG_PATH)
+    scale_config_path = os.path.join(args.test_infra_repo_root, META_SCALE_CONFIG_PATH)
 
     scale_config = load_yaml_file(scale_config_path)
     validation_success = True
@@ -315,24 +316,24 @@ def main() -> None:
 
     if generate_files:
         generate_repo_scale_config(
-            scale_config_path, pt_lf_scale_config_path, PREFIX_LF
+            scale_config_path, pytorch_lf_scale_config_path, PREFIX_LF
         )
 
         generate_repo_scale_config(
-            scale_config_path, pt_lf_canary_scale_config_path, PREFIX_LF_CANARY
+            scale_config_path, pytorch_lf_canary_scale_config_path, PREFIX_LF_CANARY
         )
         print("Generated updated pytorch/pytorch scale config files\n")
 
-    pt_scale_config = load_yaml_file(pt_lf_scale_config_path)
-    pytorch_canary_scale_config = load_yaml_file(pt_lf_canary_scale_config_path)
+    pytorch_lf_scale_config = load_yaml_file(pytorch_lf_scale_config_path)
+    pytorch_lf_canary_scale_config = load_yaml_file(pytorch_lf_canary_scale_config_path)
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
-        pt_scale_config[RUNNER_TYPE_CONFIG_KEY],
+        pytorch_lf_scale_config[RUNNER_TYPE_CONFIG_KEY],
         PREFIX_LF,
     ):
         print(
-            f"Consistency validation failed between {scale_config_path} and {pt_lf_scale_config_path}\n"
+            f"Consistency validation failed between {scale_config_path} and {pytorch_lf_scale_config_path}\n"
         )
         validation_success = False
     else:
@@ -340,11 +341,11 @@ def main() -> None:
 
     if not is_consistent_across_configs(
         scale_config[RUNNER_TYPE_CONFIG_KEY],
-        pytorch_canary_scale_config[RUNNER_TYPE_CONFIG_KEY],
+        pytorch_lf_canary_scale_config[RUNNER_TYPE_CONFIG_KEY],
         PREFIX_LF_CANARY,
     ):
         print(
-            f"Consistency validation failed between {scale_config_path} and {pt_lf_canary_scale_config_path}\n"
+            f"Consistency validation failed between {scale_config_path} and {pytorch_lf_canary_scale_config_path}\n"
         )
         validation_success = False
     else:
