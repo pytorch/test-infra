@@ -13,6 +13,7 @@ import boto3  # type: ignore[import]
 METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
 FILENAMES_PATH = "ossci_tutorials_stats/filenames.csv"
 
+
 def run_command(cmd: str, cwd: Optional[str] = None) -> str:
     """
     Run a shell command.
