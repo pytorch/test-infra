@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 import csv
-from functools import lru_cache
 import gzip
 import io
-import json
 import os.path
 import shlex
+from functools import lru_cache
 from subprocess import check_output
 from typing import Any, Dict, List, Optional, Tuple, Union
 
