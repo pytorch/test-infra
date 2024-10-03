@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import json
 import datetime
+import json
 import logging
 import os
 import random
@@ -306,6 +306,7 @@ def print_testspec(
 
 def print_test_artifacts(
     client: Any,
+    app_type: str,
     test_arn: str,
     workflow_id: str,
     workflow_attempt: int,
@@ -346,6 +347,7 @@ def print_test_artifacts(
             )
 
             # Some more metadata to identify where the artifact comes from
+            artifact["app_type"] = app_type
             artifact["job_name"] = job_name
             gathered_artifacts.append(artifact)
 
@@ -358,6 +360,7 @@ def print_test_artifacts(
 
 def print_report(
     client: Any,
+    app_type: str,
     report: Dict[str, Any],
     report_type: ReportType,
     job_name: Optional[str],
@@ -399,7 +402,7 @@ def print_report(
         next_report_type = ReportType.TEST
     elif report_type == ReportType.TEST:
         return print_test_artifacts(
-            client, arn, workflow_id, workflow_attempt, job_name, indent + 2
+            client, app_type, arn, workflow_id, workflow_attempt, job_name, indent + 2
         )
 
     artifacts = []
@@ -407,6 +410,7 @@ def print_report(
         artifacts.extend(
             print_report(
                 client,
+                app_type,
                 more_report,
                 next_report_type,
                 job_name,
@@ -542,6 +546,7 @@ def main() -> None:
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
     )
 
+    app_type = ""
     if args.app.startswith(AWS_ARN_PREFIX):
         appfile_arn = args.app
         info(f"Use the existing app: {appfile_arn}")
@@ -559,11 +564,13 @@ def main() -> None:
         info(f"Uploaded app: {appfile_arn}")
 
     if args.ios_xctestrun:
+        app_type = "IOS_APP"
         test_to_run = generate_ios_xctestrun(
             client, project_arn, unique_prefix, args.ios_xctestrun, args.test_spec
         )
 
     if args.android_instrumentation_test:
+        app_type = "ANDROID_APP"
         test_to_run = generate_android_instrumentation_test(
             client,
             project_arn,
@@ -611,7 +618,13 @@ def main() -> None:
         sys.exit(1)
     finally:
         artifacts = print_report(
-            client, r.get("run"), ReportType.RUN, None, workflow_id, workflow_attempt
+            client,
+            app_type,
+            r.get("run"),
+            ReportType.RUN,
+            None,
+            workflow_id,
+            workflow_attempt,
         )
         set_output(json.dumps(artifacts), "artifacts", args.output)
 
