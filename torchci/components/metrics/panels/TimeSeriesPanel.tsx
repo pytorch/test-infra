@@ -100,7 +100,7 @@ export function seriesWithInterpolatedTimes(
       name: key,
       type: graph_type === "line" ? "line" : "bar",
 
-      stack: "Total",
+      stack: undefined,
       symbol: "circle",
       symbolSize: 4,
       data,
@@ -135,7 +135,6 @@ export function seriesWithInterpolatedTimes(
   var sortedSeries = _.sortBy(series, (x) => {
     return -totalValues[x.name];
   });
-  console.log("number of items in sorted series", sortedSeries.length);
   return sortedSeries;
 }
 
@@ -351,8 +350,6 @@ export default function TimeSeriesPanel({
     chartType,
     filter
   );
-
-  console.log(`got ${series.length} data points for ${title}`);
 
   return (
     <TimeSeriesPanelWithData
