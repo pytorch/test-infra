@@ -61,7 +61,7 @@ def parse_args() -> Any:
 
 
 # TODO (huydhn): This can be replaced by S3 path once we move to S3
-<D-c>def generate_partition_key(doc: Dict[str, Any]) -> str:
+def generate_partition_key(doc: Dict[str, Any]) -> str:
     """
     Generate an unique partition key for the document on DynamoDB
     """
