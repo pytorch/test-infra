@@ -15,8 +15,11 @@ import TimeSeriesPanel, {
   ChartType,
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
+import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
+import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 
 function TimePicker({ label, value, setValue }: any) {
   return (
@@ -189,6 +192,18 @@ export default function Page() {
     stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
+  const url = `/api/clickhouse/unique_repos_in_runnercost?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...timeParamsClickHouse,
+    })
+  )}`;
+
+  const { data } = useSWR(url, fetcher);
+  // data is in form [{repo: "repo1"}, {repo: "repo2"}]
+  // map to ["repo1", "repo2"]
+  const repos = data ? data.map((d: any) => d.repo) : [];
+  console.log(repos);
+
   const generateTimeSeriesGridItem = (
     groupby: CostCategory,
     yAxis: "cost" | "duration"
@@ -241,7 +256,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          PyTorch CI Metrics
+          PyTorch CI Cost & Runtime Analytics
         </Typography>
         <TimeRangePicker
           startTime={startTime}
@@ -276,6 +291,12 @@ export default function Page() {
             <MenuItem value={"line"}>Line</MenuItem>
           </Select>
         </FormControl>
+        <MultiSelectPicker
+          selected={repos}
+          setSelected={() => {}}
+          options={repos}
+          label={"Repos"}
+        />
       </Stack>
 
       <Grid container spacing={2}>
