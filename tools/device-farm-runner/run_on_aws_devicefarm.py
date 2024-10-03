@@ -291,14 +291,14 @@ def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
 
 
 def print_testspec(
-    report_name: Optional[str],
+    job_name: Optional[str],
     file_name: str,
     indent: int = 0,
 ) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
-    print(f"::group::{report_name} test output")
+    print(f"::group::{job_name} test output")
     with open(file_name) as f:
         print(f.read())
     print("::endgroup::")
@@ -309,7 +309,7 @@ def print_test_artifacts(
     test_arn: str,
     workflow_id: str,
     workflow_attempt: int,
-    report_name: Optional[str],
+    job_name: Optional[str],
     indent: int = 0,
 ) -> List[Dict[str, str]]:
     """
@@ -346,12 +346,12 @@ def print_test_artifacts(
             )
 
             # Some more metadata to identify where the artifact comes from
-            artifact["report_name"] = report_name
+            artifact["job_name"] = job_name
             gathered_artifacts.append(artifact)
 
             # Additional step to print the test output
             if filetype == "TESTSPEC_OUTPUT":
-                print_testspec(report_name, local_filename, indent + 2)
+                print_testspec(job_name, local_filename, indent + 2)
 
     return gathered_artifacts
 
@@ -359,8 +359,8 @@ def print_test_artifacts(
 def print_report(
     client: Any,
     report: Dict[str, Any],
-    report_name: Optional[str],
     report_type: ReportType,
+    job_name: Optional[str],
     workflow_id: str,
     workflow_attempt: int,
     indent: int = 0,
@@ -374,10 +374,10 @@ def print_report(
         return []
 
     name = report["name"]
-    # Keep the top-level report name as the name of the whole test report, this
-    # is used to connect all artifacts from one report together
-    if not report_name:
-        report_name = name
+    # Keep the top-level job name as the name of the whole report, this
+    # is used to connect all artifacts from one job together
+    if report_type == ReportType.JOB:
+        job_name = name
     result = report["result"]
 
     extra_msg = ""
@@ -399,7 +399,7 @@ def print_report(
         next_report_type = ReportType.TEST
     elif report_type == ReportType.TEST:
         return print_test_artifacts(
-            client, arn, workflow_id, workflow_attempt, report_name, indent + 2
+            client, arn, workflow_id, workflow_attempt, job_name, indent + 2
         )
 
     artifacts = []
@@ -408,8 +408,8 @@ def print_report(
             print_report(
                 client,
                 more_report,
-                report_name,
                 next_report_type,
+                job_name,
                 workflow_id,
                 workflow_attempt,
                 indent + 2,
@@ -611,7 +611,7 @@ def main() -> None:
         sys.exit(1)
     finally:
         artifacts = print_report(
-            client, r.get("run"), None, ReportType.RUN, workflow_id, workflow_attempt
+            client, r.get("run"), ReportType.RUN, None, workflow_id, workflow_attempt
         )
         set_output(json.dumps(artifacts), "artifacts", args.output)
 
