@@ -14,7 +14,7 @@ import tempfile
 
 import urllib.request
 
-from typing import Any, cast, Dict
+from typing import Any, List, NamedTuple, cast, Dict
 
 import jsonschema
 
@@ -31,6 +31,7 @@ RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
 GITHUB_PYTORCH_REPO_RAW_URL = "https://raw.githubusercontent.com/pytorch/pytorch/main/"
 
+PREFIX_META = ""
 PREFIX_LF = "lf."
 PREFIX_LF_CANARY = "lf.c."
 
@@ -277,85 +278,104 @@ def pull_temp_config_from_github_repo(config_path: str) -> str:
     return config_path
 
 
+class ScaleConfigInfo(NamedTuple):
+    path: str  # full path to scale config file
+    prefix: str  # prefix this fleet's runners types should have
+
+
 def main() -> None:
     args = parse_args()
 
-    generate_files = False
+    source_scale_config_info = ScaleConfigInfo(
+        path=os.path.join(args.test_infra_repo_root, META_SCALE_CONFIG_PATH),
+        prefix=PREFIX_META,
+    )
+
+    # Contains scale configs that are generated from the source scale config
+    generated_scale_config_infos: List[ScaleConfigInfo] = [
+        ScaleConfigInfo(
+            path=os.path.join(args.test_infra_repo_root, LF_SCALE_CONFIG_PATH),
+            prefix=PREFIX_LF,
+        ),
+        ScaleConfigInfo(
+            path=os.path.join(args.test_infra_repo_root, LF_CANARY_SCALE_CONFIG_PATH),
+            prefix=PREFIX_LF_CANARY,
+        ),
+    ]
+
+    generate_files = True
     if args.pytorch_repo_root is None:
         # This is expected during a CI run
+        generate_files = False
         print(
             "Using github's pytorch/pytorch repository as the source for the pytorch scale config files"
         )
 
-        pytorch_lf_scale_config_path = pull_temp_config_from_github_repo(
-            LF_SCALE_CONFIG_PATH
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=pull_temp_config_from_github_repo(LF_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF,
+            )
         )
-        pytorch_lf_canary_scale_config_path = pull_temp_config_from_github_repo(
-            LF_CANARY_SCALE_CONFIG_PATH
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=pull_temp_config_from_github_repo(LF_CANARY_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF_CANARY,
+            )
         )
     else:
-        # Running locally
-        generate_files = True
-        pytorch_lf_scale_config_path = os.path.join(
-            args.pytorch_repo_root, LF_SCALE_CONFIG_PATH
+        # This is expected during a local run
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=os.path.join(args.pytorch_repo_root, LF_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF,
+            )
         )
-        pytorch_lf_canary_scale_config_path = os.path.join(
-            args.pytorch_repo_root, LF_CANARY_SCALE_CONFIG_PATH
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=os.path.join(args.pytorch_repo_root, LF_CANARY_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF_CANARY,
+            )
         )
 
-    scale_config_path = os.path.join(args.test_infra_repo_root, META_SCALE_CONFIG_PATH)
-
-    scale_config = load_yaml_file(scale_config_path)
+    source_scale_config = load_yaml_file(source_scale_config_info.path)
     validation_success = True
 
-    if not is_config_consistent_internally(scale_config[RUNNER_TYPE_CONFIG_KEY]):
+    if not is_config_consistent_internally(source_scale_config[RUNNER_TYPE_CONFIG_KEY]):
         validation_success = False
         print("scale-config.yml is not internally consistent\n")
     else:
         print("scale-config.yml is internally consistent\n")
 
-    if generate_files:
-        generate_repo_scale_config(
-            scale_config_path, pytorch_lf_scale_config_path, PREFIX_LF
-        )
+    def validate_config(generated_config_info: ScaleConfigInfo) -> bool:
+        if generate_files:
+            generate_repo_scale_config(
+                source_scale_config_info.path,
+                generated_config_info.path,
+                generated_config_info.prefix,
+            )
 
-        generate_repo_scale_config(
-            scale_config_path, pytorch_lf_canary_scale_config_path, PREFIX_LF_CANARY
-        )
-        print("Generated updated pytorch/pytorch scale config files\n")
-
-    pytorch_lf_scale_config = load_yaml_file(pytorch_lf_scale_config_path)
-    pytorch_lf_canary_scale_config = load_yaml_file(pytorch_lf_canary_scale_config_path)
-
-    if not is_consistent_across_configs(
-        scale_config[RUNNER_TYPE_CONFIG_KEY],
-        pytorch_lf_scale_config[RUNNER_TYPE_CONFIG_KEY],
-        PREFIX_LF,
-    ):
         print(
-            f"Consistency validation failed between {scale_config_path} and {pytorch_lf_scale_config_path}\n"
-        )
-        validation_success = False
-    else:
-        print("scale-config.yml is consistent with pytorch/pytorch scale config\n")
-
-    if not is_consistent_across_configs(
-        scale_config[RUNNER_TYPE_CONFIG_KEY],
-        pytorch_lf_canary_scale_config[RUNNER_TYPE_CONFIG_KEY],
-        PREFIX_LF_CANARY,
-    ):
-        print(
-            f"Consistency validation failed between {scale_config_path} and {pytorch_lf_canary_scale_config_path}\n"
-        )
-        validation_success = False
-    else:
-        print(
-            "scale-config.yml is consistent with pytorch/pytorch canary scale config\n"
+            f"Generated updated pytorch/pytorch scale config file at {generated_config_info.path}\n"
         )
 
-    # # Delete the temp dir, if it was created
-    # if temp_dir and os.path.exists(temp_dir):
-    #     os.rmdir(temp_dir)
+        cloned_scale_config = load_yaml_file(generated_config_info.path)
+
+        if not is_consistent_across_configs(
+            source_scale_config[RUNNER_TYPE_CONFIG_KEY],
+            cloned_scale_config[RUNNER_TYPE_CONFIG_KEY],
+            generated_config_info.prefix,
+        ):
+            print(
+                f"Consistency validation failed between {source_scale_config.path} and {generated_config_info.path}\n"
+            )
+            return False
+        else:
+            print(f"scale-config.yml is consistent with {generated_config_info.path}\n")
+            return True
+
+    for cloned_config_info in generated_scale_config_infos:
+        validation_success &= validate_config(cloned_config_info)
 
     if not validation_success:
         print(
