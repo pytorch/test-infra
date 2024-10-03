@@ -84,7 +84,6 @@ def upload_to_dynamodb(
     Copied from upload stats script
     """
     info(f"Writing {len(docs)} documents to DynamoDB {dynamodb_table}")
-    print(docs)
     if not dry_run:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#batch-writing
         with boto3.resource("dynamodb").Table(dynamodb_table).batch_writer() as batch:

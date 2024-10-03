@@ -14,7 +14,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        python3 -mpip install awscli boto3
+        python3 -mpip install boto3==1.35.33
 
     # TODO (huydhn): Once the generic benchmark database is ready, this will be
     # uploaded to S3 instead
