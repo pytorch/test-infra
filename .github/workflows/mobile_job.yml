@@ -303,14 +303,6 @@ jobs:
             --workflow-attempt "${RUN_ATTEMPT}" \
             --output "ios-artifacts-${JOB_ID}.json"
 
-      - name: Upload iOS artifacts to GitHub
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.device-type == 'ios' }}
-        with:
-          name: ios-artifacts
-          path: |
-            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
-
       - name: Upload iOS artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
         if: ${{ inputs.device-type == 'ios' }}
@@ -355,19 +347,10 @@ jobs:
             --workflow-attempt "${RUN_ATTEMPT}" \
             --output "android-artifacts-${JOB_ID}.json"
 
-      - name: Upload iOS artifacts to GitHub
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.device-type == 'android' }}
-        with:
-          name: android-artifacts
-          path: |
-            test-infra/tools/device-farm-runner/android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
-
       - name: Upload Android artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
         if: ${{ inputs.device-type == 'android' }}
         with:
-          name: android-artifacts
           retention-days: 14
           s3-bucket: gha-artifacts
           s3-prefix: |
