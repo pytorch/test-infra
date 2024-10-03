@@ -180,7 +180,7 @@ def main() -> None:
     get_history_log = get_history(tutorials_dir)
     commits_to_files = get_file_names(tutorials_dir)
 
-    # Upload data to S3
+    # Upload data to S3 as csv with gzip compression and no header line
 
     print(f"Uploading data to {METADATA_PATH}")
     history_log = [
