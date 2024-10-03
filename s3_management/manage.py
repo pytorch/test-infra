@@ -64,6 +64,7 @@ PACKAGE_ALLOW_LIST = {
     "multiprocess",
     "omegaconf",
     "pandas",
+    "psutil",
     "pyarrow",
     "pyarrow_hotfix",
     "pycryptodomex",
