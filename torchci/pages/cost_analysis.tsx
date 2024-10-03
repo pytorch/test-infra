@@ -243,7 +243,7 @@ export default function Page() {
       <Grid item xs={12}>
         <TextField
           id={`outlined-basic-${type}`}
-          label={`Search ${type}`}
+          label={`🔍 Filter ${type}`}
           onChange={handleChange}
           variant="outlined"
           fullWidth
@@ -300,21 +300,21 @@ export default function Page() {
       </Stack>
 
       <Grid container spacing={2}>
+        {generateSearchBar("workflow_name")}
         {generateTimeSeriesGridItem("workflow_name", "cost")}
         {generateTimeSeriesGridItem("workflow_name", "duration")}
-        {generateSearchBar("workflow_name")}
+        {generateSearchBar("job_name")}
         {generateTimeSeriesGridItem("job_name", "cost")}
         {generateTimeSeriesGridItem("job_name", "duration")}
-        {generateSearchBar("job_name")}
+        {generateSearchBar("runner_type")}
         {generateTimeSeriesGridItem("runner_type", "cost")}
         {generateTimeSeriesGridItem("runner_type", "duration")}
-        {generateSearchBar("runner_type")}
+        {generateSearchBar("platform")}
         {generateTimeSeriesGridItem("platform", "cost")}
         {generateTimeSeriesGridItem("platform", "duration")}
-        {generateSearchBar("platform")}
+        {generateSearchBar("provider")}
         {generateTimeSeriesGridItem("provider", "cost")}
         {generateTimeSeriesGridItem("provider", "duration")}
-        {generateSearchBar("provider")}
       </Grid>
     </div>
   );
