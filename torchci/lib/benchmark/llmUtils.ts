@@ -10,56 +10,80 @@ import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
 
 export function useBenchmark(
-  queryParams: RocksetParam[],
+  queryParams: RocksetParam[] | {},
   modelName: string,
   dtypeName: string,
   deviceName: string,
   branchAndCommit: BranchAndCommit,
+  useClickHouse: boolean = false,
   getJobId: boolean = false
 ) {
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_llms";
 
-  const queryParamsWithBranchAndCommit: RocksetParam[] = [
-    {
-      name: "names",
-      type: "string",
-      value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
-    },
-    {
-      name: "dtypes",
-      type: "string",
-      value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
-    },
-    {
-      name: "getJobId",
-      type: "bool",
-      value: getJobId,
-    },
-    ...queryParams,
-  ];
+  const queryParamsWithBranchAndCommit:
+    | RocksetParam[]
+    | { [key: string]: any } = useClickHouse
+    ? {
+        names: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
+        dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
+        getJobId: getJobId,
+        ...queryParams,
+      }
+    : [
+        {
+          name: "names",
+          type: "string",
+          value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
+        },
+        {
+          name: "dtypes",
+          type: "string",
+          value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
+        },
+        {
+          name: "getJobId",
+          type: "bool",
+          value: getJobId,
+        },
+        ...(queryParams as RocksetParam[]),
+      ];
 
-  if (branchAndCommit.branch) {
-    queryParamsWithBranchAndCommit.push({
-      name: "branches",
-      type: "string",
-      value: branchAndCommit.branch,
-    });
+  if (useClickHouse) {
+    (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
+      branchAndCommit.branch ? [branchAndCommit.branch] : [];
+  } else {
+    if (branchAndCommit.branch) {
+      queryParamsWithBranchAndCommit.push({
+        name: "branches",
+        type: "string",
+        value: branchAndCommit.branch,
+      });
+    }
   }
 
-  if (branchAndCommit.commit) {
-    queryParamsWithBranchAndCommit.push({
-      name: "commits",
-      type: "string",
-      value: branchAndCommit.commit,
-    });
+  if (useClickHouse) {
+    (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
+      branchAndCommit.commit ? [branchAndCommit.commit] : [];
+  } else {
+    if (branchAndCommit.commit) {
+      queryParamsWithBranchAndCommit.push({
+        name: "commits",
+        type: "string",
+        value: branchAndCommit.commit,
+      });
+    }
   }
 
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithBranchAndCommit)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsWithBranchAndCommit)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsWithBranchAndCommit)
+      )}`;
 
-  return useSWR(lUrl, fetcher, {
+  return useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 }

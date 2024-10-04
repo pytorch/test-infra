@@ -1,6 +1,6 @@
 --- This query is used by HUD benchmarks dashboards to get the list of experiment names
 SELECT
-    DISTINCT o.filename,
+    DISTINCT o.filename AS filename,
     o.name,
     o.metric,
     o.dtype,

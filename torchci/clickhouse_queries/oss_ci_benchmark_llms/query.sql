@@ -2,13 +2,13 @@
 --- queries the TPS and memory bandwidth for each model / quantization combos. This powers
 --- the LLMs benchmark dashboard
 SELECT
-    DISTINCT o.workflow_id,
+    DISTINCT o.workflow_id AS workflow_id,
     -- As the JSON response is pretty big, only return the field if it's needed
     IF({getJobId: Bool}, o.job_id, '') AS job_id,
     o.name,
     o.metric,
-    IF(notEmpty(o.actual), CAST(o.actual AS FLOAT), 0.0) AS actual,
-    IF(notEmpty(o.target), CAST(o.target AS FLOAT), 0.0) AS target,
+    o.actual AS actual,
+    o.target AS target,
     DATE_TRUNC(
         {granularity: String },
         fromUnixTimestamp64Milli(o.timestamp)

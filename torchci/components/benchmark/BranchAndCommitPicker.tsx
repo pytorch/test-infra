@@ -57,10 +57,11 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
+  useClickHouse,
 }: {
   queryName: string;
   queryCollection: string;
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   branch: string;
   setBranch: any;
   commit: string;
@@ -68,10 +69,15 @@ export function BranchAndCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
+  useClickHouse: boolean;
 }) {
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams as RocksetParam[])
+      )}`;
 
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour

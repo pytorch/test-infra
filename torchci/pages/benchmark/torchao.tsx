@@ -351,6 +351,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
+          useClickHouse={false}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -366,6 +367,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+          useClickHouse={false}
         />
       </Stack>
 

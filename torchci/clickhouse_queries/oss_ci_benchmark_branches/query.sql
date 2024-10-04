@@ -1,7 +1,7 @@
 -- This query is used to get the list of branches and commits used by different
 -- OSS CI benchmark experiments. This powers HUD benchmarks dashboards
 SELECT
-    DISTINCT w.head_branch,
+    DISTINCT w.head_branch AS head_branch,
     w.head_sha,
     w.id,
     toStartOfDay(fromUnixTimestamp64Milli(o.timestamp)) AS event_time,
