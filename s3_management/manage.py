@@ -50,8 +50,10 @@ PACKAGE_ALLOW_LIST = {
     # ---- torchtune additional packages ----
     "aiohttp",
     "aiosignal",
+    "aiohappyeyeballs",
     "antlr4_python3_runtime",
     "antlr4-python3-runtime",
+    "async_timeout",
     "attrs",
     "blobfile",
     "datasets",
