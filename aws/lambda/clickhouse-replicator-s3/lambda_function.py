@@ -408,7 +408,7 @@ def ossci_uploaded_metrics_adapter(table, bucket, key):
     `timestamp` DateTime64(9),
     `info` String
     """
-    general_adapter(table, bucket, key, schema, "gzip", "JSONEachRow")
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
 
 def stable_pushes_adapter(table, bucket, key):
@@ -417,7 +417,7 @@ def stable_pushes_adapter(table, bucket, key):
     `repository` String,
     `timestamp` DateTime
     """
-    general_adapter(table, bucket, key, schema, "none", "JSONEachRow")
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
 SUPPORTED_PATHS = {
