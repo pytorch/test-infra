@@ -1,12 +1,12 @@
 {
-  "branches": "String",
-  "commits": "String",
-  "devices": "String",
-  "dtypes": "String",
-  "filenames": "String",
+  "branches": "Array(String)",
+  "commits": "Array(String)",
+  "deviceArch": "String",
+  "dtypes": "Array(String)",
+  "filenames": "Array(String)",
   "getJobId": "Bool",
   "granularity": "String",
-  "names": "String",
+  "names": "Array(String)",
   "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)"

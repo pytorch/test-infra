@@ -1,81 +1,65 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 --- This query is used to get the LLMs benchmark results from different experiments. It
 --- queries the TPS and memory bandwidth for each model / quantization combos. This powers
 --- the LLMs benchmark dashboard
 SELECT
-  DISTINCT o.workflow_id,
-  -- As the JSON response is pretty big, only return the field if it's needed
-  IF(:getJobId, o.job_id, NULL) AS job_id,
-  o.name,
-  o.metric,
-  IF(
-    o.actual IS NOT NULL,
-    CAST(o.actual AS FLOAT), 0.0
-  ) AS actual,
-  IF(
-    o.target IS NOT NULL,
-    CAST(o.target AS FLOAT), 0.0
-  ) AS target,
-  FORMAT_ISO8601(
-    DATE_TRUNC(: granularity,TIMESTAMP_MILLIS(o.timestamp))
-  ) AS granularity_bucket,
-  o.dtype,
-  o.device,
+    DISTINCT o.workflow_id,
+    -- As the JSON response is pretty big, only return the field if it's needed
+    IF({getJobId: Bool}, o.job_id, '') AS job_id,
+    o.name,
+    o.metric,
+    IF(notEmpty(o.actual), CAST(o.actual AS FLOAT), 0.0) AS actual,
+    IF(notEmpty(o.target), CAST(o.target AS FLOAT), 0.0) AS target,
+    DATE_TRUNC(
+        {granularity: String },
+        fromUnixTimestamp64Milli(o.timestamp)
+    ) AS granularity_bucket,
+    o.dtype,
+    o.device,
+    -- NB: Default to NVIDIA A100-SXM4-40GB for old records without arch column
+    IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch) as arch
 FROM
-  benchmarks.oss_ci_benchmark_v2 o
-  LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id
+    benchmark.oss_ci_benchmark_v2 o
+    LEFT JOIN default .workflow_run w FINAL ON o.workflow_id = w.id
 WHERE
-  TIMESTAMP_MILLIS(o.timestamp) >= PARSE_DATETIME_ISO8601(: startTime)
-  AND TIMESTAMP_MILLIS(o.timestamp) < PARSE_DATETIME_ISO8601(: stopTime)
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: branches, ','),
-      w.head_branch
+    o.timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
+    AND o.timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
+    AND (
+        has({branches: Array(String) }, w.head_branch)
+        OR empty({branches: Array(String) })
     )
-    OR : branches = ''
-  )
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: commits, ','),
-      w.head_sha
+    AND (
+        has({commits: Array(String) }, w.head_sha)
+        OR empty({commits: Array(String) })
     )
-    OR : commits = ''
-  )
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: filenames, ','),
-      o.filename
+    AND (
+        has({filenames: Array(String) }, o.filename)
+        OR empty({filenames: Array(String) })
     )
-    OR : filenames = ''
-  )
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: names, ','),
-      o.name
+    AND (
+        has({names: Array(String) }, o.name)
+        OR empty({names: Array(String) })
     )
-    OR : names = ''
-  )
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: devices, ','),
-      o.device
+    -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
+    AND (
+        CONCAT(
+            o.device,
+            ' (',
+            IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch),
+            ')'
+        ) = {deviceArch: String }
+        OR {deviceArch: String } = ''
     )
-    OR : devices = ''
-  )
-  AND (
-    ARRAY_CONTAINS(
-      SPLIT(: dtypes, ','),
-      o.dtype
+    AND (
+        has({dtypes: Array(String) }, o.dtype)
+        OR empty({dtypes: Array(String) })
     )
-    OR : dtypes = ''
-  )
-  AND o.metric IS NOT NULL
-  AND o.dtype IS NOT NULL
-  AND o.device IS NOT NULL
-  AND w.html_url LIKE CONCAT('%', : repo, '%')
+    AND notEmpty(o.metric)
+    AND notEmpty(o.dtype)
+    AND notEmpty(o.device)
+    AND w.html_url LIKE CONCAT('%', {repo: String }, '%')
 ORDER BY
-  granularity_bucket DESC,
-  workflow_id DESC,
-  name,
-  dtype,
-  device
+    granularity_bucket DESC,
+    workflow_id DESC,
+    name,
+    dtype,
+    device
