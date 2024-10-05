@@ -5,6 +5,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import hashlib
 import json
 import logging
 import os
@@ -60,6 +61,14 @@ def parse_args() -> Any:
     return parser.parse_args()
 
 
+# DynamoDB use Decimal, not float
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, Decimal):
+            return str(o)
+        return super().default(o)
+
+
 # TODO (huydhn): This can be replaced by S3 path once we move to S3
 def generate_partition_key(doc: Dict[str, Any]) -> str:
     """
@@ -71,7 +80,10 @@ def generate_partition_key(doc: Dict[str, Any]) -> str:
     test_name = doc["test_name"]
     filename = doc["filename"]
 
-    return f"{repo}/{workflow_id}/{job_id}/{test_name}/{filename}"
+    hash_content = hashlib.md5(
+        json.dumps(doc, cls=DecimalEncoder).encode("utf-8")
+    ).hexdigest()
+    return f"{repo}/{workflow_id}/{job_id}/{test_name}/{filename}/{hash_content}"
 
 
 def upload_to_dynamodb(
