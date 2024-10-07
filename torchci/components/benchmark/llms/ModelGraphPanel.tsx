@@ -33,8 +33,9 @@ export function GraphPanel({
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  useClickHouse,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   granularity: Granularity;
   modelName: string;
   dtypeName: string;
@@ -42,6 +43,7 @@ export function GraphPanel({
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  useClickHouse: boolean;
 }) {
   // Do not set the commit here to query all the records in the time range to
   // draw a chart
@@ -53,7 +55,8 @@ export function GraphPanel({
     {
       branch: rBranchAndCommit.branch,
       commit: "",
-    }
+    },
+    useClickHouse
   );
 
   if (data === undefined || data.length === 0) {
@@ -71,13 +74,19 @@ export function GraphPanel({
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
+  // align with the data we get from the database
+  const startTime = useClickHouse
+    ? (queryParams as { [key: string]: any })["startTime"].startOf(granularity)
+    : dayjs(
+        (queryParams as RocksetParam[]).find((p) => p.name === "startTime")
+          ?.value
+      ).startOf(granularity);
+  const stopTime = useClickHouse
+    ? (queryParams as { [key: string]: any })["stopTime"].startOf(granularity)
+    : dayjs(
+        (queryParams as RocksetParam[]).find((p) => p.name === "stopTime")
+          ?.value
+      ).startOf(granularity);
 
   // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];

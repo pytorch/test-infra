@@ -1,6 +1,5 @@
 {
-  "filenames": "String",
-  "granularity": "String",
+  "filenames": "Array(String)",
   "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)"

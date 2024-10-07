@@ -18,6 +18,7 @@ import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
@@ -27,7 +28,7 @@ import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { TimeRangePicker } from "../metrics";
+import { RStoCHTimeParams, TimeRangePicker } from "../metrics";
 
 function Report({
   queryParams,
@@ -41,8 +42,9 @@ function Report({
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  useClickHouse,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: RocksetParam[] | {};
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -53,6 +55,7 @@ function Report({
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  useClickHouse: boolean;
 }) {
   const { data: lData, error: _lError } = useBenchmark(
     queryParams,
@@ -60,6 +63,7 @@ function Report({
     dtypeName,
     deviceName,
     lBranchAndCommit,
+    useClickHouse,
     true
   );
   const { data: rData, error: _rError } = useBenchmark(
@@ -68,6 +72,7 @@ function Report({
     dtypeName,
     deviceName,
     rBranchAndCommit,
+    useClickHouse,
     true
   );
 
@@ -117,6 +122,7 @@ function Report({
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
+        useClickHouse={useClickHouse}
       />
       <SummaryPanel
         startTime={startTime}
@@ -155,6 +161,9 @@ export default function Page() {
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+
+  // TODO (huydhn): Clean this up once ClickHouse migration finishes
+  const { useCH: useClickHouse } = useCHContext();
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -231,12 +240,8 @@ export default function Page() {
 
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
+
+  const timeParams: RocksetParam[] = [
     {
       name: "startTime",
       type: "string",
@@ -247,6 +252,10 @@ export default function Page() {
       type: "string",
       value: stopTime,
     },
+  ];
+  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+
+  const queryParams: RocksetParam[] = [
     {
       name: "granularity",
       type: "string",
@@ -267,11 +276,24 @@ export default function Page() {
       type: "string",
       value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     },
+    ...timeParams,
   ];
+  const queryParamsClickHouse = {
+    granularity: granularity,
+    filenames: BENCHMARKS,
+    repo: repoName,
+    deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    ...timeParamsClickHouse,
+  };
 
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsClickHouse)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`;
+
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
@@ -349,7 +371,7 @@ export default function Page() {
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
-          queryParams={queryParams}
+          queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
@@ -357,6 +379,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
+          useClickHouse={useClickHouse}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -364,7 +387,7 @@ export default function Page() {
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
-          queryParams={queryParams}
+          queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
@@ -372,11 +395,12 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+          useClickHouse={useClickHouse}
         />
       </Stack>
 
       <Report
-        queryParams={queryParams}
+        queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -387,6 +411,7 @@ export default function Page() {
         metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
+        useClickHouse={useClickHouse}
       />
     </div>
   );
