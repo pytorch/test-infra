@@ -26,34 +26,23 @@ export async function fetchFlakyTestsAcrossFileReruns(
   numHours: string = "3"
 ): Promise<FlakyTestData[]> {
   const failedTestsQuery = `
-with jobs as (
-  select id
-  from materialized_views.workflow_job_by_completed_at
-  where completed_at > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
-)
 select
-  DISTINCT
-  name,
-  file,
-  invoking_file,
-  classname
+    DISTINCT name,
+    file,
+    invoking_file,
+    classname
 from
-  default.test_run_s3
+    default .test_run_s3
 where
-  (
-    LENGTH(failure) != 0
-    or LENGTH(error) != 0
-  )
-  and file != ''
-  and job_id in (select id from jobs)
+    (
+        LENGTH(failure) != 0
+        or LENGTH(error) != 0
+    )
+    and file != ''
+    and time_inserted > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
 `;
 
   const checkEveryTestQuery = `
-with jobs as (
-  select id
-  from materialized_views.workflow_job_by_completed_at
-  where completed_at > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
-)
 select
     name,
     classname as suite,
@@ -70,8 +59,8 @@ where
     and classname = {classname: String}
     and invoking_file = {invoking_file: String}
     and file = {file: String}
-    and job_id in (select id from jobs)
     and LENGTH(skipped) = 0
+    and time_inserted > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
 GROUP BY
     name,
     suite,
@@ -79,7 +68,9 @@ GROUP BY
     invoking_file,
     job_id
 HAVING
-    MIN(LENGTH(failure)) = 0
+    -- succeded at least once
+    MIN(LENGTH(failure) + LENGTH(error)) = 0
+    -- failed completely at least once
     and MAX(LENGTH(failure) + LENGTH(error)) != 0
 `;
 
