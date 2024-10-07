@@ -85,7 +85,11 @@ runs:
       run: |
         set -ex
 
-        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py --requires "${{ inputs.requires }}")
+        export PYTHONPATH=${PYTHONPATH}:${GITHUB_WORKSPACE}/test-infra
+        output=$(python ${GITHUB_WORKSPACE}/tools/scripts/fetch_latest_green_commit.py \
+          --required-checks "${{ inputs.requires }}") \
+          --viable-strict-branch "viable/strict" \
+          --main-branch "master")
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
 
     - name: Push SHA to viable/strict branch

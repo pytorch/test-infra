@@ -19,7 +19,7 @@ workflow_names = [
     "Create Release",
 ]
 
-required_workflows = ["pull", "trunk", "lint", "linux-binary", "windows-binary"]
+requires = ["pull", "trunk", "lint", "linux-binary"]
 
 
 def set_workflow_job_status(
@@ -54,7 +54,7 @@ class TestPrintCommits(TestCase):
     def test_all_successful(self, mock_get_commit_results: Any) -> None:
         """Test with workflows are successful"""
         workflow_checks = mock_get_commit_results()
-        self.assertTrue(is_green("sha", workflow_checks, required_workflows)[0])
+        self.assertTrue(is_green("sha", requires, workflow_checks)[0])
 
     @mock.patch(
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
@@ -78,7 +78,7 @@ class TestPrintCommits(TestCase):
         workflow_checks = set_workflow_job_status(
             workflow_checks, workflow_names[12], "failed"
         )
-        self.assertTrue(is_green("sha", workflow_checks, required_workflows)[0])
+        self.assertTrue(is_green("sha", requires, workflow_checks)[0])
 
     @mock.patch(
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
@@ -88,7 +88,7 @@ class TestPrintCommits(TestCase):
         """Test with necessary job (ex: pull) skipped"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(workflow_checks, "pull", "skipped")
-        result = is_green("sha", workflow_checks, required_workflows)
+        result = is_green("sha", requires, workflow_checks)
         self.assertTrue(result[0])
 
     @mock.patch(
@@ -104,7 +104,7 @@ class TestPrintCommits(TestCase):
         workflow_checks = set_workflow_job_status(
             workflow_checks, "docker-release-builds", "skipped"
         )
-        self.assertTrue(is_green("sha", workflow_checks, required_workflows))
+        self.assertTrue(is_green("sha", requires, workflow_checks))
 
     @mock.patch(
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
@@ -114,7 +114,7 @@ class TestPrintCommits(TestCase):
         """Test with necessary job (ex: Lint) failed"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(workflow_checks, "Lint", "failed")
-        result = is_green("sha", workflow_checks, required_workflows)
+        result = is_green("sha", requires, workflow_checks)
         self.assertFalse(result[0])
         self.assertEqual(result[1], "Lint checks were not successful")
 
@@ -131,7 +131,7 @@ class TestPrintCommits(TestCase):
         workflow_checks = set_workflow_job_status(
             workflow_checks, "docker-release-builds", "failed"
         )
-        result = is_green("sha", workflow_checks, required_workflows)
+        result = is_green("sha", requires, workflow_checks)
         self.assertTrue(result[0])
 
     @mock.patch(
@@ -140,17 +140,13 @@ class TestPrintCommits(TestCase):
     def test_no_workflows(self, mock_get_commit_results: Any) -> None:
         """Test with missing workflows"""
         workflow_checks = mock_get_commit_results()
-        result = is_green("sha", workflow_checks, required_workflows)
+        result = is_green("sha", requires, workflow_checks)
         self.assertFalse(result[0])
         self.assertEqual(
             result[1],
-            "missing required workflows: pull, trunk, lint, linux-binary, windows-binary",
+            "missing required workflows: pull, trunk, lint, linux-binary",
         )
 
 
 if __name__ == "__main__":
-    """
-    The tests were migrated from the pytorch/pytorch repo -
-    https://github.com/pytorch/pytorch/blob/master/.github/scripts/test_fetch_latest_green_commit.py
-    """
     main()

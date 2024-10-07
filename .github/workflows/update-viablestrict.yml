@@ -70,7 +70,10 @@ jobs:
           cd ${{ inputs.repository }}
 
           export PYTHONPATH=$PYTHONPATH:../../test-infra
-          output=$(python3 ../../test-infra/tools/scripts/fetch_latest_green_commit.py "${{ inputs.required_checks }}" "${{ inputs.viable_strict_branch }}")
+          output=$(python3 ../../test-infra/tools/scripts/fetch_latest_green_commit.py \
+            --required-checks "${{ inputs.required_checks }}" \
+            --viable-strict-branch "${{ inputs.viable_strict_branch }}" \
+            --main-branch "main")
           echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
         id: get-latest-commit
 
