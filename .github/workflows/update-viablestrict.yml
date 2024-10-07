@@ -36,13 +36,6 @@ jobs:
   do_update_viablestrict:
     runs-on: ubuntu-20.04
     steps:
-      # - name: Checkout ${{ inputs.test-infra-repository }} repo
-      #   uses: actions/checkout@v3
-      #   with:
-      #     repository: ${{ inputs.test-infra-repository }}
-      #     ref: ${{ inputs.test-infra-ref }}
-      #     path: test-infra
-
       - name: Checkout ${{ inputs.repository }} repo
         uses: actions/checkout@v3
         with:
@@ -69,23 +62,25 @@ jobs:
         run: |
           cd ${{ inputs.repository }}
 
-          export PYTHONPATH=$PYTHONPATH:${GITHUB_ACTION_PATH}/test-infra
-          output=$(python3 ${GITHUB_ACTION_PATH}/tools/scripts/fetch_latest_green_commit.py \
+          TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
+
+          export PYTHONPATH=$PYTHONPATH:${TEST_INFRA_PATH}
+          output=$(python3 ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
             --required-checks "${{ inputs.required_checks }}" \
             --viable-strict-branch "${{ inputs.viable_strict_branch }}" \
             --main-branch "main")
           echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
         id: get-latest-commit
 
-      # - name: Push SHA to viable/strict branch
-      #   if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
-      #   run: |
-      #     cd ${{ inputs.repository }}
+      - name: Push SHA to viable/strict branch
+        if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
+        run: |
+          cd ${{ inputs.repository }}
 
-      #     git config user.name 'github-actions[bot]'
-      #     git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-      #     echo "Set the latest sha variable to be  ${{ steps.get-latest-commit.outputs.latest_viable_sha }}"
-      #     # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
-      #     # to ignore because we already have the later green commit in viable/strict
-      #     git push origin "${{ steps.get-latest-commit.outputs.latest_viable_sha }}":${{ inputs.viable_strict_branch }}
+          echo "Set the latest sha variable to be  ${{ steps.get-latest-commit.outputs.latest_viable_sha }}"
+          # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
+          # to ignore because we already have the later green commit in viable/strict
+          git push origin "${{ steps.get-latest-commit.outputs.latest_viable_sha }}":${{ inputs.viable_strict_branch }}
