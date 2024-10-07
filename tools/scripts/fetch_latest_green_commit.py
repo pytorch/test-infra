@@ -134,12 +134,6 @@ def parse_args() -> Any:
     parser.add_argument("--required-checks", type=str)
     parser.add_argument("--viable-strict-branch", type=str, default="viable/strict")
     parser.add_argument("--main-branch", type=str, default="main")
-    parser.add_argument(
-        "--requires",
-        type=str,
-        required=True,
-        help="the JSON list of required jobs that need to pass for the commit to be green, or a comma separated list",
-    )
     return parser.parse_args()
 
 
