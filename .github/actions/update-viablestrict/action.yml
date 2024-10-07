@@ -86,9 +86,9 @@ runs:
         set -ex
 
         export PYTHONPATH=${PYTHONPATH}:${GITHUB_ACTION_PATH}
-        output=$(python ${GITHUB_ACTION_PATH}/tools/scripts/fetch_latest_green_commit.py \
-          --required-checks "${{ inputs.requires }}") \
-          --viable-strict-branch "viable/strict" \
+        output=$(python ${GITHUB_ACTION_PATH}/tools/scripts/fetch_latest_green_commit.py
+          --required-checks "${{ inputs.requires }}"
+          --viable-strict-branch "viable/strict"
           --main-branch "master")
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
 
