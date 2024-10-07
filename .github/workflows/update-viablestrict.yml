@@ -36,12 +36,12 @@ jobs:
   do_update_viablestrict:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout ${{ inputs.test-infra-repository }} repo
-        uses: actions/checkout@v3
-        with:
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
+      # - name: Checkout ${{ inputs.test-infra-repository }} repo
+      #   uses: actions/checkout@v3
+      #   with:
+      #     repository: ${{ inputs.test-infra-repository }}
+      #     ref: ${{ inputs.test-infra-ref }}
+      #     path: test-infra
 
       - name: Checkout ${{ inputs.repository }} repo
         uses: actions/checkout@v3
@@ -69,8 +69,8 @@ jobs:
         run: |
           cd ${{ inputs.repository }}
 
-          export PYTHONPATH=$PYTHONPATH:../../test-infra
-          output=$(python3 ../../test-infra/tools/scripts/fetch_latest_green_commit.py \
+          export PYTHONPATH=$PYTHONPATH:${GITHUB_ACTION_PATH}/test-infra
+          output=$(python3 ${GITHUB_ACTION_PATH}/tools/scripts/fetch_latest_green_commit.py \
             --required-checks "${{ inputs.required_checks }}" \
             --viable-strict-branch "${{ inputs.viable_strict_branch }}" \
             --main-branch "main")
