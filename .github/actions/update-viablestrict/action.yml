@@ -85,8 +85,8 @@ runs:
       run: |
         set -ex
 
-        export PYTHONPATH=${PYTHONPATH}:${GITHUB_ACTION_PATH}
-        output=$(python ${GITHUB_ACTION_PATH}/tools/scripts/fetch_latest_green_commit.py
+        export PYTHONPATH=${PYTHONPATH}:${GITHUB_ACTION_PATH}/../../..
+        output=$(python ${GITHUB_ACTION_PATH}/../../../tools/scripts/fetch_latest_green_commit.py
           --required-checks "${{ inputs.requires }}"
           --viable-strict-branch "viable/strict"
           --main-branch "master")
