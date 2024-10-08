@@ -83,7 +83,7 @@ function Graphs({
   filter,
   toggleFilter,
 }: {
-  queryParams: {};
+  queryParams: { [k: string]: any };
   granularity: Granularity;
   ttsPercentile: number;
   checkboxRef: any;
@@ -129,8 +129,8 @@ function Graphs({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let startTime = (queryParams as any)["startTime"];
-  let stopTime = (queryParams as any)["stopTime"];
+  let startTime = queryParams["startTime"];
+  let stopTime = queryParams["stopTime"];
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset

@@ -15,7 +15,7 @@ with jobs as (
 SELECT
     DATE_TRUNC(
         {granularity: String},
-        job.created_at,
+        job.created_at
     ) AS granularity_bucket,
     AVG(DATE_DIFF(
         'second',
