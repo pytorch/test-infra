@@ -5,7 +5,7 @@ import sys
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
 import rockset  # type: ignore[import]
-from tools.scripts.gitutils import _check_output
+from gitutils import _check_output
 
 
 def eprint(msg: str) -> None:
