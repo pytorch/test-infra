@@ -80,7 +80,6 @@ runs:
 
         TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
 
-        export PYTHONPATH=${PYTHONPATH}:${TEST_INFRA_PATH}
         output=$(python ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
           --required-checks "${{ inputs.requires }}" \
           --viable-strict-branch "viable/strict" \
