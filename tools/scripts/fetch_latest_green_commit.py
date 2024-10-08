@@ -1,11 +1,15 @@
 import json
 import os
+from pathlib import Path
 import re
 import sys
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
 import rockset  # type: ignore[import]
-from gitutils import _check_output
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT))
+from tools.scripts.gitutils import _check_output
+sys.path.pop(0)
 
 
 def eprint(msg: str) -> None:
