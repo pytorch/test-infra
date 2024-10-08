@@ -6,7 +6,7 @@ import os.path
 import shlex
 from functools import lru_cache
 from subprocess import check_output
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import boto3  # type: ignore[import]
 
@@ -14,17 +14,20 @@ METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
 FILENAMES_PATH = "ossci_tutorials_stats/filenames.csv"
 
 
-def run_command(cmd: str, cwd: Optional[str] = None) -> str:
+def run_command(
+    cmd: str, cwd: Optional[str] = None, env=Optional[Dict[str, str]]
+) -> str:
     """
     Run a shell command.
 
     Args:
         cmd: Command to run
         cwd: Working directory
+        env: Environment variables
     Returns:
         Output of the command.
     """
-    return check_output(shlex.split(cmd), cwd=cwd).decode("utf-8")
+    return check_output(shlex.split(cmd), cwd=cwd, env=env).decode("utf-8")
 
 
 def get_history(cwd: Optional[str] = None) -> List[List[str]]:
@@ -38,6 +41,7 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
     lines = run_command(
         'git log --date=short --pretty=format:%h;"%an";%ad;"%s" --shortstat',
         cwd=cwd,
+        env={"TZ": "UTC"},
     ).split("\n")
 
     def standardize_format(line: str) -> str:
@@ -94,48 +98,58 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
     return rc
 
 
+class FileInfo(NamedTuple):
+    filename: str
+    lines_added: int
+    lines_deleted: int
+
+
+class CommitInfo(NamedTuple):
+    commit_id: str
+    date: str
+    files: List[FileInfo]
+
+
 def get_file_names(
     cwd: Optional[str] = None,
-) -> List[Tuple[str, List[Tuple[str, int, int]]]]:
-    lines = run_command("git log --pretty='format:%h' --numstat", cwd=cwd).split("\n")
-    rc = []
-    commit_hash = ""
-    files: List[Tuple[str, int, int]] = []
+) -> List[CommitInfo]:
+    lines = run_command(
+        "git log --date=short --pretty='format:%h;%ad' --numstat",
+        cwd=cwd,
+        env={"TZ": "UTC"},
+    ).split("\n")
+    rc: List[CommitInfo] = []
+
     for line in lines:
+        line = line.strip()
         if not line:
-            # Git log uses empty line as separator between commits (except for oneline case)
-            rc.append((commit_hash, files))
-            commit_hash, files = "", []
-        elif not commit_hash:
-            # First line is commit short hash
-            commit_hash = line
+            continue
         elif len(line.split("\t")) != 3:
-            # Encountered an empty commit
-            assert len(files) == 0
-            rc.append((commit_hash, files))
-            commit_hash = line
+            commit_hash, date = line.split(";")
+            rc.append(CommitInfo(commit_hash, date, []))
         else:
             added, deleted, name = line.split("\t")
             # Special casing for binary files
             if added == "-":
                 assert deleted == "-"
-                files.append((name, -1, -1))
+                rc[-1].files.append(FileInfo(name, -1, -1))
             else:
-                files.append((name, int(added), int(deleted)))
+                rc[-1].files.append(FileInfo(name, int(added), int(deleted)))
     return rc
 
 
 def convert_to_dict(
-    entry: Tuple[str, List[Tuple[str, int, int]]]
+    entry: CommitInfo,
 ) -> List[Dict[str, Union[str, int]]]:
     return [
         {
-            "commit_id": entry[0],
-            "filename": i[0],
-            "lines_added": i[1],
-            "lines_deleted": i[2],
+            "commit_id": entry.commit_id,
+            "date": entry.date,
+            "filename": i.filename,
+            "lines_added": i.lines_added,
+            "lines_deleted": i.lines_deleted,
         }
-        for i in entry[1]
+        for i in entry.files
     ]
 
 
@@ -176,7 +190,7 @@ def conv_to_csv(json_data: List[Dict[str, Any]]) -> str:
 
 
 def main() -> None:
-    tutorials_dir = os.path.expanduser("./tutorials")
+    tutorials_dir = os.path.expanduser("../tutorials")
     get_history_log = get_history(tutorials_dir)
     commits_to_files = get_file_names(tutorials_dir)
 
