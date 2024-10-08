@@ -190,7 +190,7 @@ def conv_to_csv(json_data: List[Dict[str, Any]]) -> str:
 
 
 def main() -> None:
-    tutorials_dir = os.path.expanduser("../tutorials")
+    tutorials_dir = os.path.expanduser("./tutorials")
     get_history_log = get_history(tutorials_dir)
     commits_to_files = get_file_names(tutorials_dir)
 
