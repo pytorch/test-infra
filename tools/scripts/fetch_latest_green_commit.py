@@ -118,8 +118,8 @@ def get_latest_green_commit(
 ) -> Optional[str]:
     for commit in commits:
         eprint(f"Checking {commit}")
-        is_green, msg = is_green(commit, requires, results)
-        if is_green:
+        green, msg = is_green(commit, requires, results)
+        if green:
             eprint("GREEN")
             return commit
         else:
