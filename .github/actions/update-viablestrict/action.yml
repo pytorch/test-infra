@@ -87,27 +87,27 @@ runs:
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
         echo $output
 
-    # - name: Push SHA to viable/strict branch
-    #   if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
-    #   working-directory: ${{ inputs.repository }}
-    #   id: push-to-stable
-    #   env:
-    #     GITHUB_TOKEN: ${{ inputs.secret-bot-token }}
-    #     STABLE_BRANCH: ${{ inputs.stable-branch }}
-    #     LATEST_VIABLE_SHA: ${{ steps.get-latest-commit.outputs.latest_viable_sha }}
-    #   shell: bash
-    #   run: |
-    #     git config --global user.email "pytorchmergebot@users.noreply.github.com"
-    #     git config --global user.name "PyTorch MergeBot"
+    - name: Push SHA to viable/strict branch
+      if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
+      working-directory: ${{ inputs.repository }}
+      id: push-to-stable
+      env:
+        GITHUB_TOKEN: ${{ inputs.secret-bot-token }}
+        STABLE_BRANCH: ${{ inputs.stable-branch }}
+        LATEST_VIABLE_SHA: ${{ steps.get-latest-commit.outputs.latest_viable_sha }}
+      shell: bash
+      run: |
+        git config --global user.email "pytorchmergebot@users.noreply.github.com"
+        git config --global user.name "PyTorch MergeBot"
 
-    #     echo "Set the latest sha variable to be ${LATEST_VIABLE_SHA}"
-    #     # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
-    #     # to ignore because we already have the later green commit in visable/strict
-    #     push_result=$(git push origin "${LATEST_VIABLE_SHA}:${STABLE_BRANCH}" 2>&1 || true)
-    #     {
-    #       echo 'push_result<<EOF'
-    #       echo $push_result
-    #       echo EOF
-    #     } >> "${GITHUB_OUTPUT}"
-    #     echo "${push_result}"
-    #     echo "time=$(date +%s)" >> "${GITHUB_OUTPUT}"
+        echo "Set the latest sha variable to be ${LATEST_VIABLE_SHA}"
+        # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
+        # to ignore because we already have the later green commit in visable/strict
+        push_result=$(git push origin "${LATEST_VIABLE_SHA}:${STABLE_BRANCH}" 2>&1 || true)
+        {
+          echo 'push_result<<EOF'
+          echo $push_result
+          echo EOF
+        } >> "${GITHUB_OUTPUT}"
+        echo "${push_result}"
+        echo "time=$(date +%s)" >> "${GITHUB_OUTPUT}"
