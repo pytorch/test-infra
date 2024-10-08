@@ -70,7 +70,6 @@ jobs:
           cd ${{ inputs.repository }}
 
           TEST_INFRA_PATH="../../test-infra"
-          pip install -e ${TEST_INFRA_PATH}
 
           output=$(python3 ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
             --required-checks "${{ inputs.required_checks }}" \
