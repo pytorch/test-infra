@@ -6,7 +6,7 @@ import sys
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
 import rockset  # type: ignore[import]
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from tools.scripts.gitutils import _check_output
 sys.path.pop(0)
