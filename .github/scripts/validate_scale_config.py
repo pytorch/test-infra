@@ -14,7 +14,7 @@ import tempfile
 
 import urllib.request
 
-from typing import Any, List, NamedTuple, cast, Dict
+from typing import Any, cast, Dict, List, NamedTuple
 
 import jsonschema
 
