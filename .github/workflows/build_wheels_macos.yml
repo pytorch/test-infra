@@ -175,6 +175,9 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
+          export PATH=${CONDA_ENV}/bin:${CONDA_ENV}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+          export Python3_ROOT_DIR=${CONDA_ENV}
+          
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
             export USE_OPENMP="0"
           fi
