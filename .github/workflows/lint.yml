@@ -46,7 +46,7 @@ jobs:
       - name: Produce SARIF
         if: always() && matrix.os == 'ubuntu-latest'
         run: |
-          python tools/lintrunner/tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
+          python tools/linter/convert_to_sarif.py --input lint.json --output lintrunner.sarif
       - name: Upload SARIF file
         if: always() && matrix.os == 'ubuntu-latest'
         continue-on-error: true
