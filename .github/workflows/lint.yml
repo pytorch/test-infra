@@ -28,6 +28,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
+          cache: 'pip'
+
       - name: Install Lintrunner
         run: |
           pip install lintrunner==0.12.5
