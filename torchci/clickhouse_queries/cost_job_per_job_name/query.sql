@@ -3,18 +3,20 @@ select
         {granularity: String},
         rc.date
     ) as granularity_bucket,
-    -- take first 30 characters of job_name
-    substring(rc.job_name, 1, 30) as job_name,
+    rc.job_name as job_name,
     sum(rc.cost) as total_cost
 from
-    misc.runner_cost rc
+    misc.runner_cost rc final
 where
     rc.date > {startTime: DateTime64(9)}
     and rc.date < {stopTime: DateTime64(9)}
     and rc.cost > 0
+    and rc.group_repo in {selectedRepos: Array(String)}
+    and rc.gpu in {selectedGPU: Array(UInt8)}
+    and rc.os in {selectedPlatforms: Array(String)}
+    and rc.provider in {selectedProviders: Array(String)}
 group by
     granularity_bucket,
     job_name
 order by
     granularity_bucket asc
-
