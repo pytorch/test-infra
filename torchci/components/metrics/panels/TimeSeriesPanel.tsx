@@ -14,7 +14,7 @@ import useSWR from "swr";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
-export type ChartType = "line" | "stacked_bar";
+export type ChartType = "line" | "stacked_bar" | "bar";
 // Adapted from echarts
 // see: https://github.com/apache/echarts/blob/master/src/util/format.ts
 export function getTooltipMarker(color: string) {
@@ -38,7 +38,7 @@ export function seriesWithInterpolatedTimes(
   fillMissingData: boolean = true,
   smooth: boolean = true,
   sort_by: "total" | "name" = "name",
-  graph_type: "line" | "stacked_bar" = "line",
+  graph_type: ChartType = "line",
   filter: string | undefined = undefined
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
@@ -100,7 +100,7 @@ export function seriesWithInterpolatedTimes(
       name: key,
       type: graph_type === "line" ? "line" : "bar",
 
-      stack: undefined,
+      stack: "",
       symbol: "circle",
       symbolSize: 4,
       data,
@@ -196,6 +196,16 @@ export function TimeSeriesPanelWithData({
         left: "right",
         top: "center",
         type: "scroll",
+        formatter: (name: string) => {
+          return name.length > 40 ? name.substring(0, 40) + "..." : name;
+        },
+        tooltip: {
+          show: true,
+          formatter: (params: any) => {
+            return `<span style="font-size: 12px;">${params.name}</span>`;
+          },
+        },
+
         ...(groupByFieldName !== undefined && {
           selector: [
             {
@@ -273,7 +283,8 @@ export default function TimeSeriesPanel({
   smooth = true,
   chartType = "line",
   sort_by = "name",
-  filter,
+  filter = undefined,
+  auto_refresh = true,
 }: {
   title: string;
   queryCollection?: string;
@@ -292,6 +303,7 @@ export default function TimeSeriesPanel({
   chartType?: ChartType;
   sort_by?: "total" | "name";
   filter?: string;
+  auto_refresh?: boolean;
 }) {
   // - Granularity
   // - Group by
@@ -310,8 +322,11 @@ export default function TimeSeriesPanel({
         ])
       )}`;
 
+  // print url decoded
+  console.log("url", decodeURIComponent(url));
+
   const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+    refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
 
   if (data === undefined) {
