@@ -55,13 +55,6 @@ runs:
       with:
         python-version: '3.11'
 
-    - name: Checkout test-infra for the fetch_latest_green_commit scripts
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ inputs.test-infra-repository }}
-        ref: ${{ inputs.test-infra-ref }}
-        path: test-infra
-
     - uses: actions/checkout@v3
       with:
         repository: ${{ inputs.repository }}
@@ -85,8 +78,14 @@ runs:
       run: |
         set -ex
 
-        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py --requires "${{ inputs.requires }}")
+        TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
+
+        output=$(python ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
+          --required-checks "${{ inputs.requires }}" \
+          --viable-strict-branch "viable/strict" \
+          --main-branch "master")
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
+        echo $output
 
     - name: Push SHA to viable/strict branch
       if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
