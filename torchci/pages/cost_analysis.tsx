@@ -349,6 +349,7 @@ export default function Page() {
             filter={searchFilter}
             sort_by="total"
             auto_refresh={false}
+            max_items_in_series={30}
           />
         )}
         {isLoading && <div>Loading...</div>}
