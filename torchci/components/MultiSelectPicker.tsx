@@ -16,13 +16,18 @@ export default function MultiSelectPicker({
   setSelected,
   options,
   label,
+  renderValue,
+  style,
 }: {
-  selected: string[];
+  selected: string[] | undefined;
   setSelected: any;
   options: string[];
   label: string;
+  renderValue: (selected: string[]) => string;
+  style?: { [key: string]: any };
 }) {
-  var [selectedItems, setSelectedItems] = useState(selected);
+  var [options, setOptions] = useState(options);
+  var [selectedItems, setSelectedItems] = useState(selected ?? []);
 
   function handleChange(e: SelectChangeEvent<string[]>) {
     const newList = e.target.value;
@@ -54,12 +59,13 @@ export default function MultiSelectPicker({
   }
 
   function generateOptions() {
-    var entries = options.map((option) => (
-      <MenuItem key={option} value={option}>
-        <Checkbox checked={selectedItems.indexOf(option) > -1} />
-        {option}
-      </MenuItem>
-    ));
+    var entries =
+      options?.map((option) => (
+        <MenuItem key={option} value={option}>
+          <Checkbox checked={selectedItems.indexOf(option) > -1} />
+          {option}
+        </MenuItem>
+      )) ?? [];
 
     // Add the select all and clear buttons to the top
     entries.unshift(
@@ -78,8 +84,10 @@ export default function MultiSelectPicker({
 
   return (
     <>
-      <FormControl>
-        <InputLabel id="multi-select-picker-input-label">{label}</InputLabel>
+      <FormControl style={style} id={`form-control-${label}`}>
+        <InputLabel id={`multi-select-picker-input-label-${label}`}>
+          {label}
+        </InputLabel>
         <Select
           multiple={true}
           value={selectedItems}
@@ -88,14 +96,9 @@ export default function MultiSelectPicker({
           onChange={handleChange}
           id={`multi-select-picker-select-${label}`}
           renderValue={() => {
-            if (selectedItems.length == options.length) return "All";
-            if (selectedItems.length == 0) return "None";
-
-            var selected_str = selectedItems
-              .map((item: string) => item?.split("/")[1])
-              .join(",");
+            const selected_str = renderValue(selectedItems);
             if (selected_str.length > 20)
-              return selected_str.substring(0, 20) + "...";
+              return selected_str.substring(0, 17) + "...";
             return selected_str;
           }}
         >
