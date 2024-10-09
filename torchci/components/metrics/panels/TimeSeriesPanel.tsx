@@ -283,6 +283,7 @@ export default function TimeSeriesPanel({
   smooth = true,
   chartType = "line",
   sort_by = "name",
+  max_items_in_series = 0,
   filter = undefined,
   auto_refresh = true,
 }: {
@@ -302,6 +303,7 @@ export default function TimeSeriesPanel({
   smooth?: boolean;
   chartType?: ChartType;
   sort_by?: "total" | "name";
+  max_items_in_series?: number;
   filter?: string;
   auto_refresh?: boolean;
 }) {
@@ -365,11 +367,65 @@ export default function TimeSeriesPanel({
     chartType,
     filter
   );
+  console.log("series");
+  console.log(series);
+
+  // If we have too many series, we'll only show the top N series by total value
+  // We group everything else into an "Other" series
+  let mergedSeries = series;
+
+  if (max_items_in_series && series.length > max_items_in_series) {
+    // take last max_items_in_series items and group the rest into "Other"
+    const topX = series.slice(0, max_items_in_series);
+
+    var other = {
+      name: "Other",
+      type: chartType === "line" ? "line" : "bar",
+      stack: "",
+      symbol: "circle",
+      symbolSize: 4,
+      // data is all other series, the data from every series summed up for each timestamp
+      // so basically get the field series.data, which is an array [date, value], and sum up the values for each date
+      data: series
+        .slice(max_items_in_series)
+        .map((s) => s.data)
+        .reduce((acc, val) => {
+          val.forEach((v, i) => {
+            if (acc[i] === undefined) {
+              acc[i] = v;
+            } else {
+              acc[i][1] += v[1];
+            }
+          });
+          return acc;
+        }, []),
+
+      emphasis: {
+        focus: "series",
+      },
+      smooth: smooth,
+    };
+    if (chartType === "stacked_bar") {
+      other = {
+        ...other,
+        stack: "Total",
+      };
+    }
+
+    console.log("series[0]", series[0]);
+    console.log("otherTotal", other);
+
+    // now merge topX and other
+    mergedSeries = topX.concat(other);
+
+    console.log("series after splice");
+    console.log(mergedSeries);
+  }
 
   return (
     <TimeSeriesPanelWithData
       data={data}
-      series={series}
+      series={mergedSeries}
       title={title}
       groupByFieldName={groupByFieldName}
       yAxisRenderer={yAxisRenderer}
