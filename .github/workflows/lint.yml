@@ -31,6 +31,7 @@ jobs:
       - name: Install Lintrunner
         run: |
           pip install lintrunner==0.12.5
+          lintrunner init
 
       - name: Run lintrunner on all files - Linux
         run: |
