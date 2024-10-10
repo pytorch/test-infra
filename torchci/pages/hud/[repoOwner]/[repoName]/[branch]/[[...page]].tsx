@@ -1,3 +1,4 @@
+import { Tooltip } from "@mui/material";
 import CopyLink from "components/CopyLink";
 import {
   GroupHudTableColumns,
@@ -43,6 +44,7 @@ import {
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
@@ -85,6 +87,10 @@ export function JobCell({
   );
 }
 
+function FireImage() {
+  return <Image src="/fire.gif" alt="fire" width={20} height={20} />;
+}
+
 function HudRow({
   rowData,
   expandedGroups,
@@ -111,6 +117,19 @@ function HudRow({
     }
     e.stopPropagation();
     setPinnedId({ sha: rowData.sha, name: undefined });
+  }
+
+  function renderAuthor(author: string): JSX.Element | string {
+    if (author.startsWith("<FIRE>")) {
+      return (
+        <Tooltip title="This commit has more test failures than the previous one">
+          <div>
+            <FireImage /> {author.substring(6)} <FireImage />
+          </div>
+        </Tooltip>
+      );
+    }
+    return author;
   }
 
   return (
@@ -161,7 +180,7 @@ function HudRow({
       <td className={styles.jobMetadata}>
         <div className={styles.jobMetadataTruncatedAuthor}>
           {rowData.authorUrl !== null ? (
-            <a href={rowData.authorUrl}>{rowData.author}</a>
+            <a href={rowData.authorUrl}>{renderAuthor(rowData.author)}</a>
           ) : (
             rowData.author
           )}
@@ -255,20 +274,46 @@ function HudTableBody({
   names: string[];
   unstableIssues: IssueData[];
 }) {
-  return (
-    <tbody>
-      {shaGrid.map((row: RowData) => (
-        <HudRow
-          key={row.sha}
-          rowData={row}
-          expandedGroups={expandedGroups}
-          setExpandedGroups={setExpandedGroups}
-          names={names}
-          unstableIssues={unstableIssues}
-        />
-      ))}
-    </tbody>
-  );
+  for (let i = 0; i < shaGrid.length - 1; i++) {
+    const row = shaGrid[i];
+    const current_number_of_failures = Array.from(
+      row.groupedJobs?.values() || []
+    )
+      .flatMap((groupData) => groupData.jobs)
+      .filter(isFailedJob).length;
+    const previous_number_of_failures = Array.from(
+      shaGrid[i + 1].groupedJobs?.values() || []
+    )
+      .flatMap((groupData) => groupData.jobs)
+      .filter(isFailedJob).length;
+
+    // useContext for monsterFailures and monsterClickCount
+    const [
+      monsterFailures,
+      setMonsterFailures,
+      monsterClickCount,
+      setMonsterClickCount,
+    ] = useContext(MonsterFailuresContext);
+
+    if (
+      current_number_of_failures > previous_number_of_failures &&
+      monsterClickCount > 3 &&
+      !shaGrid[i].author.startsWith("<FIRE>")
+    ) {
+      shaGrid[i].author = "<FIRE>" + shaGrid[i].author;
+    }
+  }
+  const res = shaGrid.map((row: RowData) => (
+    <HudRow
+      key={row.sha}
+      rowData={row}
+      expandedGroups={expandedGroups}
+      setExpandedGroups={setExpandedGroups}
+      names={names}
+      unstableIssues={unstableIssues}
+    />
+  ));
+  return <tbody>{res}</tbody>;
 }
 
 function GroupFilterableHudTable({
@@ -392,8 +437,13 @@ function UnstableCheckBox({
 }
 
 export const MonsterFailuresContext = createContext<
-  [boolean, ((_value: boolean) => void) | undefined]
->([false, undefined]);
+  [
+    boolean,
+    ((_value: boolean) => void) | undefined,
+    number,
+    ((_value: number) => void) | undefined
+  ]
+>([false, undefined, 0, undefined]);
 
 export function MonsterFailuresProvider({
   children,
@@ -401,9 +451,15 @@ export function MonsterFailuresProvider({
   children: React.ReactNode;
 }) {
   const [monsterFailures, setMonsterFailures] = useMonsterFailuresPreference();
+  const [monsterClickCount, setMonsterClickCount] = useState(0);
   return (
     <MonsterFailuresContext.Provider
-      value={[monsterFailures, setMonsterFailures]}
+      value={[
+        monsterFailures,
+        setMonsterFailures,
+        monsterClickCount,
+        setMonsterClickCount,
+      ]}
     >
       {children}
     </MonsterFailuresContext.Provider>
@@ -411,15 +467,19 @@ export function MonsterFailuresProvider({
 }
 
 export function MonsterFailuresCheckbox() {
-  const [monsterFailures, setMonsterFailures] = useContext(
-    MonsterFailuresContext
-  );
+  const [
+    monsterFailures,
+    setMonsterFailures,
+    monsterClickCount,
+    setMonsterClickCount,
+  ] = useContext(MonsterFailuresContext);
   return (
     <>
       <div title="Replace `X` with a monster icon based on the error line.">
         <span
           onClick={() => {
             setMonsterFailures && setMonsterFailures(!monsterFailures);
+            setMonsterClickCount && setMonsterClickCount(monsterClickCount + 1);
           }}
         >
           <input
