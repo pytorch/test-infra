@@ -20,6 +20,7 @@ jobs:
       ref: ${{ github.event.pull_request.head.sha }}
       script: |
         cd tools/stronghold/
+        pip install --requirement=requirements.txt
         bin/build-check-api-compatibility
         bin/check-api-compatibility                                 \
             --base-commit=${{ github.event.pull_request.base.sha }} \
