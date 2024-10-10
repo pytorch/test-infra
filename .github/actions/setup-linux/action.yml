@@ -26,7 +26,7 @@ runs:
         if systemctl is-active --quiet docker; then
             echo "Docker daemon is running...";
         else
-            echo "Starting docker deamon..." && sudo systemctl start docker;
+            echo "Starting docker deamon..." && systemctl --user start docker;
         fi
 
     - name: Log in to ECR
