@@ -274,6 +274,14 @@ function HudTableBody({
   names: string[];
   unstableIssues: IssueData[];
 }) {
+  // useContext for monsterFailures and monsterClickCount
+  const [
+    monsterFailures,
+    setMonsterFailures,
+    monsterClickCount,
+    setMonsterClickCount,
+  ] = useContext(MonsterFailuresContext);
+
   for (let i = 0; i < shaGrid.length - 1; i++) {
     const row = shaGrid[i];
     const current_number_of_failures = Array.from(
@@ -286,14 +294,6 @@ function HudTableBody({
     )
       .flatMap((groupData) => groupData.jobs)
       .filter(isFailedJob).length;
-
-    // useContext for monsterFailures and monsterClickCount
-    const [
-      monsterFailures,
-      setMonsterFailures,
-      monsterClickCount,
-      setMonsterClickCount,
-    ] = useContext(MonsterFailuresContext);
 
     if (
       current_number_of_failures > previous_number_of_failures &&
