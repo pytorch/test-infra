@@ -26,8 +26,9 @@ export default function MultiSelectPicker({
   renderValue: (selected: string[]) => string;
   style?: { [key: string]: any };
 }) {
-  var [options, setOptions] = useState(options);
   var [selectedItems, setSelectedItems] = useState(selected ?? []);
+
+  console.log("incoming options", options);
 
   function handleChange(e: SelectChangeEvent<string[]>) {
     const newList = e.target.value;
@@ -58,7 +59,7 @@ export default function MultiSelectPicker({
     setSelected([]);
   }
 
-  function generateOptions() {
+  function generateOptions(options: string[] | undefined) {
     var entries =
       options?.map((option) => (
         <MenuItem key={option} value={option}>
@@ -82,6 +83,9 @@ export default function MultiSelectPicker({
     return entries;
   }
 
+  var optionList = generateOptions(options);
+  console.log("optionList: ", optionList);
+
   return (
     <>
       <FormControl style={style} id={`form-control-${label}`}>
@@ -102,7 +106,7 @@ export default function MultiSelectPicker({
             return selected_str;
           }}
         >
-          {generateOptions()}
+          {optionList}
         </Select>
       </FormControl>
     </>

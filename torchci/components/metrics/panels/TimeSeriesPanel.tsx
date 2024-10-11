@@ -324,9 +324,6 @@ export default function TimeSeriesPanel({
         ])
       )}`;
 
-  // print url decoded
-  console.log("url", decodeURIComponent(url));
-
   const { data } = useSWR(url, fetcher, {
     refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
@@ -367,8 +364,6 @@ export default function TimeSeriesPanel({
     chartType,
     filter
   );
-  console.log("series");
-  console.log(series);
 
   // If we have too many series, we'll only show the top N series by total value
   // We group everything else into an "Other" series
@@ -413,14 +408,8 @@ export default function TimeSeriesPanel({
       };
     }
 
-    console.log("series[0]", series[0]);
-    console.log("otherTotal", other);
-
     // now merge topX and other
     mergedSeries = topX.concat(other);
-
-    console.log("series after splice");
-    console.log(mergedSeries);
   }
 
   return (
