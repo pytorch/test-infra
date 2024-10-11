@@ -227,7 +227,7 @@ export function TestCountsInfo({
     fetcher
   );
 
-  const [comparisonSha, setComparisonSha] = useState();
+  const [comparisonSha, setComparisonSha] = useState<string>();
   const { data: comparisonId, error: comparisonIdError } = useSWR(
     comparisonSha
       ? `/api/corresponding_workflow_id?sha=${comparisonSha}&workflowId=${workflowId}`
