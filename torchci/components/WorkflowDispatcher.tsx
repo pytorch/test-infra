@@ -1,11 +1,11 @@
-import { fetcherWithToken } from "lib/GeneralUtils";
+import { fetcher, fetcherWithToken } from "lib/GeneralUtils";
 import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import useSWR from "swr";
-import { WithCommitData } from "./WithCommitData";
+import { useCHContext } from "./UseClickhouseProvider";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
@@ -15,6 +15,8 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     slow: "Run slow jobs",
     rocm: "Run rocm jobs",
     "linux-aarch64": "Run Linux ARMv8 jobs",
+    "inductor-periodic": "Run inductor jobs",
+    "inductor-cu124": "Run inductor-cu124 jobs",
   },
 };
 
@@ -164,8 +166,26 @@ export function SingleWorkflowDispatcher({
     repoName = "pytorch";
   }
 
+  const useCH = useCHContext().useCH;
+
+  const { data, error } = useSWR(
+    runMoreJobsClicked &&
+      `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`,
+    fetcher,
+    {
+      refreshInterval: 60 * 1000, // refresh every minute
+      // Refresh even when the user isn't looking, so that switching to the tab
+      // will always have fresh info.
+      refreshWhenHidden: true,
+    }
+  );
+
   // extract workflow key from the jobName
-  const workflow = jobName.split(new RegExp("[/-]"))[0]?.toLowerCase()?.trim();
+  let workflow = jobName.split(new RegExp(" / "))[0]?.toLowerCase()?.trim();
+  if (workflow === "inductor-periodic") {
+    // inductor-periodic gets run by ciflow/inductor
+    workflow = "inductor";
+  }
 
   const repo = `${repoOwner}/${repoName}`;
   if (
@@ -181,7 +201,6 @@ export function SingleWorkflowDispatcher({
 
   const accessToken = session.data["accessToken"];
 
-  // avoid commit data fetching if the user hasn't clicked the button
   if (!runMoreJobsClicked) {
     return (
       <div>
@@ -192,24 +211,24 @@ export function SingleWorkflowDispatcher({
     );
   }
 
+  if (error != null) {
+    return <div>Error occurred</div>;
+  }
+
+  if (data === undefined) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div>
-      <WithCommitData
-        sha={sha}
+      <Workflow
+        accessToken={accessToken}
         repoOwner={repoOwner as string}
         repoName={repoName as string}
-      >
-        {({ commit, jobs }) => (
-          <Workflow
-            accessToken={accessToken}
-            repoOwner={repoOwner as string}
-            repoName={repoName as string}
-            workflow={workflow}
-            sha={sha}
-            jobs={jobs}
-          />
-        )}
-      </WithCommitData>
+        workflow={workflow}
+        sha={sha}
+        jobs={data}
+      />
     </div>
   );
 }
