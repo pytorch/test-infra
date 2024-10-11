@@ -27,7 +27,7 @@ import { fetcher } from "lib/GeneralUtils";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
-import { FaFilter } from "react-icons/fa";
+import { FaFilter, FaInfoCircle } from "react-icons/fa";
 import useSWR from "swr";
 
 function TimePicker({ label, value, setValue }: any) {
@@ -217,12 +217,11 @@ export default function Page() {
     ? splitString(query.repos)
     : undefined;
 
-  console.log("Initial Selected Repos:", initialSelectedRepos);
   // State variables
   const [startTime, setStartTime] = useState(initialStartTime);
   const [stopTime, setStopTime] = useState(initialStopTime);
   const [selectedRepos, setSelectedRepos] = useState<string[]>();
-  console.log("Selected Repos:", selectedRepos);
+  const [availableRepos, setAvailableRepos] = useState<string[]>([]);
 
   const [granularity, setGranularity] = useState<Granularity>(
     initialGranularity as Granularity
@@ -257,23 +256,27 @@ export default function Page() {
     })
   )}`;
 
-  var { data: repos, error, isLoading } = useSWR(url, fetcher);
-  if (selectedRepos === undefined && repos !== undefined) {
+  // SWR with data type is an array of {repo: repoName} - dont use any
+  var {
+    data: repos,
+    error,
+    isLoading,
+  } = useSWR<{ repo: string }[]>(url, fetcher);
+
+  if (selectedRepos === undefined && repos) {
+    const repoList = repos?.map((item) => item.repo) ?? [];
+    setAvailableRepos(repoList);
     if (initialSelectedRepos) {
-      console.log("Setting selected repos to initial selected repos");
       setSelectedRepos(initialSelectedRepos);
     } else {
-      console.log("Setting selected repos to all repos");
-      setSelectedRepos(repos.map((d: any) => d.repo));
+      setSelectedRepos(repoList);
     }
   } else {
-    console.log("Selected repos is already set");
   }
 
   // Update URL params on state change
   useEffect(() => {
     if (!router.isReady) return;
-    console.log("Updating URL params");
 
     const params = new URLSearchParams();
     if (startTime && stopTime) {
@@ -323,7 +326,6 @@ export default function Page() {
     groupby: CostCategory,
     yAxis: "cost" | "duration"
   ) => {
-    console.log("WORKING WITH repos:", repos);
     return (
       <Grid item xs={8} height={ROW_HEIGHT}>
         {!isLoading && (
@@ -361,7 +363,6 @@ export default function Page() {
     const marginStyle = {
       marginTop: 20,
     };
-    console.log("rendering with selected repos:", selectedRepos);
     return (
       <div>
         <Typography fontSize={"1rem"} fontWeight={"bold"}>
@@ -417,21 +418,23 @@ export default function Page() {
           Filters
         </Typography>
         <Grid item xs={2} style={marginStyle}>
-          <MultiSelectPicker
-            selected={selectedRepos}
-            setSelected={setSelectedRepos}
-            options={repos?.map((d: any) => d.repo)}
-            label={"Repositories"}
-            renderValue={(selectedItems) => {
-              if (selectedItems.length == repos.length) return "All";
-              if (selectedItems.length == 0) return "None";
+          {!isLoading && (
+            <MultiSelectPicker
+              selected={selectedRepos}
+              setSelected={setSelectedRepos}
+              options={availableRepos}
+              label={"Repositories"}
+              renderValue={(selectedItems) => {
+                if (selectedItems.length == availableRepos.length) return "All";
+                if (selectedItems.length == 0) return "None";
 
-              return selectedItems
-                .map((item: string) => item?.split("/")[1])
-                .join(",");
-            }}
-            style={{ width: 195 }}
-          />
+                return selectedItems
+                  .map((item: string) => item?.split("/")[1])
+                  .join(",");
+              }}
+              style={{ width: 195 }}
+            />
+          )}
         </Grid>
         <Grid item xs={2} style={marginStyle}>
           <MultiSelectPicker
@@ -523,6 +526,12 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch CI Cost & Runtime Analytics
         </Typography>
+
+        <Tooltip title="This page gives an estimate of cost and duration of CI jobs. Note: prices are list prices for the providers and may not reflect actual costs.">
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            <FaInfoCircle />
+          </Typography>
+        </Tooltip>
       </Stack>
       <Grid container spacing={2}>
         <Grid item xs={8}>
@@ -567,7 +576,6 @@ export default function Page() {
                     return;
                   }
                   setChartType(newChartType);
-                  console.log("Selected Chart Type:", newChartType);
                 }}
                 style={{ height: 56 }}
                 aria-label="toggle-button-group"
