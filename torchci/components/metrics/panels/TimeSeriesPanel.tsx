@@ -394,6 +394,7 @@ export default function TimeSeriesPanel({
             if (acc[i] === undefined) {
               acc[i] = v;
             } else {
+              // @ts-ignore
               acc[i][1] += v[1];
             }
           });
