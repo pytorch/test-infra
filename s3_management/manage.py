@@ -144,7 +144,7 @@ PACKAGE_ALLOW_LIST = {
     "nvidia_curand_cu12",
     "nvidia_cusolver_cu12",
     "nvidia_cusparse_cu12",
-    "nvidia-cusparselt-cu12",
+    "nvidia_cusparselt_cu12",
     "nvidia_nccl_cu12",
     "nvidia_nvtx_cu12",
     "nvidia_nvjitlink_cu12",
