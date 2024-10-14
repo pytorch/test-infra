@@ -19,7 +19,6 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
@@ -34,7 +33,7 @@ export function GraphPanel({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[] | {};
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   modelName: string;
   dtypeName: string;

@@ -22,7 +22,6 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
@@ -43,7 +42,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[] | {};
+  queryParams: { [key: string]: any };
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
