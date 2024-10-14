@@ -138,7 +138,6 @@ runs:
         echo "rebuild=true" >> "${GITHUB_OUTPUT}"
 
     - name: Build and push docker image
-      shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
