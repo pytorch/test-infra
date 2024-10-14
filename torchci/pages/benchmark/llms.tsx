@@ -397,7 +397,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to the next to latest in the window
+          fallbackIndex={1} // Default to previous commit
           timeRange={timeRange}
           useClickHouse={useClickHouse}
         />
