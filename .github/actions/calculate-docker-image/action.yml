@@ -137,12 +137,30 @@ runs:
 
         echo "rebuild=true" >> "${GITHUB_OUTPUT}"
 
-    - name: Build and push docker image
+    - name: Login to ECR
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
+      env:
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      run: |
+        set -x
+        set +e
+
+        login() {
+          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
+        }
+
+        retry () {
+          $*  || (sleep 1 && $*) || (sleep 2 && $*)
+        }
+
+        retry login "${DOCKER_REGISTRY}"
+
+    - name: Build docker image
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
         REPO_NAME: ${{ github.event.repository.name }}
-        DOCKER_PUSH: ${{ inputs.push }}
-        DOCKER_FORCE_PUSH: ${{ inputs.force-push }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
@@ -150,37 +168,37 @@ runs:
       uses: nick-fields/retry@v3.0.0
       with:
         shell: bash
-        timeout_minutes: 15
+        timeout_minutes: 90
         max_attempts: 3
         retry_wait_seconds: 90
         command: |
-          set -x
-          set +e
+          set -ex
 
           # NB: Setting working directory on the step doesn't work with nick-fields/retry https://github.com/nick-fields/retry/issues/89
           pushd "${WORKING_DIRECTORY}"
-
-          login() {
-            aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-          }
-
-          retry () {
-            $*  || (sleep 1 && $*) || (sleep 2 && $*)
-          }
-
-          retry login "${DOCKER_REGISTRY}"
-
-          set -e
 
           IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
           # Build new image
           ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
 
-          if [ "${DOCKER_PUSH:-false}" == "true" ]; then
-            # Only push if docker image doesn't exist already
-            if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null || [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
-              docker push "${DOCKER_IMAGE}"
-            fi
-            # Check that upload was successfull or that image already exists
-            docker manifest inspect "${DOCKER_IMAGE}"
+          popd
+
+    - name: Push to ECR
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
+      env:
+        DOCKER_PUSH: ${{ inputs.push }}
+        DOCKER_FORCE_PUSH: ${{ inputs.force-push }}
+        DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
+      run: |
+        set -ex
+
+        if [ "${DOCKER_PUSH:-false}" == "true" ]; then
+          # Only push if docker image doesn't exist already
+          if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null || [ "${DOCKER_FORCE_PUSH:-false}" == "true" ]; then
+            docker push "${DOCKER_IMAGE}"
           fi
+          # Check that upload was successfull or that image already exists
+          docker manifest inspect "${DOCKER_IMAGE}"
+        fi
