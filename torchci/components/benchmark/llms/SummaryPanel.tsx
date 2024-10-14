@@ -182,11 +182,9 @@ export function SummaryPanel({
                   const isNewModel = l === 0 ? "(NEW!)" : "";
 
                   if (lCommit === rCommit || l === r) {
-                    return `${Number(r).toFixed(2)} ${rPercent} ${showTarget}`;
+                    return `${r} ${rPercent} ${showTarget}`;
                   } else {
-                    return `${Number(l).toFixed(2)} ${lPercent} → ${Number(
-                      r
-                    ).toFixed(2)} ${rPercent} ${showTarget} ${isNewModel} `;
+                    return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
                   }
                 },
               };
