@@ -18,15 +18,12 @@ def get_pytorch_pip_install_command(
     channel: str,
 ) -> List[str]:
     torch_pkg = "torch"
-    download_pytorch_org = "download.pytorch.org"
     if pytorch_version != "":
         torch_pkg += f"=={pytorch_version}"
     pip_install = f"pip install {torch_pkg}"
     if channel == "nightly":
         pip_install += " --pre"
-        # Use Meta CDN for nightly builds
-        download_pytorch_org = "d3kup0pazkvub8.cloudfront.net"
-    extra_index = f"https://{download_pytorch_org}/whl/{channel}/{gpu_arch_version}"
+    extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
     return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index}'"]
 
 
