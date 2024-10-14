@@ -1,7 +1,5 @@
 import {
   BranchAndCommitPerfData,
-  DEFAULT_DTYPE_NAME,
-  DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
 } from "components/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
@@ -25,22 +23,10 @@ export function useBenchmark(
     | RocksetParam[]
     | { [key: string]: any } = useClickHouse
     ? {
-        names: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
-        dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
         getJobId: getJobId,
         ...queryParams,
       }
     : [
-        {
-          name: "names",
-          type: "string",
-          value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
-        },
-        {
-          name: "dtypes",
-          type: "string",
-          value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
-        },
         {
           name: "getJobId",
           type: "bool",

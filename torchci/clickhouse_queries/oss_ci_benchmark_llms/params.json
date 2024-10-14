@@ -3,6 +3,7 @@
   "commits": "Array(String)",
   "deviceArch": "String",
   "dtypes": "Array(String)",
+  "excludedMetrics": "Array(String)",
   "filenames": "Array(String)",
   "getJobId": "Bool",
   "granularity": "String",
