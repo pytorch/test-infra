@@ -17,6 +17,28 @@ WHERE
         has({filenames: Array(String) }, o.filename)
         OR empty({filenames: Array(String) })
     )
+    AND (
+        has({names: Array(String) }, o.name)
+        OR empty({names: Array(String) })
+    )
+    -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
+    AND (
+        CONCAT(
+            o.device,
+            ' (',
+            IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch),
+            ')'
+        ) = {deviceArch: String }
+        OR {deviceArch: String } = ''
+    )
+    AND (
+        has({dtypes: Array(String) }, o.dtype)
+        OR empty({dtypes: Array(String) })
+    )
+    AND (
+        NOT has({excludedMetrics: Array(String) }, o.metric)
+        OR empty({excludedMetrics: Array(String) })
+    )
     AND notEmpty(o.metric)
     AND w.html_url LIKE CONCAT('%', {repo: String }, '%')
     AND notEmpty(o.dtype)

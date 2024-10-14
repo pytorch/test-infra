@@ -19,6 +19,7 @@ export function SummaryPanel({
   startTime,
   stopTime,
   granularity,
+  repoName,
   modelName,
   metricNames,
   lPerfData,
@@ -27,6 +28,7 @@ export function SummaryPanel({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  repoName: string;
   modelName: string;
   metricNames: string[];
   lPerfData: BranchAndCommitPerfData;
@@ -74,7 +76,9 @@ export function SummaryPanel({
                   return `Invalid dtype for model ${name}`;
                 }
 
-                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&modelName=${encodeURIComponent(
+                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+                  repoName
+                )}&modelName=${encodeURIComponent(
                   name
                 )}&dtypeName=${encodeURIComponent(
                   dtype
@@ -165,18 +169,22 @@ export function SummaryPanel({
 
                   // Compute the percentage
                   const target = v.r.target;
-                  const lPercent = target
-                    ? `(${Number((l * 100) / target).toFixed(0)}%)`
-                    : "";
-                  const rPercent = target
-                    ? `(${Number((r * 100) / target).toFixed(0)}%)`
-                    : "";
+                  const lPercent =
+                    target && target != 0
+                      ? `(${Number((l * 100) / target).toFixed(0)}%)`
+                      : "";
+                  const rPercent =
+                    target && target != 0
+                      ? `(${Number((r * 100) / target).toFixed(0)}%)`
+                      : "";
+                  const showTarget =
+                    target && target != 0 ? `[target = ${target}]` : "";
                   const isNewModel = l === 0 ? "(NEW!)" : "";
 
                   if (lCommit === rCommit || l === r) {
-                    return `${r} ${rPercent} [target = ${target}]`;
+                    return `${r} ${rPercent} ${showTarget}`;
                   } else {
-                    return `${l} ${lPercent} → ${r} ${rPercent} [target = ${target}] ${isNewModel} `;
+                    return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
                   }
                 },
               };

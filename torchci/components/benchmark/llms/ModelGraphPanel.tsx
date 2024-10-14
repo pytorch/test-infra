@@ -76,13 +76,17 @@ export function GraphPanel({
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
   const startTime = useClickHouse
-    ? (queryParams as { [key: string]: any })["startTime"].startOf(granularity)
+    ? dayjs((queryParams as { [key: string]: any })["startTime"]).startOf(
+        granularity
+      )
     : dayjs(
         (queryParams as RocksetParam[]).find((p) => p.name === "startTime")
           ?.value
       ).startOf(granularity);
   const stopTime = useClickHouse
-    ? (queryParams as { [key: string]: any })["stopTime"].startOf(granularity)
+    ? dayjs((queryParams as { [key: string]: any })["stopTime"]).startOf(
+        granularity
+      )
     : dayjs(
         (queryParams as RocksetParam[]).find((p) => p.name === "stopTime")
           ?.value

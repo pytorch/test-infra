@@ -7,8 +7,8 @@ SELECT
     IF({getJobId: Bool}, o.job_id, '') AS job_id,
     o.name,
     o.metric,
-    o.actual AS actual,
-    o.target AS target,
+    floor(toFloat64(o.actual), 2) AS actual,
+    floor(toFloat64(o.target), 2) AS target,
     DATE_TRUNC(
         {granularity: String },
         fromUnixTimestamp64Milli(o.timestamp)
@@ -52,6 +52,10 @@ WHERE
     AND (
         has({dtypes: Array(String) }, o.dtype)
         OR empty({dtypes: Array(String) })
+    )
+    AND (
+        NOT has({excludedMetrics: Array(String) }, o.metric)
+        OR empty({excludedMetrics: Array(String) })
     )
     AND notEmpty(o.metric)
     AND notEmpty(o.dtype)

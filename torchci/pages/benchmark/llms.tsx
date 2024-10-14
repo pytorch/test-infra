@@ -7,10 +7,11 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
-  BENCHMARKS,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
+  EXCLUDED_METRICS,
+  REPO_TO_BENCHMARKS,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
@@ -128,6 +129,7 @@ function Report({
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        repoName={repoName}
         modelName={modelName}
         metricNames={metricNames}
         lPerfData={{
@@ -257,32 +259,50 @@ export default function Page() {
 
   const queryParams: RocksetParam[] = [
     {
+      name: "deviceArch",
+      type: "string",
+      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
+    },
+    {
+      name: "excludedMetrics",
+      type: "string",
+      value: EXCLUDED_METRICS.join(","),
+    },
+    {
+      name: "filenames",
+      type: "string",
+      value: REPO_TO_BENCHMARKS[repoName].join(","),
+    },
+    {
       name: "granularity",
       type: "string",
       value: granularity,
     },
     {
-      name: "filenames",
+      name: "names",
       type: "string",
-      value: BENCHMARKS.join(","),
+      value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
     },
     {
       name: "repo",
       type: "string",
       value: repoName,
     },
-    {
-      name: "deviceArch",
-      type: "string",
-      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
-    },
     ...timeParams,
   ];
   const queryParamsClickHouse = {
-    granularity: granularity,
-    filenames: BENCHMARKS,
-    repo: repoName,
     deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
+    excludedMetrics: EXCLUDED_METRICS,
+    filenames: REPO_TO_BENCHMARKS[repoName],
+    granularity: granularity,
+    names: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
+    repo: repoName,
     ...timeParamsClickHouse,
   };
 
@@ -299,7 +319,7 @@ export default function Page() {
   });
 
   if (data === undefined || data.length === 0) {
-    return <>Loading {BENCHMARKS.join(", ")}...</>;
+    return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
   }
 
   const modelNames: string[] = [
@@ -320,7 +340,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          LLMs Benchmark DashBoard
+          Benchmark DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -377,7 +397,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={-1} // Default to the next to latest in the window
+          fallbackIndex={1} // Default to previous commit
           timeRange={timeRange}
           useClickHouse={useClickHouse}
         />

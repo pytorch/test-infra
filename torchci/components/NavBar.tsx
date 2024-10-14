@@ -51,7 +51,11 @@ function NavBar() {
     },
     {
       name: "LLMs",
-      href: "/benchmark/llms",
+      href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+    },
+    {
+      name: "ExecuTorch",
+      href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
     },
   ];
 
