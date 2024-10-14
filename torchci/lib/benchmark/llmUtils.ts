@@ -3,71 +3,34 @@ import {
   LLMsBenchmarkData,
 } from "components/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
 
 export function useBenchmark(
-  queryParams: RocksetParam[] | {},
+  queryParams: { [key: string]: any },
   modelName: string,
   dtypeName: string,
   deviceName: string,
   branchAndCommit: BranchAndCommit,
-  useClickHouse: boolean = false,
   getJobId: boolean = false
 ) {
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_llms";
 
-  const queryParamsWithBranchAndCommit:
-    | RocksetParam[]
-    | { [key: string]: any } = useClickHouse
-    ? {
-        getJobId: getJobId,
-        ...queryParams,
-      }
-    : [
-        {
-          name: "getJobId",
-          type: "bool",
-          value: getJobId,
-        },
-        ...(queryParams as RocksetParam[]),
-      ];
+  const queryParamsWithBranchAndCommit: { [key: string]: any } = {
+    getJobId: getJobId,
+    ...queryParams,
+  };
 
-  if (useClickHouse) {
-    (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
-      branchAndCommit.branch ? [branchAndCommit.branch] : [];
-  } else {
-    if (branchAndCommit.branch) {
-      queryParamsWithBranchAndCommit.push({
-        name: "branches",
-        type: "string",
-        value: branchAndCommit.branch,
-      });
-    }
-  }
+  (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
+    branchAndCommit.branch ? [branchAndCommit.branch] : [];
 
-  if (useClickHouse) {
-    (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
-      branchAndCommit.commit ? [branchAndCommit.commit] : [];
-  } else {
-    if (branchAndCommit.commit) {
-      queryParamsWithBranchAndCommit.push({
-        name: "commits",
-        type: "string",
-        value: branchAndCommit.commit,
-      });
-    }
-  }
+  (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
+    branchAndCommit.commit ? [branchAndCommit.commit] : [];
 
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParamsWithBranchAndCommit)
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParamsWithBranchAndCommit)
-      )}`;
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithBranchAndCommit)
+  )}`;
 
   return useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
