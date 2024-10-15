@@ -27,7 +27,7 @@ def get_pytorch_pip_install_command(
         # Use Meta CDN for nightly builds
         download_pytorch_org = "d3kup0pazkvub8.cloudfront.net"
     extra_index = f"https://{download_pytorch_org}/whl/{channel}/{gpu_arch_version}"
-    return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index}'"]
+    return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index} --vv'"]
 
 
 def get_pytorch_s3_bucket_path(
