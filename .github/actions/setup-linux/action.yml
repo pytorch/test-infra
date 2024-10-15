@@ -23,6 +23,7 @@ runs:
     - name: Start docker if docker deamon is not running
       shell: bash
       run: |
+        source .bashrc
         if systemctl is-active --quiet docker --user; then
             echo "Docker daemon is running...";
         else
