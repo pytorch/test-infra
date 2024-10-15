@@ -289,6 +289,14 @@ variable "scale_config_repo" {
   description = "Repository to fetch scale config from."
   default     = ""
   type        = string
+
+  validation {
+    # Enforce that a value for scale_config_repo is set when enable_organization_runners is set to true.
+    # Setting the value is optional when not using organization runners since we'll default to the
+    # job's repository.
+    condition     = var.enable_organization_runners == true ? var.scale_config_repo != "" : true
+    error_message = "scale_config_repo is required when enable_organization_runners is set to true"
+  }
 }
 
 variable "scale_config_repo_path" {

@@ -97,7 +97,7 @@ export class Config {
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     /* istanbul ignore next */
-    this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || 'test-infra';
+    this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || '';
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     this.sSMParamCleanupAgeDays = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '7');
