@@ -60,7 +60,7 @@ export async function scaleUp(
   const runnerTypes = await getRunnerTypes(
     {
       owner: repo.owner,
-      repo:  Config.Instance.scaleConfigRepo || repo.repo,
+      repo: Config.Instance.scaleConfigRepo || repo.repo,
     },
     metrics,
   );
