@@ -93,7 +93,7 @@ class GenerateBuildMatrixTest(TestCase):
             cuda=True,
             rocm=True,
             cpu=True,
-            xpu=False,
+            xpu=True,
             reference_output_file="build_matrix_windows_wheel_cuda.json",
         )
 
