@@ -20,10 +20,13 @@ runs:
         echo "instance-type: $(get_ec2_metadata instance-type)"
         echo "system info $(uname -a)"
 
+    - name: Set DOCKER_HOST
+      shell: bash
+      run: echo "DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock" >> "${GITHUB_ENV}"
+
     - name: Start docker if docker deamon is not running
       shell: bash
       run: |
-        source ~/.bashrc
         if systemctl is-active --quiet docker --user; then
             echo "Docker daemon is running...";
         else
