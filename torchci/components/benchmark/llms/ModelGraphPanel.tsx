@@ -71,12 +71,8 @@ export function GraphPanel({
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
-  const startTime = dayjs(
-    (queryParams as { [key: string]: any })["startTime"]
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    (queryParams as { [key: string]: any })["stopTime"]
-  ).startOf(granularity);
+  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
   // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];

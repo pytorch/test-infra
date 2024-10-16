@@ -1,23 +1,25 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- This query is used to get the list of branches and commits used by different
+-- OSS CI benchmark experiments. This powers HUD TorchInductor benchmarks dashboards
 SELECT
-  DISTINCT w.head_branch,
-  w.head_sha,
-  w.id,
-  FORMAT_ISO8601(
-    DATE_TRUNC(
-      : granularity, TIMESTAMP_MILLIS(p.timestamp)
-    )
-  ) AS event_time,
+    DISTINCT w.head_branch AS head_branch,
+    w.head_sha,
+    w.id,
+    toStartOfDay(fromUnixTimestamp64Milli(p.timestamp)) AS event_time
 FROM
-  inductor.torch_dynamo_perf_stats_v2 AS p
-  LEFT JOIN commons.workflow_run w ON p.workflow_id = w.id
+    benchmark.inductor_torch_dynamo_perf_stats p
+    LEFT JOIN default .workflow_run w ON p.workflow_id = w.id
 WHERE
-  TIMESTAMP_MILLIS(p.timestamp) >= PARSE_DATETIME_ISO8601(: startTime)
-  AND TIMESTAMP_MILLIS(p.timestamp) < PARSE_DATETIME_ISO8601(: stopTime)
-  AND p.filename LIKE CONCAT(
-    '%_', : dtypes, '_', : mode, '_', : device,
-    '_performance%'
-  )
+    p.timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
+    AND p.timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
+    AND p.filename LIKE CONCAT(
+        '%_',
+        {dtypes: String },
+        '_',
+        {mode: String },
+        '_',
+        {device: String },
+        '_performance%'
+    )
 ORDER BY
-  w.head_branch,
-  event_time DESC
+    w.head_branch,
+    event_time DESC
