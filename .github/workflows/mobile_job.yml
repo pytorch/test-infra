@@ -271,14 +271,20 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Slow down the incoming requests to mitigate AWS rate limit
+        id: randomize-retry
         shell: bash
         continue-on-error: true
         env:
-          MAXWAIT_IN_SECONDS: 60
+          MAX_WAIT_TIME_IN_SECONDS: 120
         run: |
+          set -ex
+
           # NB: AWS imposes a rate limit somewhere on the number of requests
           # we can submit to them. Let's just slow down a bit here
-          sleep $((RANDOM % MAXWAIT_IN_SECONDS))
+          WAIT_TIME_IN_SECONDS=$((RANDOM % MAX_WAIT_TIME_IN_SECONDS))
+          echo "WAIT_TIME_IN_SECONDS=${WAIT_TIME_IN_SECONDS}" >> "${GITHUB_ENV}"
+
+          sleep "${WAIT_TIME_IN_SECONDS}"
 
       - name: Run iOS tests on devices
         id: ios-test
@@ -302,7 +308,7 @@ jobs:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
           max_attempts: 3
-          retry_wait_seconds: 90
+          retry_wait_seconds: ${{ env.WAIT_TIME_IN_SECONDS || 120 }}
           command: |
             set -ex
 
@@ -353,7 +359,7 @@ jobs:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
           max_attempts: 3
-          retry_wait_seconds: 90
+          retry_wait_seconds: ${{ env.WAIT_TIME_IN_SECONDS || 120 }}
           command: |
             set -ex
 
