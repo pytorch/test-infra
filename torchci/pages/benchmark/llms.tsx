@@ -230,7 +230,6 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
     deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
