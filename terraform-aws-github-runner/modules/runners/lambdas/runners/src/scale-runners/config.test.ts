@@ -193,7 +193,7 @@ describe('Config', () => {
     expect(Config.Instance.mustHaveIssuesLabels).toEqual([]);
     expect(Config.Instance.runnerGroupName).toBeUndefined();
     expect(Config.Instance.runnersExtraLabels).toBeUndefined();
-    expect(Config.Instance.scaleConfigRepo).toEqual('test-infra');
+    expect(Config.Instance.scaleConfigRepo).toEqual('');
     expect(Config.Instance.scaleConfigRepoPath).toEqual('.github/scale-config.yml');
     expect(Config.Instance.secretsManagerSecretsId).toBeUndefined();
     expect(Config.Instance.shuffledAwsRegionInstances).toEqual([]);
