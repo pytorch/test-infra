@@ -67,13 +67,15 @@ runs:
     - name: Install Python Packages
       shell: bash
       run: |
-        pip install rockset==1.0.3 boto3==1.19.12
+        pip install clickhouse-connect==0.7.16 boto3==1.19.12
 
     - name: Get latest viable commit
       id: get-latest-commit
       working-directory: ${{ inputs.repository }}
       env:
-        ROCKSET_API_KEY: ${{ inputs.rockset-api-key }}
+        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
       shell: bash
       run: |
         set -ex
