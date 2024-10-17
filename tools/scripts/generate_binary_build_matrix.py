@@ -495,6 +495,8 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+    if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64):
+        python_versions += ["3.13"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -528,6 +530,11 @@ def generate_wheels_matrix(
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
         for arch_version in arches:
+
+            # TODO: Enable Python 3.13 support for ROCM
+            if arch_version in ROCM_ARCHES and python_version == "3.13":
+                continue
+
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
