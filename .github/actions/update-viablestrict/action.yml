@@ -25,8 +25,16 @@ inputs:
     description: The token to use to push to the stable protected branch
     required: true
     type: string
-  rockset-api-key:
-    description: The API key to query Rockset, read-only
+  clickhouse-url:
+    description: ClickHouse URL
+    required: true
+    type: string
+  clickhouse-username:
+    description: ClickHouse username
+    required: true
+    type: string
+  clickhouse-password:
+    description: ClickHouse password
     required: true
     type: string
   test-infra-repository:
@@ -67,13 +75,15 @@ runs:
     - name: Install Python Packages
       shell: bash
       run: |
-        pip install rockset==1.0.3 boto3==1.19.12
+        pip install clickhouse-connect==0.7.16 boto3==1.19.12
 
     - name: Get latest viable commit
       id: get-latest-commit
       working-directory: ${{ inputs.repository }}
       env:
-        ROCKSET_API_KEY: ${{ inputs.rockset-api-key }}
+        CLICKHOUSE_ENDPOINT: ${{ inputs.clickhouse-url }}
+        CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
+        CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}
       shell: bash
       run: |
         set -ex
