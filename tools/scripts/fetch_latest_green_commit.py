@@ -5,10 +5,11 @@ import re
 import sys
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
-import rockset  # type: ignore[import]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
+from tools.torchci.clickhouse import query_clickhouse_saved
 from tools.scripts.gitutils import _check_output
+
 sys.path.pop(0)
 
 
@@ -49,19 +50,9 @@ def get_latest_commits(viable_strict_branch: str, main_branch: str) -> List[str]
 
 
 def query_commits(commits: List[str]) -> List[Dict[str, Any]]:
-    rs = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    )
-    params = [{"name": "shas", "type": "string", "value": ",".join(commits)}]
-    res = rs.QueryLambdas.execute_query_lambda(
-        # https://console.rockset.com/lambdas/details/commons.commit_jobs_batch_query
-        query_lambda="commit_jobs_batch_query",
-        version="19c74e10819104f9",
-        workspace="commons",
-        parameters=params,
-    )
+    res = query_clickhouse_saved("commit_jobs_batch_query", {"shas": commits})
 
-    return cast(List[Dict[str, Any]], res.results)
+    return cast(List[Dict[str, Any]], res)
 
 
 def print_commit_status(commit: str, results: Dict[str, Any]) -> None:
