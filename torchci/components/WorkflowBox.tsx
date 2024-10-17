@@ -222,7 +222,7 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
-              artifacts={groupedArtifacts?.get(job.id)}
+              artifacts={groupedArtifacts?.get(job.id?.toString())}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
               unstableIssues={unstableIssues}
@@ -264,7 +264,7 @@ function useArtifacts(workflowId: string | undefined): {
 
 function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
   // Group artifacts by job id if possible
-  const jobIds = jobs.map((job) => job.id);
+  const jobIds = jobs.map((job) => job.id?.toString());
   const grouping = new Map<string | undefined, Artifact[]>();
   for (const artifact of artifacts) {
     let key = "none";
