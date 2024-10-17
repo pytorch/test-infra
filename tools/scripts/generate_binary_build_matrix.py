@@ -310,7 +310,7 @@ def get_wheel_install_command(
         else:
             raise ValueError("Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds.")
     if  channel == RELEASE and (not use_only_dl_pytorch_org) and (
-        (gpu_arch_version == "12.1" and os == LINUX)
+        (gpu_arch_version == "12.4" and os == LINUX)
         or (
             gpu_arch_type == CPU
             and os in [WINDOWS, MACOS, MACOS_ARM64]
