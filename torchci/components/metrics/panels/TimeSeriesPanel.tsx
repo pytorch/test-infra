@@ -223,7 +223,7 @@ export default function TimeSeriesPanel({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
-  useClickHouse = true,
+  useClickHouse = false,
 }: {
   title: string;
   queryCollection?: string;
