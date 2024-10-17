@@ -1279,9 +1279,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(
-            false,
-          );
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(false);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
@@ -1292,7 +1291,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(true);
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(true);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
@@ -1303,9 +1303,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(
-            false,
-          );
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(false);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
@@ -1335,9 +1334,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(
-            false,
-          );
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(false);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);
@@ -1348,7 +1346,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(true);
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(true);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);
@@ -1359,9 +1358,8 @@ describe('scale-down', () => {
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
-          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics)).toEqual(
-            false,
-          );
+          expect(await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics))
+            .toEqual(false);
 
           expect(mockedGetRunnerTypes).toBeCalledTimes(1);
           expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);

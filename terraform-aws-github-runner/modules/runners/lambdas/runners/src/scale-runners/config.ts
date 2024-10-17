@@ -98,6 +98,9 @@ export class Config {
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     /* istanbul ignore next */
     this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || '';
+    if (this.enableOrganizationRunners && !this.scaleConfigRepo) {
+      throw new Error('SCALE_CONFIG_REPO is required when ENABLE_ORGANIZATION_RUNNERS is set');
+    }
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     this.sSMParamCleanupAgeDays = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '7');
