@@ -25,8 +25,16 @@ inputs:
     description: The token to use to push to the stable protected branch
     required: true
     type: string
-  rockset-api-key:
-    description: The API key to query Rockset, read-only
+  clickhouse-url:
+    description: ClickHouse URL
+    required: true
+    type: string
+  clickhouse-username:
+    description: ClickHouse username
+    required: true
+    type: string
+  clickhouse-password:
+    description: ClickHouse password
     required: true
     type: string
   test-infra-repository:
@@ -73,9 +81,9 @@ runs:
       id: get-latest-commit
       working-directory: ${{ inputs.repository }}
       env:
-        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
-        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
-        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+        CLICKHOUSE_ENDPOINT: ${{ inputs.clickhouse-url }}
+        CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
+        CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}
       shell: bash
       run: |
         set -ex
