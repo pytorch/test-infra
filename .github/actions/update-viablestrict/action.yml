@@ -98,7 +98,7 @@ runs:
         echo $output
 
     - name: Push SHA to viable/strict branch
-      if: false && steps.get-latest-commit.outputs.latest_viable_sha != 'None'
+      if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
       working-directory: ${{ inputs.repository }}
       id: push-to-stable
       env:
