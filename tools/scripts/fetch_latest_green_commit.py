@@ -5,9 +5,9 @@ import sys
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT))
-from tools.torchci.clickhouse import query_clickhouse_saved
-from tools.scripts.gitutils import _check_output
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+from torchci.clickhouse import query_clickhouse_saved
+from scripts.gitutils import _check_output
 
 sys.path.pop(0)
 
