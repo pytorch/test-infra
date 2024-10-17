@@ -24,7 +24,7 @@ export default function TablePanel({
   helpLink,
   // An optional flag to show the table footer
   showFooter,
-  useClickHouse = false,
+  useClickHouse = true,
 }: {
   title: string;
   queryCollection?: string;
