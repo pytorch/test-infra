@@ -31,6 +31,7 @@ import {
   getGHRunnerRepo,
   isEphemeralRunner,
   isRunnerRemovable,
+  minRunners,
   runnerMinimumTimeExceeded,
   scaleDown,
   sortRunnersByLaunchTime,
@@ -441,7 +442,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(16);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
@@ -759,7 +760,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(16);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
       expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
@@ -1308,6 +1309,16 @@ describe('scale-down', () => {
         expect(mockedGetRunnerTypes).toBeCalledTimes(1);
         expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
       });
+    });
+  });
+
+  describe('minRunners', () => {
+    const runnerType = 'runnerTypeDef';
+
+    it('min_runners === 2', async () => {
+      const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { min_available: 2 } as RunnerType]]));
+      expect(await minRunners({ runnerType: runnerType, repo: 'the-org/a-repo' } as RunnerInfo, metrics)).toBe(2);
     });
   });
 
