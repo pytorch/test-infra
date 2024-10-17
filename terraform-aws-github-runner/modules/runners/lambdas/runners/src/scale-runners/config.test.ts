@@ -200,14 +200,11 @@ describe('Config', () => {
     expect(Config.Instance.enableOrganizationRunners).toBeFalsy();
   });
 
-
   it('requires scaleConfigRepo to be set when organization runners are enabled', () => {
     Config.resetConfig();
     process.env.ENABLE_ORGANIZATION_RUNNERS = 'True';
     process.env.SCALE_CONFIG_REPO = '';
 
-    expect(() => Config.Instance).toThrowError(
-      'SCALE_CONFIG_REPO is required when ENABLE_ORGANIZATION_RUNNERS is set'
-    );
-    });
+    expect(() => Config.Instance).toThrowError('SCALE_CONFIG_REPO is required when ENABLE_ORGANIZATION_RUNNERS is set');
+  });
 });

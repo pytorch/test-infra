@@ -93,7 +93,7 @@ describe('scaleUp', () => {
         ({
           ...baseCfg,
           enableOrganizationRunners: false,
-          scaleConfigRepo: 'scale-config-repo'
+          scaleConfigRepo: 'scale-config-repo',
         } as unknown as Config),
     );
     const payload = {
