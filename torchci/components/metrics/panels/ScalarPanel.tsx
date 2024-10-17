@@ -69,7 +69,7 @@ export default function ScalarPanel({
   metricName,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
-  useClickHouse = false,
+  useClickHouse = true,
 }: {
   title: string;
   queryCollection?: string;
