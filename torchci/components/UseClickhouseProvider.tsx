@@ -7,7 +7,7 @@ interface UseCHContextProps {
 }
 
 const UseCHContext = createContext<UseCHContextProps>({
-  useCH: false,
+  useCH: true,
   setUseCH: () => {},
 });
 
@@ -21,7 +21,7 @@ export function UseCHContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [useCH, setUseCH] = usePreference("useClickHouse", undefined, false);
+  const [useCH, setUseCH] = usePreference("useClickHouse", undefined, true);
   return (
     <UseCHContext.Provider
       value={{
