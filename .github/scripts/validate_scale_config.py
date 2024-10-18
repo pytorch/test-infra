@@ -290,7 +290,9 @@ def main() -> None:
     source_scale_config = load_yaml_file(source_scale_config_info.path)
     validation_success = True
 
-    validation_success = is_config_valid_internally(source_scale_config[RUNNER_TYPE_CONFIG_KEY])
+    validation_success = is_config_valid_internally(
+        source_scale_config[RUNNER_TYPE_CONFIG_KEY]
+    )
     print(f"scaled-config.yml is {'valid' if validation_success else 'invalid'}\n")
 
     def validate_config(generated_config_info: ScaleConfigInfo) -> bool:
@@ -302,8 +304,6 @@ def main() -> None:
                 generated_config_info.path,
                 generated_config_info.prefix,
             )
-
-            print(f"Generated updated scale config file at {generated_config_info.path}\n")
 
         cloned_scale_config = load_yaml_file(generated_config_info.path)
 
