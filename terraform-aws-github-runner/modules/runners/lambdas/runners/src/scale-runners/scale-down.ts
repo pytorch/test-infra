@@ -373,7 +373,7 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
   }
 
   const repo: Repo = (() => {
-    if (Config.Instance.enableOrganizationRunners) {
+    if (Config.Instance.scaleConfigRepo) {
       return {
         owner: ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
         repo: Config.Instance.scaleConfigRepo,

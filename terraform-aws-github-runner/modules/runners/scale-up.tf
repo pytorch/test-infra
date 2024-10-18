@@ -28,6 +28,16 @@ resource "aws_lambda_function" "scale_up" {
   memory_size                    = 2048
   publish                        = true
 
+  lifecycle {
+    precondition {
+      # Enforce that a value for scale_config_repo is set when enable_organization_runners is set to true.
+      # Setting the value is optional when not using organization runners since we'll default to the
+      # job's repository.
+      condition     = var.enable_organization_runners == true ? var.scale_config_repo != "" : true
+      error_message = "scale_config_repo is required when enable_organization_runners is set to true"
+    }
+  }
+
   environment {
     variables = {
       CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
