@@ -15,9 +15,9 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: "recursive"
-      job-name: "win-py3.8-cpu"
+      job-name: "win-py3.9-cpu"
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.9
         conda activate test
         python -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -29,10 +29,10 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       submodules: ${{ 'true' }}
-      job-name: "win-py3.8-cu118"
+      job-name: "win-py3.9-cu118"
       timeout: 60
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.9
         conda activate test
         python -m pip install --index-url=https://download.pytorch.org/whl/nightly/cu118 --pre torch
         # Can import pytorch, cuda is available
