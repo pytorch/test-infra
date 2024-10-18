@@ -1041,7 +1041,7 @@
 2024-07-08T16:51:04.0872297Z [36;1m  elif [[ $runner_name_str == *"gcp"* ]]; then[0m
 2024-07-08T16:51:04.0872992Z [36;1m    echo "Runner is from Google Cloud Platform, No info on ec2 metadata"[0m
 2024-07-08T16:51:04.0873605Z [36;1m  else[0m
-2024-07-08T16:51:04.0874108Z [36;1m    curl -fsSL "http://169.254.169.254/latest/meta-data/${category}"[0m
+2024-07-08T16:51:04.0874108Z [36;1m    curl -H "X-aws-ec2-metadata-token: $(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30")" -fsSL "http://169.254.169.254/latest/meta-data/${category}"[0m
 2024-07-08T16:51:04.0874687Z [36;1m  fi[0m
 2024-07-08T16:51:04.0874980Z [36;1m}[0m
 2024-07-08T16:51:04.0875355Z [36;1mecho "ami-id: $(get_ec2_metadata ami-id)"[0m
