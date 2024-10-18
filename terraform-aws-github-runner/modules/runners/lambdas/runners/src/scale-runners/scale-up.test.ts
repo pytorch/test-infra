@@ -87,6 +87,47 @@ describe('scaleUp', () => {
     expect(mockedListGithubRunners).not.toBeCalled();
   });
 
+  it('uses the scaleConfigRepo when provided', async () => {
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+      () =>
+        ({
+          ...baseCfg,
+          enableOrganizationRunners: false,
+          scaleConfigRepo: 'scale-config-repo',
+        } as unknown as Config),
+    );
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+      runnerLabels: ['label1', 'label2'],
+    };
+    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+      new Map([
+        [
+          'label1-nomatch',
+          {
+            instance_type: 'instance_type',
+            os: 'os',
+            max_available: 33,
+            disk_size: 113,
+            runnerTypeName: 'runnerTypeName',
+            is_ephemeral: false,
+          },
+        ],
+      ]),
+    );
+    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
+
+    await scaleUp('aws:sqs', payload, metrics);
+
+    expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'scale-config-repo', owner: 'owner' }, metrics);
+    expect(mockedListGithubRunners).not.toBeCalled();
+  });
+
   it('have available runners', async () => {
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(
       () =>

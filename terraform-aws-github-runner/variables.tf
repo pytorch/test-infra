@@ -346,8 +346,8 @@ variable "cant_have_issues_labels" {
 }
 
 variable "scale_config_repo" {
-  description = "Repository to fetch scale config from if `enable_organization_runners` is set to true. Otherwise the job's repo will be used"
-  default     = "" # Internally defaults to 'test-infra'
+  description = "Repository to fetch scale config from.  Optional if `enable_organization_runners` is set to false, in which case the job's repo will be used"
+  default     = ""
   type        = string
 }
 
