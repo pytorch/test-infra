@@ -96,10 +96,11 @@ function Page() {
   const router = useRouter();
 
   const { repoOwner, repoName, prNumber, sha } = router.query;
+  const useCH = useCHContext().useCH;
 
   let swrKey;
   if (prNumber !== undefined) {
-    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}`;
+    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}?use_ch=${useCH}`;
   }
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;
