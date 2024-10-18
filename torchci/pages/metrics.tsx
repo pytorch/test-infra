@@ -679,7 +679,7 @@ export default function Page() {
               title={"Time to Red Signal (p90 TTRS - mins)"}
               queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
-              metricName={"ttrs_mins"}
+              metricName={useClickHouse ? "custom" : "ttrs_mins"}
               valueRenderer={(value) => value}
               queryParams={
                 useClickHouse
@@ -710,7 +710,7 @@ export default function Page() {
               title={"Time to Red Signal (p75 TTRS - mins)"}
               queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
-              metricName={"ttrs_mins"}
+              metricName={useClickHouse ? "custom" : "ttrs_mins"}
               valueRenderer={(value) => value}
               queryParams={
                 useClickHouse
