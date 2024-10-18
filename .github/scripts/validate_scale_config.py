@@ -1,10 +1,9 @@
 # Takes the scale-config.yml file in test-infra/.github/scale-config.yml and runs the following
 # validations against it:
-# 1. Internal validation: Ensure that every linux runner type listed has the corresponding Amazon 2023 variant
+# 1. Internal validation: Runs a custom set of sanity checks against the runner types defined in the file
 # 2. External validation: Ensure that every runner type listed (linux & windows) have corresponding runner types in
-#    pytorch/pytorch's .github/lf-scale-config.yml and .github/lf-canary-scale-config.yml that have the "lf."
-#    "lf.c." prefixes added correspondingly
-# This script assumes that it is being run from the root of the test-infra repository
+#    the Linux Foundation fleet's scale config files (.github/lf-scale-config.yml and .github/lf-canary-scale-config.yml).
+#    Those files are expected to have the "lf." and "lf.c." prefixes added to each runner type
 
 import argparse
 import copy
