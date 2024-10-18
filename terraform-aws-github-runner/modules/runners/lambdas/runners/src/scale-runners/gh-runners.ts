@@ -355,6 +355,7 @@ export async function getRunnerTypes(
             is_ephemeral: runner_type.is_ephemeral || false,
             /* istanbul ignore next */
             labels: runner_type.labels?.map((label: string) => label.trim()),
+            min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
             max_available: runner_type.max_available,
             os: runner_type.os,
             runnerTypeName: prop,
@@ -401,6 +402,7 @@ export async function getRunnerTypes(
               ['linux', 'windows'].includes(runnerType.os) &&
               (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
               (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+              (typeof runnerType.min_available === 'number' || runnerType.min_available === undefined) &&
               (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
               (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
               (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&

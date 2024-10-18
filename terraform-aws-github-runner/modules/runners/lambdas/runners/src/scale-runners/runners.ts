@@ -34,6 +34,7 @@ export interface RunnerTypeOptional {
   instance_type?: string;
   is_ephemeral?: boolean;
   labels?: Array<string>;
+  min_available?: number;
   max_available?: number;
   os?: string;
 }
