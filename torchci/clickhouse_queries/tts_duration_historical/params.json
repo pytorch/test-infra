@@ -1,7 +1,8 @@
 {
+  "branch": "String",
   "granularity": "String",
+  "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)",
-  "timezone": "String",
-  "workflowNames": "String"
+  "workflowNames": "Array(String)"
 }
