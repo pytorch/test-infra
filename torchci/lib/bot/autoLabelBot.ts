@@ -2,10 +2,6 @@ import assert from "assert";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
 import {
-  CODEV_INDICATOR,
-  genCodevNoWritePermComment,
-} from "./codevNoWritePermBot";
-import {
   addLabels,
   CachedIssueTracker,
   CachedLabelerConfigTracker,

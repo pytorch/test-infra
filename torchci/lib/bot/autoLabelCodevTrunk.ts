@@ -1,4 +1,6 @@
 // Bot that adds ciflow/trunk label to PRs in pytorch/pytorch that are codev
+// that have been approved or imported.  Can be viewed as a sub-bot of
+// autoLabelBot, put into its own file for clarity and easier testing.
 import { Probot } from "probot";
 import { addNewLabels, canRunWorkflows } from "./autoLabelBot";
 import {
