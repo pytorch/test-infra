@@ -67,7 +67,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (true || authorization === process.env.DRCI_BOT_KEY) {
+  if (authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
@@ -88,10 +88,9 @@ export async function updateDrciComments(
   repo: string = "pytorch",
   prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
-  console.log(prNumbers)
+  // Fetch in two separate queries because combining into one query took much
+  // longer to run on CH
   const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
-    // Fetch in two separate queries because combinidng into one query took much
-    // longer to run on CH
     fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
     // Only fetch if we are not updating a specific PR
     prNumbers.length != 0
