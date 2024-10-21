@@ -57,7 +57,7 @@ export async function scaleUp(
 
   getGitHubRateLimit(repo, Number(payload.installationId), metrics);
 
-  var scaleConfigRepo = {
+  const scaleConfigRepo = {
     owner: repo.owner,
     repo: Config.Instance.scaleConfigRepo || repo.repo,
   };
