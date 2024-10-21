@@ -24,6 +24,11 @@ inputs:
     required: false
     type: string
     default: ""
+  default-packages:
+    description: Default packages to install
+    required: false
+    type: string
+    default: "cmake=3.22 ninja=1.10 pkg-config=0.29 wheel=0.37"
 
 runs:
   using: composite
@@ -133,10 +138,7 @@ runs:
             --prefix "${CONDA_BASE_ENV}" \
             ${ENV_FILE_FLAG} \
             python="${PYTHON_VERSION}" \
-            cmake=3.22 \
-            ninja=1.10 \
-            pkg-config=0.29 \
-            wheel=0.37 \
+            ${{ inputs.default-packages }} \
             ${CONDA_EXTRA_FLAGS}
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
