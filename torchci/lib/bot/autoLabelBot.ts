@@ -572,6 +572,46 @@ function myBot(app: Probot): void {
 
     await addNewLabels(existingLabels, [CIFLOW_TRUNK_LABEL], context);
   });
+
+  app.on("pull_request.edited", async (context) => {
+    // Apply `ciflow/trunk` to PRs that have just been imported
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+    const prAuthor = context.payload.pull_request.user.login;
+    const body = context.payload.pull_request.body;
+    const existingLabels = context.payload.pull_request.labels.map(
+      (e) => e["name"]
+    );
+
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return;
+    }
+
+    if (context.payload.changes.body?.from.match(CODEV_INDICATOR)) {
+      // Already exists, no need to add again
+      return;
+    }
+
+    // only applies label to codev diffs.
+    if (!body?.match(CODEV_INDICATOR)) {
+      return;
+    }
+
+    // Is codev but doesn't have approvals means the author is a metamate but
+    // doesn't have write permissions, so post link to get write access
+    // I think only one of these checks is really needed
+    if (!(await canRunWorkflows(context))) {
+      await context.octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: context.payload.pull_request.number,
+        body: genCodevNoWritePermComment(prAuthor),
+      });
+      return;
+    }
+
+    await addNewLabels(existingLabels, [CIFLOW_TRUNK_LABEL], context);
+  });
 }
 
 export default myBot;
