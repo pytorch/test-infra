@@ -311,6 +311,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
         workflowJobNames.includes(platform) &&
         (platform == "rocm" || !workflowJobNames.includes("rocm")) &&
         !workflowJobNames.includes("dynamo") &&
+        !workflowJobNames.includes("dynamo_wrapped") &&
         !workflowJobNames.includes("inductor") &&
         !platformsToSkip.includes(platform)
       ) {
@@ -322,7 +323,8 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
   // dynamo and inductor are subsets of linux, so only include them if linux is
   // not present as a disable platform
   if (!platformsToSkip.includes("linux")) {
-    if (workflowJobNames.some((name) => name.includes("dynamo"))) {
+    if (workflowJobNames.some((name) => name.includes("dynamo") || name.includes("dynamo_wrapped"))) {
+      platformsToSkip.push("dynamo_wrapped");
       platformsToSkip.push("dynamo");
     }
     if (workflowJobNames.some((name) => name.includes("inductor"))) {

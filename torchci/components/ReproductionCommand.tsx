@@ -42,7 +42,8 @@ function getReproCommand(job: JobData) {
     return null;
   }
   const command = `python ${file} -k ${name}`;
-  if (job.jobName?.includes("dynamo")) {
+  // dynamo getting renamed to dynamo_wrapped
+  if (job.jobName?.includes("dynamo") || job.jobName?.includes("dynamo_wrapped")) {
     return `PYTORCH_TEST_WITH_DYNAMO=1 ${command}`;
   }
   if (job.jobName?.includes("inductor")) {

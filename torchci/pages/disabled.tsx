@@ -30,6 +30,7 @@ const PLATFORMS = [
   DEFAULT_PLATFORM,
   "asan",
   "dynamo",
+  "dynamo_wrapped",
   "inductor",
   "linux",
   "mac",

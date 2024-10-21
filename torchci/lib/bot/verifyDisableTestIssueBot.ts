@@ -22,6 +22,7 @@ export const supportedPlatforms = new Map([
   ["win", ["module: windows"]],
   ["windows", ["module: windows"]],
   ["dynamo", ["oncall: pt2"]],
+  ["dynamo_wrapped", ["oncall: pt2"]],
   ["inductor", ["oncall: pt2"]],
 ]);
 
