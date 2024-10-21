@@ -72,7 +72,8 @@ export async function scaleUp(
   for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
     if (runnerType === undefined) {
-      console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
+      console.info(`Runner label '${runnerLabel}' was not found in config at ` +
+         `${repo.owner}/${repo.repo}/${Config.Instance.scaleConfigRepoPath}` );
       continue;
     }
     const runnersToCreate = await allRunnersBusy(
