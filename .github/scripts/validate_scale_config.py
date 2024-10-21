@@ -9,10 +9,9 @@ import argparse
 import copy
 import json
 import os
-import tempfile
-from pathlib import Path
 
 import urllib.request
+from pathlib import Path
 
 from typing import Any, cast, Dict, List, NamedTuple
 
@@ -141,7 +140,7 @@ def runner_types_are_equivalent(
 
 
 def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
-    f"""
+    """
     Ensure that for every linux runner type in the config:
 
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
