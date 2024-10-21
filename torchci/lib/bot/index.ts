@@ -1,5 +1,6 @@
 import { Probot } from "probot";
 import autoCcBot from "./autoCcBot";
+import autoLabelCodevTrunk from "./autoLabelCodevTrunk";
 import autoLabelBot from "./autoLabelBot";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
@@ -15,6 +16,7 @@ import webhookToDynamo from "./webhookToDynamo";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
+  autoLabelCodevTrunk(app);
   autoLabelBot(app);
   cancelWorkflowsOnCloseBot(app);
   ciflowPushTrigger(app);

@@ -879,6 +879,30 @@ describe("auto-label-bot", () => {
 
     handleScope(scope);
   });
+
+  test("Imported PR adds ciflow/trunk label", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.edited.json");
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.pull_request.number;
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+    event.payload.changes.body.from = "";
+    mockHasApprovedWorkflowRun(`${owner}/${repo}`);
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`"ciflow/trunk"`);
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    scope.done();
+  });
 });
 
 describe("auto-label-bot: labeler.yml config", () => {
