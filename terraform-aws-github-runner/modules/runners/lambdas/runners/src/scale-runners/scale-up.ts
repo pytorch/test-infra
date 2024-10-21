@@ -57,13 +57,11 @@ export async function scaleUp(
 
   getGitHubRateLimit(repo, Number(payload.installationId), metrics);
 
-  const runnerTypes = await getRunnerTypes(
-    {
-      owner: repo.owner,
-      repo: Config.Instance.scaleConfigRepo || repo.repo,
-    },
-    metrics,
-  );
+  var scaleConfigRepo = {
+    owner: repo.owner,
+    repo: Config.Instance.scaleConfigRepo || repo.repo,
+  };
+  const runnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
   /* istanbul ignore next */
   const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
 
@@ -74,7 +72,7 @@ export async function scaleUp(
     if (runnerType === undefined) {
       console.info(
         `Runner label '${runnerLabel}' was not found in config at ` +
-          `${repo.owner}/${repo.repo}/${Config.Instance.scaleConfigRepoPath}`,
+          `${scaleConfigRepo.owner}/${scaleConfigRepo.repo}/${Config.Instance.scaleConfigRepoPath}`,
       );
       continue;
     }
