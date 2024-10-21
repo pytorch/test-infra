@@ -75,7 +75,7 @@ export default async function handler(
     const failures = await updateDrciComments(
       octokit,
       repo,
-      prNumber ? [prNumber as unknown as number] : []
+      prNumber ? [parseInt(prNumber as string)] : []
     );
     res.status(200).json(failures);
   }
@@ -88,18 +88,18 @@ export async function updateDrciComments(
   repo: string = "pytorch",
   prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
+  // Fetch in two separate queries because combining into one query took much
+  // longer to run on CH
   const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
-    // Fetch in two separate queries because combinidng into one query took much
-    // longer to run on CH
     fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
-    fetchRecentWorkflows(
-      `${OWNER}/${repo}`,
-      // Only fetch if we are not updating a specific PR
-      prNumbers.length == 0
-        ? await getPRsWithPendingJobInComment(`${OWNER}/${repo}`)
-        : [],
-      NUM_MINUTES + ""
-    ),
+    // Only fetch if we are not updating a specific PR
+    prNumbers.length != 0
+      ? []
+      : fetchRecentWorkflows(
+          `${OWNER}/${repo}`,
+          await getPRsWithPendingJobInComment(`${OWNER}/${repo}`),
+          NUM_MINUTES + ""
+        ),
   ]);
 
   const workflowsByPR = await reorganizeWorkflows(
