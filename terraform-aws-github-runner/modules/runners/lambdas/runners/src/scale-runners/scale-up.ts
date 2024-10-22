@@ -55,7 +55,13 @@ export async function scaleUp(
   metrics.runRepo(repo);
   metrics.run();
 
-  getGitHubRateLimit(repo, Number(payload.installationId), metrics);
+  try {
+    const ghLimitInfo = await getGitHubRateLimit(repo, metrics);
+    metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
+  } catch (e) {
+    /* istanbul ignore next */
+    console.error(`Error getting GitHub rate limit: ${e}`);
+  }
 
   const scaleConfigRepo = {
     owner: repo.owner,

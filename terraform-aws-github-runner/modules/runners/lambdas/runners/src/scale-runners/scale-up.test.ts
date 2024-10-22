@@ -2,6 +2,7 @@ import { createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
+  getGitHubRateLimit,
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
@@ -23,6 +24,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.restoreAllMocks();
   nock.disableNetConnect();
+
+  mocked(getGitHubRateLimit).mockResolvedValue({ limit: 5000, remaining: 4999, used: 1 });
 });
 
 const baseCfg = {
