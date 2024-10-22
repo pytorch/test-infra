@@ -45,6 +45,7 @@
     "next": "12.1.5",
     "next-auth": "^4.24.5",
     "octokit": "^1.7.1",
+    "pac-resolver": "7.0.1",
     "probot": "^12.3.3",
     "react": "18.0.0",
     "react-dom": "18.0.0",
