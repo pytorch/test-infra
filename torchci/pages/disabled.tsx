@@ -321,7 +321,7 @@ export default function Page() {
 
   const queryName = "disabled_test_labels";
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify({...queryParams, states: []})
+    JSON.stringify({ ...queryParams, states: [] })
   )}`;
 
   let { data, error } = useSWR(url, fetcher, {
