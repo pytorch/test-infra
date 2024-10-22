@@ -1,4 +1,4 @@
 {
   "repo": "String",
-  "states": "String"
+  "states": "Array(String)"
 }
