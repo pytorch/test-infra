@@ -212,7 +212,11 @@ export default function Kpis() {
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
-          queryParams={useCH ? clickhouseTimeParams : timeParams}
+          queryParams={
+            useCH
+              ? { ...clickhouseTimeParams, repo: "pytorch/pytorch" }
+              : timeParams
+          }
           granularity={"day"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"number_of_open_disabled_tests"}
