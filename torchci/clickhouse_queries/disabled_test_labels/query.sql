@@ -13,4 +13,4 @@ WHERE
     AND i.title LIKE '%DISABLED%'
     AND NOT empty(label)
 ORDER BY
-    label
+    label ASC
