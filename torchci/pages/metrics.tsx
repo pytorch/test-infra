@@ -1109,12 +1109,29 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Number of new disabled tests"}
             queryName={"disabled_test_historical"}
-            queryParams={[...timeParams]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                : [
+                    {
+                      name: "timezone",
+                      type: "string",
+                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    },
+                    {
+                      name: "repo",
+                      type: "string",
+                      value: "pytorch/pytorch",
+                    },
+                    ...timeParams,
+                  ]
+            }
             granularity={"day"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
+            useClickHouse={true}
           />
         </Grid>
 
