@@ -312,6 +312,7 @@ export default function Page() {
   const queryParams: { [key: string]: any } = {
     label: label !== DEFAULT_LABEL ? label : "skipped",
     platform: platform !== DEFAULT_PLATFORM ? platform : "",
+    repo: "pytorch/pytorch",
     state: state,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -320,7 +321,7 @@ export default function Page() {
 
   const queryName = "disabled_test_labels";
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
+    JSON.stringify({...queryParams, states: []})
   )}`;
 
   let { data, error } = useSWR(url, fetcher, {
