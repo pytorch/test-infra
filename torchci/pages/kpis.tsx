@@ -212,11 +212,12 @@ export default function Kpis() {
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
-          queryParams={[...timeParams]}
+          queryParams={useCH ? clickhouseTimeParams : timeParams}
           granularity={"day"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"number_of_open_disabled_tests"}
           yAxisRenderer={(duration) => duration}
+          useClickHouse={true}
         />
       </Grid>
     </Grid>

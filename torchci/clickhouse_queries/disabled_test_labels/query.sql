@@ -1,23 +1,15 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 --- This query returns the list of DISABLED tests labels.  This powers
 --- the disabled tests dashboard label dropdown list
 SELECT
-  DISTINCT labels.value.name AS label,
+    DISTINCT i.labels. 'name' AS label
 FROM
-  commons.issues i,
-  UNNEST (i.labels AS value) AS labels
+    default .issues i FINAL
 WHERE
-  (
-    ARRAY_CONTAINS(
-      SPLIT(: states, ','),
-      i.state
+    (
+        has({states: Array(String) }, i.state)
+        OR empty({states: Array(String) })
     )
-    OR : states = ''
-  )
-  AND i.repository_url = CONCAT(
-    'https://api.github.com/repos/',
-    : repo
-  )
-  AND i.title LIKE '%DISABLED%'
+    AND i.repository_url = CONCAT('https://api.github.com/repos/', {repo: String })
+    AND i.title LIKE '%DISABLED%'
 ORDER BY
-  label ASC
+    label ASC
