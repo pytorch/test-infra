@@ -7,7 +7,6 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 
-
 describe("auto-label-bot", () => {
   let probot: Probot;
   function emptyMockConfig(repoFullName: string) {

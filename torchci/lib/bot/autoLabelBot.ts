@@ -144,7 +144,6 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
 };
 
-
 export async function getLabelsFromLabelerConfig(
   context: Context,
   labelerConfigTracker: CachedLabelerConfigTracker,

@@ -1,7 +1,7 @@
 import { Probot } from "probot";
 import autoCcBot from "./autoCcBot";
-import autoLabelCodevTrunk from "./autoLabelCodevTrunk";
 import autoLabelBot from "./autoLabelBot";
+import autoLabelCodevTrunk from "./autoLabelCodevTrunk";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import codevNoWritePerm from "./codevNoWritePermBot";
