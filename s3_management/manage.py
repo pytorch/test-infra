@@ -578,13 +578,15 @@ def main() -> None:
         if args.compute_sha256:
             idx.compute_sha256()
         elif args.do_not_upload:
-            idx.save_libtorch_html()
             if generate_pep503:
                 idx.save_pep503_htmls()
+            else:
+                idx.save_libtorch_html()
         else:
-            idx.upload_libtorch_html()
             if generate_pep503:
                 idx.upload_pep503_htmls()
+            else:
+                idx.upload_libtorch_html()
 
 
 if __name__ == "__main__":

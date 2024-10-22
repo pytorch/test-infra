@@ -31,6 +31,7 @@ import {
   getGHRunnerRepo,
   isEphemeralRunner,
   isRunnerRemovable,
+  minRunners,
   runnerMinimumTimeExceeded,
   scaleDown,
   sortRunnersByLaunchTime,
@@ -441,7 +442,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(16);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
@@ -759,7 +760,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(16);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(4);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
       expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
@@ -1256,58 +1257,130 @@ describe('scale-down', () => {
     describe('repo runners', () => {
       const runnerType = 'runnerTypeDef';
       const owner = 'the-org';
-      const repo: Repo = {
+      const runnerRepo: Repo = {
         owner: owner,
         repo: 'a-repo',
       };
-      const repoKey = `${owner}/a-repo`;
+      const runnerRepoKey = `${owner}/a-repo`;
 
-      beforeEach(() => {
-        jest.spyOn(Config, 'Instance', 'get').mockImplementation(
-          () =>
-            ({
-              ...baseConfig,
-              enableOrganizationRunners: false,
-            } as unknown as Config),
-        );
+      describe('When no scaleConfigRepo is set, the runner repo is used as the source for scale config', () => {
+        beforeEach(() => {
+          jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+            () =>
+              ({
+                ...baseConfig,
+                enableOrganizationRunners: false,
+              } as unknown as Config),
+          );
+        });
+
+        it('is_ephemeral === undefined', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(false);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
+        });
+
+        it('is_ephemeral === true', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(true);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
+        });
+
+        it('is_ephemeral === false', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(false);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(runnerRepo, metrics);
+        });
       });
 
-      it('is_ephemeral === undefined', async () => {
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      describe("When a scaleConfigRepo is set, it's used as the source for scale config", () => {
+        const centralRepoName = 'central-repo'; // to be the test-infra equivalent
+        const centralRepo: Repo = {
+          owner: owner,
+          repo: centralRepoName,
+        };
 
-        mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
+        beforeEach(() => {
+          jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+            () =>
+              ({
+                ...baseConfig,
+                enableOrganizationRunners: false,
+                scaleConfigRepo: centralRepoName,
+              } as unknown as Config),
+          );
+        });
 
-        expect(await isEphemeralRunner({ runnerType: runnerType, repo: repoKey } as RunnerInfo, metrics)).toEqual(
-          false,
-        );
+        it('is_ephemeral === undefined', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
 
-        expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(false);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);
+        });
+
+        it('is_ephemeral === true', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(true);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);
+        });
+
+        it('is_ephemeral === false', async () => {
+          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+
+          mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
+
+          expect(
+            await isEphemeralRunner({ runnerType: runnerType, repo: runnerRepoKey } as RunnerInfo, metrics),
+          ).toEqual(false);
+
+          expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+          expect(mockedGetRunnerTypes).toBeCalledWith(centralRepo, metrics);
+        });
       });
+    });
+  });
 
-      it('is_ephemeral === true', async () => {
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
+  describe('minRunners', () => {
+    const runnerType = 'runnerTypeDef';
 
-        mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
-
-        expect(await isEphemeralRunner({ runnerType: runnerType, repo: repoKey } as RunnerInfo, metrics)).toEqual(true);
-
-        expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
-      });
-
-      it('is_ephemeral === false', async () => {
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
-
-        mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
-
-        expect(await isEphemeralRunner({ runnerType: runnerType, repo: repoKey } as RunnerInfo, metrics)).toEqual(
-          false,
-        );
-
-        expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
-      });
+    it('min_runners === 2', async () => {
+      const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { min_available: 2 } as RunnerType]]));
+      expect(await minRunners({ runnerType: runnerType, repo: 'the-org/a-repo' } as RunnerInfo, metrics)).toBe(2);
     });
   });
 

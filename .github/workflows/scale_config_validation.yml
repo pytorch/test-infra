@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/scale_config_validation.yml
       - .github/scale-config.yml
+      - .github/scripts/validate_scale_config.py
 
 jobs:
   scale-config-validation:

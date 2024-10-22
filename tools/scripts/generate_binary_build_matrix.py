@@ -36,9 +36,9 @@ ROCM_ARCHES_DICT = {
 }
 
 CUDA_CUDDN_VERSIONS = {
-    "11.8": { "cuda": "11.8.0", "cudnn": "9" },
-    "12.1": { "cuda": "12.1.1", "cudnn": "9"},
-    "12.4": { "cuda": "12.4.0", "cudnn": "9"},
+    "11.8": {"cuda": "11.8.0", "cudnn": "9"},
+    "12.1": {"cuda": "12.1.1", "cudnn": "9"},
+    "12.4": {"cuda": "12.4.0", "cudnn": "9"},
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -52,7 +52,6 @@ TEST = "test"
 # OS constants
 LINUX = "linux"
 LINUX_AARCH64 = "linux-aarch64"
-MACOS = "macos"
 MACOS_ARM64 = "macos-arm64"
 WINDOWS = "windows"
 
@@ -87,7 +86,6 @@ LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-stable"
-MACOS_RUNNER = "macos-12"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
 
@@ -133,8 +131,6 @@ def validation_runner(arch_type: str, os: str) -> str:
             return WIN_CPU_RUNNER
     elif os == MACOS_ARM64:
         return MACOS_M1_RUNNER
-    elif os == MACOS:
-        return MACOS_RUNNER
     else:  # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
@@ -221,7 +217,7 @@ def get_conda_install_command(
     if gpu_arch_type == CUDA:
         conda_package_type = f"pytorch-cuda={arch_version}"
         conda_channels = f"{conda_channels} -c nvidia"
-    elif os not in (MACOS, MACOS_ARM64):
+    elif os not in (MACOS_ARM64):
         conda_package_type = "cpuonly"
     else:
         return f"conda install {pytorch_channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
@@ -266,8 +262,8 @@ def get_libtorch_install_command(
         else f"{prefix}-{_libtorch_variant}-latest.zip"
     )
 
-    if os in [MACOS, MACOS_ARM64]:
-        arch = "x86_64" if os == MACOS else "arm64"
+    if os == MACOS_ARM64:
+        arch = "arm64"
         build_name = f"libtorch-macos-{arch}-latest.zip"
         if channel in [RELEASE, TEST]:
             build_name = f"libtorch-macos-{arch}-{CURRENT_VERSION}.zip"
@@ -308,14 +304,17 @@ def get_wheel_install_command(
         if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
             return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
         else:
-            raise ValueError("Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds.")
-    if  channel == RELEASE and (not use_only_dl_pytorch_org) and (
-        (gpu_arch_version == "12.4" and os == LINUX)
-        or (
-            gpu_arch_type == CPU
-            and os in [WINDOWS, MACOS, MACOS_ARM64]
+            raise ValueError(
+                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds."
+            )
+    if (
+        channel == RELEASE
+        and (not use_only_dl_pytorch_org)
+        and (
+            (gpu_arch_version == "12.4" and os == LINUX)
+            or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
+            or (os == LINUX_AARCH64)
         )
-        or (os == LINUX_AARCH64)
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
@@ -419,7 +418,7 @@ def generate_libtorch_matrix(
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
             abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
-        elif os in [MACOS, MACOS_ARM64]:
+        elif os in [MACOS_ARM64]:
             abi_versions = [CXX11_ABI]
 
     if libtorch_variants is None:
@@ -447,11 +446,11 @@ def generate_libtorch_matrix(
                         "libtorch_variant": libtorch_variant,
                         "libtorch_config": libtorch_config,
                         "devtoolset": devtoolset,
-                        "container_image": LIBTORCH_CONTAINER_IMAGES[
-                            (arch_version, abi_version)
-                        ]
-                        if os != WINDOWS
-                        else "",
+                        "container_image": (
+                            LIBTORCH_CONTAINER_IMAGES[(arch_version, abi_version)]
+                            if os != WINDOWS
+                            else ""
+                        ),
                         "package_type": "libtorch",
                         "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(
                             ".", "_"
@@ -496,6 +495,8 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+    if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64):
+        python_versions += ["3.13"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -529,44 +530,54 @@ def generate_wheels_matrix(
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
         for arch_version in arches:
+
+            # TODO: Enable Python 3.13 support for ROCM
+            if arch_version in ROCM_ARCHES and python_version == "3.13":
+                continue
+
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = (
-                ""
-                if arch_version in [CPU, CPU_AARCH64, XPU]
-                else arch_version
+                "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             entry = {
-                    "python_version": python_version,
-                    "gpu_arch_type": gpu_arch_type,
-                    "gpu_arch_version": gpu_arch_version,
-                    "desired_cuda": desired_cuda,
-                    "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
-                    "package_type": package_type,
-                    "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
-                        ".", "_"
-                    ),
-                    "validation_runner": validation_runner(gpu_arch_type, os),
-                    "installation": get_wheel_install_command(
-                        os,
-                        channel,
-                        gpu_arch_type,
-                        gpu_arch_version,
-                        desired_cuda,
-                        python_version,
-                        use_only_dl_pytorch_org,
-                    ),
-                    "channel": channel,
-                    "upload_to_base_bucket": upload_to_base_bucket,
-                    "stable_version": CURRENT_VERSION,
-                    "use_split_build": False,
-                }
-            ret.append(entry)
-            if use_split_build and (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
-                entry = entry.copy()
-                entry["build_name"] = f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-split".replace(
+                "python_version": python_version,
+                "gpu_arch_type": gpu_arch_type,
+                "gpu_arch_version": gpu_arch_version,
+                "desired_cuda": desired_cuda,
+                "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
+                "package_type": package_type,
+                "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                     ".", "_"
+                ),
+                "validation_runner": validation_runner(gpu_arch_type, os),
+                "installation": get_wheel_install_command(
+                    os,
+                    channel,
+                    gpu_arch_type,
+                    gpu_arch_version,
+                    desired_cuda,
+                    python_version,
+                    use_only_dl_pytorch_org,
+                ),
+                "channel": channel,
+                "upload_to_base_bucket": upload_to_base_bucket,
+                "stable_version": CURRENT_VERSION,
+                "use_split_build": False,
+            }
+            ret.append(entry)
+            if (
+                use_split_build
+                and (gpu_arch_version in CUDA_ARCHES)
+                and (os == LINUX)
+                and (channel == NIGHTLY)
+            ):
+                entry = entry.copy()
+                entry["build_name"] = (
+                    f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-split".replace(
+                        ".", "_"
+                    )
                 )
                 entry["use_split_build"] = True
                 ret.append(entry)
