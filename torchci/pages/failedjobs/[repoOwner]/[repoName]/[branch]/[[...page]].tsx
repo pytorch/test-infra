@@ -102,7 +102,7 @@ function FailedJobsByFailure({
   jobs,
   annotations,
 }: {
-  jobs: { [sha: string]: JobData };
+  jobs: JobData[];
   annotations: { [id: string]: { [key: string]: any } };
 }) {
   // Select a random representative job in the group of similar jobs. Once
