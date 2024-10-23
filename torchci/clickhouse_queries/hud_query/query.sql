@@ -19,11 +19,11 @@ WITH job AS (
               job.id::String
             )
           ) as log_url,
-        DATE_DIFF(
-            'SECOND',
-            job.started_at,
-            job.completed_at
-        ) as duration_s,
+        if(
+            job.completed_at = 0,
+            null,
+            DATE_DIFF('SECOND', job.started_at, job.completed_at)
+        ) AS duration_s,
         workflow.repository.'full_name' as repo,
         job.torchci_classification.'line' as line,
         job.torchci_classification.'captures' as captures,
