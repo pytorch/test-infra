@@ -193,7 +193,7 @@ export function TimeSeriesPanelWithData({
       series,
       legend: {
         orient: "vertical",
-        left: "right",
+        right: 10,
         top: "center",
         type: "scroll",
         formatter: (name: string) => {
@@ -247,7 +247,6 @@ export function TimeSeriesPanelWithData({
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
         option={options}
-        notMerge={true}
       />
     </Paper>
   );
