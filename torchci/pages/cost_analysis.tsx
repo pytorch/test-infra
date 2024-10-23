@@ -420,8 +420,8 @@ export default function Page() {
         <Grid item xs={2} style={marginStyle}>
           {!isLoading && (
             <MultiSelectPicker
-              selected={selectedRepos}
-              setSelected={setSelectedRepos}
+              initialSelected={selectedRepos}
+              onSelectChanged={setSelectedRepos}
               options={availableRepos}
               label={"Repositories"}
               renderValue={(selectedItems) => {
@@ -438,8 +438,8 @@ export default function Page() {
         </Grid>
         <Grid item xs={2} style={marginStyle}>
           <MultiSelectPicker
-            selected={selectedOS}
-            setSelected={setSelectedOS}
+            initialSelected={selectedOS}
+            onSelectChanged={setSelectedOS}
             options={OS_OPTIONS}
             label={"OS"}
             renderValue={(selectedItems) => {
@@ -452,8 +452,8 @@ export default function Page() {
         </Grid>
         <Grid item xs={2} style={marginStyle}>
           <MultiSelectPicker
-            selected={selectedProviders}
-            setSelected={setSelectedProviders}
+            initialSelected={selectedProviders}
+            onSelectChanged={setSelectedProviders}
             options={PROVIDER_OPTIONS}
             label={"Provider"}
             renderValue={(selectedItems) => {
@@ -466,10 +466,10 @@ export default function Page() {
         </Grid>
         <Grid item xs={1} style={marginStyle}>
           <MultiSelectPicker
-            selected={selectedGPU.map((item) =>
+            initialSelected={selectedGPU.map((item) =>
               item === 1 ? "gpu" : "non-gpu"
             )}
-            setSelected={(selected: string[]) => {
+            onSelectChanged={(selected: string[]) => {
               if (selected.length == 2) {
                 setSelectedGPU([0, 1]);
               } else if (selected.length == 0) {
