@@ -232,7 +232,7 @@ export function TimeSeriesPanelWithData({
           `<b>${yAxisRenderer(params.value[1])}</b>` +
           // add total value to tooltip,
           // only for stacked charts
-          (series[0].stack === "Total"
+          (series && series[0] && series[0].stack === "Total"
             ? ` (Total: ${yAxisRenderer(
                 sumOfValuesForTimestamp(series, params.value[0])
               )})`

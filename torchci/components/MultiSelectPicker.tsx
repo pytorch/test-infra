@@ -41,7 +41,6 @@ export default function MultiSelectPicker({
     }
     setSelectedItems(newList);
     onSelectChanged(newList);
-    // }
   }
 
   function selectAll() {
