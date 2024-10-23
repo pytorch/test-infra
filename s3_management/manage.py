@@ -46,7 +46,7 @@ PREFIXES = [
 # package as specified by setuptools, for packages with "-" (hyphens) in their
 # names you need to convert them to "_" (underscores) in order for them to be
 # allowed here since the name of the wheels is compared here
-PACKAGE_ALLOW_LIST = {
+PACKAGE_ALLOW_LIST = {x.lower() for x in [
     # ---- torchtune additional packages ----
     "aiohttp",
     "aiosignal",
@@ -178,10 +178,8 @@ PACKAGE_ALLOW_LIST = {
     "xformers",
     "executorch",
     "setuptools",
-    "wheel"
-}
-
-PACKAGE_ALLOW_LIST=[x.lower() for x in PACKAGE_ALLOW_LIST]
+    "wheel",
+]}
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
 # Group 1: torch-2.0.0.dev
