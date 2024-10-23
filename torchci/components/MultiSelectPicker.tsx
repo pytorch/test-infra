@@ -28,12 +28,8 @@ export default function MultiSelectPicker({
 }) {
   var [selectedItems, setSelectedItems] = useState(initialSelected ?? []);
 
-  console.log("incoming options", options);
-
   function handleChange(e: SelectChangeEvent<string[]>) {
     const newList = e.target.value;
-
-    console.log(`newList: ${newList}`);
 
     // if the last item is empty, a button was pressed and we skip the update
     if (newList.length > 0 && !newList[newList.length - 1]) {
@@ -41,7 +37,6 @@ export default function MultiSelectPicker({
     }
     // if newList is a string, skip the update
     if (typeof newList === "string") {
-      console.log("newList is a string - skipping update");
       return;
     }
     setSelectedItems(newList);
@@ -84,7 +79,6 @@ export default function MultiSelectPicker({
   }
 
   var optionList = generateOptions(options);
-  console.log("optionList: ", optionList);
 
   return (
     <>
