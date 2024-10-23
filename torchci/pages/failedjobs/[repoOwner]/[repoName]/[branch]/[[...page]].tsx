@@ -6,7 +6,6 @@ import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
-import { RocksetParam } from "lib/rockset";
 import { JobAnnotation, JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
@@ -38,14 +37,17 @@ function SimilarFailedJobs({
         {showDetail ? "▼ " : "▶ "}
         <code>Failing {similarJobs.length} times</code>
       </button>
-      {showDetail &&
-        _.map(similarJobs, (job) => (
-          <FailedJob
-            job={job}
-            similarJobs={[]}
-            classification={classification}
-          />
-        ))}
+      <ul>
+        {showDetail &&
+          _.map(similarJobs, (job) => (
+            <FailedJob
+              job={job}
+              similarJobs={[]}
+              classification={classification}
+              key={job.id}
+            />
+          ))}
+      </ul>
     </div>
   );
 }
@@ -125,7 +127,7 @@ function FailedJobs({
   repoName,
   repoOwner,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   repoName: string;
   repoOwner: string;
 }) {
@@ -133,7 +135,7 @@ function FailedJobs({
   // their annotation is not a scalable solution because the list of failures
   // could be longer than the browser-dependent URL-length limit. The workaround
   // here is to send the query param over to another annotation API that will then
-  // make a query to Rockset to get the list of failed jobs itself and return the
+  // make a query to the db to get the list of failed jobs itself and return the
   // list to the caller here
   const { data: failedJobsWithAnnotations } = useSWR(
     `/api/job_annotation/${repoOwner}/${repoName}/failures/${encodeURIComponent(
@@ -233,33 +235,12 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "repo",
-      type: "string",
-      value: `${repoOwner}/${repoName}`,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: `${branch}`,
-    },
-    {
-      name: "count",
-      type: "int",
-      value: "0", // Set the count to 0 to query all failures
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    branch: branch,
+    repo: `${repoOwner}/${repoName}`,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   return (
     <div>
