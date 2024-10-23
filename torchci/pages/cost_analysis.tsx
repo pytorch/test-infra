@@ -67,8 +67,6 @@ export function DateRangePicker({
 }) {
   function handleChange(e: SelectChangeEvent<number>) {
     setDateRange(e.target.value as number);
-    // The user wants to set a custom time, don't change the start and stop
-    // time.
     if (e.target.value !== -1) {
       const startDate = dayjs().subtract(e.target.value as number, "day");
       setStartDate(startDate);
@@ -93,10 +91,11 @@ export function DateRangePicker({
       case 30:
       case 60:
         setGranularity("week");
+        break;
       case 90:
       case 180:
       case 365:
-        setGranularity("week");
+        setGranularity("month");
         break;
     }
   }
@@ -541,6 +540,7 @@ export default function Page() {
             setStopDate={setStopDate}
             dateRange={dateRange}
             setDateRange={setDateRange}
+            setGranularity={setGranularity}
           />
           <FormControl style={{ marginLeft: 10, minWidth: 100 }}>
             <InputLabel id="granularity-select-label">Granularity</InputLabel>
