@@ -12,21 +12,21 @@ import {
 import { useState } from "react";
 
 export default function MultiSelectPicker({
-  selected,
-  setSelected,
+  initialSelected, // initial selected items
+  onSelectChanged, // callback function to call when the selection changes
   options,
   label,
   renderValue,
   style,
 }: {
-  selected: string[] | undefined;
-  setSelected: any;
+  initialSelected: string[] | undefined;
+  onSelectChanged: any;
   options: string[];
   label: string;
   renderValue: (selected: string[]) => string;
   style?: { [key: string]: any };
 }) {
-  var [selectedItems, setSelectedItems] = useState(selected ?? []);
+  var [selectedItems, setSelectedItems] = useState(initialSelected ?? []);
 
   console.log("incoming options", options);
 
@@ -45,18 +45,18 @@ export default function MultiSelectPicker({
       return;
     }
     setSelectedItems(newList);
-    setSelected(newList);
+    onSelectChanged(newList);
     // }
   }
 
   function selectAll() {
     setSelectedItems(options);
-    setSelected(options);
+    onSelectChanged(options);
   }
 
   function clear() {
     setSelectedItems([]);
-    setSelected([]);
+    onSelectChanged([]);
   }
 
   function generateOptions(options: string[] | undefined) {
