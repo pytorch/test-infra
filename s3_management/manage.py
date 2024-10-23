@@ -103,7 +103,6 @@ PACKAGE_ALLOW_LIST = {
     "importlib_resources",
     "zipp",
     # ----
-    "Pillow",
     "pillow",
     "certifi",
     "charset_normalizer",
@@ -279,7 +278,7 @@ class S3Index:
             package_name = full_package_name.split('-')[0]
             package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
-            if package_name not in PACKAGE_ALLOW_LIST:
+            if package_name not in PACKAGE_ALLOW_LIST and package_name.lower() not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
             if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
