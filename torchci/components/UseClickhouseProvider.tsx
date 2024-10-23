@@ -21,7 +21,7 @@ export function UseCHContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [useCH, setUseCH] = usePreference("useClickHouse", undefined, true);
+  const [useCH, setUseCH] = usePreference("useClickHouse2", undefined, true);
   return (
     <UseCHContext.Provider
       value={{
