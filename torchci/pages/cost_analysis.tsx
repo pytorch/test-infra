@@ -256,7 +256,6 @@ export default function Page() {
     })
   )}`;
 
-  // SWR with data type is an array of {repo: repoName} - dont use any
   var {
     data: repos,
     error,
