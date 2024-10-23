@@ -72,7 +72,7 @@ PACKAGE_ALLOW_LIST = {
     "pycryptodomex",
     "python_dateutil",
     "pytz",
-    "PyYAML",
+    "pyyaml",
     "regex",
     "safetensors",
     "sentencepiece",
@@ -84,7 +84,7 @@ PACKAGE_ALLOW_LIST = {
     "xxhash",
     "yarl",
     # ---- triton additional packages ----
-    "Arpeggio",
+    "arpeggio",
     "caliper_reader",
     "contourpy",
     "cycler",
@@ -114,10 +114,10 @@ PACKAGE_ALLOW_LIST = {
     "idna",
     "iopath",
     "intel_openmp",
-    "Jinja2",
+    "jinja2",
     "lit",
     "lightning_utilities",
-    "MarkupSafe",
+    "markupsafe",
     "mpmath",
     "mkl",
     "mypy_extensions",
@@ -278,7 +278,7 @@ class S3Index:
             package_name = full_package_name.split('-')[0]
             package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
-            if package_name not in PACKAGE_ALLOW_LIST and package_name.lower() not in PACKAGE_ALLOW_LIST:
+            if package_name.lower() not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
             if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
