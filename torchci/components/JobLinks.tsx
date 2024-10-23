@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
-import React from "react";
 import useSWR from "swr";
 import { isFailure } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
@@ -40,7 +39,7 @@ export default function JobLinks({
     );
   }
 
-  if (job.failureCaptures != null) {
+  if (job.failureCaptures != null && job.failureLines?.length != 0) {
     subInfo.push(
       <a
         target="_blank"
@@ -125,7 +124,7 @@ export default function JobLinks({
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.*) \(.*(Test.*)\)/;
-const pytestFailureRe = /^(?:FAILED|ERROR).* ([^ ]+\.py)::(.*)::(test_\S*)/;
+const pytestFailureRe = /([\w\\\/]+\.py)::(.*)::(test_\w*)/;
 export function getTestName(failureLine: string) {
   const unittestMatch = failureLine.match(unittestFailureRe);
   if (unittestMatch !== null) {
@@ -188,7 +187,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
-  const issueTitle = `DISABLED ${testName}`;
+  const issueTitle = `DISABLED ${testName.testName} (__main__.${testName.suite})`;
   const issueBody = formatDisableTestBody(job);
 
   const issues: IssueData[] = data.issues;

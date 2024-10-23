@@ -34,23 +34,24 @@ export interface JobData extends BasicJobData {
 // Used by Dr.CI
 export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
-  workflowId?: string;
+  name: string; // In BasicJobData, but required here
+  workflowId: number;
   // Each workflow file has an id. In rockset this is workflow_run.workflow_id.
   // This can be used to group normal workflows (ex trunk) and those that failed
   // to run (ex .github/workflows/trunk.yml) together even when they have
   // different names.
-  workflowUniqueId?: number;
-  jobName?: string;
-  id: string;
-  completed_at: string | null;
+  workflowUniqueId: number;
+  jobName: string;
+  id: number;
+  completed_at: string;
   html_url: string;
   head_sha: string;
-  head_sha_timestamp?: string;
-  head_branch?: string | null;
-  pr_number?: number;
+  head_sha_timestamp: string;
+  head_branch: string;
+  pr_number: number;
   failure_captures: string[];
-  failure_lines?: string[] | null;
-  failure_context?: string[] | null;
+  failure_lines: string[];
+  failure_context: string[];
 }
 
 export interface Artifact {
@@ -115,6 +116,7 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
+  use_ch: boolean;
 }
 
 export interface PRData {
@@ -227,6 +229,7 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
+    use_ch: input.use_ch === "true",
   };
 }
 
@@ -265,6 +268,10 @@ function formatHudURL(
 
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
+  }
+
+  if (params.use_ch) {
+    base += `&use_ch=true`;
   }
   return base;
 }

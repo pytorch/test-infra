@@ -1,8 +1,10 @@
 import { Grid } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
+import { RStoCHTimeParams } from "./metrics";
 
 const ROW_HEIGHT = 240;
 
@@ -23,6 +25,9 @@ export default function Kpis() {
       value: stopTime,
     },
   ];
+
+  const clickhouseTimeParams = RStoCHTimeParams(timeParams);
+  const useCH = useCHContext().useCH;
 
   // deprecate this in Q3 2023
   const contributionTimeParams: RocksetParam[] = [
@@ -104,20 +109,14 @@ export default function Kpis() {
           title={"Avg time-to-signal - E2E (Weekly)"}
           queryName={"time_to_signal"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[
-            {
-              name: "buildOrAll",
-              type: "string",
-              value: "all",
-            },
-            ...timeParams,
-          ]}
+          queryParams={useCH ? clickhouseTimeParams : timeParams}
           granularity={"week"}
           timeFieldName={"week_bucket"}
           yAxisFieldName={"avg_tts"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
           groupByFieldName="branch"
+          useClickHouse={useCH}
         />
       </Grid>
 
@@ -213,11 +212,16 @@ export default function Kpis() {
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
-          queryParams={[...timeParams]}
+          queryParams={
+            useCH
+              ? { ...clickhouseTimeParams, repo: "pytorch/pytorch" }
+              : timeParams
+          }
           granularity={"day"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"number_of_open_disabled_tests"}
           yAxisRenderer={(duration) => duration}
+          useClickHouse={true}
         />
       </Grid>
     </Grid>

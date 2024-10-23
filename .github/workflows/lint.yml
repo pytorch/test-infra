@@ -28,12 +28,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
+
       - name: Install Lintrunner
         run: |
-          pushd tools/lintrunner
-          pip install .
-          popd
+          pip install lintrunner==0.12.5
           lintrunner init
+
       - name: Run lintrunner on all files - Linux
         run: |
           set +e
@@ -45,7 +45,7 @@ jobs:
       - name: Produce SARIF
         if: always() && matrix.os == 'ubuntu-latest'
         run: |
-          python tools/lintrunner/tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
+          python tools/linter/convert_to_sarif.py --input lint.json --output lintrunner.sarif
       - name: Upload SARIF file
         if: always() && matrix.os == 'ubuntu-latest'
         continue-on-error: true

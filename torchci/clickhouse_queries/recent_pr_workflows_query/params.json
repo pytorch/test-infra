@@ -1,0 +1,5 @@
+{
+  "numMinutes": "Int64",
+  "prNumbers": "Array(Int64)",
+  "repo": "String"
+}

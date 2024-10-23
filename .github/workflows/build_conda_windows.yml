@@ -59,6 +59,10 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 60
+        type: number
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda nightly channel"
@@ -86,7 +90,7 @@ jobs:
         shell: bash -l {0}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.timeout }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -140,7 +144,7 @@ jobs:
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
           source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
-          conda install -yq conda-build "conda-package-handling!=1.5.0"
+          conda install -yq conda=24.4.0 conda-build=24.3.0 "conda-package-handling!=1.5.0" python-libarchive-c=2.9
 
           conda build \
             -c defaults \

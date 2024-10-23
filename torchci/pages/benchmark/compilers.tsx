@@ -31,10 +31,9 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../metrics";
 
@@ -50,7 +49,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -61,28 +60,13 @@ function Report({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
-
-  const queryParamsWithL: RocksetParam[] = [
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
-    {
-      name: "branches",
-      type: "string",
-      value: lBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: lBranchAndCommit.commit,
-    },
+  const queryParamsWithL: { [key: string]: any } = {
     ...queryParams,
-  ];
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    branches: [lBranchAndCommit.branch],
+    commits: lBranchAndCommit.commit ? [lBranchAndCommit.commit] : [],
+  };
+  const lUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithL)
   )}`;
 
@@ -91,20 +75,12 @@ function Report({
   });
   lData = augmentData(lData);
 
-  const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: rBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: rBranchAndCommit.commit,
-    },
+  const queryParamsWithR: { [key: string]: any } = {
     ...queryParams,
-  ];
-  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    branches: [rBranchAndCommit.branch],
+    commits: rBranchAndCommit.commit ? [rBranchAndCommit.commit] : [],
+  };
+  const rUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithR)
   )}`;
 
@@ -268,43 +244,19 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    {
-      name: "dtypes",
-      type: "string",
-      value: dtype,
-    },
-    {
-      name: "device",
-      type: "string",
-      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    commits: [],
+    compilers: [],
+    device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    dtypes: dtype,
+    getJobId: false,
+    granularity: granularity,
+    mode: mode,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    suites: Object.keys(SUITES),
+    workflowId: 0,
+  };
 
   return (
     <div>
@@ -361,6 +313,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
+          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -376,6 +329,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+          useClickHouse={true}
         />
       </Stack>
 

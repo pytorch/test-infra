@@ -10,6 +10,7 @@ on:
 
 jobs:
   build:
+    name: "Run tests for webhook lambda"
     runs-on: ubuntu-latest
     container: node:20
     defaults:
@@ -18,15 +19,5 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: yarn install
-      - name: Run linter
-        run: yarn lint
-      - name: Format Check
-        run: yarn format-check
-      - name: Run tests
-        run: yarn test
-      - name: Build distribution
-        run: yarn build
-        env:
-          NODE_OPTIONS: "--openssl-legacy-provider"
+      - name: Build, Lint, and Test
+        run: make build

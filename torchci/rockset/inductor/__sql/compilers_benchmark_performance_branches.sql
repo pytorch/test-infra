@@ -4,7 +4,7 @@ SELECT
   w.id,
   FORMAT_ISO8601(
     DATE_TRUNC(
-      : granularity, TIMESTAMP_MILLIS(p.timestamp)
+      'day', TIMESTAMP_MILLIS(p.timestamp)
     )
   ) AS event_time,
 FROM

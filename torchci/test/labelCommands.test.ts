@@ -228,6 +228,73 @@ describe("label-bot", () => {
     handleScope(additionalScopes);
   });
 
+  test("label requiring write access with bad permissions", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot label 'skip-pr-sanity-check'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const user = event.payload.comment.user.login;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
+      .reply(200, {
+        permission: "read",
+      })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"body":"Only people with write access to the repo can add these labels`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("label requiring write access with good permissions", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot label 'skip-pr-sanity-check'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const user = event.payload.comment.user.login;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
+      .reply(200, {
+        permission: "write",
+      })
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"labels":["skip-pr-sanity-check"]}`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
   test("label with ciflow on issue should have no event", async () => {
     const event = require("./fixtures/issue_comment.json");
     event.payload.comment.body = "@pytorchbot label 'ciflow/trunk'";

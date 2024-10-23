@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/lf_rollover_percentage.sql",
+  "default_parameters": [
+    {
+      "name": "days_ago",
+      "type": "int",
+      "value": "14"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    }
+  ],
+  "description": ""
+}

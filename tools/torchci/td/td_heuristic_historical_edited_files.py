@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from typing import Dict
 
+from torchci.clickhouse import query_clickhouse
 from torchci.td.utils import (
     cache_json,
     evaluate,
@@ -9,7 +10,6 @@ from torchci.td.utils import (
     get_filtered_failed_tests,
     get_merge_bases_dict,
     list_past_year_shas,
-    query_rockset,
 )
 
 CHANGED_FILES_QUERY = """
@@ -17,9 +17,9 @@ select
     sha,
     changed_files
 from
-    commons.merge_bases
+    default.merge_bases
 where
-    ARRAY_CONTAINS(SPLIT(:shas, ','), sha)
+    sha in {shas: Array(String)}
 """
 
 
@@ -31,9 +31,9 @@ def gen_correlation_dict() -> Dict[str, Dict[str, float]]:
     commits = []
     for i in range(0, len(shas), interval):
         commits.extend(
-            query_rockset(
+            query_clickhouse(
                 CHANGED_FILES_QUERY,
-                params={"shas": ",".join(shas[i : i + interval])},
+                params={"shas": shas[i : i + interval]},
                 use_cache=True,
             )
         )

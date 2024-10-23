@@ -12,7 +12,6 @@ import {
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { CompilerPerformanceData } from "lib/types";
 import useSWR from "swr";
 
@@ -31,7 +30,7 @@ export function GraphPanel({
   rCommit,
 }: {
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   compiler: string;
   model: string;
@@ -39,17 +38,11 @@ export function GraphPanel({
   lCommit: string;
   rCommit: string;
 }) {
-  const queryCollection = "inductor";
-
-  const queryParamsWithBranch: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: branch,
-    },
+  const queryParamsWithBranch: { [key: string]: any } = {
     ...queryParams,
-  ];
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    branches: [branch],
+  };
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithBranch)
   )}`;
 
@@ -67,13 +60,9 @@ export function GraphPanel({
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
+  // align with the data we get from the database
+  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
   // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];

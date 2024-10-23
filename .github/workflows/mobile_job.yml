@@ -92,14 +92,22 @@ on:
         type: string
         default: ''
 
+    outputs:
+      artifacts:
+        description: |
+          The list of artifacts from AWS in JSON format returned to the caller
+        value: ${{ jobs.mobile.outputs.artifacts }}
+
 jobs:
-  job:
+  mobile:
     name: ${{ inputs.job-name }} (${{ inputs.device-type }})
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout }}
     permissions:
       id-token: write
       contents: read
+    outputs:
+      artifacts: ${{ inputs.device-type == 'ios' && steps.ios-test.outputs.artifacts || inputs.device-type == 'android' && steps.android-test.outputs.artifacts || '[]' }}
     steps:
       - name: Clean workspace
         run: |
@@ -112,6 +120,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_mobile_job
+          # The max duration enforced by the server side
+          role-duration-seconds: 18000
           aws-region: us-east-1
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
@@ -252,10 +262,33 @@ jobs:
 
           echo "extra-data-output=${EXTRA_DATA_OUTPUT}" >> "${GITHUB_OUTPUT}"
 
-      - name: Run iOS tests on devices
-        if: ${{ inputs.device-type == 'ios' }}
+      - name: Get workflow job id
+        id: get-job-id
+        uses: ./test-infra/.github/actions/get-workflow-job-id
+        if: always()
+        with:
+          working-directory: test-infra
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Slow down the incoming requests to mitigate AWS rate limit
+        id: randomize-retry
         shell: bash
-        working-directory: test-infra/tools/device-farm-runner
+        continue-on-error: true
+        env:
+          MAX_WAIT_TIME_IN_SECONDS: 120
+        run: |
+          set -ex
+
+          # NB: AWS imposes a rate limit somewhere on the number of requests
+          # we can submit to them. Let's just slow down a bit here
+          WAIT_TIME_IN_SECONDS=$((RANDOM % MAX_WAIT_TIME_IN_SECONDS))
+          echo "WAIT_TIME_IN_SECONDS=${WAIT_TIME_IN_SECONDS}" >> "${GITHUB_ENV}"
+
+          sleep "${WAIT_TIME_IN_SECONDS}"
+
+      - name: Run iOS tests on devices
+        id: ios-test
+        if: ${{ inputs.device-type == 'ios' }}
         env:
           PROJECT_ARN: ${{ inputs.project-arn }}
           DEVICE_POOL_ARN: ${{ inputs.device-pool-arn }}
@@ -268,24 +301,45 @@ jobs:
           DEVICE_TYPE: ${{ inputs.device-type }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          set -ex
+          JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
+          WORKING_DIRECTORY: test-infra/tools/device-farm-runner
+        uses: nick-fields/retry@v3.0.0
+        with:
+          shell: bash
+          timeout_minutes: ${{ inputs.timeout }}
+          max_attempts: 3
+          retry_wait_seconds: ${{ env.WAIT_TIME_IN_SECONDS || 120 }}
+          command: |
+            set -ex
 
-          ${CONDA_RUN} python run_on_aws_devicefarm.py \
-            --project-arn "${PROJECT_ARN}" \
-            --device-pool-arn "${DEVICE_POOL_ARN}" \
-            --app "${IPA_ARCHIVE}" \
-            --ios-xctestrun "${XCTESTRUN_ZIP}" \
-            --extra-data "${EXTRA_DATA}" \
-            --test-spec "${TEST_SPEC}" \
-            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
-            --workflow-id "${RUN_ID}" \
-            --workflow-attempt "${RUN_ATTEMPT}"
+            pushd "${WORKING_DIRECTORY}"
+            ${CONDA_RUN} python run_on_aws_devicefarm.py \
+              --project-arn "${PROJECT_ARN}" \
+              --device-pool-arn "${DEVICE_POOL_ARN}" \
+              --app "${IPA_ARCHIVE}" \
+              --ios-xctestrun "${XCTESTRUN_ZIP}" \
+              --extra-data "${EXTRA_DATA}" \
+              --test-spec "${TEST_SPEC}" \
+              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+              --workflow-id "${RUN_ID}" \
+              --workflow-attempt "${RUN_ATTEMPT}" \
+              --output "ios-artifacts-${JOB_ID}.json"
+            popd
+
+      - name: Upload iOS artifacts to S3
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ inputs.device-type == 'ios' }}
+        with:
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
+          path: |
+            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
 
       - name: Run Android tests on devices
+        id: android-test
         if: ${{ inputs.device-type == 'android' }}
-        shell: bash
-        working-directory: test-infra/tools/device-farm-runner
         env:
           PROJECT_ARN: ${{ inputs.project-arn }}
           DEVICE_POOL_ARN: ${{ inputs.device-pool-arn }}
@@ -298,16 +352,38 @@ jobs:
           DEVICE_TYPE: ${{ inputs.device-type }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          set -ex
+          JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
+          WORKING_DIRECTORY: test-infra/tools/device-farm-runner
+        uses: nick-fields/retry@v3.0.0
+        with:
+          shell: bash
+          timeout_minutes: ${{ inputs.timeout }}
+          max_attempts: 3
+          retry_wait_seconds: ${{ env.WAIT_TIME_IN_SECONDS || 120 }}
+          command: |
+            set -ex
 
-          ${CONDA_RUN} python run_on_aws_devicefarm.py \
-            --project-arn "${PROJECT_ARN}" \
-            --device-pool-arn "${DEVICE_POOL_ARN}" \
-            --app "${APP_ARCHIVE}" \
-            --android-instrumentation-test "${TEST_ARCHIVE}" \
-            --extra-data "${EXTRA_DATA}" \
-            --test-spec "${TEST_SPEC}" \
-            --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
-            --workflow-id "${RUN_ID}" \
-            --workflow-attempt "${RUN_ATTEMPT}"
+            pushd "${WORKING_DIRECTORY}"
+            ${CONDA_RUN} python run_on_aws_devicefarm.py \
+              --project-arn "${PROJECT_ARN}" \
+              --device-pool-arn "${DEVICE_POOL_ARN}" \
+              --app "${APP_ARCHIVE}" \
+              --android-instrumentation-test "${TEST_ARCHIVE}" \
+              --extra-data "${EXTRA_DATA}" \
+              --test-spec "${TEST_SPEC}" \
+              --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
+              --workflow-id "${RUN_ID}" \
+              --workflow-attempt "${RUN_ATTEMPT}" \
+              --output "android-artifacts-${JOB_ID}.json"
+            popd
+
+      - name: Upload Android artifacts to S3
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ inputs.device-type == 'android' }}
+        with:
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
+          path: |
+            test-infra/tools/device-farm-runner/android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json

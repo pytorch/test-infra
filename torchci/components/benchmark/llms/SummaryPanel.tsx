@@ -2,6 +2,7 @@ import { Grid } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
+  IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
 } from "components/benchmark/llms/common";
@@ -18,6 +19,7 @@ export function SummaryPanel({
   startTime,
   stopTime,
   granularity,
+  repoName,
   modelName,
   metricNames,
   lPerfData,
@@ -26,6 +28,7 @@ export function SummaryPanel({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  repoName: string;
   modelName: string;
   metricNames: string[];
   lPerfData: BranchAndCommitPerfData;
@@ -65,7 +68,7 @@ export function SummaryPanel({
               renderCell: (params: GridRenderCellParams<any>) => {
                 const name = params.value.name;
                 const dtype = params.value.dtype;
-                const device = params.value.device;
+                const deviceArch = `${params.value.device} (${params.value.arch})`;
                 if (name === undefined) {
                   return `Invalid model name`;
                 }
@@ -73,32 +76,38 @@ export function SummaryPanel({
                   return `Invalid dtype for model ${name}`;
                 }
 
-                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&modelName=${encodeURIComponent(
+                const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+                  repoName
+                )}&modelName=${encodeURIComponent(
                   name
                 )}&dtypeName=${encodeURIComponent(
                   dtype
-                )}&deviceName=${encodeURIComponent(device)}`;
+                )}&deviceName=${encodeURIComponent(deviceArch)}`;
+
                 const isNewModel =
-                  params.value.l === undefined && lCommit !== rCommit
-                    ? "(NEW!) "
-                    : "";
+                  params.value.l === undefined ? "(NEW!) " : "";
                 const isModelStopRunning =
                   params.value.r === undefined ? "❌" : "";
 
                 const displayName = name.includes(dtype)
-                  ? name.includes(device)
-                    ? name
-                    : `${name} (${device})`
-                  : name.includes(device)
-                  ? `${name} (${dtype})`
-                  : `${name} (${dtype} / ${device})`;
-
+                  ? name
+                  : `${name} (${dtype})`;
                 return (
                   <a href={url}>
                     {isNewModel}
                     {isModelStopRunning}&nbsp;<b>{displayName}</b>
                   </a>
                 );
+              },
+            },
+            {
+              field: "device_arch",
+              headerName: "Device",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const device = params.value.device;
+                const arch = params.value.arch;
+                return `${device} (${arch})`;
               },
             },
             ...metricNames.map((metric: string) => {
@@ -132,14 +141,18 @@ export function SummaryPanel({
                       return styles.error;
                     }
 
-                    // Higher TPS
+                    // Higher value
                     if (r - l > RELATIVE_THRESHOLD * l) {
-                      return styles.ok;
+                      return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                        ? styles.ok
+                        : styles.error;
                     }
 
-                    // Lower TPS
+                    // Lower value
                     if (l - r > RELATIVE_THRESHOLD * r) {
-                      return styles.error;
+                      return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                        ? styles.error
+                        : styles.ok;
                     }
                   }
 
@@ -156,18 +169,22 @@ export function SummaryPanel({
 
                   // Compute the percentage
                   const target = v.r.target;
-                  const lPercent = target
-                    ? `(${Number((l * 100) / target).toFixed(0)}%)`
-                    : "";
-                  const rPercent = target
-                    ? `(${Number((r * 100) / target).toFixed(0)}%)`
-                    : "";
+                  const lPercent =
+                    target && target != 0
+                      ? `(${Number((l * 100) / target).toFixed(0)}%)`
+                      : "";
+                  const rPercent =
+                    target && target != 0
+                      ? `(${Number((r * 100) / target).toFixed(0)}%)`
+                      : "";
+                  const showTarget =
+                    target && target != 0 ? `[target = ${target}]` : "";
                   const isNewModel = l === 0 ? "(NEW!)" : "";
 
                   if (lCommit === rCommit || l === r) {
-                    return `${r} ${rPercent} [target = ${target}]`;
+                    return `${r} ${rPercent} ${showTarget}`;
                   } else {
-                    return `${l} ${lPercent} → ${r} ${rPercent} [target = ${target}] ${isNewModel} `;
+                    return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
                   }
                 },
               };

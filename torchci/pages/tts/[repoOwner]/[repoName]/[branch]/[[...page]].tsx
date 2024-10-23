@@ -11,9 +11,8 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useRouter } from "next/router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
 
@@ -25,7 +24,7 @@ const SUPPORTED_WORKFLOWS = [
   "inductor",
   "inductor-periodic",
   "rocm",
-  "inductor_rocm",
+  "inductor-rocm",
 ];
 
 function Panel({
@@ -84,7 +83,7 @@ function Graphs({
   filter,
   toggleFilter,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   ttsPercentile: number;
   checkboxRef: any;
@@ -107,7 +106,7 @@ function Graphs({
 
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
-  const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -130,13 +129,10 @@ function Graphs({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
-  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
-
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  startTime = dayjs(startTime).startOf(granularity);
-  stopTime = dayjs(stopTime).endOf(granularity);
+  // align with the data we get from the database
+  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
   const tts_true_series = seriesWithInterpolatedTimes(
     data,
@@ -163,8 +159,9 @@ function Graphs({
     filter.has(item["name"])
   );
 
+  const repo = queryParams["repo"];
   const encodedBranchName = encodeURIComponent(branchName);
-  const jobUrlPrefix = `/tts/pytorch/pytorch/${encodedBranchName}?jobName=`;
+  const jobUrlPrefix = `/tts/${repo}/${encodedBranchName}?jobName=`;
 
   return (
     <Grid container spacing={2}>
@@ -207,7 +204,9 @@ function Graphs({
 
 export default function Page() {
   const router = useRouter();
-  const branch: string = (router.query.branch as string) ?? "master";
+  const repoOwner: string = (router.query.repoOwner as string) ?? "pytorch";
+  const repoName: string = (router.query.repoName as string) ?? "pytorch";
+  const branch: string = (router.query.branch as string) ?? "main";
   const jobName: string = (router.query.jobName as string) ?? "none";
   const percentile: number =
     router.query.percentile === undefined
@@ -232,43 +231,15 @@ export default function Page() {
     setFilter(next);
   }
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "percentile",
-      type: "float",
-      value: ttsPercentile,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: branch,
-    },
-    {
-      name: "workflowNames",
-      type: "string",
-      value: SUPPORTED_WORKFLOWS.join(","),
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    branch: branch,
+    granularity: granularity,
+    percentile: ttsPercentile,
+    repo: `${repoOwner}/${repoName}`,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    workflowNames: SUPPORTED_WORKFLOWS,
+  };
 
   const checkboxRef = useCallback(() => {
     const selectedJob = document.getElementById(jobName);

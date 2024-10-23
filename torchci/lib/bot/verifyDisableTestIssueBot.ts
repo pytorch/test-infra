@@ -45,12 +45,17 @@ async function getValidationComment(
   return [0, ""];
 }
 
-// Returns the platform labels that are expected, and invalid labels that we do not expect to be there
-export function getExpectedPlatformLabels(
+// Returns the platform module labels that are expected, and invalid labels that we do not expect to be there
+export function getExpectedPlatformModuleLabels(
   platforms: string[],
   labels: string[]
 ): [string[], string[]] {
-  let supportedPlatformLabels = Array.from(supportedPlatforms.values()).flat();
+  let supportedPlatformLabels = Array.from(supportedPlatforms.values())
+    .flat()
+    // Quick hack to make sure oncall: pt2 doesn't get deleted.
+    // TODO: figure out a better way to differentiate between labels that should
+    // stay and labels that shouldn't
+    .filter((label) => label.startsWith("module: "));
   let existingPlatformLabels = labels.filter((label) =>
     supportedPlatformLabels.includes(label)
   );
@@ -302,7 +307,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     } else {
       // check labels, add labels as needed
       let [expectedPlatformLabels, invalidPlatformLabels] =
-        getExpectedPlatformLabels(platformsToSkip, labels);
+        getExpectedPlatformModuleLabels(platformsToSkip, labels);
       let labelsSet = new Set(labels);
       if (!expectedPlatformLabels.every((label) => labelsSet.has(label))) {
         await context.octokit.issues.addLabels({

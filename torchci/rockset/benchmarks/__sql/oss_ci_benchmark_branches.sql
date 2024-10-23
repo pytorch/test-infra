@@ -5,7 +5,7 @@ SELECT
   w.head_sha,
   w.id,
   FORMAT_ISO8601(
-    DATE_TRUNC(: granularity, TIMESTAMP_MILLIS(o.timestamp))
+    DATE_TRUNC('day', TIMESTAMP_MILLIS(o.timestamp))
   ) AS event_time,
   o.filename
 FROM
@@ -20,6 +20,18 @@ WHERE
       o.filename
     )
     OR : filenames = ''
+  )
+  -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
+  AND (
+    FORMAT(
+      '{} ({})',
+      o.device,
+      IF(
+        o.arch IS NULL, 'NVIDIA A100-SXM4-40GB',
+        o.arch
+      )
+    ) = : deviceArch
+    OR : deviceArch = ''
   )
   AND o.metric IS NOT NULL
   AND w.html_url LIKE CONCAT('%', : repo, '%')

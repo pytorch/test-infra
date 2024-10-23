@@ -2,14 +2,14 @@
   "sql_path": "__sql/oss_ci_benchmark_branches.sql",
   "default_parameters": [
     {
-      "name": "filenames",
+      "name": "deviceArch",
       "type": "string",
       "value": ""
     },
     {
-      "name": "granularity",
+      "name": "filenames",
       "type": "string",
-      "value": "day"
+      "value": ""
     },
     {
       "name": "repo",

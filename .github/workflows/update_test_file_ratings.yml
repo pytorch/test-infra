@@ -31,7 +31,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip3 install --upgrade pip
-          pip3 install boto3==1.19.12 rockset==1.0.3
+          pip3 install boto3==1.19.12 rockset==1.0.3 clickhouse-connect==0.7.16
           cd test-infra/tools/torchci
           pip3 install -e .
 
@@ -45,7 +45,9 @@ jobs:
         run: |
           python3 test-infra/tools/torchci/td/get_merge_base_info.py
         env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: Generate file test ratings
         run: |
@@ -58,6 +60,9 @@ jobs:
 
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: Push file to test file correlations to test-infra repository
         if: github.event_name != 'pull_request'

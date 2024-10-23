@@ -19,13 +19,5 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: yarn install
-      - name: Run linter
-        run: yarn lint
-      - name: Format Check
-        run: yarn format-check
-      - name: Run tests
-        run: yarn test
-      - name: Build distribution
-        run: yarn build
+      - name: Build, Lint, and Test
+        run: make build

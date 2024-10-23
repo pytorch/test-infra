@@ -1,3 +1,5 @@
+import { TIME_0 } from "lib/bot/utils";
+import { isSameAuthor } from "lib/drciUtils";
 import {
   BasicJobData,
   IssueData,
@@ -12,12 +14,12 @@ import {
   isDisabledTestMentionedInPR,
   isFailureFromPrevMergeCommit,
   isRecentlyCloseDisabledTest,
-  isSameAuthor,
   isSameContext,
   isSameFailure,
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "../lib/jobUtils";
+import { getDummyJob } from "./drci.test";
 
 nock.disableNetConnect();
 
@@ -67,22 +69,14 @@ describe("Test various job utils", () => {
   });
 
   test("test isSameAuthor", async () => {
-    const job: RecentWorkflowsData = {
+    const job: RecentWorkflowsData = getDummyJob({
       head_sha: "123",
       // The rest doesn't matter
-      id: "",
-      completed_at: "",
-      html_url: "",
-      failure_captures: [],
-    };
-    const failure: RecentWorkflowsData = {
+    });
+    const failure: RecentWorkflowsData = getDummyJob({
       head_sha: "456",
       // The rest doesn't matter
-      id: "",
-      completed_at: "",
-      html_url: "",
-      failure_captures: [],
-    };
+    });
 
     const mock = jest.spyOn(getAuthors, "getAuthors");
     mock.mockImplementation((records: RecentWorkflowsData[]) =>
@@ -189,24 +183,22 @@ describe("Test various job utils", () => {
   });
 
   test("test isSameFailure", () => {
-    const jobA: RecentWorkflowsData = {
-      id: "A",
+    const jobA: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "",
       html_url: "A",
       head_sha: "A",
       failure_captures: [],
       conclusion: "failure",
-      completed_at: "A",
-    };
-    const jobB: RecentWorkflowsData = {
-      id: "B",
+    });
+    const jobB: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "",
       html_url: "B",
       head_sha: "B",
       failure_captures: [],
       conclusion: "failure",
-      completed_at: "B",
-    };
+    });
 
     // Missing job name
     expect(isSameFailure(jobA, jobB)).toEqual(false);
@@ -251,26 +243,26 @@ describe("Test various job utils", () => {
   });
 
   test("test isSameContext", () => {
-    const jobA: RecentWorkflowsData = {
-      id: "A",
+    const jobA: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "Testing",
       html_url: "A",
       head_sha: "A",
       failure_captures: ["Process completed with exit code 1"],
-      failure_context: null,
+      failure_context: [],
       conclusion: "failure",
       completed_at: "A",
-    };
-    const jobB: RecentWorkflowsData = {
-      id: "B",
+    });
+    const jobB: RecentWorkflowsData = getDummyJob({
+      id: 2,
       name: "Testing",
       html_url: "B",
       head_sha: "B",
       failure_captures: ["Process completed with exit code 1"],
-      failure_context: null,
+      failure_context: [],
       conclusion: "failure",
       completed_at: "B",
-    };
+    });
 
     // If both jobs don't have any context, consider them the same
     expect(isSameContext(jobA, jobB)).toEqual(true);
@@ -306,15 +298,14 @@ describe("Test various job utils", () => {
   });
 
   test("test isFailureFromPrevMergeCommit", () => {
-    const failure: RecentWorkflowsData = {
-      id: "B",
+    const failure: RecentWorkflowsData = getDummyJob({
+      id: 2,
       name: "Testing",
       html_url: "B",
       head_sha: "B",
       failure_captures: ["whatever"],
       conclusion: "failure",
-      completed_at: "B",
-    };
+    });
 
     failure.head_branch = "whatever";
     // Not a failure from trunk, it couldn't come from a previous merge commit
@@ -878,16 +869,16 @@ describe("Test various job utils", () => {
   });
 
   test("test getDisabledTestIssues", async () => {
-    const mockJob: RecentWorkflowsData = {
-      id: "",
-      completed_at: "",
+    const mockJob: RecentWorkflowsData = getDummyJob({
+      id: 0,
+      completed_at: TIME_0,
       html_url: "",
       head_sha: "",
       failure_captures: [
         "test_cpp_extensions_open_device_registration.py::TestCppExtensionOpenRgistration::test_open_device_registration",
       ],
       name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
-    };
+    });
     const mockIssue: IssueData = {
       number: 100152,
       state: "open",

@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
-import { getAuthors } from "lib/getAuthors";
 import {
   BasicJobData,
   IssueData,
@@ -168,7 +167,7 @@ export function getDisabledTestIssues(
   job: RecentWorkflowsData,
   disabledTestIssues: IssueData[]
 ): IssueData[] {
-  if (!job.name || !job.failure_captures || job.failure_captures.length === 0) {
+  if (job.name == "" || job.failure_captures.length === 0) {
     return [];
   }
 
@@ -205,7 +204,7 @@ export function getDisabledTestIssues(
         platformsMatch.groups.platforms
           .split(",")
           .map((platform) => platform.trim()),
-        (platform) => job.name!.includes(platform)
+        (platform) => job.name.includes(platform)
       );
     });
 
@@ -329,95 +328,6 @@ export async function backfillMissingLog(
     }
   );
   return res.status === 200;
-}
-
-export async function isSameAuthor(
-  job: RecentWorkflowsData,
-  failure: RecentWorkflowsData
-): Promise<boolean> {
-  const authors = await getAuthors([job, failure]);
-  // Extract the authors for each job
-  const jobAuthor =
-    job.head_sha in authors
-      ? authors[job.head_sha]
-      : { email: "", commit_username: "", pr_username: "" };
-  const failureAuthor =
-    failure.head_sha in authors
-      ? authors[failure.head_sha]
-      : { email: "", commit_username: "", pr_username: "" };
-
-  const isSameEmail =
-    jobAuthor.email !== "" &&
-    failureAuthor.email !== "" &&
-    jobAuthor.email === failureAuthor.email;
-  const isSameCommitUsername =
-    jobAuthor.commit_username !== "" &&
-    failureAuthor.commit_username !== "" &&
-    jobAuthor.commit_username === failureAuthor.commit_username;
-  const isSamePrUsername =
-    jobAuthor.pr_username !== "" &&
-    failureAuthor.pr_username !== "" &&
-    jobAuthor.pr_username === failureAuthor.pr_username;
-
-  // This function exists because we don't want to wrongly count similar failures
-  // from commits of the same author as flaky. Some common cases include:
-  // * ghstack
-  // * Draft commit
-  // * Cherry picking
-  return isSameEmail || isSameCommitUsername || isSamePrUsername;
-}
-
-export async function getPRMergeCommits(
-  owner: string,
-  repo: string,
-  prNumber: number
-): Promise<string[]> {
-  // Sort by comment ID desc because we don't want to depend on _event_time in
-  // general
-  const query = `
-SELECT
-  merge_commit_sha,
-FROM
-  commons.merges
-WHERE
-  pr_num = :pr_num
-  AND owner = :owner
-  AND project = :project
-  AND merge_commit_sha != ''
-ORDER BY
-  comment_id DESC
-`;
-
-  const rocksetClient = getRocksetClient();
-  const results = (
-    await rocksetClient.queries.query({
-      sql: {
-        query: query,
-        parameters: [
-          {
-            name: "pr_num",
-            type: "int",
-            value: prNumber.toString(),
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: owner,
-          },
-          {
-            name: "project",
-            type: "string",
-            value: repo,
-          },
-        ],
-      },
-    })
-  ).results;
-
-  // If the result is empty, the PR hasn't been merged yet
-  return results !== undefined
-    ? _.map(results, (record) => record.merge_commit_sha)
-    : [];
 }
 
 export function isFailureFromPrevMergeCommit(

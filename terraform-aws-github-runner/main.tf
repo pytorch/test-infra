@@ -127,6 +127,7 @@ module "runners" {
   runner_extra_labels             = var.runner_extra_labels
   idle_config                     = var.idle_config
   secretsmanager_secrets_id       = var.secretsmanager_secrets_id
+  min_available_runners           = var.min_available_runners
 
   lambda_zip                = var.runners_lambda_zip
   lambda_timeout_scale_up   = var.runners_scale_up_lambda_timeout
@@ -181,11 +182,13 @@ module "runners_instances" {
   instance_type         = var.instance_type
   block_device_mappings = var.block_device_mappings
 
-  runner_architecture = local.runner_architecture
-  ami_owners_linux    = var.ami_owners_linux
-  ami_owners_windows  = var.ami_owners_windows
-  ami_filter_linux    = var.ami_filter_linux
-  ami_filter_windows  = var.ami_filter_windows
+  runner_architecture       = local.runner_architecture
+  ami_owners_linux          = var.ami_owners_linux
+  ami_owners_linux_arm64    = var.ami_owners_linux_arm64
+  ami_owners_windows        = var.ami_owners_windows
+  ami_filter_linux          = var.ami_filter_linux
+  ami_filter_linux_arm64    = var.ami_filter_linux_arm64
+  ami_filter_windows        = var.ami_filter_windows
 
   github_app            = var.github_app
   runner_as_root        = var.runner_as_root

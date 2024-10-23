@@ -243,22 +243,25 @@ variable "block_device_mappings" {
 variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
+}
 
-  default = {
-    name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
-  }
+variable "ami_filter_linux_arm64" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
 }
 
 variable "ami_filter_windows" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["Windows*2019*"]
-  }
 }
 
 variable "ami_owners_linux" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
+}
+
+variable "ami_owners_linux_arm64" {
   description = "The list of owners used to select the AMI of linux action runner instances."
   type        = list(string)
   default     = ["amazon"]
@@ -343,8 +346,8 @@ variable "cant_have_issues_labels" {
 }
 
 variable "scale_config_repo" {
-  description = "Repository to fetch scale config from if `enable_organization_runners` is set to true. Otherwise the job's repo will be used"
-  default     = "" # Internally defaults to 'test-infra'
+  description = "Repository to fetch scale config from.  Optional if `enable_organization_runners` is set to false, in which case the job's repo will be used"
+  default     = ""
   type        = string
 }
 
@@ -352,4 +355,10 @@ variable "scale_config_repo_path" {
   description = "Path relative to repo root the scale config should be fetched from. If `enable_organization_runners` is set to false, will be relative to the job's repo root instaed. If `enable_organization_runners` is set to true, will be relative to `scale_config_repo`."
   default     = "" # Internally defaults to '.github/scale-config.yml'
   type        = string
+}
+
+variable "min_available_runners" {
+  description = "Minimum number of runners to keep available."
+  type        = number
+  default     = 10
 }

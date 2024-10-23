@@ -38,7 +38,7 @@ jobs:
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
-      job-name: "linux-py3.8-cpu"
+      job-name: "linux-py3.9-cpu"
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -46,7 +46,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.9
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -57,7 +57,7 @@ jobs:
       matrix:
         runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
     with:
-      job-name: "linux-py3.8-cu121"
+      job-name: "linux-py3.9-cu121"
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -66,7 +66,7 @@ jobs:
       gpu-arch-version: "12.1"
       timeout: 60
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.9
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
         # Can import pytorch, cuda is available
@@ -91,6 +91,16 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       upload-artifact: my-cool-artifact
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
   test-download-artifact:
@@ -127,7 +137,7 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     strategy:
       matrix:
-        python_version: ["3.7", "3.8", "3.9", "3.10"]
+        python_version: ["3.9", "3.10", "3.11", "3.12"]
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -150,6 +160,6 @@ jobs:
       gpu-arch-version: ""
       run-with-docker: false
       script: |
-        export PYTHON_VERSION="3.8"
+        export PYTHON_VERSION="3.9"
         docker run -e PYTHON_VERSION -t -v $PWD:$PWD -w $PWD "${DOCKER_IMAGE}" echo "hello from inside docker"
         echo "hello from outside docker"

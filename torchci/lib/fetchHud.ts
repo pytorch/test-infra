@@ -1,11 +1,58 @@
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
+import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
+
+async function fetchDatabaseInfo(
+  owner: string,
+  repo: string,
+  shas: string[],
+  useCH: boolean
+) {
+  if (useCH) {
+    const response = await queryClickhouseSaved("hud_query", {
+      repo: `${owner}/${repo}`,
+      shas: shas,
+    });
+
+    for (const row of response) {
+      row.id = row.id == 0 ? null : row.id;
+      if (row.failureAnnotation === "") {
+        // Rockset returns nothing if the left join doesn't have a match but CH returns empty string
+        // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
+        delete row.failureAnnotation;
+      }
+    }
+    return response;
+  } else {
+    const rocksetClient = getRocksetClient();
+    const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "hud_query",
+      rocksetVersions.commons.hud_query,
+      {
+        parameters: [
+          {
+            name: "shas",
+            type: "string",
+            value: shas.join(","),
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: `${owner}/${repo}`,
+          },
+        ],
+      }
+    );
+    return hudQuery.results!;
+  }
+}
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -16,69 +63,65 @@ export default async function fetchHud(params: HudParams): Promise<{
   const branch = await octokit.rest.repos.listCommits({
     owner: params.repoOwner,
     repo: params.repoName,
-    sha: params.branch,
+    sha: decodeURIComponent(params.branch),
     per_page: params.per_page,
     page: params.page,
   });
   const commits = branch.data.map(commitDataFromResponse);
+  const rocksetClient = getRocksetClient();
 
   // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);
-  const rocksetClient = getRocksetClient();
-  const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "hud_query",
-    rocksetVersions.commons.hud_query,
-    {
-      parameters: [
-        {
-          name: "shas",
-          type: "string",
-          value: shas.join(","),
-        },
-        {
-          name: "repo",
-          type: "string",
-          value: `${params.repoOwner}/${params.repoName}`,
-        },
-      ],
-    }
+  const response = await fetchDatabaseInfo(
+    params.repoOwner,
+    params.repoName,
+    shas,
+    params.use_ch
   );
+  let results = response as any[];
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr =
-    await rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "filter_forced_merge_pr",
-      rocksetVersions.commons.filter_forced_merge_pr,
-      {
-        parameters: [
+  const filterForcedMergePr = params.use_ch
+    ? ((await queryClickhouseSaved("filter_forced_merge_pr", {
+        owner: params.repoOwner,
+        project: params.repoName,
+        shas: shas,
+      })) as any[])
+    : (
+        await rocksetClient.queryLambdas.executeQueryLambda(
+          "commons",
+          "filter_forced_merge_pr",
+          rocksetVersions.commons.filter_forced_merge_pr,
           {
-            name: "shas",
-            type: "string",
-            value: shas.join(","),
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: params.repoOwner,
-          },
-          {
-            name: "project",
-            type: "string",
-            value: params.repoName,
-          },
-        ],
-      }
-    );
+            parameters: [
+              {
+                name: "shas",
+                type: "string",
+                value: shas.join(","),
+              },
+              {
+                name: "owner",
+                type: "string",
+                value: params.repoOwner,
+              },
+              {
+                name: "project",
+                type: "string",
+                value: params.repoName,
+              },
+            ],
+          }
+        )
+      ).results;
+
   const forcedMergeShas = new Set(
-    _.map(filterForcedMergePr.results, (r) => {
+    _.map(filterForcedMergePr, (r) => {
       return r.merge_commit_sha;
     })
   );
   const forcedMergeWithFailuresShas = new Set(
     _.map(
-      _.filter(filterForcedMergePr.results, (r) => {
+      _.filter(filterForcedMergePr, (r) => {
         return r.force_merge_with_failures !== 0;
       }),
       (r) => {
@@ -88,7 +131,6 @@ export default async function fetchHud(params: HudParams): Promise<{
   );
 
   const commitsBySha = _.keyBy(commits, "sha");
-  let results = hudQuery.results;
 
   if (params.filter_reruns) {
     results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));

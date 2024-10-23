@@ -102,10 +102,11 @@ export function computePassrate(
 
     // If the model pass accuracy check but fails the performance benchmark with an
     // 0 speedup, it should be counted as a failure. However, `pass_due_to_skip` is
-    // an exception and it's ok to have 0 speedup there
+    // an exception and it's ok to have 0 speedup there, also `export` is an exception
+    // because we only measure its pass rate but not speedup.
     if (
       (isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
-        record.speedup !== 0.0) ||
+        (record.speedup !== 0.0 || compiler === "export")) ||
       accuracy === "pass_due_to_skip"
     ) {
       passCount[bucket][workflowId][suite][compiler] += 1;

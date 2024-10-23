@@ -26,6 +26,16 @@ resource "aws_lambda_function" "scale_down" {
   tags              = local.tags
   memory_size       = 2048
 
+  lifecycle {
+    precondition {
+      # Enforce that a value for scale_config_repo is set when enable_organization_runners is set to true.
+      # Setting the value is optional when not using organization runners since we'll default to the
+      # job's repository.
+      condition     = var.enable_organization_runners == true ? var.scale_config_repo != "" : true
+      error_message = "scale_config_repo is required when enable_organization_runners is set to true"
+    }
+  }
+
   environment {
     variables = {
       AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
@@ -39,13 +49,14 @@ resource "aws_lambda_function" "scale_down" {
       GITHUB_APP_KEY_BASE64           = var.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
+      MIN_AVAILABLE_RUNNERS           = var.min_available_runners
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       REDIS_ENDPOINT                  = var.redis_endpoint
       REDIS_LOGIN                     = var.redis_login
-      SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       SCALE_CONFIG_REPO               = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
+      SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
         sort(distinct([

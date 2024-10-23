@@ -1,6 +1,11 @@
 import { BranchAndCommit } from "lib/types";
 
-export const BENCHMARKS = ["gpt_fast_benchmark"];
+export const REPOS = ["pytorch/pytorch", "pytorch/executorch"];
+export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
+  "pytorch/pytorch": ["gpt_fast_benchmark"],
+  "pytorch/executorch": ["android-perf", "apple-perf"],
+};
+export const EXCLUDED_METRICS: string[] = ["load_status"];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
 export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
@@ -8,6 +13,15 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   token_per_sec: "Token per second",
   flops_utilization: "FLOPs utilization",
   "compilation_time(s)": "Compilation Time (s)",
+};
+// The variable name is a bit dumb, but it tells if a higher metric value
+// is good or bad so that we can highlight it on the dashboard accordingly.
+// For example, higher TPS is good while higher compilation time isn't
+export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
+  "memory_bandwidth(GB/s)": true,
+  token_per_sec: true,
+  flops_utilization: true,
+  "compilation_time(s)": false,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -31,6 +45,7 @@ export interface LLMsBenchmarkData {
   target: number;
   dtype: string;
   device: string;
+  arch: string;
   display?: string;
 }
 

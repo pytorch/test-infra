@@ -100,6 +100,11 @@ export const handle = async (): Promise<void> => {
       s3Key: process.env.S3_OBJECT_KEY_LINUX,
     },
     {
+      runnerOS: 'linux',
+      runnerArch: 'arm64',
+      s3Key: process.env.S3_OBJECT_KEY_LINUX_ARM64,
+    },
+    {
       runnerOS: 'win',
       runnerArch: 'x64',
       s3Key: process.env.S3_OBJECT_KEY_WINDOWS,

@@ -25,8 +25,16 @@ inputs:
     description: The token to use to push to the stable protected branch
     required: true
     type: string
-  rockset-api-key:
-    description: The API key to query Rockset, read-only
+  clickhouse-url:
+    description: ClickHouse URL
+    required: true
+    type: string
+  clickhouse-username:
+    description: ClickHouse username
+    required: true
+    type: string
+  clickhouse-password:
+    description: ClickHouse password
     required: true
     type: string
   test-infra-repository:
@@ -37,6 +45,16 @@ inputs:
     description: Test infra reference to use
     default: ''
     type: string
+outputs:
+  latest_viable_sha:
+    description: The latest viable sha that passed all the required jobs
+    value: ${{ steps.get-latest-commit.outputs.latest_viable_sha }}
+  push_result:
+    description: The result of the push to the stable branch
+    value: ${{ steps.push-to-stable.outputs.push_result }}
+  time:
+    description: The time when the push was made
+    value: ${{ steps.push-to-stable.outputs.time }}
 
 runs:
   using: composite
@@ -44,13 +62,6 @@ runs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-
-    - name: Checkout test-infra for the fetch_latest_green_commit scripts
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ inputs.test-infra-repository }}
-        ref: ${{ inputs.test-infra-ref }}
-        path: test-infra
 
     - uses: actions/checkout@v3
       with:
@@ -64,23 +75,32 @@ runs:
     - name: Install Python Packages
       shell: bash
       run: |
-        pip install rockset==1.0.3 boto3==1.19.12
+        pip install clickhouse-connect==0.7.16 boto3==1.19.12
 
     - name: Get latest viable commit
       id: get-latest-commit
       working-directory: ${{ inputs.repository }}
       env:
-        ROCKSET_API_KEY: ${{ inputs.rockset-api-key }}
+        CLICKHOUSE_ENDPOINT: ${{ inputs.clickhouse-url }}
+        CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
+        CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}
       shell: bash
       run: |
         set -ex
 
-        output=$(python ${GITHUB_WORKSPACE}/test-infra/.github/scripts/fetch_latest_green_commit.py --requires "${{ inputs.requires }}")
+        TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
+
+        output=$(python ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
+          --required-checks "${{ inputs.requires }}" \
+          --viable-strict-branch "viable/strict" \
+          --main-branch "master")
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
+        echo $output
 
     - name: Push SHA to viable/strict branch
       if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
       working-directory: ${{ inputs.repository }}
+      id: push-to-stable
       env:
         GITHUB_TOKEN: ${{ inputs.secret-bot-token }}
         STABLE_BRANCH: ${{ inputs.stable-branch }}
@@ -93,4 +113,11 @@ runs:
         echo "Set the latest sha variable to be ${LATEST_VIABLE_SHA}"
         # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
         # to ignore because we already have the later green commit in visable/strict
-        git push origin "${LATEST_VIABLE_SHA}":"${STABLE_BRANCH}" || true
+        push_result=$(git push origin "${LATEST_VIABLE_SHA}:${STABLE_BRANCH}" 2>&1 || true)
+        {
+          echo 'push_result<<EOF'
+          echo $push_result
+          echo EOF
+        } >> "${GITHUB_OUTPUT}"
+        echo "${push_result}"
+        echo "time=$(date +%s)" >> "${GITHUB_OUTPUT}"

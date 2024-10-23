@@ -19,7 +19,6 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
@@ -34,7 +33,7 @@ export function GraphPanel({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   modelName: string;
   dtypeName: string;
@@ -71,13 +70,9 @@ export function GraphPanel({
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
+  // align with the data we get from the database
+  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
   // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
@@ -93,7 +88,7 @@ export function GraphPanel({
         return (
           record.name === modelName &&
           (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
-          (record.device === deviceName ||
+          (`${record.device} (${record.arch})` === deviceName ||
             deviceName === DEFAULT_DEVICE_NAME) &&
           record.metric === metric
         );
@@ -102,7 +97,8 @@ export function GraphPanel({
         const id = record.workflow_id;
         return (
           (id >= lWorkflowId && id <= rWorkflowId) ||
-          (id <= lWorkflowId && id >= rWorkflowId)
+          (id <= lWorkflowId && id >= rWorkflowId) ||
+          (lWorkflowId === undefined && rWorkflowId === undefined)
         );
       })
       .map((record: LLMsBenchmarkData) => {

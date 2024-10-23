@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 import requests
-from torchci.rockset_utils import query_rockset
+from torchci.clickhouse import query_clickhouse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -42,8 +42,9 @@ def download_log_to_file(id, file, name):
 
 def download_logs_to_dir(commit):
     "Given a commit sha, downloads all test logs for that commit to logs/<commit> folder"
-    res = query_rockset(
-        f"select id, name from workflow_job where head_sha = '{commit}' and name like '% / test%'"
+    res = query_clickhouse(
+        "select id, name from default.workflow_job final where head_sha = {commit: String} and name like '% / test%'",
+        {"commit": commit},
     )
 
     folder = REPO_ROOT / "_logs" / "ci_logs" / commit
@@ -64,8 +65,9 @@ def download_artifacts_from_sha(commit, repo):
     s3 = get_s3()
     bucket = s3.Bucket("gha-artifacts")
     folder = REPO_ROOT / "_logs" / "artifacts" / commit
-    workflow_ids = query_rockset(
-        f"select id from workflow_run where head_sha = '{commit}'"
+    workflow_ids = query_clickhouse(
+        "select id from default.workflow_run final where head_sha = {commit: String}",
+        {"commit": commit},
     )
 
     zipped_path = folder / "zipped"
@@ -103,5 +105,5 @@ if __name__ == "__main__":
         download_artifacts_from_sha(args.commit, args.repo)
         print(f"Saved to {REPO_ROOT / '_logs' / 'artifacts' / args.commit}")
     else:
-        download_log(args.commit)
+        download_logs_to_dir(args.commit)
         print(f"Saved to {REPO_ROOT / '_logs' / 'ci_logs' / args.commit}")

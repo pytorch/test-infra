@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * A hook to manage a boolean preference in local storage.
@@ -17,12 +17,17 @@ export function usePreference(
       : window.localStorage.getItem(name) ?? String(defaultValue);
   const initialVal =
     override === undefined ? settingFromStorage === "true" : override;
-  const [state, setState] = useState<boolean>(initialVal);
+  const [state, setState] = useState<boolean>(defaultValue);
 
   const setStatePersist = (grouping: boolean) => {
     setState(grouping);
     localStorage.setItem(name, String(grouping));
   };
+
+  // Gets around hydration errors?
+  useEffect(() => {
+    setState(initialVal);
+  }, []);
 
   return [state, setStatePersist];
 }

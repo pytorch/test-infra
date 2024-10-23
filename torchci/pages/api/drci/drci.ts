@@ -1,5 +1,8 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { fetchJSON } from "lib/bot/utils";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import { fetchJSON, isTime0 } from "lib/bot/utils";
+import { queryClickhouse } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
   fetchIssueLabels,
@@ -8,10 +11,12 @@ import {
   formDrciSevBody,
   getActiveSEVs,
   getDrciComment,
+  getPRMergeCommits,
   getSuppressedLabels,
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
   HUD_URL,
+  isExcludedFromBrokenTrunk,
   isExcludedFromFlakiness,
   isExcludedFromSimilarityPostProcessing,
   isInfraFlakyJob,
@@ -31,7 +36,6 @@ import {
   backfillMissingLog,
   getDisabledTestIssues,
   getOpenUnstableIssues,
-  getPRMergeCommits,
   isDisabledTest,
   isDisabledTestMentionedInPR,
   isRecentlyCloseDisabledTest,
@@ -40,13 +44,12 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
-import getRocksetClient from "lib/rockset";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
-
+dayjs.extend(utc);
 export interface FlakyRule {
   name: string;
   captures: string[];
@@ -72,7 +75,7 @@ export default async function handler(
     const failures = await updateDrciComments(
       octokit,
       repo,
-      prNumber as string
+      prNumber ? [parseInt(prNumber as string)] : []
     );
     res.status(200).json(failures);
   }
@@ -83,18 +86,26 @@ export default async function handler(
 export async function updateDrciComments(
   octokit: Octokit,
   repo: string = "pytorch",
-  prNumber?: string
+  prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
-  const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
-    `${OWNER}/${repo}`,
-    prNumber,
-    NUM_MINUTES + ""
-  );
+  // Fetch in two separate queries because combining into one query took much
+  // longer to run on CH
+  const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
+    fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
+    // Only fetch if we are not updating a specific PR
+    prNumbers.length != 0
+      ? []
+      : fetchRecentWorkflows(
+          `${OWNER}/${repo}`,
+          await getPRsWithPendingJobInComment(`${OWNER}/${repo}`),
+          NUM_MINUTES + ""
+        ),
+  ]);
 
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
     repo,
-    recentWorkflows,
+    recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
   const head = get_head_branch(repo);
@@ -108,6 +119,11 @@ export async function updateDrciComments(
     `${OWNER}/${repo}`,
     workflowsByPR
   );
+  const prMergeCommits = await getPRMergeCommits(
+    OWNER,
+    repo,
+    Array.from(workflowsByPR.keys())
+  );
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -117,11 +133,7 @@ export async function updateDrciComments(
     workflowsByPR,
     async (pr_info: PRandJobs) => {
       // Find the merge commits of the PR to check if it has already been merged before
-      const mergeCommits = await getPRMergeCommits(
-        OWNER,
-        repo,
-        pr_info.pr_number
-      );
+      const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
 
       const labels = await fetchIssueLabels(
         octokit,
@@ -236,6 +248,29 @@ export async function updateDrciComments(
   return failures;
 }
 
+/**
+ * Returns a list of PR numbers whose Dr. CI comments were updated recently and
+ * contain the hourglass icon, indicating that there is a pending job. Used for
+ * getting a list of PRs to backfill ex if Dr. CI fails to update the comment
+ * due to an error
+ * @param repo The repository to search for PRs in. E.g. "pytorch/pytorch"
+ * @returns A list of PR numbers
+ */
+async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
+  const query = `
+select
+    issue_url
+from
+    issue_comment final
+where
+    body like '<!-- drci-comment-start -->%'
+    and body like '%hourglass_flowing_sand%'
+    and issue_comment.updated_at > now() - interval 1 month
+    and issue_url like {repo: String}`;
+  const results = await queryClickhouse(query, { repo: `%${repo}%` });
+  return results.map((v) => parseInt(v.issue_url.split("/").pop()));
+}
+
 async function forAllPRs(
   workflowsByPR: Map<number, PRandJobs>,
   func: CallableFunction,
@@ -270,43 +305,28 @@ select
 from
     merge_bases
 where
-    ARRAY_CONTAINS(SPLIT(:shas, ','), sha)
-    and merge_base_commit_date is not null
-    and repo = :repo
+    sha in {shas: Array(String)}
+    and merge_base_commit_date != 0
+    and repo = {repo: String}
   `;
-  const rocksetClient = getRocksetClient();
   const s3client = getS3Client();
 
-  const rocksetMergeBases = new Map(
+  const chMergeBases = new Map(
     (
-      await rocksetClient.queries.query({
-        sql: {
-          query: mergeBasesQuery,
-          parameters: [
-            {
-              name: "shas",
-              type: "string",
-              value: Array.from(workflowsByPR.values())
-                .map((v) => v.head_sha)
-                .join(","),
-            },
-            {
-              name: "repo",
-              type: "string",
-              value: `${OWNER}/${repo}`,
-            },
-          ],
-        },
+      await queryClickhouse(mergeBasesQuery, {
+        shas: Array.from(workflowsByPR.values()).map((v) => v.head_sha),
+        repo: `${OWNER}/${repo}`,
       })
-    ).results?.map((v) => [v.head_sha, v])
+    )?.map((v) => [v.head_sha, v])
   );
 
   await forAllPRs(
     workflowsByPR,
     async (pr_info: PRandJobs) => {
-      const rocksetMergeBase = rocksetMergeBases.get(pr_info.head_sha);
-      if (rocksetMergeBase === undefined) {
-        // Not found in rockset, ask github instead, then put into rockset
+      const chMergeBase = chMergeBases.get(pr_info.head_sha);
+      if (chMergeBase === undefined) {
+        // Not found on CH, ask github instead, then put into dynamo, which will
+        // get synced with CH
         const diff = await octokit.rest.repos.compareCommits({
           owner: OWNER,
           repo: repo,
@@ -329,7 +349,7 @@ where
             sha: pr_info.head_sha,
             merge_base: pr_info.merge_base,
             changed_files: diffWithMergeBase.data.files?.map((e) => e.filename),
-            merge_base_commit_date: pr_info.merge_base_date ?? "",
+            merge_base_commit_date: pr_info.merge_base_date,
             repo: `${OWNER}/${repo}`,
             _id: `${OWNER}-${repo}-${pr_info.head_sha}`,
           };
@@ -345,8 +365,8 @@ where
           console.error("Failed to upload to S3", e);
         }
       } else {
-        pr_info.merge_base = rocksetMergeBase.merge_base;
-        pr_info.merge_base_date = rocksetMergeBase.merge_base_commit_date;
+        pr_info.merge_base = chMergeBase.merge_base;
+        pr_info.merge_base_date = chMergeBase.merge_base_commit_date;
       }
     },
     // NB (huydhn): This function couldn't find merge base for ghstack PR and
@@ -383,8 +403,8 @@ export async function getBaseCommitJobs(
     if (!jobsBySha.has(job.head_sha)) {
       jobsBySha.set(job.head_sha, new Map());
     }
-    const existing_job = jobsBySha.get(job.head_sha).get(job.name!);
-    if (!existing_job || existing_job.id < job.id!) {
+    const existing_job = jobsBySha.get(job.head_sha).get(job.name);
+    if (!existing_job || existing_job.id < job.id) {
       // if rerun, choose the job with the larger id as that is more recent
       jobsBySha.get(job.head_sha).set(job.name, job);
     }
@@ -423,34 +443,22 @@ async function getExistingDrCiComments(
 select
   id,
   body,
-  issue_url,
+  issue_url
 from
-  commons.issue_comment i
+  default.issue_comment final
 where
-  i.body like '%<!-- drci-comment-start -->%'
-  and ARRAY_CONTAINS(SPLIT(:prUrls, ','), issue_url)
+  body like '%<!-- drci-comment-start -->%'
+  and issue_url in {prUrls: Array(String)}
     `;
-  const rocksetClient = getRocksetClient();
   return new Map(
     (
-      await rocksetClient.queries.query({
-        sql: {
-          query: existingCommentsQuery,
-          parameters: [
-            {
-              name: "prUrls",
-              type: "string",
-              value: Array.from(workflowsByPR.keys())
-                .map(
-                  (prNumber) =>
-                    `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
-                )
-                .join(","),
-            },
-          ],
-        },
+      await queryClickhouse(existingCommentsQuery, {
+        prUrls: Array.from(workflowsByPR.keys()).map(
+          (prNumber) =>
+            `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
+        ),
       })
-    ).results?.map((v) => [
+    )?.map((v) => [
       parseInt(v.issue_url.split("/").pop()),
       { id: parseInt(v.id), body: v.body },
     ])
@@ -467,9 +475,9 @@ function constructResultsJobsSections(
   jobs: RecentWorkflowsData[],
   suggestion?: string,
   collapsed: boolean = false,
-  relatedJobs: Map<string, RecentWorkflowsData> = new Map(),
-  relatedIssues: Map<string, IssueData[]> = new Map(),
-  relatedInfo: Map<string, string> = new Map()
+  relatedJobs: Map<number, RecentWorkflowsData> = new Map(),
+  relatedIssues: Map<number, IssueData[]> = new Map(),
+  relatedInfo: Map<number, string> = new Map()
 ): string {
   if (jobs.length === 0) {
     return "";
@@ -485,7 +493,7 @@ function constructResultsJobsSections(
   output += "<p>\n\n"; // Two newlines are needed for bullts below to be formattec correctly
 
   const hudPrUrl = `${hudBaseUrl}/pr/${owner}/${repo}/${prNumber}`;
-  const jobsSorted = jobs.sort((a, b) => a.name!.localeCompare(b.name!));
+  const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${hudPrUrl}#${job.id}) ([gh](${job.html_url}))`;
 
@@ -527,7 +535,7 @@ function constructResultsJobsSections(
     }
 
     output += "\n";
-    if (job.failure_captures) {
+    if (job.failure_captures && job.failure_captures.length > 0) {
       output += `    \`${job.failure_captures[0]}\`\n`;
     }
   }
@@ -553,9 +561,9 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
-  relatedJobs: Map<string, RecentWorkflowsData>,
-  relatedIssues: Map<string, IssueData[]>,
-  relatedInfo: Map<string, string>,
+  relatedJobs: Map<number, RecentWorkflowsData>,
+  relatedIssues: Map<number, IssueData[]>,
+  relatedInfo: Map<number, string>,
   sha: string,
   merge_base: string,
   merge_base_date: string,
@@ -645,7 +653,7 @@ export function constructResultsComment(
   output += title;
 
   output += `\nAs of commit ${sha} with merge base ${merge_base}`;
-  const timestamp = Math.floor(new Date(merge_base_date).valueOf() / 1000);
+  const timestamp = dayjs.utc(merge_base_date).unix();
   if (!isNaN(timestamp)) {
     output += ` (<sub><sub><img alt="image" width=70 src="https://img.shields.io/date/${timestamp}?label=&color=FFFFFF&style=flat-square"></sub></sub>)`;
   }
@@ -764,17 +772,14 @@ function isFlaky(
     const jobNameRegex = new RegExp(flakyRule.name);
 
     return (
-      job.name!.match(jobNameRegex) &&
+      job.name.match(jobNameRegex) &&
       flakyRule.captures.every((capture: string) => {
         const captureRegex = new RegExp(capture);
-        const matchFailureCaptures: boolean =
-          job.failure_captures &&
-          job.failure_captures.some((failureCapture) =>
-            failureCapture.match(captureRegex)
-          );
+        const matchFailureCaptures: boolean = job.failure_captures.some(
+          (failureCapture) => failureCapture.match(captureRegex)
+        );
         const matchFailureLine: boolean =
-          job.failure_lines != null &&
-          job.failure_lines[0] != null &&
+          job.failure_lines.length > 0 &&
           job.failure_lines[0].match(captureRegex) != null;
 
         // Accept both failure captures array and failure line string to make sure
@@ -789,7 +794,7 @@ function getTrunkFailure(
   job: RecentWorkflowsData,
   baseJobs: Map<string, RecentWorkflowsData[]>
 ): RecentWorkflowsData | undefined {
-  const jobNameNoSuffix = removeJobNameSuffix(job.name!);
+  const jobNameNoSuffix = removeJobNameSuffix(job.name);
 
   // This job doesn't exist in the base commit, thus not a broken trunk failure
   if (!baseJobs.has(jobNameNoSuffix)) {
@@ -815,43 +820,38 @@ export async function getWorkflowJobsStatuses(
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
-  relatedJobs: Map<string, RecentWorkflowsData>;
-  relatedIssues: Map<string, IssueData[]>;
-  relatedInfo: Map<string, string>;
+  relatedJobs: Map<number, RecentWorkflowsData>;
+  relatedIssues: Map<number, IssueData[]>;
+  relatedInfo: Map<number, string>;
 }> {
   let pending = 0;
   const preprocessFailedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
+  const failedJobs: RecentWorkflowsData[] = [];
 
   // This map holds the list of the base failures for broken trunk jobs or the similar
   // failures for flaky jobs
-  const relatedJobs: Map<string, RecentWorkflowsData> = new Map();
-  // And this holds the string pointing to the associated unstable issue that disables a job
-  const relatedIssues: Map<string, IssueData[]> = new Map();
+  const relatedJobs: Map<number, RecentWorkflowsData> = new Map();
+  // Maps job id -> associated unstable issue that disables a job
+  const relatedIssues: Map<number, IssueData[]> = new Map();
   // Any additional information about the job classification can be kept here
-  const relatedInfo: Map<string, string> = new Map();
+  const relatedInfo: Map<number, string> = new Map();
 
   for (const job of prInfo.jobs) {
-    if (
-      (job.conclusion === undefined || job.conclusion === null) &&
-      (job.completed_at === undefined || job.completed_at === null)
-    ) {
+    if (job.conclusion === "" && isTime0(job.completed_at)) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
       const suppressedLabels = await getSuppressedLabels(job, labels);
-      if (
-        prInfo.repo === "pytorch" &&
-        suppressedLabels &&
-        suppressedLabels.length !== 0
-      ) {
+      if (prInfo.repo === "pytorch" && suppressedLabels.length !== 0) {
         flakyJobs.push(job);
         relatedInfo.set(job.id, `suppressed by ${suppressedLabels.join(", ")}`);
         continue;
       }
 
-      if (isUnstableJob(job, unstableIssues)) {
+      // TODO: remove the `as any` cast when CH migration is complete
+      if (isUnstableJob(job as any, unstableIssues)) {
         unstableJobs.push(job);
         relatedIssues.set(
           job.id,
@@ -860,10 +860,20 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
+      if (isExcludedFromBrokenTrunk(job)) {
+        failedJobs.push(job);
+        continue;
+      }
+
       const trunkFailure = getTrunkFailure(job, baseJobs);
       if (trunkFailure !== undefined) {
         brokenTrunkJobs.push(job);
         relatedJobs.set(job.id, trunkFailure);
+        continue;
+      }
+
+      if (isExcludedFromFlakiness(job)) {
+        failedJobs.push(job);
         continue;
       }
 
@@ -883,7 +893,7 @@ export async function getWorkflowJobsStatuses(
         continue;
       }
 
-      if ((await isLogClassifierFailed(job)) && !isExcludedFromFlakiness(job)) {
+      if (await isLogClassifierFailed(job)) {
         flakyJobs.push(job);
         relatedInfo.set(
           job.id,
@@ -898,7 +908,6 @@ export async function getWorkflowJobsStatuses(
         disabledTestIssues
       );
       if (
-        matchDisabledTestIssues !== undefined &&
         matchDisabledTestIssues.length !== 0 &&
         isRecentlyCloseDisabledTest(
           matchDisabledTestIssues,
@@ -926,7 +935,6 @@ export async function getWorkflowJobsStatuses(
       }
 
       if (
-        matchDisabledTestIssues !== undefined &&
         matchDisabledTestIssues.length !== 0 &&
         isDisabledTest(matchDisabledTestIssues)
       ) {
@@ -971,8 +979,6 @@ export async function getWorkflowJobsStatuses(
       preprocessFailedJobs.push(job);
     }
   }
-
-  const failedJobs: RecentWorkflowsData[] = [];
 
   // Verify that the failed job is unique and there is no similar flaky, broken trunk,
   // or unstable jobs in the same pull request. If there are some, these failures are
@@ -1036,19 +1042,30 @@ export async function reorganizeWorkflows(
   recentWorkflows: RecentWorkflowsData[],
   octokit?: Octokit
 ): Promise<Map<number, PRandJobs>> {
+  // Dedup because the input can contain the same job multiple times due to the
+  // two queries for recent workflows and for comments with pending jobs
+  const dedupedRecentWorkflows = _.uniqBy(recentWorkflows, (workflow) =>
+    JSON.stringify([
+      workflow.id,
+      workflow.workflowId,
+      workflow.head_sha,
+      workflow.pr_number,
+      workflow.name,
+    ])
+  );
   const workflowsByPR: Map<number, PRandJobs> = new Map();
   const headShaTimestamps: Map<string, string> = new Map();
 
-  for (const workflow of recentWorkflows) {
-    const prNumber = workflow.pr_number!;
+  for (const workflow of dedupedRecentWorkflows) {
+    const prNumber = workflow.pr_number;
     if (!workflowsByPR.has(prNumber)) {
       let headShaTimestamp = workflow.head_sha_timestamp;
-      // NB: The head SHA timestamp is currently used as the end date when searching
-      // for similar failures.  However, it's not available on Rockset for commits
-      // from forked PRs before a ciflow ref is pushed.  In such case, the head SHA
-      // timestamp will be undefined and we will make an additional query to GitHub
-      // to get the value
-      if (octokit && !headShaTimestamp) {
+      // NB: The head SHA timestamp is currently used as the end date when
+      // searching for similar failures.  However, it's not available on CH for
+      // commits from forked PRs before a ciflow ref is pushed.  In such case,
+      // the head SHA timestamp will be undefined and we will make an additional
+      // query to GitHub to get the value
+      if (octokit && isTime0(headShaTimestamp)) {
         headShaTimestamp = await fetchCommitTimestamp(
           octokit,
           owner,
@@ -1063,7 +1080,7 @@ export async function reorganizeWorkflows(
       let prShas: { sha: string; title: string }[] = [];
       // Gate this to PyTorch as disabled tests feature is only available there
       if (octokit && repo === "pytorch") {
-        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
+        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit, true);
         prTitle = prData.title;
         prBody = prData.body;
         prShas = prData.shas;
@@ -1085,7 +1102,11 @@ export async function reorganizeWorkflows(
     }
 
     const headShaTimestamp = headShaTimestamps.get(workflow.head_sha);
-    if (!workflow.head_sha_timestamp && headShaTimestamp) {
+    if (
+      isTime0(workflow.head_sha_timestamp) &&
+      headShaTimestamp &&
+      !isTime0(headShaTimestamp)
+    ) {
       workflow.head_sha_timestamp = headShaTimestamp;
     }
 
@@ -1097,16 +1118,16 @@ export async function reorganizeWorkflows(
   for (const [, prInfo] of workflowsByPR) {
     const [workflows, jobs] = _.partition(
       prInfo.jobs,
-      (job) => job.workflowId === null || job.workflowId === undefined
+      (job) => job.workflowId === 0
     );
 
-    // Get most recent workflow run based on workflowUniqueId (workflow_id in rockset)
+    // Get most recent workflow run based on workflowUniqueId (workflow_id in webhooks)
     const recentWorkflows: Map<number, RecentWorkflowsData> = new Map();
     for (const workflow of workflows) {
       // Check that this is a workflow, not a job
-      const workflowUniqueId = workflow.workflowUniqueId!;
+      const workflowUniqueId = workflow.workflowUniqueId;
       const existingWorkflowId = recentWorkflows.get(workflowUniqueId)?.id;
-      if (!existingWorkflowId || existingWorkflowId! < workflow.id!) {
+      if (!existingWorkflowId || existingWorkflowId < workflow.id) {
         recentWorkflows.set(workflowUniqueId, workflow);
       }
     }
@@ -1122,7 +1143,7 @@ export async function reorganizeWorkflows(
         // This belongs to an older run of the workflow
         continue;
       }
-      const key = job.name!;
+      const key = job.name;
       const existing_job = removeRetries.get(key);
       if (!existing_job || existing_job.id < job.id!) {
         removeRetries.set(key, job);

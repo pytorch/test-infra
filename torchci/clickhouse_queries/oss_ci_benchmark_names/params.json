@@ -1,0 +1,10 @@
+{
+  "deviceArch": "String",
+  "dtypes": "Array(String)",
+  "excludedMetrics": "Array(String)",
+  "filenames": "Array(String)",
+  "names": "Array(String)",
+  "repo": "String",
+  "startTime": "DateTime64(3)",
+  "stopTime": "DateTime64(3)"
+}

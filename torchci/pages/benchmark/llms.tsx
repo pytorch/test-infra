@@ -7,10 +7,11 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
-  BENCHMARKS,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
+  EXCLUDED_METRICS,
+  REPO_TO_BENCHMARKS,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
@@ -21,7 +22,6 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
@@ -42,7 +42,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -122,6 +122,7 @@ function Report({
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        repoName={repoName}
         modelName={modelName}
         metricNames={metricNames}
         lPerfData={{
@@ -229,50 +230,29 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "filenames",
-      type: "string",
-      value: BENCHMARKS.join(","),
-    },
-    {
-      name: "repo",
-      type: "string",
-      value: repoName,
-    },
-  ];
+  const queryParams = {
+    deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
+    excludedMetrics: EXCLUDED_METRICS,
+    filenames: REPO_TO_BENCHMARKS[repoName],
+    granularity: granularity,
+    names: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
+    repo: repoName,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
+
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
   if (data === undefined || data.length === 0) {
-    return <>Loading {BENCHMARKS.join(", ")}...</>;
+    return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
   }
 
   const modelNames: string[] = [
@@ -281,7 +261,7 @@ export default function Page() {
   ];
   const deviceNames: string[] = [
     DEFAULT_DEVICE_NAME,
-    ...(_.uniq(data.map((r: any) => r.device)) as string[]),
+    ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
   ];
   const dtypeNames: string[] = [
     DEFAULT_DTYPE_NAME,
@@ -293,7 +273,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          LLMs Benchmark DashBoard
+          Benchmark DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -350,8 +330,9 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={-1} // Default to the next to latest in the window
+          fallbackIndex={1} // Default to previous commit
           timeRange={timeRange}
+          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -367,6 +348,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+          useClickHouse={true}
         />
       </Stack>
 

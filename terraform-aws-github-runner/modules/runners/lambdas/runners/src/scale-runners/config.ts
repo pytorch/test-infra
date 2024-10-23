@@ -78,7 +78,7 @@ export class Config {
     /* istanbul ignore next */
     const mnAvalRuns = Number(process.env.MIN_AVAILABLE_RUNNERS || '10');
     /* istanbul ignore next */
-    this.minAvailableRunners = mnAvalRuns > 0 ? mnAvalRuns : 1;
+    this.minAvailableRunners = mnAvalRuns >= 0 ? mnAvalRuns : 0;
     /* istanbul ignore next */
     const mnRunMin = Number(process.env.MINIMUM_RUNNING_TIME_IN_MINUTES || '60');
     /* istanbul ignore next */
@@ -97,7 +97,10 @@ export class Config {
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     /* istanbul ignore next */
-    this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || 'test-infra';
+    this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || '';
+    if (this.enableOrganizationRunners && !this.scaleConfigRepo) {
+      throw new Error('SCALE_CONFIG_REPO is required when ENABLE_ORGANIZATION_RUNNERS is set');
+    }
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     this.sSMParamCleanupAgeDays = Number(process.env.SSM_PARAM_CLEANUP_AGE_DAYS || '7');

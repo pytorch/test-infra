@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { TIME_0 } from "lib/bot/utils";
 import * as drciUtils from "lib/drciUtils";
 import {
   DOCS_URL,
@@ -20,20 +21,32 @@ import * as updateDrciBot from "../pages/api/drci/drci";
 
 nock.disableNetConnect();
 
-function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
+export function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
   // Use this function to create a dummy job with default values
+  if (
+    (nonDefaultInputs.conclusion == "failure" ||
+      nonDefaultInputs.conclusion == "cancelled") &&
+    !nonDefaultInputs.hasOwnProperty("failure_captures")
+  ) {
+    nonDefaultInputs.failure_captures = ["a"];
+  }
   return {
     workflowUniqueId: 1,
     jobName: "dummy job name",
     name: "dummy name",
-    id: "1",
-    workflowId: "1",
-    completed_at: "2022-07-13T19:34:03Z",
+    id: 1,
+    workflowId: 1,
+    completed_at: "2022-07-13 19:34:03",
     html_url: "abcdefg",
     head_sha: "abcdefg",
+    head_sha_timestamp: TIME_0,
     pr_number: 1001,
     conclusion: "success",
     failure_captures: [],
+    failure_lines: [],
+    failure_context: [],
+    runnerName: "dummyRunnerName",
+    head_branch: "dummyHeadBranch",
     ...nonDefaultInputs,
   };
 }
@@ -41,22 +54,20 @@ function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
 export const successfulA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",
   conclusion: "success",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "abcdefg",
   head_sha: "abcdefg",
   pr_number: 1000,
-  id: "1",
-  failure_lines: ["a"],
-  failure_captures: ["Doc build successful"],
+  id: 1,
 });
 
 const pendingA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",
-  conclusion: undefined,
-  completed_at: null,
+  conclusion: "",
+  completed_at: TIME_0,
   html_url: "abcdefg",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a"],
   failure_captures: [],
@@ -64,12 +75,12 @@ const pendingA = getDummyJob({
 });
 
 const failedA = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a"],
   failure_captures: ["mind blown", "ha ha"],
@@ -77,24 +88,24 @@ const failedA = getDummyJob({
 });
 
 const failedASuccessfulRetry = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "success",
-  completed_at: "2022-07-14T19:34:03Z",
+  completed_at: "2022-07-14 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "2",
+  id: 2,
   pr_number: 1001,
   failure_captures: ["a"],
   runnerName: "dummy",
 });
 
 const failedAFailedRetry = getDummyJob({
-  name: "Lint",
+  name: "somethingA",
   conclusion: "failure",
-  completed_at: "2022-07-15T19:34:03Z",
+  completed_at: "2022-07-15 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "3",
+  id: 3,
   pr_number: 1001,
   failure_lines: ["a"],
   failure_captures: ["Retired but mind still blown", "ha ha ha"],
@@ -104,10 +115,10 @@ const failedAFailedRetry = getDummyJob({
 const failedB = getDummyJob({
   name: "something",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a"],
   failure_captures: ["cde"],
@@ -117,10 +128,10 @@ const failedB = getDummyJob({
 const failedC = getDummyJob({
   name: "z-docs / build-docs (cpp)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a"],
   failure_captures: ["bababa"],
@@ -130,10 +141,10 @@ const failedC = getDummyJob({
 const failedD = getDummyJob({
   name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
@@ -144,10 +155,10 @@ const failedD = getDummyJob({
 const failedE = getDummyJob({
   name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
@@ -158,10 +169,10 @@ const failedE = getDummyJob({
 const failedF = getDummyJob({
   name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
@@ -172,10 +183,10 @@ const failedF = getDummyJob({
 const failedG = getDummyJob({
   name: "win-vs2019-cpu-py3 / build",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: [
     "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
@@ -189,10 +200,10 @@ const failedG = getDummyJob({
 const failedH = getDummyJob({
   name: "cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks / test (dynamo_eager_huggingface, 1, 1, linux.g5.4xlarge.nvidia.gpu)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: [
     "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
@@ -207,10 +218,10 @@ const failedH = getDummyJob({
 const failedI = getDummyJob({
   name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-stable)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_captures: [],
   failure_lines: [
@@ -222,10 +233,10 @@ const failedI = getDummyJob({
 const unstableA = getDummyJob({
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
@@ -236,10 +247,10 @@ const unstableA = getDummyJob({
 const unstableB = getDummyJob({
   name: "trunk / test-coreml-delegate / macos-job",
   conclusion: "failure",
-  completed_at: "2022-07-13T19:34:03Z",
+  completed_at: "2022-07-13 19:34:03",
   html_url: "a",
   head_sha: "abcdefg",
-  id: "1",
+  id: 1,
   pr_number: 1001,
   failure_lines: ["a", "b"],
   failure_captures: ["a", "b"],
@@ -284,7 +295,7 @@ function constructResultsCommentHelper({
   unstableJobs = [],
   sha = "random sha",
   merge_base = "random_merge_base_sha",
-  merge_base_date = "2023-08-08T06:03:21Z",
+  merge_base_date = "2023-08-08 06:03:21",
   hudBaseUrl = HUD_URL,
   owner = "pytorch",
   repo = "pytorch",
@@ -373,10 +384,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
     expect(failureInfo.includes(failedJobName)).toBeTruthy();
-    const expectedFailureOrder = `* [Lint](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
-    \`mind blown\`
+    const expectedFailureOrder = `
 * [something](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
     \`cde\`
+* [somethingA](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
+    \`mind blown\`
 * [z-docs / build-docs (cpp)](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
     \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
@@ -576,7 +588,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         html_url: "https://github.com/pytorch/executorch/issues/3264",
         state: "open",
         body: "",
-        updated_at: "2024-04-24T00:44:19Z",
+        updated_at: "2024-04-24 00:44:19",
         author_association: "CONTRIBUTOR",
       },
     ];
@@ -597,7 +609,12 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test(" test flaky rule regex", async () => {
-    const originalWorkflows = [failedA, failedG, failedH, failedI];
+    const originalWorkflows = [
+      failedA, // failure
+      failedG, // failure, matches rule, but is build -> failure
+      failedH, // failure, matches rule -> flaky
+      failedI, // failure, matches rule -> flaky
+    ];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
@@ -625,9 +642,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         ],
         new Map()
       );
-    expect(failedJobs.length).toBe(1);
+    expect(failedJobs.length).toBe(2);
     expect(brokenTrunkJobs.length).toBe(0);
-    expect(flakyJobs.length).toBe(3);
+    expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
 
@@ -701,7 +718,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const failureInfoComment = constructResultsCommentHelper({
       sha: "sha",
       merge_base: "merge_base",
-      merge_base_date: "2023-08-08T06:03:21Z",
+      merge_base_date: "2023-08-08 06:03:21",
     });
     expect(
       failureInfoComment.includes("commit sha with merge base merge_base")
@@ -778,16 +795,18 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   test("test similar failures marked as flaky", async () => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() =>
-      Promise.resolve({
-        id: "1",
-        completed_at: "2022-07-13T19:34:03Z",
-        html_url: "abcdefg",
-        head_sha: "abcdefg",
-        failure_captures: [],
-      })
+      Promise.resolve(
+        getDummyJob({
+          id: 1,
+          completed_at: "2022-07-13 19:34:03",
+          html_url: "abcdefg",
+          head_sha: "abcdefg",
+          failure_captures: [],
+        })
+      )
     );
 
-    const originalWorkflows = [failedA, failedB];
+    const originalWorkflows = [failedB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
@@ -798,17 +817,17 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(0);
-    expect(flakyJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(0);
   });
 
   test("test jobs excluded from flaky detection", async () => {
     const excludedFailure = {
-      id: "1",
+      id: 1,
       runnerName: "dummy",
       name: "Lint / lintrunner / linux-job",
       conclusion: "failure",
-      completed_at: "2023-10-13T15:00:48Z",
+      completed_at: "2023-10-13 15:00:48",
       html_url: "a",
       head_sha: "abcdefg",
       pr_number: 1001,
@@ -816,7 +835,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failure_lines: [">>> Lint for torch/_dynamo/output_graph.py:"],
     };
 
-    const originalWorkflows = [excludedFailure];
+    const originalWorkflows = [getDummyJob(excludedFailure)];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       "pytorch",
       "pytorch",
@@ -835,14 +854,14 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
   test("test failed workflows go away if theres a new one", async () => {
     const failedWorkflow = getDummyJob({
-      workflowId: undefined,
-      id: "1",
+      workflowId: 0,
+      id: 1,
       name: "weird name",
       conclusion: "failure",
     });
     const newWorkflow = getDummyJob({
-      workflowId: undefined,
-      id: "2",
+      workflowId: 0,
+      id: 2,
       name: "correct name",
     });
 
@@ -866,25 +885,25 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
   test("test new failed workflow overrides old succeeding workflow", async () => {
     const newFailedWorkflow = getDummyJob({
-      workflowId: undefined,
-      id: "2",
+      workflowId: 0,
+      id: 2,
       name: "weird name",
       conclusion: "failure",
     });
     const oldSuccessfulWorkflow = getDummyJob({
-      workflowId: undefined,
-      id: "1",
+      workflowId: 0,
+      id: 1,
       name: "correct name",
     });
     const oldSuccessfulWorkflowsJobs = [
       getDummyJob({
         workflowId: 1,
-        id: "3",
+        id: 3,
         name: "correct name",
       }),
       getDummyJob({
         workflowId: 1,
-        id: "4",
+        id: 4,
         name: "correct name",
       }),
     ];

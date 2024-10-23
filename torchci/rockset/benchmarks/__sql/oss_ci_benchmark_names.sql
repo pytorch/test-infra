@@ -5,6 +5,8 @@ SELECT DISTINCT
   o.metric,
   o.dtype,
   o.device,
+  -- NB: Default to NVIDIA A100-SXM4-40GB for old records without arch column
+  IF(o.arch IS NULL, 'NVIDIA A100-SXM4-40GB', o.arch) as arch,
 FROM
   benchmarks.oss_ci_benchmark_v2 o
   LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id

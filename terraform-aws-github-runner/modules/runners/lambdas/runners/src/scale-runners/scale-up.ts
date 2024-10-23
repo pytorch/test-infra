@@ -7,6 +7,7 @@ import {
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
+  getGitHubRateLimit,
 } from './gh-runners';
 
 import { Config } from './config';
@@ -54,13 +55,19 @@ export async function scaleUp(
   metrics.runRepo(repo);
   metrics.run();
 
-  const runnerTypes = await getRunnerTypes(
-    {
-      owner: repo.owner,
-      repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
-    },
-    metrics,
-  );
+  try {
+    const ghLimitInfo = await getGitHubRateLimit(repo, metrics);
+    metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
+  } catch (e) {
+    /* istanbul ignore next */
+    console.error(`Error getting GitHub rate limit: ${e}`);
+  }
+
+  const scaleConfigRepo = {
+    owner: repo.owner,
+    repo: Config.Instance.scaleConfigRepo || repo.repo,
+  };
+  const runnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
   /* istanbul ignore next */
   const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
 
@@ -69,7 +76,10 @@ export async function scaleUp(
   for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
     if (runnerType === undefined) {
-      console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
+      console.info(
+        `Runner label '${runnerLabel}' was not found in config at ` +
+          `${scaleConfigRepo.owner}/${scaleConfigRepo.repo}/${Config.Instance.scaleConfigRepoPath}`,
+      );
       continue;
     }
     const runnersToCreate = await allRunnersBusy(
@@ -236,11 +246,13 @@ async function allRunnersBusy(
 
   // Have a fail safe just in case we're likely to need more runners
   const availableCount = runnersWithLabel.length - busyCount;
-  if (availableCount < Config.Instance.minAvailableRunners) {
-    console.info(`Available (${availableCount}) runners is bellow minimum ${Config.Instance.minAvailableRunners}`);
+  // Min runners for scale-up must be at least 1 otherwise scale-up won't ever increase runners
+  const minRunners = Config.Instance.minAvailableRunners > 0 ? Config.Instance.minAvailableRunners : 1;
+  if (availableCount < minRunners) {
+    console.info(`Available (${availableCount}) runners is below minimum ${minRunners}`);
     // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
     if (isEphemeral) {
-      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.5);
+      const ratio: number = availableCount / (minRunners * 1.5);
       return Math.random() < ratio ? 3 : 1;
     } else {
       return 1;

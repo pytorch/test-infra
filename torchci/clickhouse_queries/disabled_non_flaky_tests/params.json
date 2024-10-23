@@ -1,0 +1,4 @@
+{
+  "max_num_red": "Int64",
+  "min_num_green": "Int64"
+}

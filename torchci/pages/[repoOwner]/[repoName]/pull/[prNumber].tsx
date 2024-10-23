@@ -1,9 +1,10 @@
 import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
+import { useCHContext } from "components/UseClickhouseProvider";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -17,8 +18,11 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
+  const useCH = useCHContext().useCH;
   const { data: commitData, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
+    sha != null
+      ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
+      : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -92,10 +96,11 @@ function Page() {
   const router = useRouter();
 
   const { repoOwner, repoName, prNumber, sha } = router.query;
+  const useCH = useCHContext().useCH;
 
   let swrKey;
   if (prNumber !== undefined) {
-    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}`;
+    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}?use_ch=${useCH}`;
   }
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;

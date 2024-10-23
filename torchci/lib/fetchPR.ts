@@ -1,32 +1,25 @@
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
+import { queryClickhouseSaved } from "./clickhouse";
 import getRocksetClient from "./rockset";
 import { PRData } from "./types";
 
-export default async function fetchPR(
+async function fetchHistoricalCommits(
   owner: string,
   repo: string,
   prNumber: string,
-  octokit: Octokit
-): Promise<PRData> {
-  // We pull data from both Rockset and Github to get all commits, including
-  // the ones that have been force merged out of the git history.
-  // Rockset is the primary source, GitHub covers anything newer that might
-  // have been missed.
+  useClickhouse: boolean
+) {
+  if (useClickhouse) {
+    return await queryClickhouseSaved("pr_commits", {
+      pr_num: prNumber,
+      owner,
+      repo,
+    });
+  }
   const rocksetClient = getRocksetClient();
-  const [pull, commits, historicalCommits] = await Promise.all([
-    octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: parseInt(prNumber),
-    }),
-    octokit.paginate(octokit.rest.pulls.listCommits, {
-      owner,
-      repo,
-      pull_number: parseInt(prNumber),
-      per_page: 100,
-    }),
-    rocksetClient.queryLambdas.executeQueryLambda(
+  return (
+    await rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "pr_commits",
       rocksetVersions.commons.pr_commits as string,
@@ -49,12 +42,39 @@ export default async function fetchPR(
           },
         ],
       }
-    ),
+    )
+  ).results!;
+}
+
+export default async function fetchPR(
+  owner: string,
+  repo: string,
+  prNumber: string,
+  octokit: Octokit,
+  useClickhouse: boolean = true
+): Promise<PRData> {
+  // We pull data from both Rockset and Github to get all commits, including
+  // the ones that have been force merged out of the git history.
+  // Rockset is the primary source, GitHub covers anything newer that might
+  // have been missed.
+  const [pull, commits, historicalCommits] = await Promise.all([
+    octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: parseInt(prNumber),
+    }),
+    octokit.paginate(octokit.rest.pulls.listCommits, {
+      owner,
+      repo,
+      pull_number: parseInt(prNumber),
+      per_page: 100,
+    }),
+    fetchHistoricalCommits(owner, repo, prNumber, useClickhouse),
   ]);
   const title = pull.data.title;
   const body = pull.data.body ?? "";
 
-  let shas = historicalCommits.results!.map((commit) => {
+  let shas = historicalCommits.map((commit) => {
     return { sha: commit.sha, title: commit.message.split("\n")[0] };
   });
 

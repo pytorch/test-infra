@@ -1,0 +1,20 @@
+name: Test upload-benchmark-results
+
+on:
+  pull_request:
+    paths:
+      - .github/scripts/upload_benchmark_results.py
+      - .github/workflows/test_upload_benchmark_results.ym
+      - .github/actions/upload-benchmark-results/*
+
+jobs:
+  test:
+    runs-on: linux.2xlarge
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test upload the benchmark results
+        uses: ./.github/actions/upload-benchmark-results
+        with:
+          benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing
+          dry-run: true

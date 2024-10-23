@@ -1,8 +1,10 @@
 import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
+import { TIME_0 } from "lib/bot/utils";
 import { JobData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as commitUtils from "../lib/commitUtils";
+import * as drciUtils from "../lib/drciUtils";
 import {
   getSuppressedLabels,
   hasSimilarFailures,
@@ -15,6 +17,7 @@ import {
 } from "../lib/drciUtils";
 import * as jobUtils from "../lib/jobUtils";
 import * as searchUtils from "../lib/searchUtils";
+import { getDummyJob } from "./drci.test";
 
 nock.disableNetConnect();
 
@@ -28,24 +31,28 @@ describe("Test various utils used by Dr.CI", () => {
 
   test("test hasSimilarFailures", async () => {
     const headBranch = "main";
-    const emptyBaseCommitDate = "";
+    const emptyBaseCommitDate = TIME_0;
     const lookbackPeriodInHours = 24;
-    const mockHeadShaDate = dayjs("2023-08-01T00:00:00Z");
-    const job: RecentWorkflowsData = {
-      id: "12345",
+    const mockHeadShaDate = dayjs("2023-08-01T00:00:00Z").utc();
+    const job: RecentWorkflowsData = getDummyJob({
+      id: 12345,
       name: "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
       html_url: "A",
       head_sha: "A",
-      head_sha_timestamp: mockHeadShaDate.toISOString(),
+      head_sha_timestamp: mockHeadShaDate.format("YYYY-MM-DD HH:mm:ss"),
       failure_captures: ["ERROR"],
       conclusion: "failure",
-      completed_at: mockHeadShaDate.toISOString(),
+      completed_at: mockHeadShaDate.format("YYYY-MM-DD HH:mm:ss"),
       head_branch: "whatever",
+    });
+    const jobWithGenericError: RecentWorkflowsData = {
+      ...job,
+      failure_captures: ["##[error]The operation was canceled."],
     };
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
     mock.mockImplementation(() => Promise.resolve({ jobs: [] }));
-    const mockJobUtils = jest.spyOn(jobUtils, "isSameAuthor");
+    const mockJobUtils = jest.spyOn(drciUtils, "isSameAuthor");
     mockJobUtils.mockImplementation(() => Promise.resolve(false));
     const mockCommitUtils = jest.spyOn(
       commitUtils,
@@ -74,7 +81,7 @@ describe("Test various utils used by Dr.CI", () => {
       id: "54321",
       branch: headBranch,
       workflowId: "12345",
-      time: mockHeadShaDate.toISOString(),
+      time: mockHeadShaDate.format("YYYY-MM-DD HH:mm:ss"),
       conclusion: "failure",
       htmlUrl: "Anything goes",
       failureLines: ["ERROR"],
@@ -101,11 +108,14 @@ describe("Test various utils used by Dr.CI", () => {
       failure_lines: mockJobData.failureLines,
       head_branch: mockJobData.branch,
       head_sha: mockJobData.sha,
+      head_sha_timestamp: TIME_0,
       html_url: mockJobData.htmlUrl,
       id: mockJobData.id,
       jobName: mockJobData.jobName,
       name: mockJobData.name,
+      pr_number: 0,
       workflowId: mockJobData.workflowId,
+      workflowUniqueId: 0,
     });
     expect(JSON.stringify(mock.mock.calls)).toEqual(
       JSON.stringify([
@@ -165,7 +175,7 @@ describe("Test various utils used by Dr.CI", () => {
     // Found a match, but it has the same job ID, thus the same job
     expect(
       await hasSimilarFailures(
-        { ...job, id: mockJobData.id! },
+        { ...job, id: mockJobData.id! as any as number },
         emptyBaseCommitDate,
         [],
         lookbackPeriodInHours,
@@ -200,7 +210,9 @@ describe("Test various utils used by Dr.CI", () => {
     await hasSimilarFailures(
       {
         ...job,
-        head_sha_timestamp: mockHeadShaDate.subtract(1, "hour").toISOString(),
+        head_sha_timestamp: mockHeadShaDate
+          .subtract(1, "hour")
+          .format("YYYY-MM-DD HH:mm:ss"),
       },
       emptyBaseCommitDate,
       [],
@@ -229,9 +241,11 @@ describe("Test various utils used by Dr.CI", () => {
     await hasSimilarFailures(
       {
         ...job,
-        head_sha_timestamp: mockHeadShaDate.subtract(1, "hour").toISOString(),
+        head_sha_timestamp: mockHeadShaDate
+          .subtract(1, "hour")
+          .format("YYYY-MM-DD HH:mm:ss"),
       },
-      mockHeadShaDate.subtract(20, "hour").toISOString(),
+      mockHeadShaDate.subtract(20, "hour").format("YYYY-MM-DD HH:mm:ss"),
       [],
       lookbackPeriodInHours,
       "TESTING" as unknown as Client
@@ -265,7 +279,7 @@ describe("Test various utils used by Dr.CI", () => {
               1,
             "hour"
           )
-          .toISOString(),
+          .format("YYYY-MM-DD HH:mm:ss"),
         [],
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
@@ -277,7 +291,7 @@ describe("Test various utils used by Dr.CI", () => {
     // Auto return false if no head sha timestamp
     expect(
       await hasSimilarFailures(
-        { ...job, head_sha_timestamp: "" },
+        { ...job, head_sha_timestamp: TIME_0 },
         emptyBaseCommitDate,
         [],
         lookbackPeriodInHours,
@@ -297,12 +311,23 @@ describe("Test various utils used by Dr.CI", () => {
         "TESTING" as unknown as Client
       )
     ).toEqual(undefined);
+
+    // Found a match but it has a generic error
+    expect(
+      await hasSimilarFailures(
+        jobWithGenericError,
+        emptyBaseCommitDate,
+        [],
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toEqual(undefined);
   });
 
   test("test isInfraFlakyJob", () => {
     // Not a workflow job
-    const notInfraFlakyFailure: RecentWorkflowsData = {
-      id: "A",
+    const notInfraFlakyFailure: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -312,16 +337,16 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
 
     // Set the workflow ID to mark this as a workflow job
-    notInfraFlakyFailure.workflowId = "A";
+    notInfraFlakyFailure.workflowId = 1;
     expect(isInfraFlakyJob(notInfraFlakyFailure)).toEqual(false);
 
-    const notInfraFlakyFailureAgain: RecentWorkflowsData = {
-      id: "A",
-      workflowId: "A",
+    const notInfraFlakyFailureAgain: RecentWorkflowsData = getDummyJob({
+      id: 1,
+      workflowId: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -331,12 +356,12 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(isInfraFlakyJob(notInfraFlakyFailureAgain)).toEqual(false);
 
-    const isInfraFlakyFailure: RecentWorkflowsData = {
-      id: "A",
-      workflowId: "A",
+    const isInfraFlakyFailure: RecentWorkflowsData = getDummyJob({
+      id: 1,
+      workflowId: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -346,7 +371,7 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "",
-    };
+    });
     expect(isInfraFlakyJob(isInfraFlakyFailure)).toEqual(true);
   });
 
@@ -355,8 +380,8 @@ describe("Test various utils used by Dr.CI", () => {
     mockJobUtils.mockImplementation(() => Promise.resolve(true));
 
     // Not a workflow job
-    const mockFailure: RecentWorkflowsData = {
-      id: "A",
+    const mockFailure: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -366,17 +391,17 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(await isLogClassifierFailed(mockFailure)).toEqual(false);
 
     // Has log and failure lines and is a workflow job
-    mockFailure.workflowId = "A";
+    mockFailure.workflowId = 1;
     expect(await isLogClassifierFailed(mockFailure)).toEqual(false);
 
     // Has log but not failure lines (log classifier not triggered)
-    const logClassifierNotTriggered: RecentWorkflowsData = {
-      id: "A",
-      workflowId: "A",
+    const logClassifierNotTriggered: RecentWorkflowsData = getDummyJob({
+      id: 1,
+      workflowId: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -386,7 +411,7 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(await isLogClassifierFailed(logClassifierNotTriggered)).toEqual(
       true
     );
@@ -397,8 +422,8 @@ describe("Test various utils used by Dr.CI", () => {
   });
 
   test("test isExcludedFromFlakiness", () => {
-    const excludedJob: RecentWorkflowsData = {
-      id: "A",
+    const excludedJob: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "LinT / quick-checks / linux-job",
       html_url: "A",
       head_sha: "A",
@@ -408,11 +433,11 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(isExcludedFromFlakiness(excludedJob)).toEqual(true);
 
-    const anotherExcludedJob: RecentWorkflowsData = {
-      id: "A",
+    const anotherExcludedJob: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "pull / linux-docs / build-docs-python-false",
       html_url: "A",
       head_sha: "A",
@@ -422,11 +447,11 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(isExcludedFromFlakiness(anotherExcludedJob)).toEqual(true);
 
-    const notExcludedJob: RecentWorkflowsData = {
-      id: "A",
+    const notExcludedJob: RecentWorkflowsData = getDummyJob({
+      id: 1,
       name: "A",
       html_url: "A",
       head_sha: "A",
@@ -436,21 +461,32 @@ describe("Test various utils used by Dr.CI", () => {
       completed_at: "2023-08-01T00:00:00Z",
       head_branch: "whatever",
       runnerName: "dummy",
-    };
+    });
     expect(isExcludedFromFlakiness(notExcludedJob)).toEqual(false);
   });
 
+  test("test isExcludedFromBrokenTrunk", () => {
+    const notExcludedJob: RecentWorkflowsData = getDummyJob({});
+    expect(drciUtils.isExcludedFromBrokenTrunk(notExcludedJob)).toEqual(false);
+
+    const excludedJob: RecentWorkflowsData = {
+      ...notExcludedJob,
+      name: "LinT / quick-checks / linux-job",
+    };
+    expect(drciUtils.isExcludedFromBrokenTrunk(excludedJob)).toEqual(true);
+  });
+
   test("test getSuppressedLabels", () => {
-    const job: RecentWorkflowsData = {
+    const job: RecentWorkflowsData = getDummyJob({
       jobName: "not suppressed job",
 
       // Doesn't matter, just mocking
-      id: "A",
+      id: 1,
       completed_at: "2023-08-01T00:00:00Z",
       html_url: "A",
       head_sha: "A",
       failure_captures: ["ERROR"],
-    };
+    });
 
     // Not supported
     expect(getSuppressedLabels(job, ["anything goes"])).toEqual([]);
@@ -475,16 +511,16 @@ describe("Test various utils used by Dr.CI", () => {
   });
 
   test("test isExcludedFromSimilarityPostProcessing", () => {
-    const job: RecentWorkflowsData = {
+    const job: RecentWorkflowsData = getDummyJob({
       jobName: "A job name",
 
       // Doesn't matter, just mocking
-      id: "A",
+      id: 1,
       completed_at: "2023-08-01T00:00:00Z",
       html_url: "A",
       head_sha: "A",
       failure_captures: [],
-    };
+    });
     expect(isExcludedFromSimilarityPostProcessing(job)).toEqual(false);
 
     job.failure_captures.push("ERROR");
@@ -495,50 +531,52 @@ describe("Test various utils used by Dr.CI", () => {
   });
 
   test("test hasSimilarFailuresInSamePR", () => {
-    const job: RecentWorkflowsData = {
+    const job: RecentWorkflowsData = getDummyJob({
       name: "a job name",
 
       // Doesn't matter, just mocking
-      id: "A",
-      completed_at: "2023-08-01T00:00:00Z",
-      html_url: "A",
-      head_sha: "A",
-      failure_captures: ["A mock error"],
-    };
-    const failures: RecentWorkflowsData[] = [
-      {
-        name: "a job name",
-
-        // Doesn't matter, just mocking
-        id: "A",
-        completed_at: "2023-08-01T00:00:00Z",
-        html_url: "A",
-        head_sha: "A",
-        failure_captures: ["A different mock error"],
-      },
-      {
-        name: "a different job name",
-
-        // Doesn't matter, just mocking
-        id: "A",
-        completed_at: "2023-08-01T00:00:00Z",
-        html_url: "A",
-        head_sha: "A",
-        failure_captures: ["A different mock error"],
-      },
-    ];
-    expect(hasSimilarFailuresInSamePR(job, failures)).toEqual(undefined);
-
-    failures.push({
-      name: "another different job name",
-
-      // Doesn't matter, just mocking
-      id: "A",
+      id: 1,
       completed_at: "2023-08-01T00:00:00Z",
       html_url: "A",
       head_sha: "A",
       failure_captures: ["A mock error"],
     });
+    const failures: RecentWorkflowsData[] = [
+      getDummyJob({
+        name: "a job name",
+
+        // Doesn't matter, just mocking
+        id: 1,
+        completed_at: "2023-08-01T00:00:00Z",
+        html_url: "A",
+        head_sha: "A",
+        failure_captures: ["A different mock error"],
+      }),
+      getDummyJob({
+        name: "a different job name",
+
+        // Doesn't matter, just mocking
+        id: 1,
+        completed_at: "2023-08-01T00:00:00Z",
+        html_url: "A",
+        head_sha: "A",
+        failure_captures: ["A different mock error"],
+      }),
+    ];
+    expect(hasSimilarFailuresInSamePR(job, failures)).toEqual(undefined);
+
+    failures.push(
+      getDummyJob({
+        name: "another different job name",
+
+        // Doesn't matter, just mocking
+        id: 1,
+        completed_at: "2023-08-01T00:00:00Z",
+        html_url: "A",
+        head_sha: "A",
+        failure_captures: ["A mock error"],
+      })
+    );
     expect(hasSimilarFailuresInSamePR(job, failures)?.name).toEqual(
       "another different job name"
     );
