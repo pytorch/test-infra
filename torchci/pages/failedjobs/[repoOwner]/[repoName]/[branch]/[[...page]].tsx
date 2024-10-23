@@ -99,13 +99,12 @@ function FailedJob({
 }
 
 function FailedJobsByFailure({
-  jobsBySha,
+  jobs,
   annotations,
 }: {
-  jobsBySha: { [sha: string]: JobData };
+  jobs: { [sha: string]: JobData };
   annotations: { [id: string]: { [key: string]: any } };
 }) {
-  const jobs: JobData[] = _.map(jobsBySha);
   // Select a random representative job in the group of similar jobs. Once
   // this job is classified, the rest will be put into the same category
   const job: JobData | undefined = _.sample(jobs);
@@ -159,7 +158,7 @@ function FailedJobs({
   // Grouped by annotation then by job name
   const groupedJobs: {
     [annotation: string]: {
-      [name: string]: { [sha: string]: JobData };
+      [name: string]: JobData[];
     };
   } = {};
 
@@ -186,13 +185,10 @@ function FailedJobs({
 
     const failure = jobName + workflowName + failureCaptures;
     if (!(failure in groupedJobs[annotation])) {
-      groupedJobs[annotation][failure] = {};
+      groupedJobs[annotation][failure] = [];
     }
 
-    const sha = job.sha;
-    if (!(sha in groupedJobs[annotation][failure])) {
-      groupedJobs[annotation][failure][sha] = job;
-    }
+    groupedJobs[annotation][failure].push(job);
   });
 
   return (
@@ -211,17 +207,17 @@ function FailedJobs({
             {_.reduce(
               groupedJobsByFailure,
               (s, v) => {
-                return s + Object.keys(v).length;
+                return s + v.length;
               },
               0
             )}
             )
           </summary>
           <ul>
-            {_.map(groupedJobsByFailure, (jobsBySha, failure) => (
+            {_.map(groupedJobsByFailure, (jobs, failure) => (
               <FailedJobsByFailure
                 key={failure}
-                jobsBySha={jobsBySha}
+                jobs={jobs}
                 annotations={annotations}
               />
             ))}
