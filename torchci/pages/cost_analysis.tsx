@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import TimeSeriesPanel, {
   ChartType,
@@ -30,10 +30,10 @@ import React, { useEffect, useState } from "react";
 import { FaFilter, FaInfoCircle } from "react-icons/fa";
 import useSWR from "swr";
 
-function TimePicker({ label, value, setValue }: any) {
+function CustomDatePicker({ label, value, setValue }: any) {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <DateTimePicker
+      <DatePicker
         renderInput={(props) => <TextField {...props} />}
         label={label}
         value={value}
@@ -48,32 +48,32 @@ function TimePicker({ label, value, setValue }: any) {
 /**
  * Allows the user to pick from common time ranges, or manually set their own.
  */
-export function TimeRangePicker({
-  startTime,
-  setStartTime,
-  stopTime,
-  setStopTime,
-  timeRange,
-  setTimeRange,
+export function DateRangePicker({
+  startDate,
+  setStartDate,
+  stopDate,
+  setStopDate,
+  dateRange,
+  setDateRange,
   setGranularity,
 }: {
-  startTime: dayjs.Dayjs;
-  setStartTime: any;
-  stopTime: dayjs.Dayjs;
-  setStopTime: any;
-  timeRange: any;
-  setTimeRange: any;
+  startDate: dayjs.Dayjs;
+  setStartDate: any;
+  stopDate: dayjs.Dayjs;
+  setStopDate: any;
+  dateRange: any;
+  setDateRange: any;
   setGranularity?: any;
 }) {
   function handleChange(e: SelectChangeEvent<number>) {
-    setTimeRange(e.target.value as number);
+    setDateRange(e.target.value as number);
     // The user wants to set a custom time, don't change the start and stop
     // time.
     if (e.target.value !== -1) {
-      const startTime = dayjs().subtract(e.target.value as number, "day");
-      setStartTime(startTime);
-      const stopTime = dayjs();
-      setStopTime(stopTime);
+      const startDate = dayjs().subtract(e.target.value as number, "day");
+      setStartDate(startDate);
+      const stopDate = dayjs();
+      setStopDate(stopDate);
     }
 
     if (setGranularity === undefined) {
@@ -106,7 +106,7 @@ export function TimeRangePicker({
       <FormControl>
         <InputLabel id="time-picker-select-label">Time Range</InputLabel>
         <Select
-          value={timeRange}
+          value={dateRange}
           label="Time Range"
           labelId="time-picker-select-label"
           onChange={handleChange}
@@ -123,17 +123,17 @@ export function TimeRangePicker({
           <MenuItem value={-1}>Custom</MenuItem>
         </Select>
       </FormControl>
-      {timeRange === -1 && (
+      {dateRange === -1 && (
         <>
-          <TimePicker
-            label={"Start Time"}
-            value={startTime}
-            setValue={setStartTime}
+          <CustomDatePicker
+            label={"Start Date"}
+            value={startDate}
+            setValue={setStartDate}
           />
-          <TimePicker
-            label={"Stop Time"}
-            value={stopTime}
-            setValue={setStopTime}
+          <CustomDatePicker
+            label={"End Date"}
+            value={stopDate}
+            setValue={setStopDate}
           />
         </>
       )}
@@ -193,10 +193,10 @@ export default function Page() {
 
   const { query } = router;
 
-  const initialStartTime = query.startTime
+  const initialStartDate = query.startDate
     ? dayjs(query.startDate as string)
     : dayjs().subtract(7, "day");
-  const initialStopTime = query.stopTime
+  const initialStopDate = query.stopDate
     ? dayjs(query.endDate as string)
     : dayjs();
   const initialGranularity = query.granularity || "day";
@@ -218,15 +218,15 @@ export default function Page() {
     : undefined;
 
   // State variables
-  const [startTime, setStartTime] = useState(initialStartTime);
-  const [stopTime, setStopTime] = useState(initialStopTime);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [stopDate, setStopDate] = useState(initialStopDate);
   const [selectedRepos, setSelectedRepos] = useState<string[]>();
   const [availableRepos, setAvailableRepos] = useState<string[]>([]);
 
   const [granularity, setGranularity] = useState<Granularity>(
     initialGranularity as Granularity
   );
-  const [timeRange, setTimeRange] = useState(7);
+  const [dateRange, setDateRange] = useState(7);
   const [groupby, setGroupBy] = useState<CostCategory>(
     initialGroupBy as CostCategory
   );
@@ -246,8 +246,8 @@ export default function Page() {
   );
 
   const timeParamsClickHouse = {
-    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    startTime: startDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
   const url = `/api/clickhouse/unique_repos_in_runnercost?parameters=${encodeURIComponent(
@@ -279,9 +279,9 @@ export default function Page() {
     if (!router.isReady) return;
 
     const params = new URLSearchParams();
-    if (startTime && stopTime) {
-      params.set("startDate", startTime.utc().format("YYYY-MM-DD"));
-      params.set("endDate", stopTime.utc().format("YYYY-MM-DD"));
+    if (startDate && stopDate) {
+      params.set("startDate", startDate.utc().format("YYYY-MM-DD"));
+      params.set("endDate", stopDate.utc().format("YYYY-MM-DD"));
     }
 
     if (granularity) params.set("granularity", granularity);
@@ -308,10 +308,10 @@ export default function Page() {
       query: params.toString(),
     });
   }, [
-    startTime,
-    stopTime,
+    startDate,
+    stopDate,
     granularity,
-    timeRange,
+    dateRange,
     groupby,
     chartType,
     selectedGPU,
@@ -535,13 +535,13 @@ export default function Page() {
       </Stack>
       <Grid container spacing={2}>
         <Grid item xs={8}>
-          <TimeRangePicker
-            startTime={startTime}
-            setStartTime={setStartTime}
-            stopTime={stopTime}
-            setStopTime={setStopTime}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
+          <DateRangePicker
+            startDate={startDate}
+            setStartDate={setStartDate}
+            stopDate={stopDate}
+            setStopDate={setStopDate}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
           />
           <FormControl style={{ marginLeft: 10, minWidth: 100 }}>
             <InputLabel id="granularity-select-label">Granularity</InputLabel>
