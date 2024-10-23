@@ -115,3 +115,16 @@ export function mockAddLabels(
     .reply(200, {});
   return scope;
 }
+
+export function mockHasApprovedWorkflowRun(repoFullName: string) {
+  nock("https://api.github.com")
+    .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
+    .reply(200, {
+      workflow_runs: [
+        {
+          event: "pull_request",
+          conclusion: "success",
+        },
+      ],
+    });
+}
