@@ -103,7 +103,7 @@ PACKAGE_ALLOW_LIST = {
     "importlib_resources",
     "zipp",
     # ----
-    "pillow",
+    "Pillow",
     "certifi",
     "charset_normalizer",
     "cmake",
@@ -180,6 +180,8 @@ PACKAGE_ALLOW_LIST = {
     "setuptools",
     "wheel"
 }
+
+PACKAGE_ALLOW_LIST=[x.lower() for x in PACKAGE_ALLOW_LIST]
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
 # Group 1: torch-2.0.0.dev
@@ -278,7 +280,7 @@ class S3Index:
             package_name = full_package_name.split('-')[0]
             package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
-            if package_name not in PACKAGE_ALLOW_LIST and package_name.lower() not in PACKAGE_ALLOW_LIST:
+            if package_name.lower() not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
             if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
