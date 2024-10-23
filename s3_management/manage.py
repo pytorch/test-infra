@@ -104,6 +104,7 @@ PACKAGE_ALLOW_LIST = {
     "zipp",
     # ----
     "Pillow",
+    "pillow",
     "certifi",
     "charset_normalizer",
     "cmake",
