@@ -6,7 +6,6 @@ import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
-import { RocksetParam } from "lib/rockset";
 import { JobAnnotation, JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
@@ -38,14 +37,17 @@ function SimilarFailedJobs({
         {showDetail ? "▼ " : "▶ "}
         <code>Failing {similarJobs.length} times</code>
       </button>
-      {showDetail &&
-        _.map(similarJobs, (job) => (
-          <FailedJob
-            job={job}
-            similarJobs={[]}
-            classification={classification}
-          />
-        ))}
+      <ul>
+        {showDetail &&
+          _.map(similarJobs, (job) => (
+            <FailedJob
+              job={job}
+              similarJobs={[]}
+              classification={classification}
+              key={job.id}
+            />
+          ))}
+      </ul>
     </div>
   );
 }
@@ -97,12 +99,13 @@ function FailedJob({
 }
 
 function FailedJobsByFailure({
-  jobs,
+  jobsBySha,
   annotations,
 }: {
-  jobs: JobData[];
+  jobsBySha: { [sha: string]: JobData };
   annotations: { [id: string]: { [key: string]: any } };
 }) {
+  const jobs: JobData[] = _.map(jobsBySha);
   // Select a random representative job in the group of similar jobs. Once
   // this job is classified, the rest will be put into the same category
   const job: JobData | undefined = _.sample(jobs);
@@ -125,7 +128,7 @@ function FailedJobs({
   repoName,
   repoOwner,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   repoName: string;
   repoOwner: string;
 }) {
@@ -133,7 +136,7 @@ function FailedJobs({
   // their annotation is not a scalable solution because the list of failures
   // could be longer than the browser-dependent URL-length limit. The workaround
   // here is to send the query param over to another annotation API that will then
-  // make a query to Rockset to get the list of failed jobs itself and return the
+  // make a query to the db to get the list of failed jobs itself and return the
   // list to the caller here
   const { data: failedJobsWithAnnotations } = useSWR(
     `/api/job_annotation/${repoOwner}/${repoName}/failures/${encodeURIComponent(
@@ -156,7 +159,7 @@ function FailedJobs({
   // Grouped by annotation then by job name
   const groupedJobs: {
     [annotation: string]: {
-      [name: string]: JobData[];
+      [name: string]: { [sha: string]: JobData };
     };
   } = {};
 
@@ -183,10 +186,13 @@ function FailedJobs({
 
     const failure = jobName + workflowName + failureCaptures;
     if (!(failure in groupedJobs[annotation])) {
-      groupedJobs[annotation][failure] = [];
+      groupedJobs[annotation][failure] = {};
     }
 
-    groupedJobs[annotation][failure].push(job);
+    const sha = job.sha;
+    if (!(sha in groupedJobs[annotation][failure])) {
+      groupedJobs[annotation][failure][sha] = job;
+    }
   });
 
   return (
@@ -205,17 +211,17 @@ function FailedJobs({
             {_.reduce(
               groupedJobsByFailure,
               (s, v) => {
-                return s + v.length;
+                return s + Object.keys(v).length;
               },
               0
             )}
             )
           </summary>
           <ul>
-            {_.map(groupedJobsByFailure, (jobs, failure) => (
+            {_.map(groupedJobsByFailure, (jobsBySha, failure) => (
               <FailedJobsByFailure
                 key={failure}
-                jobs={jobs}
+                jobsBySha={jobsBySha}
                 annotations={annotations}
               />
             ))}
@@ -233,33 +239,12 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "repo",
-      type: "string",
-      value: `${repoOwner}/${repoName}`,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: `${branch}`,
-    },
-    {
-      name: "count",
-      type: "int",
-      value: "0", // Set the count to 0 to query all failures
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    branch: branch,
+    repo: `${repoOwner}/${repoName}`,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   return (
     <div>
