@@ -23,11 +23,11 @@ import TimeSeriesPanel, {
 import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
-// import an image from the public folder, bar-chart.png
-import Image from "next/image";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
-import { FaFilter, FaInfoCircle } from "react-icons/fa";
+import { BiLineChart } from "react-icons/bi";
+import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
+import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
 
 function CustomDatePicker({ label, value, setValue }: any) {
@@ -586,12 +586,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <Image
-                        src="/bar-chart.png"
-                        alt="stacked bar chart"
-                        width={20}
-                        height={20}
-                      />
+                      <MdOutlineStackedBarChart size={"2em"} fill="#444" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -602,12 +597,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <Image
-                        src="/bar-graph.png"
-                        alt="bar chart"
-                        width={20}
-                        height={20}
-                      />
+                      <FaRegChartBar size={"2em"} fill="#444" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -618,12 +608,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <Image
-                        src="/chart.png"
-                        alt="line chart"
-                        width={20}
-                        height={20}
-                      />
+                      <BiLineChart size={"2em"} fill="#444" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
