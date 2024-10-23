@@ -9,9 +9,6 @@ nock.disableNetConnect();
 
 describe("autoLabelCodevTrunkBot", () => {
   let probot: Probot;
-  function emptyMockConfig(repoFullName: string) {
-    utils.mockConfig("pytorch-probot.yml", "", repoFullName);
-  }
 
   beforeEach(() => {
     probot = utils.testProbot();
@@ -20,7 +17,6 @@ describe("autoLabelCodevTrunkBot", () => {
     mock.mockReturnValue(true);
     // zhouzhuojie/gha-ci-playground is the repo used in almost all the tests
     utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
-    emptyMockConfig("zhouzhuojie/gha-ci-playground");
   });
 
   afterEach(() => {
@@ -98,9 +94,6 @@ describe("autoLabelCodevTrunkBot", () => {
     const scope = [
       utils.mockPermissions(repoFullName, author, "read"),
       utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
-      utils.mockPostComment(repoFullName, pr_number, [
-        "This appears to be a diff that was exported from phabricator, ",
-      ]),
     ];
     await probot.receive(event);
 
@@ -147,9 +140,6 @@ describe("autoLabelCodevTrunkBot", () => {
     const scope = [
       utils.mockPermissions(repoFullName, author, "read"),
       utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
-      utils.mockPostComment(repoFullName, pr_number, [
-        "This appears to be a diff that was exported from phabricator, ",
-      ]),
     ];
     await probot.receive(event);
 
