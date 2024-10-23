@@ -57,7 +57,7 @@ weekly_results AS (
     SELECT
         bucket,
         'non-ghfirst-total' AS code,
-        SUM(num)
+        SUM(num) AS num
     FROM
         coded_reverts
     WHERE
