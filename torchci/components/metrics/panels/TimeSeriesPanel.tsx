@@ -357,7 +357,7 @@ export default function TimeSeriesPanel({
     groupByFieldName,
     timeFieldName,
     yAxisFieldName,
-    false,
+    true,
     smooth,
     sort_by,
     chartType,
