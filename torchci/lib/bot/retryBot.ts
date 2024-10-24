@@ -1,4 +1,4 @@
-import { queryClickhouseSaved } from "lib/clickhouse";
+import { queryClickhouseSaved } from "../clickhouse";
 import { Probot } from "probot";
 import { CachedConfigTracker } from "./utils";
 
