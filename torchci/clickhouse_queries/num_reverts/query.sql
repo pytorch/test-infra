@@ -13,7 +13,7 @@ WITH coded_reverts AS (
             issue_comment.issue_url,
             MAX(issue_comment.created_at) AS created
         FROM
-            default.issue_comment
+            default.issue_comment FINAL
         WHERE
             match(issue_comment.body, '@pytorch(merge|)bot revert')
         GROUP BY
