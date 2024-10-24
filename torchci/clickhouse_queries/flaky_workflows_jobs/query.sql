@@ -114,7 +114,7 @@ SELECT
     annotation.annotation
 FROM
     flaky_jobs
-    LEFT JOIN default .job_annotation annotation on annotation.jobID = flaky_jobs.job_id
+    LEFT JOIN default .job_annotation annotation FINAL on annotation.jobID = flaky_jobs.job_id
 WHERE
     (
         (

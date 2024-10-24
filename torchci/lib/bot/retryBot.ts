@@ -15,7 +15,7 @@ async function getFlakyJobsFromPreviousWorkflow(
   const flakyJobs = await queryClickhouseSaved("flaky_workflows_jobs", {
     branches: [branch],
     maxAttempt: 1, // If the job was retried and still failed, it wasn't flaky
-    nextWorkflowId: `${workflowId}`, // Query the flaky status of jobs from the previous workflow
+    nextWorkflowId: workflowId, // Query the flaky status of jobs from the previous workflow
     numHours: 24, // The default value
     repo: `${owner}/${repo}`,
     workflowId: 0,
