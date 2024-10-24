@@ -1,9 +1,9 @@
 {
-  "branches": "String",
+  "branches": "Array(String)",
   "maxAttempt": "Int64",
   "nextWorkflowId": "Int64",
   "numHours": "Int64",
   "repo": "String",
   "workflowId": "Int64",
-  "workflowNames": "String"
+  "workflowNames": "Array(String)"
 }

@@ -1,3 +1,4 @@
+import * as clickhouse from "lib/clickhouse";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/retryBot";
@@ -49,16 +50,12 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((url) => true)
-      .reply(200, { results: [] });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("rerun when workflow name starts with a valid prefix", async () => {
@@ -91,16 +88,12 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont rerun if failed at test step", async () => {
@@ -135,16 +128,12 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont rerun unstable jobs", async () => {
@@ -175,16 +164,12 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
@@ -224,20 +209,17 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
     // 2 out of 3 previous jobs are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [
-          { workflow_id: prev_run_id, job_id: 1 },
-          { workflow_id: prev_run_id, job_id: 3 },
-        ],
-      });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() =>
+      Promise.resolve([
+        { workflow_id: prev_run_id, job_id: 1 },
+        { workflow_id: prev_run_id, job_id: 3 },
+      ])
+    );
 
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -279,17 +261,14 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
     // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
-      });
+    mock.mockImplementation(() =>
+      Promise.resolve([{ workflow_id: prev_run_id, job_id: prev_job_id }])
+    );
 
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -325,17 +304,14 @@ describe("retry-bot", () => {
       ) // Retry previous workflow
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
     // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
-      });
+    mock.mockImplementation(() =>
+      Promise.resolve([{ workflow_id: prev_run_id, job_id: prev_job_id }])
+    );
 
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -399,18 +375,12 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [],
-      });
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
