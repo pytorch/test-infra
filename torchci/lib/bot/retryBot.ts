@@ -1,5 +1,5 @@
-import { queryClickhouseSaved } from "../clickhouse";
 import { Probot } from "probot";
+import { queryClickhouseSaved } from "../clickhouse";
 import { CachedConfigTracker } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];

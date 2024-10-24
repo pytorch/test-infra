@@ -1,7 +1,7 @@
-import * as clickhouse from "../lib/clickhouse";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/retryBot";
+import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
 
