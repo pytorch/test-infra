@@ -21,8 +21,6 @@ async function retryPreviousWorkflow(
     workflowId
   );
 
-  console.log(flakyJobs);
-
   if (flakyJobs === undefined || flakyJobs.length === 0) {
     return;
   }
