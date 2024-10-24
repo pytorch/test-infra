@@ -9,7 +9,6 @@ import {
 } from "lib/types";
 import _, { isEqual } from "lodash";
 import TrieSearch from "trie-search";
-import { queryClickhouseSaved } from "./clickhouse";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
@@ -211,31 +210,6 @@ export function getDisabledTestIssues(
   }
 
   return matchingIssues;
-}
-
-export async function getFlakyJobsFromPreviousWorkflow(
-  owner: string,
-  repo: string,
-  branch: string,
-  workflowName: string,
-  workflowId: number
-): Promise<any> {
-  const flakyJobs = await queryClickhouseSaved("flaky_workflows_jobs", {
-    branches: [branch],
-    maxAttempt: 1, // If the job was retried and still failed, it wasn't flaky
-    nextWorkflowId: `${workflowId}`, // Query the flaky status of jobs from the previous workflow
-    numHours: 24, // The default value
-    repo: `${owner}/${repo}`,
-    workflowId: 0,
-    workflowNames: [workflowName],
-  });
-
-  if (flakyJobs === undefined || flakyJobs.length === 0) {
-    return [];
-  }
-
-  // The query returns all the flaky jobs from the previous workflow
-  return flakyJobs;
 }
 
 export function removeJobNameSuffix(
