@@ -35,7 +35,7 @@ weekly_results AS (
         'total' AS code,
         COUNT(*) AS num
     FROM
-        push
+        push FINAL
     WHERE
         push.ref IN ('refs/heads/master', 'refs/heads/main')
         AND push.repository.owner.login = 'pytorch'
