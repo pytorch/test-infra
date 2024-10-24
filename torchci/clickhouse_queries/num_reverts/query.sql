@@ -7,7 +7,7 @@ WITH coded_reverts AS (
         extract(ic.body, '(?:-c|--classification)[\s =]+["\']?(\w+)["\']?') AS code,
         COUNT(*) AS num
     FROM
-        default.issue_comment AS ic
+        default.issue_comment AS ic FINAL
     INNER JOIN (
         SELECT
             issue_comment.issue_url,
