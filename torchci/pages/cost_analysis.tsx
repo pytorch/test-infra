@@ -244,6 +244,22 @@ export default function Page() {
     initialSearchFilter as string
   );
 
+  const [routerReady, setRouterReady] = useState(false);
+
+  if (!routerReady && router.isReady) {
+    setRouterReady(true);
+    setStartDate(initialStartDate);
+    setStopDate(initialStopDate);
+    setGranularity(initialGranularity as Granularity);
+    setGroupBy(initialGroupBy as CostCategory);
+    setChartType(initialChartType as ChartType);
+    setSelectedGPU(initialSelectedGPU);
+    setSelectedOS(initialSelectedOS);
+    setSelectedProviders(initialSelectedProviders);
+    setSelectedYAxis(initialSelectedYAxis || "cost");
+    setSearchFilter(initialSearchFilter as string);
+  }
+
   const timeParamsClickHouse = {
     startTime: startDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: stopDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
