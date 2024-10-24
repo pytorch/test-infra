@@ -162,6 +162,7 @@ PACKAGE_ALLOW_LIST = {
     "torch_tensorrt",
     "torcharrow",
     "torchaudio",
+    "torchcodec",
     "torchcsprng",
     "torchdata",
     "torchdistx",
