@@ -1,3 +1,4 @@
+import * as jobUtils from "lib/jobUtils";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/retryBot";
@@ -12,6 +13,9 @@ describe("retry-bot", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
   });
 
   afterEach(() => {
@@ -24,6 +28,9 @@ describe("retry-bot", () => {
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
     workflow_jobs.jobs[0].conclusion = "failure";
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([]);
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -49,16 +56,9 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((url) => true)
-      .reply(200, { results: [] });
-
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("rerun when workflow name starts with a valid prefix", async () => {
@@ -66,6 +66,9 @@ describe("retry-bot", () => {
     event.payload.workflow_run.name = "linux-binary-manywheel";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
     workflow_jobs.jobs[0].conclusion = "failure";
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([]);
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -91,16 +94,9 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
-
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont rerun if failed at test step", async () => {
@@ -110,6 +106,9 @@ describe("retry-bot", () => {
     workflow_jobs.jobs[0].conclusion = "failure";
     workflow_jobs.jobs[4].conclusion = "failure";
     workflow_jobs.jobs[4].steps[0].conclusion = "failure";
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([]);
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -135,16 +134,9 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
-
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont rerun unstable jobs", async () => {
@@ -154,6 +146,9 @@ describe("retry-bot", () => {
     workflow_jobs.jobs[4].name = `${workflow_jobs.jobs[0].name} (unstable)`;
     workflow_jobs.jobs[4].conclusion = "failure";
     workflow_jobs.jobs[4].steps[0].conclusion = "failure";
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([]);
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -175,16 +170,9 @@ describe("retry-bot", () => {
         '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
       );
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .persist()
-      .post((uri) => true)
-      .reply(200, { results: [] });
-
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
@@ -200,7 +188,11 @@ describe("retry-bot", () => {
     const attempt_number = event.payload.workflow_run.run_attempt;
     const run_id = event.payload.workflow_run.id;
     const prev_run_id = 1;
-
+    // 2 out of 3 previous jobs are flaky
+    jest.spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow").mockResolvedValue([
+      { workflow_id: prev_run_id, job_id: 1 },
+      { workflow_id: prev_run_id, job_id: 3 },
+    ]);
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
@@ -224,20 +216,8 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    // 2 out of 3 previous jobs are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [
-          { workflow_id: prev_run_id, job_id: 1 },
-          { workflow_id: prev_run_id, job_id: 3 },
-        ],
-      });
-
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -255,7 +235,10 @@ describe("retry-bot", () => {
     const run_id = event.payload.workflow_run.id;
     const prev_run_id = 1;
     const prev_job_id = 1;
-
+    jest.spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow").mockResolvedValue([
+      { workflow_id: prev_run_id, job_id: 1 },
+      { workflow_id: prev_run_id, job_id: 3 },
+    ]);
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
@@ -279,17 +262,8 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
-      });
-
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -324,18 +298,13 @@ describe("retry-bot", () => {
         `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
       ) // Retry previous workflow
       .reply(200);
-
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
     // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
-      });
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([{ workflow_id: prev_run_id, job_id: prev_job_id }]);
 
     await probot.receive(event);
 
-    handleScope(rockset);
     handleScope(scope);
   });
 
@@ -401,16 +370,13 @@ describe("retry-bot", () => {
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     // Only the first job are flaky
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, {
-        results: [],
-      });
+    jest
+      .spyOn(jobUtils, "getFlakyJobsFromPreviousWorkflow")
+      .mockResolvedValue([]);
 
     await probot.receive(event);
 
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
