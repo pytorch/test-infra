@@ -669,7 +669,6 @@ runner_types:
       instance_type: c5.2xlarge
       os: linux
       min_available: 1
-      max_available: 1
       disk_size: 150
       is_ephemeral: false
     linux.4xlarge:
@@ -690,7 +689,7 @@ runner_types:
       instance_type: c5.2xlarge
       os: linux
       min_available: 1
-      max_available: 1
+      max_available: -1
       disk_size: 150
       is_ephemeral: false
       variants:
@@ -700,7 +699,6 @@ runner_types:
       instance_type: c5.2xlarge
       os: linux
       min_available: 1
-      max_available: 1
       disk_size: 150
       is_ephemeral: false
       variants:
@@ -714,7 +712,6 @@ runner_types:
         runnerTypeName: 'linux.2xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: 1,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -775,7 +772,7 @@ runner_types:
         runnerTypeName: 'lf.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: 1,
+        max_available: -1,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -787,7 +784,7 @@ runner_types:
         runnerTypeName: 'lf.ephemeral.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: 1,
+        max_available: -1,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: true,
@@ -799,7 +796,6 @@ runner_types:
         runnerTypeName: 'lf.c.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: 1,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -811,7 +807,6 @@ runner_types:
         runnerTypeName: 'lf.c.ephemeral.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: 1,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: true,
