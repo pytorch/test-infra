@@ -1144,7 +1144,7 @@ export default function Page() {
           </Typography>
           <p>
             These panels show the <b>delta</b> between states of the same job
-            run on the Linux Foundation and Meta fleets.
+            run on the Linux Foundation vs the Meta fleets.
           </p>
         </Grid>
 
@@ -1153,19 +1153,24 @@ export default function Page() {
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[
-              {
-                name: "days_ago",
-                type: "int",
-                value: timeRange,
-              },
-            ]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, days_ago: timeRange }
+                : [
+                    {
+                      name: "days_ago",
+                      type: "int",
+                      value: timeRange,
+                    },
+                  ]
+            }
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1174,19 +1179,24 @@ export default function Page() {
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[
-              {
-                name: "days_ago",
-                type: "int",
-                value: timeRange,
-              },
-            ]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, days_ago: timeRange }
+                : [
+                    {
+                      name: "days_ago",
+                      type: "int",
+                      value: timeRange,
+                    },
+                  ]
+            }
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"cancelled_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
+            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1195,19 +1205,24 @@ export default function Page() {
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
             queryCollection={"metrics"}
-            queryParams={[
-              {
-                name: "days_ago",
-                type: "int",
-                value: timeRange,
-              },
-            ]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, days_ago: timeRange }
+                : [
+                    {
+                      name: "days_ago",
+                      type: "int",
+                      value: timeRange,
+                    },
+                  ]
+            }
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
+            useClickHouse={useClickHouse}
           />
         </Grid>
         <Grid item xs={12} height={ROW_HEIGHT}>
