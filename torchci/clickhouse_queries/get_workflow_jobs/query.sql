@@ -1,5 +1,5 @@
 -- A simple query to get a job by name
-SELECT
+SELECT DISTINCT
   job.id,
   job.name
 FROM
