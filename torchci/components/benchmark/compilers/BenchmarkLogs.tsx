@@ -8,7 +8,7 @@ export const INDUCTOR_JOB_NAME_REGEX = new RegExp(
   ".+\\s/\\stest\\s\\(inductor_(.+)_perf_?(.*), ([0-9]+), ([0-9]+), (.+)\\)"
 );
 
-export function BenchmarkLogs({ workflowId }: { workflowId: string }) {
+export function BenchmarkLogs({ workflowId }: { workflowId: number }) {
   const queryName = "get_workflow_jobs";
 
   // Fetch the job ID to generate the link to its CI logs
