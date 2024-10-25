@@ -21,6 +21,7 @@ on:
           - fbgemm
           - executorch
           - torchtune
+          - torchcodec
           - all
 jobs:
   trigger:
