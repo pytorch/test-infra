@@ -27,7 +27,6 @@ export function BenchmarkLogs({ workflowId }: { workflowId: number }) {
   if (data === undefined || data.length === 0) {
     return <></>;
   }
-  console.log(data);
 
   const logsBySuite: { [k: string]: any } = {};
   data.forEach((record: any) => {
