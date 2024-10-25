@@ -46,7 +46,7 @@ PREFIXES = [
 # package as specified by setuptools, for packages with "-" (hyphens) in their
 # names you need to convert them to "_" (underscores) in order for them to be
 # allowed here since the name of the wheels is compared here
-PACKAGE_ALLOW_LIST = {
+PACKAGE_ALLOW_LIST = {x.lower() for x in [
     # ---- torchtune additional packages ----
     "aiohttp",
     "aiosignal",
@@ -178,8 +178,8 @@ PACKAGE_ALLOW_LIST = {
     "xformers",
     "executorch",
     "setuptools",
-    "wheel"
-}
+    "wheel",
+]}
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
 # Group 1: torch-2.0.0.dev
@@ -278,7 +278,7 @@ class S3Index:
             package_name = full_package_name.split('-')[0]
             package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
-            if package_name not in PACKAGE_ALLOW_LIST:
+            if package_name.lower() not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
             if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (

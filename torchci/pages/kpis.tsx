@@ -125,12 +125,13 @@ export default function Kpis() {
           title={"# of reverts (2 week moving avg)"}
           queryName={"num_reverts"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={useCH ? clickhouseTimeParams : timeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"num"}
           yAxisRenderer={(unit) => `${unit}`}
           groupByFieldName={"code"}
+          useClickHouse={useCH}
         />
       </Grid>
 
