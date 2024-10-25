@@ -210,7 +210,7 @@ async function allRunnersBusy(
   runnerType: string,
   repo: Repo,
   isEphemeral: boolean,
-  maxAvailable: number,
+  maxAvailable: number | undefined,
   metrics: ScaleUpMetrics,
 ): Promise<number> {
   const ghRunners = Config.Instance.enableOrganizationRunners
@@ -233,14 +233,18 @@ async function allRunnersBusy(
   }
 
   // If a runner isn't ephemeral then maxAvailable should be applied
-  if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
+  if (!isEphemeral && maxAvailable !== undefined && maxAvailable >= 0 && runnersWithLabel.length >= maxAvailable) {
     /* istanbul ignore next */
     if (Config.Instance.enableOrganizationRunners) {
       metrics.ghRunnersOrgMaxHit(repo.owner, runnerType);
     } else {
       metrics.ghRunnersRepoMaxHit(repo, runnerType);
     }
-    console.info(`Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length}`);
+
+    console.info(
+      `Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length} - Limit enforced`,
+    );
+
     return 0;
   }
 
