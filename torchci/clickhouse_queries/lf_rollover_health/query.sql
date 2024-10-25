@@ -20,7 +20,7 @@ normalized_jobs AS (
     -- Costs of using it:
     --   - Query procesing time increases from ~5 -> 16 seconds
     --   - Memory usage grows from 7.5 GB -> 32 GB
-    -- So the radeoff is worth it for this query.
+    -- So the tradeoff is worth it for this query.
     workflow_job as j
   ARRAY JOIN
     j.labels as l
