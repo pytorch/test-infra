@@ -1,52 +1,49 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
-WITH all_jobs AS (
+-- This query tracks the number of red commits on HUD KPIs page
+WITH join_with_workflow_run AS (
+    -- Do the join with workflow_run, then workflow_job to avoid OOM
     SELECT
-        push._event_time as time,
-        job.conclusion AS conclusion,
-        push.head_commit.id AS sha,
-        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
+        w.id AS id,
+        p.head_commit. 'timestamp' AS time,
+        p.head_commit. 'id' AS sha
     FROM
-        push
-        JOIN commons.workflow_run workflow ON workflow.head_commit.id = push.head_commit.id
-        JOIN commons.workflow_job job ON workflow.id = job.run_id
+        default .push p FINAL
+        JOIN default .workflow_run w FINAL ON w.head_commit. 'id' = p.head_commit. 'id'
     WHERE
-        job.name != 'ciflow_should_run'
-        AND job.name != 'generate-test-matrix'
-        AND ( -- Limit it to workflows which block viable/strict upgrades
-            ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-            OR workflow.name like 'linux-binary%'
+        (
+            -- Limit it to workflows which block viable/strict upgrades
+            has({workflowNames: Array(String) }, lower(w.name))
+            OR w.name like 'linux-binary%'
         )
-        AND job.name NOT LIKE '%rerun_disabled_tests%'
-        AND job.name NOT LIKE '%unstable%'
-        AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND push.ref IN ('refs/heads/master', 'refs/heads/main')
-        AND push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
-        AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-    UNION ALL
+        AND w.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+        AND p.ref = 'refs/heads/main'
+        AND p.repository. 'owner'.'name' = 'pytorch'
+        AND p.repository. 'name' = 'pytorch'
+        AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
+        AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
+),
+all_jobs AS (
     SELECT
-        push._event_time as time,
-        CASE
-            WHEN job.job.status = 'failed' then 'failure'
-            WHEN job.job.status = 'canceled' then 'cancelled'
-            ELSE job.job.status
-        END AS conclusion,
-        push.head_commit.id AS sha,
-        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
+        w.time AS time,
+        j.conclusion AS conclusion,
+        w.sha AS sha,
+        ROW_NUMBER() OVER(
+            PARTITION BY j.name,
+            w.sha
+            ORDER BY
+                j.run_attempt DESC
+        ) AS row_num
     FROM
-        circleci.job job
-        JOIN push ON job.pipeline.vcs.revision = push.head_commit.id
+        join_with_workflow_run w
+        JOIN default .workflow_job j FINAL ON w.id = j.run_id
     WHERE
-        push.ref IN ('refs/heads/master', 'refs/heads/main')
-        AND push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
-        AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+        j.name != 'ciflow_should_run'
+        AND j.name != 'generate-test-matrix'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%unstable%'
 ),
 any_red AS (
     SELECT
-        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+        formatDateTime(DATE_TRUNC({granularity: String }, time), '%Y-%m-%d') AS granularity_bucket,
         sha,
         CAST(
             SUM(
@@ -61,13 +58,16 @@ any_red AS (
         CAST(
             SUM(
                 CASE
-                    WHEN conclusion = 'failure' AND row_num = 1 THEN 1
-                    WHEN conclusion = 'timed_out' AND row_num = 1 THEN 1
-                    WHEN conclusion = 'cancelled' AND row_num = 1 THEN 1
+                    WHEN conclusion = 'failure'
+                    AND row_num = 1 THEN 1
+                    WHEN conclusion = 'timed_out'
+                    AND row_num = 1 THEN 1
+                    WHEN conclusion = 'cancelled'
+                    AND row_num = 1 THEN 1
                     ELSE 0
                 END
             ) > 0 AS int
-        ) AS broken_trunk_red,
+        ) AS broken_trunk_red
     FROM
         all_jobs
     GROUP BY
@@ -80,11 +80,16 @@ any_red AS (
 classified_red AS (
     SELECT
         granularity_bucket,
-        ARRAY_CREATE(
-            ARRAY_CREATE('Broken trunk', AVG(broken_trunk_red)),
-            ARRAY_CREATE('Flaky', AVG(all_red) - AVG(broken_trunk_red)),
-            ARRAY_CREATE('Total', AVG(all_red))
-        ) AS metrics,
+        arrayJoin(
+            array(
+                array('Broken trunk', toString(AVG(broken_trunk_red))),
+                array(
+                    'Flaky',
+                    toString(AVG(all_red) - AVG(broken_trunk_red))
+                ),
+                array('Total', toString(AVG(all_red)))
+            )
+        ) AS metrics
     FROM
         any_red
     GROUP BY
@@ -92,12 +97,11 @@ classified_red AS (
 ),
 avg_red AS (
     SELECT
-        classified_red.granularity_bucket,
-        ELEMENT_AT(metrics.metric, 1) AS name,
-        ELEMENT_AT(metrics.metric, 2) AS metric,
+        granularity_bucket,
+        arrayElement(metrics, 1) AS name,
+        toFloat32(arrayElement(metrics, 2)) AS metric
     FROM
         classified_red
-        CROSS JOIN UNNEST(classified_red.metrics AS metric) AS metrics
     ORDER BY
         granularity_bucket DESC
 )
@@ -111,6 +115,6 @@ SELECT
             ORDER BY
                 granularity_bucket ROWS 1 PRECEDING
         )
-    ) / 2.0 AS metric,    
+    ) / 2.0 AS metric
 FROM
     avg_red

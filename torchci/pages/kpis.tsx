@@ -50,7 +50,15 @@ export default function Kpis() {
           title={"% of commits red on trunk (Weekly)"}
           queryName={"master_commit_red_percent"}
           queryCollection={"metrics"}
-          queryParams={[...timeParams]}
+          queryParams={
+            useCH
+              ? {
+                  ...clickhouseTimeParams,
+                  granularity: "week",
+                  workflowNames: ["lint", "pull", "trunk"],
+                }
+              : timeParams
+          }
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"metric"}
@@ -58,6 +66,7 @@ export default function Kpis() {
             return `${unit * 100} %`;
           }}
           groupByFieldName={"name"}
+          useClickHouse={useCH}
         />
       </Grid>
 
