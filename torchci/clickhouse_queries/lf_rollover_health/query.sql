@@ -11,6 +11,16 @@ normalized_jobs AS (
     j.conclusion,
     toStartOfInterval(j.started_at, INTERVAL 1 DAY) AS bucket
   FROM
+    -- Deliberatly not adding FINAL to this workflow_job.
+    -- Risks of not using it:
+    --   - You may get duplicate records for rows that were updated corresponding to their
+    --     before/after states, but as long as there’s some mechanism in the query to account
+    --     for that it’s okay (we check for j.status = 'completed`).
+    --   - In the worst case scenario, you may only see the ‘old’ version of the records for some rows
+    -- Costs of using it:
+    --   - Query procesing time increases from ~5 -> 16 seconds
+    --   - Memory usage grows from 7.5 GB -> 32 GB
+    -- So the radeoff is worth it for this query.
     workflow_job as j
   ARRAY JOIN
     j.labels as l
@@ -53,12 +63,12 @@ success_stats AS (
     workflow_name,
     label,
     if(startsWith(label, 'lf.'), 1, 0 ) as lf_fleet,
-    sum(case when conclusion = 'success' then 1 else 0 end) * 100 / (countIf(conclusion != 'cancelled') + 1) as success_rate, -- plus one is to handle divide by zero errors
-    sum(case when conclusion = 'failure' then 1 else 0 end) * 100 / (countIf(conclusion != 'cancelled') + 1) as failure_rate,
-    sum(case when conclusion = 'cancelled' then 1 else 0 end) * 100 / COUNT() as cancelled_rate,
-    sum(case when conclusion = 'success' then duration_min else 0 end) / countIf(conclusion = 'success') as success_avg_duration,
-    sum(case when conclusion = 'failure' then duration_min else 0 end) / countIf(conclusion = 'failure') as failure_avg_duration,
-    sum(case when conclusion = 'cancelled' then duration_min else 0 end) / countIf(conclusion = 'cancelled') as cancelled_avg_duration
+    countIf(conclusion = 'success') * 100 / (countIf(conclusion != 'cancelled') + 1) as success_rate, -- plus one is to handle divide by zero errors
+    countIf(conclusion = 'failure') * 100 / (countIf(conclusion != 'cancelled') + 1) as failure_rate,
+    countIf(conclusion = 'cancelled') * 100 / COUNT() as cancelled_rate,
+    avgIf(duration_min, conclusion = 'success') as success_avg_duration,
+    avgIf(duration_min, conclusion = 'failure') as failure_avg_duration,
+    avgIf(duration_min, conclusion = 'cancelled') as cancelled_avg_duration
   FROM comparable_jobs
   GROUP BY bucket, job_name, workflow_name, label
 ),
