@@ -6,9 +6,28 @@ export async function getEC2Metadata(category: string): Promise<string> {
     allowRetries: true,
     maxRetries
   })
-  const resp = await http.get(
-    `http://169.254.169.254/latest/meta-data/${category}`
+  // convert these two curls:
+  // curl -H "X-aws-ec2-metadata-token: $(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30")" -fsSL "http://169.254.169.254/latest/meta-data/${category}"
+    const tokenResponse = await http.put(
+    `http://169.254.169.254/latest/api/token`, undefined, {
+      headers: {
+        'X-aws-ec2-metadata-token-ttl-seconds': '30'
+      }
+    }
   )
+
+  if (tokenResponse.message.statusCode !== 200) {
+    return ''
+  }
+
+  const resp = await http.get(
+    `http://169.254.169.254/latest/meta-data/${category}`, {
+      headers: {
+        'X-aws-ec2-metadata-token': tokenResponse.result
+      }
+    }
+  )
+  
   if (resp.message.statusCode !== 200) {
     return ''
   }
