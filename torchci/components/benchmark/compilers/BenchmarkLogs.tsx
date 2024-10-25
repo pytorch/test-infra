@@ -2,26 +2,21 @@ import { LOG_PREFIX } from "components/benchmark/common";
 import { LogLinks } from "components/benchmark/compilers/LogLinks";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 
 export const INDUCTOR_JOB_NAME_REGEX = new RegExp(
   ".+\\s/\\stest\\s\\(inductor_(.+)_perf_?(.*), ([0-9]+), ([0-9]+), (.+)\\)"
 );
 
-export function BenchmarkLogs({ workflowId }: { workflowId: string }) {
-  const queryCollection = "commons";
+export function BenchmarkLogs({ workflowId }: { workflowId: number }) {
   const queryName = "get_workflow_jobs";
 
   // Fetch the job ID to generate the link to its CI logs
-  const queryParams: RocksetParam[] = [
-    {
-      name: "workflowId",
-      type: "int",
-      value: workflowId,
-    },
-  ];
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const queryParams: { [key: string]: any } = {
+    jobName: "%test (%",
+    workflowId: workflowId,
+  };
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
