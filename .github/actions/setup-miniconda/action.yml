@@ -40,13 +40,14 @@ runs:
         shell: bash
         run: |
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
+          echo "package_hash=$(echo ${{ input.default-packages }} | md5sum | awk "{print $1}) >> "${GITHUB_OUTPUT}"
 
       - name: Setup miniconda cache
         id: miniconda-cache
         uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ inputs.miniconda-version }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+          key: miniconda-${{ inputs.miniconda-version }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ inputs.default-packages }}
 
       - name: Install miniconda (${{ inputs.miniconda-version }})
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
