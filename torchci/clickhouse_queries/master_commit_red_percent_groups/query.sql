@@ -1,39 +1,48 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- This query is used to show failures chart on https://hud.pytorch.org/reliability/pytorch/pytorch
 WITH all_jobs AS (
     SELECT
-        push._event_time AS time,
-        job.conclusion AS conclusion,
-        push.head_commit.id AS sha,
+        p.head_commit. 'timestamp' AS time,
+        j.conclusion AS conclusion,
+        p.head_commit. 'id' AS sha,
         CONCAT(
-            workflow.name,
+            w.name,
             ' / ',
-            ELEMENT_AT(SPLIT(job.name, ' / '), 1),
-            CONCAT(' / ', ELEMENT_AT(SPLIT(ELEMENT_AT(SPLIT(job.name, ' / '), 2), ', '), 1))
-        ) AS name,
+            arrayElement(splitByString(' / ', j.name), 1),
+            ' / ',
+            arrayElement(
+                splitByString(', ', arrayElement(splitByString(' / ', j.name), 2)),
+                1
+            )
+        ) AS name
     FROM
-        commons.workflow_job job
-        JOIN commons.workflow_run workflow ON workflow.id = job.run_id
-        JOIN push on workflow.head_commit.id = push.head_commit.id
+        default .workflow_job j FINAL
+        JOIN default .workflow_run w FINAL ON w.id = j.run_id
+        JOIN default .push p FINAL on w.head_commit. 'id' = p.head_commit. 'id'
     WHERE
-        job.name != 'ciflow_should_run'
-        AND job.name != 'generate-test-matrix'
-        AND job.name NOT LIKE '%rerun_disabled_tests%'
-        AND job.name NOT LIKE '%filter%'
-        AND job.name NOT LIKE '%unstable%'
-        AND job.name LIKE '%/%'
-        AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-        AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND push.ref = 'refs/heads/main'
-        AND push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
-        AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+        j.name != 'ciflow_should_run'
+        AND j.name != 'generate-test-matrix'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%filter%'
+        AND j.name NOT LIKE '%unstable%'
+        AND j.name LIKE '%/%'
+        AND has({workflowNames: Array(String) }, lower(w.name))
+        AND w.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+        AND p.ref = 'refs/heads/main'
+        AND p.repository. 'owner'.'name' = 'pytorch'
+        AND p.repository. 'name' = 'pytorch'
+        AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
+        AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
 ),
 reds AS(
     SELECT
         time,
         sha,
-        IF (name LIKE '%(%' AND name NOT LIKE '%)%', CONCAT(name, ')'), name) AS name,
+        IF (
+            name LIKE '%(%'
+            AND name NOT LIKE '%)%',
+            CONCAT(name, ')'),
+            name
+        ) AS name,
         CAST(
             SUM(
                 CASE
@@ -59,9 +68,9 @@ reds AS(
 ),
 reds_percentage AS (
     SELECT
-        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+        formatDateTime(DATE_TRUNC({granularity: String }, time), '%Y-%m-%d') AS granularity_bucket,
         name,
-        ROUND(AVG(any_red) * 100, 2) AS red,
+        ROUND(AVG(any_red) * 100, 2) AS red
     FROM
         reds
     GROUP BY
