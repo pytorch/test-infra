@@ -1,12 +1,12 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- A simple query to get a job by name
 SELECT
   job.id,
-  job.name,
+  job.name
 FROM
-  workflow_job job
-  INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
+  default.workflow_job job FINAL
+  INNER JOIN workflow_run workflow FINAL on workflow.id = job.run_id
 WHERE
-  workflow.id = :workflowId
-  AND job.name LIKE :jobName
+  workflow.id = { workflowId: Int64 }
+  AND job.name LIKE { jobName: String }
 ORDER BY
   job.name
