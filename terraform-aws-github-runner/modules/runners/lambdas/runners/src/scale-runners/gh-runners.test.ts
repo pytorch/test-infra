@@ -669,7 +669,6 @@ runner_types:
       instance_type: c5.2xlarge
       os: linux
       min_available: 1
-      max_available_enforced: false
       max_available: 1
       disk_size: 150
       is_ephemeral: false
@@ -677,7 +676,6 @@ runner_types:
       instance_type: c5.2xlarge
       os: linux
       min_available: 1
-      max_available_enforced: true
       max_available: 1
       disk_size: 150
       is_ephemeral: false
@@ -717,7 +715,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: false,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -730,7 +727,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: true,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -743,7 +739,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: true,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: true,
@@ -756,7 +751,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: true,
         min_available: 1,
         disk_size: 300,
         is_ephemeral: false,
@@ -769,7 +763,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: true,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -783,7 +776,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: false,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -796,7 +788,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: false,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: true,
@@ -809,7 +800,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: false,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
@@ -822,7 +812,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        max_available_enforced: false,
         min_available: 1,
         disk_size: 150,
         is_ephemeral: true,

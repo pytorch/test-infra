@@ -74,7 +74,6 @@ describe('scaleUp', () => {
             instance_type: 'instance_type',
             os: 'os',
             max_available: 33,
-            max_available_enforced: true,
             disk_size: 113,
             runnerTypeName: 'runnerTypeName',
             is_ephemeral: false,
@@ -116,7 +115,6 @@ describe('scaleUp', () => {
             instance_type: 'instance_type',
             os: 'os',
             max_available: 33,
-            max_available_enforced: true,
             disk_size: 113,
             runnerTypeName: 'runnerTypeName',
             is_ephemeral: false,
@@ -157,7 +155,6 @@ describe('scaleUp', () => {
             instance_type: 'instance_type',
             os: 'os',
             max_available: 33,
-            max_available_enforced: true,
             disk_size: 113,
             runnerTypeName: 'linux.2xlarge',
             is_ephemeral: false,
@@ -169,7 +166,6 @@ describe('scaleUp', () => {
             instance_type: 'instance_type',
             os: 'os',
             max_available: 33,
-            max_available_enforced: true,
             disk_size: 113,
             runnerTypeName: 'linux.large',
             is_ephemeral: false,
@@ -270,7 +266,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 33,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
@@ -358,7 +353,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 33,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
@@ -445,7 +439,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 33,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
@@ -532,7 +525,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 33,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
@@ -617,7 +609,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 1,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
@@ -647,56 +638,6 @@ describe('scaleUp', () => {
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
 
-  it('max runners reached, but not enforced', async () => {
-    const config = {
-      ...baseCfg,
-      environment: 'config.environ',
-      ghesUrlHost: 'https://github.com',
-      minAvailableRunners: 1,
-      runnersExtraLabels: 'extra-label',
-    };
-    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    const payload = {
-      id: 10,
-      eventType: 'event',
-      repositoryName: 'repo',
-      repositoryOwner: 'owner',
-      installationId: 2,
-    };
-    const runnerType1 = {
-      instance_type: 'instance_type',
-      os: 'os',
-      max_available: 1,
-      max_available_enforced: false,
-      disk_size: 113,
-      runnerTypeName: 'linux.2xlarge',
-      is_ephemeral: false,
-    };
-
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
-      {
-        id: 3,
-        name: 'name-01',
-        os: 'linux',
-        status: 'busy',
-        busy: true,
-        labels: [
-          {
-            id: 113,
-            name: 'linux.2xlarge',
-            type: 'read-only',
-          },
-        ],
-      },
-    ]);
-    const mockedCreateRunner = mocked(createRunner).mockResolvedValue('us-east-1');
-
-    await scaleUp('aws:sqs', payload, metrics);
-
-    expect(mockedCreateRunner).toBeCalled();
-  });
-
   it('max runners reached, but new is ephemeral', async () => {
     const token = 'AGDGADUWG113';
     const config = {
@@ -717,7 +658,6 @@ describe('scaleUp', () => {
       instance_type: 'instance_type',
       os: 'os',
       max_available: 1,
-      max_available_enforced: true,
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: true,

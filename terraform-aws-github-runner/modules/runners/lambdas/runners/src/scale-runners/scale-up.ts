@@ -87,7 +87,6 @@ export async function scaleUp(
       repo,
       runnerType.is_ephemeral,
       runnerType.max_available,
-      runnerType.max_available_enforced ?? false,
       metrics,
     );
     for (let i = 0; i < runnersToCreate; i++) {
@@ -211,8 +210,7 @@ async function allRunnersBusy(
   runnerType: string,
   repo: Repo,
   isEphemeral: boolean,
-  maxAvailable: number,
-  maxAvailableEnforced: boolean,
+  maxAvailable: number | undefined,
   metrics: ScaleUpMetrics,
 ): Promise<number> {
   const ghRunners = Config.Instance.enableOrganizationRunners
@@ -235,7 +233,7 @@ async function allRunnersBusy(
   }
 
   // If a runner isn't ephemeral then maxAvailable should be applied
-  if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
+  if (!isEphemeral && maxAvailable !== undefined && maxAvailable >= 0 && runnersWithLabel.length >= maxAvailable) {
     /* istanbul ignore next */
     if (Config.Instance.enableOrganizationRunners) {
       metrics.ghRunnersOrgMaxHit(repo.owner, runnerType);
@@ -243,17 +241,11 @@ async function allRunnersBusy(
       metrics.ghRunnersRepoMaxHit(repo, runnerType);
     }
 
-    if (maxAvailableEnforced) {
-      console.info(
-        `Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length} - Limit enforced`,
-      );
-      return 0;
-    } else {
-      console.debug(
-        `Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length} ` +
-          `- Not enforcing limit, instance might be created`,
-      );
-    }
+    console.info(
+      `Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length} - Limit enforced`,
+    );
+
+    return 0;
   }
 
   // Have a fail safe just in case we're likely to need more runners

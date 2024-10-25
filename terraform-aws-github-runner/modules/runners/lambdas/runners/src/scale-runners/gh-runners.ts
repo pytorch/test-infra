@@ -363,7 +363,6 @@ export async function getRunnerTypes(
             labels: runner_type.labels?.map((label: string) => label.trim()),
             min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
             max_available: runner_type.max_available,
-            max_available_enforced: runner_type.max_available_enforced || false,
             os: runner_type.os,
             runnerTypeName: prop,
             variants: new Map(Object.entries(runner_type.variants || {})),
