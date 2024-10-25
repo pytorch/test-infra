@@ -43,7 +43,6 @@
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "8866b339e1a255e6",
     "strict_lag_historical": "d2a09d13caf8b76a",
-    "ci_wait_time": "b1080f26b20ea142",
     "ttrs_percentiles": "ea95e9b56ab6900f"
   },
   "metrics": {
@@ -76,7 +75,6 @@
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "cc92aa19e3f35c3f",
     "workflow_load": "600c129bd22a6569",
-    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f",
     "get_workers_on_period": "ae5cf853350477c7",
     "queue_times_historical_pct": "f815ad1732928bb6",
     "lf_rollover_health": "b3eb4ffc761a224a",
