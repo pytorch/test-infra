@@ -40,7 +40,7 @@ runs:
         shell: bash
         run: |
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
-          echo "default_packages_checksum=$(echo -n ${{ inputs.default-packages | md5sum | awk '{print $1}' }})" >> "${GITHUB_OUTPUT}"
+          echo "default_packages_checksum=$(echo -n ${{ inputs.default-packages }} | md5sum | awk '{print $1}' )" >> "${GITHUB_OUTPUT}"
 
       - name: Setup miniconda cache
         id: miniconda-cache
