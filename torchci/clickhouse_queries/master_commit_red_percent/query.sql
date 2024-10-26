@@ -1,4 +1,7 @@
--- This query tracks the number of red commits on HUD KPIs page
+-- TODO (huydhn): This query tracks the number of red commits on HUD KPIs page. This
+-- is not the most efficient query around both in term of speed and memory usage. So,
+-- a good BE task is to re-write this in a more efficient way, HUD code is also
+-- subjected to change if need be
 WITH join_with_workflow_run AS (
     -- Do the join with workflow_run, then workflow_job to avoid OOM
     SELECT
@@ -80,6 +83,7 @@ any_red AS (
 classified_red AS (
     SELECT
         granularity_bucket,
+        -- CH only allows data of the same type in the array
         arrayJoin(
             array(
                 array('Broken trunk', toString(AVG(broken_trunk_red))),
