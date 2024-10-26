@@ -102,8 +102,8 @@ classified_red AS (
 avg_red AS (
     SELECT
         granularity_bucket,
-        arrayElement(metrics, 1) AS name,
-        toFloat32(arrayElement(metrics, 2)) AS metric
+        metrics[1] AS name,
+        toFloat32(metrics[2]) AS metric
     FROM
         classified_red
     ORDER BY
