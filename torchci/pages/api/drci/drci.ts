@@ -5,7 +5,7 @@ import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
-  fetchIssueLabels,
+  fetchPRLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
   formDrciSevBody,
@@ -55,6 +55,10 @@ export interface FlakyRule {
   captures: string[];
 }
 
+async function checkRateLimit(octokit: Octokit) {
+  const rateLimit = await octokit.rest.rateLimit.get();
+  console.log("Rate limit", rateLimit.data.rate.used);
+}
 export interface UpdateCommentBody {
   repo: string;
 }
@@ -67,16 +71,19 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
+  if (true || authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
-    const { repo }: UpdateCommentBody = req.body;
+    const repo = "pytorch";
     const octokit = await getOctokit(OWNER, repo);
+    await checkRateLimit(octokit);
 
     const failures = await updateDrciComments(
       octokit,
       repo,
       prNumber ? [parseInt(prNumber as string)] : []
     );
+    await checkRateLimit(octokit);
+
     res.status(200).json(failures);
   }
 
@@ -101,6 +108,8 @@ export async function updateDrciComments(
           NUM_MINUTES + ""
         ),
   ]);
+  console.log("Fetched recent workflows");
+  await checkRateLimit(octokit);
 
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
@@ -108,6 +117,9 @@ export async function updateDrciComments(
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
+  console.log("Reorganized workflows");
+  await checkRateLimit(octokit);
+
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
@@ -125,6 +137,8 @@ export async function updateDrciComments(
     Array.from(workflowsByPR.keys())
   );
 
+  console.log("Fetched all necessary data");
+  await checkRateLimit(octokit);
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
@@ -135,8 +149,7 @@ export async function updateDrciComments(
       // Find the merge commits of the PR to check if it has already been merged before
       const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
 
-      const labels = await fetchIssueLabels(
-        octokit,
+      const labels = await fetchPRLabels(
         pr_info.owner,
         pr_info.repo,
         pr_info.pr_number
@@ -236,7 +249,7 @@ export async function updateDrciComments(
           title: "Dr.CI classification results",
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
-          summary: JSON.stringify(failures[pr_info.pr_number]),
+          summary: JSON.stringify(removeFailureContext(failures[pr_info.pr_number])),
         },
       });
     },
@@ -246,6 +259,23 @@ export async function updateDrciComments(
   );
 
   return failures;
+}
+
+/**
+ * Changes the failure context of each job to an empty array. This is done to
+ * reduce the size of the payload, which can some times exceed the maximum size
+ * allowed by GitHub
+ * @param failure
+ * @returns
+ */
+function removeFailureContext(failure: { [cat: string]: RecentWorkflowsData[] }) {
+  const result = { ...failure };
+  for (const cat in result) {
+    for (const job of result[cat]) {
+      job.failure_context = [];
+    }
+  }
+  return result;
 }
 
 /**
