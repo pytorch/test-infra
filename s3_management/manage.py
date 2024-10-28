@@ -162,6 +162,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "torch_tensorrt",
     "torcharrow",
     "torchaudio",
+    "torchcodec",
     "torchcsprng",
     "torchdata",
     "torchdistx",
