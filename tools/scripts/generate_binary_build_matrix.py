@@ -525,7 +525,7 @@ def generate_wheels_matrix(
                 arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        python_versions = ["3.11"]
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
