@@ -160,13 +160,16 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
-        if "max_available" in runner_config and runner_config["max_available"] != None and \
-                runner_config["max_available"] < MAX_AVAILABLE_MINIMUM and runner_config["max_available"] >= 0:
-            print(
-                f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
-                f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
-            )
-            errors_found = True
+        if "max_available" in runner_config:
+            if runner_config["max_available"] == None:
+                print(f"Runner type {runner_type} can't have max_available set to Null, Python, between other cases, will load a value as None when its property is defined as null in the yaml file, prefer to remove the max_available property")
+                errors_found = True
+            elif runner_config["max_available"] < MAX_AVAILABLE_MINIMUM and runner_config["max_available"] >= 0:
+                print(
+                    f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
+                    f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
+                )
+                errors_found = True
 
     return not errors_found
 
