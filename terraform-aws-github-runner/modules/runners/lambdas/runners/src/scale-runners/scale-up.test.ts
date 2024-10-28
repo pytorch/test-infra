@@ -503,91 +503,6 @@ describe('scaleUp', () => {
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
   });
 
-  it('don`t have sufficient runners, max_available is not set', async (): Promise<void> => {
-    const config = {
-      ...baseCfg,
-      environment: 'config.environ',
-      ghesUrlHost: 'https://github.com',
-      minAvailableRunners: 10,
-      runnersExtraLabels: 'extra-label',
-    };
-    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    const repo = { repo: 'repo', owner: 'owner' };
-    const payload = {
-      id: 10,
-      eventType: 'event',
-      repositoryName: 'repo',
-      repositoryOwner: 'owner',
-      installationId: 2,
-    };
-    const token = 'AGDGADUWG113';
-    const runnerType1 = {
-      instance_type: 'instance_type',
-      os: 'os',
-      disk_size: 113,
-      runnerTypeName: 'linux.2xlarge',
-      is_ephemeral: false,
-    };
-
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
-      {
-        id: 3,
-        name: 'name-01',
-        os: 'linux',
-        status: 'live',
-        busy: false,
-        labels: [
-          {
-            id: 113,
-            name: 'linux.2xlarge',
-            type: 'read-only',
-          },
-        ],
-      },
-      {
-        id: 33,
-        name: 'name-02',
-        os: 'linux',
-        status: 'live',
-        busy: false,
-        labels: [
-          {
-            id: 113,
-            name: 'linux.2xlarge',
-            type: 'read-only',
-          },
-        ],
-      },
-    ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
-
-    await scaleUp('aws:sqs', payload, metrics);
-
-    expect(mockedCreateRunner).toBeCalledTimes(1);
-    expect(mockedCreateRunner).toBeCalledWith(
-      {
-        environment: config.environment,
-        runnerConfig: expect.any(Function),
-        repoName: 'owner/repo',
-        runnerType: runnerType1,
-      },
-      metrics,
-    );
-
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
-      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
-        `extra-label `,
-    );
-    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
-      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
-        `experimental.ami,extra-label --ephemeral`,
-    );
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(2);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
-  });
-
   it('don`t have sufficient runners, max_available is undefined', async (): Promise<void> => {
     const config = {
       ...baseCfg,
@@ -612,7 +527,6 @@ describe('scaleUp', () => {
       disk_size: 113,
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: false,
-      max_available: undefined,
     };
 
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
