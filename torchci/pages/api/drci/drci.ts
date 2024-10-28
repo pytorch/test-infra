@@ -55,10 +55,6 @@ export interface FlakyRule {
   captures: string[];
 }
 
-async function checkRateLimit(octokit: Octokit) {
-  const rateLimit = await octokit.rest.rateLimit.get();
-  console.log("Rate limit", rateLimit.data.rate.used);
-}
 export interface UpdateCommentBody {
   repo: string;
 }
@@ -71,19 +67,16 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (true || authorization === process.env.DRCI_BOT_KEY) {
+  if (authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
-    const repo = "pytorch";
+    const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
-    await checkRateLimit(octokit);
 
     const failures = await updateDrciComments(
       octokit,
       repo,
       prNumber ? [parseInt(prNumber as string)] : []
     );
-    await checkRateLimit(octokit);
-
     res.status(200).json(failures);
   }
 
@@ -108,8 +101,6 @@ export async function updateDrciComments(
           NUM_MINUTES + ""
         ),
   ]);
-  console.log("Fetched recent workflows");
-  await checkRateLimit(octokit);
 
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
@@ -117,9 +108,6 @@ export async function updateDrciComments(
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
-  console.log("Reorganized workflows");
-  await checkRateLimit(octokit);
-
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
@@ -137,8 +125,6 @@ export async function updateDrciComments(
     Array.from(workflowsByPR.keys())
   );
 
-  console.log("Fetched all necessary data");
-  await checkRateLimit(octokit);
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
