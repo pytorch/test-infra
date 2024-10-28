@@ -236,6 +236,12 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
+      - name: Upload wheel to GitHub 1
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache

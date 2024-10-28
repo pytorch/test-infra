@@ -161,7 +161,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         },
         CPU: "pytorch/manylinux-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
-        CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
+        CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64-72f2b29bb09b7ad5f5f31ed6f993b778178b3407",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
     }
     CONDA_CONTAINER_IMAGES = {

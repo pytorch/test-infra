@@ -52,7 +52,7 @@ def get_wheel_variables(
     ret.extend(
         get_pytorch_pip_install_command(
             gpu_arch_version=gpu_arch_version,
-            pytorch_version=pytorch_version,
+            pytorch_version="2.5.0.dev20240812",
             channel=channel,
         )
     )
