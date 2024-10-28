@@ -1,7 +1,7 @@
 import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
-import myProbotApp from "../lib/bot/autoLabelCodevTrunk";
+import myProbotApp, { FACEBOOK_GITHUB_BOT_ID } from "../lib/bot/autoLabelCodevTrunk";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
 
@@ -169,6 +169,92 @@ describe("autoLabelCodevTrunkBot", () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Adds ciflow/trunk label on imported comment", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body =
+      "@zhouzhuojie has imported this pull request. Differential Revision: D12345678";
+    event.payload.comment.user.id = FACEBOOK_GITHUB_BOT_ID;
+    event.payload.comment.user.login = "facebook-github-bot";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_user = event.payload.issue.user.login;
+    const pr_number = event.payload.issue.number;
+
+    utils.mockPermissions(`${owner}/${repo}`, issue_user, "write");
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`"ciflow/trunk"`);
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Does not add ciflow/trunk label on random comment", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "random";
+    event.payload.comment.user.id = FACEBOOK_GITHUB_BOT_ID;
+    event.payload.comment.user.login = "facebook-github-bot";
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Does not add ciflow/trunk label on comment if no write permissions", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "@zhouzhuojie has imported this pull request.";
+    event.payload.comment.user.id = FACEBOOK_GITHUB_BOT_ID;
+    event.payload.comment.user.login = "facebook-github-bot";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_user = event.payload.issue.user.login;
+
+    utils.mockPermissions(`${owner}/${repo}`, issue_user, "read");
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Does not add ciflow/trunk label on comment if not from facebook bot", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body =
+      "@zhouzhuojie has imported this pull request.";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_user = event.payload.issue.user.login;
+    utils.mockPermissions(`${owner}/${repo}`, issue_user, "write");
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Does not add ciflow/trunk label on comment if not a PR", async () => {
+    const event = requireDeepCopy("./fixtures/issue_comment.json");
+    event.payload.comment.body =
+      "@zhouzhuojie has imported this pull request.";
 
     const scope = nock("https://api.github.com");
     await probot.receive(event);

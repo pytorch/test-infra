@@ -4,16 +4,16 @@
 import { Context, Probot } from "probot";
 import { addNewLabels, canRunWorkflows } from "./autoLabelBot";
 import { CODEV_INDICATOR } from "./codevNoWritePermBot";
-import { isPyTorchPyTorch } from "./utils";
+import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 
 const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+export const FACEBOOK_GITHUB_BOT_ID = 6422482;
 
 async function doCodevLabeling(
   context: Context<"pull_request" | "pull_request_review">
 ) {
   const owner = context.payload.repository.owner.login;
   const repo = context.payload.repository.name;
-  const prAuthor = context.payload.pull_request.user.login;
   const body = context.payload.pull_request.body;
   const existingLabels = context.payload.pull_request.labels.map(
     (e) => e["name"]
@@ -52,6 +52,35 @@ function myBot(app: Probot): void {
       return;
     }
     await doCodevLabeling(context);
+  });
+
+  app.on("issue_comment.created", async (context) => {
+    // Only proceed if this is a PR comment and contains import text
+    if (
+      !context.payload.issue.pull_request ||
+      context.payload.comment.user.id !== FACEBOOK_GITHUB_BOT_ID ||
+      !context.payload.comment.body?.match(
+        /^@[\w_-]+ has imported this pull request.*/
+      )
+    ) {
+      return;
+    }
+
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+
+    if (!isPyTorchPyTorch(owner, repo) || !await hasWritePermissions(
+      context,
+      context.payload.issue.user.login
+    )) {
+      return;
+    }
+
+    const existingLabels = context.payload.issue.labels.map(
+      (label) => label.name
+    );
+
+    await addNewLabels(existingLabels, [CIFLOW_TRUNK_LABEL], context as any);
   });
 }
 
