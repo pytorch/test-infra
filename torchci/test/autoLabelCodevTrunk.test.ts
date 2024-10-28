@@ -175,4 +175,115 @@ describe("autoLabelCodevTrunkBot", () => {
 
     scope.done();
   });
+
+  test("PR does not add ciflow/trunk on random comment (wrong content)", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.body = "random";
+    event.payload.comment.user.login = "facebook-github-bot";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("PR does not add ciflow/trunk on random comment (wrong user)", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body =
+      "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
+    event.payload.comment.user.login = "random user";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("PR does not add ciflow/trunk on comment (no permissions)", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body =
+      "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
+    event.payload.comment.user.login = "facebook-github-bot";
+    const owner = "clee2000";
+    const repo = "random-testing";
+    event.payload.repository.owner.login = owner;
+    event.payload.repository.name = repo;
+    const repoFullName = `${owner}/${repo}`;
+    const author = event.payload.issue.user.login;
+    const headSha = "random";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = [
+      utils.mockGetPR(repoFullName, event.payload.issue.number, {
+        user: { login: author },
+        head: { sha: headSha },
+        base: { repo: { name: repo, owner: { login: owner } } },
+      }),
+      utils.mockPermissions(repoFullName, author, "read"),
+      utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
+    ];
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("PR adds ciflow/trunk on comment", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body =
+      "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
+    event.payload.comment.user.login = "facebook-github-bot";
+    const owner = "clee2000";
+    const repo = "random-testing";
+    event.payload.repository.owner.login = owner;
+    event.payload.repository.name = repo;
+    const repoFullName = `${owner}/${repo}`;
+    const author = event.payload.issue.user.login;
+    const headSha = "random";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = [
+      utils.mockGetPR(repoFullName, event.payload.issue.number, {
+        user: { login: author },
+        head: { sha: headSha },
+        base: { repo: { name: repo, owner: { login: owner } } },
+      }),
+      utils.mockApprovedWorkflowRuns(repoFullName, headSha, true),
+      utils.mockAddLabels(
+        ["ciflow/trunk"],
+        repoFullName,
+        event.payload.issue.number
+      ),
+    ];
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("Does not add ciflow/trunk label on comment if not a PR", async () => {
+    const event = requireDeepCopy("./fixtures/issue_comment.json");
+    event.payload.comment.body =
+      "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
+    event.payload.comment.user.login = "facebook-github-bot";
+    delete event.payload.issue.pull_request;
+    event.payload.comment.body = "@zhouzhuojie has imported this pull request.";
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
 });
