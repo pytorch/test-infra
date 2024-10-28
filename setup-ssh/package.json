@@ -26,7 +26,7 @@
     "@actions/core": "^1.11.1",
     "@actions/github": "^5.0.0",
     "@actions/http-client": "^1.0.11",
-    "@octokit/rest": "^20.0.1",
+    "@octokit/rest": "^21.0.2",
     "@types/source-map-support": "^0.5.4",
     "source-map-support": "^0.5.19"
   },
