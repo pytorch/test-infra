@@ -2,14 +2,13 @@
 
 import { createClient } from "@clickhouse/client";
 import dayjs from "dayjs";
-import { queryClickhouse } from "./clickhouse";
 import * as thisModule from "./cacheGithubAPI";
+import { queryClickhouse } from "./clickhouse";
 
 export function enableCache() {
   // Used for testing
   return true;
 }
-
 
 function getClickhouseClient() {
   return createClient({

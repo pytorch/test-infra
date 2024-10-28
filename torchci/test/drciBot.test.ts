@@ -1,4 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import * as cacheGithubAPI from "lib/cacheGithubAPI";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
 import * as getS3Client from "lib/s3";
@@ -10,7 +11,6 @@ import * as clickhouse from "../lib/clickhouse";
 import { handleScope } from "./common";
 import { successfulA } from "./drci.test";
 import * as utils from "./utils";
-import * as cacheGithubAPI from "lib/cacheGithubAPI";
 
 nock.disableNetConnect();
 
