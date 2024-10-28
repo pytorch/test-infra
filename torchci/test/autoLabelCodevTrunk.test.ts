@@ -272,4 +272,18 @@ describe("autoLabelCodevTrunkBot", () => {
 
     handleScope(scope);
   });
+
+  test("Does not add ciflow/trunk label on comment if not a PR", async () => {
+    const event = requireDeepCopy("./fixtures/issue_comment.json");
+    event.payload.comment.body =
+      "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
+    event.payload.comment.user.login = "facebook-github-bot";
+    delete event.payload.issue.pull_request;
+    event.payload.comment.body = "@zhouzhuojie has imported this pull request.";
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
 });
