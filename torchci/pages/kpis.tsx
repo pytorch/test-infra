@@ -191,34 +191,6 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"Minutes Devs spent waiting on CI per PR (Weekly)"}
-          queryName={"ci_wait_time"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"bucket"}
-          yAxisFieldName={"duration_mins"}
-          yAxisRenderer={(duration) => duration}
-          groupByFieldName={"percentile"}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
-          title={"Number of commits per PR (Weekly)"}
-          queryName={"ci_wait_time"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"bucket"}
-          yAxisFieldName={"num_commits"}
-          yAxisRenderer={(duration) => duration}
-          groupByFieldName={"percentile"}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
