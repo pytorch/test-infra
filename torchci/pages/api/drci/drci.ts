@@ -235,7 +235,9 @@ export async function updateDrciComments(
           title: "Dr.CI classification results",
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
-          summary: JSON.stringify(removeFailureContext(failures[pr_info.pr_number])),
+          summary: JSON.stringify(
+            removeFailureContext(failures[pr_info.pr_number])
+          ),
         },
       });
     },
@@ -254,7 +256,9 @@ export async function updateDrciComments(
  * @param failure
  * @returns
  */
-function removeFailureContext(failure: { [cat: string]: RecentWorkflowsData[] }) {
+function removeFailureContext(failure: {
+  [cat: string]: RecentWorkflowsData[];
+}) {
   const result = { ...failure };
   for (const cat in result) {
     for (const job of result[cat]) {

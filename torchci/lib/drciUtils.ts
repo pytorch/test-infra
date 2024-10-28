@@ -117,7 +117,6 @@ export async function getDrciComment(
   repo: string,
   prNum: number
 ): Promise<{ id: number; body: string }> {
-  console.log("had to use octokit for drci comment")
   const commentsRes = await octokit.rest.issues.listComments({
     owner: owner,
     repo: repo,
@@ -434,7 +433,7 @@ export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
 export async function fetchPRLabels(
   owner: string,
   repo: string,
-  prNumber: number,
+  prNumber: number
 ): Promise<string[]> {
   const query = `
 SELECT

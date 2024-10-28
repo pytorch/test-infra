@@ -3,6 +3,13 @@
 import { createClient } from "@clickhouse/client";
 import dayjs from "dayjs";
 import { queryClickhouse } from "./clickhouse";
+import * as thisModule from "./cacheGithubAPI";
+
+export function enableCache() {
+  // Used for testing
+  return true;
+}
+
 
 function getClickhouseClient() {
   return createClient({
@@ -15,6 +22,9 @@ function getClickhouseClient() {
 async function saveCache(key: string, data: any) {
   // Save the data to the cache
   //   console.log(data);
+  if (!thisModule.enableCache()) {
+    return;
+  }
   const clickhouseClient = getClickhouseClient();
   await clickhouseClient.insert({
     table: "misc.github_api_cache",
@@ -27,9 +37,11 @@ async function saveCache(key: string, data: any) {
     ],
   });
 }
-
 async function readCache(key: string) {
   // Read the data from the cache
+  if (!thisModule.enableCache()) {
+    return null;
+  }
   const query = `select data from misc.github_api_cache where key = {key: String}`;
   const params = { key };
 
@@ -45,6 +57,9 @@ async function readCache(key: string) {
 
 export async function invalidateCache(key: string) {
   // Invalidate the cache
+  if (!thisModule.enableCache()) {
+    return;
+  }
   const query = `delete from misc.github_api_cache where key = {key: String}`;
   const params = { key };
 

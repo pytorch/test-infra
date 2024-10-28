@@ -10,6 +10,7 @@ import * as clickhouse from "../lib/clickhouse";
 import { handleScope } from "./common";
 import { successfulA } from "./drci.test";
 import * as utils from "./utils";
+import * as cacheGithubAPI from "lib/cacheGithubAPI";
 
 nock.disableNetConnect();
 
@@ -35,6 +36,7 @@ describe("verify-drci-functionality", () => {
     }));
     const mockS3Client = jest.spyOn(getS3Client, "getS3Client");
     mockS3Client.mockImplementation(() => mockS3 as unknown as S3Client);
+    jest.spyOn(cacheGithubAPI, "enableCache").mockImplementation(() => false);
   });
 
   afterEach(() => {
@@ -209,8 +211,6 @@ describe("verify-drci-functionality", () => {
           return true;
         }
       )
-      .reply(200, {})
-      .get((url) => url.includes(`/repos/${OWNER}/${REPO}/issues/1000/labels`))
       .reply(200, {})
       .get((url) => url.includes(`/repos/${OWNER}/${REPO}/compare/`))
       .reply(200, {

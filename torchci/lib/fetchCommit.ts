@@ -1,12 +1,12 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
+import { fetchAndCache } from "./cacheGithubAPI";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
-import { fetchAndCache } from "./cacheGithubAPI";
 
 async function fetchDatabaseInfo(
   owner: string,
