@@ -24,3 +24,22 @@ jobs:
 
       - name: Test that setup-nvidia works
         uses: ./.github/actions/setup-nvidia
+  test-minimal-version:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner-type:
+          - linux.g5.4xlarge.nvidia.gpu
+    name: Install NVIDIA driver on ${{ matrix.runner-type }}
+    runs-on: ${{ matrix.runner-type }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup SSH
+        uses: ./.github/actions/setup-ssh
+        with:
+          github-secret: ${{ github.token }}
+      - name: Test that setup-nvidia works
+        uses: ./.github/actions/setup-nvidia
+        with:
+          driver-version: "470.161.03"
