@@ -59,7 +59,6 @@ RUNNER_JSCHEMA["required"] = [
     "disk_size",
     "instance_type",
     "is_ephemeral",
-    "max_available",
     "os",
 ]
 
@@ -144,7 +143,7 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
     Ensure that for every linux runner type in the config:
 
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
-    2 - they have a max_available of at least 50
+    2 - they have a max_available of at least 50, or is not enforced
     """
     errors_found = False
 
@@ -161,7 +160,8 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
-        if runner_config["max_available"] < MAX_AVAILABLE_MINIMUM:
+        if "max_available" in runner_config and runner_config["max_available"] != None and \
+                runner_config["max_available"] < MAX_AVAILABLE_MINIMUM and runner_config["max_available"] >= 0:
             print(
                 f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
                 f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
