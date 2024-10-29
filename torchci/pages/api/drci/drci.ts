@@ -264,7 +264,7 @@ from
     default.issue_comment final
 where
     body like '<!-- drci-comment-start -->%'
-    and body like '% Pending%'
+    and match(body, '\\d Pending')
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String}`;
   const results = await queryClickhouse(query, { repo: `%${repo}%` });
