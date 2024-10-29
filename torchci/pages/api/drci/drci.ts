@@ -261,10 +261,10 @@ async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
 select
     issue_url
 from
-    issue_comment final
+    default.issue_comment final
 where
     body like '<!-- drci-comment-start -->%'
-    and body like '%hourglass_flowing_sand%'
+    and body like '% Pending%'
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String}`;
   const results = await queryClickhouse(query, { repo: `%${repo}%` });
