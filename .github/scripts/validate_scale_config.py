@@ -183,7 +183,9 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
 
     if invalid_runners:
         invalid_runners_str = ", ".join(invalid_runners)
-        print(f"Found a total of {len(invalid_runners)} invalid runner configurations: {invalid_runners_str}")
+        print(
+            f"Found a total of {len(invalid_runners)} invalid runner configurations: {invalid_runners_str}"
+        )
 
     return not invalid_runners
 
