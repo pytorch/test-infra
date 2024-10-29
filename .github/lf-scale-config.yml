@@ -24,7 +24,8 @@
 #   runner_label:
 #     instance_type: m4.large
 #     os: linux
-#     max_available: 20
+#     # when max_available value is not defined, no max runners is enforced
+#     max_available: undefined
 #     disk_size: 50
 #     is_ephemeral: true
 

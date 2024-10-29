@@ -145,14 +145,14 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
     2 - they have a max_available of at least 50, or is not enforced
     """
-    errors_found = False
+    invalid_runners = set()
 
     for runner_type, runner_config in runner_types.items():
         try:
             jsonschema.validate(runner_config, RUNNER_JSCHEMA)
         except jsonschema.ValidationError as e:
             print(f"Runner type {runner_type} has invalid configuration: {e.message}")
-            errors_found = True
+            invalid_runners.add(runner_type)
             # continue, as the syntax is invalid and we can't trust the rest of the config
             # so the next part of the code might break
             continue
@@ -160,26 +160,32 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
-        if "max_available" in runner_config:
-            if runner_config["max_available"] == None:
-                print(
-                    f"Runner type {runner_type} can't have max_available set to Null, Python, "
-                    "between other cases, will load a value as None when its property is "
-                    "defined as null in the yaml file. It is preferable to remove the max_available "
-                    "property or set it to a negative value."
-                )
-                errors_found = True
-            elif (
-                runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
-                and runner_config["max_available"] >= 0
-            ):
-                print(
-                    f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
-                    f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
-                )
-                errors_found = True
+        if "max_available" not in runner_config:
+            continue
 
-    return not errors_found
+        if runner_config["max_available"] == None:
+            print(
+                f"Runner type {runner_type} can't have max_available set to Null, Python, "
+                "between other cases, will load a value as None when its property is "
+                "defined as null in the yaml file. It is preferable to remove the max_available "
+                "property or set it to a negative value."
+            )
+            invalid_runners.add(runner_type)
+        elif (
+            runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
+            and runner_config["max_available"] >= 0
+        ):
+            print(
+                f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
+                f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
+            )
+            invalid_runners.add(runner_type)
+
+    if invalid_runners:
+        invalid_runners_str = ", ".join(invalid_runners)
+        print(f"Found a total of {len(invalid_runners)} invalid runner configurations: {invalid_runners_str}")
+
+    return not invalid_runners
 
 
 def is_consistent_across_configs(
