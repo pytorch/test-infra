@@ -43,7 +43,7 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
         extra_info Map(String, String)
     ),
     -- About the benchmark
-    --   name, the name of the benchmark
+    --   name, the name of the benchmark, i.e. cudagraphs
     --   mode, training or inference
     --   dtype, the quantization / dtype used by the benchmark
     `benchmark` Tuple(
@@ -56,14 +56,32 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     --  name, the model name
     --  type, open field, this could be a model, a custom layer, or a fused ops
     --  backend, the optional name of any delegation backend used by the model, i.e. XNNPACK
-    --  origin, where it comes from, i.e. TorchBench, PT micro benchmark
+    --  origins, where it comes from, i.e. TorchBench. A model could be in multiple sources
     --  extra_info, any extra piece of information in key/value format
     `model` Tuple (
         name String,
         type String,
         backend String,
-        origin String,
+        origins Array(String),
         extra_info Map(String, String)
+    ),
+    -- About the inputs of the benchmark. Use a map keyed by input name here as there could
+    -- be more than one
+    `inputs` Map(
+        String,
+        Tuple(dtype String, extra_info Map(String, String))
+    ),
+    -- About important dependencies used by the benchmark, obviously there can be more than
+    -- one, i.e. HF
+    `dependencies` Map(
+        String,
+        Tuple(
+            `repo` String,
+            `branch` String,
+            `sha` String,
+            `version` String,
+            extra_info Map(String, String)
+        )
     ),
     -- About the metric
     --  name, the metric name
