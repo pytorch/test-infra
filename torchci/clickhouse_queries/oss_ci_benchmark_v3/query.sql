@@ -1,7 +1,6 @@
 -- This query creates the oss_ci_benchmark_v3 table on ClickHouse
 CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     -- Metadata
-    `id` String,
     `timestamp` UInt64,
     `schema_version` String DEFAULT 'v3',
     `name` String,
@@ -94,4 +93,12 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     ),
 ) ENGINE = MergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 ORDER BY
-    (timestamp, id) SETTINGS index_granularity = 8192
+    (
+        timestamp,
+        head_branch,
+        head_sha,
+        workflow_id,
+        job_id,
+        servicelab_experiment_id,
+        servicelab_trial_id
+    ) SETTINGS index_granularity = 8192
