@@ -31,7 +31,7 @@ import {
   fetchFailedJobsFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import { getOctokit } from "lib/github";
+import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -44,6 +44,7 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
+import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -78,6 +79,26 @@ export default async function handler(
       prNumber ? [parseInt(prNumber as string)] : []
     );
     res.status(200).json(failures);
+  } else if (authorization) {
+    // Check user rate limit
+    const userOctokit = await getOctokitWithUserToken(authorization as string);
+    const user = await userOctokit.rest.users.getAuthenticated();
+    const { prNumber } = req.query;
+    const { repo }: UpdateCommentBody = JSON.parse(req.body);
+    if (await drCIRateLimitExceeded(user.data.login)) {
+      return res.status(429).end();
+    }
+    incrementDrCIRateLimit(user.data.login);
+
+    // Update
+    const octokit = await getOctokit(OWNER, repo);
+    await updateDrciComments(
+      octokit,
+      repo,
+      prNumber ? [parseInt(prNumber as string)] : []
+    );
+    // Send an empty string since they're not going to care about the answer
+    res.status(200).json([]);
   }
 
   res.status(403).end();
