@@ -74,6 +74,11 @@ on:
         required: false
         type: string
         default: recursive
+      setup-miniconda:
+        description: Set to true if setup-miniconda is needed
+        required: false
+        type: boolean
+        default: false
       delocate-wheel:
         description: "Whether to run delocate-wheel after building."
         required: false
@@ -130,7 +135,7 @@ jobs:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
-          setup-miniconda: false
+          setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
