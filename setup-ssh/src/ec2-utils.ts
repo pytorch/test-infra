@@ -1,4 +1,5 @@
 import {HttpClient} from '@actions/http-client'
+import {IHttpClientResponse} from '@actions/http-client/interfaces'
 
 export async function getEC2Metadata(category: string): Promise<string> {
   const maxRetries = 10
@@ -6,13 +7,11 @@ export async function getEC2Metadata(category: string): Promise<string> {
     allowRetries: true,
     maxRetries
   })
-  // convert these two curls:
-  // curl -H "X-aws-ec2-metadata-token: $(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30")" -fsSL "http://169.254.169.254/latest/meta-data/${category}"
-    const tokenResponse = await http.put(
-    `http://169.254.169.254/latest/api/token`, undefined, {
-      headers: {
-        'X-aws-ec2-metadata-token-ttl-seconds': '30'
-      }
+  const tokenResponse: IHttpClientResponse = await http.put(
+    `http://169.254.169.254/latest/api/token`,
+    '',
+    {
+      'X-aws-ec2-metadata-token-ttl-seconds': '30'
     }
   )
 
@@ -21,13 +20,12 @@ export async function getEC2Metadata(category: string): Promise<string> {
   }
 
   const resp = await http.get(
-    `http://169.254.169.254/latest/meta-data/${category}`, {
-      headers: {
-        'X-aws-ec2-metadata-token': tokenResponse.result
-      }
+    `http://169.254.169.254/latest/meta-data/${category}`,
+    {
+      'X-aws-ec2-metadata-token': await tokenResponse.readBody()
     }
   )
-  
+
   if (resp.message.statusCode !== 200) {
     return ''
   }
