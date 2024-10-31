@@ -5,7 +5,7 @@ on:
       - .github/workflows/test-setup-ssh.yml
       - .github/actions/setup-ssh/action.yml
       - .github/actions/setup-ssh/index.js
-      - setup-ssh/
+      - setup-ssh/**
   workflow_dispatch:
 
 jobs:
