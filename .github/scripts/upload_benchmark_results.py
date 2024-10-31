@@ -145,7 +145,8 @@ def generate_s3_path(filepath: str, schema_version: str) -> Optional[str]:
             )
             return ""
 
-    return f"{schema_version}/{repo}/{workflow_id}/{job_id}/{filepath}"
+    filename = os.path.basename(filepath)
+    return f"{schema_version}/{repo}/{workflow_id}/{job_id}/{filename}"
 
 
 def upload_to_s3(
