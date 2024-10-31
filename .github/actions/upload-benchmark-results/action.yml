@@ -24,7 +24,7 @@ runs:
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
         DRY_RUN: ${{ inputs.dry-run }}
-        SCHEMA_VERSION: ${{ input.schema-version }}
+        SCHEMA_VERSION: ${{ inputs.schema-version }}
       run: |
         set -eux
 
