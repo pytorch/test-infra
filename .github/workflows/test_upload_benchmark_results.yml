@@ -13,8 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Test upload the benchmark results
+      - name: Test upload the benchmark results (v2)
         uses: ./.github/actions/upload-benchmark-results
         with:
-          benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing
+          benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing/v2
+          schema-version: v2
+          dry-run: true
+
+      - name: Test upload the benchmark results (v3)
+        uses: ./.github/actions/upload-benchmark-results
+        with:
+          benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing/v3
+          schema-version: v3
           dry-run: true
