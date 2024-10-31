@@ -6,6 +6,16 @@ WITH
             j.workflow_name,
             toStartOfInterval(j.started_at, INTERVAL 1 HOUR) AS bucket
         FROM
+            -- Deliberatly not adding FINAL to this workflow_job.
+            -- Risks of not using it:
+            --   - You may get duplicate records for rows that were updated corresponding to their
+            --     before/after states, but as long as there’s some mechanism in the query to account
+            --     for that it’s okay (we check for j.status = 'completed`).
+            --   - In the worst case scenario, you may only see the ‘old’ version of the records for some rows
+            -- Costs of using it:
+            --   - Query procesing time increases from ~5 -> 16 seconds
+            --   - Memory usage grows from 7.5 GB -> 32 GB
+            -- So the tradeoff is worth it for this query.
             workflow_job AS j
             ARRAY JOIN j.labels as l
         WHERE
