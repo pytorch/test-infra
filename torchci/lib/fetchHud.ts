@@ -143,9 +143,14 @@ export default async function fetchHud(params: HudParams): Promise<{
   }
 
   const namesSet: Set<string> = new Set();
-  // Built a list of all the distinct job names.
+  // Built a list of all the distinct job names
   results?.forEach((job: JobData) => {
     namesSet.add(job.name!);
+
+    // If job is not complete, get the status.
+    if (job.conclusion == ''){
+      job.conclusion = getConclusionFromStatus(job)
+    }
   });
   const names = Array.from(namesSet).sort();
 
@@ -206,4 +211,22 @@ export default async function fetchHud(params: HudParams): Promise<{
     shaGrid.push(row);
   });
   return { shaGrid: shaGrid, jobNames: names };
+}
+
+// See: https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#list-workflow-runs-for-a-workflow
+// the official API does not provide a clear list of the possible statuses, this is based on experience,
+// we only care about the following, since conclusion covers all the other statuses.
+// - pending: The job is pending. pending means the job is waiting for dependencies to be met.
+// - queued: The job is queue. queued means the job is waiting for available resources.
+// - in_progress: The job is in progress. The job is running.
+function getConclusionFromStatus(job: JobData): string {
+  switch(job.status){
+    case "pending":
+    case "queued":
+      return "pending";
+    case "in_progress":
+      return job.status;
+    default:
+      return 'unknown';
+  }
 }

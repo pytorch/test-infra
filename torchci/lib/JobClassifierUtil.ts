@@ -215,8 +215,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Failure:
       return "X";
-    case GroupedJobStatus.Pending:
-      return "?";
+    case GroupedJobStatus.InProgress:
+      return "I";
     case GroupedJobStatus.AllNull:
       return "~";
     case GroupedJobStatus.Classified:
@@ -239,7 +239,7 @@ export function isFailure(conclusion?: string): boolean {
     case JobStatus.Success:
     case JobStatus.Neutral:
     case JobStatus.Skipped:
-    case JobStatus.Pending:
+    case JobStatus.InProgress:
     case undefined:
     default:
       return false;
@@ -265,8 +265,8 @@ export function getConclusionChar(
       return "T";
     case JobStatus.Skipped:
       return "S";
-    case JobStatus.Pending:
-      return "?";
+    case JobStatus.InProgress:
+      return "I";
     case undefined:
       return "~";
     default:
@@ -286,7 +286,7 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
       return 2;
     case JobStatus.Cancelled:
       return 3;
-    case JobStatus.Pending:
+    case JobStatus.InProgress:
       return 4;
     case undefined:
       return 5;
