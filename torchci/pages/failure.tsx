@@ -1,3 +1,4 @@
+import CheckBoxSelector from "components/CheckBoxSelector";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
 import LogViewer from "components/LogViewer";
@@ -22,21 +23,14 @@ function FuzzySearchCheckBox({
   setUseFuzzySearch: any;
 }) {
   return (
-    <>
-      <div
-        onClick={() => {
-          setUseFuzzySearch(!useFuzzySearch);
-        }}
-      >
-        <input
-          type="checkbox"
-          name="useFuzzySearch"
-          checked={useFuzzySearch}
-          onChange={() => {}}
-        />
-        <label htmlFor="useFuzzySearch"> Use fuzzy search</label>
-      </div>
-    </>
+    <CheckBoxSelector
+      checkBoxName="useFuzzySearch"
+      value={useFuzzySearch}
+      setValue={() => {
+        setUseFuzzySearch(!useFuzzySearch);
+      }}
+      labelText="Use fuzzy search"
+    />
   );
 }
 
