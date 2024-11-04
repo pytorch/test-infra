@@ -156,6 +156,10 @@ jobs:
           repository: "pytorch/builder"
           ref: "main"
           path: builder
+      - name: Setup SSH
+        uses: ./test-infra/.github/actions/setup-ssh
+        with:
+          github-secret: ${{ github.token }}
       - name: Set linux aarch64 CI
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
@@ -283,6 +287,9 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+      - name: Wait for ssh session
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/wait-for-ssh
 
   upload:
     needs: build

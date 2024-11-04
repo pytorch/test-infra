@@ -98,6 +98,10 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: Setup SSH
+        uses: ./test-infra/.github/actions/setup-ssh
+        with:
+          github-secret: ${{ github.token }}
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
@@ -229,7 +233,10 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
-
+      - name: Wait for ssh session
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/wait-for-ssh
+        
   upload:
     needs: build
     uses: ./.github/workflows/_binary_conda_upload.yml
