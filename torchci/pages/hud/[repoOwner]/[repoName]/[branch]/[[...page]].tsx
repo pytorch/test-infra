@@ -192,7 +192,6 @@ function HudJobCells({
   unstableIssues: IssueData[];
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
-
   return (
     <>
       {names.map((name) => {
@@ -255,6 +254,8 @@ function HudTableBody({
   names: string[];
   unstableIssues: IssueData[];
 }) {
+  console.log("elainewy")
+
   return (
     <tbody>
       {shaGrid.map((row: RowData) => (

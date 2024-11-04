@@ -7,6 +7,7 @@ import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
+import { switchClasses } from "@mui/material";
 
 async function fetchDatabaseInfo(
   owner: string,
@@ -144,8 +145,13 @@ export default async function fetchHud(params: HudParams): Promise<{
 
   const namesSet: Set<string> = new Set();
   // Built a list of all the distinct job names.
+  // Update conclusion field based on the status
   results?.forEach((job: JobData) => {
     namesSet.add(job.name!);
+    if (job.conclusion == ''){
+      job.conclusion = getAdditionalStatus(job)
+    }
+
   });
   const names = Array.from(namesSet).sort();
 
@@ -157,7 +163,6 @@ export default async function fetchHud(params: HudParams): Promise<{
     if (jobsBySha[job.sha!] === undefined) {
       jobsBySha[job.sha!] = {};
     }
-
     const existingJob = jobsBySha[job.sha!][job.name!];
     if (existingJob !== undefined) {
       // If there are multiple jobs with the same name, we want the most recent.
@@ -196,7 +201,6 @@ export default async function fetchHud(params: HudParams): Promise<{
         jobs.push(nullsStripped as JobData);
       }
     }
-
     const row: RowData = {
       ...commit,
       jobs: jobs,
@@ -206,4 +210,16 @@ export default async function fetchHud(params: HudParams): Promise<{
     shaGrid.push(row);
   });
   return { shaGrid: shaGrid, jobNames: names };
+}
+
+function getAdditionalStatus(job: JobData): string {
+  switch(job.status){
+    case "pending":
+    case "queued":
+      return "pending";
+    case "in_progress":
+      return job.status;
+    default:
+      return 'unknown';
+  }
 }

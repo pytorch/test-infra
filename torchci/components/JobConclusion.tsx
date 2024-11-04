@@ -4,6 +4,13 @@ import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { JobStatus } from "./GroupJobConclusion";
 import styles from "./JobConclusion.module.css";
+import { RiProgress5Fill } from "react-icons/ri";
+import { MdCheckCircle } from "react-icons/md";
+import { FaClock } from "react-icons/fa";
+import { ImCross } from "react-icons/im";
+import { IoBanOutline } from "react-icons/io5";
+import { MdOutlineTimerOff } from "react-icons/md";
+import { CiCircleCheck } from "react-icons/ci";
 
 /**
  * `getFailureEl` generates a div with a monster sprite element based on the first line of `failureLines` in `jobData`.
@@ -87,9 +94,41 @@ export default function JobConclusion({
     <span className={styles.conclusion}>
       {(failureEl && failureEl) || (
         <span className={style}>
-          {getConclusionChar(conclusion, failedPreviousRun)}
+          {getConclusionCharIcon(conclusion,style, failedPreviousRun)}
         </span>
       )}
     </span>
   );
+}
+
+export function getConclusionCharIcon(
+  conclusion?: string,
+  style?:string,
+  failedPreviousRun?: boolean
+) {
+  switch (conclusion) {
+    case JobStatus.Success:
+      if (failedPreviousRun) {
+        return <ImCross className={style}></ImCross>;
+      }
+      return <CiCircleCheck      className={style}> </CiCircleCheck>
+    case JobStatus.Failure:
+      return <ImCross className={style}></ImCross>;
+    case JobStatus.Neutral:
+      return "N";
+    case JobStatus.Cancelled:
+      return <IoBanOutline className={style}></IoBanOutline>;
+    case JobStatus.Timed_out:
+      return <MdOutlineTimerOff className={style}></MdOutlineTimerOff>;
+    case JobStatus.Skipped:
+      return "S";
+    case JobStatus.Pending:
+      return (<FaClock className={style}></FaClock>);
+    case JobStatus.In_progress:
+       return (<RiProgress5Fill className={style}></RiProgress5Fill>);
+    case undefined:
+      return "~";
+    default:
+      return "U";
+  }
 }

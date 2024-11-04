@@ -10,6 +10,7 @@ export default async function handler(
   const params = packHudParams(req.query);
   const hudData = await fetchHud(params);
   const jsonData = JSON.stringify(hudData);
+
   res
     .status(200)
     // 0-60s after first request: cache HIT

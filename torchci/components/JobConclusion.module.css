@@ -1,7 +1,7 @@
 .conclusion {
   font-family: monospace;
-  font-size: 1rem;
   font-weight: bold;
+  font-size: 20px;
 }
 
 .classified {
@@ -9,7 +9,7 @@
 }
 
 .success {
-  color: green;
+  color:#49c54dd7;
 }
 
 .failure {
@@ -25,6 +25,7 @@
 
 .skipped {
   color: grey;
+  font-size: 24px;
 }
 
 .neutral {
@@ -43,18 +44,25 @@
   color: goldenrod;
 }
 
+.in_progress {
+  color: rgb(80, 182, 222);
+}
+
 .none {
   color: lightgray;
 }
 
 .all_null {
   color: grey;
+  font-size: 28px;
 }
 
 .flaky {
-  color: lightgreen;
+  color: rgba(242, 143, 4, 0.939);
+  font-size: 24px;
 }
 
 .warning {
   color: #f8b88b;
+  font-size: 24px;
 }

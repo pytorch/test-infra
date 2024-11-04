@@ -2,6 +2,7 @@ WITH job AS (
     SELECT
         job.head_sha as sha,
         job.name as job_name,
+        job.status as status,
         workflow.name as workflow_name,
         job.id as id,
         job.conclusion as conclusion,
@@ -47,11 +48,8 @@ SELECT
     sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
     id,
-    if(
-      conclusion = '',
-      'pending',
-      conclusion
-     ) as conclusion,
+    conclusion as conclusion,
+    status as status,
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,

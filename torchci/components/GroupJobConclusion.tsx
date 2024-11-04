@@ -1,5 +1,7 @@
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupConclusionChar } from "lib/JobClassifierUtil";
+import { RiProgress5Fill } from "react-icons/ri";
+import { MdFlaky } from "react-icons/md";
+
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -11,6 +13,11 @@ import { useContext } from "react";
 import hudStyles from "./hud.module.css";
 import styles from "./JobConclusion.module.css";
 import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
+import { MdCheckCircle } from "react-icons/md";
+import { ImCross } from "react-icons/im";
+import { FaClock } from "react-icons/fa";
+import { RiErrorWarningFill } from "react-icons/ri";
+
 
 export enum JobStatus {
   Success = "success",
@@ -20,11 +27,13 @@ export enum JobStatus {
   Timed_out = "timed_out",
   Skipped = "skipped",
   Pending = "pending",
+  In_progress = "in_progress"
 }
 
 export enum GroupedJobStatus {
   Failure = "failure",
   Pending = "pending",
+  In_Progress = "in_progress",
   AllNull = "all_null",
   Success = "success",
   Classified = "classified",
@@ -53,6 +62,7 @@ export default function HudGroupedCell({
   const erroredJobs = [];
   const warningOnlyJobs = [];
   const pendingJobs = [];
+  const inProgressJobs = [];
   const noStatusJobs = [];
   const failedPreviousRunJobs = [];
   for (const job of groupData.jobs) {
@@ -62,7 +72,10 @@ export default function HudGroupedCell({
       } else {
         erroredJobs.push(job);
       }
-    } else if (job.conclusion === JobStatus.Pending) {
+    } else if (job.conclusion == JobStatus.In_progress){
+      inProgressJobs.push(job)
+    }
+     else if (job.conclusion === JobStatus.Pending) {
       pendingJobs.push(job);
     } else if (job.conclusion === undefined) {
       noStatusJobs.push(job);
@@ -74,7 +87,10 @@ export default function HudGroupedCell({
   let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
     conclusion = GroupedJobStatus.Failure;
-  } else if (!(pendingJobs.length === 0)) {
+  }else if (!(inProgressJobs.length === 0)) {
+    conclusion = GroupedJobStatus.In_Progress;
+  }
+  else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
   } else if (failedPreviousRunJobs.length !== 0) {
     conclusion = GroupedJobStatus.Flaky;
@@ -113,13 +129,36 @@ export default function HudGroupedCell({
               onDoubleClick={toggleExpanded}
               style={{ border: "1px solid gainsboro", padding: "0 1px" }}
             >
-              {getGroupConclusionChar(conclusion)}
+              {getGroupConclusionIcon(conclusion,isClassified? styles["classified"]: styles[conclusion ?? "none"])}
             </span>
           </span>
         </TooltipTarget>
       </td>
     </>
   );
+}
+
+export function getGroupConclusionIcon(conclusion?: GroupedJobStatus, style?: string) {
+  switch (conclusion) {
+    case GroupedJobStatus.Success:
+      return <MdCheckCircle className={style}> </MdCheckCircle>;
+    case GroupedJobStatus.Failure:
+      return <ImCross className={style}></ImCross>;
+    case GroupedJobStatus.In_Progress:
+      return (<RiProgress5Fill className={style}></RiProgress5Fill>);
+    case GroupedJobStatus.Pending:
+      return (<FaClock className={style}></FaClock>);
+    case GroupedJobStatus.AllNull:
+      return "~";
+    case GroupedJobStatus.Classified:
+      return "X";
+    case GroupedJobStatus.Flaky:
+      return <MdFlaky className={style}></MdFlaky>;
+    case GroupedJobStatus.WarningOnly:
+      return <RiErrorWarningFill className={style}> </RiErrorWarningFill>
+    default:
+      return "U";
+  }
 }
 
 function GroupTooltip({
