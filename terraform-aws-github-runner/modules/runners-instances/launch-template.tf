@@ -290,6 +290,13 @@ resource "aws_launch_template" "windows_runner" {
     )
   }
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 3
+  }
+
   user_data = base64encode(templatefile(local.userdata_template_windows, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
