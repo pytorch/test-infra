@@ -17,6 +17,14 @@ export function getClickhouseClient() {
   });
 }
 
+export function getClickhouseClientWritable() {
+  return createClient({
+    host: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
+    username: process.env.CLICKHOUSE_HUD_USER_WRITE_USERNAME ?? "default",
+    password: process.env.CLICKHOUSE_HUD_USER_WRITE_PASSWORD ?? "",
+  });
+}
+
 export async function queryClickhouse(
   query: string,
   params: Record<string, unknown>

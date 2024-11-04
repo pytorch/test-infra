@@ -68,40 +68,38 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
-    const { prNumber } = req.query;
-    const { repo }: UpdateCommentBody = req.body;
-    const octokit = await getOctokit(OWNER, repo);
-
-    const failures = await updateDrciComments(
-      octokit,
-      repo,
-      prNumber ? [parseInt(prNumber as string)] : []
-    );
-    res.status(200).json(failures);
+  if (authorization == process.env.DRCI_BOT_KEY) {
+    // Dr. CI bot key is used to update the comment, probably called from the
+    // update Dr. CI workflow
   } else if (authorization) {
-    // Check user rate limit
+    // Authorization provided, probably a user calling it.
+    // Check that they are only updating a single PR
+    const { prNumber } = req.query;
+    if (prNumber === undefined) {
+      return res.status(403).end();
+    }
+    // Check if they exceed the rate limit
     const userOctokit = await getOctokitWithUserToken(authorization as string);
     const user = await userOctokit.rest.users.getAuthenticated();
-    const { prNumber } = req.query;
-    const { repo }: UpdateCommentBody = JSON.parse(req.body);
     if (await drCIRateLimitExceeded(user.data.login)) {
       return res.status(429).end();
     }
     incrementDrCIRateLimit(user.data.login);
-
-    // Update
-    const octokit = await getOctokit(OWNER, repo);
-    await updateDrciComments(
-      octokit,
-      repo,
-      prNumber ? [parseInt(prNumber as string)] : []
-    );
-    // Send an empty string since they're not going to care about the answer
-    res.status(200).json([]);
+  } else {
+    // No authorization provided, return 403
+    return res.status(403).end();
   }
 
-  res.status(403).end();
+  const { prNumber } = req.query;
+  const { repo }: UpdateCommentBody = req.body;
+  const octokit = await getOctokit(OWNER, repo);
+
+  const failures = await updateDrciComments(
+    octokit,
+    repo,
+    prNumber ? [parseInt(prNumber as string)] : []
+  );
+  res.status(200).json(failures);
 }
 
 export async function updateDrciComments(
