@@ -14,7 +14,7 @@
 #  - When updating this file, run the following command to validate the YAML and to generate
 #    corresponding versions of scale-config for the pytorch/pytorch repo and merge the
 #    pytorch/pytorch changes before merging these changes.
-#    `python .github/scripts/validate_scale_config.py --test-infra-repo-root [path_to_test-infra_root] --pytorch-repo-root [path_to_pytorch_root]``
+#    `python .github/scripts/validate_scale_config.py --generate`
 #
 # TODO: Add some documentation on how the auto-scaling works
 #
@@ -60,9 +60,6 @@ runner_types:
     is_ephemeral: true
     os: linux
     ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
-    variants:
-      am2:
-        ami: amzn2-ami-hvm-2.0.20240306.2-x86_64-ebs
   lf.linux.12xlarge.ephemeral:
     disk_size: 200
     instance_type: c5.12xlarge
