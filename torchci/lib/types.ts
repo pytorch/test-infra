@@ -117,6 +117,7 @@ export interface HudParams {
   filter_reruns: boolean;
   filter_unstable: boolean;
   use_ch: boolean;
+  mergeLF?: boolean;
 }
 
 export interface PRData {
@@ -230,6 +231,7 @@ export function packHudParams(input: any) {
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
     use_ch: input.use_ch === "true",
+    mergeLF: input.mergeLF as boolean,
   };
 }
 
@@ -273,5 +275,10 @@ function formatHudURL(
   if (params.use_ch) {
     base += `&use_ch=true`;
   }
+
+  if (params.mergeLF) {
+    base += `&mergeLF=true`;
+  }
+
   return base;
 }

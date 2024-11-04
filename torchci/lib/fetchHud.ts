@@ -3,7 +3,7 @@ import _ from "lodash";
 import rocksetVersions from "rockset/prodVersions.json";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
-import { isFailure } from "./JobClassifierUtil";
+import { getNameWithoutLF, isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
@@ -142,13 +142,6 @@ export default async function fetchHud(params: HudParams): Promise<{
     );
   }
 
-  const namesSet: Set<string> = new Set();
-  // Built a list of all the distinct job names.
-  results?.forEach((job: JobData) => {
-    namesSet.add(job.name!);
-  });
-  const names = Array.from(namesSet).sort();
-
   // Construct mapping of sha => job name => job data
   const jobsBySha: {
     [sha: string]: { [name: string]: JobData };
@@ -157,25 +150,39 @@ export default async function fetchHud(params: HudParams): Promise<{
     if (jobsBySha[job.sha!] === undefined) {
       jobsBySha[job.sha!] = {};
     }
+    let key = job.name!;
+    if (params.mergeLF) {
+      key = getNameWithoutLF(key);
+    }
 
-    const existingJob = jobsBySha[job.sha!][job.name!];
+    const existingJob = jobsBySha[job.sha!][key];
     if (existingJob !== undefined) {
       // If there are multiple jobs with the same name, we want the most recent.
       // Q: How can there be more than one job with the same name for a given sha?
       // A: Periodic builds can be scheduled multiple times for one sha. In those
       // cases, we want the most recent job to be shown.
       if (job.id! > existingJob.id!) {
-        jobsBySha[job.sha!][job.name!] = job;
-        jobsBySha[job.sha!][job.name!].failedPreviousRun =
+        jobsBySha[job.sha!][key] = job;
+        jobsBySha[job.sha!][key].failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
       } else {
         existingJob.failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(job.conclusion);
       }
     } else {
-      jobsBySha[job.sha!][job.name!] = job;
+      jobsBySha[job.sha!][key] = job;
     }
   });
+
+  const namesSet: Set<string> = new Set();
+
+  // Built a list of all the distinct job names.
+  Object.values(jobsBySha).forEach((jobs) => {
+    for (const name in jobs) {
+      namesSet.add(name);
+    }
+  });
+  const names = Array.from(namesSet).sort();
 
   const shaGrid: RowData[] = [];
 
