@@ -1230,18 +1230,23 @@ export default function Page() {
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
             queryCollection={"metrics"}
-            queryParams={[
-              {
-                name: "days_ago",
-                type: "int",
-                value: timeRange,
-              },
-            ]}
+            queryParams={
+              useClickHouse
+                ? { ...timeParamsClickHouse, days_ago: timeRange }
+                : [
+                    {
+                      name: "days_ago",
+                      type: "int",
+                      value: timeRange,
+                    },
+                  ]
+            }
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
+            useClickHouse={useClickHouse}
           />
         </Grid>
       </Grid>
