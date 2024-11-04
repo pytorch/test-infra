@@ -148,8 +148,8 @@ export default async function fetchHud(params: HudParams): Promise<{
     namesSet.add(job.name!);
 
     // If job is not complete, get the status.
-    if (job.conclusion == ''){
-      job.conclusion = getConclusionFromStatus(job)
+    if (job.conclusion == "") {
+      job.conclusion = getConclusionFromStatus(job);
     }
   });
   const names = Array.from(namesSet).sort();
@@ -220,13 +220,13 @@ export default async function fetchHud(params: HudParams): Promise<{
 // - queued: The job is queue. queued means the job is waiting for available resources.
 // - in_progress: The job is in progress. The job is running.
 function getConclusionFromStatus(job: JobData): string {
-  switch(job.status){
+  switch (job.status) {
     case "pending":
     case "queued":
       return "pending";
     case "in_progress":
       return job.status;
     default:
-      return 'unknown';
+      return "unknown";
   }
 }

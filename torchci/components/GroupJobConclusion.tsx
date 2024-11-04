@@ -31,7 +31,7 @@ export enum GroupedJobStatus {
   Classified = "classified",
   Flaky = "flaky",
   WarningOnly = "warning",
-  Pending = "pending"
+  Pending = "pending",
 }
 
 export default function HudGroupedCell({
@@ -65,10 +65,9 @@ export default function HudGroupedCell({
       } else {
         erroredJobs.push(job);
       }
-    } else if (job.conclusion === JobStatus.Pending){
+    } else if (job.conclusion === JobStatus.Pending) {
       pendingJobs.push(job);
-    }
-    else if (job.conclusion === JobStatus.InProgress) {
+    } else if (job.conclusion === JobStatus.InProgress) {
       inProgressJobs.push(job);
     } else if (job.conclusion === undefined) {
       noStatusJobs.push(job);
@@ -84,7 +83,7 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.InProgress;
   } else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
-  }else if (failedPreviousRunJobs.length !== 0) {
+  } else if (failedPreviousRunJobs.length !== 0) {
     conclusion = GroupedJobStatus.Flaky;
   } else if (!(warningOnlyJobs.length == 0)) {
     conclusion = GroupedJobStatus.WarningOnly;
@@ -105,7 +104,7 @@ export default function HudGroupedCell({
               conclusion={conclusion}
               groupName={groupData.groupName}
               erroredJobs={erroredJobs}
-              pendingJobs = {pendingJobs}
+              pendingJobs={pendingJobs}
               inProgressJobs={inProgressJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
@@ -166,14 +165,15 @@ function GroupTooltip({
         message={"The following jobs are still in progress:"}
       />
     );
-  } else if(conclusion === GroupedJobStatus.Pending){
+  } else if (conclusion === GroupedJobStatus.Pending) {
     return (
       <ToolTip
         conclusion={conclusion}
         groupName={groupName}
         jobs={pendingJobs}
         message={"The following jobs are still pending:"}
-      />)
+      />
+    );
   } else if (conclusion === GroupedJobStatus.Flaky) {
     return (
       <ToolTip
