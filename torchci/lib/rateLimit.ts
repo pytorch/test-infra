@@ -6,7 +6,7 @@ async function checkRateLimit(user: string, key: string) {
   const res = await queryClickhouse(
     `
 select count() as count from misc.rate_limit
-where user = {user: String} and key = {key: String} and time_inserted > {timestamp: String}`,
+where user = {user: String} and key = {key: String} and time_inserted > {timestamp: DateTime}`,
     {
       user,
       key,
