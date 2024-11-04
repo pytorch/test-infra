@@ -240,6 +240,7 @@ export function isFailure(conclusion?: string): boolean {
     case JobStatus.Neutral:
     case JobStatus.Skipped:
     case JobStatus.InProgress:
+    case JobStatus.Pending:
     case undefined:
     default:
       return false;
@@ -267,6 +268,8 @@ export function getConclusionChar(
       return "S";
     case JobStatus.InProgress:
       return "I";
+    case JobStatus.Pending:
+      return "P";
     case undefined:
       return "~";
     default:
