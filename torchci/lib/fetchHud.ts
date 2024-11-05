@@ -143,7 +143,7 @@ export default async function fetchHud(params: HudParams): Promise<{
   }
 
   const namesSet: Set<string> = new Set();
-  // Built a list of all the distinct job names, and set the conclusion based on the status.
+  // Built a list of all the distinct job names.
   results?.forEach((job: JobData) => {
     namesSet.add(job.name!);
   });
