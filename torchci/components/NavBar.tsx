@@ -16,7 +16,7 @@ const NavBarDropdown = ({
   const dropdownStyle = dropdown ? { display: "block" } : {};
 
   return (
-    (<li
+    <li
       onMouseEnter={() => setDropdown(true)}
       onMouseLeave={() => setDropdown(false)}
       style={{ padding: 0 }}
@@ -31,7 +31,7 @@ const NavBarDropdown = ({
           </li>
         ))}
       </ul>
-    </li>)
+    </li>
   );
 };
 
@@ -96,7 +96,7 @@ function NavBar() {
   ];
 
   return (
-    (<div className={styles.navbar}>
+    <div className={styles.navbar}>
       <div>
         <ul className={styles.navbarlinkslist}>
           <li className={styles.homeLink}>
@@ -159,10 +159,9 @@ function NavBar() {
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "black" }}>
-
+              style={{ color: "black" }}
+            >
               <AiFillGithub />
-
             </Link>
           </li>
           <li style={{ padding: "0 1rem" }}>
@@ -173,7 +172,7 @@ function NavBar() {
           </li>
         </ul>
       </div>
-    </div>)
+    </div>
   );
 }
 

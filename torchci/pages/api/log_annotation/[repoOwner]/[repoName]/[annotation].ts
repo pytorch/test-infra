@@ -20,8 +20,10 @@ export default async function handler(
 
   const { repoOwner, repoName, annotation } = req.query;
   // Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
-  const repoOwnerStr = Array.isArray(repoOwner) ? repoOwner[0] : (repoOwner || '');
-  const repoNameStr = Array.isArray(repoName) ? repoName[0] : (repoName || '');
+  const repoOwnerStr = Array.isArray(repoOwner)
+    ? repoOwner[0]
+    : repoOwner || "";
+  const repoNameStr = Array.isArray(repoName) ? repoName[0] : repoName || "";
   const octokit = await getOctokit(repoOwnerStr, repoNameStr);
   const user = await octokit.rest.users.getAuthenticated();
   const hasPermission = hasWritePermissionsUsingOctokit(
