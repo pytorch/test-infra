@@ -31,7 +31,6 @@ function MyApp({ Component, pageProps }: AppProps) {
             <SevReport />
             <div style={{ margin: "20px" }}>
               <Component {...pageProps} />
-              // vercel analytics start tracking visitors and page views with Web Analytics,
               <Analytics />
             </div>
           </TitleProvider>
