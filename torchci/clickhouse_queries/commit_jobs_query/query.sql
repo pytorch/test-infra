@@ -62,9 +62,8 @@ WITH job AS (
         workflow.id,
         0 AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
-        if(
-            workflow.conclusion = ''
-            and workflow.status = 'queued',
+        IF(
+            workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',
             'failure',
             workflow.conclusion
         ) as conclusion,
