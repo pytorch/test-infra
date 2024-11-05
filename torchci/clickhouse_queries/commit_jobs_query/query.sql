@@ -62,8 +62,9 @@ WITH job AS (
         workflow.id,
         0 AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
-        IF(
-            workflow.conclusion IS NULL and workflow.completed_at IS NULL and workflow.status = 'queued',
+        if(
+            workflow.conclusion = ''
+            and workflow.status = 'queued',
             'failure',
             workflow.conclusion
         ) as conclusion,
@@ -97,14 +98,7 @@ SELECT
     id AS id,
     workflow_id AS workflowId,
     github_artifact_url AS githubArtifactUrl,
-    multiIf(
-        workflow.conclusion = ''
-        and workflow.status = 'queued',
-        'queued',
-        workflow.conclusion = '',
-        'pending',
-        workflow.conclusion
-    ) as conclusion,
+    if(conclusion = '', 'pending', conclusion) as conclusion,
     html_url AS htmlUrl,
     log_url AS logUrl,
     duration_s AS durationS,
