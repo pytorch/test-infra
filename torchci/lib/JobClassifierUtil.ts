@@ -218,7 +218,7 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
     case GroupedJobStatus.Queued:
       return "Q";
     case GroupedJobStatus.Pending:
-      return "P";
+      return "?";
     case GroupedJobStatus.AllNull:
       return "~";
     case GroupedJobStatus.Classified:
