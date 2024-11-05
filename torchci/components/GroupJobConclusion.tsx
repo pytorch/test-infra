@@ -79,7 +79,7 @@ export default function HudGroupedCell({
   let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
     conclusion = GroupedJobStatus.Failure;
-  }else if (!(pendingJobs.length === 0)) {
+  } else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
   } else if (failedPreviousRunJobs.length !== 0) {
     conclusion = GroupedJobStatus.Flaky;

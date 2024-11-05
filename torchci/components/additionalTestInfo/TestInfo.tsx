@@ -1,5 +1,6 @@
 import { fetcher } from "lib/GeneralUtils";
 import { runWorkflow } from "lib/githubFunctions";
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { JobData } from "lib/types";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
@@ -7,7 +8,6 @@ import useSWR from "swr";
 import { TestRerunsInfo } from "./RerunInfo";
 import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
-import { IsJobInProgress } from "lib/JobClassifierUtil";
 
 export function genMessage({
   infoString,

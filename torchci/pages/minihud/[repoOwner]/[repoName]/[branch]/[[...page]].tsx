@@ -448,7 +448,9 @@ function CommitSummary({
 
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
-  const pendingJobs = jobs.filter((job) => job.conclusion === JobStatus.Pending);
+  const pendingJobs = jobs.filter(
+    (job) => job.conclusion === JobStatus.Pending
+  );
   const queuedJobs = jobs.filter((job) => job.conclusion === JobStatus.Queued);
 
   let className;

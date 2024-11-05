@@ -53,7 +53,7 @@ async function searchLog(
 ): Promise<LogSearchResult> {
   // Search individual log
   try {
-    if(IsJobInProgress(job.conclusion)){
+    if (IsJobInProgress(job.conclusion)) {
       return {
         results: [],
         info: "Job is still in progress",

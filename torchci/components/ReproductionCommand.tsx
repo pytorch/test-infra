@@ -1,8 +1,8 @@
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { useEffect, useState } from "react";
 import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import { getTestName } from "./JobLinks";
-import { IsJobInProgress } from "lib/JobClassifierUtil";
 
 export default function ReproductionCommand({ job }: { job: JobData }) {
   const [reproComamnd, setReproCommand] = useState<string | null>("");

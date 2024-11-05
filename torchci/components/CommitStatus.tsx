@@ -11,10 +11,10 @@ import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import FilteredJobList from "./FilteredJobList";
+import { JobStatus } from "./GroupJobConclusion";
 import VersionControlLinks from "./VersionControlLinks";
 import WorkflowBox from "./WorkflowBox";
 import WorkflowDispatcher from "./WorkflowDispatcher";
-import { JobStatus } from "./GroupJobConclusion";
 
 function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
   const byWorkflow = _(jobs)
