@@ -500,7 +500,7 @@ export default function Hud() {
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
-  const title = `HUD${titlePath}`;
+  const title = `HUD ${titlePath}`;
   return (
     <>
       <Head>
