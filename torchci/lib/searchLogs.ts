@@ -1,3 +1,4 @@
+import { IsJobInProgress } from "./JobClassifierUtil";
 import { JobData } from "./types";
 
 export interface LogSearchResult {
@@ -52,15 +53,10 @@ async function searchLog(
 ): Promise<LogSearchResult> {
   // Search individual log
   try {
-    if (job.conclusion == "pending") {
+    if(IsJobInProgress(job.conclusion)){
       return {
         results: [],
-        info: "Job is still running",
-      };
-    } else if (job.conclusion == "queued") {
-      return {
-        results: [],
-        info: "Job is in queue",
+        info: "Job is still in progress",
       };
     }
 

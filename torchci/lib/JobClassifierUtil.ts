@@ -248,6 +248,24 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
+
+export function IsJobInProgress(conclusion?: string): boolean {
+  switch (conclusion) {
+    case JobStatus.Queued:
+    case JobStatus.Pending:
+      return true;
+    case JobStatus.Success:
+    case JobStatus.Neutral:
+    case JobStatus.Skipped:
+    case JobStatus.Failure:
+    case JobStatus.Cancelled:
+    case JobStatus.Timed_out:
+    case undefined:
+    default:
+      return false;
+  }
+}
+
 export function getConclusionChar(
   conclusion?: string,
   failedPreviousRun?: boolean
@@ -269,7 +287,7 @@ export function getConclusionChar(
     case JobStatus.Skipped:
       return "S";
     case JobStatus.Queued:
-      return "I";
+      return "Q";
     case JobStatus.Pending:
       return "P";
     case undefined:
@@ -293,12 +311,14 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
       return 3;
     case JobStatus.Queued:
       return 4;
-    case undefined:
+    case JobStatus.Pending:
       return 5;
-    case JobStatus.Failure:
+    case undefined:
       return 6;
-    default:
+    case JobStatus.Failure:
       return 7;
+    default:
+      return 8;
   }
 }
 

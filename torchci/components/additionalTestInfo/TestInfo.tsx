@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { TestRerunsInfo } from "./RerunInfo";
 import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 
 export function genMessage({
   infoString,
@@ -31,7 +32,7 @@ export function genMessage({
 }
 
 export function isPending(jobs: JobData[]) {
-  return jobs.some((job) => job.conclusion === "pending" || job.conclusion === "queued");
+  return jobs.some((job) => IsJobInProgress(job.conclusion));
 }
 
 export function RecursiveDetailsSummary({

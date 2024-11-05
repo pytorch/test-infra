@@ -1,4 +1,5 @@
 import CopyLink from "components/CopyLink";
+import { JobStatus } from "components/GroupJobConclusion";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
@@ -447,8 +448,8 @@ function CommitSummary({
 
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
-  const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
-  const queuedJobs = jobs.filter((job) => job.conclusion === "queued");
+  const pendingJobs = jobs.filter((job) => job.conclusion === JobStatus.Pending);
+  const queuedJobs = jobs.filter((job) => job.conclusion === JobStatus.Queued);
 
   let className;
   if (jobs.length === 0) {

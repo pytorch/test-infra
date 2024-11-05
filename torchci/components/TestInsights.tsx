@@ -1,3 +1,4 @@
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { JobData } from "../lib/types";
 
 // The following jobs are not supported at the moment because neither the monitoring
@@ -15,8 +16,8 @@ export default function TestInsightsLink({
     return null;
   }
 
-  if (job.conclusion === "pending" || job.conclusion == "queued") {
-    // If the job is pending, there is no test insights available yet
+  if (IsJobInProgress(job.conclusion)) {
+    // If the job is still in progress, there is no test insights available yet
     return null;
   }
 

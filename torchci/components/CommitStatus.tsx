@@ -14,6 +14,7 @@ import FilteredJobList from "./FilteredJobList";
 import VersionControlLinks from "./VersionControlLinks";
 import WorkflowBox from "./WorkflowBox";
 import WorkflowDispatcher from "./WorkflowDispatcher";
+import { JobStatus } from "./GroupJobConclusion";
 
 function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
   const byWorkflow = _(jobs)
@@ -162,13 +163,13 @@ export default function CommitStatus({
       <FilteredJobList
         filterName="Pending jobs"
         jobs={jobs}
-        pred={(job) => job.conclusion === "pending"}
+        pred={(job) => job.conclusion === JobStatus.Pending}
         unstableIssues={unstableIssues}
       />
       <FilteredJobList
         filterName="Queued jobs"
         jobs={jobs}
-        pred={(job) => job.conclusion === "queued"}
+        pred={(job) => job.conclusion === JobStatus.Queued}
         unstableIssues={unstableIssues}
       />
       <WorkflowsContainer

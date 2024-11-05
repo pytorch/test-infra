@@ -79,14 +79,14 @@ export default function HudGroupedCell({
   let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
     conclusion = GroupedJobStatus.Failure;
-  } else if (!(queuedJobs.length === 0)) {
-    conclusion = GroupedJobStatus.Queued;
-  } else if (!(pendingJobs.length === 0)) {
+  }else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
   } else if (failedPreviousRunJobs.length !== 0) {
     conclusion = GroupedJobStatus.Flaky;
   } else if (!(warningOnlyJobs.length == 0)) {
     conclusion = GroupedJobStatus.WarningOnly;
+  } else if (!(queuedJobs.length === 0)) {
+    conclusion = GroupedJobStatus.Queued;
   } else if (noStatusJobs.length === groupData.jobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }

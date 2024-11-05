@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import { getTestName } from "./JobLinks";
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 
 export default function ReproductionCommand({ job }: { job: JobData }) {
   const [reproComamnd, setReproCommand] = useState<string | null>("");
@@ -11,8 +12,7 @@ export default function ReproductionCommand({ job }: { job: JobData }) {
 
   if (
     job === null ||
-    job.conclusion === "pending" ||
-    job.conclusion === "queued" ||
+    IsJobInProgress(job.conclusion) ||
     !job.jobName?.includes("test") ||
     reproComamnd === null
   ) {

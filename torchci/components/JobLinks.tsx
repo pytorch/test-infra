@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import { isFailure } from "../lib/JobClassifierUtil";
+import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
@@ -31,7 +31,7 @@ export default function JobLinks({
     );
   }
 
-  if (job.conclusion !== "pending" && job.conclusion!="queued" && job.logUrl != null) {
+  if (!IsJobInProgress(job.conclusion) && job.logUrl != null) {
     subInfo.push(
       <a target="_blank" rel="noreferrer" href={job.logUrl}>
         Raw logs
