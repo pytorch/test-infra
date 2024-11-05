@@ -289,7 +289,7 @@ export function getConclusionChar(
     case JobStatus.Queued:
       return "Q";
     case JobStatus.Pending:
-      return "P";
+      return "?";
     case undefined:
       return "~";
     default:
