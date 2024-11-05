@@ -1,5 +1,6 @@
 import { fetcher } from "lib/GeneralUtils";
 import { runWorkflow } from "lib/githubFunctions";
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { JobData } from "lib/types";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
@@ -31,7 +32,7 @@ export function genMessage({
 }
 
 export function isPending(jobs: JobData[]) {
-  return jobs.some((job) => job.conclusion === "pending");
+  return jobs.some((job) => IsJobInProgress(job.conclusion));
 }
 
 export function RecursiveDetailsSummary({

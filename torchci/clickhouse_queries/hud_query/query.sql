@@ -4,6 +4,7 @@ WITH job AS (
         job.name as job_name,
         workflow.name as workflow_name,
         job.id as id,
+        job.status as status,
         job.conclusion as conclusion,
         job.html_url as html_url,
         IF(
@@ -47,11 +48,15 @@ SELECT
     sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
     id,
-    if(
-      conclusion = '',
-      'pending',
-      conclusion
-     ) as conclusion,
+    multiIf(
+        conclusion = ''
+        and status = 'queued' ,
+        'queued',
+        conclusion = '',
+        'pending',
+        conclusion
+    ) as conclusion,
+    status as status,
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,

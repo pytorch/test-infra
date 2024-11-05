@@ -11,7 +11,14 @@ WITH job AS (
         job.id,
         workflow.id AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
-        job.conclusion,
+        multiIf(
+            job.conclusion = ''
+            and status = 'queued' ,
+            'queued',
+            job.conclusion = '',
+            'pending',
+            job.conclusion
+        ) as conclusion,
         job.html_url,
         IF(
             {repo: String } = 'pytorch/pytorch',
