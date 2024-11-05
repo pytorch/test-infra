@@ -37,6 +37,6 @@ yarn-error.log*
 *.tsbuildinfo
 
 #yarn
-/yarn./
+/.yarn/
 .pnp.loader.mjs
 .pnp.cjs
