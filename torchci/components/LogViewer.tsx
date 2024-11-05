@@ -263,14 +263,20 @@ function LogWithLineSelector({
   // that line.  To close it, select currently open line.
 
   useEffect(() => {
-    document.addEventListener("copy", (e) => {
+    function handleKeyDown(e: ClipboardEvent) {
       const selection = document.getSelection();
       e.clipboardData?.setData(
         "text/plain",
         (selection?.toString() ?? "").replaceAll(ESC_CHAR_REGEX, "")
       );
       e.preventDefault();
-    });
+    }
+
+    document.addEventListener("copy", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("copy", handleKeyDown);
+    };
   });
   // undefined means that no line is selected, so the log viewer is closed
   const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);

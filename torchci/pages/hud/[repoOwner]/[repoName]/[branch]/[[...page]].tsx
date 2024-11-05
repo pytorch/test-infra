@@ -452,11 +452,16 @@ export default function Hud() {
   }
 
   useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.code === "Escape") {
         setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    });
+    }
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
   const title =
     params.repoOwner != null && params.repoName != null && params.branch != null
