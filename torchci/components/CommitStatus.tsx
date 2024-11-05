@@ -165,6 +165,12 @@ export default function CommitStatus({
         pred={(job) => job.conclusion === "pending"}
         unstableIssues={unstableIssues}
       />
+      <FilteredJobList
+        filterName="Queued jobs"
+        jobs={jobs}
+        pred={(job) => job.conclusion === "queued"}
+        unstableIssues={unstableIssues}
+      />
       <WorkflowsContainer
         jobs={jobs}
         unstableIssues={unstableIssues}

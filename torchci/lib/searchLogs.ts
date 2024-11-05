@@ -57,6 +57,11 @@ async function searchLog(
         results: [],
         info: "Job is still running",
       };
+    } else if (job.conclusion == "queued") {
+      return {
+        results: [],
+        info: "Job is in queue",
+      };
     }
 
     const log = await fetch(

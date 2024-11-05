@@ -98,7 +98,14 @@ SELECT
     id AS id,
     workflow_id AS workflowId,
     github_artifact_url AS githubArtifactUrl,
-    if(conclusion = '', 'pending', conclusion) as conclusion,
+    multiIf(
+        workflow.conclusion = ''
+        and workflow.status = 'queued',
+        'queued',
+        workflow.conclusion = '',
+        'pending',
+        workflow.conclusion
+    ) as conclusion,
     html_url AS htmlUrl,
     log_url AS logUrl,
     duration_s AS durationS,

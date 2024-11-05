@@ -12,6 +12,7 @@ export default function ReproductionCommand({ job }: { job: JobData }) {
   if (
     job === null ||
     job.conclusion === "pending" ||
+    job.conclusion === "queued" ||
     !job.jobName?.includes("test") ||
     reproComamnd === null
   ) {

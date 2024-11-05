@@ -146,11 +146,6 @@ export default async function fetchHud(params: HudParams): Promise<{
   // Built a list of all the distinct job names, and set the conclusion based on the status.
   results?.forEach((job: JobData) => {
     namesSet.add(job.name!);
-
-    // If job is not complete, get the status.
-    if (job.conclusion == "") {
-      job.conclusion = getConclusionFromStatus(job);
-    }
   });
   const names = Array.from(namesSet).sort();
 
@@ -211,24 +206,4 @@ export default async function fetchHud(params: HudParams): Promise<{
     shaGrid.push(row);
   });
   return { shaGrid: shaGrid, jobNames: names };
-}
-
-/**
- * This function is used to determine the conclusion of a job based on its status if a job is not completed yet.
- *
- * we only care about the following job status:
- * - pending: The job is pending. pending means the job is waiting for dependencies to be met.
- * - queued: The job is queue. queued means the job is waiting for available resources.
- * - in_progress: The job is in progress. The job is running.
- */
-function getConclusionFromStatus(job: JobData): string {
-  switch (job.status) {
-    case "pending":
-    case "queued":
-      return "pending";
-    case "in_progress":
-      return job.status;
-    default:
-      return "unknown";
-  }
 }

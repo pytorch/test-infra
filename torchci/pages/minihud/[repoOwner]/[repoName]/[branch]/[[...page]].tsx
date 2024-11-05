@@ -201,11 +201,13 @@ function CommitLinks({ row }: { row: RowData }) {
 
 function CommitSummaryLine({
   row,
+  numQueued,
   numPending,
   showRevert,
   ttsAlert,
 }: {
   row: RowData;
+  numQueued: number;
   numPending: number;
   showRevert: boolean;
   ttsAlert: boolean;
@@ -231,7 +233,11 @@ function CommitSummaryLine({
           textToCopy={`${location.href.replace(location.hash, "")}#${row.sha}`}
         />
       </span>
-
+      {numQueued > 0 && (
+        <span className={styles.shaTitleElement}>
+          <em>{numQueued} queued</em>
+        </span>
+      )}
       {numPending > 0 && (
         <span className={styles.shaTitleElement}>
           <em>{numPending} pending</em>
@@ -442,6 +448,7 @@ function CommitSummary({
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
   const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
+  const queuedJobs = jobs.filter((job) => job.conclusion === "queued");
 
   let className;
   if (jobs.length === 0) {
@@ -497,6 +504,7 @@ function CommitSummary({
       >
         <CommitSummaryLine
           row={row}
+          numQueued={queuedJobs.length}
           numPending={pendingJobs.length}
           showRevert={failedJobs.length !== 0}
           ttsAlert={concerningTTS.length > 0}

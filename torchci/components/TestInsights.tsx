@@ -15,7 +15,7 @@ export default function TestInsightsLink({
     return null;
   }
 
-  if (job.conclusion === "pending") {
+  if (job.conclusion === "pending" || job.conclusion == "queued") {
     // If the job is pending, there is no test insights available yet
     return null;
   }

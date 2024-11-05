@@ -31,7 +31,7 @@ export default function JobLinks({
     );
   }
 
-  if (job.conclusion !== "pending" && job.logUrl != null) {
+  if (job.conclusion !== "pending" && job.conclusion!="queued" && job.logUrl != null) {
     subInfo.push(
       <a target="_blank" rel="noreferrer" href={job.logUrl}>
         Raw logs

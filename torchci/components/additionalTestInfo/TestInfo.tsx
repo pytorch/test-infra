@@ -31,7 +31,7 @@ export function genMessage({
 }
 
 export function isPending(jobs: JobData[]) {
-  return jobs.some((job) => job.conclusion === "pending");
+  return jobs.some((job) => job.conclusion === "pending" || job.conclusion === "queued");
 }
 
 export function RecursiveDetailsSummary({
