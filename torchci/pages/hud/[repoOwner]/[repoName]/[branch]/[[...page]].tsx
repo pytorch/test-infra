@@ -496,14 +496,15 @@ export default function Hud() {
       }
     });
   }, []);
-  const title =
+  const titlePath =
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
+  const title = `HUD${titlePath}`;
   return (
     <>
       <Head>
-        <title>HUD {title}</title>
+        <title>{title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
