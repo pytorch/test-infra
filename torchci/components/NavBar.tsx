@@ -25,7 +25,7 @@ const NavBarDropdown = ({
       <ul className={styles.dropdown} style={dropdownStyle}>
         {items.map((item: any) => (
           <li key={item.href}>
-            <Link href={item.href} prefetch={false}>
+            <Link href={item.href} prefetch={false} legacyBehavior>
               {item.name}
             </Link>
           </li>
@@ -159,10 +159,9 @@ function NavBar() {
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
+              style={{ color: "black" }}
             >
-              <a style={{ color: "black" }}>
-                <AiFillGithub />
-              </a>
+              <AiFillGithub />
             </Link>
           </li>
           <li style={{ padding: "0 1rem" }}>
