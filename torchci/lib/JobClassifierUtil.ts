@@ -346,7 +346,7 @@ export function getGroupingData(
     for (const groupName of groupNamesArray) {
       groupedJobs.set(groupName, { groupName, jobs: [] });
     }
-    for (const job of row.jobs) {
+    for (const job of row.nameToJobs!.values()) {
       const groupName = jobToGroupName.get(job.name!)!;
       groupedJobs.get(groupName)!.jobs.push(job);
     }
@@ -368,4 +368,9 @@ export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
     name.toLocaleLowerCase().includes("unstable") ||
     (openUnstableIssues !== undefined && openUnstableIssues.length !== 0)
   );
+}
+
+export function getNameWithoutLF(name: string) {
+  const lfRegex = /, lf\.(linux|windows)/g;
+  return name.replace(lfRegex, ", $1");
 }
