@@ -20,8 +20,14 @@ runs:
         echo "instance-type: $(get_ec2_metadata instance-type)"
         echo "system info $(uname -a)"
 
+    - name: Check if in a container runner
+      shell: bash
+      id: check_container_runner
+      run: echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
+
     - name: Start docker if docker deamon is not running
       shell: bash
+      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       run: |
         if systemctl is-active --quiet docker; then
             echo "Docker daemon is running...";
@@ -81,6 +87,7 @@ runs:
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
 
     - name: Kill any existing containers, clean up images
+      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       shell: bash
       run: |
         # ignore expansion of "docker ps -q" since it could be empty
