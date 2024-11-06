@@ -1,6 +1,0 @@
-{
-  "oncall": "String",
-  "queryDate": "String",
-  "thresholdInSecond": "Int64",
-  "workflow_name": "String"
-}

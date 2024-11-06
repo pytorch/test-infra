@@ -90,10 +90,6 @@ function NavBar() {
       href: "/disabled",
     },
     {
-      name: "Testing Overhead",
-      href: "/testing_overhead",
-    },
-    {
       name: "Cost Analysis",
       href: "/cost_analysis",
     },

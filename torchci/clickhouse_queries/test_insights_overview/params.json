@@ -1,8 +1,0 @@
-{
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "testClass": "String",
-  "testFile": "String",
-  "thresholdInSecond": "Int64",
-  "workflowName": "String"
-}
