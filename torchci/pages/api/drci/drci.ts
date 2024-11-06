@@ -5,7 +5,7 @@ import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
-  fetchIssueLabels,
+  fetchPRLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
   formDrciSevBody,
@@ -135,8 +135,7 @@ export async function updateDrciComments(
       // Find the merge commits of the PR to check if it has already been merged before
       const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
 
-      const labels = await fetchIssueLabels(
-        octokit,
+      const labels = await fetchPRLabels(
         pr_info.owner,
         pr_info.repo,
         pr_info.pr_number
