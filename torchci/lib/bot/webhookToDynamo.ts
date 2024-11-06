@@ -1,35 +1,26 @@
-import {
-  EmitterWebhookEvent as WebhookEvent,
-  EmitterWebhookEventName as WebhookEvents,
-} from "@octokit/webhooks";
 import { getDynamoClient } from "lib/dynamo";
-import { Probot } from "probot";
+import { Context, Probot } from "probot";
 import { v4 as uuidv4 } from "uuid";
 
-function narrowType<E extends WebhookEvents>(
-  event: E,
-  context: WebhookEvent
-): context is WebhookEvent<E> {
-  return context.name === event;
-}
-
 async function handleWorkflowJob(
-  event: WebhookEvent<"workflow_run" | "workflow_job">
+  event: Context<"workflow_run" | "workflow_job">
 ) {
   // Thre is the chance that job ids from different repos could collide. To
   // prevent this, prefix the object key with the repo that they come from.
   const key_prefix = event.payload.repository.full_name + "/";
 
   let key;
-  let payload;
   let table;
-  if (narrowType("workflow_job", event)) {
-    key = `${key_prefix}${event.payload.workflow_job.id}`;
-    payload = event.payload.workflow_job;
+  let payload;
+  if (event.name === "workflow_job") {
+    payload = (event as unknown as Context<"workflow_job">).payload
+      .workflow_job;
+    key = `${key_prefix}${payload.id}`;
     table = "torchci-workflow-job";
-  } else if (narrowType("workflow_run", event)) {
-    key = `${key_prefix}${event.payload.workflow_run.id}`;
-    payload = event.payload.workflow_run;
+  } else if (event.name === "workflow_run") {
+    payload = (event as unknown as Context<"workflow_run">).payload
+      .workflow_run;
+    key = `${key_prefix}${payload.id}`;
     table = "torchci-workflow-run";
   }
 
@@ -43,7 +34,7 @@ async function handleWorkflowJob(
   });
 }
 
-async function handleIssues(event: WebhookEvent<"issues">) {
+async function handleIssues(event: Context<"issues">) {
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
@@ -56,7 +47,7 @@ async function handleIssues(event: WebhookEvent<"issues">) {
   });
 }
 
-async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
+async function handleIssueComment(event: Context<"issue_comment">) {
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
@@ -69,7 +60,7 @@ async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
   });
 }
 
-async function handlePullRequest(event: WebhookEvent<"pull_request">) {
+async function handlePullRequest(event: Context<"pull_request">) {
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
@@ -82,7 +73,7 @@ async function handlePullRequest(event: WebhookEvent<"pull_request">) {
   });
 }
 
-async function handlePush(event: WebhookEvent<"push">) {
+async function handlePush(event: Context<"push">) {
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
@@ -95,9 +86,7 @@ async function handlePush(event: WebhookEvent<"push">) {
   });
 }
 
-async function handlePullRequestReview(
-  event: WebhookEvent<"pull_request_review">
-) {
+async function handlePullRequestReview(event: Context<"pull_request_review">) {
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
@@ -111,7 +100,7 @@ async function handlePullRequestReview(
 }
 
 async function handlePullRequestReviewComment(
-  event: WebhookEvent<"pull_request_review_comment">
+  event: Context<"pull_request_review_comment">
 ) {
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();

@@ -12,6 +12,7 @@ const customJestConfig = {
     "@opensearch-project/opensearch/aws":
       "@opensearch-project/opensearch/lib/aws/index.js",
   },
+  setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
 };
 
 module.exports = createJestConfig(customJestConfig);
