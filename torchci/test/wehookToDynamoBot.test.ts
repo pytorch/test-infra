@@ -34,9 +34,9 @@ describe("webhookToDynamo tests", () => {
   });
 
   afterAll(() => {
-    // To save the file again, uncomment the following lines
-    const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
-    require("fs").writeFileSync(resultsFile, zipped);
+    // To save the file, uncomment the following lines
+    // const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
+    // require("fs").writeFileSync(resultsFile, zipped);
   });
 
   /**
@@ -68,32 +68,30 @@ describe("webhookToDynamo tests", () => {
   }
 
   test("workflow_run.completed", async () => {
-    const fileName = "./fixtures/workflow_run.completed.json";
-    await helper(fileName);
+    await helper("./fixtures/workflow_run.completed.json");
   });
 
   test("workflow_job.queued", async () => {
-    const filename = "./fixtures/workflow_job.queued.json";
-    await helper(filename);
+    await helper("./fixtures/workflow_job.queued.json");
   });
 
   test("pull_request.labeled", async () => {
-    const filename = "./fixtures/pull_request.labeled.json";
-    await helper(filename, "pull_request");
+    await helper("./fixtures/pull_request.labeled.json", "pull_request");
   });
 
   test("issue.opened", async () => {
-    const filename = "./fixtures/issues.opened.json";
-    await helper(filename, "issues");
+    await helper("./fixtures/issues.opened.json", "issues");
   });
 
   test("pull_request_review", async () => {
-    const filename = "./fixtures/pull_request_review.json";
-    await helper(filename);
+    await helper("./fixtures/pull_request_review.json");
   });
 
   test("issue_comment", async () => {
-    const filename = "./fixtures/issue_comment.json";
-    await helper(filename);
+    await helper("./fixtures/issue_comment.json");
+  });
+
+  test("pull_request_comment", async () => {
+    await helper("./fixtures/pull_request_comment.json");
   });
 });
