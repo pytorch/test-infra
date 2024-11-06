@@ -152,14 +152,14 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
         **{
-            gpu_arch: f"pytorch/manylinux2_28-builder:cuda{gpu_arch}"
+            gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
             for gpu_arch in CUDA_ARCHES
         },
         **{
             gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
-        CPU: "pytorch/manylinux2_28-builder:cpu",
+        CPU: "pytorch/manylinux-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
         CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
