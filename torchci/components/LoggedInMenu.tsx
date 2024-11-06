@@ -5,7 +5,7 @@ export default function LoggedInMenu() {
   const { data: session, status } = useSession();
 
   return (
-    <div className={styles.dropdown}>
+  <div className={styles.dropdown}>
       <div className={styles.dropdownContent}>
         <a href="#">Signed in as {session?.user?.email}</a>
         <a
