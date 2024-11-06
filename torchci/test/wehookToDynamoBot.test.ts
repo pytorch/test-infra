@@ -2,13 +2,12 @@ import nock from "nock";
 import { Probot } from "probot";
 import zlib from "zlib";
 import * as bot from "../lib/bot/webhookToDynamo";
-import { handleScope, requireDeepCopy } from "./common";
-import * as utils from "./utils";
 import * as dynamo from "../lib/dynamo";
+import { requireDeepCopy } from "./common";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 jest.mock("uuid", () => ({ v4: () => "fake-uuid" }));
-
 
 describe("webhookToDynamo tests", () => {
   let probot: Probot;
