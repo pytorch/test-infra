@@ -8,7 +8,6 @@ import * as utils from "./utils";
 nock.disableNetConnect();
 jest.mock("uuid", () => ({ v4: () => "fake-uuid" }));
 
-
 describe("webhookToDynamo tests", () => {
   let probot: Probot;
   let expectedResults: { [key: string]: any };
