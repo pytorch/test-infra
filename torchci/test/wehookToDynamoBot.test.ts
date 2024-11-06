@@ -4,9 +4,11 @@ import zlib from "zlib";
 import * as bot from "../lib/bot/webhookToDynamo";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
+import * as dynamo from "../lib/dynamo";
 
 nock.disableNetConnect();
 jest.mock("uuid", () => ({ v4: () => "fake-uuid" }));
+
 
 describe("webhookToDynamo tests", () => {
   let probot: Probot;
@@ -31,12 +33,13 @@ describe("webhookToDynamo tests", () => {
     probot = utils.testProbot();
     probot.load(bot.default);
     nock.cleanAll();
+    jest.clearAllMocks();
   });
 
   afterAll(() => {
     // To save the file again, uncomment the following lines
-    // const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
-    // require("fs").writeFileSync(resultsFile, zipped);
+    const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
+    require("fs").writeFileSync(resultsFile, zipped);
   });
 
   /**
@@ -52,20 +55,19 @@ describe("webhookToDynamo tests", () => {
     name: string | undefined = undefined
   ) {
     const event = requireDeepCopy(filename);
-
-    const scope = nock("https://dynamodb.us-east-1.amazonaws.com")
-      .post("/", (body) => {
-        saveResult(filename, body);
-        expect(body).toEqual(expectedResults[filename]);
-        return true;
-      })
-      .reply(200, {});
+    const mockedPut = jest.fn();
+    jest.spyOn(dynamo, "getDynamoClient").mockReturnValue({
+      put: mockedPut,
+    } as any);
     if (name) {
       await probot.receive({ name: name as any, payload: event, id: "2" });
     } else {
       await probot.receive(event);
     }
-    handleScope(scope);
+    expect(mockedPut.mock.calls.length).toBe(1);
+    const body = mockedPut.mock.calls[0];
+    saveResult(filename, body);
+    expect(body).toEqual(expectedResults[filename]);
   }
 
   test("workflow_run.completed", async () => {
