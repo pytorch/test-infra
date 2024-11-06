@@ -24,8 +24,6 @@ describe("webhookToDynamo tests", () => {
       zlib.gunzipSync(require("fs").readFileSync(resultsFile)).toString()
     );
     returnedResults = {};
-    process.env.OUR_AWS_ACCESS_KEY_ID = "fake";
-    process.env.OUR_AWS_SECRET_ACCESS = "fake";
   });
 
   beforeEach(() => {
