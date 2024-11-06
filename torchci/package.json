@@ -68,7 +68,6 @@
   },
   "devDependencies": {
     "@types/argparse": "^2.0.10",
-    "@types/echarts": "^4.9.14",
     "@types/jest": "^27.4.1",
     "@types/jsdom": "^16.2.14",
     "@types/lodash": "^4.14.182",
