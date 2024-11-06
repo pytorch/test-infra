@@ -73,6 +73,7 @@ runs:
         echo "RUNNER_DOCS_DIR=${RUNNER_DOCS_DIR}" >> "${GITHUB_ENV}"
 
     - name: Needs nvidia driver?
+      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       shell: bash
       id: needs-nvidia-driver
       run: |
@@ -84,7 +85,7 @@ runs:
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
       uses: pytorch/test-infra/.github/actions/setup-nvidia@main
-      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
+      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'}}
 
     - name: Kill any existing containers, clean up images
       if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
