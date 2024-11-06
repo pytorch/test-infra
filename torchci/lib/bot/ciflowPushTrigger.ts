@@ -36,9 +36,11 @@ async function syncTag(
   tag: string,
   headSha: string
 ) {
+
+  const params =  context.repo({ ref: `tags/${tag}` })
   context.log.info(`Synchronizing tag ${tag} to head sha ${headSha}`);
   const matchingTags = await context.octokit.git.listMatchingRefs(
-    context.repo({ ref: `tags/${tag}` })
+    params
   );
   if (matchingTags.data.length > 0) {
     context.log.info(matchingTags.data, "Found matching tags");

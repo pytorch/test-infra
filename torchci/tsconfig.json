@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
+    "strictNullChecks": false,
     "baseUrl": "./",
     "target": "es6",
-    "lib": ["ES2022","dom", "dom.iterable", "esnext"],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,

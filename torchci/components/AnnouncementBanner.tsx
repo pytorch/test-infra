@@ -1,4 +1,4 @@
-function AnnouncementBanner() {
+function AnnouncementBanner(): any {
   return null;
 }
 
