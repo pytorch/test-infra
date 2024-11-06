@@ -8,6 +8,7 @@ import * as utils from "./utils";
 nock.disableNetConnect();
 jest.mock("uuid", () => ({ v4: () => "fake-uuid" }));
 
+
 describe("webhookToDynamo tests", () => {
   let probot: Probot;
   let expectedResults: { [key: string]: any };
@@ -23,6 +24,8 @@ describe("webhookToDynamo tests", () => {
       zlib.gunzipSync(require("fs").readFileSync(resultsFile)).toString()
     );
     returnedResults = {};
+    process.env.OUR_AWS_ACCESS_KEY_ID = "fake";
+    process.env.OUR_AWS_SECRET_ACCESS = "fake";
   });
 
   beforeEach(() => {
@@ -33,8 +36,8 @@ describe("webhookToDynamo tests", () => {
 
   afterAll(() => {
     // To save the file again, uncomment the following lines
-    const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
-    require("fs").writeFileSync(resultsFile, zipped);
+    // const zipped = zlib.gzipSync(JSON.stringify(returnedResults));
+    // require("fs").writeFileSync(resultsFile, zipped);
   });
 
   /**
