@@ -215,7 +215,6 @@ jobs:
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
             # shellcheck disable=SC2016
-            echo 'export PATH=/opt/conda/bin:$PATH';
             echo 'eval "$(conda shell.bash hook)"';
             echo "set -x";
             echo "${SCRIPT}";
