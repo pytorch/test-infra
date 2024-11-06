@@ -72,9 +72,9 @@ jobs:
         # Can import pytorch, cuda is available
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
+        python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
         nvidia-smi
         nvcc --version | grep "cuda_12.1"
-        [[ "${CUDA_HOME}" == "/usr/local/cuda-12.1" ]] || exit 1
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
