@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "target": "es6",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": ["ES2022","dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
