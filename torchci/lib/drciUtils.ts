@@ -445,11 +445,12 @@ where
     and pr.html_url like concat('https://github.com/', {owner: String}, '/', {repo:String}, '%')
   `;
 
-  return await queryClickhouse(query, {
+  const labels = await queryClickhouse(query, {
     prNumber,
     owner,
     repo,
   });
+  return labels.map((label: any) => label.label);
 }
 
 export function getSuppressedLabels(
