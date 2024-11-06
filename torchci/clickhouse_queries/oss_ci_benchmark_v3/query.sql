@@ -16,7 +16,8 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     `servicelab_trial_id` UInt64 DEFAULT '0',
     -- The raw records on S3
     `s3_path` String,
-    -- About the device where the benchmark runs:
+    -- About the devices where the benchmark runs. There could be more than one
+    -- runner (distributed benchmark)
     --  name, the optional name of the runner
     --  type, the runner type or label, i.e. linux.aws.a100, or android S22
     --  cpu_info, i.e. x86_64 or arm
@@ -28,18 +29,20 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     --  gpu_mem_info, TBD
     --  avail_gpu_mem_in_gb, the total amount of available GPU memory (GB)
     --  extra_info, any extra piece of information in key/value format
-    `runner` Tuple(
-        name String,
-        type String,
-        cpu_info String,
-        cpu_count UInt32,
-        mem_info String,
-        avail_mem_in_gb UInt32,
-        gpu_info String,
-        gpu_count UInt32,
-        gpu_mem_info String,
-        avail_gpu_mem_in_gb UInt32,
-        extra_info Map(String, String)
+    `runners` Array(
+        Tuple(
+            name String,
+            type String,
+            cpu_info String,
+            cpu_count UInt32,
+            mem_info String,
+            avail_mem_in_gb UInt32,
+            gpu_info String,
+            gpu_count UInt32,
+            gpu_mem_info String,
+            avail_gpu_mem_in_gb UInt32,
+            extra_info Map(String, String)
+        )
     ),
     -- About the benchmark
     --   name, the name of the benchmark, i.e. cudagraphs
