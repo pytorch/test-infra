@@ -217,6 +217,10 @@ name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
 [[rule]]
+name = 'pr_time_benchmarks regression'
+pattern = '^REGRESSION: benchmark.*'
+
+[[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
 

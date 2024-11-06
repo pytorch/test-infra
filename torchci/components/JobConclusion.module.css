@@ -43,6 +43,10 @@
   color: goldenrod;
 }
 
+.queued {
+  color: lightgray;
+}
+
 .none {
   color: lightgray;
 }

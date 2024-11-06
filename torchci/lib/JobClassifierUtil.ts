@@ -215,6 +215,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Failure:
       return "X";
+    case GroupedJobStatus.Queued:
+      return "Q";
     case GroupedJobStatus.Pending:
       return "?";
     case GroupedJobStatus.AllNull:
@@ -239,12 +241,31 @@ export function isFailure(conclusion?: string): boolean {
     case JobStatus.Success:
     case JobStatus.Neutral:
     case JobStatus.Skipped:
+    case JobStatus.Queued:
     case JobStatus.Pending:
     case undefined:
     default:
       return false;
   }
 }
+
+export function IsJobInProgress(conclusion?: string): boolean {
+  switch (conclusion) {
+    case JobStatus.Queued:
+    case JobStatus.Pending:
+      return true;
+    case JobStatus.Success:
+    case JobStatus.Neutral:
+    case JobStatus.Skipped:
+    case JobStatus.Failure:
+    case JobStatus.Cancelled:
+    case JobStatus.Timed_out:
+    case undefined:
+    default:
+      return false;
+  }
+}
+
 export function getConclusionChar(
   conclusion?: string,
   failedPreviousRun?: boolean
@@ -265,6 +286,8 @@ export function getConclusionChar(
       return "T";
     case JobStatus.Skipped:
       return "S";
+    case JobStatus.Queued:
+      return "Q";
     case JobStatus.Pending:
       return "?";
     case undefined:
@@ -286,14 +309,16 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
       return 2;
     case JobStatus.Cancelled:
       return 3;
-    case JobStatus.Pending:
+    case JobStatus.Queued:
       return 4;
-    case undefined:
+    case JobStatus.Pending:
       return 5;
-    case JobStatus.Failure:
+    case undefined:
       return 6;
-    default:
+    case JobStatus.Failure:
       return 7;
+    default:
+      return 8;
   }
 }
 

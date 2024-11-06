@@ -1,3 +1,4 @@
+import CheckBoxSelector from "components/CheckBoxSelector";
 import CopyLink from "components/CopyLink";
 import {
   GroupHudTableColumns,
@@ -307,13 +308,17 @@ function GroupFilterableHudTable({
           setUseGrouping(false);
         }}
       />
-      <GroupViewCheckBox
-        useGrouping={useGrouping}
-        setUseGrouping={setUseGrouping}
+      <CheckBoxSelector
+        value={useGrouping}
+        setValue={(value) => setUseGrouping(value)}
+        checkBoxName="groupView"
+        labelText={"Use grouped view"}
       />
-      <UnstableCheckBox
-        hideUnstable={hideUnstable}
-        setHideUnstable={setHideUnstable}
+      <CheckBoxSelector
+        value={hideUnstable}
+        setValue={(value) => setHideUnstable(value)}
+        checkBoxName="hideUnstable"
+        labelText={"Hide unstable jobs"}
       />
       <MonsterFailuresCheckbox />
       <table className={styles.hudTable}>
@@ -331,62 +336,6 @@ function GroupFilterableHudTable({
         />
         {children}
       </table>
-    </>
-  );
-}
-
-function GroupViewCheckBox({
-  useGrouping,
-  setUseGrouping,
-}: {
-  useGrouping: boolean;
-  setUseGrouping: any;
-}) {
-  return (
-    <>
-      <div>
-        <span
-          onClick={() => {
-            setUseGrouping(!useGrouping);
-          }}
-        >
-          <input
-            type="checkbox"
-            name="groupView"
-            checked={useGrouping}
-            onChange={() => {}}
-          />
-          <label htmlFor="groupView"> Use grouped view</label>
-        </span>
-      </div>
-    </>
-  );
-}
-
-function UnstableCheckBox({
-  hideUnstable,
-  setHideUnstable,
-}: {
-  hideUnstable: boolean;
-  setHideUnstable: any;
-}) {
-  return (
-    <>
-      <div>
-        <span
-          onClick={() => {
-            setHideUnstable(!hideUnstable);
-          }}
-        >
-          <input
-            type="checkbox"
-            name="hideUnstable"
-            checked={hideUnstable}
-            onChange={() => {}}
-          />
-          <label htmlFor="hideUnstable"> Hide unstable jobs</label>
-        </span>
-      </div>
     </>
   );
 }
@@ -415,23 +364,14 @@ export function MonsterFailuresCheckbox() {
     MonsterFailuresContext
   );
   return (
-    <>
-      <div title="Replace `X` with a monster icon based on the error line.">
-        <span
-          onClick={() => {
-            setMonsterFailures && setMonsterFailures(!monsterFailures);
-          }}
-        >
-          <input
-            type="checkbox"
-            name="monsterFailures"
-            checked={monsterFailures}
-            onChange={() => {}}
-          />
-          <label htmlFor="monsterFailures"> Monsterize failures</label>
-        </span>
-      </div>
-    </>
+    <div title="Replace `X` with a monster icon based on the error line.">
+      <CheckBoxSelector
+        value={monsterFailures}
+        setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
+        checkBoxName="monsterFailures"
+        labelText={"Monsterize failures"}
+      />
+    </div>
   );
 }
 

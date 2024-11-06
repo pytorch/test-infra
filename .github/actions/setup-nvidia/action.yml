@@ -40,7 +40,7 @@ runs:
                   fi
 
                   sudo yum-config-manager --add-repo "${YUM_REPO_URL}"
-                  sudo yum install -y nvidia-docker2
+                  sudo yum install -y nvidia-docker2 nvidia-container-toolkit-1.16.2
                   sudo systemctl restart docker
               )
           }
@@ -51,7 +51,7 @@ runs:
                   # Install nvidia-driver package if not installed
                   status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
                   if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
-                    sudo apt-get install -y nvidia-docker2
+                    sudo apt-get install -y nvidia-docker2 nvidia-container-toolkit-1.16.2
                     sudo systemctl restart docker
                   fi
               )

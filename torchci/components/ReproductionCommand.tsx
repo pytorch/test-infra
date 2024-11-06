@@ -1,3 +1,4 @@
+import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { useEffect, useState } from "react";
 import { JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
@@ -11,7 +12,7 @@ export default function ReproductionCommand({ job }: { job: JobData }) {
 
   if (
     job === null ||
-    job.conclusion === "pending" ||
+    IsJobInProgress(job.conclusion) ||
     !job.jobName?.includes("test") ||
     reproComamnd === null
   ) {
