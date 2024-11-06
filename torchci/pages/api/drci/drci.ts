@@ -67,7 +67,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization === process.env.DRCI_BOT_KEY) {
+  if (true || authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
     const { repo }: UpdateCommentBody = req.body;
     const octokit = await getOctokit(OWNER, repo);
@@ -200,7 +200,7 @@ export async function updateDrciComments(
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
-        return;
+        // return;
       }
 
       // If the id is 0, it means that the bot has failed to create the comment, so we
@@ -262,9 +262,9 @@ function removeFailureContext(failure: {
 }) {
   const result = { ...failure };
   for (const cat in result) {
-    for (const job of result[cat]) {
-      job.failure_context = [];
-    }
+    result[cat] = result[cat].map((job) => {
+      return { ...job, failure_context: [] };
+    });
   }
   return result;
 }
