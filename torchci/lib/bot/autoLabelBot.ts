@@ -1,4 +1,5 @@
 import assert from "assert";
+import { PullRequest } from "lib/types";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
 import {
@@ -463,7 +464,6 @@ function myBot(app: Probot): void {
         (e) => e["name"]
       );
 
-      const user = context.payload.pull_request.user.login;
       const owner = context.payload.repository.owner.login;
       const repo = context.payload.repository.name;
       const title = context.payload.pull_request.title;
@@ -512,7 +512,8 @@ function myBot(app: Probot): void {
         const authors = (await TDRolloutTracker.loadIssue(
           context
         )) as Set<string>;
-        if (authors.has(user)) {
+        const pullRequest: PullRequest = context.payload.pull_request;
+        if (authors.has(pullRequest.user.login)) {
           labelsToAdd.push("ci-td-distributed");
         }
       }
