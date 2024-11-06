@@ -236,7 +236,9 @@ export async function updateDrciComments(
           title: "Dr.CI classification results",
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
-          summary: JSON.stringify(failures[pr_info.pr_number]),
+          summary: JSON.stringify(
+            removeFailureContext(failures[pr_info.pr_number])
+          ),
         },
       });
     },
@@ -246,6 +248,25 @@ export async function updateDrciComments(
   );
 
   return failures;
+}
+
+/**
+ * Changes the failure context of each job to an empty array. This is done to
+ * reduce the size of the payload, which can some times exceed the maximum size
+ * allowed by GitHub
+ * @param failure
+ * @returns
+ */
+function removeFailureContext(failure: {
+  [cat: string]: RecentWorkflowsData[];
+}) {
+  const result = { ...failure };
+  for (const cat in result) {
+    for (const job of result[cat]) {
+      job.failure_context = [];
+    }
+  }
+  return result;
 }
 
 /**
