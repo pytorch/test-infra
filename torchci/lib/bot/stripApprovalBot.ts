@@ -15,7 +15,7 @@ export default function stripApprovalBot(app: Probot): void {
         return;
       }
 
-      const pull_request: PullRequest = ctx.payload.pull_request
+      const pull_request: PullRequest = ctx.payload.pull_request;
 
       const owner = ctx.payload.repository.owner.login;
       const repo = ctx.payload.repository.name;

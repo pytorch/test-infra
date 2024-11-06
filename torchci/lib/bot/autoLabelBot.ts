@@ -463,7 +463,7 @@ function myBot(app: Probot): void {
         (e) => e["name"]
       );
 
-      const user = context.payload.pull_request.user.login
+      const user = context.payload.pull_request.user.login;
       const owner = context.payload.repository.owner.login;
       const repo = context.payload.repository.name;
       const title = context.payload.pull_request.title;
@@ -507,8 +507,6 @@ function myBot(app: Probot): void {
         isPyTorchPyTorch(owner, repo) &&
         context.payload.action === "opened"
       ) {
-
-
         // Add the ci-td-distributed label to PRs opened by authors listed in
         // the TD rollout issue
         const authors = (await TDRolloutTracker.loadIssue(

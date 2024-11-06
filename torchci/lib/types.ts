@@ -282,4 +282,4 @@ export interface PullRequest {
   user: {
     login: string;
   };
-};
+}

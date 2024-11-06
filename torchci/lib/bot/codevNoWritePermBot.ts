@@ -24,7 +24,7 @@ export default function codevNoWritePerm(app: Probot): void {
     const pullRequest: PullRequest = context.payload.pull_request;
     const body = pullRequest.body;
     const author = pullRequest.user.login;
-    const prNumber =pullRequest.number;
+    const prNumber = pullRequest.number;
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     if (
