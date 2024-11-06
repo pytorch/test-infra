@@ -275,3 +275,11 @@ function formatHudURL(
   }
   return base;
 }
+
+export interface PullRequest {
+  number: number;
+  body: string | null;
+  user: {
+    login: string;
+  };
+};

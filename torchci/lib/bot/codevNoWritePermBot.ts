@@ -1,3 +1,4 @@
+import { PullRequest } from "lib/types";
 import { Probot } from "probot";
 import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
 
@@ -20,9 +21,10 @@ export function genCodevNoWritePermComment(author: string) {
 // access.
 export default function codevNoWritePerm(app: Probot): void {
   app.on("pull_request.opened", async (context) => {
-    const body = context.payload.pull_request.body;
-    const author = context.payload.pull_request.user.login;
-    const prNumber = context.payload.pull_request.number;
+    const pullRequest: PullRequest = context.payload.pull_request;
+    const body = pullRequest.body;
+    const author = pullRequest.user.login;
+    const prNumber =pullRequest.number;
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     if (
