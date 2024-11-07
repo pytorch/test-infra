@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.runner-type }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Test that setup-nvidia works
         uses: ./.github/actions/setup-nvidia

@@ -11,7 +11,7 @@ jobs:
   test:
     runs-on: linux.2xlarge
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Test upload the benchmark results (v2)
         uses: ./.github/actions/upload-benchmark-results

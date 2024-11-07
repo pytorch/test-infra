@@ -13,11 +13,11 @@ jobs:
       contents: write
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: test-infra
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: pytorch/pytorch
           path: pytorch

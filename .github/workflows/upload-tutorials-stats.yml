@@ -26,14 +26,14 @@ jobs:
           aws-region: us-east-1
 
       - name: Checkout the tutorials repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'pytorch/tutorials'
           path: './tutorials'
           fetch-depth: 0
 
       - name: Checkout the test-infra repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: test-infra
 

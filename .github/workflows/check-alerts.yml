@@ -41,7 +41,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Dependencies
         run: pip3 install requests setuptools==61.2.0
       - name: Check for alerts and creates issue
@@ -61,7 +61,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Dependencies
         run: pip3 install requests setuptools==61.2.0 rockset==1.0.3
       - name: Check for alerts and creates issue
