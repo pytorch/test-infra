@@ -66,6 +66,8 @@ jobs:
       gpu-arch-version: "12.1"
       timeout: 60
       script: |
+        nvidia-smi
+        nvcc --version | grep "cuda_12.1"
         conda create --yes --quiet -n test python=3.9
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
@@ -73,8 +75,6 @@ jobs:
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
         python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
-        nvidia-smi
-        nvcc --version | grep "cuda_12.1"
   test-gpu-containers:
     uses: ./.github/workflows/linux_job.yml
     strategy:
@@ -90,6 +90,8 @@ jobs:
       gpu-arch-version: "12.1"
       timeout: 60
       script: |
+        nvidia-smi
+        nvcc --version | grep "cuda_12.1"
         conda create --yes --quiet -n test python=3.9
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
@@ -97,8 +99,6 @@ jobs:
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
         python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
-        nvidia-smi
-        nvcc --version | grep "cuda_12.1"
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
