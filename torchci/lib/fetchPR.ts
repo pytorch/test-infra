@@ -1,5 +1,6 @@
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
+import { fetchAndCache } from "./cacheGithubAPI";
 import { queryClickhouseSaved } from "./clickhouse";
 import getRocksetClient from "./rockset";
 import { PRData } from "./types";
@@ -53,24 +54,34 @@ export default async function fetchPR(
   octokit: Octokit,
   useClickhouse: boolean = true
 ): Promise<PRData> {
-  // We pull data from both Rockset and Github to get all commits, including
+  // We pull data from both the database and Github to get all commits, including
   // the ones that have been force merged out of the git history.
-  // Rockset is the primary source, GitHub covers anything newer that might
+  // The database is the primary source, GitHub covers anything newer that might
   // have been missed.
+
   const [pull, commits, historicalCommits] = await Promise.all([
-    octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: parseInt(prNumber),
-    }),
-    octokit.paginate(octokit.rest.pulls.listCommits, {
-      owner,
-      repo,
-      pull_number: parseInt(prNumber),
-      per_page: 100,
-    }),
+    fetchAndCache(
+      `octokit.rest.pulls.get ${owner}/${repo}/${prNumber}`,
+      async () =>
+        await octokit.rest.pulls.get({
+          owner,
+          repo,
+          pull_number: parseInt(prNumber),
+        })
+    ),
+    fetchAndCache(
+      `octokit.rest.pulls.listCommits ${owner}/${repo}/${prNumber}`,
+      async () =>
+        await octokit.paginate(octokit.rest.pulls.listCommits, {
+          owner,
+          repo,
+          pull_number: parseInt(prNumber),
+          per_page: 100,
+        })
+    ),
     fetchHistoricalCommits(owner, repo, prNumber, useClickhouse),
   ]);
+
   const title = pull.data.title;
   const body = pull.data.body ?? "";
 

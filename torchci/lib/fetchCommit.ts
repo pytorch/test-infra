@@ -1,6 +1,7 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import rocksetVersions from "rockset/prodVersions.json";
+import { fetchAndCache } from "./cacheGithubAPI";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
@@ -104,13 +105,17 @@ export async function fetchCommitTimestamp(
   repo: string,
   commit_sha: string
 ): Promise<string> {
-  // Query GitHub to get the commit timestamp, this is used to get the timestamp of
-  // commits from forked PRs
-  const commit = await octokit.rest.git.getCommit({
-    owner: owner,
-    repo: repo,
-    commit_sha: commit_sha,
-  });
+  const commit = await fetchAndCache(
+    `octokit.rest.git.getCommit date ${owner}/${repo}/${commit_sha}`,
+    async () => {
+      const commit = await octokit.rest.git.getCommit({
+        owner: owner,
+        repo: repo,
+        commit_sha: commit_sha,
+      });
+      return commit.data.committer.date;
+    }
+  );
 
-  return commit.data.committer.date;
+  return commit;
 }
