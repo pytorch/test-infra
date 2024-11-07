@@ -1,7 +1,7 @@
-import { JobData } from "../lib/types";
-import JobLinks from "./JobLinks";
-import LogViewer from "./LogViewer";
-import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
+import { JobData } from "../../lib/types";
+import JobLinks from "../JobLinks";
+import LogViewer from "../LogViewer";
+import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
 
 export default function JobTooltip({
   job,

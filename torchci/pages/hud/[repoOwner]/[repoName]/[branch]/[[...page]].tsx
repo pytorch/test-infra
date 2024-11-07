@@ -1,14 +1,16 @@
+import { SxProps, Theme } from "@mui/material";
 import CheckBoxSelector from "components/CheckBoxSelector";
 import CopyLink from "components/CopyLink";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
-} from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupJobConclusion";
-import styles from "components/hud.module.css";
+} from "components/GroupHudTable/GroupHudTableHeaders";
+import GroupHudTableLabelGuide from "components/GroupHudTable/GroupHudTableLabelGuide";
+import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
+import styles from "components/GroupHudTable/hud.module.css";
+import JobTooltip from "components/GroupHudTable/JobTooltip";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
-import JobTooltip from "components/JobTooltip";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
@@ -47,6 +49,22 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
+
+const conclusionIndicatorProps: SxProps<Theme> = {
+  position: "absolute",
+  top: "0px",
+  left: "6px",
+  maxWidth: "140px",
+  zIndex: 1,
+};
+
+const conclusionGroupIndicatorProps: SxProps<Theme> = {
+  position: "absolute",
+  top: "0px",
+  left: "150px",
+  maxWidth: "140px",
+  zIndex: 1,
+};
 
 export function JobCell({
   sha,
@@ -321,6 +339,7 @@ function GroupFilterableHudTable({
         labelText={"Hide unstable jobs"}
       />
       <MonsterFailuresCheckbox />
+      <GroupHudTableLabelGuide />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}

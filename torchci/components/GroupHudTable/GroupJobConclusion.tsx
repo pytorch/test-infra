@@ -1,37 +1,107 @@
+import styles from "components/JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupConclusionChar } from "lib/JobClassifierUtil";
+import { GroupedJobStatus, JobStatus } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
 import { GroupData, IssueData, JobData } from "lib/types";
+import { cloneDeep } from "lodash";
 import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
+import { FaClock } from "react-icons/fa";
+import { ImCross } from "react-icons/im";
+import { MdCheckCircleOutline, MdFlaky } from "react-icons/md";
+import { RiErrorWarningFill, RiProgress5Fill } from "react-icons/ri";
+import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
 import hudStyles from "./hud.module.css";
-import styles from "./JobConclusion.module.css";
-import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
 
-export enum JobStatus {
-  Success = "success",
-  Failure = "failure",
-  Neutral = "neutral",
-  Cancelled = "cancelled",
-  Timed_out = "timed_out",
-  Skipped = "skipped",
-  Queued = "queued",
-  Pending = "pending",
+// Conclusion Group Element used to render the conclusion group.
+const conclusionGroupElements: Map<
+  string | undefined,
+  { name: string; type: string; render: (className?: string) => JSX.Element }
+> = new Map([
+  [
+    GroupedJobStatus.AllNull,
+
+    {
+      name: "all null",
+      type: GroupedJobStatus.AllNull,
+      render: (className) => <span className={className ?? ""}>~</span>,
+    },
+  ],
+  [
+    GroupedJobStatus.Success,
+    {
+      name: "success",
+      type: GroupedJobStatus.Success,
+      render: (className) => <MdCheckCircleOutline className={className} />,
+    },
+  ],
+  [
+    GroupedJobStatus.Failure,
+    {
+      name: "failure",
+      type: GroupedJobStatus.Failure,
+      render: (className) => <ImCross className={className ?? ""} />,
+    },
+  ],
+  [
+    GroupedJobStatus.Queued,
+    {
+      name: "queued",
+      type: GroupedJobStatus.Queued,
+      render: (className) => <RiProgress5Fill className={className ?? ""} />,
+    },
+  ],
+  [
+    GroupedJobStatus.Pending,
+    {
+      name: "pending",
+      type: GroupedJobStatus.Pending,
+      render: (className) => <FaClock className={className ?? ""} />,
+    },
+  ],
+  [
+    GroupedJobStatus.Classified,
+    {
+      name: "classified",
+      type: GroupedJobStatus.Classified,
+      render: (className) => <span className={className ?? ""}>X</span>,
+    },
+  ],
+  [
+    GroupedJobStatus.Flaky,
+    {
+      name: "flaky",
+      type: GroupedJobStatus.Flaky,
+      render: (className) => <MdFlaky className={className ?? ""} />,
+    },
+  ],
+  [
+    GroupedJobStatus.WarningOnly,
+    {
+      name: "warning only",
+      type: GroupedJobStatus.WarningOnly,
+      render: (className) => <RiErrorWarningFill className={className ?? ""} />,
+    },
+  ],
+]);
+
+export function getGroupConclusionElementList() {
+  return cloneDeep(Array.from(conclusionGroupElements.values()));
 }
 
-export enum GroupedJobStatus {
-  Failure = "failure",
-  AllNull = "all_null",
-  Queued = "queued",
-  Success = "success",
-  Classified = "classified",
-  Flaky = "flaky",
-  WarningOnly = "warning",
-  Pending = "pending",
+export function getGroupConclusionIcon(
+  conclusion?: GroupedJobStatus,
+  style?: string
+) {
+  return conclusionGroupElements.has(conclusion) ? (
+    conclusionGroupElements.get(conclusion)?.render(style)
+  ) : (
+    <span className={style ?? ""}>U</span>
+  );
 }
 
 export default function HudGroupedCell({
@@ -50,7 +120,7 @@ export default function HudGroupedCell({
   unstableIssues: IssueData[];
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
+  let style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
 
   const erroredJobs = [];
   const warningOnlyJobs = [];
@@ -112,16 +182,13 @@ export default function HudGroupedCell({
           }
         >
           <span className={styles.conclusion}>
-            <span
-              className={
+            <span onDoubleClick={toggleExpanded}>
+              {getGroupConclusionIcon(
+                conclusion,
                 isClassified
                   ? styles["classified"]
                   : styles[conclusion ?? "none"]
-              }
-              onDoubleClick={toggleExpanded}
-              style={{ border: "1px solid gainsboro", padding: "0 1px" }}
-            >
-              {getGroupConclusionChar(conclusion)}
+              )}
             </span>
           </span>
         </TooltipTarget>

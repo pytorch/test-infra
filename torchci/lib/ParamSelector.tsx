@@ -1,4 +1,4 @@
-import styles from "components/hud.module.css";
+import styles from "components/GroupHudTable/hud.module.css";
 import { useEffect, useState } from "react";
 
 export function ParamSelector({

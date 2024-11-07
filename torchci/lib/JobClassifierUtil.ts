@@ -1,4 +1,3 @@
-import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
 import { GroupData, IssueData, RowData } from "./types";
 
@@ -27,6 +26,28 @@ const GROUP_PARALLEL = "Parallel";
 const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER = "other";
+
+export enum GroupedJobStatus {
+  Failure = "failure",
+  AllNull = "all_null",
+  Queued = "queued",
+  Success = "success",
+  Classified = "classified",
+  Flaky = "flaky",
+  WarningOnly = "warning",
+  Pending = "pending",
+}
+
+export enum JobStatus {
+  Success = "success",
+  Failure = "failure",
+  Neutral = "neutral",
+  Cancelled = "cancelled",
+  Timed_out = "timed_out",
+  Skipped = "skipped",
+  Queued = "queued",
+  Pending = "pending",
+}
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
@@ -209,29 +230,6 @@ export function classifyGroup(
   return assignedGroup === undefined ? GROUP_OTHER : assignedGroup.name;
 }
 
-export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
-  switch (conclusion) {
-    case GroupedJobStatus.Success:
-      return "O";
-    case GroupedJobStatus.Failure:
-      return "X";
-    case GroupedJobStatus.Queued:
-      return "Q";
-    case GroupedJobStatus.Pending:
-      return "?";
-    case GroupedJobStatus.AllNull:
-      return "~";
-    case GroupedJobStatus.Classified:
-      return "X";
-    case GroupedJobStatus.Flaky:
-      return "F";
-    case GroupedJobStatus.WarningOnly:
-      return "W";
-    default:
-      return "U";
-  }
-}
-
 export function isFailure(conclusion?: string): boolean {
   switch (conclusion) {
     case JobStatus.Failure:
@@ -263,37 +261,6 @@ export function IsJobInProgress(conclusion?: string): boolean {
     case undefined:
     default:
       return false;
-  }
-}
-
-export function getConclusionChar(
-  conclusion?: string,
-  failedPreviousRun?: boolean
-): string {
-  switch (conclusion) {
-    case JobStatus.Success:
-      if (failedPreviousRun) {
-        return "F";
-      }
-      return "O";
-    case JobStatus.Failure:
-      return "X";
-    case JobStatus.Neutral:
-      return "N";
-    case JobStatus.Cancelled:
-      return "C";
-    case JobStatus.Timed_out:
-      return "T";
-    case JobStatus.Skipped:
-      return "S";
-    case JobStatus.Queued:
-      return "Q";
-    case JobStatus.Pending:
-      return "?";
-    case undefined:
-      return "~";
-    default:
-      return "U";
   }
 }
 

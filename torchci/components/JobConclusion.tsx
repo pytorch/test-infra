@@ -1,9 +1,130 @@
-import { getConclusionChar } from "lib/JobClassifierUtil";
+import { JobStatus } from "lib/JobClassifierUtil";
+import { cloneDeep } from "lodash";
 import { useContext } from "react";
+import { FaClock } from "react-icons/fa";
+import { ImCross } from "react-icons/im";
+import { IoIosCheckmarkCircleOutline } from "react-icons/io";
+import { IoBanOutline } from "react-icons/io5";
+import { MdOutlineTimerOff } from "react-icons/md";
+import { RiProgress5Fill } from "react-icons/ri";
 import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
-import { JobStatus } from "./GroupJobConclusion";
 import styles from "./JobConclusion.module.css";
+
+// Conclustion Element used to render the conclusion of a job
+const jobConclusionElementMap: Map<
+  string | undefined,
+  { name: string; type: string; render: (className?: string) => JSX.Element }
+> = new Map([
+  [
+    JobStatus.Cancelled,
+    {
+      name: "cancelled",
+      type: JobStatus.Cancelled,
+      render: (className?: string) => (
+        <IoBanOutline className={className ?? ""}></IoBanOutline>
+      ),
+    },
+  ],
+  [
+    JobStatus.Neutral,
+    {
+      name: "neutral",
+      type: JobStatus.Neutral,
+      render: (className?: string) => (
+        <span className={className ?? ""}>N</span>
+      ),
+    },
+  ],
+  [
+    JobStatus.Failure,
+    {
+      name: "failure",
+      type: JobStatus.Failure,
+      render: (className?: string) => (
+        <ImCross className={className ?? ""}></ImCross>
+      ),
+    },
+  ],
+  [
+    JobStatus.Pending,
+    {
+      name: "pending",
+      type: JobStatus.Pending,
+      render: (className?: string) => (
+        <FaClock className={className ?? ""}></FaClock>
+      ),
+    },
+  ],
+  [
+    JobStatus.Queued,
+    {
+      name: "in queue",
+      type: JobStatus.Queued,
+      render: (className?: string) => (
+        <RiProgress5Fill className={className}></RiProgress5Fill>
+      ),
+    },
+  ],
+  [
+    JobStatus.Timed_out,
+    {
+      name: "time_out",
+      type: JobStatus.Timed_out,
+      render: (className?: string) => (
+        <MdOutlineTimerOff className={className ?? ""}></MdOutlineTimerOff>
+      ),
+    },
+  ],
+  [
+    JobStatus.Skipped,
+    {
+      name: "skipped",
+      type: JobStatus.Skipped,
+      render: (className?: string) => (
+        <span className={className ?? ""}>S</span>
+      ),
+    },
+  ],
+  [
+    JobStatus.Success,
+    {
+      name: "success",
+      type: JobStatus.Success,
+      render: (className?: string) => (
+        <IoIosCheckmarkCircleOutline
+          className={className}
+        ></IoIosCheckmarkCircleOutline>
+      ),
+    },
+  ],
+]);
+
+export function getJobConclusionElementList() {
+  return cloneDeep(Array.from(jobConclusionElementMap.values()));
+}
+
+export function getConclusionIcon(
+  conclusion?: string,
+  className?: string,
+  failedPreviousRun?: boolean
+) {
+  className = className ?? styles[conclusion ?? "undefined"];
+  if (conclusion == undefined) {
+    return <span className={className}>~</span>;
+  }
+  if (conclusion === JobStatus.Success) {
+    if (failedPreviousRun) {
+      return jobConclusionElementMap.get(JobStatus.Failure)?.render(className);
+    }
+    return jobConclusionElementMap.get(conclusion)?.render(className);
+  }
+  return jobConclusionElementMap.has(conclusion) ? (
+    jobConclusionElementMap.get(conclusion)?.render(className)
+  ) : (
+    <span className={className}>U</span>
+  );
+}
 
 /**
  * `getFailureEl` generates a div with a monster sprite element based on the first line of `failureLines` in `jobData`.
@@ -86,9 +207,7 @@ export default function JobConclusion({
   return (
     <span className={styles.conclusion}>
       {(failureEl && failureEl) || (
-        <span className={style}>
-          {getConclusionChar(conclusion, failedPreviousRun)}
-        </span>
+        <div>{getConclusionIcon(conclusion, style, failedPreviousRun)}</div>
       )}
     </span>
   );

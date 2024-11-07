@@ -1,6 +1,6 @@
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import GranularityPicker from "components/GranularityPicker";
-import styles from "components/hud.module.css";
+import styles from "components/GroupHudTable/hud.module.css";
 import {
   getTooltipMarker,
   Granularity,
