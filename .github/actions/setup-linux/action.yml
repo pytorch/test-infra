@@ -87,6 +87,17 @@ runs:
       uses: pytorch/test-infra/.github/actions/setup-nvidia@main
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'}}
 
+    - name: Set GPU_FLAG if in a container that has a NVIDIA GPU
+      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'true' }}
+      shell: bash
+      run: |
+        if [ -e /dev/nvidia0 ] ; then
+          echo "Found NVIDIA GPU device in /dev/nvidia0, exporting GPU_FLAG"
+          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
+        else
+          echo "No NVIDIA GPU device found in /dev/nvidia0, not exporting GPU_FLAG"
+        fi
+
     - name: Kill any existing containers, clean up images
       if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       shell: bash
