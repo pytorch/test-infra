@@ -298,6 +298,7 @@ function GroupFilterableHudTable({
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
     useTableFilter(params);
   const headerNames = groupNames;
+  const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
       <JobFilterInput
@@ -319,6 +320,12 @@ function GroupFilterableHudTable({
         setValue={(value) => setHideUnstable(value)}
         checkBoxName="hideUnstable"
         labelText={"Hide unstable jobs"}
+      />
+      <CheckBoxSelector
+        value={mergeLF}
+        setValue={setMergeLF}
+        checkBoxName="mergeLF"
+        labelText={"Condense LF jobs"}
       />
       <MonsterFailuresCheckbox />
       <table className={styles.hudTable}>
@@ -409,9 +416,15 @@ export const PinnedTooltipContext = createContext<[Highlight, any]>([
   null,
 ]);
 
+export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
+  false,
+  (_) => {},
+]);
+
 export default function Hud() {
   const router = useRouter();
-  const params = packHudParams(router.query);
+  const [mergeLF, setMergeLF] = usePreference("mergeLF");
+  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -447,23 +460,25 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          {params.branch !== undefined && (
-            <div onClick={handleClick}>
-              <div style={{ display: "flex", alignItems: "flex-end" }}>
-                <HudHeader params={params} />
-                <CopyPermanentLink
-                  params={params}
-                  style={{ marginLeft: "10px" }}
-                />
+          <MergeLFContext.Provider value={[mergeLF, setMergeLF]}>
+            {params.branch !== undefined && (
+              <div onClick={handleClick}>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <HudHeader params={params} />
+                  <CopyPermanentLink
+                    params={params}
+                    style={{ marginLeft: "10px" }}
+                  />
+                </div>
+                <HudTable params={params} />
+                <PageSelector params={params} baseUrl="hud" />
+                <br />
+                <div>
+                  <em>This page automatically updates.</em>
+                </div>
               </div>
-              <HudTable params={params} />
-              <PageSelector params={params} baseUrl="hud" />
-              <br />
-              <div>
-                <em>This page automatically updates.</em>
-              </div>
-            </div>
-          )}
+            )}
+          </MergeLFContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
