@@ -27,7 +27,7 @@ const GroupHudTableLabelContainer = styled("div")(({}) => ({
 }));
 
 const LabelGroup = styled("div")(({}) => ({
-    position: "absolute",
+  position: "absolute",
 }));
 
 export default function GroupHudTableLabelGuide() {
@@ -36,18 +36,18 @@ export default function GroupHudTableLabelGuide() {
       <BlankSpace />
       <GroupHudTableLabelContainer>
         <LabelGroup>
-            <LabelGuide
+          <LabelGuide
             title="Job Label"
             props={conclusionIndicatorProps}
             labelInfoList={getJobConclusionElementList()}
             labelStyleList={jobConclustionStyles}
-            />
-            <LabelGuide
+          />
+          <LabelGuide
             title="Group Label"
             props={conclusionGroupIndicatorProps}
             labelInfoList={getGroupConclusionElementList()}
             labelStyleList={jobConclustionStyles}
-            />
+          />
         </LabelGroup>
       </GroupHudTableLabelContainer>
       <BlankSpace />
