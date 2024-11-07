@@ -15,7 +15,7 @@ import { ImCross } from "react-icons/im";
 import { MdCheckCircleOutline, MdFlaky } from "react-icons/md";
 import { RiErrorWarningFill, RiProgress5Fill } from "react-icons/ri";
 import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
-import hudStyles from "./hud.module.css";
+import hudStyles from "components/hud.module.css";
 
 // Conclusion Group Element used to render the conclusion group.
 const conclusionGroupElements: Map<

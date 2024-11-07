@@ -5,7 +5,7 @@ import {
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
 import GranularityPicker from "components/GranularityPicker";
-import styles from "components/GroupHudTable/hud.module.css";
+import styles from "components/hud.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
   getTooltipMarker,

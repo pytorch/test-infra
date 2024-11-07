@@ -1,4 +1,4 @@
-import styles from "components/GroupHudTable/hud.module.css";
+import styles from "components/hud.module.css";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
 import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import React, { useContext } from "react";

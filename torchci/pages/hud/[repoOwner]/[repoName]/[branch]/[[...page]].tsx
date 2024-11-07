@@ -7,7 +7,7 @@ import {
 } from "components/GroupHudTable/GroupHudTableHeaders";
 import GroupHudTableLabelGuide from "components/GroupHudTable/GroupHudTableLabelGuide";
 import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
-import styles from "components/GroupHudTable/hud.module.css";
+import styles from "components/hud.module.css";
 import JobTooltip from "components/GroupHudTable/JobTooltip";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
