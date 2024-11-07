@@ -91,11 +91,11 @@ runs:
       if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'true' }}
       shell: bash
       run: |
-        if [ -e /dev/nvidia0 ] ; then
-          echo "Found NVIDIA GPU device in /dev/nvidia0, exporting GPU_FLAG"
+        if compgen -G "/dev/nvidia[0-9]" ; then
+          echo "Found NVIDIA GPU device in /dev/nvidiaX, exporting GPU_FLAG"
           echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
         else
-          echo "No NVIDIA GPU device found in /dev/nvidia0, not exporting GPU_FLAG"
+          echo "No NVIDIA GPU device found in /dev/nvidiaX, not exporting GPU_FLAG"
         fi
 
     - name: Kill any existing containers, clean up images
