@@ -495,7 +495,7 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-    if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64):
+    if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64 or os == LINUX_AARCH64):
         python_versions += ["3.13"]
 
     upload_to_base_bucket = "yes"
