@@ -157,7 +157,7 @@ jobs:
         run: |
           set -euxo pipefail
           # TODO: Get rid of Conda, we already have all versions of PyThon one needs in the docker
-          ${GITHUB_WORKSPACE}/builder/aarch64_linux/aarch64_ci_setup.sh
+
           ###############################################################################
           # Install conda
           # disable SSL_verify due to getting "Could not find a suitable TLS CA certificate bundle, invalid path"
