@@ -110,6 +110,7 @@ resource "aws_launch_template" "linux_runner" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "optional"
+    http_put_response_hop_limit = 3
     instance_metadata_tags      = "enabled"
   }
 
