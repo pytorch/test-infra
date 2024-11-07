@@ -1,4 +1,3 @@
-import { SxProps, Theme } from "@mui/material";
 import CheckBoxSelector from "components/CheckBoxSelector";
 import CopyLink from "components/CopyLink";
 import {
@@ -7,8 +6,8 @@ import {
 } from "components/GroupHudTable/GroupHudTableHeaders";
 import GroupHudTableLabelGuide from "components/GroupHudTable/GroupHudTableLabelGuide";
 import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
-import styles from "components/hud.module.css";
 import JobTooltip from "components/GroupHudTable/JobTooltip";
+import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import PageSelector from "components/PageSelector";
@@ -49,22 +48,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
-
-const conclusionIndicatorProps: SxProps<Theme> = {
-  position: "absolute",
-  top: "0px",
-  left: "6px",
-  maxWidth: "140px",
-  zIndex: 1,
-};
-
-const conclusionGroupIndicatorProps: SxProps<Theme> = {
-  position: "absolute",
-  top: "0px",
-  left: "150px",
-  maxWidth: "140px",
-  zIndex: 1,
-};
 
 export function JobCell({
   sha,
@@ -317,7 +300,7 @@ function GroupFilterableHudTable({
     useTableFilter(params);
   const headerNames = groupNames;
   return (
-    <>
+    <div style={{ position: "relative" }}>
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
@@ -340,6 +323,7 @@ function GroupFilterableHudTable({
       />
       <MonsterFailuresCheckbox />
       <GroupHudTableLabelGuide />
+      <div style={{ height: "50px" }}></div>
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}
@@ -355,7 +339,7 @@ function GroupFilterableHudTable({
         />
         {children}
       </table>
-    </>
+    </div>
   );
 }
 

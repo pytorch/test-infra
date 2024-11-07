@@ -1,3 +1,4 @@
+import hudStyles from "components/hud.module.css";
 import styles from "components/JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
 import { GroupedJobStatus, JobStatus } from "lib/JobClassifierUtil";
@@ -15,7 +16,6 @@ import { ImCross } from "react-icons/im";
 import { MdCheckCircleOutline, MdFlaky } from "react-icons/md";
 import { RiErrorWarningFill, RiProgress5Fill } from "react-icons/ri";
 import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
-import hudStyles from "components/hud.module.css";
 
 // Conclusion Group Element used to render the conclusion group.
 const conclusionGroupElements: Map<
