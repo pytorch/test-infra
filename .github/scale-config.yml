@@ -20,12 +20,21 @@
 #   runner_label:
 #     instance_type: m4.large
 #     os: linux
+#     # min_available defaults to the global cfg in the ALI Terraform
+#     min_available: undefined
 #     # when max_available value is not defined, no max runners is enforced
 #     max_available: undefined
 #     disk_size: 50
 #     is_ephemeral: true
 
 runner_types:
+  linux.8xlarge.amx:
+    disk_size: 200
+    instance_type: m7i-flex.8xlarge
+    min_available: 0
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
   linux.12xlarge:
     disk_size: 200
     instance_type: c5.12xlarge
