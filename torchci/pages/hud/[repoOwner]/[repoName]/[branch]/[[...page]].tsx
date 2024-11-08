@@ -46,7 +46,13 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import useSWR from "swr";
 
 export function JobCell({
@@ -451,12 +457,20 @@ export default function Hud() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
 
-  useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    });
+    },
+    [setPinnedTooltip]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
   const title =
     params.repoOwner != null && params.repoName != null && params.branch != null
