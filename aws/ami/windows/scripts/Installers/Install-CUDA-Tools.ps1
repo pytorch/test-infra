@@ -24,6 +24,11 @@ Switch ($cudaVersion) {
     $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda11-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion"
   }
+  "12.1" {
+    $toolkitInstaller = "cuda_12.1.1_531.14_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda12-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
+  }
   "12.4" {
     $toolkitInstaller = "cuda_12.4.0_551.61_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda12-archive"
