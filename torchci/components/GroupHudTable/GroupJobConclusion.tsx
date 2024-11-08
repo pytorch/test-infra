@@ -11,10 +11,11 @@ import { GroupData, IssueData, JobData } from "lib/types";
 import { cloneDeep } from "lodash";
 import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
-import { FaClock } from "react-icons/fa";
 import { ImCross } from "react-icons/im";
-import { MdCheckCircleOutline, MdFlaky } from "react-icons/md";
+import { IoMdCheckmark } from "react-icons/io";
+import { MdFlaky } from "react-icons/md";
 import { RiErrorWarningFill, RiProgress5Fill } from "react-icons/ri";
+import { SlClock } from "react-icons/sl";
 import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
 
 // Conclusion Group Element used to render the conclusion group.
@@ -36,7 +37,7 @@ const conclusionGroupElements: Map<
     {
       name: "success",
       type: GroupedJobStatus.Success,
-      render: (className) => <MdCheckCircleOutline className={className} />,
+      render: (className) => <IoMdCheckmark className={className} />,
     },
   ],
   [
@@ -60,7 +61,7 @@ const conclusionGroupElements: Map<
     {
       name: "pending",
       type: GroupedJobStatus.Pending,
-      render: (className) => <FaClock className={className ?? ""} />,
+      render: (className) => <SlClock className={className ?? ""} />,
     },
   ],
   [

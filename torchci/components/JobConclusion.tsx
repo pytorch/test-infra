@@ -2,8 +2,7 @@ import { JobStatus } from "lib/JobClassifierUtil";
 import { cloneDeep } from "lodash";
 import { useContext } from "react";
 import { ImCross } from "react-icons/im";
-import { IoIosCheckmarkCircleOutline } from "react-icons/io";
-import { IoBanOutline } from "react-icons/io5";
+import { IoBanOutline, IoCheckmarkSharp } from "react-icons/io5";
 import { MdOutlineTimerOff } from "react-icons/md";
 import { RiProgress5Fill } from "react-icons/ri";
 import { SlClock } from "react-icons/sl";
@@ -102,9 +101,7 @@ const jobConclusionElementMap: Map<
       name: "success",
       type: JobStatus.Success,
       render: (className?: string) => (
-        <IoIosCheckmarkCircleOutline
-          className={className}
-        ></IoIosCheckmarkCircleOutline>
+        <IoCheckmarkSharp className={className}></IoCheckmarkSharp>
       ),
     },
   ],

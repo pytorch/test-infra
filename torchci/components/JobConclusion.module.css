@@ -57,7 +57,7 @@
 
 .flaky {
   font-size: 1.3em;
-  color: lightgreen;
+  color: rgba(13, 169, 13, 0.797);
 }
 
 .warning {
