@@ -9,6 +9,7 @@ import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
+import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
@@ -376,7 +377,13 @@ export function MonsterFailuresCheckbox() {
 }
 
 function HudTable({ params }: { params: HudParams }) {
-  return <GroupedView params={params} />;
+  const data = useHudData(params);
+  if (data === undefined) {
+    return <LoadingPage />
+  }
+  return <>
+    <GroupedHudTable params={params} data={data} />
+  </>
 }
 
 function HudHeader({ params }: { params: HudParams }) {
@@ -506,14 +513,6 @@ function CopyPermanentLink({
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
-function GroupedView({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-
-  return <GroupedHudTable params={params} data={data} />;
-}
 
 function GroupedHudTable({
   params,
