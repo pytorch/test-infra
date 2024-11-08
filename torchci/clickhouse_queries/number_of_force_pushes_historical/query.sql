@@ -6,7 +6,7 @@ SELECT
     ) AS bucket,
     COUNT(DISTINCT issue_comment.issue_url) AS count
 FROM
-    default .issue_comment
+    default .issue_comment FINAL
 WHERE
     issue_comment.body LIKE '%@pytorchbot merge -f%'
     AND created_at >= {startTime: DateTime64(3) }
