@@ -61,7 +61,7 @@ const conclusionGroupElements: Map<
     {
       name: "pending",
       type: GroupedJobStatus.Pending,
-      render: (className) => <SlClock className={className ?? ""} />,
+      render: (className) => <SlClock className={`${className ?? ""} ${styles["blink"]}`} />,
     },
   ],
   [
