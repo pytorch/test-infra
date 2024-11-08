@@ -1,17 +1,15 @@
 import { JobStatus } from "lib/JobClassifierUtil";
 import { cloneDeep } from "lodash";
 import { useContext } from "react";
-import { FaClock } from "react-icons/fa";
 import { ImCross } from "react-icons/im";
 import { IoIosCheckmarkCircleOutline } from "react-icons/io";
 import { IoBanOutline } from "react-icons/io5";
 import { MdOutlineTimerOff } from "react-icons/md";
 import { RiProgress5Fill } from "react-icons/ri";
+import { SlClock } from "react-icons/sl";
 import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import styles from "./JobConclusion.module.css";
-import { SlClock } from "react-icons/sl";
-
 
 // Conclustion Element used to render the conclusion of a job
 const jobConclusionElementMap: Map<
