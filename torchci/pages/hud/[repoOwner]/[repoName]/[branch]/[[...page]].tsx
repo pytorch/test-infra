@@ -46,7 +46,13 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import useSWR from "swr";
 
 export function JobCell({
