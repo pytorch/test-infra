@@ -1,13 +1,16 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- This is used by KPI pages to get the number of force pushes
 SELECT
-    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, issue_comment.created)) AS bucket,
+    formatDateTime(
+        DATE_TRUNC({granularity: String }, issue_comment.created_at),
+        '%Y-%m-%d'
+    ) AS bucket,
     COUNT(DISTINCT issue_comment.issue_url) AS count
 FROM
-    commons.issue_comment
+    default .issue_comment
 WHERE
     issue_comment.body LIKE '%@pytorchbot merge -f%'
-    AND created >= PARSE_DATETIME_ISO8601(:startTime)
-    AND created < PARSE_DATETIME_ISO8601(:stopTime)
+    AND created_at >= {startTime: DateTime64(3) }
+    AND created_at < {stopTime: DateTime64(3) }
     AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
     AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
     AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'

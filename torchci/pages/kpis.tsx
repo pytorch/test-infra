@@ -61,11 +61,12 @@ export default function Kpis() {
           title={"# of force merges (Weekly)"}
           queryName={"number_of_force_pushes_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={clickhouseTimeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"count"}
           yAxisRenderer={(unit) => `${unit}`}
+          useClickHouse={true}
         />
       </Grid>
 
