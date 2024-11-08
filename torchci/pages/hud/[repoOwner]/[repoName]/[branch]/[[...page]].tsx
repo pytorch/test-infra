@@ -300,7 +300,7 @@ function GroupFilterableHudTable({
     useTableFilter(params);
   const headerNames = groupNames;
   return (
-    <div style={{ position: "relative" }}>
+    <div>
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
