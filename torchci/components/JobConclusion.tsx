@@ -10,6 +10,8 @@ import { RiProgress5Fill } from "react-icons/ri";
 import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import styles from "./JobConclusion.module.css";
+import { SlClock } from "react-icons/sl";
+
 
 // Conclustion Element used to render the conclusion of a job
 const jobConclusionElementMap: Map<
@@ -62,7 +64,7 @@ const jobConclusionElementMap: Map<
       name: "pending",
       type: JobStatus.Pending,
       render: (className?: string) => (
-        <FaClock className={className ?? ""}></FaClock>
+        <SlClock className={className ?? ""}></SlClock>
       ),
     },
   ],

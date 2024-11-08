@@ -4,7 +4,6 @@ import {
   GroupHudTableColumns,
   GroupHudTableHeader,
 } from "components/GroupHudTable/GroupHudTableHeaders";
-import GroupHudTableLabelGuide from "components/GroupHudTable/GroupHudTableLabelGuide";
 import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
 import JobTooltip from "components/GroupHudTable/JobTooltip";
 import styles from "components/hud.module.css";
@@ -608,7 +607,6 @@ function GroupedHudTable({
       hideUnstable={hideUnstable}
       setHideUnstable={setHideUnstable}
     >
-      <GroupHudTableLabelGuide />
       <HudTableBody
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
