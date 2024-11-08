@@ -175,7 +175,6 @@ function WorkerTypePicker({
   });
 
   if (error !== undefined) {
-    console.error(error);
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
