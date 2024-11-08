@@ -222,12 +222,12 @@ function WorkerTypePicker({
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
-  const [timeRange, setTimeRange] = useState<number>(30);
+  const [timeRange, setTimeRange] = useState<number>(7);
   const [workerTypes, setWorkerTypes] = useState<string[]>(["all"]);
 
   const timeParams: { [key: string]: any } = {
-    startTime: startTime,
-    stopTime: stopTime,
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
   const [ttsPercentile, setTtsPercentile] = useState<string>("p95");

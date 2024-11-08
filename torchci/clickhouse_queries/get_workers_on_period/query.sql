@@ -3,8 +3,8 @@ SELECT
 FROM
     misc.queue_times_24h_stats qts
 WHERE
-    qts.time >= Date('2023-11-08')
-    AND qts.time < Date('2024-11-08')
+    qts.time >= toDateTime({startTime: DateTime64(3)}, {timezone: String})
+    AND qts.time < toDateTime({stopTime: DateTime64(3)}, {timezone: String})
     AND qts.machine_type != ''
 ORDER BY
     qts.machine_type ASC
