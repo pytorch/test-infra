@@ -50,7 +50,7 @@ const conclusionGroupElements: Map<
   [
     GroupedJobStatus.Queued,
     {
-      name: "queued",
+      name: "in queue",
       type: GroupedJobStatus.Queued,
       render: (className) => <RiProgress5Fill className={className ?? ""} />,
     },

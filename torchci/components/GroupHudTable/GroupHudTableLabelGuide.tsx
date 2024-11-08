@@ -17,7 +17,7 @@ const conclusionGroupIndicatorProps: SxProps<Theme> = {
 const LabelGroup = styled(Paper)(({ theme }) => ({
   zIndex: 100,
   position: "fixed",
-  left: "6px",
+  right: "6px",
   top: "190px",
   ...theme.typography.body2,
   color: theme.palette.text.secondary,
@@ -29,6 +29,11 @@ const ModalGroup = styled("div")(({}) => ({
   justifyContent: "space-evenly",
   flexDirection: "row",
   paddingBottom: "10px",
+}));
+
+const ButtonContainer = styled("div")(({}) => ({
+  display: "flex",
+  justifyContent: "flex-end",
 }));
 
 const LabelGroupButton = styled(Button)(({ theme }) => ({
@@ -44,9 +49,11 @@ export default function GroupHudTableLabelGuide() {
   };
   return (
     <LabelGroup>
-      <LabelGroupButton onClick={handleToggleVisibility}>
-        {isVisible ? "hide" : "view label"}
-      </LabelGroupButton>
+      <ButtonContainer>
+        <LabelGroupButton onClick={handleToggleVisibility}>
+          {isVisible ? "hide" : "view label"}
+        </LabelGroupButton>
+      </ButtonContainer>
       {isVisible && (
         <ModalGroup>
           <LabelGuide
