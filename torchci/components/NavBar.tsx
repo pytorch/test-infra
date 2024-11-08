@@ -163,9 +163,10 @@ function NavBar() {
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "black" }}
             >
-              <AiFillGithub />
+              <a style={{ color: "black" }}>
+                <AiFillGithub />
+              </a>
             </Link>
           </li>
           <li style={{ padding: "0 1rem" }}>
