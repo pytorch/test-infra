@@ -98,6 +98,16 @@ const jobConclusionElementMap: Map<
       ),
     },
   ],
+  [
+    undefined,
+    {
+      name: "success",
+      type: JobStatus.Success,
+      render: (className?: string) => (
+        <span className={className ?? ""}>~</span>
+      ),
+    },
+  ],
 ]);
 
 export function getJobConclusionElementList() {
@@ -110,9 +120,6 @@ export function getConclusionIcon(
   failedPreviousRun?: boolean
 ) {
   className = className ?? styles[conclusion ?? "undefined"];
-  if (conclusion == undefined) {
-    return <span className={className}>~</span>;
-  }
   if (conclusion === JobStatus.Success) {
     if (failedPreviousRun) {
       return jobConclusionElementMap.get(JobStatus.Failure)?.render(className);

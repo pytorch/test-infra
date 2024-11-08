@@ -56,9 +56,11 @@
 }
 
 .flaky {
+  font-size: 1.3em;
   color: lightgreen;
 }
 
 .warning {
-  color: #f8b88b;
+  font-size: 1.3em;
+  color: lightpink;
 }
