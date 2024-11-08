@@ -46,7 +46,7 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
 
 export function JobCell({
@@ -451,14 +451,17 @@ export default function Hud() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    }
-    document.addEventListener("keydown", handleKeyDown);
+    },
+    [setPinnedTooltip]
+  );
 
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
