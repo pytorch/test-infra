@@ -40,7 +40,7 @@ const jobConclusionElementMap: Map<
       name: "not exist",
       type: JobStatus.Success,
       render: (className?: string) => (
-        <span className={className ?? ""}>~</span>
+        <span className={`className ?? ""`}>~</span>
       ),
     },
   ],
@@ -60,7 +60,7 @@ const jobConclusionElementMap: Map<
       name: "pending",
       type: JobStatus.Pending,
       render: (className?: string) => (
-        <SlClock className={className ?? ""}></SlClock>
+        <SlClock className={`${className ?? ""} ${styles["blink"]}`}></SlClock>
       ),
     },
   ],

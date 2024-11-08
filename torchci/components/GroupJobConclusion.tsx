@@ -16,7 +16,7 @@ import { IoMdCheckmark } from "react-icons/io";
 import { MdFlaky } from "react-icons/md";
 import { RiErrorWarningFill } from "react-icons/ri";
 import { SlClock } from "react-icons/sl";
-import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
+import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
 
 // Conclusion Group Element used to render the conclusion group.
 const conclusionGroupElements: Map<
@@ -61,7 +61,7 @@ const conclusionGroupElements: Map<
     {
       name: "pending",
       type: GroupedJobStatus.Pending,
-      render: (className) => <SlClock className={`${className ?? ""} ${styles.blink}} />,
+      render: (className) => <SlClock className={className ?? ""} />,
     },
   ],
   [

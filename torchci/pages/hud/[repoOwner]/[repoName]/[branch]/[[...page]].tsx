@@ -4,7 +4,6 @@ import {
   GroupHudTableColumns,
   GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
 import JobTooltip from "components/JobTooltip";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
@@ -47,6 +46,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
+import HudGroupedCell from "components/GroupJobConclusion";
 
 export function JobCell({
   sha,
