@@ -4,7 +4,6 @@ import { useContext } from "react";
 import { ImCross } from "react-icons/im";
 import { IoBanOutline, IoCheckmarkSharp } from "react-icons/io5";
 import { MdOutlineTimerOff } from "react-icons/md";
-import { RiProgress5Fill } from "react-icons/ri";
 import { SlClock } from "react-icons/sl";
 import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
@@ -71,7 +70,7 @@ const jobConclusionElementMap: Map<
       name: "in queue",
       type: JobStatus.Queued,
       render: (className?: string) => (
-        <RiProgress5Fill className={className}></RiProgress5Fill>
+        <SlClock className={className}></SlClock>
       ),
     },
   ],

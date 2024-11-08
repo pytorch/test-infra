@@ -3,9 +3,9 @@ import CopyLink from "components/CopyLink";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
-} from "components/GroupHudTable/GroupHudTableHeaders";
+} from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupHudTable/GroupJobConclusion";
-import JobTooltip from "components/GroupHudTable/JobTooltip";
+import JobTooltip from "components/JobTooltip";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";

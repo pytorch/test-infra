@@ -14,7 +14,7 @@ import { useContext } from "react";
 import { ImCross } from "react-icons/im";
 import { IoMdCheckmark } from "react-icons/io";
 import { MdFlaky } from "react-icons/md";
-import { RiErrorWarningFill, RiProgress5Fill } from "react-icons/ri";
+import { RiErrorWarningFill } from "react-icons/ri";
 import { SlClock } from "react-icons/sl";
 import { SingleWorkflowDispatcher } from "../WorkflowDispatcher";
 
@@ -53,7 +53,7 @@ const conclusionGroupElements: Map<
     {
       name: "in queue",
       type: GroupedJobStatus.Queued,
-      render: (className) => <RiProgress5Fill className={className ?? ""} />,
+      render: (className) => <SlClock className={className ?? ""} />,
     },
   ],
   [
@@ -61,7 +61,7 @@ const conclusionGroupElements: Map<
     {
       name: "pending",
       type: GroupedJobStatus.Pending,
-      render: (className) => <SlClock className={className ?? ""} />,
+      render: (className) => <SlClock className={`${className ?? ""} ${styles.blink}} />,
     },
   ],
   [
