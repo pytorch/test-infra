@@ -379,11 +379,13 @@ export function MonsterFailuresCheckbox() {
 function HudTable({ params }: { params: HudParams }) {
   const data = useHudData(params);
   if (data === undefined) {
-    return <LoadingPage />
+    return <LoadingPage />;
   }
-  return <>
-    <GroupedHudTable params={params} data={data} />
-  </>
+  return (
+    <>
+      <GroupedHudTable params={params} data={data} />
+    </>
+  );
 }
 
 function HudHeader({ params }: { params: HudParams }) {
@@ -512,7 +514,6 @@ function CopyPermanentLink({
   const url = `${domain}${path}`;
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
-
 
 function GroupedHudTable({
   params,
