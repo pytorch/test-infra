@@ -322,7 +322,6 @@ function GroupFilterableHudTable({
         labelText={"Hide unstable jobs"}
       />
       <MonsterFailuresCheckbox />
-      <GroupHudTableLabelGuide />
       <div style={{ height: "50px" }}></div>
       <table className={styles.hudTable}>
         <GroupHudTableColumns
@@ -609,6 +608,7 @@ function GroupedHudTable({
       hideUnstable={hideUnstable}
       setHideUnstable={setHideUnstable}
     >
+      <GroupHudTableLabelGuide />
       <HudTableBody
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
