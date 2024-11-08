@@ -27,7 +27,7 @@ export function usePreference(
   // Gets around hydration errors?
   useEffect(() => {
     setState(initialVal);
-  }, []);
+  }, [initialVal]);
 
   return [state, setStatePersist];
 }
