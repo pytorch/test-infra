@@ -37,6 +37,16 @@ const jobConclusionElementMap: Map<
     },
   ],
   [
+    undefined,
+    {
+      name: "not exist",
+      type: JobStatus.Success,
+      render: (className?: string) => (
+        <span className={className ?? ""}>~</span>
+      ),
+    },
+  ],
+  [
     JobStatus.Failure,
     {
       name: "failure",
@@ -95,16 +105,6 @@ const jobConclusionElementMap: Map<
         <IoIosCheckmarkCircleOutline
           className={className}
         ></IoIosCheckmarkCircleOutline>
-      ),
-    },
-  ],
-  [
-    undefined,
-    {
-      name: "success",
-      type: JobStatus.Success,
-      render: (className?: string) => (
-        <span className={className ?? ""}>~</span>
       ),
     },
   ],
