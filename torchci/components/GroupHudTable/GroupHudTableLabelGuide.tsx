@@ -1,4 +1,4 @@
-import { Button, Modal, styled, SxProps, Theme } from "@mui/material";
+import { Button, Paper, styled, SxProps, Theme } from "@mui/material";
 import LabelGuide from "components/common/LabelGuide";
 import { getJobConclusionElementList } from "components/JobConclusion";
 import jobConclustionStyles from "components/JobConclusion.module.css";
@@ -7,7 +7,6 @@ import { getGroupConclusionElementList } from "./GroupJobConclusion";
 
 const conclusionIndicatorProps: SxProps<Theme> = {
   maxWidth: "140px",
-  zIndex: 1,
 };
 
 const conclusionGroupIndicatorProps: SxProps<Theme> = {
@@ -15,37 +14,39 @@ const conclusionGroupIndicatorProps: SxProps<Theme> = {
   zIndex: 1,
 };
 
-const GroupHudTableLabelContainer = styled("div")(({}) => ({
-  position: "relative",
-}));
-
-const StyledModal = styled(Modal)({
-  top: "220px",
-});
-
-export const LabelGroup = styled("div")(({}) => ({
+const LabelGroup = styled(Paper)(({ theme }) => ({
+  zIndex: 100,
   position: "fixed",
   left: "6px",
-  top: "220px",
-  zIndex: 1,
+  top: "190px",
+  ...theme.typography.body2,
+  color: theme.palette.text.secondary,
 }));
 
-export const ModalGroup = styled("div")(({}) => ({
+const ModalGroup = styled("div")(({}) => ({
   width: "300px",
   display: "flex",
+  justifyContent: "space-evenly",
   flexDirection: "row",
+  paddingBottom: "10px",
+}));
+
+const LabelGroupButton = styled(Button)(({ theme }) => ({
+  color: theme.palette.primary.light,
+  backgroundColor: "white",
+  size: "small",
 }));
 
 export default function GroupHudTableLabelGuide() {
-  const [isVisible, setIsVisible] = React.useState(false);
+  const [isVisible, setIsVisible] = React.useState(true);
   const handleToggleVisibility = () => {
     setIsVisible(!isVisible);
   };
   return (
     <LabelGroup>
-      <Button variant="contained" onClick={handleToggleVisibility}>
-        {isVisible ? "close" : "view label"}
-      </Button>
+      <LabelGroupButton onClick={handleToggleVisibility}>
+        {isVisible ? "hide" : "view label"}
+      </LabelGroupButton>
       {isVisible && (
         <ModalGroup>
           <LabelGuide
