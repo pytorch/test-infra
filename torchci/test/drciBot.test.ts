@@ -210,8 +210,6 @@ describe("verify-drci-functionality", () => {
         }
       )
       .reply(200, {})
-      .get((url) => url.includes(`/repos/${OWNER}/${REPO}/issues/1000/labels`))
-      .reply(200, {})
       .get((url) => url.includes(`/repos/${OWNER}/${REPO}/compare/`))
       .reply(200, {
         merge_base_commit: {
