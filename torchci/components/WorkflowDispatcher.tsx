@@ -1,4 +1,4 @@
-import { fetcher, fetcherWithToken } from "lib/GeneralUtils";
+import { fetcher } from "lib/GeneralUtils";
 import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
@@ -57,11 +57,10 @@ function Workflow({
   const url = `/api/github/dispatch/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
   useSWR(
-    [isClicked && !alreadyRun ? url : null, accessToken],
-    fetcherWithToken,
+    isClicked && !alreadyRun ? [url, accessToken] : null,
+    ([url, token]) => fetch(url, { headers: { Authorization: token } }),
     {
       revalidateOnFocus: false,
-      revalidateOnMount: false,
       revalidateOnReconnect: false,
       refreshWhenOffline: false,
       refreshWhenHidden: false,
