@@ -113,10 +113,9 @@ export function getConclusionIcon(
   className?: string,
   failedPreviousRun?: boolean
 ) {
-
   if (conclusion == undefined) {
-    return <span className={className ?? styles.AllNull }>-</span>;
-   }
+    return <span className={className ?? styles.AllNull}>-</span>;
+  }
 
   if (conclusion === JobStatus.Success) {
     if (failedPreviousRun) {
@@ -128,7 +127,7 @@ export function getConclusionIcon(
   return jobConclusionElementMap.has(conclusion) ? (
     jobConclusionElementMap.get(conclusion)?.render(className)
   ) : (
-    <span className={className?? styles.AllNull}>U</span>
+    <span className={className ?? styles.AllNull}>U</span>
   );
 }
 
