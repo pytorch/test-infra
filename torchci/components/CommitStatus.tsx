@@ -9,9 +9,7 @@ import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
 import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
-import {
-  getConclusionSeverityForSorting,
-} from "../lib/JobClassifierUtil";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import FilteredJobList from "./FilteredJobList";
 import { JobStatus } from "./GroupJobConclusion";
 import VersionControlLinks from "./VersionControlLinks";

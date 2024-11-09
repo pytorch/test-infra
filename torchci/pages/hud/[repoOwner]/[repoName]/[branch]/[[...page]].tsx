@@ -4,10 +4,11 @@ import {
   GroupHudTableColumns,
   GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
-import JobTooltip from "components/JobTooltip";
+import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
+import JobTooltip from "components/JobTooltip";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
@@ -46,7 +47,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
-import HudGroupedCell from "components/GroupJobConclusion";
 
 export function JobCell({
   sha,
