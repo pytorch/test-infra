@@ -1,7 +1,6 @@
 import CopyLink from "components/CopyLink";
-import { JobStatus } from "components/GroupJobConclusion";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
-import JobConclusion from "components/JobConclusion";
+import JobConclusion, { JobStatus } from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobLinks from "components/JobLinks";
 import LogViewer from "components/LogViewer";

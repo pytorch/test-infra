@@ -1,6 +1,7 @@
 import hudStyles from "components/hud.module.css";
 import styles from "components/JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
+import { JobStatus } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -28,16 +29,6 @@ export enum GroupedJobStatus {
   Pending = "pending",
 }
 
-export enum JobStatus {
-  Success = "success",
-  Failure = "failure",
-  Neutral = "neutral",
-  Cancelled = "cancelled",
-  Timed_out = "timed_out",
-  Skipped = "skipped",
-  Queued = "queued",
-  Pending = "pending",
-}
 // Conclusion Group Element used to render the conclusion group.
 const conclusionGroupElements: Map<
   string | undefined,

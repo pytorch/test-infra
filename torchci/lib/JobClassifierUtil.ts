@@ -1,4 +1,3 @@
-import { JobStatus } from "components/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
 import { GroupData, IssueData, RowData } from "./types";
 
@@ -27,6 +26,17 @@ const GROUP_PARALLEL = "Parallel";
 const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER = "other";
+
+export enum JobStatus {
+  Success = "success",
+  Failure = "failure",
+  Neutral = "neutral",
+  Cancelled = "cancelled",
+  Timed_out = "timed_out",
+  Skipped = "skipped",
+  Queued = "queued",
+  Pending = "pending",
+}
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
