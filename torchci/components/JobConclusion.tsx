@@ -69,9 +69,7 @@ const jobConclusionElementMap: Map<
     {
       name: "in queue",
       type: JobStatus.Queued,
-      render: (className?: string) => (
-        <SlClock className={className}></SlClock>
-      ),
+      render: (className?: string) => <SlClock className={className}></SlClock>,
     },
   ],
   [
