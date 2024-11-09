@@ -1,5 +1,5 @@
 import fetchCommit from "lib/fetchCommit";
-import { CommitData, CommitDataWithJobs, JobData } from "lib/types";
+import { CommitDataWithJobs } from "lib/types";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(

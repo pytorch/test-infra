@@ -5,7 +5,7 @@ import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
-import { CommitData, CommitDataWithJobs, JobData } from "./types";
+import { CommitDataWithJobs, JobData } from "./types";
 
 async function fetchDatabaseInfo(
   owner: string,

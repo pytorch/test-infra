@@ -3,7 +3,7 @@ import { CommitData, CommitDataWithJobs, JobData } from "lib/types";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import {  useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { useCHContext } from "./UseClickhouseProvider";
 
