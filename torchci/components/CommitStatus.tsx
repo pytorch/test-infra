@@ -11,9 +11,9 @@ import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import {
   getConclusionSeverityForSorting,
-  JobStatus,
 } from "../lib/JobClassifierUtil";
 import FilteredJobList from "./FilteredJobList";
+import { JobStatus } from "./GroupJobConclusion";
 import VersionControlLinks from "./VersionControlLinks";
 import WorkflowBox from "./WorkflowBox";
 import WorkflowDispatcher from "./WorkflowDispatcher";

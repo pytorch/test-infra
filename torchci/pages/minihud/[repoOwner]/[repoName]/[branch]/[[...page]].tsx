@@ -1,4 +1,5 @@
 import CopyLink from "components/CopyLink";
+import { JobStatus } from "components/GroupJobConclusion";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
@@ -7,7 +8,6 @@ import LogViewer from "components/LogViewer";
 import styles from "components/minihud.module.css";
 import PageSelector from "components/PageSelector";
 import { durationHuman, LocalTimeHuman } from "components/TimeUtils";
-import { JobStatus } from "lib/JobClassifierUtil";
 import { isFailedJob } from "lib/jobUtils";
 import { RevertModal } from "lib/RevertModal";
 import {

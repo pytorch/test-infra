@@ -1,4 +1,3 @@
-import { JobStatus } from "lib/JobClassifierUtil";
 import { cloneDeep } from "lodash";
 import { useContext } from "react";
 import { ImCross } from "react-icons/im";
@@ -7,6 +6,7 @@ import { MdOutlineTimerOff } from "react-icons/md";
 import { SlClock } from "react-icons/sl";
 import { JobData } from "../lib/types";
 import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import { JobStatus } from "./GroupJobConclusion";
 import styles from "./JobConclusion.module.css";
 
 // Conclustion Element used to render the conclusion of a job

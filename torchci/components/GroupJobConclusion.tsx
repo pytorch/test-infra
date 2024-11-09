@@ -1,7 +1,6 @@
 import hudStyles from "components/hud.module.css";
 import styles from "components/JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
-import { GroupedJobStatus, JobStatus } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -18,6 +17,27 @@ import { RiErrorWarningFill } from "react-icons/ri";
 import { SlClock } from "react-icons/sl";
 import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
 
+export enum GroupedJobStatus {
+  Failure = "failure",
+  AllNull = "all_null",
+  Queued = "queued",
+  Success = "success",
+  Classified = "classified",
+  Flaky = "flaky",
+  WarningOnly = "warning",
+  Pending = "pending",
+}
+
+export enum JobStatus {
+  Success = "success",
+  Failure = "failure",
+  Neutral = "neutral",
+  Cancelled = "cancelled",
+  Timed_out = "timed_out",
+  Skipped = "skipped",
+  Queued = "queued",
+  Pending = "pending",
+}
 // Conclusion Group Element used to render the conclusion group.
 const conclusionGroupElements: Map<
   string | undefined,
