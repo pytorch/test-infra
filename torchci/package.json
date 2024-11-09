@@ -10,6 +10,9 @@
     "format": "yarn prettier --write .",
     "uploadQueryLambda": "npx node scripts/uploadQueryLambda.mjs"
   },
+  "resolutions": {
+    "@babel/runtime": "^7.24.6"
+  },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.347.1",
     "@aws-sdk/client-s3": "^3.347.1",
