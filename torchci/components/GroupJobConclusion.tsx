@@ -114,10 +114,11 @@ export function getGroupConclusionIcon(
   if (conclusion == undefined) {
     return <span className={style ?? styles.AllNull }>-</span>;
   }
+  
   return conclusionGroupElements.has(conclusion) ? (
     conclusionGroupElements.get(conclusion)?.render(style)
   ) : (
-    <span className={style ?? ""}>U</span>
+    <span className={style ?? styles.AllNull}>U</span>
   );
 }
 
