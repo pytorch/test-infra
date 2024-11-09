@@ -40,7 +40,7 @@ const jobConclusionElementMap: Map<
       name: "not exist",
       type: JobStatus.Success,
       render: (className?: string) => (
-        <span className={`className ?? ""`}>~</span>
+        <span className={`className ?? ""`}>-</span>
       ),
     },
   ],
@@ -113,17 +113,22 @@ export function getConclusionIcon(
   className?: string,
   failedPreviousRun?: boolean
 ) {
-  className = className ?? styles[conclusion ?? "undefined"];
+
+  if (conclusion == undefined) {
+    return <span className={className ?? styles.AllNull }>-</span>;
+   }
+
   if (conclusion === JobStatus.Success) {
     if (failedPreviousRun) {
       return jobConclusionElementMap.get(JobStatus.Failure)?.render(className);
     }
     return jobConclusionElementMap.get(conclusion)?.render(className);
   }
+
   return jobConclusionElementMap.has(conclusion) ? (
     jobConclusionElementMap.get(conclusion)?.render(className)
   ) : (
-    <span className={className}>U</span>
+    <span className={className?? styles.AllNull}>U</span>
   );
 }
 
