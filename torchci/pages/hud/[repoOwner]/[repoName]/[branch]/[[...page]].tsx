@@ -9,6 +9,7 @@ import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
+import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
@@ -45,7 +46,13 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import useSWR from "swr";
 
 export function JobCell({
@@ -298,6 +305,7 @@ function GroupFilterableHudTable({
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
     useTableFilter(params);
   const headerNames = groupNames;
+  const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <div>
       <JobFilterInput
@@ -319,6 +327,12 @@ function GroupFilterableHudTable({
         setValue={(value) => setHideUnstable(value)}
         checkBoxName="hideUnstable"
         labelText={"Hide unstable jobs"}
+      />
+      <CheckBoxSelector
+        value={mergeLF}
+        setValue={setMergeLF}
+        checkBoxName="mergeLF"
+        labelText={"Condense LF jobs"}
       />
       <MonsterFailuresCheckbox />
       <div style={{ height: "50px" }}></div>
@@ -377,7 +391,15 @@ export function MonsterFailuresCheckbox() {
 }
 
 function HudTable({ params }: { params: HudParams }) {
-  return <GroupedView params={params} />;
+  const data = useHudData(params);
+  if (data === undefined) {
+    return <LoadingPage />;
+  }
+  return (
+    <>
+      <GroupedHudTable params={params} data={data} />
+    </>
+  );
 }
 
 function HudHeader({ params }: { params: HudParams }) {
@@ -410,9 +432,15 @@ export const PinnedTooltipContext = createContext<[Highlight, any]>([
   null,
 ]);
 
+export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
+  false,
+  (_) => {},
+]);
+
 export default function Hud() {
   const router = useRouter();
-  const params = packHudParams(router.query);
+  const [mergeLF, setMergeLF] = usePreference("mergeLF");
+  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -430,12 +458,20 @@ export default function Hud() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
 
-  useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    });
+    },
+    [setPinnedTooltip]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
   const title =
     params.repoOwner != null && params.repoName != null && params.branch != null
@@ -448,23 +484,25 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          {params.branch !== undefined && (
-            <div onClick={handleClick}>
-              <div style={{ display: "flex", alignItems: "flex-end" }}>
-                <HudHeader params={params} />
-                <CopyPermanentLink
-                  params={params}
-                  style={{ marginLeft: "10px" }}
-                />
+          <MergeLFContext.Provider value={[mergeLF, setMergeLF]}>
+            {params.branch !== undefined && (
+              <div onClick={handleClick}>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <HudHeader params={params} />
+                  <CopyPermanentLink
+                    params={params}
+                    style={{ marginLeft: "10px" }}
+                  />
+                </div>
+                <HudTable params={params} />
+                <PageSelector params={params} baseUrl="hud" />
+                <br />
+                <div>
+                  <em>This page automatically updates.</em>
+                </div>
               </div>
-              <HudTable params={params} />
-              <PageSelector params={params} baseUrl="hud" />
-              <br />
-              <div>
-                <em>This page automatically updates.</em>
-              </div>
-            </div>
-          )}
+            )}
+          </MergeLFContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
@@ -505,15 +543,6 @@ function CopyPermanentLink({
   const path = formatHudUrlForRoute("hud", permaParams);
   const url = `${domain}${path}`;
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
-}
-
-function GroupedView({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-
-  return <GroupedHudTable params={params} data={data} />;
 }
 
 function GroupedHudTable({

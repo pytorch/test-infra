@@ -6,6 +6,9 @@ inputs:
     required: True
   dry-run:
     default: 'true'
+  # TODO (huydhn): Use this to gate the migration to oss_ci_benchmark_v3 on S3
+  schema-version:
+    default: 'v2'
 
 runs:
   using: composite
@@ -16,21 +19,22 @@ runs:
         set -eux
         python3 -mpip install boto3==1.35.33
 
-    # TODO (huydhn): Once the generic benchmark database is ready, this will be
-    # uploaded to S3 instead
-    - name: Upload benchmark results to DynamoDB
+    - name: Upload benchmark results
       shell: bash
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
         DRY_RUN: ${{ inputs.dry-run }}
+        SCHEMA_VERSION: ${{ inputs.schema-version }}
       run: |
         set -eux
 
         if [[ "${DRY_RUN}" == "true" ]]; then
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
+            --schema-version "${SCHEMA_VERSION}" \
             --dry-run
         else
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
-            --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}"
+            --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
+            --schema-version "${SCHEMA_VERSION}"
         fi

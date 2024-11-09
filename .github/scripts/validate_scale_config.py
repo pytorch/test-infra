@@ -42,6 +42,7 @@ _RUNNER_BASE_JSCHEMA = {
         "instance_type": {"type": "string"},
         "is_ephemeral": {"type": "boolean"},
         "labels": {"type": "array", "items": {"type": "string"}},
+        "min_available": {"type": "number"},
         "max_available": {"type": "number"},
         "os": {"type": "string", "enum": ["linux", "windows"]},
     },

@@ -29,20 +29,6 @@ export default function Kpis() {
   const clickhouseTimeParams = RStoCHTimeParams(timeParams);
   const useCH = useCHContext().useCH;
 
-  // deprecate this in Q3 2023
-  const contributionTimeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: "2022-07-03T00:00:00.000Z",
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
-
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -75,11 +61,12 @@ export default function Kpis() {
           title={"# of force merges (Weekly)"}
           queryName={"number_of_force_pushes_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={clickhouseTimeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"count"}
           yAxisRenderer={(unit) => `${unit}`}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -164,13 +151,14 @@ export default function Kpis() {
         <TimeSeriesPanel
           title={"Weekly external PR count (4 week moving average)"}
           queryName={"external_contribution_stats"}
-          queryParams={[...contributionTimeParams]}
+          queryParams={clickhouseTimeParams}
           queryCollection={"metrics"}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"pr_count"}
           yAxisRenderer={(value) => value}
           additionalOptions={{ yAxis: { scale: true } }}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -179,13 +167,14 @@ export default function Kpis() {
           title={"Monthly external PR count"}
           queryName={"monthly_contribution_stats"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...contributionTimeParams]}
+          queryParams={clickhouseTimeParams}
           granularity={"month"}
           timeFieldName={"year_and_month"}
           timeFieldDisplayFormat={"MMMM YYYY"}
           yAxisFieldName={"pr_count"}
           yAxisRenderer={(value) => value}
           additionalOptions={{ yAxis: { scale: true } }}
+          useClickHouse={true}
         />
       </Grid>
 

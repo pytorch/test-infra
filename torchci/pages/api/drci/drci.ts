@@ -5,7 +5,7 @@ import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
-  fetchIssueLabels,
+  fetchPRLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
   formDrciSevBody,
@@ -135,8 +135,7 @@ export async function updateDrciComments(
       // Find the merge commits of the PR to check if it has already been merged before
       const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
 
-      const labels = await fetchIssueLabels(
-        octokit,
+      const labels = await fetchPRLabels(
         pr_info.owner,
         pr_info.repo,
         pr_info.pr_number
@@ -236,7 +235,9 @@ export async function updateDrciComments(
           title: "Dr.CI classification results",
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
-          summary: JSON.stringify(failures[pr_info.pr_number]),
+          summary: JSON.stringify(
+            removeFailureContext(failures[pr_info.pr_number])
+          ),
         },
       });
     },
@@ -246,6 +247,25 @@ export async function updateDrciComments(
   );
 
   return failures;
+}
+
+/**
+ * Changes the failure context of each job to an empty array. This is done to
+ * reduce the size of the payload, which can some times exceed the maximum size
+ * allowed by GitHub
+ * @param failure
+ * @returns
+ */
+function removeFailureContext(failure: {
+  [cat: string]: RecentWorkflowsData[];
+}) {
+  const result = { ...failure };
+  for (const cat in result) {
+    result[cat] = result[cat].map((job) => {
+      return { ...job, failure_context: [] };
+    });
+  }
+  return result;
 }
 
 /**
