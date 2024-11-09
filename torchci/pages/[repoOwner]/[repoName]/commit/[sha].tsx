@@ -2,6 +2,7 @@ import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import { useCHContext } from "components/UseClickhouseProvider";
 import { fetcher } from "lib/GeneralUtils";
+import { CommitDataWithJobs, IssueData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 
@@ -14,7 +15,7 @@ export function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data: commitData, error } = useSWR(
+  const { data: commitData, error } = useSWR<CommitDataWithJobs>(
     `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${
       useCHContext().useCH
     }`,
@@ -27,10 +28,14 @@ export function CommitInfo({
     }
   );
 
-  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
-    dedupingInterval: 300 * 1000,
-    refreshInterval: 300 * 1000, // refresh every 5 minutes
-  });
+  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
+  );
 
   if (error != null) {
     return <div>Error occured</div>;
@@ -51,7 +56,7 @@ export function CommitInfo({
         commit={commit}
         jobs={jobs}
         isCommitPage={true}
-        unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
+        unstableIssues={unstableIssuesData ?? []}
       />
     </div>
   );

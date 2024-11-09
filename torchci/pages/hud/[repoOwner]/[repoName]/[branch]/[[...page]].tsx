@@ -551,10 +551,14 @@ function GroupedHudTable({
   params: HudParams;
   data: HudData;
 }) {
-  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
-    dedupingInterval: 300 * 1000,
-    refreshInterval: 300 * 1000, // refresh every 5 minutes
-  });
+  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
+  );
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [useGrouping, setUseGrouping] = useGroupingPreference(
@@ -565,7 +569,7 @@ function GroupedHudTable({
     data.shaGrid,
     data.jobNames,
     (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-    unstableIssuesData ? unstableIssuesData.issues : []
+    unstableIssuesData ?? []
   );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
@@ -591,11 +595,7 @@ function GroupedHudTable({
     });
     if (hideUnstable) {
       names = names.filter(
-        (name) =>
-          !isUnstableGroup(
-            name,
-            unstableIssuesData ? unstableIssuesData.issues : []
-          )
+        (name) => !isUnstableGroup(name, unstableIssuesData ?? [])
       );
     }
   } else {
@@ -604,10 +604,7 @@ function GroupedHudTable({
       if (
         groupNames.includes(group.name) &&
         (group.persistent ||
-          (isUnstableGroup(
-            group.name,
-            unstableIssuesData ? unstableIssuesData.issues : []
-          ) &&
+          (isUnstableGroup(group.name, unstableIssuesData ?? []) &&
             hideUnstable))
       ) {
         // Add group name, take out all the jobs that belong to that group
@@ -640,7 +637,7 @@ function GroupedHudTable({
         expandedGroups={expandedGroups}
         setExpandedGroups={setExpandedGroups}
         names={names}
-        unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
+        unstableIssues={unstableIssuesData ?? []}
       />
     </GroupFilterableHudTable>
   );

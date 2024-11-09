@@ -6,7 +6,7 @@ import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
-import { JobAnnotation, JobData } from "lib/types";
+import { IssueData, JobAnnotation, JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { TimeRangePicker } from "pages/metrics";
@@ -61,20 +61,21 @@ function FailedJob({
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
-  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
-    dedupingInterval: 300 * 1000,
-    refreshInterval: 300 * 1000, // refresh every 5 minutes
-  });
+  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
+  );
 
   const hasSimilarJobs = similarJobs.length > 1;
 
   return (
     <div style={{ padding: "10px" }}>
       <li key={job.id}>
-        <JobSummary
-          job={job}
-          unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
-        />
+        <JobSummary job={job} unstableIssues={unstableIssuesData ?? []} />
         <div>
           <JobLinks job={job} showCommitLink={true} />
         </div>

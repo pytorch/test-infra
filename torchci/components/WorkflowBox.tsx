@@ -243,13 +243,17 @@ export default function WorkflowBox({
 }
 
 function useArtifacts(workflowId: string | undefined): {
-  artifacts: any;
+  artifacts: Artifact[];
   error: any;
 } {
-  const { data, error } = useSWR(`/api/artifacts/s3/${workflowId}`, fetcher, {
-    refreshInterval: 60 * 1000,
-    refreshWhenHidden: true,
-  });
+  const { data, error } = useSWR<Artifact[]>(
+    `/api/artifacts/s3/${workflowId}`,
+    fetcher,
+    {
+      refreshInterval: 60 * 1000,
+      refreshWhenHidden: true,
+    }
+  );
   if (workflowId === undefined) {
     return { artifacts: [], error: "No workflow ID" };
   }

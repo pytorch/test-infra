@@ -6,6 +6,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<void>
 ) {
+  console.log(req.headers)
   const authorization = req.headers.authorization;
   if (authorization === undefined) {
     return void res.status(403).end();
@@ -23,6 +24,7 @@ export default async function handler(
   ) {
     return void res.status(400).end();
   }
+  console.log(authorization)
 
   // Create an octokit instance using the provided token
   const octokit = await getOctokitWithUserToken(authorization as string);

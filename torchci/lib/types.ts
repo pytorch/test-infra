@@ -80,6 +80,11 @@ export interface CommitData {
   authorUrl: string | null;
 }
 
+export interface CommitDataWithJobs {
+  commit: CommitData;
+  jobs: JobData[];
+}
+
 export interface Highlight {
   sha?: string;
   name?: string;

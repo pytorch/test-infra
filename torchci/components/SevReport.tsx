@@ -15,7 +15,7 @@ function SevBox({ issue }: { issue: IssueData }) {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function SevReport() {
-  const { data } = useSWR(
+  let { data: issues } = useSWR<IssueData[]>(
     `/api/issue/${encodeURIComponent("ci: sev")}`,
     fetcher,
     {
@@ -25,12 +25,10 @@ export default function SevReport() {
       refreshWhenHidden: true,
     }
   );
-  if (data === undefined) {
+  if (issues === undefined) {
     return null;
   }
-  const issues: IssueData[] = data.issues.filter(
-    (issue: IssueData) => issue.state === "open"
-  );
+  issues = issues.filter((issue: IssueData) => issue.state === "open");
   if (issues.length === 0) {
     return null;
   }
