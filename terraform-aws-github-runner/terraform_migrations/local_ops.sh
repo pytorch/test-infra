@@ -16,7 +16,7 @@ function move_state() {
 function validate_module() {
     cd "${1}"
     terraform init
-    tflint --call--module-type=all
+    tflint --call-module-type=all
     terraform validate
     cd -
 }
