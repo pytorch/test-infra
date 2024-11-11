@@ -6,9 +6,10 @@ import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
-import { IssueData, JobAnnotation, JobData } from "lib/types";
+import { JobAnnotation, JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
 import useSWR from "swr";
@@ -61,7 +62,7 @@ function FailedJob({
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
-  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
     {

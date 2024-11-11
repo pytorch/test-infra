@@ -2,14 +2,9 @@ import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
 import { useCHContext } from "components/UseClickhouseProvider";
-import {
-  CommitData,
-  CommitDataWithJobs,
-  IssueData,
-  JobData,
-  PRData,
-} from "lib/types";
+import { CommitDataWithJobs, PRData } from "lib/types";
 import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -38,7 +33,7 @@ function CommitInfo({
     }
   );
 
-  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
     {

@@ -46,6 +46,7 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import React, {
   createContext,
   useCallback,
@@ -551,7 +552,7 @@ function GroupedHudTable({
   params: HudParams;
   data: HudData;
 }) {
-  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
     {

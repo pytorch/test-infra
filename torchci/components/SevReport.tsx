@@ -1,4 +1,5 @@
 import { IssueData } from "lib/types";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import styles from "./SevReport.module.css";
 
@@ -15,7 +16,7 @@ function SevBox({ issue }: { issue: IssueData }) {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function SevReport() {
-  let { data: issues } = useSWR<IssueData[]>(
+  let { data: issues } = useSWR<IssueLabelApiResponse>(
     `/api/issue/${encodeURIComponent("ci: sev")}`,
     fetcher,
     {

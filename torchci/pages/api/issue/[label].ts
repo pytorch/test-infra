@@ -2,9 +2,11 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { IssueData } from "lib/types";
 import { NextApiRequest, NextApiResponse } from "next";
 
+export type IssueLabelApiResponse = IssueData[];
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<IssueData[]>
+  res: NextApiResponse<IssueLabelApiResponse>
 ) {
   return res
     .status(200)

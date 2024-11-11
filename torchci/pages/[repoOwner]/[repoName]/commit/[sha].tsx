@@ -2,8 +2,9 @@ import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import { useCHContext } from "components/UseClickhouseProvider";
 import { fetcher } from "lib/GeneralUtils";
-import { CommitDataWithJobs, IssueData } from "lib/types";
+import { CommitDataWithJobs } from "lib/types";
 import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 
 export function CommitInfo({
@@ -28,7 +29,7 @@ export function CommitInfo({
     }
   );
 
-  const { data: unstableIssuesData } = useSWR<IssueData[]>(
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
     {
