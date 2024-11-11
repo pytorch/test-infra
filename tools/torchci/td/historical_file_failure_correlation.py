@@ -12,7 +12,7 @@ from torchci.td.utils import (
 FAILED_TESTS_QUERY = """
 select
     w.head_sha,
-    JSONExtractString(t.info, 'failure')
+    JSONExtractString(t.info, 'failure') as failure
 from
     default.workflow_run w
     join misc.ossci_uploaded_metrics t on t.run_id = w.id
