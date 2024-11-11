@@ -18,7 +18,7 @@ from
     join misc.ossci_uploaded_metrics t on t.run_id = w.id
 where
     t.metric_name = 'td_test_failure_stats_v2'
-    and t.timestamp > CURRENT_TIMESTAMP() - interval 30 day
+    and t.timestamp > CURRENT_TIMESTAMP() - interval 90 day
 """
 
 
