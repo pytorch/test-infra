@@ -3,6 +3,7 @@ import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
+import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useState } from "react";
 import useSWR from "swr";
 import { useCHContext } from "./UseClickhouseProvider";
@@ -56,6 +57,7 @@ function Workflow({
 
   const url = `/api/github/dispatch/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
+
   useSWR(
     isClicked && !alreadyRun ? [url, accessToken] : null,
     ([url, token]) => fetch(url, { headers: { Authorization: token } }),
@@ -167,7 +169,7 @@ export function SingleWorkflowDispatcher({
 
   const useCH = useCHContext().useCH;
 
-  const { data, error } = useSWR(
+  const { data, error } = useSWR<CommitApiResponse>(
     runMoreJobsClicked &&
       `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`,
     fetcher,
@@ -226,7 +228,7 @@ export function SingleWorkflowDispatcher({
         repoName={repoName as string}
         workflow={workflow}
         sha={sha}
-        jobs={data}
+        jobs={data.jobs}
       />
     </div>
   );

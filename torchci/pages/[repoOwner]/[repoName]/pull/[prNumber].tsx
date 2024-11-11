@@ -4,6 +4,8 @@ import ErrorBoundary from "components/ErrorBoundary";
 import { useCHContext } from "components/UseClickhouseProvider";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
+import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -19,7 +21,7 @@ function CommitInfo({
   sha: string;
 }) {
   const useCH = useCHContext().useCH;
-  const { data: commitData, error } = useSWR(
+  const { data: commitData, error } = useSWR<CommitApiResponse>(
     sha != null
       ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
       : null,
@@ -32,10 +34,14 @@ function CommitInfo({
     }
   );
 
-  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
-    dedupingInterval: 300 * 1000,
-    refreshInterval: 300 * 1000, // refresh every 5 minutes
-  });
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
+  );
 
   if (error != null) {
     return <div>Error occurred</div>;
@@ -53,7 +59,7 @@ function CommitInfo({
       commit={commit}
       jobs={jobs}
       isCommitPage={false}
-      unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
+      unstableIssues={unstableIssuesData ?? []}
     />
   );
 }
@@ -105,15 +111,13 @@ function Page() {
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;
   }
-  const { data } = useSWR(swrKey, fetcher, {
+  const { data: prData } = useSWR<PRData>(swrKey, fetcher, {
     refreshInterval: 60 * 1000, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab
     // will always have fresh info.
     refreshWhenHidden: true,
   });
   const [selectedSha, setSelectedSha] = useState("");
-
-  const prData = data as PRData | undefined;
 
   useEffect(() => {
     const selected = (sha ??

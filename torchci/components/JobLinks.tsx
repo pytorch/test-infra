@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
@@ -158,7 +159,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   const hasFailureClassification =
     job.failureLines != null && job.failureLines.every((line) => line !== null);
   const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
-  const { data } = useSWR(swrKey, fetcher, {
+  const { data: issues } = useSWR<IssueLabelApiResponse>(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
     // spam the backend. Since actually mutating the state (through filing a
     // disable issue) is a pretty heavy operation, 60s of staleness is fine.
@@ -181,7 +182,7 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
     return null;
   }
   // - If we don't yet have any data, show a loading state.
-  if (data === undefined) {
+  if (issues === undefined) {
     return <span>checking for disable tests</span>;
   }
 
@@ -190,7 +191,6 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
   const issueTitle = `DISABLED ${testName.testName} (__main__.${testName.suite})`;
   const issueBody = formatDisableTestBody(job);
 
-  const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
   const repo = job.repo ?? "pytorch/pytorch";
 
@@ -213,7 +213,7 @@ function formatUnstableJobBody() {
 
 function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const swrKey = isFailure(job.conclusion) ? `/api/issue/${label}` : null;
-  const { data } = useSWR(swrKey, fetcher, {
+  const { data: issues } = useSWR<IssueLabelApiResponse>(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
     // spam the backend. Since actually mutating the state (through filing a
     // disable issue) is a pretty heavy operation, 60s of staleness is fine.
@@ -232,7 +232,7 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   }
 
   // If we don't yet have any data, show a loading state.
-  if (data === undefined) {
+  if (issues === undefined) {
     return <span>checking for disable jobs</span>;
   }
 
@@ -241,7 +241,6 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const issueTitle = `UNSTABLE ${jobName}`;
   const issueBody = formatUnstableJobBody();
 
-  const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) =>
     issueTitle.includes(issue.title)
   );
