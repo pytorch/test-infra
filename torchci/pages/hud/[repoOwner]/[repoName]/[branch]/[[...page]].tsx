@@ -472,14 +472,14 @@ export default function Hud() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
-  const title =
+  const titleRepoInfo =
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
   return (
     <>
       <Head>
-        <title>HUD {title}</title>
+        <title>{`HUD ${titleRepoInfo}`}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
