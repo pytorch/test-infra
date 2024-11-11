@@ -136,14 +136,24 @@ export default function Kpis() {
           title={"viable/strict lag (Daily)"}
           queryName={"strict_lag_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...clickhouseTimeParams,
+            // Missing data prior to 2024-10-01 due to migration to ClickHouse
+            ...(startTime < dayjs("2024-10-01") && {
+              startTime: dayjs("2024-10-01")
+                .utc()
+                .format("YYYY-MM-DDTHH:mm:ss.SSS"),
+            }),
+            repoFullName: "pytorch/pytorch",
+          }}
           granularity={"day"}
           timeFieldName={"push_time"}
           yAxisFieldName={"diff_hr"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
           // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-          additionalOptions={{ yAxis: { max: 7 } }}
+          additionalOptions={{ yAxis: { max: 10 } }}
+          useClickHouse={true}
         />
       </Grid>
 
