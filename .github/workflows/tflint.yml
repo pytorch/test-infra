@@ -18,10 +18,11 @@ jobs:
     - uses: actions/checkout@v3
       name: Checkout source code
 
-    - uses: terraform-linters/setup-tflint@v2
+    - uses: terraform-linters/setup-tflint@v4
       name: Setup TFLint
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        tflint_version: v0.54.0
 
     - name: Install Terraform
       uses: hashicorp/setup-terraform@v2
@@ -40,7 +41,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint download-lambda"
       working-directory: terraform-aws-github-runner/modules/download-lambda
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate download-lambda"
       working-directory: terraform-aws-github-runner/modules/download-lambda
       run: terraform validate
@@ -53,7 +54,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint runner-binaries-syncer"
       working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate runner-binaries-syncer"
       working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
       run: terraform validate
@@ -66,7 +67,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint runners-instances"
       working-directory: terraform-aws-github-runner/modules/runners-instances
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate runners-instances"
       working-directory: terraform-aws-github-runner/modules/runners-instances
       run: terraform validate
@@ -79,7 +80,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint runners"
       working-directory: terraform-aws-github-runner/modules/runners
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate runners"
       working-directory: terraform-aws-github-runner/modules/runners
       run: terraform validate
@@ -92,7 +93,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint setup-iam-permissions"
       working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate setup-iam-permissions"
       working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
       run: terraform validate
@@ -105,7 +106,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint webhook"
       working-directory: terraform-aws-github-runner/modules/webhook
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate webhook"
       working-directory: terraform-aws-github-runner/modules/webhook
       run: terraform validate
@@ -118,7 +119,7 @@ jobs:
       run: terraform init
     - name: "Run TFLint main"
       working-directory: terraform-aws-github-runner
-      run: tflint --module
+      run: tflint --call-module-type=all
     - name: "Run terraform validate terraform-aws-github-runner"
       working-directory: terraform-aws-github-runner
       run: terraform validate
