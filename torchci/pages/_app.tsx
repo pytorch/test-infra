@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
@@ -10,7 +11,6 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import ReactGA from "react-ga4";
 import "styles/globals.css";
-import { Analytics } from '@vercel/analytics/react';
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
