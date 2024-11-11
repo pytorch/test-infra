@@ -106,6 +106,8 @@ on:
         type: boolean
 jobs:
   job:
+    strategy:
+      fail-fast: false
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
