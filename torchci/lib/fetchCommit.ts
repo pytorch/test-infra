@@ -54,10 +54,7 @@ export default async function fetchCommit(
   repo: string,
   sha: string,
   useCH: boolean
-): Promise<{
-  commit: CommitData;
-  jobs: JobData[];
-}> {
+): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 
