@@ -89,7 +89,12 @@ export default function Kpis() {
           title={"% of force merges (Weekly, 2 week rolling avg)"}
           queryName={"weekly_force_merge_stats"}
           queryCollection={"commons"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...clickhouseTimeParams,
+            one_bucket: false,
+            merge_type: "",
+            granularity: "week",
+          }}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"metric"}
@@ -97,6 +102,7 @@ export default function Kpis() {
             return `${unit} %`;
           }}
           groupByFieldName={"name"}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -193,11 +199,7 @@ export default function Kpis() {
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
-          queryParams={
-            useCH
-              ? { ...clickhouseTimeParams, repo: "pytorch/pytorch" }
-              : timeParams
-          }
+          queryParams={{ ...clickhouseTimeParams, repo: "pytorch/pytorch" }}
           granularity={"day"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"number_of_open_disabled_tests"}
