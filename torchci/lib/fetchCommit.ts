@@ -5,7 +5,7 @@ import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
 import getRocksetClient from "./rockset";
-import { CommitDataWithJobs, JobData } from "./types";
+import { CommitData, JobData } from "./types";
 
 async function fetchDatabaseInfo(
   owner: string,
@@ -54,7 +54,10 @@ export default async function fetchCommit(
   repo: string,
   sha: string,
   useCH: boolean
-): Promise<CommitDataWithJobs> {
+): Promise<{
+  commit: CommitData;
+  jobs: JobData[];
+}> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 

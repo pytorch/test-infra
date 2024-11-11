@@ -2,9 +2,10 @@ import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
 import { useCHContext } from "components/UseClickhouseProvider";
-import { CommitDataWithJobs, PRData } from "lib/types";
+import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
+import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -20,7 +21,7 @@ function CommitInfo({
   sha: string;
 }) {
   const useCH = useCHContext().useCH;
-  const { data: commitData, error } = useSWR<CommitDataWithJobs>(
+  const { data: commitData, error } = useSWR<CommitApiResponse>(
     sha != null
       ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
       : null,

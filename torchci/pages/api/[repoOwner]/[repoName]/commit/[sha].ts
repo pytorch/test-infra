@@ -1,10 +1,15 @@
 import fetchCommit from "lib/fetchCommit";
-import { CommitDataWithJobs } from "lib/types";
+import { CommitData, JobData } from "lib/types";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+export type CommitApiResponse = {
+  commit: CommitData;
+  jobs: JobData[];
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<CommitDataWithJobs>
+  res: NextApiResponse<CommitApiResponse>
 ) {
   res
     .status(200)
