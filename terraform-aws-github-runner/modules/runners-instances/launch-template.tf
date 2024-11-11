@@ -109,8 +109,9 @@ resource "aws_launch_template" "linux_runner" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional"
+    http_tokens                 = "required"
     instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 3
   }
 
   user_data = base64encode(templatefile(local.userdata_template, {
@@ -164,8 +165,9 @@ resource "aws_launch_template" "linux_runner_nvidia" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional"
+    http_tokens                 = "required"
     instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 3
   }
 
   user_data = base64encode(templatefile(local.userdata_template, {
@@ -219,8 +221,9 @@ resource "aws_launch_template" "linux_arm64_runner" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional"
+    http_tokens                 = "required"
     instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 3
   }
 
   user_data = base64encode(templatefile(local.userdata_template, {
@@ -285,6 +288,13 @@ resource "aws_launch_template" "windows_runner" {
         "InstanceManagement" = "dynamic"
       },
     )
+  }
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 3
   }
 
   user_data = base64encode(templatefile(local.userdata_template_windows, {
