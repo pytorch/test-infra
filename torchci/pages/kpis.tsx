@@ -144,7 +144,6 @@ export default function Kpis() {
                 .utc()
                 .format("YYYY-MM-DDTHH:mm:ss.SSS"),
             }),
-            granularity: "week",
             repoFullName: "pytorch/pytorch",
           }}
           granularity={"day"}
