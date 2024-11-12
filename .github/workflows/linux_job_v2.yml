@@ -1,4 +1,4 @@
-name: Build / Test on Linux
+name: Build / Test on Linux v2
 
 on:
   workflow_call:
@@ -60,7 +60,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-        default: "pytorch/conda-builder"
+        default: "pytorch/almalinux-builder"
         type: string
       docker-build-dir:
         description: |
@@ -111,7 +111,7 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
+        ${{ inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
@@ -232,20 +232,6 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-
-          try() {
-              "$@"
-          } catch() {
-              echo "Error occurred: $?" >&2
-          }
-
-          try {
-              # Code to execute
-              ls /nonexistent-directory
-          } catch
-
-          echo "Continuing execution..."
-
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
