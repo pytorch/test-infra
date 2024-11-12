@@ -32,6 +32,13 @@
 #     is_ephemeral: true
 
 runner_types:
+  lf.c.linux.8xlarge:
+    disk_size: 200
+    instance_type: c7i.8xlarge
+    min_available: 0
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
   lf.c.linux.8xlarge.amx:
     disk_size: 200
     instance_type: m7i-flex.8xlarge

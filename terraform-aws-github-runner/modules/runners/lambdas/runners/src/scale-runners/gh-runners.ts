@@ -328,6 +328,7 @@ export async function getRunnerTypes(
           return githubAppClient.repos.getContent({
             ...repo,
             path: filepath,
+            ref: 'zxiiro/main',
           });
         });
       });
