@@ -25,9 +25,9 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.1", "12.4"],
-    "test": ["11.8", "12.1", "12.4"],
-    "release": ["11.8", "12.1", "12.4"],
+    "nightly": ["11.8", "12.4", "12.6"],
+    "test": ["11.8", "12.4", "12.6"],
+    "release": ["11.8", "12.4", "12.6"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.1", "6.2"],
@@ -37,8 +37,8 @@ ROCM_ARCHES_DICT = {
 
 CUDA_CUDDN_VERSIONS = {
     "11.8": {"cuda": "11.8.0", "cudnn": "9"},
-    "12.1": {"cuda": "12.1.1", "cudnn": "9"},
-    "12.4": {"cuda": "12.4.0", "cudnn": "9"},
+    "12.4": {"cuda": "12.4.1", "cudnn": "9"},
+    "12.6": {"cuda": "12.6.2", "cudnn": "9"},
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -305,7 +305,7 @@ def get_wheel_install_command(
             return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
         else:
             raise ValueError(
-                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds."
+                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."
             )
     if (
         channel == RELEASE
