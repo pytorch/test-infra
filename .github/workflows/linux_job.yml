@@ -60,7 +60,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-        default: "pytorch/manylinux-builder"
+        default: "pytorch/almalinux-builder"
         type: string
       docker-build-dir:
         description: |
@@ -111,7 +111,7 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/manylinux-builder' && format('pytorch/manylinux-builder:{0}{1}',
+        ${{ inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
