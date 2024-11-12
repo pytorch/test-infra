@@ -234,12 +234,12 @@ jobs:
           chmod +x "${RUNNER_TEMP}/exec_script"
 
           function handle_error() {
-            echo "An error occurred."
-            # Perform cleanup tasks if needed
+            echo "Please note: We are currently migrating Linux Wheel builds to Manywheel 2.28"
+            echo "If you see error like: ImportError: /lib64/libc.so.6: version GLIBC_2.28 not found"
+            echo "Please migrate to: https://github.com/pytorch/test-infra/blob/main/.github/workflows/linux_job_v2.yml"
+            echo "Issue: https://github.com/pytorch/pytorch/issues/123649"
           }
           trap handle_error ERR
-
-          rm non_existent_file
 
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
