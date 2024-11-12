@@ -233,18 +233,13 @@ jobs:
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
 
-          try() {
-              "$@"
-          } catch() {
-              echo "Error occurred: $?" >&2
+          function handle_error() {
+            echo "An error occurred."
+            # Perform cleanup tasks if needed
           }
+          trap handle_error ERR
 
-          try {
-              # Code to execute
-              ls /nonexistent-directory
-          } catch
-
-          echo "Continuing execution..."
+          rm non_existent_file
 
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
