@@ -223,14 +223,6 @@ jobs:
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
         run: |
           set -ex
-          handle_error() {
-            local exit_code=$?
-            echo "Handle an error occurred with exit code $exit_code"
-            # Additional error handling logic can be added here
-            exit $exit_code
-          }
-          trap 'handle_error' ERR
-          # result=$((10 / 0))
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
