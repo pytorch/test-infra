@@ -157,6 +157,19 @@ runs:
 
         retry login "${DOCKER_REGISTRY}"
 
+    - name: Slow down the incoming requests to avoid Docker rate limit
+      shell: bash
+      continue-on-error: true
+      env:
+        MAX_WAIT_TIME_IN_SECONDS: 120
+      run: |
+        set -ex
+
+        # NB: Docker imposes a rate limit somewhere on the number of requests
+        # we can submit to them. Let's just slow down a bit here
+        WAIT_TIME_IN_SECONDS=$((RANDOM % MAX_WAIT_TIME_IN_SECONDS))
+        sleep "${WAIT_TIME_IN_SECONDS}"
+
     - name: Build docker image
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
