@@ -2,7 +2,10 @@ import React, { Profiler } from "react";
 /**
  * Profiler Wrapper to estimate the render time of a component. Notice this is not only log the parent component,
  * but also all children comp's render time.
+ *
  * See more details on https://react.dev/reference/react/Profiler.
+ * Do not use it in prod, as each use adds some CPU and memory overhead to an application.
+ * Only use it for local development to collect metrics.
  *
  * Usage:
  * const MyComponent()=>{
