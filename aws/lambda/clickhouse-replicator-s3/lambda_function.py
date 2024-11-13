@@ -396,6 +396,7 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
     except Exception as e:
         log_failure_to_clickhouse(table, bucket, key, e)
 
+
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
     `environ` String,
