@@ -24,6 +24,11 @@ inputs:
     required: false
     type: string
     default: ""
+  default-packages:
+    description: Default packages to install
+    required: false
+    type: string
+    default: "cmake=3.22 ninja=1.10 pkg-config=0.29 wheel=0.37"
 
 runs:
   using: composite
@@ -35,13 +40,14 @@ runs:
         shell: bash
         run: |
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
+          echo "default_packages_checksum=$(echo -n ${{ inputs.default-packages }} | md5sum | awk '{print $1}' )" >> "${GITHUB_OUTPUT}"
 
       - name: Setup miniconda cache
         id: miniconda-cache
         uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ inputs.miniconda-version }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+          key: miniconda-${{ inputs.miniconda-version }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.default_packages_checksum }}-${{ steps.get-date.outputs.today }}
 
       - name: Install miniconda (${{ inputs.miniconda-version }})
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
@@ -99,7 +105,7 @@ runs:
         uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
+          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.default_packages_checksum }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
 
       - name: Setup conda environment with python (v${{ inputs.python-version }})
         if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
@@ -133,10 +139,7 @@ runs:
             --prefix "${CONDA_BASE_ENV}" \
             ${ENV_FILE_FLAG} \
             python="${PYTHON_VERSION}" \
-            cmake=3.22 \
-            ninja=1.10 \
-            pkg-config=0.29 \
-            wheel=0.37 \
+            ${{ inputs.default-packages }} \
             ${CONDA_EXTRA_FLAGS}
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
