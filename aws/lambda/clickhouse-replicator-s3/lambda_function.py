@@ -306,7 +306,8 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
             f"Failed to insert into {table} with {[str(x) for x in exceptions]}"
         )
     except Exception as e:
-        log_failure_to_clickhouse(table, bucket, key, e)
+        print(f"Failed to insert into {table} {key}: {e}")
+        # log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
@@ -376,8 +377,25 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
     `unique_graphs` String,
     `workflow_id` String
     """
-    general_adapter(table, bucket, key, schema, ["none"], "CSV")
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+    compression = "none"
+    format = "CSV"
+    insert_query = f"""
+    insert into {table}
+    select *, ('{bucket}', '{key}') as _meta
+    """
 
+    # Cannot use general adapter because some of the keys have slahes (/) in a
+    # row, which the s3 function cannot handle but the url function can
+    if "//" in key:
+        insert_query += f"from url('{url}', '{format}', '{schema}')"
+    else:
+        insert_query += f"from s3('{url}', '{format}', '{schema}', '{compression}')"
+
+    try:
+        get_clickhouse_client().query(insert_query)
+    except Exception as e:
+        print(f"Failed to insert into {table} {key}: {e}")
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
