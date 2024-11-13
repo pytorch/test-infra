@@ -1,7 +1,6 @@
 import React, { Profiler } from "react";
 /**
- * Profiler Wrapper to estimate the render time of a component. Notice this is not only log the parent component,
- * but also all children comp's render time.
+ * Profiler Wrapper to estimate the render time of a component.
  *
  * See more details on https://react.dev/reference/react/Profiler.
  * Do not use it in prod, as each use adds some CPU and memory overhead to an application.
@@ -35,7 +34,7 @@ const MeasureRenderTimeProfiler = ({
   ) => {
     const loggingObject = {
       "Profiler ID": id,
-      Phase: phase,
+      "Phase": phase,
       "Actual Duration": `${actualDuration.toFixed(2)} ms`,
       "Base Duration": `${baseDuration.toFixed(2)} ms`,
       "Start Time": `${startTime.toFixed(2)} ms`,
