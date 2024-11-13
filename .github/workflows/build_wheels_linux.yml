@@ -143,7 +143,7 @@ jobs:
           fi
 
           echo "::endgroup::"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
