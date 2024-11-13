@@ -306,8 +306,7 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
             f"Failed to insert into {table} with {[str(x) for x in exceptions]}"
         )
     except Exception as e:
-        print(f"Failed to insert into {table} {key}: {e}")
-        # log_failure_to_clickhouse(table, bucket, key, e)
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
@@ -395,7 +394,7 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
     try:
         get_clickhouse_client().query(insert_query)
     except Exception as e:
-        print(f"Failed to insert into {table} {key}: {e}")
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
