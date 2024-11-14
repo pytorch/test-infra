@@ -131,15 +131,7 @@ export async function getDrciComment(
 }
 
 export function isMergeBlockingSev(issue: IssueData): boolean {
-  let body = issue.body;
-  let previousBody;
-  do {
-    // Remove all matching pairs of comments
-    previousBody = body;
-    body = body.replace(/<!--[\s\S]*?-->/gm, "");
-  } while (body !== previousBody);
-
-  return body.includes("merge blocking");
+  return issue.labels.includes("merge blocking");
 }
 
 export function getActiveSEVs(issues: IssueData[]): [IssueData[], IssueData[]] {
