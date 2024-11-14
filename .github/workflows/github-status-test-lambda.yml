@@ -31,10 +31,10 @@ jobs:
           aws-region: us-east-1
 
       - name: Check out test infra
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
 
       - uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
         name: Setup dependencies

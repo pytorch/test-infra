@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: torchci
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: yarn install --frozen-lockfile
       - run: yarn lint
       - name: yarn prettier --check .
@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: tools/torchci
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           pip3 install --upgrade pip
           pip3 install -r requirements.txt
