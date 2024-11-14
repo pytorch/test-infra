@@ -198,17 +198,6 @@ def process_benchmark_results(
 
     processed_benchmark_results: List[Dict[str, Any]] = []
     for result in benchmark_results:
-        if not all(
-            k in result
-            for k in (
-                "benchmark",
-                "model",
-                "metric",
-            )
-        ):
-            warn(".. {result} is not a benchmark record, skipping")
-            continue
-
         record: Dict[str, Any] = {**metadata, **result}
         # Gather all the information about the benchmark
         if "runners" not in record:
@@ -268,7 +257,6 @@ def upload_to_s3(
         result["s3_path"] = s3_path
 
     info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
-    print(json.dumps(benchmark_results))
     if not dry_run:
         boto3.resource("s3").Object(
             f"{s3_bucket}",
