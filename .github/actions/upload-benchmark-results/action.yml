@@ -19,22 +19,78 @@ runs:
         set -eux
         python3 -mpip install boto3==1.35.33
 
+    - name: Get workflow job id
+      id: get-job-id
+      uses: pytorch/test-infra/.github/actions/get-workflow-job-id@main
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Gather the metadata
+      id: gather-metadata
+      shell: bash
+      env:
+        SCHEMA_VERSION: ${{ inputs.schema-version }}
+        HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+        HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
+        JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
+      run: |
+        set -eux
+
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmark/gather_metadata.py" \
+          --schema-version "${SCHEMA_VERSION}" \
+          --repo "${HEAD_REPOSITORY}" \
+          --head-branch "${HEAD_BRANCH}" \
+          --head-sha "${HEAD_SHA}" \
+          --workflow-id "${WORKFLOW_RUN_ID}" \
+          --run-attempt "${RUN_ATTEMPT}" \
+          --job-id "${JOB_ID}" \
+          --job-name "${JOB_NAME}"
+
+    - name: Gather the runner information
+      id: gather-runner-info
+      shell: bash
+      run: |
+        set -eux
+
+        # TODO (huydhn): Implement this part
+        echo "runners='[]'" >> "${GITHUB_OUTPUT}"
+
+    - name: Gather the dependencies information
+      id: gather-dependencies
+      shell: bash
+      run: |
+        set -eux
+
+        # TODO (huydhn): Implement this part
+        echo "dependencies='{}'" >> "${GITHUB_OUTPUT}"
+
     - name: Upload benchmark results
       shell: bash
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
         DRY_RUN: ${{ inputs.dry-run }}
-        SCHEMA_VERSION: ${{ inputs.schema-version }}
+        # Additional information about the benchmarks
+        BENCHMARK_METADATA: ${{ steps.gather-metadata.outputs.metadata }}
+        RUNNER_INFO: ${{ steps.gather-runner-info.outputs.runners }}
+        DEPENDENCIES: ${{ steps.gather-dependencies.outputs.dependencies }}
       run: |
         set -eux
 
         if [[ "${DRY_RUN}" == "true" ]]; then
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
-            --schema-version "${SCHEMA_VERSION}" \
+            --metadata "${BENCHMARK_METADATA}" \
+            --runners "${RUNNER_INFO}" \
+            --dependencies "${DEPENDENCIES}" \
             --dry-run
         else
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
-            --schema-version "${SCHEMA_VERSION}"
+            --metadata "${BENCHMARK_METADATA}" \
+            --runners "${RUNNER_INFO}" \
+            --dependencies "${DEPENDENCIES}"
         fi
