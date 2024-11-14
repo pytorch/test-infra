@@ -148,7 +148,7 @@ type CostCategory =
   | "provider"
   | "repo"
   | "gpu"
-  | "os";
+  | "owning_account";
 
 type YAxis = "cost" | "duration";
 
@@ -186,6 +186,7 @@ const ROW_HEIGHT = 700;
 const OS_OPTIONS = ["linux", "windows", "macos"];
 const GPU_OPTIONS = ["gpu", "non-gpu"];
 const PROVIDER_OPTIONS = ["aws", "gcp", "github"];
+const OWNER_OPTIONS = ["linux_foundation", "meta"];
 
 export default function Page() {
   const router = useRouter();
@@ -201,6 +202,10 @@ export default function Page() {
   const initialGranularity = query.granularity || "day";
   const initialGroupBy = query.groupby || "workflow_name";
   const initialChartType = query.chartType || "stacked_bar";
+  const initialSelectedOwners = query.owners
+    ? splitString(query.owners)
+    : OWNER_OPTIONS;
+
   const initialSelectedGPU = query.gpu
     ? splitString(query.gpu).map(Number)
     : [0, 1];
@@ -233,6 +238,8 @@ export default function Page() {
     initialChartType as ChartType
   );
   const [selectedGPU, setSelectedGPU] = useState(initialSelectedGPU);
+  const [selectedOwners, setSelectedOwners] = useState(initialSelectedOwners);
+
   const [selectedOS, setSelectedOS] = useState(initialSelectedOS);
   const [selectedProviders, setSelectedProviders] = useState(
     initialSelectedProviders
@@ -254,6 +261,7 @@ export default function Page() {
     setGroupBy(initialGroupBy as CostCategory);
     setChartType(initialChartType as ChartType);
     setSelectedGPU(initialSelectedGPU);
+    setSelectedOwners(initialSelectedOwners);
     setSelectedOS(initialSelectedOS);
     setSelectedProviders(initialSelectedProviders);
     setSelectedYAxis(initialSelectedYAxis || "cost");
@@ -301,6 +309,10 @@ export default function Page() {
     if (granularity) params.set("granularity", granularity);
     if (groupby) params.set("groupby", groupby);
     if (chartType) params.set("chartType", chartType);
+    if (selectedOwners && selectedOwners.length < OWNER_OPTIONS.length) {
+      params.set("owners", selectedOwners.join(","));
+    }
+
     if (selectedGPU && selectedGPU.length < GPU_OPTIONS.length) {
       params.set("gpu", selectedGPU.join(","));
     }
@@ -331,6 +343,7 @@ export default function Page() {
     selectedGPU,
     selectedOS,
     selectedProviders,
+    selectedOwners,
     selectedYAxis,
     searchFilter,
     selectedRepos,
@@ -351,6 +364,7 @@ export default function Page() {
               groupby,
               selectedRepos,
               selectedGPU,
+              selectedOwners,
               selectedPlatforms: selectedOS,
               selectedProviders,
             }}
@@ -420,6 +434,7 @@ export default function Page() {
               <MenuItem value={"job_name"}>Job Name</MenuItem>
               <MenuItem value={"platform"}>Platform</MenuItem>
               <MenuItem value={"provider"}>Provider</MenuItem>
+              <MenuItem value={"owning_account"}>Owning Account</MenuItem>
             </Select>
           </FormControl>
         </Grid>
@@ -455,7 +470,7 @@ export default function Page() {
             initialSelected={selectedOS}
             onSelectChanged={setSelectedOS}
             options={OS_OPTIONS}
-            label={"OS"}
+            label={"Platform"}
             renderValue={(selectedItems) => {
               if (selectedItems.length == OS_OPTIONS.length) return "All";
               if (selectedItems.length == 0) return "None";
@@ -472,6 +487,20 @@ export default function Page() {
             label={"Provider"}
             renderValue={(selectedItems) => {
               if (selectedItems.length == PROVIDER_OPTIONS.length) return "All";
+              if (selectedItems.length == 0) return "None";
+              return selectedItems.join(",");
+            }}
+            style={{ width: 195 }}
+          />
+        </Grid>
+        <Grid item xs={2} style={marginStyle}>
+          <MultiSelectPicker
+            initialSelected={selectedOwners}
+            onSelectChanged={setSelectedOwners}
+            options={OWNER_OPTIONS}
+            label={"Owning Account"}
+            renderValue={(selectedItems) => {
+              if (selectedItems.length == OWNER_OPTIONS.length) return "All";
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}

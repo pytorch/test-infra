@@ -3,7 +3,7 @@ select
         {granularity: String},
         rc.date
     ) as granularity_bucket,
-    runner_type,
+    rc.owning_account as owning_account,
     sum(rc.duration) as total_duration
 from
     misc.runner_cost rc final
@@ -18,7 +18,7 @@ where
     and rc.owning_account in {selectedOwners: Array(String)}
 group by
     granularity_bucket,
-    runner_type
+    owning_account
 order by
     granularity_bucket asc
 
