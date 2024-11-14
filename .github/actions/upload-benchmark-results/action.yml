@@ -43,7 +43,7 @@ runs:
       run: |
         set -eux
 
-        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmark/gather_metadata.py" \
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_metadata.py" \
           --schema-version "${SCHEMA_VERSION}" \
           --repo "${HEAD_REPOSITORY}" \
           --head-branch "${HEAD_BRANCH}" \
