@@ -193,11 +193,18 @@ def process_benchmark_results(
         try:
             benchmark_results = json.load(f)
         except JSONDecodeError:
-            warn(f".. invalid JSON file {filepath}, skipping")
+            warn(f"Invalid JSON file {filepath}, skipping")
             return []
+
+    if not isinstance(benchmark_results, (list, tuple)):
+        return []
 
     processed_benchmark_results: List[Dict[str, Any]] = []
     for result in benchmark_results:
+        # This is a required field
+        if "metric" not in result:
+            continue
+
         record: Dict[str, Any] = {**metadata, **result}
         # Gather all the information about the benchmark
         if "runners" not in record:
