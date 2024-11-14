@@ -106,6 +106,7 @@ export interface IssueData {
   body: string;
   updated_at: string;
   author_association: string;
+  labels: string[];
 }
 
 export interface HudParams {

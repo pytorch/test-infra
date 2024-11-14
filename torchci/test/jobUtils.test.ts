@@ -574,6 +574,7 @@ describe("Test various job utils", () => {
       updated_at: "",
       author_association: "",
       html_url: "",
+      labels: [],
     };
 
     expect(isDisabledTest([])).toEqual(false);
@@ -642,6 +643,7 @@ describe("Test various job utils", () => {
       updated_at: "",
       author_association: "",
       html_url: "",
+      labels: [],
     };
 
     expect(isDisabledTestMentionedInPR([], prInfo)).toEqual(false);
@@ -793,6 +795,7 @@ describe("Test various job utils", () => {
       updated_at: "",
       author_association: "",
       html_url: "",
+      labels: [],
     };
 
     // At least one of the issue is still open
@@ -888,6 +891,7 @@ describe("Test various job utils", () => {
       updated_at: "2024-05-06T00:30:00Z",
       author_association: "",
       html_url: "",
+      labels: [],
     };
 
     // Invalid input should return nothing
