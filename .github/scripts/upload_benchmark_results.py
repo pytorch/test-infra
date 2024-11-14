@@ -114,13 +114,6 @@ def parse_args() -> Any:
         default="torchci-oss-ci-benchmark",
         help="the name of the DynamoDB table to upload to",
     )
-    # v3 is defined at torchci/clickhouse_queries/oss_ci_benchmark_v3/query.sql
-    parser.add_argument(
-        "--schema-version",
-        choices=["v2", "v3"],
-        required=True,
-        help="the database schema to use",
-    )
     parser.add_argument(
         "--metadata",
         type=str,
