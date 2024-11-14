@@ -9,6 +9,8 @@ inputs:
   # TODO (huydhn): Use this to gate the migration to oss_ci_benchmark_v3 on S3
   schema-version:
     default: 'v2'
+  github-token:
+    default: ''
 
 runs:
   using: composite
@@ -20,10 +22,11 @@ runs:
         python3 -mpip install boto3==1.35.33
 
     - name: Get workflow job id
+      if: ${{ inputs.github-token != '' }}
       id: get-job-id
       uses: pytorch/test-infra/.github/actions/get-workflow-job-id@main
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ inputs.github-token }}
 
     - name: Gather the metadata
       id: gather-metadata
@@ -35,8 +38,8 @@ runs:
         HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
-        JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
-        JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
+        JOB_ID: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-id || '0' }}
+        JOB_NAME: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-name || '' }}
       run: |
         set -eux
 
