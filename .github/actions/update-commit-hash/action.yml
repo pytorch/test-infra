@@ -42,14 +42,14 @@ runs:
   using: composite
   steps:
     - name: Checkout the source repo with the pinned commit file
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: 'main'
         submodules: true
         token: ${{ inputs.updatebot-token }}
 
     - name: Checkout test-infra for the update_commit_hashes scripts
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: ${{ inputs.test-infra-repository }}
         ref: ${{ inputs.test-infra-ref }}

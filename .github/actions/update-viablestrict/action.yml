@@ -63,7 +63,7 @@ runs:
       with:
         python-version: '3.11'
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         repository: ${{ inputs.repository }}
         token: ${{ inputs.secret-bot-token }}

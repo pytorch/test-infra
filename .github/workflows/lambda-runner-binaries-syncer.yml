@@ -18,6 +18,6 @@ jobs:
         working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build, Lint, and Test
         run: make build

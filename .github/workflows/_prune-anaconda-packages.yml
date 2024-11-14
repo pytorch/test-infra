@@ -23,7 +23,7 @@ jobs:
       image: continuumio/miniconda3:4.12.0
     steps:
       - name: Checkout repository test-infra
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: pytorch/test-infra
           ref: ${{ github.ref }}

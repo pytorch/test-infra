@@ -31,7 +31,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Check out test infra
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup python
         uses: actions/setup-python@v4
