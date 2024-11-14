@@ -61,11 +61,12 @@ export default function Kpis() {
           title={"# of force merges (Weekly)"}
           queryName={"number_of_force_pushes_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={clickhouseTimeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"count"}
           yAxisRenderer={(unit) => `${unit}`}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -88,7 +89,12 @@ export default function Kpis() {
           title={"% of force merges (Weekly, 2 week rolling avg)"}
           queryName={"weekly_force_merge_stats"}
           queryCollection={"commons"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...clickhouseTimeParams,
+            one_bucket: false,
+            merge_type: "",
+            granularity: "week",
+          }}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"metric"}
@@ -96,6 +102,7 @@ export default function Kpis() {
             return `${unit} %`;
           }}
           groupByFieldName={"name"}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -135,14 +142,24 @@ export default function Kpis() {
           title={"viable/strict lag (Daily)"}
           queryName={"strict_lag_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...clickhouseTimeParams,
+            // Missing data prior to 2024-10-01 due to migration to ClickHouse
+            ...(startTime < dayjs("2024-10-01") && {
+              startTime: dayjs("2024-10-01")
+                .utc()
+                .format("YYYY-MM-DDTHH:mm:ss.SSS"),
+            }),
+            repoFullName: "pytorch/pytorch",
+          }}
           granularity={"day"}
           timeFieldName={"push_time"}
           yAxisFieldName={"diff_hr"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
           // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-          additionalOptions={{ yAxis: { max: 7 } }}
+          additionalOptions={{ yAxis: { max: 10 } }}
+          useClickHouse={true}
         />
       </Grid>
 
@@ -182,11 +199,7 @@ export default function Kpis() {
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
           queryCollection={"metrics"}
-          queryParams={
-            useCH
-              ? { ...clickhouseTimeParams, repo: "pytorch/pytorch" }
-              : timeParams
-          }
+          queryParams={{ ...clickhouseTimeParams, repo: "pytorch/pytorch" }}
           granularity={"day"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"number_of_open_disabled_tests"}

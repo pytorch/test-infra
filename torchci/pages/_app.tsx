@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
@@ -30,6 +31,7 @@ function MyApp({ Component, pageProps }: AppProps) {
             <SevReport />
             <div style={{ margin: "20px" }}>
               <Component {...pageProps} />
+              <Analytics />
             </div>
           </TitleProvider>
         </UseCHContextProvider>

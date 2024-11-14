@@ -25,7 +25,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.1", "12.4"],
+    "nightly": ["11.8", "12.4"],
     "test": ["11.8", "12.1", "12.4"],
     "release": ["11.8", "12.1", "12.4"],
 }
@@ -38,7 +38,7 @@ ROCM_ARCHES_DICT = {
 CUDA_CUDDN_VERSIONS = {
     "11.8": {"cuda": "11.8.0", "cudnn": "9"},
     "12.1": {"cuda": "12.1.1", "cudnn": "9"},
-    "12.4": {"cuda": "12.4.0", "cudnn": "9"},
+    "12.4": {"cuda": "12.4.1", "cudnn": "9"},
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -152,14 +152,14 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
         **{
-            gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
+            gpu_arch: f"pytorch/manylinux2_28-builder:cuda{gpu_arch}"
             for gpu_arch in CUDA_ARCHES
         },
         **{
             gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
-        CPU: "pytorch/manylinux-builder:cpu",
+        CPU: "pytorch/manylinux2_28-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
         CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
@@ -305,7 +305,7 @@ def get_wheel_install_command(
             return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
         else:
             raise ValueError(
-                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.1, 12.4 on Linux nightly builds."
+                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."
             )
     if (
         channel == RELEASE
