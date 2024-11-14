@@ -130,13 +130,23 @@ export async function getDrciComment(
   return { id: 0, body: "" };
 }
 
+export function isMergeBlockingSev(issue: IssueData): boolean {
+  let body = issue.body;
+  let previousBody;
+  do {
+    // Remove all matching pairs of comments
+    previousBody = body;
+    body = body.replace(/<!--[\s\S]*?-->/gm, "");
+  } while (body !== previousBody);
+
+  return body.includes("merge blocking");
+}
+
 export function getActiveSEVs(issues: IssueData[]): [IssueData[], IssueData[]] {
   const activeSEVs = issues.filter(
     (issue: IssueData) => issue.state === "open"
   );
-  return _.partition(activeSEVs, (issue: IssueData) =>
-    issue.body.toLowerCase().includes("merge blocking")
-  );
+  return _.partition(activeSEVs, isMergeBlockingSev);
 }
 
 export function formDrciSevBody(sevs: [IssueData[], IssueData[]]): string {
@@ -148,14 +158,9 @@ export function formDrciSevBody(sevs: [IssueData[], IssueData[]]): string {
     .concat(notMergeBlocking)
     .map(
       (issue: IssueData) =>
-        `* ${
-          issue.body.toLowerCase().includes("merge blocking")
-            ? "(merge blocking) "
-            : ""
-        }[${issue.title}](${issue.html_url.replace(
-          "github.com",
-          "hud.pytorch.org"
-        )})`
+        `* ${isMergeBlockingSev(issue) ? "(merge blocking) " : ""}[${
+          issue.title
+        }](${issue.html_url.replace("github.com", "hud.pytorch.org")})`
     )
     .join("\n");
   if (mergeBlocking.length > 0) {
