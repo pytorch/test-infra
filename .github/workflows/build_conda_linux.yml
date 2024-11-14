@@ -86,8 +86,7 @@ jobs:
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
-      image: ${{ matrix.container_image }}
-      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
+      image: alpine:3.14
     timeout-minutes: 3
     steps:
       - name: Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
