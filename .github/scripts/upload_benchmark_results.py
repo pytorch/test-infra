@@ -265,11 +265,14 @@ def upload_to_s3(
 
     info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
     if not dry_run:
+        # Write in JSONEachRow format
+        data = "\n".join([json.dumps(result) for result in benchmark_results])
+        print(data)
         boto3.resource("s3").Object(
             f"{s3_bucket}",
             f"{s3_path}",
         ).put(
-            Body=gzip.compress(json.dumps(benchmark_results).encode()),
+            Body=gzip.compress(data.encode()),
             ContentEncoding="gzip",
             ContentType="application/json",
         )
