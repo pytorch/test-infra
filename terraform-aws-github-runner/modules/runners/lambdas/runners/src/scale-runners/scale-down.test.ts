@@ -38,7 +38,7 @@ import {
   sortSSMParametersByUpdateTime,
 } from './scale-down';
 import { RequestError } from '@octokit/request-error';
-import { SSM } from 'aws-sdk';
+import { ParameterMetadata } from '@aws-sdk/client-ssm';
 
 jest.mock('./gh-runners', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -1464,7 +1464,7 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
       ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
       ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: oldDt });
@@ -1490,7 +1490,7 @@ describe('scale-down', () => {
       const olderDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays - 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
       ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
       ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: olderDt });
@@ -1512,7 +1512,7 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
@@ -1534,7 +1534,7 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
@@ -1556,7 +1556,7 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
