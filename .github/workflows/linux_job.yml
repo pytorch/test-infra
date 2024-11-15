@@ -157,12 +157,12 @@ jobs:
           # surprises.
           submodules: 'recursive'
 
+      - name: Debug ROCm Input
+        run: "echo 'ROCm Run: ${{ toJSON(inputs.rocm-run) }}'"
+
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
         if: ${{ not inputs.rocm-run }}
-
-      - name: Debug ROCm Input
-        run: "echo 'ROCm Run: ${{ toJSON(inputs.rocm-run) }}'"
 
       - name: Setup ROCm
         uses: pytorch/pytorch/.github/actions/setup-rocm@main
