@@ -163,7 +163,7 @@ jobs:
 
       - name: Setup ROCm
         uses: pytorch/pytorch/.github/actions/setup-rocm@main
-        if: ${{ inputs.rocm-run == 'true' }}
+        if: ${{ not inputs.rocm-run }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
