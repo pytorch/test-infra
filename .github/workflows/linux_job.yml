@@ -85,6 +85,10 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      rocm-run:
+        description: "Run with ROCm"
+        default: false
+        type: boolean
       binary-matrix:
         description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
         required: false
@@ -155,6 +159,11 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+        if: ${{ inputs.rocm-run == 'false' }}
+
+      - name: Setup ROCm
+        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        if: ${{ inputs.rocm-run == 'true' }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
