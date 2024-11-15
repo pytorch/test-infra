@@ -165,7 +165,7 @@ jobs:
         run: "echo 'ROCm Run: ${{ toJSON(inputs.rocm-run) }}'"
 
       - name: Setup ROCm
-        uses: pytorch/.github/actions/setup-rocm@main
+        uses: pytorch/pytorch/.github/actions/setup-rocm@main
         if: ${{ inputs.rocm-run }}
 
       - name: Setup SSH
