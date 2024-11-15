@@ -161,6 +161,9 @@ jobs:
         uses: ./test-infra/.github/actions/setup-linux
         if: ${{ not inputs.rocm-run }}
 
+      - name: Debug ROCm Input
+        run: "echo 'ROCm Run: ${{ toJSON(inputs.rocm-run) }}'"
+
       - name: Setup ROCm
         uses: pytorch/.github/actions/setup-rocm@main
         if: ${{ inputs.rocm-run }}
