@@ -21,6 +21,19 @@ runs:
         set -eux
         python3 -mpip install boto3==1.35.33
 
+    - name: Check that GITHUB_TOKEN is defined
+      if: ${{ schema-version != 'v2' }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ -z "${GITHUB_TOKEN}" ]]; then
+          echo "Missing github-token input"
+          exit 1
+        fi
+
     - name: Get workflow job id
       if: ${{ inputs.github-token != '' }}
       id: get-job-id

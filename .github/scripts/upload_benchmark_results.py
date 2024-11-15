@@ -203,6 +203,7 @@ def process_benchmark_results(
     for result in benchmark_results:
         # This is a required field
         if "metric" not in result:
+            warn(f"{result} is not a benchmark record, skipping")
             continue
 
         record: Dict[str, Any] = {**metadata, **result}
@@ -219,8 +220,18 @@ def process_benchmark_results(
 def generate_s3_path(
     benchmark_results: List[Dict[str, Any]], filepath: str, schema_version: str
 ) -> Optional[str]:
+    if not benchmark_results:
+        return None
+
+    repo = ""
+    workflow_id = 0
+    job_id = 0
+
     for result in benchmark_results:
         repo = result.get("repo", "")
+        if not repo:
+            continue
+
         workflow_id = result.get("workflow_id", 0)
         job_id = result.get("job_id", 0)
         servicelab_experiment_id = result.get("servicelab_experiment_id", 0)
@@ -231,14 +242,14 @@ def generate_s3_path(
         job_id = job_id if job_id else servicelab_trial_id
 
         # We just need one record here to get some metadata to generate the s3 path
-        if repo and workflow_id and job_id:
+        if workflow_id and job_id:
             break
 
     if not repo or not workflow_id or not job_id:
         info(
             "The result is without any information about the repo, workflow, or job id"
         )
-        return ""
+        return None
 
     filename = os.path.basename(filepath)
     return f"{schema_version}/{repo}/{workflow_id}/{job_id}/{filename}"
