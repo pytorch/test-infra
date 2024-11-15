@@ -25,7 +25,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.4"],
+    "nightly": ["11.8", "12.4", "12.6"],
     "test": ["11.8", "12.1", "12.4"],
     "release": ["11.8", "12.1", "12.4"],
 }
@@ -496,6 +496,7 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+
     if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64 or os == LINUX_AARCH64):
         python_versions += ["3.13"]
 
@@ -516,6 +517,9 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os == LINUX or os == WINDOWS:
                 arches += CUDA_ARCHES
+            # todo: remove once windows cuda 12.5 binaries are available
+            if channel == NIGHTLY and os != LINUX:
+                arches.remove("12.6")
 
         if with_rocm == ENABLE:
             if os == LINUX:
