@@ -9,6 +9,8 @@ inputs:
   # TODO (huydhn): Use this to gate the migration to oss_ci_benchmark_v3 on S3
   schema-version:
     default: 'v2'
+  github-token:
+    default: ''
 
 runs:
   using: composite
@@ -19,22 +21,92 @@ runs:
         set -eux
         python3 -mpip install boto3==1.35.33
 
+    - name: Check that GITHUB_TOKEN is defined
+      if: ${{ inputs.schema-version != 'v2' }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ -z "${GITHUB_TOKEN}" ]]; then
+          echo "Missing github-token input"
+          exit 1
+        fi
+
+    - name: Get workflow job id
+      if: ${{ inputs.github-token != '' }}
+      id: get-job-id
+      uses: pytorch/test-infra/.github/actions/get-workflow-job-id@main
+      with:
+        github-token: ${{ inputs.github-token }}
+
+    - name: Gather the metadata
+      id: gather-metadata
+      shell: bash
+      env:
+        SCHEMA_VERSION: ${{ inputs.schema-version }}
+        REPO: ${{ github.repository }}
+        HEAD_BRANCH: ${{ github.head_ref }}
+        HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        WORKFLOW_RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        JOB_ID: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-id || '0' }}
+        JOB_NAME: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-name || '' }}
+      run: |
+        set -eux
+
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_metadata.py" \
+          --schema-version "${SCHEMA_VERSION}" \
+          --repo "${REPO}" \
+          --head-branch "${HEAD_BRANCH}" \
+          --head-sha "${HEAD_SHA}" \
+          --workflow-id "${WORKFLOW_RUN_ID}" \
+          --run-attempt "${RUN_ATTEMPT}" \
+          --job-id "${JOB_ID}" \
+          --job-name "${JOB_NAME}"
+
+    - name: Gather the runner information
+      id: gather-runner-info
+      shell: bash
+      run: |
+        set -eux
+
+        # TODO (huydhn): Implement this part
+        echo "runners=[]" >> "${GITHUB_OUTPUT}"
+
+    - name: Gather the dependencies information
+      id: gather-dependencies
+      shell: bash
+      run: |
+        set -eux
+
+        # TODO (huydhn): Implement this part
+        echo "dependencies={}" >> "${GITHUB_OUTPUT}"
+
     - name: Upload benchmark results
       shell: bash
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
         DRY_RUN: ${{ inputs.dry-run }}
-        SCHEMA_VERSION: ${{ inputs.schema-version }}
+        # Additional information about the benchmarks
+        BENCHMARK_METADATA: ${{ steps.gather-metadata.outputs.metadata }}
+        RUNNER_INFO: ${{ steps.gather-runner-info.outputs.runners }}
+        DEPENDENCIES: ${{ steps.gather-dependencies.outputs.dependencies }}
       run: |
         set -eux
 
         if [[ "${DRY_RUN}" == "true" ]]; then
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
-            --schema-version "${SCHEMA_VERSION}" \
+            --metadata "${BENCHMARK_METADATA}" \
+            --runners "${RUNNER_INFO}" \
+            --dependencies "${DEPENDENCIES}" \
             --dry-run
         else
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
-            --schema-version "${SCHEMA_VERSION}"
+            --metadata "${BENCHMARK_METADATA}" \
+            --runners "${RUNNER_INFO}" \
+            --dependencies "${DEPENDENCIES}"
         fi
