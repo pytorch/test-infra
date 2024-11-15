@@ -34,7 +34,7 @@ const MeasureRenderTimeProfiler = ({
   ) => {
     const loggingObject = {
       "Profiler ID": id,
-      "Phase": phase,
+      Phase: phase,
       "Actual Duration": `${actualDuration.toFixed(2)} ms`,
       "Base Duration": `${baseDuration.toFixed(2)} ms`,
       "Start Time": `${startTime.toFixed(2)} ms`,
