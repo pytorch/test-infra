@@ -130,7 +130,18 @@ export function mockHasApprovedWorkflowRun(repoFullName: string) {
     });
 }
 
-export function genIssueData(nonDefaultInputs: any = {}): IssueData {
+export function genIssueData(
+  nonDefaultInputs: {
+    number?: number;
+    title?: string;
+    html_url?: string;
+    state?: "open" | "closed";
+    body?: string;
+    updated_at?: string;
+    author_association?: string;
+    labels?: string[];
+  } = {}
+): IssueData {
   return {
     number: 1,
     title: "test issue",
