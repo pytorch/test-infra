@@ -22,7 +22,7 @@ runs:
         python3 -mpip install boto3==1.35.33
 
     - name: Check that GITHUB_TOKEN is defined
-      if: ${{ schema-version != 'v2' }}
+      if: ${{ inputs.schema-version != 'v2' }}
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       shell: bash
