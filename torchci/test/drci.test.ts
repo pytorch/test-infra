@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { TIME_0 } from "lib/bot/utils";
 import * as drciUtils from "lib/drciUtils";
 import {
@@ -18,6 +17,7 @@ import { removeJobNameSuffix } from "lib/jobUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
+import { genIssueData } from "./utils";
 
 nock.disableNetConnect();
 
@@ -257,49 +257,24 @@ const unstableB = getDummyJob({
   runnerName: "dummy",
 });
 
-const sev: IssueData = {
-  number: 85362,
-  title: "docker pulls failing with no space left on disk",
-  html_url: "https://github.com/pytorch/pytorch/issues/85362",
-  state: "open",
-  body: "random stuff",
-  updated_at: dayjs().toString(),
-  author_association: "MEMBER",
-  labels: [],
-};
-
-const mergeBlockingSev: IssueData = {
-  number: 74967,
-  title: "Linux CUDA builds are failing due to missing deps",
-  html_url: "https://github.com/pytorch/pytorch/issues/74967",
-  state: "open",
-  body: "",
-  updated_at: dayjs().toString(),
-  author_association: "MEMBER",
-  labels: ["merge blocking"],
-};
-
-const notMergeBlockingSev: IssueData = {
-  number: 74967,
-  title: "Linux CUDA builds are failing due to missing deps",
-  html_url: "https://github.com/pytorch/pytorch/issues/74967",
+const sev = genIssueData({
+  number: 1,
   state: "open",
   body: "not merge blocking",
-  updated_at: dayjs().toString(),
-  author_association: "MEMBER",
-  labels: [],
-};
+  labels: ["ci: sev"],
+});
 
-const closedSev: IssueData = {
-  number: 74304,
-  title: "GitHub Outage: No Github Actions workflows can be run",
-  html_url: "https://github.com/pytorch/pytorch/issues/74304",
+const mergeBlockingSev = genIssueData({
+  number: 2,
+  state: "open",
+  labels: ["merge blocking", "ci: sev"],
+});
+
+const closedSev = genIssueData({
+  number: 3,
   state: "closed",
-  body: "random stuff",
-  updated_at: dayjs().toString(),
-  author_association: "MEMBER",
-  labels: [],
-};
+  labels: ["ci: sev"],
+});
 
 function constructResultsCommentHelper({
   pending = 3,
@@ -488,9 +463,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       )
     ).toBeTruthy();
     expect(
-      formDrciSevBody(
-        getActiveSEVs([sev, mergeBlockingSev, notMergeBlockingSev])
-      ).includes("## :heavy_exclamation_mark: 1 Merge Blocking SEVs")
+      formDrciSevBody(getActiveSEVs([sev, mergeBlockingSev])).includes(
+        "## :heavy_exclamation_mark: 1 Merge Blocking SEVs"
+      )
     ).toBeTruthy();
     expect(formDrciSevBody(getActiveSEVs([closedSev])) === "").toBeTruthy();
   });
@@ -596,16 +571,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const mockUnstableIssues: IssueData[] = [
-      {
-        number: 3264,
+      genIssueData({
         title: "UNSTABLE trunk / test-coreml-delegate / macos-job",
-        html_url: "https://github.com/pytorch/executorch/issues/3264",
-        state: "open",
-        body: "",
-        updated_at: "2024-04-24 00:44:19",
-        author_association: "CONTRIBUTOR",
-        labels: [],
-      },
+      }),
     ];
     const pr_1001 = workflowsByPR.get(1001)!;
 

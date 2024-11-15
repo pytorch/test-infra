@@ -1,3 +1,4 @@
+import { IssueData } from "lib/types";
 import nock from "nock";
 import { Octokit } from "octokit";
 import { Probot, ProbotOctokit } from "probot";
@@ -127,4 +128,18 @@ export function mockHasApprovedWorkflowRun(repoFullName: string) {
         },
       ],
     });
+}
+
+export function genIssueData(nonDefaultInputs: any = {}): IssueData {
+  return {
+    number: 1,
+    title: "test issue",
+    html_url: "test url",
+    state: "open",
+    body: "",
+    updated_at: "1899-07-13 19:34:03",
+    author_association: "MEMBER",
+    labels: [],
+    ...nonDefaultInputs,
+  };
 }

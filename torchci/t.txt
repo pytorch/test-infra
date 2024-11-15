@@ -1,0 +1,2868 @@
+yarn run v1.22.22
+$ npx jest
+INFO (event): loadConfig
+    id: "123"
+    key: "suo/actions-test"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): Adding label(s) ciflow/trunk to pull request https://github.com/kit1980/deleteme/pull/4
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+INFO (event):
+    id: "2"
+    addedLabel: "high priority"
+    existingLabels: [
+      "high priority"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Synchronizing tag ciflow/trunk/5 to head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event): Adding label(s) triage review to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event): No matching tags
+    id: "123"
+INFO (event): Creating tag ciflow/trunk/5 on head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event):
+    id: "2"
+    existingLabels: []
+    title: "Issue regarding ROCm"
+INFO (event): Adding label(s) module: rocm to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event): loadConfig
+    id: "123"
+    key: "suo/actions-test"
+INFO (event): Adding label(s) ciflow/trunk to pull request https://github.com/clee2000/random-testing-public/pull/3
+    id: "afe40970-8ffd-11ef-99a6-768eb28a67b1"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): Synchronizing tag ciflow/trunk/5 to head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event): Found matching tags
+    0: {
+      "ref": "refs/tags/ciflow/trunk/5",
+      "node_id": "123",
+      "object": {
+        "sha": "abc"
+      }
+    }
+    id: "123"
+INFO (event): deleting out of date tag ciflow/trunk/5 on sha abc
+    id: "123"
+INFO (event): Creating tag ciflow/trunk/5 on head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): Cleaning up tag ciflow/trunk/5
+    id: "123"
+INFO (event): Deleting tag ciflow/trunk/5 on sha abc
+    id: "123"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Issue regarding ROCm"
+    filesChanged: []
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Found labels on PR
+    0: "ciflow/test"
+    1: "ciflow/1"
+    id: "123"
+INFO (event): Synchronizing tag ciflow/test/3 to head sha b0ce2beb310558f90fa4adb797069025ec6ff7c9
+    id: "123"
+INFO (event): Synchronizing tag ciflow/1/3 to head sha b0ce2beb310558f90fa4adb797069025ec6ff7c9
+    id: "123"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Found matching tags
+    0: {
+      "ref": "refs/tags/ciflow/test/3",
+      "node_id": "123",
+      "object": {
+        "sha": "abc"
+      }
+    }
+    id: "123"
+INFO (event): deleting out of date tag ciflow/test/3 on sha abc
+    id: "123"
+INFO (event): Found matching tags
+    0: {
+      "ref": "refs/tags/ciflow/1/3",
+      "node_id": "123",
+      "object": {
+        "sha": "abc"
+      }
+    }
+    id: "123"
+INFO (event): deleting out of date tag ciflow/1/3 on sha abc
+    id: "123"
+INFO (event): Adding label(s) module: rocm,ciflow/rocm to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event): Creating tag ciflow/test/3 on head sha b0ce2beb310558f90fa4adb797069025ec6ff7c9
+    id: "123"
+INFO (event): Creating tag ciflow/1/3 on head sha b0ce2beb310558f90fa4adb797069025ec6ff7c9
+    id: "123"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): END Processing sync event
+    id: "123"
+INFO (event):
+    id: "2"
+    existingLabels: []
+    title: "DISABLED  test_blah (__main__.TestClass)"
+INFO (event): Adding label(s) skipped to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event): Found labels on PR
+    0: "ciflow/test"
+    1: "ciflow/1"
+    id: "123"
+INFO (event): Cleaning up tag ciflow/test/3
+    id: "123"
+INFO (event): Cleaning up tag ciflow/1/3
+    id: "123"
+INFO (event): Adding label(s) ciflow/trunk to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Deleting tag ciflow/test/3 on sha abc
+    id: "123"
+INFO (event): Deleting tag ciflow/1/3 on sha abc
+    id: "123"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "DISABLED test_blah (__main__.TestClass)"
+    filesChanged: []
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "123"
+    key: "suo/actions-test"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) skipped to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "123"
+    key: "suo/actions-test"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): Synchronizing tag ciflow/test/5 to head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Change to nonexistingfile.py"
+    filesChanged: [
+      "nonexistingfile.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): No matching tags
+    id: "123"
+INFO (event): Creating tag ciflow/test/5 on head sha 600835c72e2462ea095cf19f1fabe39488dd0d53
+    id: "123"
+INFO (event): loadConfig
+    id: "bfe22520-466a-11ed-8dae-4cb245a6a856"
+    key: "clee2000/random-testing"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): loadConfig
+    id: "123"
+    key: "suo/actions-test"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: releng to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: [
+      "release notes: releng"
+    ]
+    title: "Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event):
+    id: "2"
+    labels: [
+      "release notes: releng",
+      "module: bc-breaking"
+    ]
+    title: "Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) topic: bc breaking to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "[CODEMOD] Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) topic: not user facing to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: [
+      "topic: not user facing"
+    ]
+    title: "[CODEMOD] Change to CI files"
+    filesChanged: [
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event):
+    id: "2"
+    labels: []
+    title: "modify a pytorch/fake-test-repo file"
+    filesChanged: [
+      "somefolder/a.py",
+      "otherfolder/b.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "pytorch/fake-test-repo"
+INFO (event): loadIssue
+    id: "2"
+    key: "pytorch/fake-test-repo"
+INFO (event): loadConfig
+    id: "2"
+    key: "pytorch/fake-test-repo"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) cool-label to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "modify all caffe2 files"
+    filesChanged: [
+      "caffe2/a.py",
+      "something/caffe2.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) caffe2 to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: [
+      "module: deprecation"
+    ]
+    title: "modify all caffe2 files"
+    filesChanged: [
+      "caffe2/a.py",
+      "something/caffe2.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) caffe2,topic: deprecation to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "modify distributed files as well as CI files"
+    filesChanged: [
+      "torch/distributed/ddp/test.py",
+      ".ci/caffe2/README.md",
+      ".ci/caffe2/bench.sh",
+      ".ci/caffe2/build.sh",
+      ".ci/caffe2/common.sh",
+      ".ci/caffe2/test.sh",
+      ".ci/pytorch/.shellcheckrc",
+      ".ci/pytorch/README.md",
+      ".ci/pytorch/build-asan.sh",
+      ".ci/pytorch/build-mobile.sh",
+      ".ci/pytorch/build.sh",
+      ".ci/pytorch/codegen-test.sh",
+      ".ci/pytorch/common-build.sh",
+      ".ci/pytorch/common.sh",
+      ".ci/pytorch/common_utils.sh",
+      ".ci/pytorch/create_test_cert.py",
+      ".ci/pytorch/docker-build-test.sh",
+      ".ci/pytorch/docs-test.sh",
+      ".ci/pytorch/fake_numpy/numpy.py",
+      ".ci/pytorch/macos-build-test.sh",
+      ".ci/pytorch/macos-build.sh",
+      ".ci/pytorch/macos-common.sh",
+      ".ci/pytorch/macos-test.sh",
+      ".ci/pytorch/multigpu-test.sh",
+      ".ci/pytorch/perf_test/common.sh",
+      ".ci/pytorch/perf_test/compare_with_baseline.py",
+      ".ci/pytorch/perf_test/get_stats.py",
+      ".ci/pytorch/perf_test/test_cpu_speed_mini_sequence_labeler.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch.sh",
+      ".ci/pytorch/perf_test/test_cpu_speed_torch_tensor.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_cudnn_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_lstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mlstm.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_mnist.sh",
+      ".ci/pytorch/perf_test/test_gpu_speed_word_language_model.sh",
+      ".ci/pytorch/perf_test/update_commit_hash.py",
+      ".ci/pytorch/print_sccache_log.py",
+      ".ci/pytorch/run_glootls_test.sh",
+      ".ci/pytorch/short-perf-test-cpu.sh",
+      ".ci/pytorch/short-perf-test-gpu.sh",
+      ".ci/pytorch/test.sh",
+      ".ci/pytorch/win-build.sh",
+      ".ci/pytorch/win-test-helpers/build_pytorch.bat",
+      ".ci/pytorch/win-test-helpers/choose_runtime_cuda_version.bat",
+      ".ci/pytorch/win-test-helpers/install_test_functorch.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_magma.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_miniconda3.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_mkl.bat",
+      ".ci/pytorch/win-test-helpers/installation-helpers/install_sccache.bat",
+      ".ci/pytorch/win-test-helpers/run_python_nn_smoketests.py",
+      ".ci/pytorch/win-test-helpers/setup_pytorch_env.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_backend.bat",
+      ".ci/pytorch/win-test-helpers/test_custom_script_ops.bat",
+      ".ci/pytorch/win-test-helpers/test_distributed.bat",
+      ".ci/pytorch/win-test-helpers/test_libtorch.bat",
+      ".ci/pytorch/win-test-helpers/test_python_jit_legacy.bat",
+      ".ci/pytorch/win-test-helpers/test_python_shard.bat",
+      ".ci/pytorch/win-test.sh",
+      ".circleci/config.yml",
+      ".circleci/scripts/python_doc_push_script.sh",
+      ".circleci/verbatim-sources/job-specs/job-specs-custom.yml",
+      ".github/actions/build-android/action.yml",
+      ".github/merge_rules.json",
+      ".github/workflows/_bazel-build-test.yml",
+      ".github/workflows/_linux-build.yml",
+      ".github/workflows/_linux-test.yml",
+      ".github/workflows/_mac-build.yml",
+      ".github/workflows/_mac-test.yml",
+      ".github/workflows/_rocm-test.yml",
+      ".github/workflows/_win-build.yml",
+      ".github/workflows/_win-test.yml",
+      ".github/workflows/create_release.yml",
+      ".jenkins/caffe2/README.md",
+      ".jenkins/caffe2/dirty.sh",
+      ".jenkins/pytorch/dirty.sh",
+      ".lintrunner.toml",
+      "CONTRIBUTING.md",
+      "README.md",
+      "scripts/release_notes/commitlist.py",
+      "test/mobile/lightweight_dispatch/build.sh",
+      "test/test_determination.py",
+      "tools/testing/modulefinder_determinator.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: distributed (ddp) to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "linalg cuda improvements"
+    filesChanged: [
+      "torch/linalg/a.cu",
+      "torch/linalg/a.cuh",
+      "torch/_torch_docs.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: linalg_frontend to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "linalg cuda improvements"
+    filesChanged: [
+      "torch/onething/a.cu",
+      "torch/anotherthing/a.cuh"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: cuda to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "[PyTorch Edge] linalg improvements for iOS"
+    filesChanged: [
+      "torch/linalg/a.cu",
+      "torch/linalg/a.cuh"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: linalg_frontend to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "[PyTorch Edge] improvements to iOS"
+    filesChanged: [
+      "ios/sometest.py",
+      "ios/someothertest.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: mobile to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Very awesome change to common methods invocations"
+    filesChanged: [
+      "torch/testing/_internal/common_methods_invocations.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: python_frontend to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Improving torch docs"
+    filesChanged: [
+      "torch/_torch_docs.py"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: python_frontend to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Not user facing!"
+    filesChanged: [
+      ".github/scripts/update_commit_hashes.py",
+      "CODEOWNERS",
+      "something/Makefile",
+      "test/test_jit.py",
+      "third_party/eigen",
+      "blah.ini",
+      "blah.txt",
+      "blah.md",
+      "blah.MD"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) topic: not user facing to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Linalg plus other irrelevant stuff"
+    filesChanged: [
+      "torch/linalg/a.cu",
+      "blah.ini",
+      "blah.txt",
+      "blah.md",
+      "blah.MD"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event): Adding label(s) release notes: linalg_frontend to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event):
+    id: "2"
+    labels: []
+    title: "Derivatives.yaml change plus other irrelevant stuff"
+    filesChanged: [
+      "tools/autograd/derivatives.yaml",
+      "blah.ini",
+      "blah.txt",
+      "blah.md",
+      "blah.MD"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "2"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: [
+      "torch/blah.py"
+    ]
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: [
+      "torch/csrc/dynamo/blah.py"
+    ]
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Adding label(s) module: dynamo to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: [
+      "torch/_dynamo/blah.py"
+    ]
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Adding label(s) module: dynamo,ciflow/inductor to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: [
+      "torch/csrc/dynamo/blah.py",
+      "torch/_decomp/blah.py"
+    ]
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Adding label(s) module: dynamo,ciflow/inductor to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: [
+      "torch/_dynamo/blah.py"
+    ]
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Adding label(s) module: dynamo to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "2"
+    addedLabel: "module: dynamo"
+    existingLabels: [
+      "testlabel"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Adding label(s) oncall: pt2 to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event):
+    id: "2"
+    addedLabel: "allif1"
+    existingLabels: [
+      "allif2",
+      "allif1"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Adding label(s) allthen1 to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event):
+    id: "2"
+    addedLabel: "module: custom operators"
+    existingLabels: [
+      "allif2",
+      "allif1",
+      "module: custom operators"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Adding label(s) module: pt2-dispatcher,oncall: pt2 to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event):
+    id: "2"
+    addedLabel: "module: custom operators"
+    existingLabels: [
+      "allif2",
+      "allif3",
+      "module: custom operators"
+    ]
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Adding label(s) module: pt2-dispatcher,oncall: pt2,allthen2 to issue https://github.com/ezyang/testing-ideal-computing-machine/issues/5
+    id: "2"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: []
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    subsText: "\nadfadsfasd\n* @clee2000\n*@huydo\n"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Adding label(s) ci-td-distributed to pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: []
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    subsText: "\nadfadsfasd\n* @clee2000\n*@huydo\n"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    labels: []
+    title: "Create README"
+    filesChanged: []
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadIssue
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): loadConfig
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): TD_rollout_issue is not found in config, initializing with empty string
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+INFO (event):
+    id: "29a773c0-f180-11eb-9ace-7c62a87316a7"
+    parsedIssue: {}
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "ezyang/testing-ideal-computing-machine"
+    payload_type: "issue"
+INFO (event): loadIssue
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): tracking_issue is not found in config, initializing with empty string
+    id: "2"
+INFO (event):
+    id: "2"
+    parsedIssue: {}
+INFO (event):
+    id: "2"
+    labels: [
+      "testlabel"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: []
+INFO (event): no action: cc list from subscription is empty
+    id: "2"
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "ezyang/testing-ideal-computing-machine"
+    payload_type: "issue"
+INFO (event): loadIssue
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event):
+    id: "2"
+    subsText: "\nSome header text\n\n* testlabel @ezyang @malfet\n"
+INFO (event):
+    id: "2"
+    parsedIssue: {
+      "testlabel": [
+        "ezyang",
+        "malfet"
+      ]
+    }
+INFO (event):
+    id: "2"
+    labels: [
+      "testlabel"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: [
+      "ezyang",
+      "malfet"
+    ]
+INFO (event): Removed self from subscriptions
+    id: "2"
+    author: "ezyang"
+INFO (event):
+    id: "2"
+    newBody: "Arf arf\n\ncc @malfet"
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "ezyang/testing-ideal-computing-machine"
+    payload_type: "issue"
+INFO (event): loadIssue
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event):
+    id: "2"
+    subsText: "\nSome header text\n\n* testlabel @malfet\n"
+INFO (event):
+    id: "2"
+    parsedIssue: {
+      "testlabel": [
+        "malfet"
+      ]
+    }
+INFO (event):
+    id: "2"
+    labels: [
+      "testlabel"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: [
+      "malfet"
+    ]
+INFO (event):
+    id: "2"
+    newBody: "cc @malfet"
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "seemethere/test-repo"
+    payload_type: "pull_request"
+INFO (event): loadIssue
+    id: "2"
+    key: "seemethere/test-repo"
+INFO (event): loadConfig
+    id: "2"
+    key: "seemethere/test-repo"
+INFO (event):
+    id: "2"
+    subsText: "\nSome header text\n\n* ci/windows @ezyang\n"
+INFO (event):
+    id: "2"
+    parsedIssue: {
+      "ci/windows": [
+        "ezyang"
+      ]
+    }
+INFO (event):
+    id: "2"
+    labels: [
+      "bug",
+      "ci/binary",
+      "ci/bleh",
+      "ci/windows"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: [
+      "ezyang"
+    ]
+INFO (event):
+    id: "2"
+    newBody: "Arf arf\n\ncc @ezyang"
+INFO (event): Commenting with "Closing this pull request!" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "ezyang/testing-ideal-computing-machine"
+    payload_type: "issue"
+INFO (event): loadIssue
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Commenting with "Closing this issue!" for pull request https://github.com/kit1980/deleteme/issues/1#issuecomment-1057427273
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event):
+    id: "2"
+    subsText: "\nSome header text\n\n* testlabel @malfet\n"
+INFO (event):
+    id: "2"
+    parsedIssue: {
+      "testlabel": [
+        "malfet"
+      ]
+    }
+INFO (event):
+    id: "2"
+    labels: [
+      "testlabel"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: [
+      "malfet"
+    ]
+INFO (event): previous cc string
+    id: "2"
+    oldCCString: "cc @moo @foo/bar @mar"
+INFO (event): pre-existing ccs
+    id: "2"
+    prevCC: [
+      "moo",
+      "foo/bar",
+      "mar"
+    ]
+INFO (event):
+    id: "2"
+    newBody: "Arf arf\n\ncc @malfet @moo @foo/bar @mar\nxxxx"
+INFO (event): Started processing
+    id: "2"
+    repo_slug: "ezyang/testing-ideal-computing-machine"
+    payload_type: "issue"
+INFO (event): loadIssue
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): loadConfig
+    id: "2"
+    key: "ezyang/testing-ideal-computing-machine"
+INFO (event): Commenting with "You don't have permissions to close this PR or Issue through pytorchbot since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event):
+    id: "2"
+    subsText: "* module: mkldnn @gujinghui @PenghuiCheng @XiaobingSuper @ezyang"
+INFO (event):
+    id: "2"
+    parsedIssue: {
+      "module: mkldnn": [
+        "gujinghui",
+        "PenghuiCheng",
+        "XiaobingSuper",
+        "ezyang"
+      ]
+    }
+INFO (event):
+    id: "2"
+    labels: [
+      "module: mkldnn"
+    ]
+INFO (event): from subscriptions
+    id: "2"
+    cc: [
+      "gujinghui",
+      "PenghuiCheng",
+      "XiaobingSuper",
+      "ezyang"
+    ]
+INFO (event): Removed self from subscriptions
+    id: "2"
+    author: "ezyang"
+INFO (event): previous cc string
+    id: "2"
+    oldCCString: "cc @ezyang"
+INFO (event): pre-existing ccs
+    id: "2"
+    prevCC: [
+      "ezyang"
+    ]
+INFO (event):
+    id: "2"
+    newBody: "its from master branch, seems related with mklml. any idea?\n\ncc @gujinghui @PenghuiCheng @XiaobingSuper @ezyang"
+INFO (event): Adding label(s) enhancement to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Adding label(s) enhancement to issue https://github.com/kit1980/deleteme/issues/1
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event): Reacting with "+1" to comment https://github.com/kit1980/deleteme/issues/1#issuecomment-1057427273
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event): Commenting with "Didn't find following labels among repository labels: test:111" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Adding label(s) enhancement,good first issue to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): github_user
+    id: "2"
+INFO (event): Commenting with "Can't add following labels to PR: ciflow/trunk. Please ping one of the reviewers for help." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Got existing ID: 0 with body 
+    id: "2"
+INFO (event): Commenting with "<!-- drci-comment-start -->
+
+## :link: Helpful Links
+### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/31](https://hud.pytorch.org/pr/31)
+* :page_facing_up: Preview [Python docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/index.html)
+* :page_facing_up: Preview [C++ docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/cppdocs/index.html)
+* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) or our [office hours](https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours)
+
+Note: Links to docs will display an error until the docs builds have been completed.
+
+
+
+
+This comment was automatically generated by Dr. CI and updates every 15 minutes.
+<!-- drci-comment-end -->" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event): github_user
+    id: "2"
+INFO (event): Got existing ID: 10 with body <!-- drci-comment-start -->
+hello
+<!-- drci-comment-end -->
+
+    id: "2"
+INFO (event):
+    id: "2"
+    body: "<!-- drci-comment-start -->\n\n## :link: Helpful Links\n### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/31](https://hud.pytorch.org/pr/31)\n* :page_facing_up: Preview [Python docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/index.html)\n* :page_facing_up: Preview [C++ docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/cppdocs/index.html)\n* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) or our [office hours](https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours)\n\nNote: Links to docs will display an error until the docs builds have been completed.\n\n\n\n\nThis comment was automatically generated by Dr. CI and updates every 15 minutes.\n<!-- drci-comment-end -->"
+    owner: "pytorch"
+    repo: "pytorch"
+    comment_id: 10
+INFO (event): Updated comment with "<!-- drci-comment-start -->
+
+## :link: Helpful Links
+### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/31](https://hud.pytorch.org/pr/31)
+* :page_facing_up: Preview [Python docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/index.html)
+* :page_facing_up: Preview [C++ docs built from this PR](https://docs-preview.pytorch.org/pytorch/pytorch/31/cppdocs/index.html)
+* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) or our [office hours](https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours)
+
+Note: Links to docs will display an error until the docs builds have been completed.
+
+
+
+
+This comment was automatically generated by Dr. CI and updates every 15 minutes.
+<!-- drci-comment-end -->" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "2"
+INFO (event): Adding label(s) ciflow/trunk to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Pull request 31 to pytorch/pytorch is not open, no comment is made
+    id: "2"
+INFO (event): Pull request 31 to pytorch/torchdynamo is not open, no comment is made
+    id: "2"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "Only people with write access to the repo can add these labels: skip-pr-sanity-check. Please ping one of the reviewers for help." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Adding label(s) skip-pr-sanity-check to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "confused" to comment https://github.com/kit1980/deleteme/issues/1#issuecomment-1057427273
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event): Commenting with "Can't add ciflow labels to an Issue." for pull request https://github.com/kit1980/deleteme/issues/1#issuecomment-1057427273
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event): runBotForPR
+    id: "2"
+    triggerBranch: "test_branch"
+INFO (event): loadConfig
+    id: "2"
+    repoKey: "seemethere/pr-labeled-specific"
+INFO (event): loadConfig
+    id: "2"
+    configObj: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+INFO (event): getAppliedLabels
+    id: "2"
+    appliedLabels: [
+      "ci/binaries",
+      "ci/bleh"
+    ]
+INFO (event): genParametersForPR
+    id: "2"
+    config: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+    appliedLabels: [
+      "ci/binaries",
+      "ci/bleh"
+    ]
+INFO (event): genCircleParametersForPR (default_params)
+    id: "2"
+    parameters: {}
+INFO (event): genCircleParametersForPR setting parameter to true
+    id: "2"
+    parameter: "run_binaries_tests"
+INFO (event): genCircleParametersForPR setting parameter to true
+    id: "2"
+    parameter: "default"
+INFO (event): genCircleParametersForPR setting parameter to true
+    id: "2"
+    parameter: "run_bleh_tests"
+INFO (event): runBot
+    id: "2"
+    config: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+    labels: [
+      "ci/binaries",
+      "ci/bleh"
+    ]
+    parameters: {
+      "run_binaries_tests": true,
+      "default": true,
+      "run_bleh_tests": true
+    }
+INFO (event): triggerCircleCI
+    id: "2"
+    repoKey: "seemethere/pr-labeled-specific"
+    data: {
+      "branch": "test_branch",
+      "parameters": {
+        "run_binaries_tests": true,
+        "default": true,
+        "run_bleh_tests": true
+      }
+    }
+INFO (event): Build triggered successfully for seemethere/pr-labeled-specific
+    id: "2"
+    data: {
+      "branch": "test_branch",
+      "parameters": {
+        "run_binaries_tests": true,
+        "default": true,
+        "run_bleh_tests": true
+      }
+    }
+INFO (event): runBotForPR
+    id: "2"
+    triggerBranch: "pull/1/head"
+INFO (event): loadConfig
+    id: "2"
+    repoKey: "seemethere/pr-labeled-fork-specific"
+INFO (event): loadConfig
+    id: "2"
+    configObj: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+INFO (event): getAppliedLabels
+    id: "2"
+    appliedLabels: [
+      "ci/binaries",
+      "ci/no-default",
+      "ci/bleh"
+    ]
+INFO (event): genParametersForPR
+    id: "2"
+    config: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+    appliedLabels: [
+      "ci/binaries",
+      "ci/no-default",
+      "ci/bleh"
+    ]
+INFO (event): genCircleParametersForPR (default_params)
+    id: "2"
+    parameters: {}
+INFO (event): genCircleParametersForPR setting parameter to true
+    id: "2"
+    parameter: "run_binaries_tests"
+INFO (event): genCircleParametersForPR setting parameter to true
+    id: "2"
+    parameter: "run_bleh_tests"
+INFO (event): runBot
+    id: "2"
+    config: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+    labels: [
+      "ci/binaries",
+      "ci/no-default",
+      "ci/bleh"
+    ]
+    parameters: {
+      "run_binaries_tests": true,
+      "run_bleh_tests": true
+    }
+INFO (event): triggerCircleCI
+    id: "2"
+    repoKey: "seemethere/pr-labeled-fork-specific"
+    data: {
+      "branch": "pull/1/head",
+      "parameters": {
+        "run_binaries_tests": true,
+        "run_bleh_tests": true
+      }
+    }
+INFO (event): Build triggered successfully for seemethere/pr-labeled-fork-specific
+    id: "2"
+    data: {
+      "branch": "pull/1/head",
+      "parameters": {
+        "run_binaries_tests": true,
+        "run_bleh_tests": true
+      }
+    }
+INFO (event): runBotForPush
+    id: "2"
+    rawRef: "refs/heads/nightly"
+    onTag: false
+    ref: "nightly"
+INFO (event): loadConfig
+    id: "2"
+    repoKey: "seemethere/push-nightly"
+INFO (event): loadConfig
+    id: "2"
+    configObj: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+INFO (event): genCircleParametersForPush (default_params)
+    id: "2"
+    parameters: {}
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/binaries"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "nightly",
+        "ci-all/.*"
+      ],
+      "tags": [
+        "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+      ]
+    }
+    refsToMatch: "branches"
+    strippedRef: "nightly"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "nightly"
+INFO (event): genParametersForPush setting parameter to true
+    id: "2"
+    parameter: "run_binaries_tests"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "ci-all/.*"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/default"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "master"
+      ],
+      "pull_request": null
+    }
+    refsToMatch: "branches"
+    strippedRef: "nightly"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "master"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/foo"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/foo"
+INFO (event): runBot
+    id: "2"
+    parameters: {
+      "run_binaries_tests": true
+    }
+INFO (event): triggerCircleCI
+    id: "2"
+    repoKey: "seemethere/push-nightly"
+    data: {
+      "branch": "nightly",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): Build triggered successfully for seemethere/push-nightly
+    id: "2"
+    data: {
+      "branch": "nightly",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): runBotForPush
+    id: "2"
+    rawRef: "refs/heads/ci-all/bleh"
+    onTag: false
+    ref: "ci-all/bleh"
+INFO (event): loadConfig
+    id: "2"
+    repoKey: "seemethere/push-all-bleh"
+INFO (event): loadConfig
+    id: "2"
+    configObj: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+INFO (event): genCircleParametersForPush (default_params)
+    id: "2"
+    parameters: {}
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/binaries"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "nightly",
+        "ci-all/.*"
+      ],
+      "tags": [
+        "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+      ]
+    }
+    refsToMatch: "branches"
+    strippedRef: "ci-all/bleh"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "nightly"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "ci-all/.*"
+INFO (event): genParametersForPush setting parameter to true
+    id: "2"
+    parameter: "run_binaries_tests"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/default"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "master"
+      ],
+      "pull_request": null
+    }
+    refsToMatch: "branches"
+    strippedRef: "ci-all/bleh"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "master"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/foo"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/foo"
+INFO (event): runBot
+    id: "2"
+    parameters: {
+      "run_binaries_tests": true
+    }
+INFO (event): triggerCircleCI
+    id: "2"
+    repoKey: "seemethere/push-all-bleh"
+    data: {
+      "branch": "ci-all/bleh",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): Build triggered successfully for seemethere/push-all-bleh
+    id: "2"
+    data: {
+      "branch": "ci-all/bleh",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): runBotForPush
+    id: "2"
+    rawRef: "refs/tags/v1.5.0-rc1"
+    onTag: true
+    ref: "v1.5.0-rc1"
+INFO (event): loadConfig
+    id: "2"
+    repoKey: "seemethere/push-tag-rc"
+INFO (event): loadConfig
+    id: "2"
+    configObj: {
+      "labels_to_circle_params": {
+        "ci/binaries": {
+          "parameter": "run_binaries_tests",
+          "default_true_on": {
+            "branches": [
+              "nightly",
+              "ci-all/.*"
+            ],
+            "tags": [
+              "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+            ]
+          }
+        },
+        "ci/default": {
+          "parameter": "default",
+          "default_true_on": {
+            "branches": [
+              "master"
+            ],
+            "pull_request": null
+          }
+        },
+        "ci/bleh": {
+          "parameter": "run_bleh_tests"
+        },
+        "ci/foo": {
+          "parameter": "run_foo_tests"
+        }
+      }
+    }
+INFO (event): genCircleParametersForPush (default_params)
+    id: "2"
+    parameters: {}
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/binaries"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "nightly",
+        "ci-all/.*"
+      ],
+      "tags": [
+        "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+      ]
+    }
+    refsToMatch: "tags"
+    strippedRef: "v1.5.0-rc1"
+INFO (event): genParametersForPush
+    id: "2"
+    pattern: "v[0-9]+(.[0-9]+)*-rc[0-9]+"
+INFO (event): genParametersForPush setting parameter to true
+    id: "2"
+    parameter: "run_binaries_tests"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/default"
+INFO (event):
+    id: "2"
+    defaultTrueOn: {
+      "branches": [
+        "master"
+      ],
+      "pull_request": null
+    }
+    refsToMatch: "tags"
+    strippedRef: "v1.5.0-rc1"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/bleh"
+INFO (event): genParametersForPush
+    id: "2"
+    label: "ci/foo"
+INFO (event): genParametersForPush (no default_true_on found)
+    id: "2"
+    label: "ci/foo"
+INFO (event): runBot
+    id: "2"
+    parameters: {
+      "run_binaries_tests": true
+    }
+INFO (event): triggerCircleCI
+    id: "2"
+    repoKey: "seemethere/push-tag-rc"
+    data: {
+      "tag": "v1.5.0-rc1",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): Build triggered successfully for seemethere/push-tag-rc
+    id: "2"
+    data: {
+      "tag": "v1.5.0-rc1",
+      "parameters": {
+        "run_binaries_tests": true
+      }
+    }
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "confused" to comment https://github.com/kit1980/deleteme/issues/1#issuecomment-1057427273
+    id: "e0352010-9a72-11ec-925e-51603276483e"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Adding label(s) ciflow/trunk to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Adding label(s) ciflow/trunk to issue https://github.com/zhouzhuojie/gha-ci-playground/pull/31
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Commenting with "Pull workflow has not been scheduled for the PR yet. It could be because author doesn't have permissions to run those or skip-checks keywords were added to PR/commits, aborting merge.  Please get/give approval for the workflows and/or remove skip ci decorators before next merge attempt.  If you think this is a mistake, please contact PyTorch Dev Infra." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot merge: error: argument -f/--force: expected one argument
+
+usage: @pytorchbot merge [-f MESSAGE | -i] [-ic] [-r [{viable/strict,main}]]
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "You are not authorized to force merges to this repository. Please use the regular `@pytorchmergebot merge` command instead" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "You need to provide a reason for using force merge, in the format @pytorchbot merge -f 'Explanation'.
+The explanation needs to be clear on why this is needed. Here are some good examples:
+* Bypass checks due to unrelated upstream failures from ...
+* This is a minor fix to ..., which shouldn't break anything
+* This is pre-tested in a previous CI run
+* Bypass flaky ... check" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "You need to provide a reason for using force merge, in the format @pytorchbot merge -f 'Explanation'.
+The explanation needs to be clear on why this is needed. Here are some good examples:
+* Bypass checks due to unrelated upstream failures from ...
+* This is a minor fix to ..., which shouldn't break anything
+* This is pre-tested in a previous CI run
+* Bypass flaky ... check" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "`-i` flag is only allowed for users with write permissions" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "`-ic` flag is deprecated, please use `-i` instead for the same effect." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot: error: unrecognized arguments: this
+
+usage: @pytorchbot [-h] {merge,revert,rebase,label,drci,cherry-pick,close} ...
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot revert: error: the following arguments are required: -m/--message, -c/--classification
+
+usage: @pytorchbot revert -m MESSAGE -c
+                          {nosignal,ignoredsignal,landrace,weird,ghfirst}
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-revert" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-revert" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-rebase" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-rebase" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-rebase" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot merge: error: argument -f/--force: not allowed with argument -i/--ignore-current
+
+usage: @pytorchbot merge [-f MESSAGE | -i] [-ic] [-r [{viable/strict,main}]]
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot merge: error: argument -f/--force: expected one argument
+
+usage: @pytorchbot merge [-f MESSAGE | -i] [-ic] [-r [{viable/strict,main}]]
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot rebase: error: argument -s/--stable: not allowed with argument -b/--branch
+
+usage: @pytorchbot rebase [-s | -b BRANCH]
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "You don't have permissions to rebase this PR since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-rebase" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+    key: "pytorch/deleteme"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/kit1980/deleteme/pull/4
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+INFO (event): Commenting with "+1" for pull request https://github.com/kit1980/deleteme/pull/4
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+INFO (event): Creating dispatch event of type "try-revert" for comment https://github.com/kit1980/deleteme/pull/4
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+INFO (event): Commenting with "+1" for pull request https://github.com/kit1980/deleteme/pull/4
+    id: "5d00ee30-9b4a-11ec-9207-5bf5863ba65e"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Commenting with "You don't have permissions to rebase this PR since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "zhouzhuojie/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "❌ 🤖 pytorchbot command failed: 
+```
+@pytorchbot merge: error: argument -r/--rebase: invalid choice: 'something' (choose from 'viable/strict', 'main')
+
+usage: @pytorchbot merge [-f MESSAGE | -i] [-ic] [-r [{viable/strict,main}]]
+```
+Try `@pytorchbot --help` for more info." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "
+# PyTorchBot Help
+```
+usage: @pytorchbot [-h] {merge,revert,rebase,label,drci,cherry-pick,close} ...
+
+In order to invoke the bot on your PR, include a line that starts with
+@pytorchbot anywhere in a comment. That line will form the command; no
+multi-line commands are allowed. Some commands may be used on issues as specified below.
+
+Example:
+    Some extra context, blah blah, wow this PR looks awesome
+
+    @pytorchbot merge
+
+optional arguments:
+  -h, --help            Show this help message and exit.
+
+command:
+  {merge,revert,rebase,label,drci,cherry-pick,close}
+    merge               Merge a PR
+    revert              Revert a PR
+    rebase              Rebase a PR
+    label               Add label to a PR
+    drci                Update Dr. CI
+    cherry-pick         Cherry pick a PR onto a release branch
+    close               Close a PR
+```
+## Merge
+```
+usage: @pytorchbot merge [-f MESSAGE | -i] [-ic] [-r [{viable/strict,main}]]
+
+Merge an accepted PR, subject to the rules in .github/merge_rules.json.
+By default, this will wait for all required checks (lint, pull) to succeed before merging.
+
+optional arguments:
+  -f MESSAGE, --force MESSAGE
+                        Merge without checking anything. This requires a reason for auditting purpose, for example:
+                        @pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'
+                        
+                        Please use `-f` as last resort, prefer `--ignore-current` to continue the merge ignoring current failures. This will allow currently pending tests to finish and report signal before the merge.
+  -i, --ignore-current  Merge while ignoring the currently failing jobs.  Behaves like -f if there are no pending jobs.
+  -ic                   Old flag for --ignore-current. Deprecated in favor of -i.
+  -r [{viable/strict,main}], --rebase [{viable/strict,main}]
+                        Rebase the PR to re run checks before merging.  Accepts viable/strict or main as branch options and will default to viable/strict if not specified.
+```
+## Revert
+```
+usage: @pytorchbot revert -m MESSAGE -c
+                          {nosignal,ignoredsignal,landrace,weird,ghfirst}
+
+Revert a merged PR. This requires that you are a Meta employee.
+
+Example:
+  @pytorchbot revert -m="This is breaking tests on trunk. hud.pytorch.org/" -c=nosignal
+
+optional arguments:
+  -m MESSAGE, --message MESSAGE
+                        The reason you are reverting, will be put in the commit message. Must be longer than 3 words.
+  -c {nosignal,ignoredsignal,landrace,weird,ghfirst}, --classification {nosignal,ignoredsignal,landrace,weird,ghfirst}
+                        A machine-friendly classification of the revert reason.
+```
+## Rebase
+```
+usage: @pytorchbot rebase [-s | -b BRANCH]
+
+Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch.
+Repeat contributor may use this command to rebase their PR.
+
+optional arguments:
+  -s, --stable          [DEPRECATED] Rebase onto viable/strict
+  -b BRANCH, --branch BRANCH
+                        Branch you would like to rebase to
+```
+## Label
+```
+usage: @pytorchbot label labels [labels ...]
+
+Adds label to a PR or Issue [Can be used on Issues]
+
+positional arguments:
+  labels  Labels to add to given Pull Request or Issue [Can be used on Issues]
+```
+## Dr CI
+```
+usage: @pytorchbot drci 
+
+Update Dr. CI. Updates the Dr. CI comment on the PR in case it's gotten out of sync with actual CI results.
+```
+## cherry-pick
+```
+usage: @pytorchbot cherry-pick --onto ONTO [--fixes FIXES] -c
+                               {regression,critical,fixnewfeature,docs,release}
+
+Cherry pick a pull request onto a release branch for inclusion in a release
+
+optional arguments:
+  --onto ONTO           Branch you would like to cherry pick onto (Example: release/2.1)
+  --fixes FIXES         Link to the issue that your PR fixes (Example: https://github.com/pytorch/pytorch/issues/110666)
+  -c {regression,critical,fixnewfeature,docs,release}, --classification {regression,critical,fixnewfeature,docs,release}
+                        A machine-friendly classification of the cherry-pick reason.
+```
+## Close
+usage: @pytorchbot close
+
+Close a PR [Can be used on issues]
+
+" for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-revert" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Creating dispatch event of type "try-revert" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "This PR needs to be approved by an authorized maintainer before merge." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Creating dispatch event of type "try-merge" for comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "+1" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "This PR needs to be approved by an authorized maintainer before merge." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Could not find any reviews for PR
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "This PR needs to be approved by an authorized maintainer before merge." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/gha-ci-playground"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "This PR needs to be approved by an authorized maintainer before merge." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "Mergebot is not configured for this repository. Please use the merge button provided by GitHub." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "Mergebot is not configured for this repository. Please use the merge button provided by GitHub." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): loadConfig
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+    key: "pytorch/pytorch"
+INFO (event): Reacting with "confused" to comment https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+INFO (event): Commenting with "Mergebot is not configured for this repository. Please use the merge button provided by GitHub." for pull request https://github.com/zhouzhuojie/gha-ci-playground/pull/31#issuecomment-890173751
+    id: "7835ed00-f180-11eb-9c94-b7c265ade873"
+Done in 8.29s.
