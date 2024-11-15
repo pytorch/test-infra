@@ -379,6 +379,72 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
     general_adapter(table, bucket, key, schema, ["none"], "CSV")
 
 
+def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
+    schema = """
+    `timestamp` UInt64,
+    `schema_version` String DEFAULT 'v3',
+    `name` String,
+    `repo` String DEFAULT 'pytorch/pytorch',
+    `head_branch` String,
+    `head_sha` String,
+    `workflow_id` UInt64,
+    `run_attempt` UInt32,
+    `job_id` UInt64,
+    `servicelab_experiment_id` UInt64 DEFAULT '0',
+    `servicelab_trial_id` UInt64 DEFAULT '0',
+    `s3_path` String,
+    `runners` Array(
+        Tuple(
+            name String,
+            type String,
+            cpu_info String,
+            cpu_count UInt32,
+            mem_info String,
+            avail_mem_in_gb UInt32,
+            gpu_info String,
+            gpu_count UInt32,
+            gpu_mem_info String,
+            avail_gpu_mem_in_gb UInt32,
+            extra_info Map(String, String)
+        )
+    ),
+    `benchmark` Tuple(
+        name String,
+        mode String,
+        dtype String,
+        extra_info Map(String, String)
+    ),
+    `model` Tuple (
+        name String,
+        type String,
+        backend String,
+        origins Array(String),
+        extra_info Map(String, String)
+    ),
+    `inputs` Map(
+        String,
+        Tuple(dtype String, extra_info Map(String, String))
+    ),
+    `dependencies` Map(
+        String,
+        Tuple(
+            `repo` String,
+            `branch` String,
+            `sha` String,
+            `version` String,
+            extra_info Map(String, String)
+        )
+    ),
+    `metric` Tuple(
+        name String,
+        benchmark_values Array(Float32),
+        target_value Float32,
+        extra_info Map(String, String)
+    ),
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
     `environ` String,
@@ -434,6 +500,7 @@ SUPPORTED_PATHS = {
     "torchbench-userbenchmark": "benchmark.torchbench_userbenchmark",
     "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
     "stable_pushes": "misc.stable_pushes",
+    "v3": "benchmark.oss_ci_benchmark_v3",
 }
 
 OBJECT_CONVERTER = {
@@ -450,6 +517,7 @@ OBJECT_CONVERTER = {
     "benchmark.torchbench_userbenchmark": torchbench_userbenchmark_adapter,
     "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
     "misc.stable_pushes": stable_pushes_adapter,
+    "benchmark.oss_ci_benchmark_v3": oss_ci_benchmark_v3_adapter,
 }
 
 
