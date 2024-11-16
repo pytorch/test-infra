@@ -382,17 +382,16 @@ def torchao_perf_stats_adapter(table, bucket, key) -> None:
 def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
     schema = """
     `timestamp` UInt64,
-    `schema_version` String DEFAULT 'v3',
+    `schema_version` String,
     `name` String,
-    `repo` String DEFAULT 'pytorch/pytorch',
+    `repo` String,
     `head_branch` String,
     `head_sha` String,
     `workflow_id` UInt64,
     `run_attempt` UInt32,
     `job_id` UInt64,
-    `servicelab_experiment_id` UInt64 DEFAULT '0',
-    `servicelab_trial_id` UInt64 DEFAULT '0',
-    `s3_path` String,
+    `servicelab_experiment_id` UInt64,
+    `servicelab_trial_id` UInt64,
     `runners` Array(
         Tuple(
             name String,
@@ -440,7 +439,7 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
         benchmark_values Array(Float32),
         target_value Float32,
         extra_info Map(String, String)
-    ),
+    )
     """
     general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
