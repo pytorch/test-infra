@@ -441,7 +441,7 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
         extra_info Map(String, String)
     )
     """
-    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
