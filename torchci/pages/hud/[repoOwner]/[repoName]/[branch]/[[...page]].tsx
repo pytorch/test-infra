@@ -308,7 +308,7 @@ function GroupFilterableHudTable({
   const headerNames = groupNames;
   const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
-    <>
+    <div>
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
@@ -336,6 +336,7 @@ function GroupFilterableHudTable({
         labelText={"Condense LF jobs"}
       />
       <MonsterFailuresCheckbox />
+      <div style={{ height: "50px" }}></div>
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}
@@ -351,7 +352,7 @@ function GroupFilterableHudTable({
         />
         {children}
       </table>
-    </>
+    </div>
   );
 }
 

@@ -24,6 +24,7 @@
 }
 
 .skipped {
+  font-size: 0.8em;
   color: grey;
 }
 
@@ -56,9 +57,23 @@
 }
 
 .flaky {
-  color: lightgreen;
+  font-size: 1.3em;
+  color: mediumseagreen;
 }
 
 .warning {
-  color: #f8b88b;
+  font-size: 1.3em;
+  color: lightpink;
+}
+
+.blink {
+  animation: rotate 2s linear infinite;
+}
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
