@@ -15,6 +15,7 @@ where
     and rc.gpu in {selectedGPU: Array(UInt8)}
     and rc.os in {selectedPlatforms: Array(String)}
     and rc.provider in {selectedProviders: Array(String)}
+    and rc.owning_account in {selectedOwners: Array(String)}
 group by
     granularity_bucket,
     runner_type

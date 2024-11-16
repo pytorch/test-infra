@@ -98,7 +98,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
@@ -111,7 +111,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}

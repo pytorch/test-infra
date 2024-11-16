@@ -9,7 +9,6 @@ import {
   formDrciSevBody,
   getActiveSEVs,
   HUD_URL,
-  isMergeBlockingSev,
   OH_URL,
 } from "lib/drciUtils";
 import * as fetchPR from "lib/fetchPR";
@@ -266,6 +265,7 @@ const sev: IssueData = {
   body: "random stuff",
   updated_at: dayjs().toString(),
   author_association: "MEMBER",
+  labels: [],
 };
 
 const mergeBlockingSev: IssueData = {
@@ -273,9 +273,10 @@ const mergeBlockingSev: IssueData = {
   title: "Linux CUDA builds are failing due to missing deps",
   html_url: "https://github.com/pytorch/pytorch/issues/74967",
   state: "open",
-  body: "**merge blocking**",
+  body: "",
   updated_at: dayjs().toString(),
   author_association: "MEMBER",
+  labels: ["merge blocking"],
 };
 
 const notMergeBlockingSev: IssueData = {
@@ -283,9 +284,10 @@ const notMergeBlockingSev: IssueData = {
   title: "Linux CUDA builds are failing due to missing deps",
   html_url: "https://github.com/pytorch/pytorch/issues/74967",
   state: "open",
-  body: " <!-- **merge blocking** -->",
+  body: "not merge blocking",
   updated_at: dayjs().toString(),
   author_association: "MEMBER",
+  labels: [],
 };
 
 const closedSev: IssueData = {
@@ -296,6 +298,7 @@ const closedSev: IssueData = {
   body: "random stuff",
   updated_at: dayjs().toString(),
   author_association: "MEMBER",
+  labels: [],
 };
 
 function constructResultsCommentHelper({
@@ -492,72 +495,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(formDrciSevBody(getActiveSEVs([closedSev])) === "").toBeTruthy();
   });
 
-  function createIssueData(body: string): IssueData {
-    return {
-      number: 1,
-      title: "Test Issue",
-      html_url: "https://example.com",
-      state: "open",
-      body: body,
-      updated_at: "2023-10-10T10:00:00Z",
-      author_association: "MEMBER",
-    };
-  }
-
-  test("should correctly identify merge blocking issues", () => {
-    expect(isMergeBlockingSev(createIssueData("**merge blocking**"))).toBe(
-      true
-    );
-    expect(
-      isMergeBlockingSev(createIssueData("<!-- **merge blocking** -->"))
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(createIssueData("This is a merge blocking issue."))
-    ).toBe(true);
-    expect(
-      isMergeBlockingSev(
-        createIssueData(
-          "Some text before **merge blocking** and some text after."
-        )
-      )
-    ).toBe(true);
-    expect(
-      isMergeBlockingSev(
-        createIssueData(
-          "Some text before <!-- **merge blocking** --> and some text after."
-        )
-      )
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(createIssueData("Line 1\n**merge blocking**\nLine 3"))
-    ).toBe(true);
-    expect(
-      isMergeBlockingSev(
-        createIssueData("Line 1\n<!-- **merge blocking** -->\nLine 3")
-      )
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(
-        createIssueData("Line 1\n<!--\n **merge blocking** -->\nLine 4")
-      )
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(
-        createIssueData("Line 1\n<!--\nLine 2 merge blocking** -->\nLine 4")
-      )
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(
-        createIssueData("<!-- **merge blocking** <!-- --> -->")
-      )
-    ).toBe(false);
-    expect(
-      isMergeBlockingSev(
-        createIssueData("<!-- test --> **merge blocking**  <!-- test2 -->")
-      )
-    ).toBe(true);
-  });
-
   test("test form dr ci comment with sevs", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
@@ -667,6 +604,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         body: "",
         updated_at: "2024-04-24 00:44:19",
         author_association: "CONTRIBUTOR",
+        labels: [],
       },
     ];
     const pr_1001 = workflowsByPR.get(1001)!;

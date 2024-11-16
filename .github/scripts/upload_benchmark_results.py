@@ -13,9 +13,11 @@ import os
 import time
 from argparse import Action, ArgumentParser, Namespace
 from decimal import Decimal
+from json.decoder import JSONDecodeError
 
 from logging import info
 from typing import Any, Callable, Dict, List, Optional
+from warnings import warn
 
 import boto3
 
@@ -40,6 +42,57 @@ class ValidateDir(Action):
         parser.error(f"{values} is not a valid directory")
 
 
+class ValidateMetadata(Action):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
+        try:
+            decoded_values = json.loads(values)
+        except JSONDecodeError:
+            parser.error(f"{values} is not a valid JSON")
+            return
+
+        if all(
+            k in decoded_values
+            for k in (
+                "timestamp",
+                "schema_version",
+                "name",
+                "repo",
+                "head_branch",
+                "head_sha",
+                "workflow_id",
+                "run_attempt",
+                "job_id",
+            )
+        ):
+            setattr(namespace, self.dest, decoded_values)
+            return
+
+        parser.error(f"{values} is not a valid benchmark metadata")
+
+
+class ValidateJSON(Action):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
+        try:
+            decoded_values = json.loads(values)
+        except JSONDecodeError:
+            parser.error(f"{values} is not a valid JSON")
+            return
+
+        setattr(namespace, self.dest, decoded_values)
+
+
 def parse_args() -> Any:
     from argparse import ArgumentParser
 
@@ -61,12 +114,26 @@ def parse_args() -> Any:
         default="torchci-oss-ci-benchmark",
         help="the name of the DynamoDB table to upload to",
     )
-    # v3 is defined at torchci/clickhouse_queries/oss_ci_benchmark_v3/query.sql
     parser.add_argument(
-        "--schema-version",
-        choices=["v2", "v3"],
+        "--metadata",
+        type=str,
         required=True,
-        help="the database schema to use",
+        action=ValidateMetadata,
+        help="the metadata to use in JSON format",
+    )
+    parser.add_argument(
+        "--runners",
+        type=str,
+        default=json.dumps([]),
+        action=ValidateJSON,
+        help="the information about the benchmark runners in JSON format",
+    )
+    parser.add_argument(
+        "--dependencies",
+        type=str,
+        default=json.dumps({}),
+        action=ValidateJSON,
+        help="the information about the benchmark dependencies in JSON format",
     )
 
     return parser.parse_args()
@@ -116,34 +183,73 @@ def upload_to_dynamodb(
                 batch.put_item(Item=doc)
 
 
-def generate_s3_path(filepath: str, schema_version: str) -> Optional[str]:
+def process_benchmark_results(
+    filepath: str,
+    metadata: Dict[str, Any],
+    runners: List[Any],
+    dependencies: Dict[str, Any],
+) -> List[Dict[str, Any]]:
     with open(filepath) as f:
-        docs = json.load(f)
+        try:
+            benchmark_results = json.load(f)
+        except JSONDecodeError:
+            warn(f"Invalid JSON file {filepath}, skipping")
+            return []
 
-        if not docs:
-            info(f"{filepath} is empty")
-            return ""
+    if not isinstance(benchmark_results, (list, tuple)):
+        return []
 
-        for doc in docs:
-            repo = doc.get("repo", "")
-            workflow_id = doc.get("workflow_id", 0)
-            job_id = doc.get("job_id", 0)
-            servicelab_experiment_id = doc.get("servicelab_experiment_id", 0)
-            servicelab_trial_id = doc.get("servicelab_trial_id", 0)
+    processed_benchmark_results: List[Dict[str, Any]] = []
+    for result in benchmark_results:
+        # This is a required field
+        if "metric" not in result:
+            warn(f"{result} is not a benchmark record, skipping")
+            continue
 
-            # Also handle service lab records here
-            workflow_id = workflow_id if workflow_id else servicelab_experiment_id
-            job_id = job_id if job_id else servicelab_trial_id
+        record: Dict[str, Any] = {**metadata, **result}
+        # Gather all the information about the benchmark
+        if "runners" not in record:
+            record["runners"] = runners
+        if "dependencies" not in record:
+            record["dependencies"] = dependencies
 
-            # We just need one record here to get some metadata to generate the s3 path
-            if repo and workflow_id and job_id:
-                break
+        processed_benchmark_results.append(record)
+    return processed_benchmark_results
 
-        if not repo or not workflow_id or not job_id:
-            info(
-                f"{filepath} is without any information about the repo, workflow, or job id"
-            )
-            return ""
+
+def generate_s3_path(
+    benchmark_results: List[Dict[str, Any]], filepath: str, schema_version: str
+) -> Optional[str]:
+    if not benchmark_results:
+        return None
+
+    repo = ""
+    workflow_id = 0
+    job_id = 0
+
+    for result in benchmark_results:
+        repo = result.get("repo", "")
+        if not repo:
+            continue
+
+        workflow_id = result.get("workflow_id", 0)
+        job_id = result.get("job_id", 0)
+        servicelab_experiment_id = result.get("servicelab_experiment_id", 0)
+        servicelab_trial_id = result.get("servicelab_trial_id", 0)
+
+        # Also handle service lab records here
+        workflow_id = workflow_id if workflow_id else servicelab_experiment_id
+        job_id = job_id if job_id else servicelab_trial_id
+
+        # We just need one record here to get some metadata to generate the s3 path
+        if workflow_id and job_id:
+            break
+
+    if not repo or not workflow_id or not job_id:
+        info(
+            "The result is without any information about the repo, workflow, or job id"
+        )
+        return None
 
     filename = os.path.basename(filepath)
     return f"{schema_version}/{repo}/{workflow_id}/{job_id}/{filename}"
@@ -153,39 +259,44 @@ def upload_to_s3(
     s3_bucket: str,
     filepath: str,
     schema_version: str,
+    benchmark_results: List[Dict[str, Any]],
     dry_run: bool = True,
 ) -> None:
     """
     Upload the benchmark results to S3
     """
-    s3_path = generate_s3_path(filepath, schema_version)
+    s3_path = generate_s3_path(benchmark_results, filepath, schema_version)
     if not s3_path:
         info(f"Could not generate an S3 path for {filepath}, skipping...")
         return
 
+    # Populate the path to S3
+    for result in benchmark_results:
+        result["s3_path"] = s3_path
+
     info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
     if not dry_run:
-        # Copied from upload stats script
-        with open(filepath) as f:
-            boto3.resource("s3").Object(
-                f"{s3_bucket}",
-                f"{s3_path}",
-            ).put(
-                Body=gzip.compress(f.read().encode()),
-                ContentEncoding="gzip",
-                ContentType="application/json",
-            )
+        # Write in JSONEachRow format
+        data = "\n".join([json.dumps(result) for result in benchmark_results])
+        boto3.resource("s3").Object(
+            f"{s3_bucket}",
+            f"{s3_path}",
+        ).put(
+            Body=gzip.compress(data.encode()),
+            ContentEncoding="gzip",
+            ContentType="application/json",
+        )
 
 
 def main() -> None:
     args = parse_args()
-    schema_version = args.schema_version
 
     for file in os.listdir(args.benchmark_results_dir):
         if not file.endswith(".json"):
             continue
 
         filepath = os.path.join(args.benchmark_results_dir, file)
+        schema_version = args.metadata["schema_version"]
 
         # NB: This is for backward compatibility before we move to schema v3
         if schema_version == "v2":
@@ -199,10 +310,21 @@ def main() -> None:
                     dry_run=args.dry_run,
                 )
 
+        benchmark_results = process_benchmark_results(
+            filepath=filepath,
+            metadata=args.metadata,
+            runners=args.runners,
+            dependencies=args.dependencies,
+        )
+
+        if not benchmark_results:
+            return
+
         upload_to_s3(
             s3_bucket=OSSCI_BENCHMARKS_BUCKET,
             filepath=filepath,
             schema_version=schema_version,
+            benchmark_results=benchmark_results,
             dry_run=args.dry_run,
         )
 

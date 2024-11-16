@@ -224,3 +224,27 @@ runner_types:
     instance_type: g5.4xlarge
     is_ephemeral: false
     os: windows
+  lf.linux.2xlarge.memory:
+    disk_size: 200
+    instance_type: r5.2xlarge
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
+  lf.linux.4xlarge.memory:
+    disk_size: 300
+    instance_type: r5.4xlarge
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
+  lf.linux.8xlarge.memory:
+    disk_size: 400
+    instance_type: r5.8xlarge
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
+  lf.linux.12xlarge.memory:
+    disk_size: 600
+    instance_type: r5.12xlarge
+    is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64

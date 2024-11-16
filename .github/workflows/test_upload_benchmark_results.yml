@@ -11,7 +11,7 @@ jobs:
   test:
     runs-on: linux.2xlarge
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Test upload the benchmark results (v2)
         uses: ./.github/actions/upload-benchmark-results
@@ -26,3 +26,4 @@ jobs:
           benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing/v3
           schema-version: v3
           dry-run: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}

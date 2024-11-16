@@ -28,7 +28,7 @@ jobs:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
           aws-region: us-east-1
       - name: Checkout repository test-infra
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: pytorch/test-infra
           ref: ${{ github.ref }}

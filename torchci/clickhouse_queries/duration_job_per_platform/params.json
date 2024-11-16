@@ -5,5 +5,6 @@
   "selectedRepos": "Array(String)",
   "selectedGPU": "Array(UInt8)",
   "selectedPlatforms": "Array(String)",
-  "selectedProviders": "Array(String)"
+  "selectedProviders": "Array(String)",
+  "selectedOwners": "Array(String)"
 }

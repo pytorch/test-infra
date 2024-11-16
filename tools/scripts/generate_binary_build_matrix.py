@@ -25,7 +25,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.4"],
+    "nightly": ["11.8", "12.4", "12.6"],
     "test": ["11.8", "12.1", "12.4"],
     "release": ["11.8", "12.1", "12.4"],
 }
@@ -161,7 +161,8 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         },
         CPU: "pytorch/manylinux2_28-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
-        CPU_AARCH64: "pytorch/manylinuxaarch64-builder:cpu-aarch64",
+        # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
+        CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
     }
     CONDA_CONTAINER_IMAGES = {
@@ -495,6 +496,7 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+
     if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64 or os == LINUX_AARCH64):
         python_versions += ["3.13"]
 
@@ -515,6 +517,9 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os == LINUX or os == WINDOWS:
                 arches += CUDA_ARCHES
+            # todo: remove once windows cuda 12.6 binaries are available
+            if channel == NIGHTLY and os != LINUX:
+                arches.remove("12.6")
 
         if with_rocm == ENABLE:
             if os == LINUX:
