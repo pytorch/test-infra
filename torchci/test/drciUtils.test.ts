@@ -17,7 +17,7 @@ import {
 } from "../lib/drciUtils";
 import * as jobUtils from "../lib/jobUtils";
 import * as searchUtils from "../lib/searchUtils";
-import { getDummyJob } from "./drci.test";
+import { getDummyJob } from "./utils";
 
 nock.disableNetConnect();
 

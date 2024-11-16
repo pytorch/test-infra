@@ -17,39 +17,9 @@ import { removeJobNameSuffix } from "lib/jobUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
-import { genIssueData } from "./utils";
+import { genIssueData, getDummyJob } from "./utils";
 
 nock.disableNetConnect();
-
-export function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
-  // Use this function to create a dummy job with default values
-  if (
-    (nonDefaultInputs.conclusion == "failure" ||
-      nonDefaultInputs.conclusion == "cancelled") &&
-    !nonDefaultInputs.hasOwnProperty("failure_captures")
-  ) {
-    nonDefaultInputs.failure_captures = ["a"];
-  }
-  return {
-    workflowUniqueId: 1,
-    jobName: "dummy job name",
-    name: "dummy name",
-    id: 1,
-    workflowId: 1,
-    completed_at: "2022-07-13 19:34:03",
-    html_url: "abcdefg",
-    head_sha: "abcdefg",
-    head_sha_timestamp: TIME_0,
-    pr_number: 1001,
-    conclusion: "success",
-    failure_captures: [],
-    failure_lines: [],
-    failure_context: [],
-    runnerName: "dummyRunnerName",
-    head_branch: "dummyHeadBranch",
-    ...nonDefaultInputs,
-  };
-}
 
 export const successfulA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",

@@ -14,8 +14,7 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "../lib/jobUtils";
-import { getDummyJob } from "./drci.test";
-import { genIssueData } from "./utils";
+import { genIssueData, getDummyJob } from "./utils";
 
 nock.disableNetConnect();
 

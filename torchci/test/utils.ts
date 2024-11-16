@@ -1,4 +1,5 @@
-import { IssueData } from "lib/types";
+import { TIME_0 } from "lib/bot/utils";
+import { IssueData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import { Octokit } from "octokit";
 import { Probot, ProbotOctokit } from "probot";
@@ -151,6 +152,36 @@ export function genIssueData(
     updated_at: "1899-07-13 19:34:03",
     author_association: "MEMBER",
     labels: [],
+    ...nonDefaultInputs,
+  };
+}
+
+export function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
+  // Use this function to create a dummy job with default values
+  if (
+    (nonDefaultInputs.conclusion == "failure" ||
+      nonDefaultInputs.conclusion == "cancelled") &&
+    !nonDefaultInputs.hasOwnProperty("failure_captures")
+  ) {
+    nonDefaultInputs.failure_captures = ["a"];
+  }
+  return {
+    workflowUniqueId: 1,
+    jobName: "dummy job name",
+    name: "dummy name",
+    id: 1,
+    workflowId: 1,
+    completed_at: "2022-07-13 19:34:03",
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    head_sha_timestamp: TIME_0,
+    pr_number: 1001,
+    conclusion: "success",
+    failure_captures: [],
+    failure_lines: [],
+    failure_context: [],
+    runnerName: "dummyRunnerName",
+    head_branch: "dummyHeadBranch",
     ...nonDefaultInputs,
   };
 }
