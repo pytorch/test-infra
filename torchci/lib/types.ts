@@ -94,6 +94,8 @@ export interface RowData extends RowDataBase {
   nameToJobs: Map<string, JobData>;
 }
 
+// Returned by the API instead of the above type because it results in a smaller
+// response size
 export interface RowDataAPIResponse extends RowDataBase {
   jobs: JobData[];
 }
