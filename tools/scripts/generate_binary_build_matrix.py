@@ -517,9 +517,9 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os == LINUX or os == WINDOWS:
                 arches += CUDA_ARCHES
-            # todo: remove once windows cuda 12.6 binaries are available
-            if channel == NIGHTLY and os != LINUX:
-                arches.remove("12.6")
+                # todo: remove once windows cuda 12.6 binaries are available
+                if channel == NIGHTLY and os == WINDOWS:
+                    arches.remove("12.6")
 
         if with_rocm == ENABLE:
             if os == LINUX:
