@@ -31,7 +31,7 @@ export default function useTableFilter(params: HudParams) {
       };
     }
   }, [router, params, pinnedId.sha]);
-  const handleInput = useCallback(
+  const handleSubmit = useCallback(
     (f: any) => {
       setJobFilter(f);
       router.push(
@@ -47,7 +47,6 @@ export default function useTableFilter(params: HudParams) {
     },
     [params, router]
   );
-  const handleSubmit = () => {};
 
   // We have to use an effect hook here because query params are undefined at
   // static generation time; they only become available after hydration.
@@ -56,5 +55,5 @@ export default function useTableFilter(params: HudParams) {
     setJobFilter(filterValue);
   }, [router.query.name_filter]);
 
-  return { jobFilter, handleSubmit, handleInput, normalizedJobFilter };
+  return { jobFilter, handleSubmit, normalizedJobFilter };
 }

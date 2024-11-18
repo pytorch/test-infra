@@ -2,7 +2,7 @@ import { useCHContext } from "components/UseClickhouseProvider";
 import useSWR from "swr";
 import {
   formatHudUrlForFetch,
-  HudData,
+  HudDataAPIResponse,
   HudParams,
   JobData,
   RowData,
@@ -10,9 +10,9 @@ import {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function useHudData(params: HudParams): HudData | undefined {
+export default function useHudData(params: HudParams): RowData[] | undefined {
   const { useCH } = useCHContext();
-  const { data } = useSWR(
+  let { data } = useSWR<HudDataAPIResponse>(
     formatHudUrlForFetch("api/hud", { ...params, use_ch: useCH }),
     fetcher,
     {
@@ -23,21 +23,28 @@ export default function useHudData(params: HudParams): HudData | undefined {
     }
   );
 
-  // Add job name info back into the data (it was stripped out as technically it's redundant)
   if (data === undefined) {
     return data;
   }
-  data.shaGrid.forEach((row: RowData) => {
+
+  // Add job name info back into the data (it was stripped out as technically it's redundant)
+  data.shaGrid.forEach((row) => {
     row.jobs.forEach((job: JobData, index: number) => {
-      job.name = data.jobNames[index];
+      job.name = data?.jobNames[index]; // It's not undefined but tsc is complaining
     });
   });
 
-  data.shaGrid.forEach((row: RowData) => {
-    row.nameToJobs =
+  const newShaGrid = data.shaGrid.map((row) => {
+    let unCondensedRow: RowData = {
+      ...row,
+      nameToJobs: new Map<string, JobData>(),
+    };
+    unCondensedRow.nameToJobs =
       row.jobs.reduce((map, obj) => (map.set(obj.name, obj), map), new Map()) ??
       new Map();
+    // @ts-ignore - jobs should not be there but is because of the ... during init
+    delete unCondensedRow.jobs;
+    return unCondensedRow;
   });
-
-  return data;
+  return newShaGrid;
 }

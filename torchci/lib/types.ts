@@ -85,16 +85,21 @@ export interface Highlight {
   name?: string;
 }
 
-export interface RowData extends CommitData {
-  jobs: JobData[];
-  groupedJobs?: Map<string, GroupData>;
+interface RowDataBase extends CommitData {
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
-  nameToJobs?: Map<string, JobData>;
 }
 
-export interface HudData {
-  shaGrid: RowData[];
+export interface RowData extends RowDataBase {
+  nameToJobs: Map<string, JobData>;
+}
+
+export interface RowDataAPIResponse extends RowDataBase {
+  jobs: JobData[];
+}
+
+export interface HudDataAPIResponse {
+  shaGrid: RowDataAPIResponse[];
   jobNames: string[];
 }
 

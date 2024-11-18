@@ -1,6 +1,9 @@
 import styles from "components/hud.module.css";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
-import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import {
+  GroupingContext,
+  PinnedTooltipContext,
+} from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import React, { useContext } from "react";
 import { BsFillCaretDownFill, BsFillCaretRightFill } from "react-icons/bs";
 
@@ -13,7 +16,7 @@ function groupingIncludesJobFilter(jobNames: string[], filter: string) {
   return false;
 }
 
-function passesGroupFilter(
+export function passesGroupFilter(
   filter: string | null,
   name: string,
   groupNameMapping: Map<string, string[]>
@@ -25,15 +28,7 @@ function passesGroupFilter(
   );
 }
 
-export function GroupHudTableColumns({
-  names,
-  filter,
-  groupNameMapping,
-}: {
-  names: string[];
-  filter: string | null;
-  groupNameMapping: Map<string, string[]>;
-}) {
+export function GroupHudTableColumns({ names }: { names: string[] }) {
   return (
     <colgroup>
       <col className={styles.colTime} />
@@ -42,30 +37,16 @@ export function GroupHudTableColumns({
       <col className={styles.colPr} />
       <col className={styles.colAuthor} />
       {names.map((name: string) => {
-        const style = passesGroupFilter(filter, name, groupNameMapping)
-          ? {}
-          : { visibility: "collapse" as any };
-
-        return <col className={styles.colJob} key={name} style={style} />;
+        return <col className={styles.colJob} key={name} />;
       })}
     </colgroup>
   );
 }
 
-export function GroupHudTableHeader({
-  names,
-  filter,
-  expandedGroups,
-  setExpandedGroups,
-  groupNameMapping,
-}: {
-  names: string[];
-  filter: string | null;
-  expandedGroups: Set<string>;
-  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
-  groupNameMapping: Map<string, string[]>;
-}) {
+export function GroupHudTableHeader({ names }: { names: string[] }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const { groupNameMapping, expandedGroups, setExpandedGroups } =
+    useContext(GroupingContext);
 
   const groupNames = new Set(groupNameMapping.keys());
   return (
@@ -79,16 +60,13 @@ export function GroupHudTableHeader({
         {names.map((name) => {
           const isGroup = groupNames.has(name);
           const pinnedStyle = pinnedId.name == name ? styles.highlight : "";
-          const style = passesGroupFilter(filter, name, groupNameMapping)
-            ? {}
-            : { visibility: "collapse" as any };
           const jobStyle = isGroup ? { cursor: "pointer" } : {};
           const headerStyle = isGroup ? { fontWeight: "bold" } : {};
           return (
             <th
               className={styles.jobHeader}
               key={name}
-              style={{ ...style, ...jobStyle }}
+              style={{ ...jobStyle }}
               onClick={(e: React.MouseEvent) => {
                 if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
                   return;

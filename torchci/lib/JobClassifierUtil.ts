@@ -1,6 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
-import { GroupData, IssueData, RowData } from "./types";
+import { IssueData, RowData } from "./types";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
@@ -324,33 +324,17 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
 
 export function getGroupingData(
   shaGrid: RowData[],
-  jobNames: string[],
+  jobNames: Set<string>,
   showUnstableGroup: boolean,
   unstableIssues?: IssueData[]
 ) {
   // Construct Job Groupping Mapping
-  const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
-  const jobToGroupName = new Map<string, string>(); // job -> group
+  const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
   for (const name of jobNames) {
     const groupName = classifyGroup(name, showUnstableGroup, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
-    jobToGroupName.set(name, groupName);
-  }
-  const groupNamesArray = Array.from(groupNameMapping.keys());
-
-  // Group Jobs per Row
-  for (const row of shaGrid) {
-    const groupedJobs = new Map<string, GroupData>();
-    for (const groupName of groupNamesArray) {
-      groupedJobs.set(groupName, { groupName, jobs: [] });
-    }
-    for (const job of row.nameToJobs!.values()) {
-      const groupName = jobToGroupName.get(job.name!)!;
-      groupedJobs.get(groupName)!.jobs.push(job);
-    }
-    row.groupedJobs = groupedJobs;
   }
   return { shaGrid, groupNameMapping };
 }
