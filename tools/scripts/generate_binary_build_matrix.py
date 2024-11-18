@@ -75,7 +75,6 @@ ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
 # Container images
-CONDA_CONTAINER_IMAGES: Dict[str, str]
 LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str]
 WHEEL_CONTAINER_IMAGES: Dict[str, str]
 
@@ -88,9 +87,6 @@ WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
-
-PACKAGES_TO_INSTALL_CONDA = "pytorch torchvision torchaudio"
-CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
@@ -137,7 +133,7 @@ def validation_runner(arch_type: str, os: str) -> str:
 
 def initialize_globals(channel: str, build_python_only: bool) -> None:
     global CURRENT_VERSION, CUDA_ARCHES, ROCM_ARCHES, PYTHON_ARCHES
-    global WHEEL_CONTAINER_IMAGES, CONDA_CONTAINER_IMAGES, LIBTORCH_CONTAINER_IMAGES
+    global WHEEL_CONTAINER_IMAGES, LIBTORCH_CONTAINER_IMAGES
     if channel == TEST:
         CURRENT_VERSION = CURRENT_CANDIDATE_VERSION
     else:
@@ -164,13 +160,6 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
         CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
-    }
-    CONDA_CONTAINER_IMAGES = {
-        **{
-            gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}"
-            for gpu_arch in CUDA_ARCHES
-        },
-        CPU: "pytorch/conda-builder:cpu",
     }
     LIBTORCH_CONTAINER_IMAGES = {
         **{
@@ -207,23 +196,6 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
 
 def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
-
-
-def get_conda_install_command(
-    channel: str, gpu_arch_type: str, arch_version: str, os: str
-) -> str:
-    pytorch_channel = "pytorch" if channel == RELEASE else f"pytorch-{channel}"
-    conda_channels = f"-c {pytorch_channel}"
-    conda_package_type = ""
-    if gpu_arch_type == CUDA:
-        conda_package_type = f"pytorch-cuda={arch_version}"
-        conda_channels = f"{conda_channels} -c nvidia"
-    elif os not in (MACOS_ARM64):
-        conda_package_type = "cpuonly"
-    else:
-        return f"conda install {pytorch_channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
-
-    return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
 
 def get_base_download_url_for_repo(
@@ -339,48 +311,7 @@ def generate_conda_matrix(
     use_split_build: bool = False,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
-    python_versions = list(PYTHON_ARCHES)
-
-    arches = []
-
-    if with_cpu == ENABLE:
-        arches += [CPU]
-
-    if with_cuda == ENABLE:
-        if os == LINUX or os == WINDOWS:
-            arches += CUDA_ARCHES
-
-    if limit_pr_builds:
-        python_versions = [python_versions[0]]
-
-    for python_version in python_versions:
-        # We don't currently build conda packages for rocm
-        for arch_version in arches:
-            gpu_arch_type = arch_type(arch_version)
-            gpu_arch_version = "" if arch_version == CPU else arch_version
-
-            ret.append(
-                {
-                    "python_version": python_version,
-                    "gpu_arch_type": gpu_arch_type,
-                    "gpu_arch_version": gpu_arch_version,
-                    "desired_cuda": translate_desired_cuda(
-                        gpu_arch_type, gpu_arch_version
-                    ),
-                    "container_image": CONDA_CONTAINER_IMAGES[arch_version],
-                    "package_type": "conda",
-                    "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
-                        ".", "_"
-                    ),
-                    "validation_runner": validation_runner(gpu_arch_type, os),
-                    "channel": channel,
-                    "stable_version": CURRENT_VERSION,
-                    "installation": get_conda_install_command(
-                        channel, gpu_arch_type, arch_version, os
-                    ),
-                }
-            )
-
+    # return empty list. Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
     return ret
 
 
