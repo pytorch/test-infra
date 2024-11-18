@@ -128,6 +128,9 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Print ROCm Run Input
+        run: echo "ROCm Run: ${{ inputs.rocm-run }}"
+
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
