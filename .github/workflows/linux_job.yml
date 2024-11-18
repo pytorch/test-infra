@@ -164,11 +164,11 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
-        if: ${{ not inputs.rocm-run }}
+        if: ${{ inputs.rocm-run == false }}
 
       - name: Setup ROCm
         uses: pytorch/pytorch/.github/actions/setup-rocm@main
-        if: ${{ inputs.rocm-run }}
+        if: ${{ inputs.rocm-run == true}}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
