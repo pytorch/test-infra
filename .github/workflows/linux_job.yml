@@ -128,11 +128,6 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
-      - name: Print ROCm Run Input
-        env:
-          ROCM-RUN: ${{ inputs.rocm-run }}
-        run: echo "ROCm Run $ROCM-RUN"
-
       - name: Clean workspace
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -161,10 +156,6 @@ jobs:
           # relies on submodules. Clone them by default to avoid
           # surprises.
           submodules: 'recursive'
-
-      - name: Debug ROCm Input
-        if: always()
-        run: echo "Test to see if this will work."
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
