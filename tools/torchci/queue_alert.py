@@ -1,11 +1,10 @@
 import argparse
-import json
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple
 
-import rockset  # type: ignore[import]
+import requests
 
 from setuptools import distutils  # type: ignore[import]
 from torchci.check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
@@ -67,10 +66,10 @@ def gen_issue(queues: List[QueueInfo]) -> Any:
     return issue
 
 
-def filter_long_queues(rockset_result: List[Dict[str, Any]]) -> List[QueueInfo]:
+def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
     large_queue: List[QueueInfo] = []
 
-    for result in rockset_result:
+    for result in db_result:
         avg_queue_s, count, machine_type = (
             result["avg_queue_s"],
             result["count"],
@@ -89,20 +88,11 @@ def filter_long_queues(rockset_result: List[Dict[str, Any]]) -> List[QueueInfo]:
 
 
 def queuing_alert(dry_run: bool) -> None:
-    rs_client = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    )
-    with open(PROD_VERSIONS_FILE) as f:
-        prod_versions = json.load(f)
+    url = "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D%0A"
+    # %7B%7D%0A = encoded {}
+    response = requests.get(url).json()
 
-    # same lambda as the same used by the chart on the hud metrics page
-    response = rs_client.QueryLambdas.execute_query_lambda(
-        query_lambda="queued_jobs_by_label",
-        version=prod_versions["metrics"]["queued_jobs_by_label"],
-        workspace="metrics",
-    )
-
-    large_queue = filter_long_queues(response.results)
+    large_queue = filter_long_queues(response)
 
     existing_alerts = fetch_alerts([QUEUE_ALERT_LABEL])
 

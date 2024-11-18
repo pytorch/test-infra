@@ -24,5 +24,3 @@ jobs:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_update_queue_times
           aws-region: us-east-1
       - run: yarn node scripts/updateQueueTimes.mjs
-        env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
