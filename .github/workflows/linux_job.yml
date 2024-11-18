@@ -158,6 +158,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Debug ROCm Input
+        if: always()
         run: |
           echo "ROCm Run: Test to see if this will work."
 
