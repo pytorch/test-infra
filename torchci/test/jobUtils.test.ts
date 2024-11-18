@@ -1,11 +1,6 @@
 import { TIME_0 } from "lib/bot/utils";
 import { isSameAuthor } from "lib/drciUtils";
-import {
-  BasicJobData,
-  IssueData,
-  PRandJobs,
-  RecentWorkflowsData,
-} from "lib/types";
+import { BasicJobData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as getAuthors from "../lib/getAuthors";
 import {
@@ -19,7 +14,7 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "../lib/jobUtils";
-import { getDummyJob } from "./drci.test";
+import { genIssueData, getDummyJob } from "./utils";
 
 nock.disableNetConnect();
 
@@ -566,16 +561,7 @@ describe("Test various job utils", () => {
   });
 
   test("test isDisabledTest", async () => {
-    const mockIssue: IssueData = {
-      state: "open",
-      number: 123,
-      title: "",
-      body: "",
-      updated_at: "",
-      author_association: "",
-      html_url: "",
-      labels: [],
-    };
+    const mockIssue = genIssueData({});
 
     expect(isDisabledTest([])).toEqual(false);
     expect(
@@ -635,16 +621,8 @@ describe("Test various job utils", () => {
         },
       ],
     };
-    const mockIssue: IssueData = {
-      state: "open",
-      number: 123,
-      title: "",
-      body: "",
-      updated_at: "",
-      author_association: "",
-      html_url: "",
-      labels: [],
-    };
+
+    const mockIssue = genIssueData({});
 
     expect(isDisabledTestMentionedInPR([], prInfo)).toEqual(false);
     // Not mention anywhere
@@ -787,16 +765,7 @@ describe("Test various job utils", () => {
   });
 
   test("test isRecentlyCloseDisabledTest", async () => {
-    const mockIssue: IssueData = {
-      state: "open",
-      number: 123,
-      title: "",
-      body: "",
-      updated_at: "",
-      author_association: "",
-      html_url: "",
-      labels: [],
-    };
+    const mockIssue = genIssueData({});
 
     // At least one of the issue is still open
     expect(
@@ -882,17 +851,12 @@ describe("Test various job utils", () => {
       ],
       name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
     });
-    const mockIssue: IssueData = {
-      number: 100152,
+    const mockIssue = genIssueData({
       state: "open",
       title:
         "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
       body: "Platforms: linux, win, mac",
-      updated_at: "2024-05-06T00:30:00Z",
-      author_association: "",
-      html_url: "",
-      labels: [],
-    };
+    });
 
     // Invalid input should return nothing
     expect(

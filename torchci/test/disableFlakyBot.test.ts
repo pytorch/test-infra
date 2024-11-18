@@ -991,16 +991,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
   });
 
   describe("updateExistingIssueForFlakyTest", () => {
-    const defaultIssue: IssueData = {
-      number: 1,
-      title: "",
-      html_url: "",
-      state: "open",
-      body: "",
-      updated_at: "",
-      author_association: "MEMBER",
-      labels: [],
-    };
+    const defaultIssue = utils.genIssueData({});
     beforeEach(() => {});
 
     afterEach(() => {
