@@ -129,7 +129,9 @@ jobs:
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Print ROCm Run Input
-        run: echo "ROCm Run: ${{ inputs.rocm-run }}"
+        env:
+          ROCM-RUN: ${{ inputs.rocm-run }}
+        run: echo "ROCm Run $ROCM-RUN"
 
       - name: Clean workspace
         env:
