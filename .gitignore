@@ -24,8 +24,6 @@ terraform.rc
 
 aws/websites/metrics.pytorch.org/vars.yml
 
-aws/lambda/rds-proxy/python/
-
 .vercel
 torchci/api/log/classify/target/
 torchci/api/log/classify/Cargo.lock
