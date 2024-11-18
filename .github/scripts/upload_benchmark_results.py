@@ -270,10 +270,6 @@ def upload_to_s3(
         info(f"Could not generate an S3 path for {filepath}, skipping...")
         return
 
-    # Populate the path to S3
-    for result in benchmark_results:
-        result["s3_path"] = s3_path
-
     info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
     if not dry_run:
         # Write in JSONEachRow format

@@ -14,8 +14,8 @@ CREATE TABLE benchmark.oss_ci_benchmark_v3 (
     -- (optional) Service Lab id if the result comes from there
     `servicelab_experiment_id` UInt64 DEFAULT '0',
     `servicelab_trial_id` UInt64 DEFAULT '0',
-    -- The raw records on S3
-    `s3_path` String,
+    -- The raw records on S3, this is populated by the replicator
+    `_meta` Tuple(bucket String, key String),
     -- About the devices where the benchmark runs. There could be more than one
     -- runner (distributed benchmark)
     --  name, the optional name of the runner
