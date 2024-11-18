@@ -160,7 +160,7 @@ jobs:
       - name: Debug ROCm Input
         if: always()
         run: |
-          echo "ROCm Run: Test to see if this will work."
+          echo 'ROCm Run: Test to see if this will work.'
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
