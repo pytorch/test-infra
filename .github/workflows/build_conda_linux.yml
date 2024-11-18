@@ -84,9 +84,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ matrix.validation_runner }}
-    container:
-      image: alpine:3.14
+    runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
