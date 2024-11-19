@@ -131,6 +131,11 @@ jobs:
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Install node
+        shell: bash -l {0}
+        run: |
+          curl --silent --location https://rpm.nodesource.com/setup_18.x
+          yum -y install nodejs
       - name: Clean workspace
         shell: bash -l {0}
         run: |
