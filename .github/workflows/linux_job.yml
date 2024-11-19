@@ -183,7 +183,27 @@ jobs:
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
 
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
+          aws-region: us-east-1
+          role-duration-seconds: 18000
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        continue-on-error: true
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Calculate docker image
+        id: calculate-docker-image-rocm
+        uses: pytorch/test-infra/.github/actions/calculate-docker-image@main
+        with:
+          docker-image-name: ${{ inputs.docker-image }}
+        if: ${{ inputs.rocm-run == true }}
+
+      - name: Calculate docker image (rocm)
         id: calculate-docker-image
         uses: pytorch/test-infra/.github/actions/calculate-docker-image@main
         with:
@@ -191,11 +211,19 @@ jobs:
           docker-build-dir: ${{ inputs.docker-build-dir }}
           # This needs to be where the repository is checked out
           working-directory: ${{ inputs.repository || github.repository }}
+        if: ${{ inputs.rocm-run == false }}
 
       - name: Pull docker image
-        uses: pytorch/test-infra/.github/actions/pull-docker-image@main
+        uses: ./test-infra/.github/actions/pull-docker-image
         with:
           docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
+        if: ${{ inputs.rocm-run == false }}
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ steps.calculate-docker-image-rocm.outputs.docker-image }}
+        if: ${{ inputs.rocm-run == true }}
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
