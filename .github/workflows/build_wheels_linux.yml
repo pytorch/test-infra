@@ -124,7 +124,7 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ matrix.validation_runner }}
+    runs-on: "pytorch/manylinux-builder:cpu"
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
