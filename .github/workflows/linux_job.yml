@@ -162,7 +162,7 @@ jobs:
         if: ${{ inputs.rocm-run == false }}
 
       - name: Setup ROCm
-        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        uses: amdfaa/pytorch/.github/actions/setup-rocm@main
         if: ${{ inputs.rocm-run == true }}
 
       - name: Setup SSH
