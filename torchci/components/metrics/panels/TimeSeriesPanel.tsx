@@ -247,6 +247,7 @@ export function TimeSeriesPanelWithData({
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
         option={options}
+        notMerge={true}
       />
     </Paper>
   );
