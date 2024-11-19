@@ -1,4 +1,3 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
 SELECT
     toStartOfHour(
         toDateTime(q.time, {timezone: String})
