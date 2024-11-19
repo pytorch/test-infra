@@ -139,6 +139,7 @@ jobs:
           nvm alias default 16.20.2
           node -v
           which node
+          export PATH='/usr/bin/node:${PATH}'
       - name: Clean workspace
         shell: bash -l {0}
         run: |
