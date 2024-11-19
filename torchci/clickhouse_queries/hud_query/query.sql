@@ -42,6 +42,7 @@ WITH job AS (
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
         AND workflow.repository.'full_name' = {repo: String}
+        AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
     -- Removed CircleCI query
 )
 SELECT
