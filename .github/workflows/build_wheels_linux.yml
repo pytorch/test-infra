@@ -136,6 +136,8 @@ jobs:
         run: |
           curl --silent --location https://rpm.nodesource.com/setup_18.x
           yum -y install nodejs
+          nvm alias default 16.20.2
+          node -v
       - name: Clean workspace
         shell: bash -l {0}
         run: |
