@@ -230,7 +230,6 @@ jobs:
             echo "source "${BUILD_ENV_FILE}";
             echo "set -x";
             echo "${CONDA_RUN} ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}";
-            echo "export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"";
             echo "${CONDA_RUN} python -m pip install build";
             echo "${CONDA_RUN} ${{ inputs.build-command }}"
           } > "${RUNNER_TEMP}/exec_script"
