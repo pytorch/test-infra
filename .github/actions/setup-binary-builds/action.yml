@@ -40,6 +40,11 @@ inputs:
     required: false
     type: boolean
     default: no
+  is-manylinux2-28:
+    description: One of the parameter used by pkg-helpers
+    required: false
+    type: boolean
+    default: true
 
 runs:
   using: composite
@@ -48,15 +53,26 @@ runs:
         shell: bash
         env:
           REPOSITORY: ${{ inputs.repository }}
+          IS_MANYLINUX2_28: ${{ inputs.is-manylinux2-28 }}
         run: |
           set -euxo pipefail
           rm -rf "${REPOSITORY}"
+
       - uses: actions/checkout@v4
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
+
+      - uses: atalman/checkout-action@main
+        if:  ${{ env.IS_MANYLINUX2_28 != 'true' }}
+        with:
+          repository: ${{ inputs.repository }}
+          path: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+
       - name: Log Available Webhook Fields
         shell: bash
         run: |
