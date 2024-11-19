@@ -1,9 +1,0 @@
-{
-  "jobName": "String",
-  "limit": "Int64",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "testClass": "String",
-  "testFile": "String",
-  "workflowName": "String"
-}
