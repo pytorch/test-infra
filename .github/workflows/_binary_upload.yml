@@ -50,6 +50,8 @@ jobs:
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     timeout-minutes: 30
     name: ${{ matrix.build_name }}
+    env:
+      SKIP-UPLOAD: ${{ !contains(matrix.container_image, '2_28') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,6 +72,7 @@ jobs:
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
 
       - name: Download the artifact
+        if: ${{ !env.SKIP-UPLOAD }}
         uses: actions/download-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -97,6 +100,7 @@ jobs:
           echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
 
       - name: Upload package to pytorch.org
+        if: ${{ !env.SKIP-UPLOAD }}
         shell: bash
         working-directory: ${{ inputs.repository }}
         run: |
@@ -117,7 +121,7 @@ jobs:
           done
 
       - name: Upload package to pypi
-        if: ${{ env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
+        if: ${{ !env.SKIP-UPLOAD  && env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
