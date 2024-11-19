@@ -1,6 +1,10 @@
 --- This query is used by HUD metrics page to get the list of queued jobs
 with possible_queued_jobs as (
-  select id, run_id from default.workflow_job where status = 'queued'
+  select id, run_id
+  from default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
+  where status = 'queued'
+    AND created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
 )
 SELECT
   DATE_DIFF(
@@ -27,9 +31,6 @@ WHERE
   and workflow.id in (select run_id from possible_queued_jobs)
   and workflow.repository.'full_name' = 'pytorch/pytorch'
   AND job.status = 'queued'
-  AND job.created_at < (
-    CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE
-  )
   /* These two conditions are workarounds for GitHub's broken API. Sometimes */
   /* jobs get stuck in a permanently "queued" state but definitely ran. We can */
   /* detect this by looking at whether any steps executed (if there were, */
