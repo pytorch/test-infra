@@ -157,6 +157,9 @@ jobs:
           # surprises.
           submodules: 'recursive'
 
+      - name: Debug ROCm
+        run: echo "Test"
+
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
         if: ${{ inputs.rocm-run == false }}
