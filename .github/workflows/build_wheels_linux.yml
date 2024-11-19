@@ -144,12 +144,10 @@ jobs:
           fi
 
           echo "::endgroup::"
-      - name: Checkout
-        shell: bash -l {0}
+      - name: Setup environment
         run: |
-          curl -L -o audio.tar.gz https://github.com/${{ inputs.test-infra-repository }}/archive/nightly.tar.gz
-          tar xvf repo.tar.gz
-          cd audio-nightly
+          echo "GHA_USE_NODE_20=false" >> $GITHUB_ENV
+          echo "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true" >> $GITHUB_ENV
       - uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
