@@ -185,7 +185,7 @@ jobs:
 
       - name: Calculate docker image
         id: calculate-docker-image
-        uses: ./test-infra/.github/actions/calculate-docker-image
+        uses: pytorch/test-infra/.github/actions/calculate-docker-image@main
         with:
           docker-image-name: ${{ env.DOCKER_IMAGE }}
           docker-build-dir: ${{ inputs.docker-build-dir }}
@@ -193,7 +193,7 @@ jobs:
           working-directory: ${{ inputs.repository || github.repository }}
 
       - name: Pull docker image
-        uses: ./test-infra/.github/actions/pull-docker-image
+        uses: pytorch/test-infra/.github/actions/pull-docker-image@main
         with:
           docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
 
