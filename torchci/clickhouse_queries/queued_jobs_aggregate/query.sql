@@ -6,7 +6,19 @@
 --- additional runners to spin up.
 
 with possible_queued_jobs as (
-  select id, run_id from default.workflow_job where status = 'queued'
+  select id, run_id
+  from default.workflow_job
+  where
+    status = 'queued'
+    AND created_at < (
+        -- Only consider jobs that have been queued for a significant period of time
+        CURRENT_TIMESTAMP() - INTERVAL 30 MINUTE
+    )
+    AND created_at > (
+        -- Queued jobs are automatically cancelled after this long. Any allegedly pending
+        -- jobs older than this are actually bad data
+        CURRENT_TIMESTAMP() - INTERVAL 3 DAY
+    )
 ),
  queued_jobs as (
     SELECT
@@ -15,8 +27,8 @@ with possible_queued_jobs as (
         job.created_at,
         CURRENT_TIMESTAMP()
     ) AS queue_m,
-    workflow.repository.owner.login as owner,
-    workflow.repository.full_name as repo,
+    workflow.repository.owner.login as org,
+    workflow.repository.full_name as full_repo,
     CONCAT(workflow.name, ' / ', job.name) AS name,
     job.html_url,
     IF(
@@ -36,15 +48,6 @@ with possible_queued_jobs as (
     and workflow.id in (select run_id from possible_queued_jobs)
     and workflow.repository.owner.login in ('pytorch', 'pytorch-labs')
     AND job.status = 'queued'
-    AND job.created_at < (
-        -- Only consider jobs that have been queued for a significant period of time
-        CURRENT_TIMESTAMP() - INTERVAL 30 MINUTE
-    )
-    AND job.created_at > (
-        -- Queued jobs are automatically cancelled after this long. Any allegedly pending
-        -- jobs older than this are actually bad data
-        CURRENT_TIMESTAMP() - INTERVAL 3 DAY
-    )
     /* These two conditions are workarounds for GitHub's broken API. Sometimes */
     /* jobs get stuck in a permanently "queued" state but definitely ran. We can */
     /* detect this by looking at whether any steps executed (if there were, */
@@ -57,10 +60,12 @@ with possible_queued_jobs as (
 )
 select
   runner_label,
+  org,
+  full_repo,
   count(*) as num_queued_jobs,
   min(queue_m) as min_queue_time_min,
   max(queue_m) as max_queue_time_min
 from queued_jobs
-group by runner_label
+group by runner_label, org, full_repo
 order by max_queue_time_min desc
 settings allow_experimental_analyzer = 1;
