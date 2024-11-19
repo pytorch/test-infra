@@ -131,18 +131,6 @@ jobs:
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
-      - name: Install node
-        shell: bash -l {0}
-        run: |
-          curl --silent --location https://rpm.nodesource.com/setup_18.x
-          yum -y install nodejs
-          nvm alias default 16.20.2
-          node -v
-          which node
-          export PATH='/usr/bin/node:${PATH}'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
       - name: Clean workspace
         shell: bash -l {0}
         run: |
@@ -156,6 +144,12 @@ jobs:
           fi
 
           echo "::endgroup::"
+      - name: Checkout
+        shell: bash -l {0}
+        run: |
+          curl -L -o audio.tar.gz https://github.com/${{ inputs.test-infra-repository }}/archive/nightly.tar.gz
+          tar xvf repo.tar.gz
+          cd audio-nightly
       - uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
