@@ -156,9 +156,6 @@ jobs:
         uses: ./test-infra/.github/actions/calculate-docker-image
         with:
           docker-image-name: ${{ env.DOCKER_IMAGE }}
-          docker-build-dir: ${{ inputs.docker-build-dir }}
-          # This needs to be where the repository is checked out
-          working-directory: ${{ inputs.repository || github.repository }}
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
         with:
