@@ -438,14 +438,15 @@ function CommitSummary({
   const [showDurationInfo] = useContext(ShowDurationContext);
   const [highlighted, setHighlighted] = useState(false);
 
-  const existingJobs = row.jobs.filter((job) => job.conclusion !== undefined);
+  const existingJobs = Array.from(row.nameToJobs.values()).filter(
+    (job) => job.conclusion !== undefined
+  );
   const jobs =
     jobFilter === null
       ? existingJobs
       : existingJobs.filter((job) =>
           includesCaseInsensitive(job.name!, jobFilter)
         );
-
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
   const pendingJobs = jobs.filter(
@@ -476,8 +477,8 @@ function CommitSummary({
     jobs,
     // also filter the previous jobs
     jobFilter === null
-      ? prevRow?.jobs
-      : prevRow?.jobs.filter((job) =>
+      ? Array.from(prevRow?.nameToJobs.values() ?? [])
+      : Array.from(prevRow?.nameToJobs.values() ?? []).filter((job) =>
           includesCaseInsensitive(job.name!, jobFilter)
         )
   );
@@ -556,7 +557,7 @@ function MiniHud({ params }: { params: HudParams }) {
     return <div>Loading...</div>;
   }
 
-  const { shaGrid } = data;
+  const shaGrid = data;
 
   return (
     <>
@@ -580,8 +581,8 @@ function MiniHud({ params }: { params: HudParams }) {
         <CommitSummary
           row={row}
           prevRow={
-            index + 1 >= array.length
-              ? extraRow?.shaGrid[0]
+            index + 1 >= array.length && extraRow
+              ? extraRow[0]
               : array.at(index + 1)
           }
           key={row.sha}
@@ -645,7 +646,6 @@ export default function Page() {
         width="50%"
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
-        handleInput={setJobFilter}
       />
 
       <JobFilterContext.Provider value={[jobFilter, setJobFilter]}>

@@ -29,8 +29,9 @@ export function getFailureMessage(
   if (commitData == null || jobData == null) {
     return "";
   }
-  const failedJobs = jobData.filter((job) => isFailure(job.conclusion));
-  const failedJobsString = failedJobs
+  const failedJobsString = jobData
+
+    .filter((job) => isFailure(job.conclusion))
     .map((failedJob) => `- [${failedJob.name}](${failedJob.htmlUrl})`)
     .join("\n");
   const hudLink = `https://hud.pytorch.org/pytorch/pytorch/commit/${commitData.sha}`;

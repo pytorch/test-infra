@@ -69,7 +69,7 @@ export default function Revert({ row }: { row: RowData }) {
   const msg = getMessage(
     message,
     classification,
-    getFailureMessage(row, row.jobs)
+    getFailureMessage(row, Array.from(row.nameToJobs.values()))
   );
 
   if (session.status == "loading" || session.status == "unauthenticated") {

@@ -1,33 +1,37 @@
+import { useEffect, useState } from "react";
+
 export default function JobFilterInput({
   currentFilter,
   handleSubmit,
-  handleInput,
   width,
   handleFocus,
 }: {
   currentFilter: string | null;
-  handleSubmit: () => void;
-  handleInput: (_value: string) => void;
+  handleSubmit: (f: any) => void;
   handleFocus?: () => void;
   width?: string;
 }) {
+  const [currVal, setCurrVal] = useState<string>(currentFilter ?? "");
+  useEffect(() => {
+    // something about hydration and states is making it so that currVal remains
+    // as "" when currentFilter changes
+    setCurrVal(currentFilter ?? "");
+  }, [currentFilter]);
   return (
     <div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          handleSubmit();
+          handleSubmit(currVal);
         }}
       >
         <label htmlFor="name_filter">Job filter: </label>
         <input
           style={{ width: width }}
-          onChange={(e) => {
-            handleInput(e.currentTarget.value);
-          }}
-          type="search"
+          type="text"
           name="name_filter"
-          value={currentFilter || ""}
+          value={currVal}
+          onChange={(e) => setCurrVal(e.target.value)}
           onFocus={handleFocus}
         />
         <input type="submit" value="Go" />

@@ -5,7 +5,7 @@ import {
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { GroupData, IssueData, JobData } from "lib/types";
+import { IssueData, JobData } from "lib/types";
 import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
 import hudStyles from "./hud.module.css";
@@ -36,21 +36,23 @@ export enum GroupedJobStatus {
 
 export default function HudGroupedCell({
   sha,
-  groupData,
+  groupName,
+  jobs,
   isExpanded,
   toggleExpanded,
   isClassified,
   unstableIssues,
 }: {
   sha: string;
-  groupData: GroupData;
+  groupName: string;
+  jobs: JobData[];
   isExpanded: boolean;
   toggleExpanded: () => void;
   isClassified: boolean;
   unstableIssues: IssueData[];
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
+  const style = pinnedId.name == groupName ? hudStyles.highlight : "";
 
   const erroredJobs = [];
   const warningOnlyJobs = [];
@@ -58,7 +60,7 @@ export default function HudGroupedCell({
   const pendingJobs = [];
   const noStatusJobs = [];
   const failedPreviousRunJobs = [];
-  for (const job of groupData.jobs) {
+  for (const job of jobs) {
     if (isFailedJob(job)) {
       if (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues)) {
         warningOnlyJobs.push(job);
@@ -87,7 +89,7 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.WarningOnly;
   } else if (!(queuedJobs.length === 0)) {
     conclusion = GroupedJobStatus.Queued;
-  } else if (noStatusJobs.length === groupData.jobs.length) {
+  } else if (noStatusJobs.length === jobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }
 
@@ -96,13 +98,13 @@ export default function HudGroupedCell({
       <td className={style}>
         <TooltipTarget
           sha={sha}
-          name={groupData.groupName}
+          name={groupName}
           pinnedId={pinnedId}
           setPinnedId={setPinnedId}
           tooltipContent={
             <GroupTooltip
               conclusion={conclusion}
-              groupName={groupData.groupName}
+              groupName={groupName}
               erroredJobs={erroredJobs}
               pendingJobs={pendingJobs}
               queuedJobs={queuedJobs}
