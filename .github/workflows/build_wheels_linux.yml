@@ -120,6 +120,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
+      DOCKER_IMAGE: "pytorch/manylinux-builder:cpu"
       PYTHON_VERSION: ${{ matrix.python_version }}
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
@@ -129,9 +130,6 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    container:
-      image: "pytorch/manylinux-builder:cpu"
-      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
@@ -147,12 +145,25 @@ jobs:
           fi
 
           echo "::endgroup::"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: Calculate docker image
+        id: calculate-docker-image
+        uses: ./test-infra/.github/actions/calculate-docker-image
+        with:
+          docker-image-name: ${{ env.DOCKER_IMAGE }}
+          docker-build-dir: ${{ inputs.docker-build-dir }}
+          # This needs to be where the repository is checked out
+          working-directory: ${{ inputs.repository || github.repository }}
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
+
       - name: Set linux aarch64 CI
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
