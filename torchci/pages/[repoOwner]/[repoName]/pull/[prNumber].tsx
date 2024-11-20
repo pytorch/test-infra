@@ -1,4 +1,6 @@
+import { Stack } from "@mui/material";
 import CommitStatus from "components/CommitStatus";
+import DrCIButton from "components/DrCIButton";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
 import { useCHContext } from "components/UseClickhouseProvider";
@@ -133,16 +135,30 @@ function Page() {
   }
   return (
     <div>
-      <h1>
-        {prData.title}{" "}
-        <code>
-          <a
-            href={`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`}
-          >
-            #{prNumber}
-          </a>
-        </code>
-      </h1>
+      <Stack
+        direction="row"
+        spacing={0}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        <h1>
+          {prData.title}{" "}
+          <code>
+            <a
+              href={`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`}
+            >
+              #{prNumber}
+            </a>
+          </code>
+        </h1>
+        <DrCIButton
+          prNumber={prNumber ? parseInt(prNumber as string) : 0}
+          owner={repoOwner as string}
+          repo={repoName as string}
+        />
+      </Stack>
       <CommitHeader
         repoOwner={repoOwner as string}
         repoName={repoName as string}
