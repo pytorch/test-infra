@@ -171,6 +171,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "torchtext",
     "torchtune",
     "torchvision",
+    "torchvision-extra-decoders",
     "triton",
     "tqdm",
     "typing_extensions",
