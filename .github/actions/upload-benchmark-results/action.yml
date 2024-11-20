@@ -96,6 +96,12 @@ runs:
       run: |
         set -eux
 
+        if [[ ! -d "${BENCHMARK_RESULTS_DIR}" ]]; then
+          echo "${BENCHMARK_RESULTS_DIR} does not exist, skipping"
+          # We don't want the job to fail if the directory doesn't exist
+          exit 0
+        fi
+
         if [[ "${DRY_RUN}" == "true" ]]; then
           python3 "${GITHUB_ACTION_PATH}/../../scripts/upload_benchmark_results.py" \
             --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
