@@ -127,6 +127,8 @@ jobs:
           arch: ${{ env.ARCH }}
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
+        env:
+          XPU_VERSION: '2025.0'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Install torch dependency
