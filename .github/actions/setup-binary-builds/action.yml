@@ -40,7 +40,7 @@ inputs:
     required: false
     type: boolean
     default: no
-  is-manylinux2-28:
+  use-github-checkout:
     description: One of the parameter used by pkg-helpers
     required: false
     type: boolean
@@ -53,13 +53,13 @@ runs:
         shell: bash
         env:
           REPOSITORY: ${{ inputs.repository }}
-          IS_MANYLINUX2_28: ${{ inputs.is-manylinux2-28 }}
+          USE_GITHUB_CHECKOUT: ${{ inputs.use-github-checkout }}
         run: |
           set -euxo pipefail
           rm -rf "${REPOSITORY}"
 
       - uses: actions/checkout@v4
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
+        if: ${{ env.USE_GITHUB_CHECKOUT == 'true' }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -67,7 +67,7 @@ runs:
           path: ${{ inputs.repository }}
 
       - uses: atalman/checkout-action@main
-        if:  ${{ env.IS_MANYLINUX2_28 != 'true' }}
+        if:  ${{ env.USE_GITHUB_CHECKOUT != 'true' }}
         with:
           repository: ${{ inputs.repository }}
           path: ${{ inputs.repository }}
