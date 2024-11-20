@@ -3,7 +3,7 @@ name: Update Dr. CI comments
 on:
   schedule:
     # Run every 15 minutes
-    - cron: "*/15 * * * *"
+    - cron: "*/10 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
