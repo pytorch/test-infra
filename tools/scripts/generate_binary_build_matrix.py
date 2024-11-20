@@ -155,7 +155,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
             gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
-        CPU: "pytorch/manylinux2_28-builder:cpu",
+        CPU: "pytorch/manylinux-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
         # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
