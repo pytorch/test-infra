@@ -183,20 +183,37 @@ def upload_to_dynamodb(
                 batch.put_item(Item=doc)
 
 
+def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
+    benchmark_results = []
+    with open(filepath) as f:
+        try:
+            benchmark_results = json.load(f)
+        except JSONDecodeError:
+            f.seek(0)
+
+            # Try again in ClickHouse JSONEachRow format
+            for line in f:
+                try:
+                    r = json.loads(line)
+                    # Each row needs to be a dictionary in JSON format
+                    if not isinstance(r, dict):
+                        warn(f"Not a JSON dict {line}, skipping")
+                        continue
+                    benchmark_results.append(r)
+                except JSONDecodeError:
+                    warn(f"Invalid JSON {line}, skipping")
+
+    return benchmark_results
+
+
 def process_benchmark_results(
     filepath: str,
     metadata: Dict[str, Any],
     runners: List[Any],
     dependencies: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    with open(filepath) as f:
-        try:
-            benchmark_results = json.load(f)
-        except JSONDecodeError:
-            warn(f"Invalid JSON file {filepath}, skipping")
-            return []
-
-    if not isinstance(benchmark_results, (list, tuple)):
+    benchmark_results = read_benchmark_results(filepath)
+    if not benchmark_results or not isinstance(benchmark_results, (list, tuple)):
         return []
 
     processed_benchmark_results: List[Dict[str, Any]] = []
