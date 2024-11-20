@@ -9,7 +9,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 async function getCorrespondingWorkflowID(sha: string, workflowId: string) {
   const query = `
 select
-    w2.id as id
+    distinct w2.id as id
 from
     -- Not bothering with final since ids and shas shouldn't change
     default.workflow_run w1
