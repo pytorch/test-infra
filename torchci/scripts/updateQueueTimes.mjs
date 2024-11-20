@@ -3,8 +3,6 @@
 // give us historical data, so write our snapshot regularly to s3 so we can get
 // a view of the queue over time.
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import rockset from "@rockset/client";
-import { promises as fs } from "fs";
 
 export function getS3Client() {
   return new S3Client({
@@ -14,21 +12,11 @@ export function getS3Client() {
 
 const s3client = getS3Client();
 
-async function readJSON(path) {
-  const rawData = await fs.readFile(path);
-  return JSON.parse(rawData);
-}
-const prodVersions = await readJSON("./rockset/prodVersions.json");
-const client = rockset.default(process.env.ROCKSET_API_KEY);
-
-const response = await client.queryLambdas.executeQueryLambda(
-  "metrics",
-  "queued_jobs_by_label",
-  prodVersions.metrics.queued_jobs_by_label,
-  {}
-);
-
-for (const r of response.results) {
+// %7B%7D = encoded {}
+const response = await fetch(
+  "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+).then((r) => r.json());
+for (const r of response) {
   const unixTime = parseInt((new Date(r.time).getTime() / 1000).toFixed(0));
   s3client.send(
     new PutObjectCommand({
