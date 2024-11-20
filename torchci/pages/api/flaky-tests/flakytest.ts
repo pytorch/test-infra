@@ -1,4 +1,4 @@
-import getRocksetClient from "lib/rockset";
+import { queryClickhouse } from "lib/clickhouse";
 import { JobData } from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -31,28 +31,28 @@ async function getFlakyTestInfo(
 ): Promise<FlakyTestInfoHUD[]> {
   const query = `
 select
-  t.name,
-  t.classname,
-  t.file,
-  t.invoking_file,
-  j.conclusion,
+  t.name as name,
+  t.classname as classname,
+  t.file as file,
+  t.invoking_file as invoking_file,
+  j.conclusion as conclusion,
   j.id as job_id,
   j.name as job_name,
   j.html_url as job_url,
   j.started_at as job_started_at,
-  j.torchci_classification.line,
-  j.torchci_classification.line_num,
-  j.torchci_classification.captures,
-  w.head_branch,
-  j.head_sha
+  j.torchci_classification.'line' as line,
+  j.torchci_classification.'line_num' as line_num,
+  j.torchci_classification.'captures' as captures,
+  w.head_branch as head_branch,
+  j.head_sha as head_sha
 from
-  workflow_job j
-  join commons.failed_tests_run t on j.id = t.job_id HINT(join_strategy = lookup)
-  join workflow_run w on w.id = j.run_id
+  default.workflow_job j
+  join default.failed_test_runs t on j.id = t.job_id
+  join default.workflow_run w on w.id = j.run_id
 where
-  t.name like :name
-  and t.classname like :suite
-  and t.file like :file
+  t.name like {name: String}
+  and t.classname like {suite: String}
+  and t.file like {file: String}
 group by
   t.name,
   t.classname,
@@ -63,45 +63,24 @@ group by
   j.name,
   j.html_url,
   j.started_at,
-  j.torchci_classification.line,
-  j.torchci_classification.line_num,
-  j.torchci_classification.captures,
+  j.torchci_classification.'line',
+  j.torchci_classification.'line_num',
+  j.torchci_classification.'captures',
   w.head_branch,
   j.head_sha
 order by
-  PARSE_TIMESTAMP_ISO8601(j.started_at) desc
+  j.started_at desc
 limit
-  :limit
+  {limit: Int32}
 `;
-  const rocksetClient = getRocksetClient();
-  const flakyTestQuery = await rocksetClient.queries.query({
-    sql: {
-      query: query,
-      parameters: [
-        {
-          name: "name",
-          type: "string",
-          value: `%${name}%`,
-        },
-        {
-          name: "suite",
-          type: "string",
-          value: `%${suite}%`,
-        },
-        {
-          name: "file",
-          type: "string",
-          value: `%${file}%`,
-        },
-        {
-          name: "limit",
-          type: "number",
-          value: limit.toString(),
-        },
-      ],
-    },
+  const flakyTestQuery = await queryClickhouse(query, {
+    name: `%${name}%`,
+    suite: `%${suite}%`,
+    file: `%${file}%`,
+    limit: limit,
   });
-  const flakyTestQueryResults = flakyTestQuery.results ?? [];
+
+  const flakyTestQueryResults = flakyTestQuery ?? [];
 
   const groupedByTest = _.groupBy(
     flakyTestQueryResults,
