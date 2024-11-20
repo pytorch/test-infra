@@ -89,7 +89,9 @@ def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
 
 def queuing_alert(dry_run: bool) -> None:
     # %7B%7D = encoded {}
-    url = "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+    url = (
+        "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+    )
     response = requests.get(url).json()
 
     large_queue = filter_long_queues(response)
@@ -118,7 +120,7 @@ def queuing_alert(dry_run: bool) -> None:
         new_issue = gen_issue(large_queue)
         update_issue(new_issue, existing_issue, update_comment, dry_run=dry_run)
     else:
-        print(f"No new change for queuing alert")
+        print("No new change for queuing alert")
 
 
 def parse_args() -> argparse.Namespace:
