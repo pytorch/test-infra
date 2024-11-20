@@ -88,8 +88,8 @@ def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
 
 
 def queuing_alert(dry_run: bool) -> None:
-    url = "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D%0A"
-    # %7B%7D%0A = encoded {}
+    # %7B%7D = encoded {}
+    url = "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
     response = requests.get(url).json()
 
     large_queue = filter_long_queues(response)
