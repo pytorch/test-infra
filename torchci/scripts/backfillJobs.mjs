@@ -106,7 +106,7 @@ async function backfillWorkflowJob(
     console.log(`Querying dynamo entry for job id ${id}`);
 
     let rows = await queryClickhouse(
-      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}'`,
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}' and j.id = ${id}`,
       {}
     );
 
