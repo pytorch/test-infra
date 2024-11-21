@@ -214,7 +214,7 @@ jobs:
         run: |
           {
             echo "set +u"
-            echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh"
+            echo "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
             echo "source /opt/intel/oneapi/pti/latest/env/vars.sh"
           } >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
