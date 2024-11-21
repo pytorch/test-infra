@@ -129,6 +129,9 @@ jobs:
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
+      volumes:
+        - /node20217:/node20217:rw,rshared
+        - /node20217:/__e/node20:ro,rshared
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
@@ -144,8 +147,17 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - uses: atalman/checkout-action@main
+      - name: install nodejs20glibc2.17
+        if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
+        run: |
+          yum install curl -yyq
+          curl -LO https://unofficial-builds.nodejs.org/download/release/v20.9.0/node-v20.9.0-linux-x64-glibc-217.tar.xz
+          tar -xf node-v20.9.0-linux-x64-glibc-217.tar.xz --strip-components 1 -C /node20217
+          ldd /__e/node20/bin/node
+
+      - uses: actions/checkout@v4
         with:
+          # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
@@ -189,7 +201,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
-          use-github-checkout: ${{ env.IS_MANYLINUX2_28 }}
+          is-manylinux2-28: ${{ env.IS_MANYLINUX2_28 }}
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
@@ -202,7 +214,7 @@ jobs:
         run: |
           {
             echo "set +u"
-            echo "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
+            echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh"
             echo "source /opt/intel/oneapi/pti/latest/env/vars.sh"
           } >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
