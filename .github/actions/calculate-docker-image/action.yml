@@ -157,6 +157,14 @@ runs:
 
         retry login "${DOCKER_REGISTRY}"
 
+    - name: Login to Docker Hub
+      shell: bash
+      # It's ok if this steps fails, it would then be an anonymous user like what we used to have
+      continue-on-error: true
+      run: |
+        set -eux
+        aws secretsmanager get-secret-value --secret-id docker_hub_readonly_token | jq --raw-output '.SecretString' | jq -r .docker_hub_readonly_token | docker login --username pytorchbot --password-stdin
+
     - name: Build docker image
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
