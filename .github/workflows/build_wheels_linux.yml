@@ -130,8 +130,8 @@ jobs:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
       volumes:
-        - /node20217:/node20217:rw,rshared
-        - /node20217:/__e/node20:ro,rshared
+        - ${{ inputs.architecture == 'x86_64' && '/node20217:/node20217:rw,rshared' || ' ' }}
+        - ${{ inputs.architecture == 'x86_64' && '/node20217:/__e/node20:ro,rshared' || ' ' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
