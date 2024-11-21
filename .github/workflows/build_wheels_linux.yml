@@ -124,6 +124,10 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
       IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') }}
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+      AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -144,11 +148,24 @@ jobs:
           fi
           echo "::endgroup::"
 
+
       - uses: atalman/checkout-action@main
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+
+      - name: Configure aws credentials (pytorch account)
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          pip install awscli==1.32.18
+          sleep 3 # Need to have a delay to acquire this
+          echo "ACTIONS_ID_TOKEN_REQUEST_UR: ${ACTIONS_ID_TOKEN_REQUEST_UR}"
+          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+          aws sts get-caller-identity
 
       - name: Install Miniforge
         if: ${{ inputs.architecture == 'aarch64' }}
