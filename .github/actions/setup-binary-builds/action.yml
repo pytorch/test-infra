@@ -43,8 +43,8 @@ inputs:
   use-github-checkout:
     description: One of the parameter used by pkg-helpers
     required: false
-    type: boolean
-    default: true
+    type: string
+    default: 'true'
 
 runs:
   using: composite
