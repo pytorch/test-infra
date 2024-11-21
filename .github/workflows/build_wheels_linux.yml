@@ -123,6 +123,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
+      IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -141,15 +142,15 @@ jobs:
           if [[ "${{ inputs.architecture }}" = "aarch64" ]]; then
             rm -rf "${RUNNER_TEMP}/*"
           fi
-
           echo "::endgroup::"
-      - uses: actions/checkout@v4
+
+      - uses: atalman/checkout-action@main
         with:
-          # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
-      - name: Set linux aarch64 CI
+
+      - name: Install Miniforge
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
         env:
@@ -157,7 +158,6 @@ jobs:
         run: |
           set -euxo pipefail
           # TODO: Get rid of Conda, we already have all versions of PyThon one needs in the docker
-
           ###############################################################################
           # Install conda
           # disable SSL_verify due to getting "Could not find a suitable TLS CA certificate bundle, invalid path"
@@ -185,10 +185,12 @@ jobs:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
-          setup-miniconda: ${{ inputs.setup-miniconda }}
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
+          use-github-checkout: ${{ env.IS_MANYLINUX2_28 }}
+
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
@@ -281,7 +283,16 @@ jobs:
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
+
+      - name: Upload wheel
+        if: ${{ env.IS_MANYLINUX2_28 != 'true' }}
+        uses: ./test-infra/.github/actions/binary-upload
+        with:
+          repository: ${{ inputs.repository }}
+          trigger-event: ${{ inputs.trigger-event }}
+
       - name: Upload wheel to GitHub
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
