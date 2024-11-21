@@ -148,7 +148,7 @@ jobs:
           echo "::endgroup::"
 
       - name: install nodejs20glibc2.17
-        if: always()
+        if:  ${{ inputs.architecture == "x86_64" }}
         run: |
           yum install curl -yyq
           curl -LO https://unofficial-builds.nodejs.org/download/release/v20.9.0/node-v20.9.0-linux-x64-glibc-217.tar.xz
