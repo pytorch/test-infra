@@ -152,6 +152,7 @@ jobs:
         run: |
           set -euxo pipefail
           pip install awscli==1.32.18
+          yum install jq
           sleep 3 # Need to have a delay to acquire this
           echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
           curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
