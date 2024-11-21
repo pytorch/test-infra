@@ -59,7 +59,7 @@ runs:
           rm -rf "${REPOSITORY}"
 
       - uses: actions/checkout@v4
-        if: ${{ env.USE_GITHUB_CHECKOUT == 'true' }}
+        if: ${{ fromJSON(env.USE_GITHUB_CHECKOUT) }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -67,7 +67,7 @@ runs:
           path: ${{ inputs.repository }}
 
       - uses: atalman/checkout-action@main
-        if:  ${{ env.USE_GITHUB_CHECKOUT != 'true' }}
+        if:  ${{ !fromJSON(env.USE_GITHUB_CHECKOUT) }}
         with:
           repository: ${{ inputs.repository }}
           path: ${{ inputs.repository }}
