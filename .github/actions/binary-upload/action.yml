@@ -1,0 +1,57 @@
+name: Binary upload action
+
+description: pull a specific docker image
+
+inputs:
+  repository:
+    description: 'Repository to checkout, defaults to ""'
+    default: ''
+    type: string
+  trigger-event:
+    description: "Trigger Event in caller that determines whether or not to upload"
+    type: string
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Configure aws credentials (pytorch account)
+      if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) }}
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+        aws-region: us-east-1
+
+    - name: Configure aws credentials (pytorch account)
+      if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/v') }}
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
+        aws-region: us-east-1
+
+    - name: Nightly or release RC
+      if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+      shell: bash
+      run: |
+        set -ex
+        echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
+
+    - name: Upload package to pytorch.org
+      shell: bash
+      working-directory: ${{ inputs.repository }}
+      run: |
+        set -ex
+
+        # shellcheck disable=SC1090
+        source "${BUILD_ENV_FILE}"
+
+        pip install awscli==1.32.18
+
+        AWS_CMD="aws s3 cp --dryrun"
+        if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
+          AWS_CMD="aws s3 cp"
+        fi
+
+        for pkg in dist/*; do
+          ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+        done
