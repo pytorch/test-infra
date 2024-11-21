@@ -43,8 +43,8 @@ inputs:
   use-github-checkout:
     description: One of the parameter used by pkg-helpers
     required: false
-    type: string
-    default: 'true'
+    type: boolean
+    default: true
 
 runs:
   using: composite
@@ -53,13 +53,12 @@ runs:
         shell: bash
         env:
           REPOSITORY: ${{ inputs.repository }}
-          USE_GITHUB_CHECKOUT: ${{ inputs.use-github-checkout }}
         run: |
           set -euxo pipefail
           rm -rf "${REPOSITORY}"
 
       - uses: actions/checkout@v4
-        if: ${{ fromJSON(env.USE_GITHUB_CHECKOUT) }}
+        if: ${{ inputs.use-github-checkout == 'true' }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -67,7 +66,7 @@ runs:
           path: ${{ inputs.repository }}
 
       - uses: atalman/checkout-action@main
-        if:  ${{ !fromJSON(env.USE_GITHUB_CHECKOUT) }}
+        if: ${{ inputs.use-github-checkout == 'false' }}
         with:
           repository: ${{ inputs.repository }}
           path: ${{ inputs.repository }}
