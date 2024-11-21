@@ -485,6 +485,8 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
+  const [repo, setRepo] = useState<string>("pytorch");
+
   // TODO (huydhn): Clean this up once ClickHouse migration finishes
   const { useCH: useClickHouse } = useCHContext();
 
@@ -500,7 +502,11 @@ export default function Page() {
       value: stopTime,
     },
   ];
-  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+
+  const timeParamsClickHouse = {
+    ...RStoCHTimeParams(timeParams),
+    repo: repo,
+  };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
@@ -565,6 +571,18 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <FormControl>
+          <InputLabel id="repo-select-label">Repo</InputLabel>
+          <Select
+            value={repo}
+            label="Repo"
+            labelId="repo-select-label"
+            onChange={(e) => setRepo(e.target.value as string)}
+          >
+            <MenuItem value={"pytorch"}>PyTorch</MenuItem>
+            <MenuItem value={"executorch"}>Executorch</MenuItem>
+          </Select>
+        </FormControl>
       </Stack>
 
       <Grid container spacing={2}>

@@ -32,7 +32,7 @@ WHERE
   AND workflow.event != 'workflow_run'
   AND push.ref = 'refs/heads/master'
   AND push.repository.owner.name = 'pytorch'
-  AND push.repository.name = 'pytorch'
+  AND push.repository.name = {repo: String}
   AND job.name LIKE '%test%'
   AND job.name NOT LIKE '%filter%'
   AND job.name NOT LIKE '%rerun_disabled_tests%'
