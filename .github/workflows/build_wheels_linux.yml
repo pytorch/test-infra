@@ -146,10 +146,10 @@ jobs:
           echo "::endgroup::"
 
       - name: Configure aws credentials (pytorch account)
-        uses: aws-actions/configure-aws-credentials@v1-node16
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
-          aws-region: us-east-1
+        shell: bash -l {0}
+        run: |
+          aws configure set profile gha_workflow_nightly_build_wheels role_arn arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels region us-east-1
+          aws s3 ls --profile gha_workflow_nightly_build_wheels
 
       - uses: atalman/checkout-action@main
         with:
