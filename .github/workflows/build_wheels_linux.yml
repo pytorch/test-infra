@@ -148,6 +148,13 @@ jobs:
           fi
           echo "::endgroup::"
 
+
+      - uses: atalman/checkout-action@main
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
       - name: Configure aws credentials (pytorch account)
         shell: bash -l {0}
         run: |
@@ -157,13 +164,6 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
             | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
           aws sts get-caller-identity
-
-
-      - uses: atalman/checkout-action@main
-        with:
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
 
       - name: Install Miniforge
         if: ${{ inputs.architecture == 'aarch64' }}
