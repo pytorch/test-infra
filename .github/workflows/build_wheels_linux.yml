@@ -124,6 +124,9 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
       IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') }}
+      AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -153,7 +156,7 @@ jobs:
           echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
           curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-            | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+            | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
           aws sts get-caller-identity
           
       - uses: atalman/checkout-action@main
