@@ -124,6 +124,7 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
       IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') }}
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -143,6 +144,12 @@ jobs:
             rm -rf "${RUNNER_TEMP}/*"
           fi
           echo "::endgroup::"
+
+      - name: Configure aws credentials (pytorch account)
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+          aws-region: us-east-1
 
       - uses: atalman/checkout-action@main
         with:
