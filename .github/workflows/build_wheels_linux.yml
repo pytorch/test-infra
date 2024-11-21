@@ -149,8 +149,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install awscli==1.32.18
-
-          aws configure set profile gha_workflow_nightly_build_wheels role_arn arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels region us-east-1
+          aws configure profile gha_workflow_nightly_build_wheels role_arn arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels region us-east-1
           aws s3 ls --profile gha_workflow_nightly_build_wheels
 
       - uses: atalman/checkout-action@main
