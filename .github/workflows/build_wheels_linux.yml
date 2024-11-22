@@ -150,6 +150,12 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+      - name: Upload wheel
+        uses: ./test-infra/.github/actions/binary-upload
+        with:
+          repository: ${{ inputs.repository }}
+          trigger-event: ${{ inputs.trigger-event }}
+          
       - name: Install Miniforge
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
