@@ -33,7 +33,7 @@ runs:
         yum install -y jq
 
         export AWS_ROLE_ARN="arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels"
-        if [[ ${CHANNEL}" == "test" ]]; then
+        if [[ "${CHANNEL}" == "test" ]]; then
           export AWS_ROLE_ARN="arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels"
         fi
         echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
