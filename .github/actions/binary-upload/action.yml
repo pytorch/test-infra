@@ -14,12 +14,12 @@ inputs:
   
 runs:
   using: composite
-  env:
-    AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
-    AWS_DEFAULT_REGION: us-east-1
-    AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
   steps:
     - name: Configure aws credentials and upload
+      env:
+        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+        AWS_DEFAULT_REGION: us-east-1
+        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
       shell: bash
       run: |
         set -euxo pipefail
