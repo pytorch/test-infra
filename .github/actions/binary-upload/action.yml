@@ -20,21 +20,21 @@ runs:
   using: composite
   steps:
     - name: Configure aws credentials and upload
-        shell: bash
-        run: |
-          set -euxo pipefail
+      shell: bash
+      run: |
+        set -euxo pipefail
 
-          # shellcheck disable=SC1090
-          source "${BUILD_ENV_FILE}"
+        # shellcheck disable=SC1090
+        source "${BUILD_ENV_FILE}"
           
-          pip install awscli==1.32.18
-          yum install -y jq
-          sleep 3 # Need to have a delay to acquire this
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
-          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-            | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
-          echo "Helo world" > testfile.txt
-          aws s3 cp testfile.txt s3://pytorch/whl/nightly/testfile.txt
+        pip install awscli==1.32.18
+        yum install -y jq
+        sleep 3 # Need to have a delay to acquire this
+        echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
+        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+        echo "Helo world" > testfile.txt
+        aws s3 cp testfile.txt s3://pytorch/whl/nightly/testfile.txt
             
 
