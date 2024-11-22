@@ -298,24 +298,24 @@ function getLabelsToAddFromIssueTitle(
   title: string,
   labelFilter: RegExp = /.*/
 ): string[] {
-  const labelsToAdd: string[] = [];
-
-  for (const [regex, label] of IssueTitleRegexToLabel) {
-    if (title.match(regex) && label.match(labelFilter)) {
-      labelsToAdd.push(label);
-    }
-  }
-
-  return labelsToAdd;
+  return getLabelsToAdd(title,labelFilter ,IssueTitleRegexToLabel)
 }
 
 function getLabelsToAddFromPrTitle(
   title: string,
   labelFilter: RegExp = /.*/
 ): string[] {
+  return getLabelsToAdd(title,labelFilter ,PrTitleRegexToLabel)
+}
+
+function getLabelsToAdd(
+  title: string,
+  labelFilter: RegExp = /.*/,
+  RegexToTableList: [RegExp, string][]
+): string[] {
   const labelsToAdd: string[] = [];
 
-  for (const [regex, label] of PrTitleRegexToLabel) {
+  for (const [regex, label] of RegexToTableList) {
     if (title.match(regex) && label.match(labelFilter)) {
       labelsToAdd.push(label);
     }
@@ -323,6 +323,7 @@ function getLabelsToAddFromPrTitle(
 
   return labelsToAdd;
 }
+
 
 // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
 function getReleaseNotesCategoryAndTopic(
