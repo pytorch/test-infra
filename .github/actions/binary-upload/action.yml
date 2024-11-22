@@ -11,13 +11,13 @@ inputs:
     description: "Trigger Event in caller that determines whether or not to upload"
     type: string
     default: ''
-env:
-  AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
-  AWS_DEFAULT_REGION: us-east-1
-  AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
   
 runs:
   using: composite
+  env:
+    AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
   steps:
     - name: Configure aws credentials and upload
       shell: bash
