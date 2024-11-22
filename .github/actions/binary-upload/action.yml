@@ -64,6 +64,7 @@ runs:
 
         # shellcheck disable=SC1090
         source "${BUILD_ENV_FILE}"
+        pip install awscli==1.32.18
 
         AWS_CMD="aws s3 cp --dryrun"
         if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
