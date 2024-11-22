@@ -128,7 +128,7 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("add ci-no-td label when PR title contains reLanD", async () => {
+  test("add ci-no-td label when PR title contains mixed cases reLanD", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -152,13 +152,13 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("add reland label when issue title contains ROCm", async () => {
+  test("no reland label added when issue title contains reland", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
     const payload = requireDeepCopy("./fixtures/issues.opened");
-    payload["issue"]["title"] = "Issue is Reland";
+    payload["issue"]["title"] = "Issue Reland Does not work";
     payload["issue"]["labels"] = [{ name: "test" }];
 
     const scope = nock("https://api.github.com")
