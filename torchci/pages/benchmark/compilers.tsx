@@ -257,7 +257,7 @@ export default function Page() {
     suites: Object.keys(SUITES),
     workflowId: 0,
   };
-  console.log(window);
+  console.log("DEBUG");
 
   return (
     <div>
