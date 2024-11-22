@@ -62,8 +62,9 @@ export interface UpdateCommentBody {
 // Attempt to set the maxDuration of this serveless function on Vercel https://vercel.com/docs/functions/configuring-functions/duration,
 // also according to https://vercel.com/docs/functions/runtimes#max-duration, the max duration
 // for an enterprise account is 900
-export const maxDuration = 900;
-export const dynamic = "force-dynamic";
+export const config = {
+    maxDuration: 900,
+};
 
 export default async function handler(
   req: NextApiRequest,
