@@ -136,7 +136,7 @@ describe("auto-label-bot", () => {
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
     ];
-    payload["pull_request"]["title"] = "Failed test [reLanD]";
+    payload["pull_request"]["title"] = "[reLanD] detect failure";
     payload["pull_request"]["labels"] = [];
 
     const scope = nock("https://api.github.com")
