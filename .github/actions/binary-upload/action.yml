@@ -15,19 +15,41 @@ inputs:
 runs:
   using: composite
   steps:
+
     - name: Configure aws credentials (pytorch account)
       if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) }}
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
-        aws-region: us-east-1
+      env:
+        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+        AWS_DEFAULT_REGION: us-east-1
+        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+      shell: bash
+      run: |
+        set -euxo pipefail
+        pip install awscli==1.32.18
+        yum install -y jq
+        sleep 3 # Need to have a delay to acquire this
+        echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
+        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
 
     - name: Configure aws credentials (pytorch account)
       if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/v') }}
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
-        aws-region: us-east-1
+      env:
+        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+        AWS_DEFAULT_REGION: us-east-1
+        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
+      shell: bash
+      run: |
+        set -euxo pipefail
+        pip install awscli==1.32.18
+        yum install -y jq
+        sleep 3 # Need to have a delay to acquire this
+        echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
+        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+
 
     - name: Nightly or release RC
       if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
@@ -44,8 +66,6 @@ runs:
 
         # shellcheck disable=SC1090
         source "${BUILD_ENV_FILE}"
-
-        pip install awscli==1.32.18
 
         AWS_CMD="aws s3 cp --dryrun"
         if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
