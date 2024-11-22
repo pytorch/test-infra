@@ -12,27 +12,25 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-// List of regex patterns for assigning labels to Pull Requests
-const PrTitleRegexToLabel: [RegExp, string][] = [
-  [/reland/gi, "ci-no-td"],
+// List of regex patterns for assigning labels to both Pull Requests and Issues
+const IssueAndPRRegexToLabel:[RegExp, string][] =[
   [/rocm/gi, "module: rocm"],
   [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
-  [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
-  [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
-  [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
+]
+
+// List of regex patterns for assigning labels to Pull Requests
+const PrTitleRegexToLabel: [RegExp, string][] = [
+  [/reland/gi, "ci-no-td"],
+  ... IssueAndPRRegexToLabel
 ];
 
 // List of regex patterns for assigning labels to Issues
 const IssueTitleRegexToLabel: [RegExp, string][] = [
-  [/rocm/gi, "module: rocm"],
-  [/rocm/gi, "ciflow/rocm"],
-  [/vulkan/gi, "module: vulkan"],
-  [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
-  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
+  ... IssueAndPRRegexToLabel
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
