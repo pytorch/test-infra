@@ -880,7 +880,6 @@ export default function Page() {
                 useClickHouse
                   ? {
                       jobNames: docsJobNames,
-                      repo: repo,
                     }
                   : [
                       {

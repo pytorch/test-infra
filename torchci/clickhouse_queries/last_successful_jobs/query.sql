@@ -11,7 +11,7 @@ with successful_jobs as (
         default.workflow_job job final
         JOIN default.workflow_run workflow final on workflow.id = job.run_id
     where
-        workflow.repository.'full_name' = CONCAT('pytorch/', {repo: String})
+        workflow.repository.'full_name' = 'pytorch/pytorch'
         AND workflow.head_branch IN ('master', 'main')
         AND job.conclusion = 'success'
         AND job.name in {jobNames: Array(String)}
