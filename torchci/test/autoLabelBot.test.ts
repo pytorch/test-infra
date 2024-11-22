@@ -104,6 +104,80 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
+
+  test("add ci-no-td label when PR title contains Reland", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Failed test [Reland]";
+    payload["pull_request"]["labels"] = [];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200)
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["ci-no-td"] });
+        return true;
+      }).reply(200)
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("add ci-no-td label when PR title contains reLanD", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Failed test [reLanD]";
+    payload["pull_request"]["labels"] = [];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200)
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["ci-no-td"] });
+        return true;
+      }).reply(200)
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("add reland label when issue title contains ROCm", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.opened");
+    payload["issue"]["title"] = "Issue is Reland";
+    payload["issue"]["labels"] = [{name:"test"}];
+
+    const scope = nock("https://api.github.com")
+      .post(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
+        (body) => {
+          expect(body).toMatchObject({
+            labels: ["ROCm"],
+          });
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    // the api never been called.
+    expect(scope.isDone()).toBe(false);
+  });
+
   test("add skipped label when issue title contains DISABLED test", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")

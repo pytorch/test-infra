@@ -12,7 +12,21 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-const titleRegexToLabel: [RegExp, string][] = [
+
+// list of regex to assign labels to pull requests
+const PrTitleRegexToLabel: [RegExp, string][] = [
+  [/reland/gi,"ci-no-td"],
+  [/rocm/gi, "module: rocm"],
+  [/rocm/gi, "ciflow/rocm"],
+  [/vulkan/gi, "module: vulkan"],
+  [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
+  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
+  [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
+  [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
+];
+
+// list of regex to assign labels to issues
+const IssueTitleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
@@ -283,13 +297,28 @@ function isNotUserFacing(filesChanged: string[]): boolean {
   );
 }
 
-function getLabelsToAddFromTitle(
+function getLabelsToAddFromIssueTitle(
   title: string,
-  labelFilter: RegExp = /.*/
+  labelFilter: RegExp = /.*/,
 ): string[] {
   const labelsToAdd: string[] = [];
 
-  for (const [regex, label] of titleRegexToLabel) {
+  for (const [regex, label] of IssueTitleRegexToLabel) {
+    if (title.match(regex) && label.match(labelFilter)) {
+      labelsToAdd.push(label);
+    }
+  }
+
+  return labelsToAdd;
+}
+
+function getLabelsToAddFromPrTitle(
+  title: string,
+  labelFilter: RegExp = /.*/,
+): string[] {
+  const labelsToAdd: string[] = [];
+
+  for (const [regex, label] of PrTitleRegexToLabel) {
     if (title.match(regex) && label.match(labelFilter)) {
       labelsToAdd.push(label);
     }
@@ -452,7 +481,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ existingLabels, title });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
+    const labelsToAdd = getLabelsToAddFromIssueTitle(title, /^(?!ciflow\/.*).*/);
     await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
@@ -473,7 +502,7 @@ function myBot(app: Probot): void {
       );
       context.log({ labels, title, filesChanged });
 
-      var labelsToAdd = getLabelsToAddFromTitle(title);
+      var labelsToAdd = getLabelsToAddFromPrTitle(title);
 
       // only categorize for release notes for prs in pytorch/pytorch
       if (isPyTorchPyTorch(owner, repo)) {
