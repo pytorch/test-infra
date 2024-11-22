@@ -19,7 +19,7 @@ runs:
       env:
         AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
         AWS_DEFAULT_REGION: us-east-1
-        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+        AWS_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
       shell: bash
       run: |
         set -euxo pipefail
@@ -35,7 +35,6 @@ runs:
           "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
           | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
         aws sts get-caller-identity
-        echo "Helo world" > testfile.txt
-        aws s3 cp testfile.txt s3://pytorch/whl/nightly/testfile.txt
+        aws s3api get-object --bucket gha-artifacts --key 4.14.336-257.562.amzn2.x86_64.tar.gz
             
 
