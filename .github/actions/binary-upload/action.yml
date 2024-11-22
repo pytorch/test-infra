@@ -34,6 +34,7 @@ runs:
         curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
           "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
           | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+        aws sts get-caller-identity
         echo "Helo world" > testfile.txt
         aws s3 cp testfile.txt s3://pytorch/whl/nightly/testfile.txt
             
