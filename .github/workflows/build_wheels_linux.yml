@@ -126,6 +126,7 @@ jobs:
       IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
+    environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
