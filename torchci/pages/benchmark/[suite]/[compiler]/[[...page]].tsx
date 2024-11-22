@@ -274,7 +274,7 @@ export default function Page() {
     mode: mode,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    suites: [suite],
+    suites: [],
     workflowId: 0,
   };
 

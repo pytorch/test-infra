@@ -94,7 +94,7 @@ results AS (
             WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
             WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
             WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
-            ELSE NULL
+            ELSE ''
         END AS suite,
         CASE
             WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
@@ -112,7 +112,7 @@ results AS (
                 '_huggingface',
                 ''
             )
-            ELSE NULL
+            ELSE ''
         END AS compiler,
         accuracy_results.name,
         IF(speedup != '', toFloat32(speedup), 0.0) AS speedup,
@@ -166,7 +166,10 @@ FROM
     results
     LEFT JOIN default .workflow_run w FINAL ON results.workflow_id = w.id
 WHERE
-    has({suites: Array(String) }, lower(results.suite))
+    (
+        has({suites: Array(String) }, lower(results.suite))
+        OR empty({suites: Array(String) })
+    )
     AND (
         has(
             {compilers: Array(String) },
