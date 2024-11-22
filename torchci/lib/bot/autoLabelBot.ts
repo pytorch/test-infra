@@ -298,14 +298,14 @@ function getLabelsToAddFromIssueTitle(
   title: string,
   labelFilter: RegExp = /.*/
 ): string[] {
-  return getLabelsToAdd(title,labelFilter ,IssueTitleRegexToLabel)
+  return getLabelsToAdd(title, labelFilter, IssueTitleRegexToLabel);
 }
 
 function getLabelsToAddFromPrTitle(
   title: string,
   labelFilter: RegExp = /.*/
 ): string[] {
-  return getLabelsToAdd(title,labelFilter ,PrTitleRegexToLabel)
+  return getLabelsToAdd(title, labelFilter, PrTitleRegexToLabel);
 }
 
 function getLabelsToAdd(
@@ -323,7 +323,6 @@ function getLabelsToAdd(
 
   return labelsToAdd;
 }
-
 
 // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
 function getReleaseNotesCategoryAndTopic(
