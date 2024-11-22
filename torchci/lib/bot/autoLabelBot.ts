@@ -12,7 +12,7 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-// list of regex to assign labels to pull requests
+// List of Regex Patterns for Assigning Labels to Pull Requests
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
   [/rocm/gi, "module: rocm"],
@@ -24,7 +24,7 @@ const PrTitleRegexToLabel: [RegExp, string][] = [
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
 ];
 
-// list of regex to assign labels to issues
+//List of Regex Patterns for Assigning Labels to Issues
 const IssueTitleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/rocm/gi, "ciflow/rocm"],
