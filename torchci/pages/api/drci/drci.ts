@@ -63,6 +63,7 @@ export interface UpdateCommentBody {
 // also according to https://vercel.com/docs/functions/runtimes#max-duration, the max duration
 // for an enterprise account is 900
 export const maxDuration = 900;
+export const dynamic = "force-dynamic";
 
 export default async function handler(
   req: NextApiRequest,
