@@ -147,27 +147,18 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - name: Configure aws credentials (pytorch account)
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          pip install awscli==1.32.18
-          yum install -y jq
-          sleep 3 # Need to have a delay to acquire this
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL}"
-          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-            | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
-          # aws sts get-caller-identity
-          aws s3 cp s3://gha-artifacts/4.14.336-257.562.amzn2.x86_64.tar.gz 4.14.336-257.562.amzn2.x86_64.tar.gz
-          
-          
       - uses: atalman/checkout-action@main
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+      - name: Upload wheel
+        uses: ./test-infra/.github/actions/binary-upload
+        with:
+          repository: ${{ inputs.repository }}
+          trigger-event: ${{ inputs.trigger-event }}
+          
       - name: Install Miniforge
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
