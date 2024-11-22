@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
+      - .github/actions/binary-upload/action.yml
       - .github/workflows/test_build_wheels_linux.yml
       - .github/workflows/build_wheels_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
