@@ -79,6 +79,19 @@ PACKAGES_PER_PROJECT = {
         "xxhash",
         "yarl",
     ]
+    "troch_xpu": [
+        "dpcpp-cpp-rt",
+        "intel-cmplr-lib-rt",
+        "intel-cmplr-lib-ur",
+        "intel-cmplr-lic-rt",
+        "intel-opencl-rt",
+        "intel-sycl-rt",
+        "intel-openmp",
+        "tcmlib",
+        "umf",
+        "intel-pti",
+        "tbb",
+    ]
 }
 
 

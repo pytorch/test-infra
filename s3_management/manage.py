@@ -102,6 +102,17 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "importlib_metadata",
     "importlib_resources",
     "zipp",
+    # ---- torch xpu additional packages ----
+    "dpcpp-cpp-rt",
+    "intel-cmplr-lib-rt",
+    "intel-cmplr-lib-ur",
+    "intel-cmplr-lic-rt",
+    "intel-opencl-rt",
+    "intel-sycl-rt",
+    "intel-openmp",
+    "tcmlib",
+    "umf",
+    "intel-pti",
     # ----
     "Pillow",
     "certifi",
