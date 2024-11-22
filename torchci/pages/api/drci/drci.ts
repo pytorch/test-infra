@@ -63,7 +63,7 @@ export interface UpdateCommentBody {
 // also according to https://vercel.com/docs/functions/runtimes#max-duration, the max duration
 // for an enterprise account is 900
 export const config = {
-    maxDuration: 900,
+  maxDuration: 900,
 };
 
 export default async function handler(
