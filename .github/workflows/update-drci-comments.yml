@@ -10,83 +10,30 @@ on:
 jobs:
   update-drci-comments:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [
+          ao,
+          audio,
+          data,
+          executorch,
+          pytorch,
+          rl,
+          text,
+          torchchat,
+          torchtune,
+          tutorials,
+          vision,
+        ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Retrieve rockset query results and update Dr. CI comments for the PyTorch repo
+      - name: Retrieve rockset query results and update Dr. CI comments
         run: |
           curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=pytorch'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Vision repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=vision'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Text repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=text'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Data repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=data'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Audio repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=audio'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Tutorials repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=tutorials'
-
-      - name: Retrieve the Rockset query results and update Dr. CI comments for the ExecuTorch repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=executorch'
-
-      - name: Retrieve the Rockset query results and update Dr. CI comments for the RL repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=rl'
-
-      - name: Retrieve the Rockset query results and update Dr. CI comments for the TorchTune repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=torchtune'
-
-      - name: Retrieve the Rockset query results and update Dr. CI comments for the torchao repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=ao'
-
-      - name: Retrieve the Rockset query results and update Dr. CI comments for the torchchat repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=torchchat'
+            --url 'https://www.torch-ci.com/api/drci/drci' \
+            --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+            --data 'repo=${{ matrix.repo }}' \
+            --silent --output /dev/null --show-error --fail
