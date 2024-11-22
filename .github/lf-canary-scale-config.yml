@@ -99,6 +99,12 @@ runner_types:
     is_ephemeral: false
     os: linux
     ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
+  lf.c.linux.2xlarge.ephemeral:
+    disk_size: 150
+    instance_type: c5.2xlarge
+    is_ephemeral: true
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
   lf.c.linux.4xlarge:
     disk_size: 150
     instance_type: c5.4xlarge
@@ -145,6 +151,12 @@ runner_types:
     disk_size: 150
     instance_type: g5.4xlarge
     is_ephemeral: false
+    os: linux
+    ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
+  lf.c.linux.g5.4xlarge.nvidia.gpu.ephemeral:
+    disk_size: 150
+    instance_type: g5.4xlarge
+    is_ephemeral: true
     os: linux
     ami: al2023-ami-2023.5.202*-kernel-6.1-x86_64
   lf.c.linux.g6.4xlarge.experimental.nvidia.gpu:
