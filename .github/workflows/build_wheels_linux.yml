@@ -144,7 +144,16 @@ jobs:
           fi
           echo "::endgroup::"
 
+      - uses: actions/checkout@v4
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
       - uses: atalman/checkout-action@main
+        if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
