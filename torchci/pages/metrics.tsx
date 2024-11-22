@@ -808,7 +808,7 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={
                 useClickHouse
-                  ? { branch: "refs/heads/main" }
+                  ? { branch: "refs/heads/main", repo: repo }
                   : [
                       {
                         name: "branch",
@@ -827,7 +827,7 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={
                 useClickHouse
-                  ? { branch: "refs/heads/nightly" }
+                  ? { branch: "refs/heads/nightly", repo: repo }
                   : [
                       {
                         name: "branch",
@@ -858,6 +858,7 @@ export default function Page() {
                 useClickHouse
                   ? {
                       workflowName: "docker-builds",
+                      repo: repo,
                     }
                   : [
                       {
@@ -879,6 +880,7 @@ export default function Page() {
                 useClickHouse
                   ? {
                       jobNames: docsJobNames,
+                      repo: repo,
                     }
                   : [
                       {

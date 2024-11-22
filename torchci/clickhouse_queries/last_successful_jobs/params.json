@@ -1,3 +1,4 @@
 {
-  "jobNames": "String"
+  "jobNames": "String",
+  "repo": "String"
 }
