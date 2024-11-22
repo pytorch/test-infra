@@ -16,61 +16,29 @@ runs:
   using: composite
   steps:
 
-    - name: Configure aws credentials (pytorch account)
-      if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) }}
-      env:
-        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
-        AWS_DEFAULT_REGION: us-east-1
-        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
-      shell: bash
-      run: |
-        set -euxo pipefail
-        pip install awscli==1.32.18
-        yum install -y jq
-        sleep 3 # Need to have a delay to acquire this
-        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
-
-    - name: Configure aws credentials (pytorch account)
-      if: ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/v') }}
-      env:
-        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
-        AWS_DEFAULT_REGION: us-east-1
-        AWS_ROLE_ARN: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
-      shell: bash
-      run: |
-        set -euxo pipefail
-        pip install awscli==1.32.18
-        yum install -y jq
-        sleep 3 # Need to have a delay to acquire this
-        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
-
-
-    - name: Nightly or release RC
+    - name: Configure aws credentials and upload (pytorch account)
       if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-      shell: bash
-      run: |
-        set -ex
-        echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
-
-    - name: Upload package to pytorch.org
+      env:
+        AWS_WEB_IDENTITY_TOKEN_FILE: aws.web.identity.token.file
+        AWS_DEFAULT_REGION: us-east-1
+        
       shell: bash
       working-directory: ${{ inputs.repository }}
       run: |
-        set -ex
-
-        # shellcheck disable=SC1090
-        source "${BUILD_ENV_FILE}"
+        set -euxo pipefail
         pip install awscli==1.32.18
+        yum install -y jq
 
-        AWS_CMD="aws s3 cp --dryrun"
-        if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
-          AWS_CMD="aws s3 cp"
+        export AWS_ROLE_ARN="arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels"
+        if [[ ${{ env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/v') }} ]]; then
+          export AWS_ROLE_ARN="arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels"
         fi
+        echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
+        sleep 3 # Need to have a delay to acquire this
+        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+          | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
 
         for pkg in dist/*; do
-          ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+          aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
         done
