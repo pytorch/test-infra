@@ -3,5 +3,6 @@
   "percentile_to_get": "Float64",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)",
-  "workflow": "String"
+  "workflow": "String",
+  "repo": "String"
 }

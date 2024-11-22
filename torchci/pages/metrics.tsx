@@ -706,6 +706,7 @@ export default function Page() {
                       one_bucket: true,
                       percentile_to_get: 0.9,
                       workflow: "pull",
+                      repo: repo,
                     }
                   : [
                       {
@@ -772,7 +773,7 @@ export default function Page() {
               queryParams={
                 useClickHouse
                   ? {
-                      repo: "pytorch",
+                      repo: repo,
                       owner: "pytorch", // Not a parameter for the rockset query
                       head: "refs/heads/main",
                     }
@@ -1028,7 +1029,7 @@ export default function Page() {
             queryName={"workflow_load"}
             queryParams={
               useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                ? { ...timeParamsClickHouse, repo: `pytorch/${repo}` }
                 : [
                     {
                       name: "timezone",
@@ -1130,7 +1131,7 @@ export default function Page() {
             queryName={"disabled_test_historical"}
             queryParams={
               useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                ? { ...timeParamsClickHouse, repo: `pytorch/${repo}` }
                 : [
                     {
                       name: "timezone",
