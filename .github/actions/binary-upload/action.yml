@@ -26,6 +26,10 @@ runs:
       working-directory: ${{ inputs.repository }}
       run: |
         set -euxo pipefail
+        
+        # shellcheck disable=SC1090
+        source "${BUILD_ENV_FILE}"
+          
         pip install awscli==1.32.18
         yum install -y jq
 
