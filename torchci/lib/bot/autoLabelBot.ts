@@ -311,11 +311,11 @@ function getLabelsToAddFromPrTitle(
 function getLabelsToAdd(
   title: string,
   labelFilter: RegExp = /.*/,
-  RegexToTableList: [RegExp, string][]
+  regexToLabelList: [RegExp, string][]
 ): string[] {
   const labelsToAdd: string[] = [];
 
-  for (const [regex, label] of RegexToTableList) {
+  for (const [regex, label] of regexToLabelList) {
     if (title.match(regex) && label.match(labelFilter)) {
       labelsToAdd.push(label);
     }
