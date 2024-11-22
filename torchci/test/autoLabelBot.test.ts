@@ -104,7 +104,6 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-
   test("add ci-no-td label when PR title contains Reland", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -122,7 +121,8 @@ describe("auto-label-bot", () => {
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
         expect(body).toMatchObject({ labels: ["ci-no-td"] });
         return true;
-      }).reply(200)
+      })
+      .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
@@ -145,7 +145,8 @@ describe("auto-label-bot", () => {
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
         expect(body).toMatchObject({ labels: ["ci-no-td"] });
         return true;
-      }).reply(200)
+      })
+      .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
@@ -158,7 +159,7 @@ describe("auto-label-bot", () => {
 
     const payload = requireDeepCopy("./fixtures/issues.opened");
     payload["issue"]["title"] = "Issue is Reland";
-    payload["issue"]["labels"] = [{name:"test"}];
+    payload["issue"]["labels"] = [{ name: "test" }];
 
     const scope = nock("https://api.github.com")
       .post(

@@ -12,10 +12,9 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-
 // list of regex to assign labels to pull requests
 const PrTitleRegexToLabel: [RegExp, string][] = [
-  [/reland/gi,"ci-no-td"],
+  [/reland/gi, "ci-no-td"],
   [/rocm/gi, "module: rocm"],
   [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
@@ -299,7 +298,7 @@ function isNotUserFacing(filesChanged: string[]): boolean {
 
 function getLabelsToAddFromIssueTitle(
   title: string,
-  labelFilter: RegExp = /.*/,
+  labelFilter: RegExp = /.*/
 ): string[] {
   const labelsToAdd: string[] = [];
 
@@ -314,7 +313,7 @@ function getLabelsToAddFromIssueTitle(
 
 function getLabelsToAddFromPrTitle(
   title: string,
-  labelFilter: RegExp = /.*/,
+  labelFilter: RegExp = /.*/
 ): string[] {
   const labelsToAdd: string[] = [];
 
@@ -481,7 +480,10 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ existingLabels, title });
 
-    const labelsToAdd = getLabelsToAddFromIssueTitle(title, /^(?!ciflow\/.*).*/);
+    const labelsToAdd = getLabelsToAddFromIssueTitle(
+      title,
+      /^(?!ciflow\/.*).*/
+    );
     await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
