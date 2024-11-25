@@ -32,8 +32,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/torchtune
-            package-name: torchtune
+          - repository: pytorch/executorch
+            pre-script: build/packaging/pre_build_script.sh
+            post-script: build/packaging/post_build_script.sh
+            smoke-test-script: build/packaging/smoke_test.py
+            package-name: executorch
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
@@ -42,6 +45,10 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      submodules: true
+      env-var-script: build/packaging/env_var_script_linux.sh
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
-      trigger-event: "${{ github.event_name }}"
-      build-platform: 'python-build-package'
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      trigger-event: ${{ github.event_name }}
