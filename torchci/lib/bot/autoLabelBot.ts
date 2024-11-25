@@ -294,29 +294,22 @@ function isNotUserFacing(filesChanged: string[]): boolean {
   );
 }
 
-function getLabelsToAddFromIssueTitle(
-  title: string,
-  labelFilter: RegExp = /.*/
-): string[] {
-  return getLabelsToAdd(title, labelFilter, IssueTitleRegexToLabel);
+function getLabelsToAddFromIssueTitle(title: string): string[] {
+  return getLabelsToAdd(title, IssueTitleRegexToLabel);
 }
 
-function getLabelsToAddFromPrTitle(
-  title: string,
-  labelFilter: RegExp = /.*/
-): string[] {
-  return getLabelsToAdd(title, labelFilter, PrTitleRegexToLabel);
+function getLabelsToAddFromPrTitle(title: string): string[] {
+  return getLabelsToAdd(title, PrTitleRegexToLabel);
 }
 
 function getLabelsToAdd(
   title: string,
-  labelFilter: RegExp = /.*/,
   regexToLabelList: [RegExp, string][]
 ): string[] {
   const labelsToAdd: string[] = [];
 
   for (const [regex, label] of regexToLabelList) {
-    if (title.match(regex) && label.match(labelFilter)) {
+    if (title.match(regex)) {
       labelsToAdd.push(label);
     }
   }
@@ -478,10 +471,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ existingLabels, title });
 
-    const labelsToAdd = getLabelsToAddFromIssueTitle(
-      title,
-      /^(?!ciflow\/.*).*/
-    );
+    const labelsToAdd = getLabelsToAddFromIssueTitle(title);
     await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
