@@ -45,7 +45,6 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
-      submodules: "true"
       env-var-script: build/packaging/env_var_script_linux.sh
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
