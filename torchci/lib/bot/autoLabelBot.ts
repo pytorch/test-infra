@@ -12,14 +12,25 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-const titleRegexToLabel: [RegExp, string][] = [
+// List of regex patterns for assigning labels to both Pull Requests and Issues
+const IssueAndPRRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
-  [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
-  [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
-  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
+];
+
+// List of regex patterns for assigning labels to Pull Requests
+const PrTitleRegexToLabel: [RegExp, string][] = [
+  [/reland/gi, "ci-no-td"],
+  [/rocm/gi, "ciflow/rocm"],
+  ...IssueAndPRRegexToLabel,
+];
+
+// List of regex patterns for assigning labels to Issues
+const IssueTitleRegexToLabel: [RegExp, string][] = [
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
+  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
+  ...IssueAndPRRegexToLabel,
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
@@ -283,14 +294,22 @@ function isNotUserFacing(filesChanged: string[]): boolean {
   );
 }
 
-function getLabelsToAddFromTitle(
+function getLabelsToAddFromIssueTitle(title: string): string[] {
+  return getLabelsToAdd(title, IssueTitleRegexToLabel);
+}
+
+function getLabelsToAddFromPrTitle(title: string): string[] {
+  return getLabelsToAdd(title, PrTitleRegexToLabel);
+}
+
+function getLabelsToAdd(
   title: string,
-  labelFilter: RegExp = /.*/
+  regexToLabelList: [RegExp, string][]
 ): string[] {
   const labelsToAdd: string[] = [];
 
-  for (const [regex, label] of titleRegexToLabel) {
-    if (title.match(regex) && label.match(labelFilter)) {
+  for (const [regex, label] of regexToLabelList) {
+    if (title.match(regex)) {
       labelsToAdd.push(label);
     }
   }
@@ -452,7 +471,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ existingLabels, title });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
+    const labelsToAdd = getLabelsToAddFromIssueTitle(title);
     await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
@@ -473,7 +492,7 @@ function myBot(app: Probot): void {
       );
       context.log({ labels, title, filesChanged });
 
-      var labelsToAdd = getLabelsToAddFromTitle(title);
+      var labelsToAdd = getLabelsToAddFromPrTitle(title);
 
       // only categorize for release notes for prs in pytorch/pytorch
       if (isPyTorchPyTorch(owner, repo)) {
