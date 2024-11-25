@@ -238,7 +238,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python -m pip install build
+          ${CONDA_RUN} python -m pip install build==1.2.2
           echo "Successfully installed Python build package"
           ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Build the wheel (setup-py)

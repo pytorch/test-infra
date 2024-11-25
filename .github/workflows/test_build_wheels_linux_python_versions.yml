@@ -1,0 +1,47 @@
+name: Test Build Linux Wheels on only selected python versions
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/setup-binary-builds/action.yml
+      - .github/workflows/test_build_wheels_linux_python_versions.yml
+      - .github/workflows/build_wheels_linux.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
+      with-rocm: disable
+      build-python-only: enable
+      python-versions: '["3.10", "3.11"]'
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/torchtune
+            package-name: torchtune
+    uses: ./.github/workflows/build_wheels_linux.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"
+      build-platform: 'python-build-package'

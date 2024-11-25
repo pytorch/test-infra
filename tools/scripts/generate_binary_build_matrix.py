@@ -17,7 +17,7 @@ import json
 import os
 import sys
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any, Callable
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12"],
@@ -242,13 +242,13 @@ def get_libtorch_install_command(
         if channel in [RELEASE, TEST]:
             build_name = f"libtorch-macos-{arch}-{CURRENT_VERSION}.zip"
 
-    elif os == LINUX and (channel == RELEASE or channel == TEST):
+    elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
             if devtoolset == "cxx11-abi"
             else f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
-    elif os == WINDOWS and (channel == RELEASE or channel == TEST):
+    elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-shared-with-deps-debug-{CURRENT_VERSION}%2B{desired_cuda}.zip"
             if libtorch_config == "debug"
@@ -276,10 +276,10 @@ def get_wheel_install_command(
 ) -> str:
     if use_split_build:
         if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
-            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"
+            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"  # noqa: E501
         else:
             raise ValueError(
-                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."
+                "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."  # noqa: E501
             )
     if (
         channel == RELEASE
@@ -297,7 +297,7 @@ def get_wheel_install_command(
             if channel == "nightly"
             else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         )
-        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
 def generate_conda_matrix(
@@ -310,6 +310,7 @@ def generate_conda_matrix(
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     # return empty list. Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
@@ -326,6 +327,7 @@ def generate_libtorch_matrix(
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    python_versions: Optional[List[str]] = None,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -338,13 +340,11 @@ def generate_libtorch_matrix(
         if with_cpu == ENABLE:
             arches += [CPU]
 
-        if with_cuda == ENABLE:
-            if os == LINUX or os == WINDOWS:
-                arches += CUDA_ARCHES
+        if with_cuda == ENABLE and os in (LINUX, WINDOWS):
+            arches += CUDA_ARCHES
 
-        if with_rocm == ENABLE:
-            if os == LINUX:
-                arches += ROCM_ARCHES
+        if with_rocm == ENABLE and os == LINUX:
+            arches += ROCM_ARCHES
 
     if abi_versions is None:
         if os == WINDOWS:
@@ -353,11 +353,15 @@ def generate_libtorch_matrix(
             abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
         elif os in [MACOS_ARM64]:
             abi_versions = [CXX11_ABI]
+        else:
+            abi_versions = []
 
     if libtorch_variants is None:
         libtorch_variants = [
             "shared-with-deps",
         ]
+
+    global LIBTORCH_CONTAINER_IMAGES
 
     for abi_version in abi_versions:
         for arch_version in arches:
@@ -385,7 +389,7 @@ def generate_libtorch_matrix(
                             else ""
                         ),
                         "package_type": "libtorch",
-                        "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(
+                        "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(  # noqa: E501
                             ".", "_"
                         ),
                         # Please noe since libtorch validations are minimal, we use CPU runners
@@ -416,8 +420,8 @@ def generate_wheels_matrix(
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
-    arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
+    arches: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
@@ -425,12 +429,14 @@ def generate_wheels_matrix(
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
 
+        # If the list of python versions is set explicitly by the caller, stick with it instead
+        # of trying to add more versions behind the scene
+        if channel == NIGHTLY and (os in (LINUX, MACOS_ARM64, LINUX_AARCH64)):
+            python_versions += ["3.13"]
+
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-
-    if channel == NIGHTLY and (os == LINUX or os == MACOS_ARM64 or os == LINUX_AARCH64):
-        python_versions += ["3.13"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -447,24 +453,24 @@ def generate_wheels_matrix(
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
-            if os == LINUX or os == WINDOWS:
+            if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
                 # todo: remove once windows cuda 12.6 binaries are available
                 if channel == NIGHTLY and os == WINDOWS:
                     arches.remove("12.6")
 
-        if with_rocm == ENABLE:
-            if os == LINUX:
-                arches += ROCM_ARCHES
+        if with_rocm == ENABLE and os == LINUX:
+            arches += ROCM_ARCHES
 
-        if with_xpu == ENABLE:
-            if os == LINUX or os == WINDOWS:
-                arches += [XPU]
+        if with_xpu == ENABLE and os in (LINUX, WINDOWS):
+            arches += [XPU]
 
     if limit_pr_builds:
         python_versions = [python_versions[0]]
 
-    ret: List[Dict[str, str]] = []
+    global WHEEL_CONTAINER_IMAGES
+
+    ret: List[Dict[str, Any]] = []
     for python_version in python_versions:
         for arch_version in arches:
 
@@ -522,7 +528,7 @@ def generate_wheels_matrix(
     return ret
 
 
-GENERATING_FUNCTIONS_BY_PACKAGE_TYPE = {
+GENERATING_FUNCTIONS_BY_PACKAGE_TYPE: Dict[str, Callable[..., List[Dict[str, str]]]] = {
     "wheel": generate_wheels_matrix,
     "conda": generate_conda_matrix,
     "libtorch": generate_libtorch_matrix,
@@ -541,6 +547,7 @@ def generate_build_matrix(
     use_only_dl_pytorch_org: str,
     build_python_only: str,
     use_split_build: str = "false",
+    python_versions: Optional[List[str]] = None,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -564,6 +571,7 @@ def generate_build_matrix(
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
                     use_split_build == "true",
+                    python_versions,
                 )
             )
 
@@ -658,7 +666,18 @@ def main(args: List[str]) -> None:
         default=os.getenv("USE_SPLIT_BUILD", DISABLE),
     )
 
+    parser.add_argument(
+        "--python-versions",
+        help="Only build the select JSON-encoded list of python versions",
+        type=str,
+        default=os.getenv("PYTHON_VERSIONS", "[]"),
+    )
+
     options = parser.parse_args(args)
+    try:
+        python_versions = json.loads(options.python_versions)
+    except json.JSONDecodeError:
+        python_versions = None
 
     assert (
         options.with_cuda or options.with_rocm or options.with_xpu or options.with_cpu
@@ -676,6 +695,7 @@ def main(args: List[str]) -> None:
         options.use_only_dl_pytorch_org,
         options.build_python_only,
         options.use_split_build,
+        python_versions,
     )
 
     print(json.dumps(build_matrix))
