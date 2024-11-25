@@ -425,7 +425,7 @@ def generate_wheels_matrix(
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
-    if python_versions is None:
+    if not python_versions:
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
 
