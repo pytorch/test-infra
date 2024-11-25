@@ -3,5 +3,6 @@
   "merge_type": "String",
   "one_bucket": "Bool",
   "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)"
+  "stopTime": "DateTime64(3)",
+  "repo": "String"
 }

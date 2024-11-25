@@ -8,7 +8,7 @@ with pushes as (
   WHERE
     push.ref IN ('refs/heads/master', 'refs/heads/main')
     AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = 'pytorch'
+    AND push.repository.'name' = {repo: String}
     AND push.head_commit.'timestamp' >= {startTime : DateTime64(3)}
     AND push.head_commit.'timestamp' < {stopTime : DateTime64(3)}
 ), all_jobs AS (

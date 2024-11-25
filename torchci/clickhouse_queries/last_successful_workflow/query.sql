@@ -10,7 +10,7 @@ from
 where
     push.ref IN ('refs/heads/master', 'refs/heads/main')
     AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = 'pytorch'
+    AND push.repository.'name' = {repo: String}
     AND workflow.conclusion = 'success'
     AND workflow.name = {workflowName: String}
 order by

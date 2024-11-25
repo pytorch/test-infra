@@ -1,5 +1,6 @@
 {
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "timezone": "String"
+    "timezone": "String",
+    "repo": "String"
 }

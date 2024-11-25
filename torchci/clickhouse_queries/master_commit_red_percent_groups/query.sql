@@ -29,7 +29,7 @@ WITH all_jobs AS (
         AND w.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         AND p.ref = 'refs/heads/main'
         AND p.repository. 'owner'.'name' = 'pytorch'
-        AND p.repository. 'name' = 'pytorch'
+        AND p.repository. 'name' = {repo: String}
         AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
         AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
 ),

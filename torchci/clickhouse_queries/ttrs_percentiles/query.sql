@@ -39,7 +39,7 @@ pr_shas AS (
       and run_started_at < {stopTime: DateTime64(3)}
     )
     AND LENGTH(r.pull_requests) = 1
-    AND r.pull_requests[1].'head'.'repo'.'name' = 'pytorch'
+    AND r.pull_requests[1].'head'.'repo'.'name' = {repo: String}
     AND r.name IN ('pull', 'trunk', 'Lint') -- Ensure we don't pull in random PRs we don't care about
     AND r.head_branch NOT IN (
       'master', 'main', 'nightly', 'viable/strict'
