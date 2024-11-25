@@ -15,14 +15,13 @@ import {
 // List of regex patterns for assigning labels to both Pull Requests and Issues
 const IssueAndPRRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
-  [/rocm/gi, "ciflow/rocm"],
   [/vulkan/gi, "module: vulkan"],
-  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
 ];
 
 // List of regex patterns for assigning labels to Pull Requests
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
+  [/rocm/gi, "ciflow/rocm"],
   ...IssueAndPRRegexToLabel,
 ];
 
@@ -30,6 +29,7 @@ const PrTitleRegexToLabel: [RegExp, string][] = [
 const IssueTitleRegexToLabel: [RegExp, string][] = [
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
+  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
   ...IssueAndPRRegexToLabel,
 ];
 

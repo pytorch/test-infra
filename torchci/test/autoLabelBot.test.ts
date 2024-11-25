@@ -94,13 +94,14 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["module: rocm", "ciflow/rocm"] });
+        expect(body).toMatchObject({ labels: ["ciflow/rocm","module: rocm"] });
         return true;
       })
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
+    // the api never been called.
     scope.done();
   });
 
@@ -203,7 +204,7 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("add skipped label when PR title contains DISABLED test", async () => {
+  test("no skipped label added when PR title contains DISABLED test", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -226,7 +227,8 @@ describe("auto-label-bot", () => {
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
-    scope.done();
+    // the api never been called.
+    expect(scope.isDone()).toBe(false);
   });
 
   test("non pytorch/pytorch repo do NOT add any release notes category labels", async () => {
