@@ -6,7 +6,7 @@ data "amazon-ami" "windows_root_ami" {
   }
   most_recent = true
   owners      = ["amazon"]
-  region      = "us-east-1"
+  region      = "us-east-1"  
 }
 
 locals {
@@ -35,6 +35,7 @@ source "amazon-ebs" "windows_ebs_builder" {
     # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
     max_attempts = 600
   }
+  ami_groups = ["all"]
 }
 
 build {
