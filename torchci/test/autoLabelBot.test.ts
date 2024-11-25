@@ -94,14 +94,13 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ciflow/rocm","module: rocm"] });
+        expect(body).toMatchObject({ labels: ["ciflow/rocm", "module: rocm"] });
         return true;
       })
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
-    // the api never been called.
     scope.done();
   });
 
