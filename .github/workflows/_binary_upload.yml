@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 30
     name: ${{ matrix.build_name }}
     env:
-      SKIP-UPLOAD: ${{ !contains(matrix.container_image, '2_28') }}
+      IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') || contains(matrix.container_image, 'manylinuxaarch64-builder:cuda') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,7 +72,7 @@ jobs:
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
 
       - name: Download the artifact
-        if: ${{ !env.SKIP-UPLOAD }}
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         uses: actions/download-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -100,7 +100,7 @@ jobs:
           echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
 
       - name: Upload package to pytorch.org
-        if: ${{ !env.SKIP-UPLOAD }}
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         shell: bash
         working-directory: ${{ inputs.repository }}
         run: |
@@ -121,7 +121,7 @@ jobs:
           done
 
       - name: Upload package to pypi
-        if: ${{ !env.SKIP-UPLOAD  && env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
+        if: ${{ env.IS_MANYLINUX2_28 == 'true' && env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
