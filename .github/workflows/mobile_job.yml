@@ -108,6 +108,8 @@ jobs:
       contents: read
     outputs:
       artifacts: ${{ inputs.device-type == 'ios' && steps.ios-test.outputs.artifacts || inputs.device-type == 'android' && steps.android-test.outputs.artifacts || '[]' }}
+    env:
+      CURL_PARAMS: -s --fail
     steps:
       - name: Clean workspace
         run: |
@@ -161,7 +163,7 @@ jobs:
           if [[ "${IPA_ARCHIVE}" == http* ]]; then
             IPA_ARCHIVE_OUTPUT="ci.ipa"
 
-            curl -s "${IPA_ARCHIVE}" -o "${IPA_ARCHIVE_OUTPUT}" --fail
+            curl ${CURL_PARAMS} "${IPA_ARCHIVE}" -o "${IPA_ARCHIVE_OUTPUT}"
             ls -lah "${IPA_ARCHIVE_OUTPUT}"
           else
             IPA_ARCHIVE_OUTPUT="${IPA_ARCHIVE}"
@@ -172,7 +174,7 @@ jobs:
           if [[ "${XCTESTRUN_ZIP}" == http* ]]; then
             XCTESTRUN_ZIP_OUTPUT="ci.xctestrun.zip"
 
-            curl -s "${XCTESTRUN_ZIP}" -o "${XCTESTRUN_ZIP_OUTPUT}" --fail
+            curl ${CURL_PARAMS} "${XCTESTRUN_ZIP}" -o "${XCTESTRUN_ZIP_OUTPUT}"
             ls -lah "${XCTESTRUN_ZIP_OUTPUT}"
           else
             XCTESTRUN_ZIP_OUTPUT="${XCTESTRUN_ZIP}"
@@ -199,7 +201,7 @@ jobs:
           if [[ "${APP_ARCHIVE}" == http* ]]; then
             APP_ARCHIVE_OUTPUT="ci.apk"
 
-            curl -s "${APP_ARCHIVE}" -o "${APP_ARCHIVE_OUTPUT}" --fail
+            curl ${CURL_PARAMS} "${APP_ARCHIVE}" -o "${APP_ARCHIVE_OUTPUT}"
             ls -lah "${APP_ARCHIVE_OUTPUT}"
           else
             APP_ARCHIVE_OUTPUT="${APP_ARCHIVE}"
@@ -210,7 +212,7 @@ jobs:
           if [[ "${TEST_ARCHIVE}" == http* ]]; then
             TEST_ARCHIVE_OUTPUT="ci.test.apk"
 
-            curl -s "${TEST_ARCHIVE}" -o "${TEST_ARCHIVE_OUTPUT}" --fail
+            curl ${CURL_PARAMS} "${TEST_ARCHIVE}" -o "${TEST_ARCHIVE_OUTPUT}"
             ls -lah "${TEST_ARCHIVE_OUTPUT}"
           else
             TEST_ARCHIVE_OUTPUT="${TEST_ARCHIVE}"
@@ -230,7 +232,7 @@ jobs:
           if [[ "${TEST_SPEC}" == http* ]]; then
             TEST_SPEC_OUTPUT="ci.yml"
 
-            curl -s "${TEST_SPEC}" -o "${TEST_SPEC_OUTPUT}" --fail
+            curl ${CURL_PARAMS} "${TEST_SPEC}" -o "${TEST_SPEC_OUTPUT}"
             cat "${TEST_SPEC_OUTPUT}"
           else
             TEST_SPEC_OUTPUT="${TEST_SPEC}"
@@ -251,7 +253,7 @@ jobs:
             if [[ "${EXTRA_DATA}" == http* ]]; then
               EXTRA_DATA_OUTPUT="extra-data.zip"
 
-              curl -s "${EXTRA_DATA}" -o "${EXTRA_DATA_OUTPUT}" --fail
+              curl ${CURL_PARAMS} "${EXTRA_DATA}" -o "${EXTRA_DATA_OUTPUT}"
               ls -lah "${EXTRA_DATA_OUTPUT}"
             else
               EXTRA_DATA_OUTPUT="${EXTRA_DATA}"
