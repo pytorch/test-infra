@@ -79,8 +79,8 @@ PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str]
 WHEEL_CONTAINER_IMAGES: Dict[str, str]
 
-LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
-LINUX_CPU_RUNNER = "linux.2xlarge"
+LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu.ephemeral"
+LINUX_CPU_RUNNER = "linux.2xlarge.ephemeral"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
