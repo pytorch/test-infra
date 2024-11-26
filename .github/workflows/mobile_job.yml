@@ -163,6 +163,7 @@ jobs:
           if [[ "${IPA_ARCHIVE}" == http* ]]; then
             IPA_ARCHIVE_OUTPUT="ci.ipa"
 
+            # shellcheck disable=SC2086
             curl ${CURL_PARAMS} "${IPA_ARCHIVE}" -o "${IPA_ARCHIVE_OUTPUT}"
             ls -lah "${IPA_ARCHIVE_OUTPUT}"
           else
@@ -174,6 +175,7 @@ jobs:
           if [[ "${XCTESTRUN_ZIP}" == http* ]]; then
             XCTESTRUN_ZIP_OUTPUT="ci.xctestrun.zip"
 
+            # shellcheck disable=SC2086
             curl ${CURL_PARAMS} "${XCTESTRUN_ZIP}" -o "${XCTESTRUN_ZIP_OUTPUT}"
             ls -lah "${XCTESTRUN_ZIP_OUTPUT}"
           else
@@ -201,6 +203,7 @@ jobs:
           if [[ "${APP_ARCHIVE}" == http* ]]; then
             APP_ARCHIVE_OUTPUT="ci.apk"
 
+            # shellcheck disable=SC2086
             curl ${CURL_PARAMS} "${APP_ARCHIVE}" -o "${APP_ARCHIVE_OUTPUT}"
             ls -lah "${APP_ARCHIVE_OUTPUT}"
           else
@@ -212,6 +215,7 @@ jobs:
           if [[ "${TEST_ARCHIVE}" == http* ]]; then
             TEST_ARCHIVE_OUTPUT="ci.test.apk"
 
+            # shellcheck disable=SC2086
             curl ${CURL_PARAMS} "${TEST_ARCHIVE}" -o "${TEST_ARCHIVE_OUTPUT}"
             ls -lah "${TEST_ARCHIVE_OUTPUT}"
           else
@@ -232,6 +236,7 @@ jobs:
           if [[ "${TEST_SPEC}" == http* ]]; then
             TEST_SPEC_OUTPUT="ci.yml"
 
+            # shellcheck disable=SC2086
             curl ${CURL_PARAMS} "${TEST_SPEC}" -o "${TEST_SPEC_OUTPUT}"
             cat "${TEST_SPEC_OUTPUT}"
           else
@@ -253,6 +258,7 @@ jobs:
             if [[ "${EXTRA_DATA}" == http* ]]; then
               EXTRA_DATA_OUTPUT="extra-data.zip"
 
+              # shellcheck disable=SC2086
               curl ${CURL_PARAMS} "${EXTRA_DATA}" -o "${EXTRA_DATA_OUTPUT}"
               ls -lah "${EXTRA_DATA_OUTPUT}"
             else
