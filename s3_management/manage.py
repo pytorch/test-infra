@@ -46,7 +46,7 @@ PREFIXES = [
 # package as specified by setuptools, for packages with "-" (hyphens) in their
 # names you need to convert them to "_" (underscores) in order for them to be
 # allowed here since the name of the wheels is compared here
-PACKAGE_ALLOW_LIST = {x.lower() for x in [
+PACKAGE_ALLOW_LIST = {x.lower().replace('-', '_') for x in [
     # ---- torchtune additional packages ----
     "aiohttp",
     "aiosignal",
