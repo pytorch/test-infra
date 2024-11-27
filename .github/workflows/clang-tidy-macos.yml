@@ -18,16 +18,13 @@ on:
 
 jobs:
   build-Intel:
-    runs-on: macos-12-xl
+    runs-on: macos-13
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           brew install ninja
-      - name: Set xcode version
-        run: |
-            echo "DEVELOPER_DIR=/Applications/Xcode_13.3.1.app/Contents/Developer" >> "${GITHUB_ENV}"
       - name: Build
         working-directory: ./tools/clang-tidy-checks
         run: |
@@ -44,7 +41,7 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: macos-i386/17.0.6
+          s3-prefix: macos-i386/19.1.4
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -55,7 +52,7 @@ jobs:
         with:
           name: clang-format
           if-no-files-found: error
-          s3-prefix: macos-i386/17.0.6
+          s3-prefix: macos-i386/19.1.4
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -84,7 +81,7 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: macos-arm/17.0.6
+          s3-prefix: macos-arm/19.1.4
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -95,7 +92,7 @@ jobs:
         with:
           name: clang-format
           if-no-files-found: error
-          s3-prefix: macos-arm/17.0.6
+          s3-prefix: macos-arm/19.1.4
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
