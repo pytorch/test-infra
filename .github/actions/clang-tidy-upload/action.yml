@@ -1,0 +1,75 @@
+name: Sanity check and upload clang-tidy and clang-format binaries
+
+description: Sanity check and upload clang-tidy and clang-format binaries to s3 and GHA
+
+# Used by clang-tidy-macos and clang-tidy-linux workflows since the sanity
+# checks and uploads are pretty much the same for them, so this helps reduce
+# code duplication
+
+inputs:
+  platform:
+    description: 'The platform to upload the binaries for'
+    required: true
+  version:
+    description: 'The version of the binaries'
+    required: true
+  upload-to-s3:
+    description: 'Whether to upload the binaries to s3'
+    required: false
+    default: false
+
+runs:
+  using: composite
+  steps:
+    - name: Check if binaries have changed
+      shell: bash
+      run: |
+        set -ex
+        python3 tools/clang-tidy-checks/check_s3.py \
+          --s3-key "${{ inputs.platform }}/${{ inputs.version }}/clang-tidy" \
+          --local-file clang-tidy
+        python3 tools/clang-tidy-checks/check_s3.py \
+          --s3-key "${{ inputs.platform }}/${{ inputs.version }}/clang-format" \
+          --local-file clang-format
+
+    - name: configure aws credentials
+      id: aws-credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      if: ${{ fromJSON(inputs.upload-to-s3) }}
+      with:
+        role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_clang_tidy_upload
+        aws-region: us-east-1
+        output-credentials: true
+
+    - uses: seemethere/upload-artifact-s3@v5
+      name: Publish clang-tidy binary
+      if: ${{ fromJSON(inputs.upload-to-s3) }}
+      with:
+        if-no-files-found: error
+        s3-prefix: ${{ inputs.platform }}/${{ inputs.version }}
+        s3-bucket: oss-clang-format
+        path: clang-tidy
+
+    - uses: seemethere/upload-artifact-s3@v5
+      name: Publish clang-format binary
+      with:
+        if-no-files-found: error
+        s3-prefix: ${{ inputs.platform }}/${{ inputs.version }}
+        s3-bucket: oss-clang-format
+        path: clang-format
+
+    - name: Upload clang-tidy to GHA
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.platform }}-${{ inputs.version }}-clang-tidy
+        retention-days: 14
+        if-no-files-found: warn
+        path: clang-tidy
+
+    - name: Upload clang-format to GHA
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.platform }}-${{ inputs.version }}-clang-format
+        retention-days: 14
+        if-no-files-found: warn
+        path: clang-format

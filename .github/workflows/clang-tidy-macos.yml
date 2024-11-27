@@ -16,6 +16,9 @@ on:
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-macos.yml'
 
+permissions:
+  id-token: write
+
 jobs:
   build-Intel:
     runs-on: macos-13
@@ -35,28 +38,21 @@ jobs:
           export PATH
 
           ./setup.sh
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-tidy binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Move files for s3 upload
+        run: |
+          set -ex
+          mv tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy \
+            tools/clang-tidy-checks/llvm-project/build/bin/clang-format \
+            .
+
+      - name: Sanity check and upload
+        uses: ./.github/actions/clang-tidy-upload
         with:
-          name: clang-tidy
-          if-no-files-found: error
-          s3-prefix: macos-i386/19.1.4
-          s3-bucket: oss-clang-format
-          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-format binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        with:
-          name: clang-format
-          if-no-files-found: error
-          s3-prefix: macos-i386/19.1.4
-          s3-bucket: oss-clang-format
-          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          platform: macos-i386
+          version: 19.1.4
+          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
   build-M1:
     runs-on: macos-m1-stable
     steps:
@@ -75,28 +71,20 @@ jobs:
           export PATH
 
           ./setup.sh
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-tidy binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Move files for s3 upload
+        run: |
+          set -ex
+          mv tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy \
+            tools/clang-tidy-checks/llvm-project/build/bin/clang-format \
+            .
+
+      - name: Sanity check and upload
+        uses: ./.github/actions/clang-tidy-upload
         with:
-          name: clang-tidy
-          if-no-files-found: error
-          s3-prefix: macos-arm/19.1.4
-          s3-bucket: oss-clang-format
-          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-format binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        with:
-          name: clang-format
-          if-no-files-found: error
-          s3-prefix: macos-arm/19.1.4
-          s3-bucket: oss-clang-format
-          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-format
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          platform: macos-arm64
+          version: 19.1.4
+          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

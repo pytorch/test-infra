@@ -14,22 +14,21 @@ on:
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-linux.yml'
 
+permissions:
+  id-token: write
+
 jobs:
   build:
     runs-on: linux.12xlarge
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build docker image
+
+      - name: Build docker image and extract binary
         run: |
           set -ex
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build ./tools/clang-tidy-checks --tag ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA" -f tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy
-      - name: Publish docker image and extract binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        run: |
-          set -ex
-          docker push ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA"
 
           # Copying files directly from a docker image is not supported
           # As a workaround, we create a temporary container, copy the binary, and remove it
@@ -37,28 +36,13 @@ jobs:
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-format ./clang-format
           docker rm -v "$image_id"
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-tidy binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Sanity check and upload
+        uses: ./.github/actions/clang-tidy-upload
         with:
-          name: clang-tidy
-          if-no-files-found: error
-          s3-prefix: linux64/19.1.4
-          s3-bucket: oss-clang-format
-          path: clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish clang-format binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        with:
-          name: clang-format
-          if-no-files-found: error
-          s3-prefix: linux64/19.1.4
-          s3-bucket: oss-clang-format
-          path: clang-format
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          platform: linux64
+          version: 19.1.4
+          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
