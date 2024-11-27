@@ -41,7 +41,7 @@ class GenerateBuildMatrixTest(TestCase):
 
         if self.update_reference_files:
             with open(expected_json_filename, "w") as f:
-                json.dump(out, f)
+                json.dump(out, f, indent=2)
 
         with open(expected_json_filename) as f:
             expected = json.load(f)
