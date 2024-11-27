@@ -42,7 +42,6 @@ class GenerateBuildMatrixTest(TestCase):
         if self.update_reference_files:
             with open(expected_json_filename, "w") as f:
                 json.dump(out, f)
-            return
 
         with open(expected_json_filename) as f:
             expected = json.load(f)
@@ -174,5 +173,4 @@ def parse_args():
 if __name__ == "__main__":
     args, unittest_args = parse_args()
     GenerateBuildMatrixTest.update_reference_files = args.update_reference_files
-    print(unittest_args)
     main(argv=[sys.argv[0]] + unittest_args)
