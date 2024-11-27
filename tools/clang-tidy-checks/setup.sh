@@ -48,14 +48,14 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-17.0.6 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-19.1.4 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
 function apply_patches() {
   info "applying patches"
   pushd llvm-project
-  for check in ../17.x-patches/*.diff; do
+  for check in ../19.x-patches/*.diff; do
     patch -p1 -N -d . < "$check"
   done
   popd
@@ -109,7 +109,8 @@ function build() {
 
 function setup() {
   clone_llvm
-  apply_patches
+  # No need to patch llvm-19
+  # apply_patches
   build
 }
 
