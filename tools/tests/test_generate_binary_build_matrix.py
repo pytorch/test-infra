@@ -1,6 +1,8 @@
 import json
 import os
 
+import argparse
+import sys
 from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import generate_build_matrix
@@ -9,6 +11,8 @@ ASSETS_DIR = "tools/tests/assets"
 
 
 class GenerateBuildMatrixTest(TestCase):
+    update_reference_files = False
+
     def matrix_compare_helper(
         self,
         package_type: str,
@@ -31,10 +35,14 @@ class GenerateBuildMatrixTest(TestCase):
             "false",
             "false",
             "enable" if build_python_only else "disable",
-
         )
 
         expected_json_filename = os.path.join(ASSETS_DIR, reference_output_file)
+
+        if self.update_reference_files:
+            with open(expected_json_filename, "w") as f:
+                json.dump(out, f)
+            return
 
         with open(expected_json_filename) as f:
             expected = json.load(f)
@@ -140,7 +148,7 @@ class GenerateBuildMatrixTest(TestCase):
             xpu=False,
             reference_output_file="build_matrix_linux_wheel_nocpu.json",
         )
-    
+
     def test_linux_wheel_cuda_xpu_nocpu(self):
         self.matrix_compare_helper(
             package_type="wheel",
@@ -153,5 +161,18 @@ class GenerateBuildMatrixTest(TestCase):
         )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Test generate build matrix")
+    parser.add_argument(
+        "--update-reference-files",
+        action="store_true",
+        help="Update reference files with the generated output",
+    )
+    return parser.parse_known_args()
+
+
 if __name__ == "__main__":
-    main()
+    args, unittest_args = parse_args()
+    GenerateBuildMatrixTest.update_reference_files = args.update_reference_files
+    print(unittest_args)
+    main(argv=[sys.argv[0]] + unittest_args)
