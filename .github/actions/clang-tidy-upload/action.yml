@@ -52,6 +52,7 @@ runs:
 
     - uses: seemethere/upload-artifact-s3@v5
       name: Publish clang-format binary
+      if: ${{ fromJSON(inputs.upload-to-s3) }}
       with:
         if-no-files-found: error
         s3-prefix: ${{ inputs.platform }}/${{ inputs.version }}
