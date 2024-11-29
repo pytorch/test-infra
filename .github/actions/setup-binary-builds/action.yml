@@ -70,6 +70,7 @@ runs:
         with:
           repository: ${{ inputs.repository }}
           path: ${{ inputs.repository }}
+          submodules: ${{ inputs.submodules }}
           ref: ${{ inputs.ref }}
 
       - name: Log Available Webhook Fields
