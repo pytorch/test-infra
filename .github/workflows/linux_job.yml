@@ -109,10 +109,6 @@ on:
         default: false
         type: boolean
 
-permissions: 
-  id-token: write
-  contents: read
-
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -188,9 +184,9 @@ jobs:
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
 
-      - name: Calculate docker image (rocm)
+      - name: Calculate docker image
         id: calculate-docker-image
-        uses: pytorch/test-infra/.github/actions/calculate-docker-image@main
+        uses: ./test-infra/.github/actions/calculate-docker-image@main
         with:
           docker-image-name: ${{ env.DOCKER_IMAGE }}
           docker-build-dir: ${{ inputs.docker-build-dir }}
