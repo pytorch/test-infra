@@ -28,6 +28,6 @@ runs:
       run: |
         set -eux
 
-        python3 .github/scripts/get_workflow_job_id.py "${GITHUB_RUN_ID}" "${RUNNER_NAME}"
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/get_workflow_job_id.py" "${GITHUB_RUN_ID}" "${RUNNER_NAME}"
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
