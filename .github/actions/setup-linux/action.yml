@@ -23,10 +23,10 @@ runs:
     - name: Start docker if docker deamon is not running
       shell: bash
       run: |
-        if systemctl is-active --quiet docker --user; then
+        if systemctl is-active --quiet docker; then
             echo "Docker daemon is running...";
         else
-            echo "Starting docker deamon..." && systemctl start --user docker;
+            echo "Starting docker deamon..." && sudo systemctl start docker;
         fi
 
     - name: Log in to ECR
