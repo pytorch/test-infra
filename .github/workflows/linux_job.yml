@@ -108,7 +108,6 @@ on:
         required: false
         default: false
         type: boolean
-
 jobs:
   job:
     name: ${{ inputs.job-name }}
