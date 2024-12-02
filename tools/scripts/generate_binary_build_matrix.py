@@ -17,7 +17,7 @@ import json
 import os
 import sys
 
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12"],
@@ -148,10 +148,10 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
-       "11.8": "pytorch/manylinux-builder:cuda11.8",
-       "12.1": "pytorch/manylinux-builder:cuda12.1",
-       "12.4": "pytorch/manylinux-builder:cuda12.4",
-       "12.6": "pytorch/manylinux2_28-builder:cuda12.6",
+        "11.8": "pytorch/manylinux-builder:cuda11.8",
+        "12.1": "pytorch/manylinux-builder:cuda12.1",
+        "12.4": "pytorch/manylinux-builder:cuda12.4",
+        "12.6": "pytorch/manylinux2_28-builder:cuda12.6",
         **{
             gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
@@ -455,9 +455,6 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
-                # todo: remove once windows cuda 12.6 binaries are available
-                if channel == NIGHTLY and os == WINDOWS:
-                    arches.remove("12.6")
 
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
