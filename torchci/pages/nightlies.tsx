@@ -379,20 +379,6 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
-            title={"Docker failed  jobs for past 24hrs"}
-            queryName={"docker_jobs_red_past_day"}
-            queryParams={[]}
-            queryCollection="nightlies"
-            columns={[
-              { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "name", headerName: "Name", flex: 4 },
-            ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TablePanel
             title={
               "Failed nightly jobs for PyTorch and Domains for selected time range"
             }
