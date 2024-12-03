@@ -218,6 +218,9 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
+          RUNNER_ARTIFACT_DIR: ${{ inputs.rocm && '/home/pytorchci/actions-runner/_work/_temp' || '' }}
+          RUNNER_DOCS_DIR: ${{ inputs.rocm && '/home/pytorchci/actions-runner/_work/ao/ao/pytorch/ao/docs' || '' }}
+          RUNNER_TEST_RESULTS_DIR: ${{ inputs.rocm && '/home/pytorchci/actions-runner/_work/_temp' || '' }}
         run: |
           set -ex
           {
