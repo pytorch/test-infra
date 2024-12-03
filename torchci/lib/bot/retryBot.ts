@@ -128,7 +128,8 @@ async function retryCurrentWorkflow(
     }
 
     for (const flakyJobName of KNOWN_FLAKY_JOBS) {
-      // if the job is a known flaky one, we want to retry it
+      // if the job is a known flaky one, we want to retry it whenever if fails,
+      // even if the failed step is a test step
       if (job.name.toLocaleLowerCase().includes(flakyJobName)) {
         return true;
       }
