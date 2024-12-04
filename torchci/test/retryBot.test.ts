@@ -172,6 +172,46 @@ describe("retry-bot", () => {
     handleScope(scope);
   });
 
+  test("rerun known flaky jobs", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    workflow_jobs.jobs[4].name = `${workflow_jobs.jobs[0].name} (pr_time_benchmarks)`;
+    workflow_jobs.jobs[4].conclusion = "failure";
+    workflow_jobs.jobs[4].steps[0].conclusion = "failure";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
+      .get(
+        `/repos/${owner}/${repo}/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(
+        200,
+        '{retryable_workflows: ["pull", "trunk", "linux-binary", "windows-binary"]}'
+      )
+      .post(
+        `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[4].id}/rerun`
+      )
+      .reply(200);
+
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
