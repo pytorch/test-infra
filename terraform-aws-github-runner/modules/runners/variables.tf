@@ -94,6 +94,12 @@ variable "scale_down_schedule_expression" {
   default     = "cron(*/5 * * * ? *)"
 }
 
+variable "scale_up_chron_schedule_expression" {
+  description = "Scheduler expression to check every x for scale down."
+  type        = string
+  default     = "cron(*/15 * * * ? *)" # every 15 minutes
+}
+
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
@@ -108,6 +114,12 @@ variable "lambda_timeout_scale_down" {
 
 variable "lambda_timeout_scale_up" {
   description = "Time out for the scale up lambda in seconds."
+  type        = number
+  default     = 60
+}
+
+variable "lambda_timeout_scale_up_chron" {
+  description = "Time out for the scale up chron lambda in seconds."
   type        = number
   default     = 60
 }
