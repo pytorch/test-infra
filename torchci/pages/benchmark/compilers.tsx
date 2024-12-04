@@ -1,4 +1,4 @@
-import { Divider, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Card, CardContent, CardHeader, Divider, Skeleton, Stack, styled, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
@@ -36,6 +36,12 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../metrics";
+
+const GraphCardGroup = styled(Card)({
+  margin:'5px',
+
+});
+
 
 function Report({
   queryParams,
@@ -120,6 +126,7 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
+      <div>I'm here</div>
       <SummaryPanel
         dashboard={"torchinductor"}
         startTime={startTime}
@@ -138,15 +145,22 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      <GraphPanel
-        queryName={"compilers_benchmark_performance"}
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
-      />
+      {Array.from(Object.keys(SUITES)).map((suite,index) => {
+        return <GraphCardGroup key={index}>
+        <CardHeader title={`Suite: ${SUITES[suite]}`} />
+        <CardContent>
+          <GraphPanel
+            queryName={"compilers_benchmark_performance"}
+            queryParams={queryParams}
+            granularity={granularity}
+            suite={suite}
+            branch={lBranchAndCommit.branch}
+            lCommit={lBranchAndCommit.commit}
+            rCommit={rBranchAndCommit.commit}
+          />
+        </CardContent>
+        </GraphCardGroup>
+      })}
     </div>
   );
 }

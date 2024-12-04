@@ -215,6 +215,8 @@ function SuiteGraphPanel({
     false
   );
 
+  console.log(SUITES[suite]);
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
