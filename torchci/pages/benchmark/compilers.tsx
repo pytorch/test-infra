@@ -57,7 +57,6 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  suite,
   mode,
   dtype,
   deviceName,
@@ -68,7 +67,6 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  suite: string;
   mode: string;
   dtype: string;
   deviceName: string;
@@ -363,7 +361,6 @@ export default function Page() {
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        suite={suite}
         mode={mode}
         dtype={dtype}
         deviceName={deviceName}
