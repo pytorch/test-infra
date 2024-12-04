@@ -6,7 +6,7 @@ const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
 
 // If these jobs fail, they will always be retried
-const KNOWN_FLAKY_JOBS = [
+const ALWAYS_RETRY_JOBS = [
   // From @laithsakka, we want to retry this job in a different runner as it could
   // fail flakily sometimes
   "pr_time_benchmarks",
@@ -127,7 +127,7 @@ async function retryCurrentWorkflow(
       return false;
     }
 
-    for (const flakyJobName of KNOWN_FLAKY_JOBS) {
+    for (const flakyJobName of ALWAYS_RETRY_JOBS) {
       // if the job is a known flaky one, we want to retry it whenever if fails,
       // even if the failed step is a test step
       if (job.name.toLocaleLowerCase().includes(flakyJobName)) {
