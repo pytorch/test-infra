@@ -1,4 +1,13 @@
-import { Box, Card, CardContent, CardHeader, Divider, Skeleton, Stack, styled, Typography } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Divider,
+  Skeleton,
+  Stack,
+  styled,
+  Typography,
+} from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
@@ -37,11 +46,11 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../metrics";
 
+/** Mui Styles */
 const GraphCardGroup = styled(Card)({
-  margin:'5px',
-
+  margin: "5px",
 });
-
+/** Mui Styles */
 
 function Report({
   queryParams,
@@ -145,21 +154,23 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.keys(SUITES)).map((suite,index) => {
-        return <GraphCardGroup key={index}>
-        <CardHeader title={`Suite: ${SUITES[suite]}`} />
-        <CardContent>
-          <GraphPanel
-            queryName={"compilers_benchmark_performance"}
-            queryParams={queryParams}
-            granularity={granularity}
-            suite={suite}
-            branch={lBranchAndCommit.branch}
-            lCommit={lBranchAndCommit.commit}
-            rCommit={rBranchAndCommit.commit}
-          />
-        </CardContent>
-        </GraphCardGroup>
+      {Array.from(Object.keys(SUITES)).map((suite, index) => {
+        return (
+          <GraphCardGroup key={index}>
+            <CardHeader title={`Suite: ${SUITES[suite]}`} />
+            <CardContent>
+              <GraphPanel
+                queryName={"compilers_benchmark_performance"}
+                queryParams={queryParams}
+                granularity={granularity}
+                suite={suite}
+                branch={lBranchAndCommit.branch}
+                lCommit={lBranchAndCommit.commit}
+                rCommit={rBranchAndCommit.commit}
+              />
+            </CardContent>
+          </GraphCardGroup>
+        );
       })}
     </div>
   );
