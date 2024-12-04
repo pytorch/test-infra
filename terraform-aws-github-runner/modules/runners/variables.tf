@@ -97,7 +97,7 @@ variable "scale_down_schedule_expression" {
 variable "scale_up_chron_schedule_expression" {
   description = "Scheduler expression to check every x for scale down."
   type        = string
-  default     = "cron(*/30 * * * ? *)" # every 30 minutes
+  default     = "cron(*/15 * * * ? *)" # every 15 minutes
 }
 
 variable "minimum_running_time_in_minutes" {
@@ -294,11 +294,6 @@ variable "launch_template_version_windows" {
 
 variable "role_runner_arn" {
   description = "Role to use for the runner. If not set a role will be created."
-  type        = string
-}
-
-variable "scale_config_org" {
-  description = "Organization to fetch scale config from."
   type        = string
 }
 

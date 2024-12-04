@@ -43,11 +43,8 @@ resource "aws_lambda_function" "scale_up_chron" {
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       REDIS_ENDPOINT                  = var.redis_endpoint
       REDIS_LOGIN                     = var.redis_login
-      SCALE_CONFIG_ORG                = var.scale_config_org
       SCALE_CONFIG_REPO               = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
-      SCALE_UP_MIN_QUEUE_TIME_MINUTES = 30
-      SCALE_UP_RECORD_QUEUE_URL       = "https://hud.pytorch.org/api/clickhouse/queued_jobs_aggregate?parameters=%5B%5D"
       scale_up_chron_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       AWS_REGIONS_TO_VPC_IDS = join(
