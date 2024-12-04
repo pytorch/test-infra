@@ -133,7 +133,6 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
-      <div>I'm here</div>
       <SummaryPanel
         dashboard={"torchinductor"}
         startTime={startTime}
