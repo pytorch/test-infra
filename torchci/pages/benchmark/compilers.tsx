@@ -151,16 +151,16 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.keys(SUITES)).map((suite, index) => {
+      {Array.from(Object.keys(SUITES)).map((testSuite, index) => {
         return (
           <GraphCardGroup key={index}>
-            <CardHeader title={`Suite: ${SUITES[suite]}`} />
+            <CardHeader title={`Suite: ${SUITES[testSuite]}`} />
             <CardContent>
               <GraphPanel
                 queryName={"compilers_benchmark_performance"}
                 queryParams={queryParams}
                 granularity={granularity}
-                suite={suite}
+                suite={testSuite}
                 branch={lBranchAndCommit.branch}
                 lCommit={lBranchAndCommit.commit}
                 rCommit={rBranchAndCommit.commit}
@@ -354,7 +354,6 @@ export default function Page() {
           useClickHouse={true}
         />
       </Stack>
-
       <Report
         queryParams={queryParams}
         startTime={startTime}
