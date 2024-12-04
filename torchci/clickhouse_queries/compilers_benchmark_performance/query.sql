@@ -88,33 +88,33 @@ accuracy_results AS (
 ),
 results AS (
     SELECT
-        accuracy_results.workflow_id AS workflow_id,
-        accuracy_results.job_id AS job_id,
+        performance_results.workflow_id AS workflow_id,
+        performance_results.job_id AS job_id,
         CASE
-            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
-            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
-            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
+            WHEN performance_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
+            WHEN performance_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
+            WHEN performance_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
             ELSE ''
         END AS suite,
         CASE
-            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
-                accuracy_results.replaced_filename,
+            WHEN performance_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
+                performance_results.replaced_filename,
                 '_torchbench',
                 ''
             )
-            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN REPLACE(
-                accuracy_results.replaced_filename,
+            WHEN performance_results.replaced_filename LIKE '%_timm_models' THEN REPLACE(
+                performance_results.replaced_filename,
                 '_timm_models',
                 ''
             )
-            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN REPLACE(
-                accuracy_results.replaced_filename,
+            WHEN performance_results.replaced_filename LIKE '%_huggingface' THEN REPLACE(
+                performance_results.replaced_filename,
                 '_huggingface',
                 ''
             )
             ELSE ''
         END AS compiler,
-        accuracy_results.name,
+        performance_results.name,
         IF(speedup != '', toFloat32(speedup), 0.0) AS speedup,
         accuracy,
         IF(
@@ -140,8 +140,8 @@ results AS (
             accuracy_results.timestamp
         ) AS timestamp
     FROM
-        accuracy_results
-        LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
+        performance_results
+        LEFT JOIN accuracy_results ON performance_results.name = accuracy_results.name
         AND performance_results.replaced_filename = accuracy_results.replaced_filename
         AND performance_results.workflow_id = accuracy_results.workflow_id
 )
