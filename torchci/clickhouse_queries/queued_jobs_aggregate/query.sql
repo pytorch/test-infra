@@ -28,6 +28,7 @@ with possible_queued_jobs as (
         CURRENT_TIMESTAMP()
     ) AS queue_m,
     workflow.repository.owner.login as org,
+    workflow.repository.name as repo,
     workflow.repository.full_name as full_repo,
     CONCAT(workflow.name, ' / ', job.name) AS name,
     job.html_url,
@@ -61,11 +62,12 @@ with possible_queued_jobs as (
 select
   runner_label,
   org,
+  repo,
   full_repo,
   count(*) as num_queued_jobs,
-  min(queue_m) as min_queue_time_min,
-  max(queue_m) as max_queue_time_min
+  min(queue_m) as min_queue_time_minutes,
+  max(queue_m) as max_queue_time_minutes
 from queued_jobs
-group by runner_label, org, full_repo
+group by runner_label, org, repo, full_repo
 order by max_queue_time_min desc
 settings allow_experimental_analyzer = 1;
