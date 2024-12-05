@@ -262,7 +262,6 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           TorchInductor Performance DashBoard
         </Typography>
-        <div>Here</div>
         <CopyLink
           textToCopy={`${baseUrl}?dashboard=torchinductor&startTime=${encodeURIComponent(
             startTime.toString()
