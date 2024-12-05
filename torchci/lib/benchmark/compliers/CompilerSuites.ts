@@ -5,6 +5,9 @@ export interface SuiteConfig {
   showGraph: boolean;
 }
 
+/**
+ * Compiler suites map returns list of suites and its rendering configurations.
+ */
 export const COMPILER_SUITES_MAP: { [k: string]: SuiteConfig } = {
   torchbench: {
     name: "Torchbench",
