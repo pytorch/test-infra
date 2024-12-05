@@ -1,11 +1,4 @@
-import {
-  Card,
-  Divider,
-  Skeleton,
-  Stack,
-  styled,
-  Typography,
-} from "@mui/material";
+import { Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
@@ -141,23 +134,21 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.values(COMPILER_SUITES_MAP)).map(
-        (suiteConfig, idx) => {
-          return (
-            suiteConfig.showGraph && (
-              <div key={suiteConfig.id}>
-                <CompilerGraphGroup
-                  suiteConfig={suiteConfig}
-                  queryParams={queryParams}
-                  granularity={granularity}
-                  lBranchAndCommit={lBranchAndCommit}
-                  rBranchAndCommit={rBranchAndCommit}
-                />
-              </div>
-            )
-          );
-        }
-      )}
+      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig) => {
+        return (
+          suiteConfig.showGraph && (
+            <div key={suiteConfig.id}>
+              <CompilerGraphGroup
+                suiteConfig={suiteConfig}
+                queryParams={queryParams}
+                granularity={granularity}
+                lBranchAndCommit={lBranchAndCommit}
+                rBranchAndCommit={rBranchAndCommit}
+              />
+            </div>
+          )
+        );
+      })}
     </div>
   );
 }
