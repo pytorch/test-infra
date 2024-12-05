@@ -146,9 +146,9 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.keys(SUITES)).map((suite, index) => {
+      {Array.from(Object.keys(SUITES)).map((suite,idx) => {
         return (
-          <div>
+          <div key={idx}>
             <CompilerGraphGroup
               suite={suite}
               queryParams={queryParams}
