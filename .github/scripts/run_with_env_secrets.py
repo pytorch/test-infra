@@ -56,6 +56,10 @@ def main():
         except KeyError as e:
             print(f"Could not set {senv} from secret {sname}: {e}")
 
+    env_file = f"{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
+    if f"{ os.environ.get('ROCM', '') }" == "true":
+        env_file = f"/tmp/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
+
     docker_path = shutil.which("docker")
     if not docker_path:
         run_cmd_or_die(f"bash { os.environ.get('RUNNER_TEMP', '') }/exec_script")
@@ -68,7 +72,7 @@ def main():
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
-            --env-file="{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }" \
+            --env-file="{ env_file }" \
             `# It is unknown why the container sees a different value for this.` \
             -e GITHUB_STEP_SUMMARY \
             { ' '.join([ f'-e {v}' for v in secrets_u_names ]) } \
@@ -83,9 +87,9 @@ def main():
             { os.environ.get('GPU_FLAG', '') } \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/{ os.environ.get('REPOSITORY', '') }:/{ os.environ.get('REPOSITORY', 'work') }" \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/test-infra:/test-infra" \
-            -v "{ os.environ.get('RUNNER_ARTIFACT_DIR', '') }:/artifacts" \
-            -v "{ os.environ.get('RUNNER_DOCS_DIR', '') }:/docs" \
-            -v "{ os.environ.get('RUNNER_TEST_RESULTS_DIR', '') }:/test-results" \
+            -v "{ os.environ.get('RUNNER_TEMP', '') }/artifacts:/artifacts" \
+            -v "{ os.environ.get('RUNNER_TEMP', '') }/docs:/docs" \
+            -v "{ os.environ.get('RUNNER_TEMP', '') }/test-results:/test-results" \
             -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
             -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
             -w /{ os.environ.get('REPOSITORY', 'work') } \
