@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import { SuiteConfig } from "../../../lib/benchmark/compliers/CompilerSuites";
 import { BranchAndCommit } from "lib/types";
+import { SuiteConfig } from "../../../lib/benchmark/compliers/CompilerSuites";
 
 /** Mui Styles */
 const GraphCardGroup = styled(Card)({

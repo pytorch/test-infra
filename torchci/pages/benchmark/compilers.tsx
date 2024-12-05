@@ -20,6 +20,7 @@ import {
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
+import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
@@ -38,9 +39,8 @@ import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { TimeRangePicker } from "../metrics";
-import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
+import { TimeRangePicker } from "../metrics";
 /** Mui Styles */
 const GraphCardGroup = styled(Card)({
   margin: "5px",
@@ -146,21 +146,23 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig,idx) => {
-
-        return (
-         suiteConfig.showGraph &&
-         <div key={suiteConfig.id}>
-            <CompilerGraphGroup
-              suiteConfig={suiteConfig}
-              queryParams={queryParams}
-              granularity={granularity}
-              lBranchAndCommit={lBranchAndCommit}
-              rBranchAndCommit={rBranchAndCommit}
-            />
-          </div>
-        );
-      })}
+      {Array.from(Object.values(COMPILER_SUITES_MAP)).map(
+        (suiteConfig, idx) => {
+          return (
+            suiteConfig.showGraph && (
+              <div key={suiteConfig.id}>
+                <CompilerGraphGroup
+                  suiteConfig={suiteConfig}
+                  queryParams={queryParams}
+                  granularity={granularity}
+                  lBranchAndCommit={lBranchAndCommit}
+                  rBranchAndCommit={rBranchAndCommit}
+                />
+              </div>
+            )
+          );
+        }
+      )}
     </div>
   );
 }
