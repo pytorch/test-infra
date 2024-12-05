@@ -221,9 +221,7 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
-          RUNNER_ARTIFACT_DIR: /artifacts
-          RUNNER_DOCS_DIR: /docs
-          RUNNER_TEST_RESULTS_DIR: /test-results
+          ROCM: ${{ inputs.rocm }}
         run: |
           set -ex
           {
