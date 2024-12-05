@@ -71,7 +71,7 @@ def main():
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
-            --env-file=" { env_file }" \
+            --env-file="{ env_file }" \
             `# It is unknown why the container sees a different value for this.` \
             -e GITHUB_STEP_SUMMARY \
             { ' '.join([ f'-e {v}' for v in secrets_u_names ]) } \
