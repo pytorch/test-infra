@@ -65,6 +65,7 @@ def main():
                 f"""
         docker run \
             -e PR_NUMBER \
+            -e HIP_VISIBLE_DEVICES=0 \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
