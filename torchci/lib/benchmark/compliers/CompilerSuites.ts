@@ -6,7 +6,7 @@ export interface SuiteConfig {
 }
 
 /**
- * Compiler suites map returns list of suites and its rendering configurations.
+ * Compiler suites map returns  map of suites and their rendering configurations.
  */
 export const COMPILER_SUITES_MAP: { [k: string]: SuiteConfig } = {
   torchbench: {
