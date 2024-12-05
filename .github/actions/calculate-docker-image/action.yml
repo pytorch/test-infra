@@ -105,7 +105,6 @@ runs:
         START_TIME=$(date +%s)
         # Wait up to 90 minutes
         while [[ $(( $(date +%s) - 5400 )) -lt $START_TIME ]]; do
-        do
           # Check if image already exists, if it does then skip building it
           if docker manifest inspect "${DOCKER_IMAGE}"; then
             exit 0
