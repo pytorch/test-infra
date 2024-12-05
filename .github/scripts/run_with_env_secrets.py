@@ -86,9 +86,9 @@ def main():
             { os.environ.get('GPU_FLAG', '') } \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/{ os.environ.get('REPOSITORY', '') }:/{ os.environ.get('REPOSITORY', 'work') }" \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/test-infra:/test-infra" \
-            -v "/home/pytorchci/actions-runner/_work/_temp/artifacts:/artifacts" \
-            -v "/home/pytorchci/actions-runner/_work/_temp/docs:/docs" \
-            -v "/home/pytorchci/actions-runner/_work/_temp/test-results:/test-results" \
+            -v "/var/home/pytorchci/actions-runner/_work/_temp/artifacts:/artifacts" \
+            -v "/var/home/pytorchci/actions-runner/_work/_temp/docs:/docs" \
+            -v "/var/home/pytorchci/actions-runner/_work/_temp/test-results:/test-results" \
             -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
             -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
             -w /{ os.environ.get('REPOSITORY', 'work') } \
