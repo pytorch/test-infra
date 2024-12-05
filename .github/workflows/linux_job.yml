@@ -60,7 +60,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-        default: "pytorch/conda-builder"
+        default: "pytorch/almalinux-builder"
         type: string
       docker-build-dir:
         description: |
@@ -113,7 +113,10 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
+        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}',
+                                                                      inputs.gpu-arch-type,
+                                                                      inputs.gpu-arch-version)
+                                                           || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
