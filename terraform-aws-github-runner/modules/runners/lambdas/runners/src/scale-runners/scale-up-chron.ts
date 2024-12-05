@@ -25,7 +25,7 @@ export async function scaleUpChron(): Promise<void> {
   const minAutoScaleupDelayMinutes = 30;
   // Only proactively scale up the jobs that have been queued for longer than normal
   queuedJobs = queuedJobs.filter((runner) => {
-    return runner.min_queue_time_min >= minAutoScaleupDelayMinutes &&
+    return runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes &&
       runner.org === Config.Instance.scaleConfigOrg;
   });
 
@@ -41,29 +41,34 @@ export async function scaleUpChron(): Promise<void> {
     return {
       "id": Math.floor(Math.random() * 100000000000000),
       "eventType": "workflow_job",
-      "repositoryName": runner.full_repo.split('/')[1],
+      "repositoryName": runner.repo,
       "repositoryOwner": runner.org,
-    }
+      "runnerLabels": [runner.runner_label],
+    };
+  });
+
+  if (!Config.Instance.scaleUpRecordQueueUrl) {
+    throw new Error('scaleUpRecordQueueUrl is not set. Cannot send scale up requests');
   }
 
-  sqsSendMessages(metrics, queuedJobs, Config.Instance.scaleUpRecordQueueUrl);
+  await sqsSendMessages(metrics, scaleUpRequests, Config.Instance.scaleUpRecordQueueUrl);
 }
 
 class QueuedJobsForRunner {
   runner_label: string;
   org: string;
-  full_repo: string;
+  repo: string;
   num_queued_jobs: number;
-  min_queue_time_min: number;
-  max_queue_time_min: number;
+  min_queue_time_minutes: number;
+  max_queue_time_minutes: number;
 
-  constructor(runner_label: string, org: string, full_repo: string, num_queued_jobs: number, min_queue_time_min: number, max_queue_time_min: number) {
+  constructor(runner_label: string, org: string, repo: string, num_queued_jobs: number, min_queue_time_minutes: number, max_queue_time_minutes: number) {
     this.runner_label = runner_label;
     this.org = org;
-    this.full_repo = full_repo;
+    this.repo = repo;
     this.num_queued_jobs = num_queued_jobs;
-    this.min_queue_time_min = min_queue_time_min;
-    this.max_queue_time_min = max_queue_time_min;
+    this.min_queue_time_minutes = min_queue_time_minutes;
+    this.max_queue_time_minutes = max_queue_time_minutes;
   }
 }
 
@@ -81,10 +86,10 @@ export async function getQueuedJobs(): Promise<QueuedJobsForRunner[]> {
       return new QueuedJobsForRunner(
         runner.runner_label,
         runner.org,
-        runner.full_repo,
+        runner.repo,
         runner.num_queued_jobs,
-        runner.min_queue_time_min,
-        runner.max_queue_time_min);
+        runner.min_queue_time_minutes,
+        runner.max_queue_time_minutes);
     });
     return queued_runners;
   } catch (error) {
