@@ -13,11 +13,8 @@ import {
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
-import {
-  SuitePicker,
-  SUITES,
-} from "components/benchmark/compilers/SuitePicker";
-import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
+import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DEFAULT_MODE,
@@ -35,6 +32,7 @@ import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
 
 function Report({
@@ -42,7 +40,6 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  suite,
   mode,
   dtype,
   deviceName,
@@ -53,7 +50,6 @@ function Report({
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  suite: string;
   mode: string;
   dtype: string;
   deviceName: string;
@@ -138,15 +134,21 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      <GraphPanel
-        queryName={"compilers_benchmark_performance"}
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
-      />
+      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig) => {
+        return (
+          suiteConfig.showGraph && (
+            <div key={suiteConfig.id}>
+              <CompilerGraphGroup
+                suiteConfig={suiteConfig}
+                queryParams={queryParams}
+                granularity={granularity}
+                lBranchAndCommit={lBranchAndCommit}
+                rBranchAndCommit={rBranchAndCommit}
+              />
+            </div>
+          )
+        );
+      })}
     </div>
   );
 }
@@ -161,7 +163,6 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
   const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
@@ -198,9 +199,6 @@ export default function Page() {
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
-    if (suite !== undefined) {
-      setSuite(suite);
-    }
 
     const mode: string = (router.query.mode as string) ?? undefined;
     if (mode !== undefined) {
@@ -269,7 +267,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+          )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
             deviceName
           )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
@@ -288,7 +286,6 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <SuitePicker suite={suite} setSuite={setSuite} />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
           dtype={dtype}
@@ -332,13 +329,11 @@ export default function Page() {
           useClickHouse={true}
         />
       </Stack>
-
       <Report
         queryParams={queryParams}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        suite={suite}
         mode={mode}
         dtype={dtype}
         deviceName={deviceName}
