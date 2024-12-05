@@ -41,11 +41,6 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
-/** Mui Styles */
-const GraphCardGroup = styled(Card)({
-  margin: "5px",
-});
-/** Mui Styles */
 
 function Report({
   queryParams,
