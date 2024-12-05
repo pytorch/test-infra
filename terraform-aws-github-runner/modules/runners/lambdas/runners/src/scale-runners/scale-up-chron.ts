@@ -26,7 +26,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   const minAutoScaleupDelayMinutes = 30;
   // Only proactively scale up the jobs that have been queued for longer than normal
   queuedJobs = queuedJobs.filter((runner) => {
-    return runner.min_queue_time_min >= minAutoScaleupDelayMinutes &&
+    return runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes &&
       runner.org === Config.Instance.scaleConfigOrg;
   });
 
@@ -42,12 +42,17 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
     return {
       "id": Math.floor(Math.random() * 100000000000000),
       "eventType": "workflow_job",
-      "repositoryName": runner.full_repo.split('/')[1],
+      "repositoryName": runner.repo,
       "repositoryOwner": runner.org,
-    }
+      "runnerLabels": [runner.runner_label],
+    };
+  });
+
+  if (!Config.Instance.scaleUpRecordQueueUrl) {
+    throw new Error('scaleUpRecordQueueUrl is not set. Cannot send scale up requests');
   }
 
-  sqsSendMessages(metrics, queuedJobs, Config.Instance.scaleUpRecordQueueUrl);
+  await sqsSendMessages(metrics, scaleUpRequests, Config.Instance.scaleUpRecordQueueUrl);
 }
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
