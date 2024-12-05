@@ -73,9 +73,9 @@ function SuiteGraphPanel({
   const queryCollection = "inductor";
 
   const queryParamsWithSuite: { [key: string]: any } = {
-    ...queryParams,
     branches: [branch],
     suites: [suite],
+    ...queryParams,
   };
   // NB: Querying data for all the suites blows up the response from the database
   // over the lambda reponse body limit of 6MB. So I need to split up the query
