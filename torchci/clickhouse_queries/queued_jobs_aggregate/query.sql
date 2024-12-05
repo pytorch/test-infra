@@ -2,7 +2,7 @@
 --- have had jobs waiting for them for a significant period of time.
 ---
 --- This query returns the number of jobs per runner type that have been
---- queued for too long, which the autoscalers use to determin how many
+--- queued for too long, which the autoscalers use to determine how many
 --- additional runners to spin up.
 
 with possible_queued_jobs as (
@@ -28,7 +28,7 @@ with possible_queued_jobs as (
         CURRENT_TIMESTAMP()
     ) AS queue_m,
     workflow.repository.owner.login as org,
-    workflow.repository.full_name as full_repo,
+    workflow.repository.name as repo,
     CONCAT(workflow.name, ' / ', job.name) AS name,
     job.html_url,
     IF(
@@ -61,11 +61,11 @@ with possible_queued_jobs as (
 select
   runner_label,
   org,
-  full_repo,
+  repo,
   count(*) as num_queued_jobs,
-  min(queue_m) as min_queue_time_min,
-  max(queue_m) as max_queue_time_min
+  min(queue_m) as min_queue_time_minutes,
+  max(queue_m) as max_queue_time_minutes
 from queued_jobs
-group by runner_label, org, full_repo
-order by max_queue_time_min desc
+group by runner_label, org, repo
+order by max_queue_time_minutes desc
 settings allow_experimental_analyzer = 1;
