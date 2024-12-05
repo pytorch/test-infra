@@ -56,7 +56,7 @@ def main():
         except KeyError as e:
             print(f"Could not set {senv} from secret {sname}: {e}")
     env_file = f"{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
-    if f"{ os.environ.get('ROCM'. '') }" == "true":
+    if f"{ os.environ.get('ROCM', '') }" == "true":
         env_file = f"/tmp/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
     docker_path = shutil.which("docker")
     if not docker_path:
