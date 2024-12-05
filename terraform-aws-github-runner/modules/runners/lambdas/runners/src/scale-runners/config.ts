@@ -36,8 +36,10 @@ export class Config {
   readonly retryScaleUpRecordQueueUrl: string | undefined;
   readonly runnerGroupName: string | undefined;
   readonly runnersExtraLabels: undefined | string;
+  readonly scaleConfigOrg: string;
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
+  readonly scaleUpRecordQueueUrl: string | undefined;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
   readonly sSMParamMaxCleanupAllowance: number;
@@ -94,8 +96,10 @@ export class Config {
     /* istanbul ignore next */
     this.retryScaleUpRecordJitterPct = Number(process.env.RETRY_SCALE_UP_RECORD_JITTER_PCT || '0');
     this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_RECORD_QUEUE_URL;
+    this.scaleUpRecordQueueUrl = process.env.SCALE_UP_RECORD_QUEUE_URL;
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
+    this.scaleConfigOrg = process.env.SCALE_CONFIG_ORG || '';
     /* istanbul ignore next */
     this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || '';
     if (this.enableOrganizationRunners && !this.scaleConfigRepo) {

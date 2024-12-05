@@ -104,6 +104,7 @@ module "runners" {
   environment          = var.environment
   tags                 = local.tags
 
+  scale_config_org       = var.scale_config_org
   scale_config_repo      = var.scale_config_repo
   scale_config_repo_path = var.scale_config_repo_path
 
