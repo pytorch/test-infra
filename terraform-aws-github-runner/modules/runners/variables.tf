@@ -297,6 +297,11 @@ variable "role_runner_arn" {
   type        = string
 }
 
+variable "scale_config_org" {
+  description = "Organization to fetch scale config from."
+  type        = string
+}
+
 variable "scale_config_repo" {
   description = "Repository to fetch scale config from."
   default     = ""
