@@ -39,8 +39,8 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../metrics";
-import CompilerGraphGroup from "./components/compilerGraphGroup";
-
+import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
+import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 /** Mui Styles */
 const GraphCardGroup = styled(Card)({
   margin: "5px",
@@ -146,11 +146,13 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.keys(SUITES)).map((suite,idx) => {
+      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig,idx) => {
+
         return (
-          <div key={idx}>
+         suiteConfig.showGraph &&
+         <div key={suiteConfig.id}>
             <CompilerGraphGroup
-              suite={suite}
+              suiteConfig={suiteConfig}
               queryParams={queryParams}
               granularity={granularity}
               lBranchAndCommit={lBranchAndCommit}

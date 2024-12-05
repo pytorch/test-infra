@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import { SuiteConfig } from "../../../lib/benchmark/compliers/CompilerSuites";
 import { BranchAndCommit } from "lib/types";
 
 /** Mui Styles */
@@ -12,7 +12,7 @@ const GraphCardGroup = styled(Card)({
 /** Mui Styles */
 
 export default function CompilerGraphGroup({
-  suite,
+  suiteConfig,
   queryParams,
   granularity,
   lBranchAndCommit,
@@ -22,18 +22,18 @@ export default function CompilerGraphGroup({
   rBranchAndCommit: BranchAndCommit;
   queryParams: { [key: string]: any };
   granularity: Granularity;
-  suite: string;
+  suiteConfig: SuiteConfig;
 }) {
   return (
     <>
       <GraphCardGroup>
-        <CardHeader title={`Suite: ${SUITES[suite]}`} />
+        <CardHeader title={`Suite: ${suiteConfig.name}`} />
         <CardContent>
           <GraphPanel
             queryName={"compilers_benchmark_performance"}
             queryParams={queryParams}
             granularity={granularity}
-            suite={suite}
+            suite={suiteConfig.id}
             branch={lBranchAndCommit.branch}
             lCommit={lBranchAndCommit.commit}
             rCommit={rBranchAndCommit.commit}
