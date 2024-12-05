@@ -56,7 +56,7 @@ def main():
         except KeyError as e:
             print(f"Could not set {senv} from secret {sname}: {e}")
     env_file = f"{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
-    if os.environ.get('ROCM'. '') == "true":
+    if f"{ os.environ.get('ROCM'. '') }" == "true":
         env_file = f"/tmp/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }"
     docker_path = shutil.which("docker")
     if not docker_path:
@@ -71,7 +71,7 @@ def main():
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
-            --env-file="" \
+            --env-file=" { env_file }" \
             `# It is unknown why the container sees a different value for this.` \
             -e GITHUB_STEP_SUMMARY \
             { ' '.join([ f'-e {v}' for v in secrets_u_names ]) } \
