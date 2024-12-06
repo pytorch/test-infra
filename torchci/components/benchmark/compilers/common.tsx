@@ -27,6 +27,7 @@ export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
   inductor_with_cudagraphs_freezing: "cudagraphs_freezing",
   inductor_cudagraphs_low_precision: "cudagraphs_low_precision",
   inductor_export: "export",
+  inductor_eager: "eager",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
@@ -38,8 +39,9 @@ export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   cudagraphs_freezing: "inductor_with_cudagraphs_freezing",
   cudagraphs_low_precision: "inductor_cudagraphs_low_precision",
   export: "inductor_export",
+  eager: "inductor_eager",
 };
-export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
+export const BLOCKLIST_COMPILERS = ["aot_eager"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 // The number of digit after decimal to display on the summary page
@@ -53,7 +55,7 @@ export interface BranchAndCommitPerfData extends BranchAndCommit {
 export const HELP_LINK =
   "https://pytorch.org/docs/main/torch.compiler_performance_dashboard.html";
 
-export const DTYPES = ["amp", "float16", "bfloat16", "quant"];
+export const DTYPES = ["amp", "float16", "bfloat16", "quant", "notset"];
 
 export const DEFAULT_DEVICE_NAME = "cuda (a100)";
 // TODO (huydhn): there is a way to avoid hard-coding dtypes and devices like how
@@ -63,10 +65,12 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a10g)": "cuda_a10g",
   "cpu (x86)": "cpu_x86",
   "cpu (aarch64)": "cpu_aarch64",
+  mps: "mps",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",
   "cuda (a10g)": "inductor-perf-nightly-A10g",
   "cpu (x86)": "inductor-perf-nightly-x86",
   "cpu (aarch64)": "inductor-perf-nightly-aarch64",
+  mps: "inductor-perf-nightly-macos",
 };
