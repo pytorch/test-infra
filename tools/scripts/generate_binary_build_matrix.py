@@ -30,7 +30,7 @@ CUDA_ARCHES_DICT = {
     "release": ["11.8", "12.1", "12.4"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.1", "6.2"],
+    "nightly": ["6.1", "6.2.4"],
     "test": ["6.1", "6.2"],
     "release": ["6.1", "6.2"],
 }
@@ -153,7 +153,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
        "12.4": "pytorch/manylinux-builder:cuda12.4",
        "12.6": "pytorch/manylinux2_28-builder:cuda12.6",
         **{
-            gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
+            gpu_arch: f"pytorch/manylinux2_28-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
         CPU: "pytorch/manylinux-builder:cpu",
