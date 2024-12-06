@@ -336,6 +336,7 @@ export function _calculateScaleUpAmount(
   if (minRunnersUnderprovisionCount > 0) {
     // Scale up by a bit extra to bring us closer to the minimum limit
 
+    // Keep the overprovisioning to a small % when we have a large number of runners requested
     extraScaleUp = Math.ceil(minRunnersUnderprovisionCount * 0.05);
 
     if (isEphemeral) {
