@@ -82,7 +82,7 @@ export async function scaleUp(
       );
       continue;
     }
-    let runnersRequested = 1;
+    const runnersRequested = 1;
     const runnersToCreate = await getCreatableRunnerCount(
       runnerType.runnerTypeName,
       repo,
@@ -209,42 +209,6 @@ async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean>
 }
 
 /**
- * Returns the maximum number of runners that can be created for the given runner type
- */
-function getMaximumAllowedScaleUpSize(
-  maxAllowed: number | undefined,
-  provisioned: number,
-  isEphemeral: boolean,
-): number {
-  const NO_LIMIT = Number.MAX_SAFE_INTEGER;
-
-  if (isEphemeral) {
-    // Ephemeral runners are not limited by maxAllowed
-    return NO_LIMIT;
-  }
-
-  if (maxAllowed === undefined || maxAllowed <= 0) {
-    return NO_LIMIT;
-  }
-
-  return maxAllowed - provisioned;
-}
-
-function getOverprovisionedCountForEphemeralRunner(requested: number): number {
-  // We randomly overprovision ephemeral runners to handle extra incoming requests.
-  // This is to compensate for requests that fail to provision runners for unknown reasons.
-  // Non-ephemeral runners are not overprovisioned since they are long-lived and can be reused.
-  const overprovisionRate = 0.5; // Overprivision 50% of the time
-  const overprovisionAmount = 2; // Overprovision by 2 runners
-
-  if (Math.random() < overprovisionRate) {
-    return requested + overprovisionAmount;
-  }
-
-  return requested;
-}
-
-/**
  *  Returns the number of runners that should be created to process the given request
  */
 async function getCreatableRunnerCount(
@@ -274,9 +238,9 @@ async function getCreatableRunnerCount(
     metrics.ghRunnersRepoStats(repo, runnerType, runnersWithLabel.length, runnersWithLabel.length, busyCount);
   }
 
-  const maxAllowedScaleUp = getMaximumAllowedScaleUpSize(maxAvailable, runnersWithLabel.length, isEphemeral);
+  const maxScaleUp = getMaximumAllowedScaleUpSize(maxAvailable, runnersWithLabel.length, isEphemeral);
 
-  if (maxAllowedScaleUp <= 0) {
+  if (maxScaleUp <= 0) {
     /* istanbul ignore next */
     if (Config.Instance.enableOrganizationRunners) {
       metrics.ghRunnersOrgMaxHit(repo.owner, runnerType);
@@ -291,41 +255,113 @@ async function getCreatableRunnerCount(
     return 0;
   }
 
-  if (requestedCount > maxAllowedScaleUp) {
-    console.info(
-      `Requested count ${requestedCount} is higher than max allowed scale up ${maxAllowedScaleUp}, ` +
-        `will scale up ${maxAllowedScaleUp} instead`,
-    );
-    requestedCount = maxAllowedScaleUp;
-  }
-
   const availableCount = runnersWithLabel.length - busyCount;
-  let additionalNeeded = requestedCount - availableCount;
-
-  if (additionalNeeded > 0) {
-    // We need to scale up to process the request
-    // TODO: See if we should scale up extra runners for ephemerals
-    if (isEphemeral) {
-      additionalNeeded = getOverprovisionedCountForEphemeralRunner(additionalNeeded);
-    }
-
-    return additionalNeeded;
-  }
-
-  // Fail-safe: If we're below the minimum available limit, we scale up an extra runner
-  //            to handle potential additional incoming traffic
   const minRunners = Config.Instance.minAvailableRunners > 0 ? Config.Instance.minAvailableRunners : 1;
 
-  if (availableCount > minRunners) {
-    // We already have enough backup runners. No need to scale up.
-    return 0;
+  const scaleUpAmount = _calculateScaleUpAmount(requestedCount, isEphemeral, minRunners, maxScaleUp, availableCount);
+  return scaleUpAmount;
+}
+
+/**
+ * Returns the maximum number of runners that can be created for the given runner type
+ */
+function getMaximumAllowedScaleUpSize(
+  maxAllowed: number | undefined,
+  provisioned: number,
+  isEphemeral: boolean,
+): number {
+  const NO_LIMIT = Number.MAX_SAFE_INTEGER;
+
+  if (isEphemeral) {
+    // Ephemeral runners are not limited by maxAllowed
+    return NO_LIMIT;
   }
 
-  console.info(`Available (${availableCount}) runners is below minimum ${minRunners}`);
-  let provisionCount = 1
-  if (isEphemeral) {
-    // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
-    provisionCount = getOverprovisionedCountForEphemeralRunner(provisionCount);
+  if (maxAllowed === undefined || maxAllowed <= 0) {
+    return NO_LIMIT;
   }
-  return provisionCount;
+
+  return maxAllowed - provisioned;
+}
+
+/**
+ * We randomly overprovision ephemeral runners to handle extra incoming requests.
+ * This is to compensate for requests that fail to provision runners for unknown reasons.
+ * Non-ephemeral runners are not overprovisioned since they are long-lived and can be reused.
+ */
+function getOverprovisionedCountForEphemeralRunner(requested: number): number {
+  const overprovisionFrequency = 0.5; // Overprivision 50% of the time
+  const overprovisionAmount = 2; // Overprovision by 2 runners
+
+  if (Math.random() < overprovisionFrequency) {
+    return requested + overprovisionAmount;
+  }
+
+  return requested;
+}
+
+/**
+ * Returns the number of runners that should be created to process the given request
+ *
+ * Note: exported only for testing
+ *
+ * The desired logic for scale ups is as follows:
+ *   - Always stay below the maximum allowed instance count for the runner type
+ *   - If the in coming request will bring us belo than minimum number of runners available,
+ *     overprovision by a bit to bring us closer to the minimum limit (to handle potential
+ *     incoming traffic).
+ *   - Only provision more runners if supporting the requested number of runners would
+ *     bring us below the minimum available limit
+ * @param requestedCount
+ * @param isEphemeral
+ * @param minRunners
+ * @param maxScaleUp - Maximum additional runners that can be provisioned
+ * @param availableCount
+ */
+export function _calculateScaleUpAmount(
+  requestedCount: number,
+  isEphemeral: boolean,
+  minRunners: number, // Minimum number of runners that should be available
+  maxScaleUp: number,
+  availableCount: number // Number of runners that are currently available to run jobs
+): number {
+  const availableAfterAcceptingRequests = Math.max(availableCount - requestedCount, 0);
+  const extraNeededToAcceptRequests = Math.max(requestedCount - availableCount, 0);
+
+  // Tracks how many runners should be provisioned to bring us up to the minimum limit
+  const minRunnersUnderprovisionCount = minRunners - availableAfterAcceptingRequests;
+
+
+  let extraScaleUp = 0;
+  if (minRunnersUnderprovisionCount > 0) {
+    // Scale up by a bit extra to bring us closer to the minimum limit
+
+    extraScaleUp = Math.ceil(minRunnersUnderprovisionCount * 0.05);
+
+    if (isEphemeral) {
+      // Since ephemeral runners cannot be reused, we overprovision them more aggressively
+      extraScaleUp = getOverprovisionedCountForEphemeralRunner(extraScaleUp);
+    }
+
+    // Never proactively scale up above the minimum limit
+    extraScaleUp = Math.min(extraScaleUp, minRunnersUnderprovisionCount);
+
+    console.info(`Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
+      `Will provision ${extraScaleUp} extra runners`
+    );
+  }
+
+  let scaleUpAmount = extraNeededToAcceptRequests + extraScaleUp;
+  if (scaleUpAmount > maxScaleUp) {
+    console.info(
+      `Desired count ${scaleUpAmount} is higher than max allowed scale up ${maxScaleUp}, ` +
+        `will scale up ${maxScaleUp} instead`,
+    );
+
+
+
+    scaleUpAmount = maxScaleUp;
+  }
+
+  return scaleUpAmount;
 }
