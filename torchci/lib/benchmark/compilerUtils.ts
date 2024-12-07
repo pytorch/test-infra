@@ -222,6 +222,84 @@ export function computeGeomean(
   return returnedGeomean;
 }
 
+export function computeExecutionTime(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
+  const executionTime: { [k: string]: any } = {};
+  const returnedExecutionTime: any[] = [];
+
+  data.forEach((record: CompilerPerformanceData) => {
+    const bucket = record.granularity_bucket;
+    const workflowId = record.workflow_id;
+    const suite = record.suite;
+    const model = record.name;
+    const absLatency = record.abs_latency;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    if (BLOCKLIST_COMPILERS.includes(compiler)) {
+      return;
+    }
+
+    if (!(bucket in executionTime)) {
+      executionTime[bucket] = {};
+    }
+
+    if (!(workflowId in executionTime[bucket])) {
+      executionTime[bucket][workflowId] = {};
+    }
+
+    if (!(suite in executionTime[bucket][workflowId])) {
+      executionTime[bucket][workflowId][suite] = {};
+    }
+
+    if (!(compiler in executionTime[bucket][workflowId][suite])) {
+      executionTime[bucket][workflowId][suite][compiler] = [];
+    }
+
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
+      absLatency !== 0.0
+    ) {
+      executionTime[bucket][workflowId][suite][compiler].push(absLatency);
+    }
+  });
+
+  Object.keys(executionTime).forEach((bucket: string) => {
+    Object.keys(executionTime[bucket]).forEach((workflowId: string) => {
+      Object.keys(executionTime[bucket][workflowId]).forEach(
+        (suite: string) => {
+          Object.keys(executionTime[bucket][workflowId][suite]).forEach(
+            (compiler: string) => {
+              const l =
+                executionTime[bucket][workflowId][suite][compiler].length;
+              const m =
+                l !== 0
+                  ? executionTime[bucket][workflowId][suite][compiler].reduce(
+                      (total: number, v: number) => total + v,
+                      0
+                    ) / l
+                  : 0;
+
+              returnedExecutionTime.push({
+                granularity_bucket: bucket,
+                workflow_id: workflowId,
+                suite: suite,
+                compiler: compiler,
+                abs_latency: m.toFixed(SCALE),
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+
+  return returnedExecutionTime;
+}
+
 export function computeCompilationTime(
   data: CompilerPerformanceData[],
   passingModels: { [k: string]: any }
