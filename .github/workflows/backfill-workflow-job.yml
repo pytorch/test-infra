@@ -1,4 +1,4 @@
-name: Backfill workflow jobs in Rockset
+name: Backfill workflow jobs in DynamoDB and ClickHouse
 
 on:
   schedule:
@@ -13,7 +13,7 @@ defaults:
   run:
     working-directory: torchci
 jobs:
-  backfill-rockset:
+  backfill-workflow-job:
     runs-on: ubuntu-20.04
     steps:
       - name: configure aws credentials
@@ -25,7 +25,6 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: yarn node scripts/backfillJobs.mjs
         env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
           APP_ID: ${{ secrets.APP_ID }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           CLICKHOUSE_HUD_USER_URL: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
