@@ -285,22 +285,6 @@ function getMaximumAllowedScaleUpSize(
 }
 
 /**
- * We randomly overprovision ephemeral runners to handle extra incoming requests.
- * This is to compensate for requests that fail to provision runners for unknown reasons.
- * Non-ephemeral runners are not overprovisioned since they are long-lived and can be reused.
- */
-function getOverprovisionedCountForEphemeralRunner(requested: number): number {
-  const overprovisionFrequency = 0.5; // Overprivision 50% of the time
-  const overprovisionAmount = 2; // Overprovision by 2 runners
-
-  if (Math.random() < overprovisionFrequency) {
-    return requested + overprovisionAmount;
-  }
-
-  return requested;
-}
-
-/**
  * Returns the number of runners that should be created to process the given request
  *
  * Note: exported only for testing
@@ -340,8 +324,16 @@ export function _calculateScaleUpAmount(
     extraScaleUp = Math.ceil(minRunnersUnderprovisionCount * 0.05);
 
     if (isEphemeral) {
-      // Since ephemeral runners cannot be reused, we overprovision them more aggressively
-      extraScaleUp = getOverprovisionedCountForEphemeralRunner(extraScaleUp);
+      // We randomly overprovision ephemeral runners to handle extra incoming requests.
+      // This is to compensate for requests that fail to provision runners for unknown reasons.
+      // We're more aggressive here since these runners are short lived and cannot be reused.
+
+      const overprovisionFrequency = 0.5; // Overprivision 50% of the time
+      const overprovisionAmount = 2; // Additional runners to add when overprovisioning
+
+      if (Math.random() < overprovisionFrequency) {
+        extraScaleUp += overprovisionAmount;
+      }
     }
 
     // Never proactively scale up above the minimum limit
