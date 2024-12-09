@@ -328,7 +328,7 @@ export function _calculateScaleUpAmount(
       // This is to compensate for requests that fail to provision runners for unknown reasons.
       // We're more aggressive here since these runners are short lived and cannot be reused.
 
-      const overprovisionFrequency = 0.5; // Overprivision 50% of the time
+      const overprovisionFrequency = 0.5; // Overprovision 50% of the time
       const overprovisionAmount = 2; // Additional runners to add when overprovisioning
 
       if (Math.random() < overprovisionFrequency) {
