@@ -308,3 +308,7 @@ pattern = '^Mergeability Error: .*'
 [[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
+
+[[rule]]
+name = 'New modules are not documented correctly'
+pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'
