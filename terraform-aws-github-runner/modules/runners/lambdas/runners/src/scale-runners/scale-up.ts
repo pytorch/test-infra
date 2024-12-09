@@ -307,14 +307,13 @@ export function _calculateScaleUpAmount(
   isEphemeral: boolean,
   minRunners: number, // Minimum number of runners that should be available
   maxScaleUp: number,
-  availableCount: number // Number of runners that are currently available to run jobs
+  availableCount: number, // Number of runners that are currently available to run jobs
 ): number {
   const availableAfterAcceptingRequests = Math.max(availableCount - requestedCount, 0);
   const extraNeededToAcceptRequests = Math.max(requestedCount - availableCount, 0);
 
   // Tracks how many runners should be provisioned to bring us up to the minimum limit
   const minRunnersUnderprovisionCount = minRunners - availableAfterAcceptingRequests;
-
 
   let extraScaleUp = 0;
   if (minRunnersUnderprovisionCount > 0) {
@@ -339,8 +338,9 @@ export function _calculateScaleUpAmount(
     // Never proactively scale up above the minimum limit
     extraScaleUp = Math.min(extraScaleUp, minRunnersUnderprovisionCount);
 
-    console.info(`Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
-      `Will provision ${extraScaleUp} extra runners`
+    console.info(
+      `Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
+        `Will provision ${extraScaleUp} extra runners`,
     );
   }
 
@@ -350,8 +350,6 @@ export function _calculateScaleUpAmount(
       `Desired count ${scaleUpAmount} is higher than max allowed scale up ${maxScaleUp}, ` +
         `will scale up ${maxScaleUp} instead`,
     );
-
-
 
     scaleUpAmount = maxScaleUp;
   }
