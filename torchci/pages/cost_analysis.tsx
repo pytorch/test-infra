@@ -377,6 +377,7 @@ export default function Page() {
             smooth={false}
             chartType={chartType}
             filter={searchFilter}
+            timeFieldDisplayFormat="M/D (UTC)"
             sort_by="total"
             auto_refresh={false}
             max_items_in_series={30}
