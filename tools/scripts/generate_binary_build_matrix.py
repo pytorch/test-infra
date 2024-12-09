@@ -20,7 +20,7 @@ import sys
 from typing import Dict, List, Optional, Tuple, Any, Callable
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.9", "3.10", "3.11", "3.12"],
+    "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13"],
     "test": ["3.9", "3.10", "3.11", "3.12"],
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
@@ -428,11 +428,6 @@ def generate_wheels_matrix(
     if not python_versions:
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
-
-        # If the list of python versions is set explicitly by the caller, stick with it instead
-        # of trying to add more versions behind the scene
-        if channel == NIGHTLY and (os in (LINUX, MACOS_ARM64, LINUX_AARCH64)):
-            python_versions += ["3.13"]
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
