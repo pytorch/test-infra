@@ -424,6 +424,7 @@ function Report({
 }
 
 export default function Page() {
+  return <div>Not yet migrated to CH.</div>;
   const defaultUB = "torch-nightly";
   const [userbenchmark, setUserbenchmark] = useState(defaultUB);
   const [lCommit, setLCommit] = useState<string>("");
