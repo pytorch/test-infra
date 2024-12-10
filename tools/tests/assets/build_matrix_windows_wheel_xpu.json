@@ -119,6 +119,36 @@
       "upload_to_base_bucket": "yes",
       "stable_version": "2.5.1",
       "use_split_build": false
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "cpu",
+      "gpu_arch_version": "",
+      "desired_cuda": "cpu",
+      "container_image": "pytorch/manylinux-builder:cpu",
+      "package_type": "wheel",
+      "build_name": "wheel-py3_13-cpu",
+      "validation_runner": "windows.4xlarge",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "channel": "nightly",
+      "upload_to_base_bucket": "yes",
+      "stable_version": "2.5.1",
+      "use_split_build": false
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "xpu",
+      "gpu_arch_version": "",
+      "desired_cuda": "xpu",
+      "container_image": "pytorch/manylinux2_28-builder:xpu",
+      "package_type": "wheel",
+      "build_name": "wheel-py3_13-xpu",
+      "validation_runner": "windows.4xlarge",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "channel": "nightly",
+      "upload_to_base_bucket": "yes",
+      "stable_version": "2.5.1",
+      "use_split_build": false
     }
   ]
 }
