@@ -34,28 +34,15 @@ import useSWR from "swr";
 
 function MasterCommitRedPanel({
   params,
-  useClickHouse,
 }: {
-  params: RocksetParam[] | {};
-  useClickHouse: boolean;
+  params: { [key: string]: string };
 }) {
-  const url = useClickHouse
-    ? `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
-        JSON.stringify({
-          ...params,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        })
-      )}`
-    : `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-        JSON.stringify([
-          ...(params as RocksetParam[]),
-          {
-            name: "timezone",
-            type: "string",
-            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        ])
-      )}`;
+  const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...params,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -137,15 +124,13 @@ function TTSPanel({
   metricHeaderName,
   metricName,
   branchName,
-  useClickHouse = false,
 }: {
   title: string;
   queryName: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [key: string]: any };
   metricHeaderName: string;
   metricName: string;
   branchName: string;
-  useClickHouse?: boolean;
 }) {
   return (
     <TablePanel
@@ -439,7 +424,6 @@ function JobsDuration({
         metricName={metricName}
         metricHeaderName={metricHeaderName}
         branchName={branchName}
-        useClickHouse={useClickHouse}
       />
     </Grid>
   );
@@ -549,10 +533,7 @@ export default function Page() {
 
       <Grid container spacing={2}>
         <Grid item md={6} xs={12} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel
-            params={useClickHouse ? timeParamsClickHouse : timeParams}
-            useClickHouse={useClickHouse}
-          />
+          <MasterCommitRedPanel params={timeParamsClickHouse} />
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
