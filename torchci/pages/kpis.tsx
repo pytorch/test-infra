@@ -72,15 +72,34 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"Time to Red Signal - (Weekly)"}
+          title={"Time to Red Signal - (Weekly, pull workflow)"}
           queryName={"ttrs_percentiles"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...clickhouseTimeParams,
+            one_bucket: false,
+            percentile_to_get: 0,
+            workflow: "pull",
+          }}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"ttrs_mins"}
           yAxisRenderer={(duration) => duration}
-          groupByFieldName={"percentile"}
+          useClickHouse={true}
+          groupByFieldName="percentile"
+          // Format data so that we can display all percentiles in the same
+          // chart
+          dataReader={(data) => {
+            const percentiles = ["p25", "p50", "p75", "p90"];
+            return data.map((d) =>
+              percentiles.map((p) => {
+                return {
+                  ...d,
+                  percentile: p,
+                  ttrs_mins: d[p],
+                };
+              })
+            ).flat();
+          }}
         />
       </Grid>
 

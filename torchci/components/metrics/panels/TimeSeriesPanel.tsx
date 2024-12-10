@@ -286,6 +286,8 @@ export default function TimeSeriesPanel({
   max_items_in_series = 0,
   filter = undefined,
   auto_refresh = true,
+  // Additional function to process the data after querying
+  dataReader = undefined,
 }: {
   title: string;
   queryCollection?: string;
@@ -306,6 +308,7 @@ export default function TimeSeriesPanel({
   max_items_in_series?: number;
   filter?: string;
   auto_refresh?: boolean;
+  dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
 }) {
   // - Granularity
   // - Group by
@@ -324,13 +327,14 @@ export default function TimeSeriesPanel({
         ])
       )}`;
 
-  const { data } = useSWR(url, fetcher, {
+  const { data: rawData } = useSWR(url, fetcher, {
     refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
 
-  if (data === undefined) {
+  if (rawData === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+  const data = dataReader ? dataReader(rawData) : rawData;
 
   let startTime, stopTime;
   if (useClickHouse) {
