@@ -1,66 +1,35 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
-import rocksetVersions from "rockset/prodVersions.json";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
-import getRocksetClient from "./rockset";
 import { CommitData, JobData } from "./types";
 
-async function fetchDatabaseInfo(
-  owner: string,
-  repo: string,
-  sha: string,
-  useCH: boolean
-) {
-  if (useCH) {
-    const response = await queryClickhouseSaved("commit_jobs_query", {
-      repo: `${owner}/${repo}`,
-      sha: sha,
-    });
+async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
+  const response = await queryClickhouseSaved("commit_jobs_query", {
+    repo: `${owner}/${repo}`,
+    sha: sha,
+  });
 
-    for (const row of response) {
-      row.id = row.id == 0 ? null : row.id;
-      row.workflowId = row.workflowId == 0 ? null : row.workflowId;
-    }
-    return response;
-  } else {
-    const rocksetClient = getRocksetClient();
-    const response = await rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "commit_jobs_query",
-      rocksetVersions.commons.commit_jobs_query as string,
-      {
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: `${owner}/${repo}`,
-          },
-        ],
-      }
-    );
-    return response.results!;
+  for (const row of response) {
+    // TODO: change the code that relies on this logic?
+    row.id = row.id == 0 ? null : row.id;
+    row.workflowId = row.workflowId == 0 ? null : row.workflowId;
   }
+  return response;
 }
 
 export default async function fetchCommit(
   owner: string,
   repo: string,
-  sha: string,
-  useCH: boolean
+  sha: string
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 
   const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await fetchDatabaseInfo(owner, repo, sha, useCH),
+    await fetchDatabaseInfo(owner, repo, sha),
   ]);
 
   let jobs = response as any[];

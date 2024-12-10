@@ -25,7 +25,7 @@ function CommitInfo({
   const useCH = useCHContext().useCH;
   const { data: commitData, error } = useSWR<CommitApiResponse>(
     sha != null
-      ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
+      ? `/api/${repoOwner}/${repoName}/commit/${sha}`
       : null,
     fetcher,
     {
@@ -108,7 +108,7 @@ function Page() {
 
   let swrKey;
   if (prNumber !== undefined) {
-    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}?use_ch=${useCH}`;
+    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}`;
   }
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;

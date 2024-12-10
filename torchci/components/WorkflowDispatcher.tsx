@@ -171,7 +171,7 @@ export function SingleWorkflowDispatcher({
 
   const { data, error } = useSWR<CommitApiResponse>(
     runMoreJobsClicked &&
-      `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`,
+      `/api/${repoOwner}/${repoName}/commit/${sha}`,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute

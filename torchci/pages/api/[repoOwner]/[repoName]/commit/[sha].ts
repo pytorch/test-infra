@@ -17,8 +17,7 @@ export default async function handler(
       await fetchCommit(
         req.query.repoOwner as string,
         req.query.repoName as string,
-        req.query.sha as string,
-        req.query.use_ch === "true"
+        req.query.sha as string
       )
     );
 }

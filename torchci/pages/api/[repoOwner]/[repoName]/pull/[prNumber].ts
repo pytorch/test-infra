@@ -6,7 +6,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PRData>
 ) {
-  const { prNumber, repoName, repoOwner, use_ch } = req.query;
+  const { prNumber, repoName, repoOwner } = req.query;
   const octokit = await getOctokit(repoOwner as string, repoName as string);
   res
     .status(200)
@@ -16,7 +16,6 @@ export default async function handler(
         repoName as string,
         prNumber as string,
         octokit,
-        use_ch === "true"
       )
     );
 }

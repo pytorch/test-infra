@@ -1126,7 +1126,7 @@ export async function reorganizeWorkflows(
       let prShas: { sha: string; title: string }[] = [];
       // Gate this to PyTorch as disabled tests feature is only available there
       if (octokit && repo === "pytorch") {
-        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit, true);
+        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
         prTitle = prData.title;
         prBody = prData.body;
         prShas = prData.shas;
