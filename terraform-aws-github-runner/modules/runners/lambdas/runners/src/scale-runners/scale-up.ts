@@ -319,8 +319,19 @@ export function _calculateScaleUpAmount(
   if (minRunnersUnderprovisionCount > 0) {
     // Scale up by a bit extra to bring us closer to the minimum limit
 
-    // Keep the overprovisioning to a small % when we have a large number of runners requested
-    extraScaleUp = Math.ceil(minRunnersUnderprovisionCount * 0.05);
+    // Keep the overprovisioning to a small % when we have a large number of runners requested.
+    // However, in the normal case (non-ephemeral, where only a single runner is requested) we
+    //   won't overprovision since that would risk overprovisioning runners by too much.
+    // How? Imagine 100 jobs have started on GitHub and we get 100 parallel webhooks requests to
+    //   provision one runners.  Each of those running in parallel is unlikely to see the other
+    //   requests and will provision not only the 100 runners they need, but also an additional 100
+    //   as "extraScaleUp".
+    // The requests that ask for more than one runner are less likely to run in parallel and so
+    //   are less likely to overprovision so drastically.
+    // Note: Since Ephemeral runners are short lived we can still overprovision them more aggressively
+    if (requestedCount > 1) {
+      extraScaleUp = Math.ceil(minRunnersUnderprovisionCount * 0.1);
+    }
 
     if (isEphemeral) {
       // We randomly overprovision ephemeral runners to handle extra incoming requests.
