@@ -41,8 +41,8 @@ on:
         type: string
       use-only-dl-pytorch-org:
         description: "Use only download.pytorch.org when generating wheel install command?"
-        default: "false"
-        type: string
+        default: false
+        type: boolean
       build-python-only:
         description: "Generate binary build matrix for a python only package (i.e. only one python version)"
         default: "disable"
