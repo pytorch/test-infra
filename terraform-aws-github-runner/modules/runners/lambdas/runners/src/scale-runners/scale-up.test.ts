@@ -12,7 +12,7 @@ import { Config } from './config';
 import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
-import { scaleUp } from './scale-up';
+import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
 
 jest.mock('./runners');
@@ -1027,5 +1027,166 @@ describe('scaleUp', () => {
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0], metrics);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[1], metrics);
+  });
+});
+
+describe('_calculateScaleUpAmount', () => {
+  describe('When we are sufficently below the max scale up limit', () => {
+    const maxScaleUp = Number.MAX_SAFE_INTEGER;
+
+    it('When avail runners are high enough to handle request and stay above min, does not scale up', () => {
+      const requestedCount = 4;
+      const availableCount = 7;
+      const minRunners = 2;
+
+      for (const isEphemeral of [false, true]) {
+        const scaleUpAmount = _calculateScaleUpAmount(
+          requestedCount,
+          isEphemeral,
+          minRunners,
+          maxScaleUp,
+          availableCount,
+        );
+
+        expect(scaleUpAmount).toBe(0);
+      }
+    });
+
+    it('No runners are available and below min, scales up', () => {
+      const requestedCount = 1;
+      const availableCount = 2;
+      const minRunners = 10;
+      const isEphemeral = false;
+
+      const scaleUpAmount = _calculateScaleUpAmount(
+        requestedCount,
+        isEphemeral,
+        minRunners,
+        maxScaleUp,
+        availableCount,
+      );
+
+      expect(scaleUpAmount).toBe(1);
+    });
+
+    it('When avail runners are high enough to handle request but will dip below min, scale ups partway to min', () => {
+      const requestedCount = 4;
+      const availableCount = 5;
+      const minRunners = 4;
+
+      for (const isEphemeral of [false, true]) {
+        const scaleUpAmount = _calculateScaleUpAmount(
+          requestedCount,
+          isEphemeral,
+          minRunners,
+          maxScaleUp,
+          availableCount,
+        );
+
+        const availAfterHandinglingRequest = availableCount - requestedCount;
+        const amtBelowMin = minRunners - availAfterHandinglingRequest;
+
+        // We were above min runners before, and we should scale up enough to not dip below min runners
+        expect(scaleUpAmount).toEqual(3);
+      }
+    });
+
+    it(
+      'When avail runners are insuffiicent to handle request, ' +
+        'provisions enough to handle request and also scale up partway to min',
+      () => {
+        const requestedCount = 6;
+        const availableCount = 5;
+        const minRunners = 4;
+
+        for (const isEphemeral of [false, true]) {
+          const scaleUpAmount = _calculateScaleUpAmount(
+            requestedCount,
+            isEphemeral,
+            minRunners,
+            maxScaleUp,
+            availableCount,
+          );
+
+          const reqRemainingAfterUsingAvailableRuners = requestedCount - availableCount;
+
+          // Not being exactly prescriptive with a value in this test so that we can tweak the results later without
+          // needing to update the test.
+          expect(scaleUpAmount).toBeGreaterThan(reqRemainingAfterUsingAvailableRuners); // Ensure we get extra instances
+          expect(scaleUpAmount).toBeLessThanOrEqual(minRunners + reqRemainingAfterUsingAvailableRuners);
+        }
+      },
+    );
+  });
+
+  describe('When we are near the max scale up limit', () => {
+    it('When there is no additional capacity to scale up, does not scale up', () => {
+      const requestedCount = 4;
+      const availableCount = 2;
+      const minRunners = 2;
+      const maxScaleUp = 0;
+
+      for (const isEphemeral of [false, true]) {
+        const scaleUpAmount = _calculateScaleUpAmount(
+          requestedCount,
+          isEphemeral,
+          minRunners,
+          maxScaleUp,
+          availableCount,
+        );
+
+        expect(scaleUpAmount).toBe(0);
+      }
+    });
+
+    it(
+      'When avail runners are high enough to handle request but will dip below min, ' +
+        'Scale ups partway to min while staying below the max limit',
+      () => {
+        const requestedCount = 4;
+        const availableCount = 2;
+        const minRunners = 10;
+        const maxScaleUp = 3;
+
+        for (const isEphemeral of [false, true]) {
+          const scaleUpAmount = _calculateScaleUpAmount(
+            requestedCount,
+            isEphemeral,
+            minRunners,
+            maxScaleUp,
+            availableCount,
+          );
+
+          // Not being exactly prescriptive with all values in this test so that we can tweak the results later without
+          // needing to update the test.
+          expect(scaleUpAmount).toBeGreaterThan(requestedCount - availableCount); // Ensure we're get extra instances
+          expect(scaleUpAmount).toBeLessThanOrEqual(minRunners);
+          expect(scaleUpAmount).toBeLessThanOrEqual(maxScaleUp);
+        }
+      },
+    );
+
+    it(
+      'When avail runners are insuffiicent to handle request, ' +
+        'provisions enough to handle request from what is available',
+      () => {
+        const requestedCount = 6;
+        const availableCount = 2;
+        const minRunners = 4;
+        const maxScaleUp = 3;
+
+        for (const isEphemeral of [false, true]) {
+          const scaleUpAmount = _calculateScaleUpAmount(
+            requestedCount,
+            isEphemeral,
+            minRunners,
+            maxScaleUp,
+            availableCount,
+          );
+
+          expect(scaleUpAmount).toEqual(maxScaleUp);
+        }
+      },
+    );
   });
 });
