@@ -24,9 +24,7 @@ function CommitInfo({
 }) {
   const useCH = useCHContext().useCH;
   const { data: commitData, error } = useSWR<CommitApiResponse>(
-    sha != null
-      ? `/api/${repoOwner}/${repoName}/commit/${sha}`
-      : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute

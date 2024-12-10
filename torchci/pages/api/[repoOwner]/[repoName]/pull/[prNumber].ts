@@ -15,7 +15,7 @@ export default async function handler(
         repoOwner as string,
         repoName as string,
         prNumber as string,
-        octokit,
+        octokit
       )
     );
 }
