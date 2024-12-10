@@ -81,7 +81,6 @@ export default function Kpis() {
           yAxisFieldName={"ttrs_mins"}
           yAxisRenderer={(duration) => duration}
           groupByFieldName={"percentile"}
-          useClickHouse={false}
         />
       </Grid>
 
