@@ -87,18 +87,21 @@ export default function Kpis() {
           useClickHouse={true}
           groupByFieldName="percentile"
           // Format data so that we can display all percentiles in the same
-          // chart
+          // chart. Goes from 1 row per timestamp with all percentiles in the
+          // row to 4 rows per timestamp with one percentile in each row.
           dataReader={(data) => {
             const percentiles = ["p25", "p50", "p75", "p90"];
-            return data.map((d) =>
-              percentiles.map((p) => {
-                return {
-                  ...d,
-                  percentile: p,
-                  ttrs_mins: d[p],
-                };
-              })
-            ).flat();
+            return data
+              .map((d) =>
+                percentiles.map((p) => {
+                  return {
+                    ...d,
+                    percentile: p,
+                    ttrs_mins: d[p],
+                  };
+                })
+              )
+              .flat();
           }}
         />
       </Grid>
