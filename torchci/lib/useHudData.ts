@@ -1,4 +1,3 @@
-import { useCHContext } from "components/UseClickhouseProvider";
 import useSWR from "swr";
 import {
   formatHudUrlForFetch,
@@ -11,9 +10,8 @@ import {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function useHudData(params: HudParams): RowData[] | undefined {
-  const { useCH } = useCHContext();
   let { data } = useSWR<HudDataAPIResponse>(
-    formatHudUrlForFetch("api/hud", { ...params, use_ch: useCH }),
+    formatHudUrlForFetch("api/hud", { ...params }),
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute

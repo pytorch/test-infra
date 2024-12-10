@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import LoginSection from "./LoginSection";
-import { CHToggle } from "./UseClickhouseProvider";
 
 const NavBarDropdown = ({
   title,
@@ -166,9 +165,6 @@ function NavBar() {
           </li>
           <li style={{ padding: "0 1rem" }}>
             <LoginSection></LoginSection>
-          </li>
-          <li>
-            <CHToggle />
           </li>
         </ul>
       </div>

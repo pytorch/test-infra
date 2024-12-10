@@ -106,11 +106,11 @@ where
     numHours,
   });
 
-  // For every failed test, query rockset for jobs that had file level reruns of
-  // the test in the past numHours.  Do this separately because a join on
-  // test_run_s3 takes a long time.  Batch the query since rockset doesn't allow
-  // more tha 150 concurrent queries.  Flatten the accumulator since it ends up
-  // being an array of arrays.
+  // For every failed test, query for jobs that had file level reruns of the
+  // test in the past numHours.  Do this separately because a join on
+  // test_run_s3 takes a long time.  Batch the query to prevent overloading the
+  // database.  Flatten the accumulator since it ends up being an array of
+  // arrays.
   let rerunTestsUnflattened: any[] = [];
   for (let i = 0; i < failedTestsResults.length; i += 25) {
     rerunTestsUnflattened.push(

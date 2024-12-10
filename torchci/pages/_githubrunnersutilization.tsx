@@ -10,7 +10,6 @@ import {
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
-import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
 import { TimeRangePicker } from "./metrics";
 
@@ -56,11 +55,12 @@ export function RunnerTypePicker({
 }
 
 export default function Page() {
+  return <div>Not yet migrated to CH.</div>;
   const [startTime, setStartTime] = useState(dayjs().subtract(30, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(30);
 
-  const timeParams: RocksetParam[] = [
+  const timeParams = [
     {
       name: "startTime",
       type: "string",
@@ -93,7 +93,6 @@ export default function Page() {
       <Grid item xs={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily"}
-          queryCollection={"utilization"}
           queryName={"runner_utilization"}
           groupByFieldName={"label"}
           granularity={"day"}
@@ -113,7 +112,6 @@ export default function Page() {
       <Grid item xs={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily by repo"}
-          queryCollection={"utilization"}
           queryName={"runner_utilization_by_repo"}
           groupByFieldName={"project"}
           granularity={"day"}
@@ -138,7 +136,6 @@ export default function Page() {
       <Grid item xs={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily by activity on PyTorch"}
-          queryCollection={"utilization"}
           queryName={"runner_utilization_by_activity"}
           groupByFieldName={"activity"}
           granularity={"day"}

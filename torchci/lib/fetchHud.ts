@@ -1,11 +1,9 @@
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
-import rocksetVersions from "rockset/prodVersions.json";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { getNameWithoutLF, isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
-import getRocksetClient from "./rockset";
 import {
   HudDataAPIResponse,
   HudParams,
@@ -13,50 +11,21 @@ import {
   RowDataAPIResponse,
 } from "./types";
 
-async function fetchDatabaseInfo(
-  owner: string,
-  repo: string,
-  shas: string[],
-  useCH: boolean
-) {
-  if (useCH) {
-    const response = await queryClickhouseSaved("hud_query", {
-      repo: `${owner}/${repo}`,
-      shas: shas,
-    });
+async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
+  const response = await queryClickhouseSaved("hud_query", {
+    repo: `${owner}/${repo}`,
+    shas: shas,
+  });
 
-    for (const row of response) {
-      row.id = row.id == 0 ? null : row.id;
-      if (row.failureAnnotation === "") {
-        // Rockset returns nothing if the left join doesn't have a match but CH returns empty string
-        // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
-        delete row.failureAnnotation;
-      }
+  for (const row of response) {
+    row.id = row.id == 0 ? null : row.id;
+    if (row.failureAnnotation === "") {
+      // Rockset returned nothing if the left join doesn't have a match but CH returns empty string
+      // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
+      delete row.failureAnnotation;
     }
-    return response;
-  } else {
-    const rocksetClient = getRocksetClient();
-    const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "hud_query",
-      rocksetVersions.commons.hud_query,
-      {
-        parameters: [
-          {
-            name: "shas",
-            type: "string",
-            value: shas.join(","),
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: `${owner}/${repo}`,
-          },
-        ],
-      }
-    );
-    return hudQuery.results!;
   }
+  return response;
 }
 
 export default async function fetchHud(
@@ -72,51 +41,24 @@ export default async function fetchHud(
     page: params.page,
   });
   const commits = branch.data.map(commitDataFromResponse);
-  const rocksetClient = getRocksetClient();
 
-  // Retrieve job data from rockset
+  // Retrieve job data
   const shas = commits.map((commit) => commit.sha);
-  const response = await fetchDatabaseInfo(
+  let results = await fetchDatabaseInfo(
     params.repoOwner,
     params.repoName,
-    shas,
-    params.use_ch
+    shas
   );
-  let results = response as any[];
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr = params.use_ch
-    ? ((await queryClickhouseSaved("filter_forced_merge_pr", {
-        owner: params.repoOwner,
-        project: params.repoName,
-        shas: shas,
-      })) as any[])
-    : (
-        await rocksetClient.queryLambdas.executeQueryLambda(
-          "commons",
-          "filter_forced_merge_pr",
-          rocksetVersions.commons.filter_forced_merge_pr,
-          {
-            parameters: [
-              {
-                name: "shas",
-                type: "string",
-                value: shas.join(","),
-              },
-              {
-                name: "owner",
-                type: "string",
-                value: params.repoOwner,
-              },
-              {
-                name: "project",
-                type: "string",
-                value: params.repoName,
-              },
-            ],
-          }
-        )
-      ).results;
+  const filterForcedMergePr = await queryClickhouseSaved(
+    "filter_forced_merge_pr",
+    {
+      owner: params.repoOwner,
+      project: params.repoName,
+      shas: shas,
+    }
+  );
 
   const forcedMergeShas = new Set(
     _.map(filterForcedMergePr, (r) => {

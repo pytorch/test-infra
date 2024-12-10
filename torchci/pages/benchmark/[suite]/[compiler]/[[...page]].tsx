@@ -327,7 +327,6 @@ export default function Page() {
         />
         <BranchAndCommitPicker
           queryName={branchQueryName}
-          queryCollection={"inductor"}
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
@@ -336,14 +335,12 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
           queryName={branchQueryName}
-          queryCollection={"inductor"}
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
@@ -352,7 +349,6 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
         />
       </Stack>
 

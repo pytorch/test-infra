@@ -219,7 +219,7 @@ async def aggregate(body: str, context: Any) -> str:
         return json.dumps({"error": "Failed to read from S3"})
 
     # Tne params should contain a list of workflow ids and job ids of the same length. Normally, they come from
-    # Rockset query test_insights_latest_runs
+    # the query test_insights_latest_runs
     workflow_ids = params.get("workflowIds", [])
     jobs_ids = params.get("jobIds", [])
 

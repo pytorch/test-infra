@@ -1,4 +1,4 @@
-Despite the name, this is the lambda used to write GitHub webhook payloads to S3 for syncing by Rockset as mentioned
+Despite the name, this is the lambda used to write GitHub webhook payloads to S3 as mentioned
 in https://github.com/pytorch/test-infra/blob/main/torchci/docs/architecture.md
 
 ### Deployment

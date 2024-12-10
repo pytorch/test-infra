@@ -4,7 +4,6 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
 import useSWR from "swr";
@@ -13,10 +12,10 @@ function NightlyJobsRedPanel({
   params,
   repo,
 }: {
-  params: RocksetParam[];
+  params: { [k: string]: any };
   repo: string;
 }) {
-  let repo_p = params.find(({ name }) => name == "repo");
+  let repo_p = params["repo"];
   if (repo_p && repo) repo_p.value = repo;
 
   const url = `/api/query/nightlies/nightly_jobs_red?parameters=${encodeURIComponent(
@@ -76,7 +75,7 @@ function ValidationRedPanel({
   channel,
   query_type,
 }: {
-  params: RocksetParam[];
+  params: any[];
   channel: string;
   query_type: string;
 }) {
@@ -178,11 +177,12 @@ function ValidationRedPanel({
 
 const ROW_HEIGHT = 340;
 export default function Page() {
+  return <div>Not yet migrated to CH.</div>;
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const timeParams: RocksetParam[] = [
+  const timeParams = [
     {
       name: "startTime",
       type: "string",
@@ -232,7 +232,6 @@ export default function Page() {
                 value: "pytorch",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -256,7 +255,6 @@ export default function Page() {
                 value: "vision",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -280,7 +278,6 @@ export default function Page() {
                 value: "audio",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -304,7 +301,6 @@ export default function Page() {
                 value: "text",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -332,7 +328,6 @@ export default function Page() {
                 value: "release",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -360,7 +355,6 @@ export default function Page() {
                 value: "nightly",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -384,7 +378,6 @@ export default function Page() {
             }
             queryName={"nightly_jobs_red_by_name"}
             queryParams={timeParams}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -400,7 +393,6 @@ export default function Page() {
             }
             queryName={"nightly_jobs_red_by_platform"}
             queryParams={timeParams}
-            queryCollection="nightlies"
             columns={[
               { field: "Count", headerName: "Count", flex: 1 },
               { field: "Platform", headerName: "Platform", flex: 4 },

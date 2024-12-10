@@ -44,7 +44,7 @@ def gen_correlation_dict() -> Dict[str, Dict[str, float]]:
     for commit in commits:
         changed_files = commit["changed_files"]
         # Fullname of test files look like test/<file>.py, but invoking files
-        # from rockset don't include the test/ or the .py extension, so remove
+        # in the database don't include the test/ or the .py extension, so remove
         # those
         test_files = [x[5:-3] for x in changed_files if x[5:-3] in invoking_files]
         for test_file in test_files:

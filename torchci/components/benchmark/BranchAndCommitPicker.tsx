@@ -9,13 +9,12 @@ import {
 import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useEffect } from "react";
 import useSWR from "swr";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
-// again from Rockset in the compilers_benchmark_performance query which
+// again from the database in the compilers_benchmark_performance query which
 // already returns close to the 6MB data transfer limit. I need to figure
 // out a way to compress the data later
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
@@ -48,7 +47,6 @@ function groupCommitByBranch(data: any) {
 
 export function BranchAndCommitPicker({
   queryName,
-  queryCollection,
   queryParams,
   branch,
   setBranch,
@@ -57,11 +55,9 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
-  useClickHouse,
 }: {
   queryName: string;
-  queryCollection: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [k: string]: any };
   branch: string;
   setBranch: any;
   commit: string;
@@ -69,16 +65,10 @@ export function BranchAndCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
-  useClickHouse: boolean;
 }) {
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams)
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams as RocksetParam[])
-      )}`;
-
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });

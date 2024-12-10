@@ -8,7 +8,6 @@ import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import _ from "lodash";
 import useSWR from "swr";
 dayjs.extend(utc);
@@ -256,11 +255,9 @@ export function TimeSeriesPanelWithData({
 export default function TimeSeriesPanel({
   // Human-readable title of the panel.
   title,
-  // Query lambda collection in Rockset.
-  queryCollection = "metrics",
-  // Query lambda name in Rockset.
+  // Query name.
   queryName,
-  // Rockset query parameters
+  // Query parameters
   queryParams,
   // Granularity of the time buckets.
   granularity,
@@ -279,7 +276,6 @@ export default function TimeSeriesPanel({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
-  useClickHouse = false,
   smooth = true,
   chartType = "line",
   sort_by = "name",
@@ -288,9 +284,8 @@ export default function TimeSeriesPanel({
   auto_refresh = true,
 }: {
   title: string;
-  queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [k: string]: any };
   granularity: Granularity;
   groupByFieldName?: string;
   timeFieldName: string;
@@ -299,7 +294,6 @@ export default function TimeSeriesPanel({
   yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
-  useClickHouse?: boolean;
   smooth?: boolean;
   chartType?: ChartType;
   sort_by?: "total" | "name";
@@ -310,20 +304,12 @@ export default function TimeSeriesPanel({
   // - Granularity
   // - Group by
   // - Time field
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify({
-          ...(queryParams as {}),
-          granularity: granularity as string,
-        })
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify([
-          ...(queryParams as RocksetParam[]),
-          { name: "granularity", type: "string", value: granularity },
-        ])
-      )}`;
-
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...(queryParams as {}),
+      granularity: granularity as string,
+    })
+  )}`;
   const { data } = useSWR(url, fetcher, {
     refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
@@ -332,21 +318,11 @@ export default function TimeSeriesPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let startTime, stopTime;
-  if (useClickHouse) {
-    startTime = (queryParams as any)["startTime"];
-    stopTime = (queryParams as any)["stopTime"];
-  } else {
-    startTime = (queryParams as RocksetParam[]).find(
-      (p) => p.name === "startTime"
-    )?.value;
-    stopTime = (queryParams as RocksetParam[]).find(
-      (p) => p.name === "stopTime"
-    )?.value;
-  }
+  let startTime = queryParams["startTime"];
+  let stopTime = queryParams["stopTime"];
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
+  // align with the data we get from the query.
   startTime = dayjs.utc(startTime).startOf(granularity);
   stopTime = dayjs.utc(stopTime).endOf(granularity);
 

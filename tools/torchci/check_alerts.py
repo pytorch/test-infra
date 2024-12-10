@@ -369,15 +369,13 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
 
 
 def fetch_hud_data(repo: str, branch: str) -> Any:
-    response = requests.get(
-        f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0?use_ch=true"
-    )
+    response = requests.get(f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0")
     response.raise_for_status()
     hud_data = json.loads(response.text)
     return (hud_data["jobNames"], hud_data["shaGrid"])
 
 
-# TODO: Do something about these flaky jobs, save them in rockset or something
+# TODO: Do something about these flaky jobs, save them or something
 def record_flaky_jobs(flaky_jobs: List[Any]) -> None:
     return
 

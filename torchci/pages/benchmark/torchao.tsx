@@ -24,7 +24,6 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -43,7 +42,7 @@ function Report({
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: any[];
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -57,7 +56,7 @@ function Report({
   const queryCollection = "inductor";
   const queryName = "torchao_query";
 
-  const queryParamsWithL: RocksetParam[] = [
+  const queryParamsWithL = [
     {
       name: "suites",
       type: "string",
@@ -84,7 +83,7 @@ function Report({
   });
   lData = augmentData(lData);
 
-  const queryParamsWithR: RocksetParam[] = [
+  const queryParamsWithR = [
     {
       name: "branches",
       type: "string",
@@ -166,6 +165,7 @@ function Report({
 }
 
 export default function Page() {
+  return <div>Not yet migrated to CH.</div>;
   const router = useRouter();
 
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
@@ -258,7 +258,7 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryParams: RocksetParam[] = [
+  const queryParams = [
     {
       name: "timezone",
       type: "string",
@@ -342,7 +342,6 @@ export default function Page() {
         />
         <BranchAndCommitPicker
           queryName={"torchao_query_branches"}
-          queryCollection={"inductor"}
           queryParams={queryParams}
           branch={rBranch}
           setBranch={setRBranch}
@@ -351,14 +350,12 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={false}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
           queryName={"torchao_query_branches"}
-          queryCollection={"inductor"}
           queryParams={queryParams}
           branch={lBranch}
           setBranch={setLBranch}
@@ -367,7 +364,6 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={false}
         />
       </Stack>
 

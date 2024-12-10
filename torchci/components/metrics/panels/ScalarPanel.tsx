@@ -4,7 +4,6 @@
 
 import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 
 export function ScalarPanelWithValue({
@@ -57,37 +56,27 @@ export function ScalarPanelWithValue({
 export default function ScalarPanel({
   // Human-readable title of the panel.
   title,
-  // Query lambda collection in Rockset.
-  queryCollection = "metrics",
-  // Query lambda name in Rockset.
+  // Query name.
   queryName,
-  // Rockset query parameters
+  // Query parameters
   queryParams,
   // Callback to render the scalar value in some nice way.
   valueRenderer,
-  // The name of field to use when retrieving the value from the Rockset result.
+  // The name of field to use when retrieving the value from the query result.
   metricName,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
-  useClickHouse = true,
 }: {
   title: string;
-  queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [key: string]: any };
   valueRenderer: (_value: any) => string;
   metricName: string;
   badThreshold: (_value: any) => boolean;
-  useClickHouse?: boolean;
 }) {
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams)
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams)
-      )}`;
-
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });

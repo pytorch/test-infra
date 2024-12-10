@@ -301,7 +301,6 @@ export default function Page() {
         />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
           queryParams={queryParams}
           branch={rBranch}
           setBranch={setRBranch}
@@ -310,14 +309,12 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
-          queryCollection={"inductor"}
           queryParams={queryParams}
           branch={lBranch}
           setBranch={setLBranch}
@@ -326,7 +323,6 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
         />
       </Stack>
       <Report

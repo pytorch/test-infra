@@ -4,14 +4,14 @@ from torchci.update_test_times import gen_test_class_times, gen_test_file_times
 
 
 class TestUpdateTestTimesFile(unittest.TestCase):
-    def make_rockset_row(self, job: str, config: str, file: str, time: float):
+    def make_db_row(self, job: str, config: str, file: str, time: float):
         return {"base_name": job, "test_config": config, "file": file, "time": time}
 
     def test_gen_test_file_times_create_default(self) -> None:
         data = [
-            self.make_rockset_row("job", "config", "a", 1),
-            self.make_rockset_row("job", "config", "b", 1),
-            self.make_rockset_row("job", "config", "c", 1),
+            self.make_db_row("job", "config", "a", 1),
+            self.make_db_row("job", "config", "b", 1),
+            self.make_db_row("job", "config", "c", 1),
         ]
         res = gen_test_file_times(data, {})
         expected = {
@@ -25,9 +25,9 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
     def test_gen_test_file_times_defaults_average(self) -> None:
         data = [
-            self.make_rockset_row("job", "config", "a", 1),
-            self.make_rockset_row("job", "config2", "a", 6),
-            self.make_rockset_row("job2", "config", "a", 5),
+            self.make_db_row("job", "config", "a", 1),
+            self.make_db_row("job", "config2", "a", 6),
+            self.make_db_row("job2", "config", "a", 5),
         ]
         res = gen_test_file_times(data, {})
         expected = {
@@ -44,9 +44,9 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
     def test_gen_test_file_times_override_default(self) -> None:
         data = [
-            self.make_rockset_row("default", "config", "a", 1),
-            self.make_rockset_row("job", "config", "a", 6),
-            self.make_rockset_row("default", "default", "a", 5),
+            self.make_db_row("default", "config", "a", 1),
+            self.make_db_row("job", "config", "a", 6),
+            self.make_db_row("default", "default", "a", 5),
         ]
         res = gen_test_file_times(data, {})
         expected = {
@@ -57,9 +57,9 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
     def test_gen_test_file_times_override_old_default(self) -> None:
         data = [
-            self.make_rockset_row("default", "config", "a", 1),
-            self.make_rockset_row("job", "config", "a", 6),
-            self.make_rockset_row("default", "default", "a", 5),
+            self.make_db_row("default", "config", "a", 1),
+            self.make_db_row("job", "config", "a", 6),
+            self.make_db_row("default", "default", "a", 5),
         ]
         res = gen_test_file_times(data, {"default": {"config": {"a": 57}}})
         expected = {
@@ -69,7 +69,7 @@ class TestUpdateTestTimesFile(unittest.TestCase):
         self.assertDictEqual(res, expected)
 
         data = [
-            self.make_rockset_row("env", "config", "a", 1),
+            self.make_db_row("env", "config", "a", 1),
         ]
         res = gen_test_file_times(
             data, {"default": {"config": {"a": 57}, "default": {"a": 100}}}
@@ -82,7 +82,7 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
     def test_gen_test_file_times_old_values_still_present(self) -> None:
         data = [
-            self.make_rockset_row("env", "config", "a", 5),
+            self.make_db_row("env", "config", "a", 5),
         ]
         res = gen_test_file_times(data, {"env": {"config": {"b": 57}}})
         expected = {
@@ -93,7 +93,7 @@ class TestUpdateTestTimesFile(unittest.TestCase):
 
 
 class TestUpdateTestTimesClass(unittest.TestCase):
-    def make_rockset_row(
+    def make_db_row(
         self, job: str, config: str, file: str, classname: str, time: float
     ):
         return {
@@ -106,9 +106,9 @@ class TestUpdateTestTimesClass(unittest.TestCase):
 
     def test_gen_test_class_times_create_default(self) -> None:
         data = [
-            self.make_rockset_row("job", "config", "a", "classa", 1),
-            self.make_rockset_row("job", "config", "a", "classb", 1),
-            self.make_rockset_row("job", "config", "c", "classc", 1),
+            self.make_db_row("job", "config", "a", "classa", 1),
+            self.make_db_row("job", "config", "a", "classb", 1),
+            self.make_db_row("job", "config", "c", "classc", 1),
         ]
         res = gen_test_class_times(data, {})
         expected = {
@@ -123,9 +123,9 @@ class TestUpdateTestTimesClass(unittest.TestCase):
     def test_gen_test_class_times_defaults_average(self) -> None:
         self.maxDiff = None
         data = [
-            self.make_rockset_row("job", "config", "a", "classa", 1),
-            self.make_rockset_row("job", "config2", "a", "classa", 6),
-            self.make_rockset_row("job2", "config", "a", "classa", 5),
+            self.make_db_row("job", "config", "a", "classa", 1),
+            self.make_db_row("job", "config2", "a", "classa", 6),
+            self.make_db_row("job2", "config", "a", "classa", 5),
         ]
         res = gen_test_class_times(data, {})
         expected = {
@@ -142,9 +142,9 @@ class TestUpdateTestTimesClass(unittest.TestCase):
 
     def test_gen_test_class_times_override_default(self) -> None:
         data = [
-            self.make_rockset_row("default", "config", "a", "classa", 1),
-            self.make_rockset_row("job", "config", "a", "classa", 6),
-            self.make_rockset_row("default", "default", "a", "classa", 5),
+            self.make_db_row("default", "config", "a", "classa", 1),
+            self.make_db_row("job", "config", "a", "classa", 6),
+            self.make_db_row("default", "default", "a", "classa", 5),
         ]
         res = gen_test_class_times(data, {})
         expected = {
@@ -159,9 +159,9 @@ class TestUpdateTestTimesClass(unittest.TestCase):
     def test_gen_test_class_times_override_old_default(self) -> None:
         self.maxDiff = None
         data = [
-            self.make_rockset_row("default", "config", "a", "classa", 1),
-            self.make_rockset_row("job", "config", "a", "classa", 6),
-            self.make_rockset_row("default", "default", "a", "classa", 5),
+            self.make_db_row("default", "config", "a", "classa", 1),
+            self.make_db_row("job", "config", "a", "classa", 6),
+            self.make_db_row("default", "default", "a", "classa", 5),
         ]
         res = gen_test_class_times(data, {"default": {"config": {"a": {"classa": 57}}}})
         expected = {
@@ -174,7 +174,7 @@ class TestUpdateTestTimesClass(unittest.TestCase):
         self.assertDictEqual(res, expected)
 
         data = [
-            self.make_rockset_row("env", "config", "a", "classa", 1),
+            self.make_db_row("env", "config", "a", "classa", 1),
         ]
         res = gen_test_class_times(
             data,
@@ -196,7 +196,7 @@ class TestUpdateTestTimesClass(unittest.TestCase):
 
     def test_gen_test_class_times_old_values_still_present(self) -> None:
         data = [
-            self.make_rockset_row("env", "config", "a", "classa", 5),
+            self.make_db_row("env", "config", "a", "classa", 5),
         ]
         res = gen_test_class_times(data, {"env": {"config": {"b": {"classb": 57}}}})
         expected = {

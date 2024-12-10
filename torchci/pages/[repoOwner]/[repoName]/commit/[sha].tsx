@@ -1,6 +1,5 @@
 import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
-import { useCHContext } from "components/UseClickhouseProvider";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
@@ -17,9 +16,7 @@ export function CommitInfo({
   sha: string;
 }) {
   const { data: commitData, error } = useSWR<CommitApiResponse>(
-    `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${
-      useCHContext().useCH
-    }`,
+    `/api/${repoOwner}/${repoName}/commit/${sha}`,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute

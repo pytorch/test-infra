@@ -3,7 +3,6 @@ import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
-import { UseCHContextProvider } from "components/UseClickhouseProvider";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
@@ -24,17 +23,15 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <SessionProvider>
-        <UseCHContextProvider>
-          <TitleProvider>
-            <NavBar />
-            <AnnouncementBanner />
-            <SevReport />
-            <div style={{ margin: "20px" }}>
-              <Component {...pageProps} />
-              <Analytics />
-            </div>
-          </TitleProvider>
-        </UseCHContextProvider>
+        <TitleProvider>
+          <NavBar />
+          <AnnouncementBanner />
+          <SevReport />
+          <div style={{ margin: "20px" }}>
+            <Component {...pageProps} />
+            <Analytics />
+          </div>
+        </TitleProvider>
       </SessionProvider>
     </>
   );

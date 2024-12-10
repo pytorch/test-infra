@@ -78,8 +78,3 @@ export async function queryClickhouseSaved(
     Object.fromEntries(queryParams)
   );
 }
-
-export function enableClickhouse() {
-  // Use this to quickly toggle between clickhouse and rockset
-  return process.env.USE_CLICKHOUSE == "true";
-}

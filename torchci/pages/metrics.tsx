@@ -23,39 +23,20 @@ import ScalarPanel, {
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
-import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
-function MasterCommitRedPanel({
-  params,
-  useClickHouse,
-}: {
-  params: RocksetParam[] | {};
-  useClickHouse: boolean;
-}) {
-  const url = useClickHouse
-    ? `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
-        JSON.stringify({
-          ...params,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        })
-      )}`
-    : `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-        JSON.stringify([
-          ...(params as RocksetParam[]),
-          {
-            name: "timezone",
-            type: "string",
-            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        ])
-      )}`;
+function MasterCommitRedPanel({ params }: { params: { [k: string]: any } }) {
+  const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...params,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -137,15 +118,13 @@ function TTSPanel({
   metricHeaderName,
   metricName,
   branchName,
-  useClickHouse = false,
 }: {
   title: string;
   queryName: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [k: string]: any };
   metricHeaderName: string;
   metricName: string;
   branchName: string;
-  useClickHouse?: boolean;
 }) {
   return (
     <TablePanel
@@ -186,7 +165,6 @@ function TTSPanel({
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
-      useClickHouse={useClickHouse}
     />
   );
 }
@@ -356,18 +334,14 @@ export function TtsPercentilePicker({
 }
 
 function WorkflowDuration({
-  percentileParam,
+  ttsPercentile,
   timeParams,
   workflowNames,
-  useClickHouse = false,
 }: {
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
+  ttsPercentile: number;
+  timeParams: { [k: string]: any };
   workflowNames: string[];
-  useClickHouse?: boolean;
 }) {
-  const ttsPercentile = percentileParam.value;
-
   let title: string = `p${ttsPercentile * 100} ${workflowNames.join(
     ", "
   )} workflows duration`;
@@ -385,25 +359,12 @@ function WorkflowDuration({
       queryName={queryName}
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
-      queryParams={
-        useClickHouse
-          ? {
-              ...RStoCHTimeParams(timeParams),
-              workflowNames: workflowNames,
-              percentile: ttsPercentile,
-            }
-          : [
-              {
-                name: "workflowNames",
-                type: "string",
-                value: workflowNames.join(","),
-              },
-              percentileParam,
-              ...timeParams,
-            ]
-      }
+      queryParams={{
+        ...timeParams,
+        workflowNames: workflowNames,
+        percentile: ttsPercentile,
+      }}
       badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
-      useClickHouse={useClickHouse}
     />
   );
 }
@@ -415,34 +376,22 @@ function JobsDuration({
   metricName,
   percentileParam,
   timeParams,
-  useClickHouse = false,
 }: {
   title: string;
   branchName: string;
   queryName: string;
   metricName: string;
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
-  useClickHouse?: boolean;
+  percentileParam: number;
+  timeParams: { [k: string]: any };
 }) {
-  const ttsPercentile = percentileParam.value;
+  const ttsPercentile = percentileParam;
 
   let metricHeaderName: string = `p${ttsPercentile * 100}`;
-  let queryParams: RocksetParam[] | {} = useClickHouse
-    ? {
-        ...RStoCHTimeParams(timeParams),
-        branch: branchName,
-        percentile: ttsPercentile,
-      }
-    : [
-        {
-          name: "branch",
-          type: "string",
-          value: branchName,
-        },
-        percentileParam,
-        ...timeParams,
-      ];
+  let queryParams = {
+    ...timeParams,
+    branch: branchName,
+    percentile: ttsPercentile,
+  };
 
   // -1 is the specical case where we will show the avg instead
   if (ttsPercentile === -1) {
@@ -459,7 +408,6 @@ function JobsDuration({
         metricName={metricName}
         metricHeaderName={metricHeaderName}
         branchName={branchName}
-        useClickHouse={useClickHouse}
       />
     </Grid>
   );
@@ -467,66 +415,32 @@ function JobsDuration({
 
 const ROW_HEIGHT = 375;
 
-export function RStoCHTimeParams(params: RocksetParam[]) {
-  return {
-    startTime: params
-      .find((p) => p.name === "startTime")
-      ?.value.utc()
-      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: params
-      .find((p) => p.name === "stopTime")
-      ?.value.utc()
-      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
-  };
-}
-
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  // TODO (huydhn): Clean this up once ClickHouse migration finishes
-  const { useCH: useClickHouse } = useCHContext();
-
-  const timeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
-  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+  const timeParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
-  const percentileParam: RocksetParam = {
-    name: "percentile",
-    type: "float",
-    value: ttsPercentile,
-  };
+  const percentileParam = ttsPercentile;
 
   // Split the aggregated red % into broken trunk and flaky red %
-  const queryCollection = "metrics";
   const queryName = "master_commit_red_avg";
 
   // Query both broken trunk and flaky red % in one query to some
   // save CPU usage. This query is quite expensive to run
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify({
-          ...timeParamsClickHouse,
-          // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-          workflowNames: ["lint", "pull", "trunk"],
-        })
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(timeParams)
-      )}`;
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...timeParams,
+      // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
+      workflowNames: ["lint", "pull", "trunk"],
+    })
+  )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -569,10 +483,7 @@ export default function Page() {
 
       <Grid container spacing={2}>
         <Grid item md={6} xs={12} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel
-            params={useClickHouse ? timeParamsClickHouse : timeParams}
-            useClickHouse={useClickHouse}
-          />
+          <MasterCommitRedPanel params={timeParams} />
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
@@ -606,65 +517,29 @@ export default function Page() {
           >
             <ScalarPanel
               title={"% force merges due to failed PR checks"}
-              queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      merge_type: "Failure",
-                      one_bucket: true,
-                      granularity: "week", // Not used but ClickHouse requires it
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "merge_type",
-                        type: "string",
-                        value: "Failure",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParams,
+                merge_type: "Failure",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
               badThreshold={(value) => value > 8.5}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"% force merges due to impatience"}
-              queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      merge_type: "Impatience",
-                      one_bucket: true,
-                      granularity: "week", // Not used but ClickHouse requires it
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "merge_type",
-                        type: "string",
-                        value: "Impatience",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParams,
+                merge_type: "Impatience",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
               badThreshold={(value) => value > 10}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -677,65 +552,29 @@ export default function Page() {
           >
             <ScalarPanel
               title={"Time to Red Signal (p90 TTRS - mins)"}
-              queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
-              metricName={useClickHouse ? "custom" : "ttrs_mins"}
+              metricName={"custom"}
               valueRenderer={(value) => value}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      one_bucket: true,
-                      percentile_to_get: 0.9,
-                      workflow: "pull",
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "percentile_to_get",
-                        type: "float",
-                        value: "0.90",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParams,
+                one_bucket: true,
+                percentile_to_get: 0.9,
+                workflow: "pull",
+              }}
               badThreshold={(value) => value > 50}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
-              queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
-              metricName={useClickHouse ? "custom" : "ttrs_mins"}
+              metricName={"custom"}
               valueRenderer={(value) => value}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      one_bucket: true,
-                      percentile_to_get: 0.75,
-                      workflow: "pull",
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "percentile_to_get",
-                        type: "float",
-                        value: "0.75",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParams,
+                one_bucket: true,
+                percentile_to_get: 0.75,
+                workflow: "pull",
+              }}
               badThreshold={(value) => value > 40}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -751,26 +590,20 @@ export default function Page() {
               queryName={"strict_lag_sec"}
               metricName={"strict_lag_sec"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      repo: "pytorch",
-                      owner: "pytorch", // Not a parameter for the rockset query
-                      head: "refs/heads/main",
-                    }
-                  : []
-              }
+              queryParams={{
+                repo: "pytorch",
+                owner: "pytorch",
+                head: "refs/heads/main",
+              }}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# disabled tests"}
               queryName={"disabled_test_total"}
               metricName={"number_of_open_disabled_tests"}
               valueRenderer={(value) => value}
-              queryParams={useClickHouse ? { state: "open" } : []}
+              queryParams={{ state: "open" }}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -787,38 +620,16 @@ export default function Page() {
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? { branch: "refs/heads/main" }
-                  : [
-                      {
-                        name: "branch",
-                        type: "string",
-                        value: "refs/heads/main",
-                      },
-                    ]
-              }
+              queryParams={{ branch: "refs/heads/main" }}
               badThreshold={(_) => false} // never bad
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last nightly push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? { branch: "refs/heads/nightly" }
-                  : [
-                      {
-                        name: "branch",
-                        type: "string",
-                        value: "refs/heads/nightly",
-                      },
-                    ]
-              }
+              queryParams={{ branch: "refs/heads/nightly" }}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -835,42 +646,20 @@ export default function Page() {
               queryName={"last_successful_workflow"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      workflowName: "docker-builds",
-                    }
-                  : [
-                      {
-                        name: "workflowName",
-                        type: "string",
-                        value: "docker-builds",
-                      },
-                    ]
-              }
+              queryParams={{
+                workflowName: "docker-builds",
+              }}
               badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
-              metricName={"last_success_seconds_ago"}
+              metricName={"seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      jobNames: docsJobNames,
-                    }
-                  : [
-                      {
-                        name: "jobNames",
-                        type: "string",
-                        value: docsJobNames.join(","),
-                      },
-                    ]
-              }
+              queryParams={{
+                jobNames: docsJobNames,
+              }}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -887,19 +676,16 @@ export default function Page() {
               queryName={"reverts"}
               metricName={"num"}
               valueRenderer={(value: string) => value}
-              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
+              queryParams={timeParams}
               badThreshold={(value) => value > 10}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# commits"}
               queryName={"num_commits_master"}
-              queryCollection={"commons"}
               metricName={"num"}
               valueRenderer={(value) => value}
-              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
+              queryParams={timeParams}
               badThreshold={(_) => false}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -912,10 +698,9 @@ export default function Page() {
             spacing={1}
           >
             <WorkflowDuration
-              percentileParam={percentileParam}
+              ttsPercentile={ttsPercentile}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -937,7 +722,6 @@ export default function Page() {
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
             dataGridProps={{ getRowId: (el: any) => el.machine_type }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -972,7 +756,6 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -980,27 +763,15 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
-            queryParams={
-              useClickHouse
-                ? {
-                    ...timeParamsClickHouse,
-                    granlarity: "hour",
-                  }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{
+              ...timeParams,
+              granlarity: "hour",
+            }}
             granularity={"hour"}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1008,30 +779,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    {
-                      name: "repo",
-                      type: "string",
-                      value: "pytorch/pytorch",
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
             granularity={"hour"}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
             yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1042,7 +796,6 @@ export default function Page() {
           metricName={"tts_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1052,7 +805,6 @@ export default function Page() {
           metricName={"tts_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1062,7 +814,6 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -1072,15 +823,13 @@ export default function Page() {
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
-            queryCollection={"metrics"}
-            queryParams={useClickHouse ? timeParamsClickHouse : [...timeParams]}
+            queryParams={timeParams}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
@@ -1102,7 +851,6 @@ export default function Page() {
               getRowId: (el: any) =>
                 el.captures ? JSON.stringify(el.captures) : "null",
             }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1110,29 +858,12 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Number of new disabled tests"}
             queryName={"disabled_test_historical"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    {
-                      name: "repo",
-                      type: "string",
-                      value: "pytorch/pytorch",
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
             granularity={"day"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1152,25 +883,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1178,25 +897,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"cancelled_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1204,49 +911,25 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
         <Grid item xs={12} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
       </Grid>

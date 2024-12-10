@@ -2,7 +2,6 @@ import HelpIcon from "@mui/icons-material/Help";
 import { Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -10,11 +9,9 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function TablePanel({
   // Human-readable title for this panel.
   title,
-  // Query lambda collection in Rockset.
-  queryCollection = "metrics",
-  // Query lambda name in Rockset, ("metrics" collection is assumed).
+  // Query name.
   queryName,
-  // Params to pass to the Rockset query.
+  // Params to pass to the query.
   queryParams,
   // Column definitions for the data grid.
   columns,
@@ -24,26 +21,18 @@ export default function TablePanel({
   helpLink,
   // An optional flag to show the table footer
   showFooter,
-  useClickHouse = false,
 }: {
   title: string;
-  queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[] | {};
+  queryParams: { [k: string]: any };
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
   showFooter?: boolean;
-  useClickHouse?: boolean;
 }) {
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams)
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParams)
-      )}`;
-
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });

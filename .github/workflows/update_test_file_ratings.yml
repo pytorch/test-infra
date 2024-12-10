@@ -31,7 +31,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip3 install --upgrade pip
-          pip3 install boto3==1.19.12 rockset==1.0.3 clickhouse-connect==0.7.16
+          pip3 install boto3==1.19.12 clickhouse-connect==0.7.16
           cd test-infra/tools/torchci
           pip3 install -e .
 
@@ -57,9 +57,7 @@ jobs:
           python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
           # Do not run this one, it won't change
           # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
-
         env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}

@@ -2,7 +2,6 @@ import { Grid, Stack, Typography } from "@mui/material";
 import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import useSWR from "swr";
@@ -166,7 +165,7 @@ function GetUsage({
   }
 
   const transformedData = [];
-  // Transform the data a bit to fit into the same rockset schema
+  // Transform the data a bit to fit into the same database schema
   for (const idx in data["timestamp"]) {
     transformedData.push({
       timestamp: data["timestamp"][idx],
@@ -260,7 +259,7 @@ function GetJobs({
   testClass?: string;
   workflowId?: string;
   jobId?: string;
-  queryParams: RocksetParam[];
+  queryParams: any[];
 }) {
   const queryCollection = "commons";
   const queryName = "test_insights_latest_runs";
@@ -268,12 +267,14 @@ function GetJobs({
   const workflowIds = [];
   const jobIds = [];
 
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  // TODO: Migrate this to ClickHouse
+  // const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  //   JSON.stringify(queryParams)
+  // )}`;
+  const url = "";
   const { data, error } = useSWR(url, fetcher);
 
-  // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
+  // If there is no workflow and job ID specified, query for the list of N latest jobs
   if (workflowId == null || jobId == null) {
     if (data === undefined || data.length == 0) {
       return <div></div>;
@@ -307,6 +308,7 @@ function GetJobs({
 }
 
 export default function Page() {
+  return <div>Not yet migrated to CH.</div>;
   const [startTime, _setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, _setStopTime] = useState(dayjs());
 
@@ -329,7 +331,7 @@ export default function Page() {
     );
   }
 
-  const queryParams: RocksetParam[] = [
+  const queryParams: any[] = [
     {
       name: "startTime",
       type: "string",

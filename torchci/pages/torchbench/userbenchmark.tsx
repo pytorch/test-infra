@@ -14,7 +14,6 @@ import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -119,7 +118,7 @@ function CommitPicker({
 
   const queryName = "torchbench_userbenchmark_list_commits";
   const queryCollection = "torchbench";
-  const queryParams: RocksetParam[] = [
+  const queryParams = [
     {
       name: "userbenchmark",
       type: "string",
@@ -220,10 +219,12 @@ function Report({
     return "";
   }
 
-  function getQueryUrl(params: RocksetParam[]) {
-    return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-      JSON.stringify(params)
-    )}`;
+  function getQueryUrl(params: any[]) {
+    // TODO: Implement this
+    // return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    //   JSON.stringify(params)
+    // )}`;
+    return "";
   }
   function QueryMetrics(url: string) {
     let { data, error } = useSWR(url, fetcher, {
@@ -296,7 +297,7 @@ function Report({
 
   const queryName = "torchbench_userbenchmark_query_metrics";
   const queryCollection = "torchbench";
-  const queryControlParams: RocksetParam[] = [
+  const queryControlParams = [
     {
       name: "userbenchmark",
       type: "string",
@@ -308,7 +309,7 @@ function Report({
       value: lCommitHash,
     },
   ];
-  const queryTreatmentParams: RocksetParam[] = [
+  const queryTreatmentParams = [
     {
       name: "userbenchmark",
       type: "string",

@@ -3,7 +3,6 @@ import CommitStatus from "components/CommitStatus";
 import DrCIButton from "components/DrCIButton";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
-import { useCHContext } from "components/UseClickhouseProvider";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
@@ -22,11 +21,8 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const useCH = useCHContext().useCH;
   const { data: commitData, error } = useSWR<CommitApiResponse>(
-    sha != null
-      ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
-      : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -104,11 +100,10 @@ function Page() {
   const router = useRouter();
 
   const { repoOwner, repoName, prNumber, sha } = router.query;
-  const useCH = useCHContext().useCH;
 
   let swrKey;
   if (prNumber !== undefined) {
-    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}?use_ch=${useCH}`;
+    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}`;
   }
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;

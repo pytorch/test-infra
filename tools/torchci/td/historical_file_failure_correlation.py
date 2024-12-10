@@ -34,7 +34,7 @@ def filter_tests(failed_tests, merge_bases):
     for test in failed_tests:
         sha = test["head_sha"]
         if sha not in merge_bases:
-            # Should only happen if rockset table is unfilled, or if the sha
+            # Should only happen if the table is unfilled, or if the sha
             # doesn't exist somehow
             continue
         merge_base = merge_bases[sha]["merge_base"]

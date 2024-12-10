@@ -5,7 +5,7 @@ The log classifier:
 1. Downloads a log file from S3.
 2. Classifies it, according to rules defined in `ruleset.toml`.
 3. Uploads the classification to DynamoDB, mutating the `torchci-workflow-job`
-   table, which in turn populates the `workflow_job` collection in Rockset.
+   table, which in turn populates the `workflow_job` collection in the database.
 
 It is written in a natively compiled language for efficiency/tail latency
 reasons (there was a Python implementation at one point which had quite bad tail
