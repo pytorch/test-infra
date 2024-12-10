@@ -1052,32 +1052,44 @@ describe('_calculateScaleUpAmount', () => {
       }
     });
 
-    it(
-      'When avail runners are high enough to handle request but will dip below min, ' + 'Scale ups partway to min',
-      () => {
-        const requestedCount = 4;
-        const availableCount = 5;
-        const minRunners = 4;
+    it('No runners are available and below min, scales up', () => {
+      const requestedCount = 1;
+      const availableCount = 2;
+      const minRunners = 10;
+      const isEphemeral = false;
 
-        for (const isEphemeral of [false, true]) {
-          const scaleUpAmount = _calculateScaleUpAmount(
-            requestedCount,
-            isEphemeral,
-            minRunners,
-            maxScaleUp,
-            availableCount,
-          );
+      const scaleUpAmount = _calculateScaleUpAmount(
+        requestedCount,
+        isEphemeral,
+        minRunners,
+        maxScaleUp,
+        availableCount,
+      );
 
-          const availAfterHandinglingRequest = availableCount - requestedCount;
-          const amtBelowMin = minRunners - availAfterHandinglingRequest;
+      expect(scaleUpAmount).toBe(1);
+    });
 
-          // Not being exactly prescriptive with a value in this test so that we can tweak the results later without
-          // needing to update the test.
-          expect(scaleUpAmount).toBeGreaterThan(0); // Ensure we're adding some extra instances
-          expect(scaleUpAmount).toBeLessThanOrEqual(amtBelowMin);
-        }
-      },
-    );
+    it('When avail runners are high enough to handle request but will dip below min, scale ups partway to min', () => {
+      const requestedCount = 4;
+      const availableCount = 5;
+      const minRunners = 4;
+
+      for (const isEphemeral of [false, true]) {
+        const scaleUpAmount = _calculateScaleUpAmount(
+          requestedCount,
+          isEphemeral,
+          minRunners,
+          maxScaleUp,
+          availableCount,
+        );
+
+        const availAfterHandinglingRequest = availableCount - requestedCount;
+        const amtBelowMin = minRunners - availAfterHandinglingRequest;
+
+        // We were above min runners before, and we should scale up enough to not dip below min runners
+        expect(scaleUpAmount).toEqual(3);
+      }
+    });
 
     it(
       'When avail runners are insuffiicent to handle request, ' +
