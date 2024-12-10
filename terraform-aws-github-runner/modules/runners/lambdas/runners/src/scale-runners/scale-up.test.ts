@@ -1147,7 +1147,7 @@ describe('_calculateScaleUpAmount', () => {
 
           // Not being exactly prescriptive with all values in this test so that we can tweak the results later without
           // needing to update the test.
-          expect(scaleUpAmount).toBeGreaterThan(requestedCount - availableCount); // Ensure we're getting extra instances
+          expect(scaleUpAmount).toBeGreaterThan(requestedCount - availableCount); // Ensure we're get extra instances
           expect(scaleUpAmount).toBeLessThanOrEqual(minRunners);
           expect(scaleUpAmount).toBeLessThanOrEqual(maxScaleUp);
         }
