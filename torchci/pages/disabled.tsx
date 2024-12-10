@@ -96,13 +96,11 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
-        queryCollection={"metrics"}
         queryParams={queryParams}
         granularity={"day"}
         timeFieldName={"granularity_bucket"}
         yAxisFieldName={"number_of_open_disabled_tests"}
         yAxisRenderer={(duration) => duration}
-        useClickHouse={true}
       />
     </Grid>
   );

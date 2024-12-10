@@ -832,27 +832,15 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
-            queryParams={
-              useClickHouse
-                ? {
-                    ...timeParamsClickHouse,
-                    granlarity: "hour",
-                  }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{
+              ...timeParamsClickHouse,
+              granlarity: "hour",
+            }}
             granularity={"hour"}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -860,30 +848,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    {
-                      name: "repo",
-                      type: "string",
-                      value: "pytorch/pytorch",
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, repo: "pytorch/pytorch" }}
             granularity={"hour"}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
             yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -960,29 +931,12 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Number of new disabled tests"}
             queryName={"disabled_test_historical"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
-                : [
-                    {
-                      name: "timezone",
-                      type: "string",
-                      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    },
-                    {
-                      name: "repo",
-                      type: "string",
-                      value: "pytorch/pytorch",
-                    },
-                    ...timeParams,
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, repo: "pytorch/pytorch" }}
             granularity={"day"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1002,25 +956,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"success_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1028,25 +970,13 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
             yAxisFieldName={"cancelled_rate_delta"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -1054,49 +984,25 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
             yAxisFieldName={"success_duration_increase_ratio"}
             yAxisRenderer={(value) => value}
             groupByFieldName={"job_name"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
         <Grid item xs={12} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
-            queryCollection={"metrics"}
-            queryParams={
-              useClickHouse
-                ? { ...timeParamsClickHouse, days_ago: timeRange }
-                : [
-                    {
-                      name: "days_ago",
-                      type: "int",
-                      value: timeRange,
-                    },
-                  ]
-            }
+            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
-            useClickHouse={useClickHouse}
           />
         </Grid>
       </Grid>
