@@ -373,7 +373,6 @@ export default function Page() {
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={`total_${yAxis}`}
             yAxisRenderer={yAxis === "cost" ? costDisplay : hourDisplay}
-            useClickHouse={true}
             smooth={false}
             chartType={chartType}
             filter={searchFilter}
