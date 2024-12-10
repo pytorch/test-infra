@@ -11,11 +11,7 @@ import {
   RowDataAPIResponse,
 } from "./types";
 
-async function fetchDatabaseInfo(
-  owner: string,
-  repo: string,
-  shas: string[],
-) {
+async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
   const response = await queryClickhouseSaved("hud_query", {
     repo: `${owner}/${repo}`,
     shas: shas,
@@ -51,7 +47,7 @@ export default async function fetchHud(
   const response = await fetchDatabaseInfo(
     params.repoOwner,
     params.repoName,
-    shas,
+    shas
   );
   let results = response as any[];
 
@@ -64,7 +60,6 @@ export default async function fetchHud(
       shas: shas,
     }
   );
-
 
   const forcedMergeShas = new Set(
     _.map(filterForcedMergePr, (r) => {
