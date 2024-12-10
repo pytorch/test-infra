@@ -10,7 +10,6 @@ import { TestInfo } from "./additionalTestInfo/TestInfo";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
-import TestInsightsLink from "./TestInsights";
 import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
@@ -54,11 +53,6 @@ function WorkflowJobSummary({
         <i>Duration:</i> {durationDisplay(job.durationS)}
       </>
     );
-  }
-
-  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
-  if (testInsightsLink != null) {
-    subInfo.push(testInsightsLink);
   }
 
   const hasArtifacts = artifacts && artifacts.length > 0;

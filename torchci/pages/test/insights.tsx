@@ -307,6 +307,7 @@ function GetJobs({
 }
 
 export default function Page() {
+  return <div>Deprecated</div>;
   const [startTime, _setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, _setStopTime] = useState(dayjs());
 

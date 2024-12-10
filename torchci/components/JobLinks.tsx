@@ -77,11 +77,6 @@ export default function JobLinks({
     );
   }
 
-  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
-  if (testInsightsLink != null) {
-    subInfo.push(testInsightsLink);
-  }
-
   if (isFailedJob(job)) {
     const revertInfoCopy = RevertInfoCopy({ job: job });
     if (revertInfoCopy != null) {
