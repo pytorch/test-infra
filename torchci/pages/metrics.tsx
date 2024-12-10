@@ -383,25 +383,12 @@ function WorkflowDuration({
       queryName={queryName}
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
-      queryParams={
-        useClickHouse
-          ? {
-              ...RStoCHTimeParams(timeParams),
-              workflowNames: workflowNames,
-              percentile: ttsPercentile,
-            }
-          : [
-              {
-                name: "workflowNames",
-                type: "string",
-                value: workflowNames.join(","),
-              },
-              percentileParam,
-              ...timeParams,
-            ]
-      }
+      queryParams={{
+        ...RStoCHTimeParams(timeParams),
+        workflowNames: workflowNames,
+        percentile: ttsPercentile,
+      }}
       badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
-      useClickHouse={useClickHouse}
     />
   );
 }
@@ -604,65 +591,29 @@ export default function Page() {
           >
             <ScalarPanel
               title={"% force merges due to failed PR checks"}
-              queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      merge_type: "Failure",
-                      one_bucket: true,
-                      granularity: "week", // Not used but ClickHouse requires it
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "merge_type",
-                        type: "string",
-                        value: "Failure",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParamsClickHouse,
+                merge_type: "Failure",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
               badThreshold={(value) => value > 8.5}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"% force merges due to impatience"}
-              queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      merge_type: "Impatience",
-                      one_bucket: true,
-                      granularity: "week", // Not used but ClickHouse requires it
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "merge_type",
-                        type: "string",
-                        value: "Impatience",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParamsClickHouse,
+                merge_type: "Impatience",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
               badThreshold={(value) => value > 10}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -675,65 +626,29 @@ export default function Page() {
           >
             <ScalarPanel
               title={"Time to Red Signal (p90 TTRS - mins)"}
-              queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
               metricName={useClickHouse ? "custom" : "ttrs_mins"}
               valueRenderer={(value) => value}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      one_bucket: true,
-                      percentile_to_get: 0.9,
-                      workflow: "pull",
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "percentile_to_get",
-                        type: "float",
-                        value: "0.90",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParamsClickHouse,
+                one_bucket: true,
+                percentile_to_get: 0.9,
+                workflow: "pull",
+              }}
               badThreshold={(value) => value > 50}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
-              queryCollection={"pytorch_dev_infra_kpis"}
               queryName={"ttrs_percentiles"}
               metricName={useClickHouse ? "custom" : "ttrs_mins"}
               valueRenderer={(value) => value}
-              queryParams={
-                useClickHouse
-                  ? {
-                      ...timeParamsClickHouse,
-                      one_bucket: true,
-                      percentile_to_get: 0.75,
-                      workflow: "pull",
-                    }
-                  : [
-                      {
-                        name: "one_bucket",
-                        type: "bool",
-                        value: "True",
-                      },
-                      {
-                        name: "percentile_to_get",
-                        type: "float",
-                        value: "0.75",
-                      },
-                      ...timeParams,
-                    ]
-              }
+              queryParams={{
+                ...timeParamsClickHouse,
+                one_bucket: true,
+                percentile_to_get: 0.75,
+                workflow: "pull",
+              }}
               badThreshold={(value) => value > 40}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -749,26 +664,20 @@ export default function Page() {
               queryName={"strict_lag_sec"}
               metricName={"strict_lag_sec"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      repo: "pytorch",
-                      owner: "pytorch", // Not a parameter for the rockset query
-                      head: "refs/heads/main",
-                    }
-                  : []
-              }
+              queryParams={{
+                repo: "pytorch",
+                owner: "pytorch", // Not a parameter for the rockset query
+                head: "refs/heads/main",
+              }}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# disabled tests"}
               queryName={"disabled_test_total"}
               metricName={"number_of_open_disabled_tests"}
               valueRenderer={(value) => value}
-              queryParams={useClickHouse ? { state: "open" } : []}
+              queryParams={{ state: "open" }}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -785,38 +694,16 @@ export default function Page() {
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? { branch: "refs/heads/main" }
-                  : [
-                      {
-                        name: "branch",
-                        type: "string",
-                        value: "refs/heads/main",
-                      },
-                    ]
-              }
+              queryParams={{ branch: "refs/heads/main" }}
               badThreshold={(_) => false} // never bad
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last nightly push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? { branch: "refs/heads/nightly" }
-                  : [
-                      {
-                        name: "branch",
-                        type: "string",
-                        value: "refs/heads/nightly",
-                      },
-                    ]
-              }
+              queryParams={{ branch: "refs/heads/nightly" }}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -833,42 +720,20 @@ export default function Page() {
               queryName={"last_successful_workflow"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      workflowName: "docker-builds",
-                    }
-                  : [
-                      {
-                        name: "workflowName",
-                        type: "string",
-                        value: "docker-builds",
-                      },
-                    ]
-              }
+              queryParams={{
+                workflowName: "docker-builds",
+              }}
               badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={
-                useClickHouse
-                  ? {
-                      jobNames: docsJobNames,
-                    }
-                  : [
-                      {
-                        name: "jobNames",
-                        type: "string",
-                        value: docsJobNames.join(","),
-                      },
-                    ]
-              }
+              queryParams={{
+                jobNames: docsJobNames,
+              }}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
@@ -885,19 +750,16 @@ export default function Page() {
               queryName={"reverts"}
               metricName={"num"}
               valueRenderer={(value: string) => value}
-              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
+              queryParams={timeParamsClickHouse}
               badThreshold={(value) => value > 10}
-              useClickHouse={useClickHouse}
             />
             <ScalarPanel
               title={"# commits"}
               queryName={"num_commits_master"}
-              queryCollection={"commons"}
               metricName={"num"}
               valueRenderer={(value) => value}
-              queryParams={useClickHouse ? timeParamsClickHouse : timeParams}
+              queryParams={timeParamsClickHouse}
               badThreshold={(_) => false}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
