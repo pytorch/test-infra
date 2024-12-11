@@ -8,7 +8,6 @@ import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
-import TestInsightsLink from "./TestInsights";
 import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
 export default function JobLinks({
@@ -75,11 +74,6 @@ export default function JobLinks({
         <LocalTimeHuman timestamp={job.time} />
       </span>
     );
-  }
-
-  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
-  if (testInsightsLink != null) {
-    subInfo.push(testInsightsLink);
   }
 
   if (isFailedJob(job)) {
