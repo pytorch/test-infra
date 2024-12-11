@@ -12,7 +12,7 @@ pub struct Match {
     pub captures: Vec<String>,
 }
 
-/// The actual format that we insert to Rockset.
+/// The actual format that we insert to our database.
 #[derive(Debug, Serialize, Default)]
 pub struct SerializedMatch {
     pub rule: String,

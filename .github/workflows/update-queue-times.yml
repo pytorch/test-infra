@@ -10,7 +10,7 @@ defaults:
   run:
     working-directory: torchci
 jobs:
-  update-queue-rockset:
+  update-queue-times:
     runs-on: ubuntu-20.04
     permissions:
       id-token: write

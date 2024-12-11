@@ -34,7 +34,7 @@ def extract_test_class_name(test_row):
 
 def main() -> None:
     failed_tests = query_clickhouse(FAILED_TESTS_QUERY, {})
-    print("done querying rockset", flush=True)
+    print("done querying", flush=True)
 
     merge_bases = get_merge_bases_dict()
     filtered_tests = filter_tests(failed_tests, merge_bases)

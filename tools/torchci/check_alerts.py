@@ -375,7 +375,7 @@ def fetch_hud_data(repo: str, branch: str) -> Any:
     return (hud_data["jobNames"], hud_data["shaGrid"])
 
 
-# TODO: Do something about these flaky jobs, save them in rockset or something
+# TODO: Do something about these flaky jobs, save them or something
 def record_flaky_jobs(flaky_jobs: List[Any]) -> None:
     return
 
