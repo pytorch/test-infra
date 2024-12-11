@@ -67,7 +67,6 @@ jobs:
       timeout: 180
       script: |
         set -ex
-
         export MATRIX_GPU_ARCH_VERSION="${{ matrix.cuda }}"
         export MATRIX_IMAGE_TYPE="${{ matrix.image_type }}"
         export TARGET_OS="linux"
