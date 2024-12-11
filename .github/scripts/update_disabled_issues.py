@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 DISABLED_PREFIX = "DISABLED"
 UNSTABLE_PREFIX = "UNSTABLE"
 DISABLED_TEST_ISSUE_TITLE = re.compile(r"DISABLED\s*test_.+\s*\(.+\)")
-DISABLED_TEST_MULTI_ISSUE_TITLE = re.compile(r"DISABLED AGGREGATE")
+DISABLED_TEST_MULTI_ISSUE_TITLE = re.compile(r"DISABLED MULTIPLE")
 JOB_NAME_MAXSPLIT = 2
 
 OWNER = "pytorch"
@@ -186,7 +186,7 @@ def get_disabled_tests(issues: List[Dict[str, Any]]) -> Dict[str, Tuple]:
                 # This is a multi-test issue
                 start = body.lower().find("disable the following tests:")
                 # Format for disabling tests:
-                # Title: DISABLED AGGREGATE <whatever>
+                # Title: DISABLED MULTIPLE anything
                 # disable the following tests:
                 # ```
                 # test_name1 (test_suite1): mac, windows
