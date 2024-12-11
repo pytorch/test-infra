@@ -23,24 +23,13 @@ export function getPassingModels(data: CompilerPerformanceData[]) {
       return;
     }
 
-    if (!(bucket in models)) {
-      models[bucket] = {};
-    }
-
-    if (!(workflowId in models[bucket])) {
-      models[bucket][workflowId] = {};
-    }
-
-    if (!(suite in models[bucket][workflowId])) {
-      models[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in models[bucket][workflowId][suite])) {
-      models[bucket][workflowId][suite][compiler] = new Set<string>();
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in models)) {
+      models[key] = new Set<string>();
     }
 
     if (PASSING_ACCURACY.includes(accuracy) || compiler === "eager") {
-      models[bucket][workflowId][suite][compiler].add(model);
+      models[key].add(model);
     }
   });
 
@@ -55,7 +44,9 @@ export function isPass(
   model: string,
   passingModels: { [k: string]: any }
 ) {
-  return passingModels[bucket][workflowId][suite][compiler].has(model);
+  return passingModels[`${bucket}+${workflowId}+${suite}+${compiler}`].has(
+    model
+  );
 }
 
 export function computePassrate(
@@ -80,24 +71,10 @@ export function computePassrate(
       return;
     }
 
-    if (!(bucket in totalCount)) {
-      totalCount[bucket] = {};
-      passCount[bucket] = {};
-    }
-
-    if (!(workflowId in totalCount[bucket])) {
-      totalCount[bucket][workflowId] = {};
-      passCount[bucket][workflowId] = {};
-    }
-
-    if (!(suite in totalCount[bucket][workflowId])) {
-      totalCount[bucket][workflowId][suite] = {};
-      passCount[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in totalCount[bucket][workflowId][suite])) {
-      totalCount[bucket][workflowId][suite][compiler] = 0;
-      passCount[bucket][workflowId][suite][compiler] = 0;
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in totalCount)) {
+      totalCount[key] = 0;
+      passCount[key] = 0;
     }
 
     // If the model pass accuracy check but fails the performance benchmark with an
@@ -109,34 +86,27 @@ export function computePassrate(
         (record.speedup !== 0.0 || compiler === "export")) ||
       accuracy === "pass_due_to_skip"
     ) {
-      passCount[bucket][workflowId][suite][compiler] += 1;
+      passCount[key] += 1;
     }
 
-    totalCount[bucket][workflowId][suite][compiler] += 1;
+    totalCount[key] += 1;
   });
 
-  Object.keys(totalCount).forEach((bucket: string) => {
-    Object.keys(totalCount[bucket]).forEach((workflowId: string) => {
-      Object.keys(totalCount[bucket][workflowId]).forEach((suite: string) => {
-        Object.keys(totalCount[bucket][workflowId][suite]).forEach(
-          (compiler: string) => {
-            const pc = passCount[bucket][workflowId][suite][compiler];
-            const tc = totalCount[bucket][workflowId][suite][compiler];
-            const p = pc / tc;
+  Object.keys(totalCount).forEach((key: string) => {
+    const pc = passCount[key];
+    const tc = totalCount[key];
+    const p = pc / tc;
 
-            passrate.push({
-              granularity_bucket: bucket,
-              workflow_id: workflowId,
-              suite: suite,
-              compiler: compiler,
-              passrate: p,
-              pass_count: pc,
-              total_count: tc,
-              passrate_display: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
-            });
-          }
-        );
-      });
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    passrate.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      passrate: p,
+      pass_count: pc,
+      total_count: tc,
+      passrate_display: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
     });
   });
 
@@ -175,47 +145,29 @@ export function computeGeomean(
       return;
     }
 
-    if (!(bucket in speedup)) {
-      speedup[bucket] = {};
-    }
-
-    if (!(workflowId in speedup[bucket])) {
-      speedup[bucket][workflowId] = {};
-    }
-
-    if (!(suite in speedup[bucket][workflowId])) {
-      speedup[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in speedup[bucket][workflowId][suite])) {
-      speedup[bucket][workflowId][suite][compiler] = [];
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in speedup)) {
+      speedup[key] = [];
     }
 
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       record.speedup !== 0.0
     ) {
-      speedup[bucket][workflowId][suite][compiler].push(record.speedup);
+      speedup[key].push(record.speedup);
     }
   });
 
-  Object.keys(speedup).forEach((bucket: string) => {
-    Object.keys(speedup[bucket]).forEach((workflowId: string) => {
-      Object.keys(speedup[bucket][workflowId]).forEach((suite: string) => {
-        Object.keys(speedup[bucket][workflowId][suite]).forEach(
-          (compiler: string) => {
-            const gm = geomean(speedup[bucket][workflowId][suite][compiler]);
+  Object.keys(speedup).forEach((key: string) => {
+    const gm = geomean(speedup[key]);
 
-            returnedGeomean.push({
-              granularity_bucket: bucket,
-              workflow_id: workflowId,
-              suite: suite,
-              compiler: compiler,
-              geomean: gm,
-            });
-          }
-        );
-      });
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    returnedGeomean.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      geomean: gm,
     });
   });
 
@@ -243,57 +195,36 @@ export function computeExecutionTime(
       return;
     }
 
-    if (!(bucket in executionTime)) {
-      executionTime[bucket] = {};
-    }
-
-    if (!(workflowId in executionTime[bucket])) {
-      executionTime[bucket][workflowId] = {};
-    }
-
-    if (!(suite in executionTime[bucket][workflowId])) {
-      executionTime[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in executionTime[bucket][workflowId][suite])) {
-      executionTime[bucket][workflowId][suite][compiler] = [];
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in executionTime)) {
+      executionTime[key] = [];
     }
 
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       absLatency !== 0.0
     ) {
-      executionTime[bucket][workflowId][suite][compiler].push(absLatency);
+      executionTime[key].push(absLatency);
     }
   });
 
-  Object.keys(executionTime).forEach((bucket: string) => {
-    Object.keys(executionTime[bucket]).forEach((workflowId: string) => {
-      Object.keys(executionTime[bucket][workflowId]).forEach(
-        (suite: string) => {
-          Object.keys(executionTime[bucket][workflowId][suite]).forEach(
-            (compiler: string) => {
-              const l =
-                executionTime[bucket][workflowId][suite][compiler].length;
-              const m =
-                l !== 0
-                  ? executionTime[bucket][workflowId][suite][compiler].reduce(
-                      (total: number, v: number) => total + v,
-                      0
-                    ) / l
-                  : 0;
+  Object.keys(executionTime).forEach((key: string) => {
+    const l = executionTime[key].length;
+    const m =
+      l !== 0
+        ? executionTime[key].reduce(
+            (total: number, v: number) => total + v,
+            0
+          ) / l
+        : 0;
 
-              returnedExecutionTime.push({
-                granularity_bucket: bucket,
-                workflow_id: workflowId,
-                suite: suite,
-                compiler: compiler,
-                abs_latency: m.toFixed(SCALE),
-              });
-            }
-          );
-        }
-      );
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    returnedExecutionTime.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      abs_latency: m.toFixed(SCALE),
     });
   });
 
@@ -321,54 +252,33 @@ export function computeCompilationTime(
       return;
     }
 
-    if (!(bucket in compTime)) {
-      compTime[bucket] = {};
-    }
-
-    if (!(workflowId in compTime[bucket])) {
-      compTime[bucket][workflowId] = {};
-    }
-
-    if (!(suite in compTime[bucket][workflowId])) {
-      compTime[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in compTime[bucket][workflowId][suite])) {
-      compTime[bucket][workflowId][suite][compiler] = [];
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in compTime)) {
+      compTime[key] = [];
     }
 
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       compLatency !== 0.0
     ) {
-      compTime[bucket][workflowId][suite][compiler].push(compLatency);
+      compTime[key].push(compLatency);
     }
   });
 
-  Object.keys(compTime).forEach((bucket: string) => {
-    Object.keys(compTime[bucket]).forEach((workflowId: string) => {
-      Object.keys(compTime[bucket][workflowId]).forEach((suite: string) => {
-        Object.keys(compTime[bucket][workflowId][suite]).forEach(
-          (compiler: string) => {
-            const l = compTime[bucket][workflowId][suite][compiler].length;
-            const m =
-              l !== 0
-                ? compTime[bucket][workflowId][suite][compiler].reduce(
-                    (total: number, v: number) => total + v,
-                    0
-                  ) / l
-                : 0;
+  Object.keys(compTime).forEach((key: string) => {
+    const l = compTime[key].length;
+    const m =
+      l !== 0
+        ? compTime[key].reduce((total: number, v: number) => total + v, 0) / l
+        : 0;
 
-            returnedCompTime.push({
-              granularity_bucket: bucket,
-              workflow_id: workflowId,
-              suite: suite,
-              compiler: compiler,
-              compilation_latency: m.toFixed(SCALE),
-            });
-          }
-        );
-      });
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    returnedCompTime.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      compilation_latency: m.toFixed(SCALE),
     });
   });
 
@@ -396,54 +306,33 @@ export function computeMemoryCompressionRatio(
       return;
     }
 
-    if (!(bucket in memory)) {
-      memory[bucket] = {};
-    }
-
-    if (!(workflowId in memory[bucket])) {
-      memory[bucket][workflowId] = {};
-    }
-
-    if (!(suite in memory[bucket][workflowId])) {
-      memory[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in memory[bucket][workflowId][suite])) {
-      memory[bucket][workflowId][suite][compiler] = [];
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in memory)) {
+      memory[key] = [];
     }
 
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       compRatio !== 0.0
     ) {
-      memory[bucket][workflowId][suite][compiler].push(compRatio);
+      memory[key].push(compRatio);
     }
   });
 
-  Object.keys(memory).forEach((bucket: string) => {
-    Object.keys(memory[bucket]).forEach((workflowId: string) => {
-      Object.keys(memory[bucket][workflowId]).forEach((suite: string) => {
-        Object.keys(memory[bucket][workflowId][suite]).forEach(
-          (compiler: string) => {
-            const l = memory[bucket][workflowId][suite][compiler].length;
-            const m =
-              l !== 0
-                ? memory[bucket][workflowId][suite][compiler].reduce(
-                    (total: number, v: number) => total + v,
-                    0
-                  ) / l
-                : 0;
+  Object.keys(memory).forEach((key: string) => {
+    const l = memory[key].length;
+    const m =
+      l !== 0
+        ? memory[key].reduce((total: number, v: number) => total + v, 0) / l
+        : 0;
 
-            returnedMemory.push({
-              granularity_bucket: bucket,
-              workflow_id: workflowId,
-              suite: suite,
-              compiler: compiler,
-              compression_ratio: m.toFixed(SCALE),
-            });
-          }
-        );
-      });
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    returnedMemory.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      compression_ratio: m.toFixed(SCALE),
     });
   });
 
@@ -473,49 +362,28 @@ export function computePeakMemoryUsage(
       return;
     }
 
-    if (!(bucket in memory)) {
-      memory[bucket] = {};
-    }
-
-    if (!(workflowId in memory[bucket])) {
-      memory[bucket][workflowId] = {};
-    }
-
-    if (!(suite in memory[bucket][workflowId])) {
-      memory[bucket][workflowId][suite] = {};
-    }
-
-    if (!(compiler in memory[bucket][workflowId][suite])) {
-      memory[bucket][workflowId][suite][compiler] = [];
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    if (!(key in memory)) {
+      memory[key] = [];
     }
 
     if (isPass(bucket, workflowId, suite, compiler, model, passingModels)) {
-      memory[bucket][workflowId][suite][compiler].push(dynamoPeakMem);
+      memory[key].push(dynamoPeakMem);
     }
   });
 
-  Object.keys(memory).forEach((bucket: string) => {
-    Object.keys(memory[bucket]).forEach((workflowId: string) => {
-      Object.keys(memory[bucket][workflowId]).forEach((suite: string) => {
-        Object.keys(memory[bucket][workflowId][suite]).forEach(
-          (compiler: string) => {
-            const l = memory[bucket][workflowId][suite][compiler].length;
-            const m =
-              memory[bucket][workflowId][suite][compiler].reduce(
-                (total: number, v: number) => total + v,
-                0
-              ) / l;
+  Object.keys(memory).forEach((key: string) => {
+    const l = memory[key].length;
+    const m =
+      memory[key].reduce((total: number, v: number) => total + v, 0) / l;
 
-            returnedMemory.push({
-              granularity_bucket: bucket,
-              workflow_id: workflowId,
-              suite: suite,
-              compiler: compiler,
-              dynamo_peak_mem: m.toFixed(SCALE),
-            });
-          }
-        );
-      });
+    const [bucket, workflowId, suite, compiler] = key.split("+");
+    returnedMemory.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      suite: suite,
+      compiler: compiler,
+      dynamo_peak_mem: m.toFixed(SCALE),
     });
   });
 
