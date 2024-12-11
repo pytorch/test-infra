@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Retrieve rockset query results and update Dr. CI comments
+      - name: Retrieve query results and update Dr. CI comments
         run: |
           curl --request POST \
             --url 'https://www.torch-ci.com/api/drci/drci' \
