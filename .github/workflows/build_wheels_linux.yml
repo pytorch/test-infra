@@ -153,7 +153,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
-      - uses: atalman/checkout-action@main
+      - uses: atalman/checkout-action@release/2.6
         if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
         with:
           repository: ${{ inputs.test-infra-repository }}
