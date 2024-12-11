@@ -1,7 +1,7 @@
 select
     min(
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP())
-    ) as seconds_ago
+    ) as last_success_seconds_ago
 from
     -- No final because info is unlikely to change after conclusion gets set
     default .workflow_job job
@@ -15,6 +15,6 @@ group by
 having
     count(distinct job.name) >= LENGTH({jobNames: Array(String) })
 order by
-    seconds_ago
+    last_success_seconds_ago
 limit
     1
