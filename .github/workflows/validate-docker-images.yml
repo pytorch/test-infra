@@ -47,6 +47,7 @@ jobs:
     uses: ./.github/workflows/generate_docker_release_matrix.yml
     with:
       channel: ${{ inputs.channel }}
+      generate_dockerhub_images: ${{ inputs.generate_dockerhub_images }}
     secrets: inherit
   run-gpu-tests:
     needs: generate-matrix
