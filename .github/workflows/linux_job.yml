@@ -60,7 +60,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-        default: "pytorch/conda-builder"
+        default: "pytorch/almalinux-builder"
         type: string
       docker-build-dir:
         description: |
@@ -83,6 +83,10 @@ on:
         type: string
       continue-on-error:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
+      rocm:
+        description: "Run with ROCm"
         default: false
         type: boolean
       binary-matrix:
@@ -111,7 +115,10 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
+        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}',
+                                                                      inputs.gpu-arch-type,
+                                                                      inputs.gpu-arch-version)
+                                                           || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
@@ -157,6 +164,11 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+        if: ${{ inputs.rocm == false }}
+
+      - name: Setup ROCm
+        uses: amdfaa/pytorch/.github/actions/setup-rocm@torchao_experiment
+        if: ${{ inputs.rocm == true }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
@@ -221,6 +233,7 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
+          ROCM: ${{ inputs.rocm }}
         run: |
           set -ex
           {
@@ -229,6 +242,7 @@ jobs:
             # shellcheck disable=SC2016
             echo 'eval "$(conda shell.bash hook)"';
             echo "set -x";
+            echo "rocminfo"
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
