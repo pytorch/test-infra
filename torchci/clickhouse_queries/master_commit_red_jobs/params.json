@@ -1,5 +1,6 @@
 {
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)",
-  "workflowNames": "Array(String)"
+  "workflowNames": "Array(String)",
+  "repo": "String"
 }

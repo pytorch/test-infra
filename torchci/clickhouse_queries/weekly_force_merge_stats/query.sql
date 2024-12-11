@@ -52,7 +52,7 @@ all_merges AS (
     INNER JOIN issue_comments c ON m.pr_num = c.pr_num
   WHERE
     m.owner = 'pytorch'
-    AND m.project = 'pytorch'
+    AND m.project = {repo: String}
     AND m.merge_commit_sha != '' -- only consider successful merges
   GROUP BY
     m.skip_mandatory_checks,

@@ -1,3 +1,4 @@
 {
-  "workflowNames": "String"
+  "workflowNames": "String",
+  "repo": "String"
 }

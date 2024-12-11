@@ -483,6 +483,8 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
+  const [repo, setRepo] = useState<string>("pytorch");
+
   // TODO (huydhn): Clean this up once ClickHouse migration finishes
   const { useCH: useClickHouse } = useCHContext();
 
@@ -498,7 +500,11 @@ export default function Page() {
       value: stopTime,
     },
   ];
-  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+
+  const timeParamsClickHouse = {
+    ...RStoCHTimeParams(timeParams),
+    repo: repo,
+  };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
@@ -563,6 +569,18 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <FormControl>
+          <InputLabel id="repo-select-label">Repo</InputLabel>
+          <Select
+            value={repo}
+            label="Repo"
+            labelId="repo-select-label"
+            onChange={(e) => setRepo(e.target.value as string)}
+          >
+            <MenuItem value={"pytorch"}>PyTorch</MenuItem>
+            <MenuItem value={"executorch"}>Executorch</MenuItem>
+          </Select>
+        </FormControl>
       </Stack>
 
       <Grid container spacing={2}>
@@ -686,6 +704,7 @@ export default function Page() {
                       one_bucket: true,
                       percentile_to_get: 0.9,
                       workflow: "pull",
+                      repo: repo,
                     }
                   : [
                       {
@@ -752,7 +771,7 @@ export default function Page() {
               queryParams={
                 useClickHouse
                   ? {
-                      repo: "pytorch",
+                      repo: repo,
                       owner: "pytorch", // Not a parameter for the rockset query
                       head: "refs/heads/main",
                     }
@@ -787,7 +806,7 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={
                 useClickHouse
-                  ? { branch: "refs/heads/main" }
+                  ? { branch: "refs/heads/main", repo: repo }
                   : [
                       {
                         name: "branch",
@@ -806,7 +825,7 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={
                 useClickHouse
-                  ? { branch: "refs/heads/nightly" }
+                  ? { branch: "refs/heads/nightly", repo: repo }
                   : [
                       {
                         name: "branch",
@@ -837,6 +856,7 @@ export default function Page() {
                 useClickHouse
                   ? {
                       workflowName: "docker-builds",
+                      repo: repo,
                     }
                   : [
                       {
@@ -1008,7 +1028,7 @@ export default function Page() {
             queryName={"workflow_load"}
             queryParams={
               useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                ? { ...timeParamsClickHouse, repo: `pytorch/${repo}` }
                 : [
                     {
                       name: "timezone",
@@ -1110,7 +1130,7 @@ export default function Page() {
             queryName={"disabled_test_historical"}
             queryParams={
               useClickHouse
-                ? { ...timeParamsClickHouse, repo: "pytorch/pytorch" }
+                ? { ...timeParamsClickHouse, repo: `pytorch/${repo}` }
                 : [
                     {
                       name: "timezone",
