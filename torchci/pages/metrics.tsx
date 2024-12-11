@@ -23,12 +23,10 @@ import ScalarPanel, {
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
-import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -378,39 +376,25 @@ function JobsDuration({
   branchName,
   queryName,
   metricName,
-  percentileParam,
+  percentile,
   timeParams,
-  useClickHouse = false,
 }: {
   title: string;
   branchName: string;
   queryName: string;
   metricName: string;
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
-  useClickHouse?: boolean;
+  percentile: number;
+  timeParams: { [key: string]: string };
 }) {
-  const ttsPercentile = percentileParam.value;
-
-  let metricHeaderName: string = `p${ttsPercentile * 100}`;
-  let queryParams: RocksetParam[] | {} = useClickHouse
-    ? {
-        ...RStoCHTimeParams(timeParams),
-        branch: branchName,
-        percentile: ttsPercentile,
-      }
-    : [
-        {
-          name: "branch",
-          type: "string",
-          value: branchName,
-        },
-        percentileParam,
-        ...timeParams,
-      ];
+  let metricHeaderName: string = `p${percentile * 100}`;
+  let queryParams = {
+    ...timeParams,
+    branch: branchName,
+    percentile: percentile,
+  };
 
   // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
+  if (percentile === -1) {
     metricHeaderName = "avg";
     queryName = queryName.replace("percentile", "avg");
   }
@@ -431,66 +415,30 @@ function JobsDuration({
 
 const ROW_HEIGHT = 375;
 
-export function RStoCHTimeParams(params: RocksetParam[]) {
-  return {
-    startTime: params
-      .find((p) => p.name === "startTime")
-      ?.value.utc()
-      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: params
-      .find((p) => p.name === "stopTime")
-      ?.value.utc()
-      .format("YYYY-MM-DDTHH:mm:ss.SSS"),
-  };
-}
-
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  // TODO (huydhn): Clean this up once ClickHouse migration finishes
-  const { useCH: useClickHouse } = useCHContext();
-
-  const timeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
-  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+  const timeParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
-  const percentileParam: RocksetParam = {
-    name: "percentile",
-    type: "float",
-    value: ttsPercentile,
-  };
-
   // Split the aggregated red % into broken trunk and flaky red %
-  const queryCollection = "metrics";
   const queryName = "master_commit_red_avg";
 
   // Query both broken trunk and flaky red % in one query to some
   // save CPU usage. This query is quite expensive to run
-  const url = useClickHouse
-    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify({
-          ...timeParamsClickHouse,
-          // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-          workflowNames: ["lint", "pull", "trunk"],
-        })
-      )}`
-    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(timeParams)
-      )}`;
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...timeParams,
+      // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
+      workflowNames: ["lint", "pull", "trunk"],
+    })
+  )}`;
 
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -533,7 +481,7 @@ export default function Page() {
 
       <Grid container spacing={2}>
         <Grid item md={6} xs={12} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParamsClickHouse} />
+          <MasterCommitRedPanel params={timeParams} />
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
@@ -571,7 +519,7 @@ export default function Page() {
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
               queryParams={{
-                ...timeParamsClickHouse,
+                ...timeParams,
                 merge_type: "Failure",
                 one_bucket: true,
                 granularity: "week", // Not used but ClickHouse requires it
@@ -584,7 +532,7 @@ export default function Page() {
               metricName={"metric"}
               valueRenderer={(value) => value.toFixed(1) + "%"}
               queryParams={{
-                ...timeParamsClickHouse,
+                ...timeParams,
                 merge_type: "Impatience",
                 one_bucket: true,
                 granularity: "week", // Not used but ClickHouse requires it
@@ -603,10 +551,10 @@ export default function Page() {
             <ScalarPanel
               title={"Time to Red Signal (p90 TTRS - mins)"}
               queryName={"ttrs_percentiles"}
-              metricName={useClickHouse ? "custom" : "ttrs_mins"}
+              metricName={"custom"}
               valueRenderer={(value) => value}
               queryParams={{
-                ...timeParamsClickHouse,
+                ...timeParams,
                 one_bucket: true,
                 percentile_to_get: 0.9,
                 workflow: "pull",
@@ -616,10 +564,10 @@ export default function Page() {
             <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
               queryName={"ttrs_percentiles"}
-              metricName={useClickHouse ? "custom" : "ttrs_mins"}
+              metricName={"custom"}
               valueRenderer={(value) => value}
               queryParams={{
-                ...timeParamsClickHouse,
+                ...timeParams,
                 one_bucket: true,
                 percentile_to_get: 0.75,
                 workflow: "pull",
@@ -642,7 +590,7 @@ export default function Page() {
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={{
                 repo: "pytorch",
-                owner: "pytorch", // Not a parameter for the rockset query
+                owner: "pytorch",
                 head: "refs/heads/main",
               }}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
@@ -726,7 +674,7 @@ export default function Page() {
               queryName={"reverts"}
               metricName={"num"}
               valueRenderer={(value: string) => value}
-              queryParams={timeParamsClickHouse}
+              queryParams={timeParams}
               badThreshold={(value) => value > 10}
             />
             <ScalarPanel
@@ -734,7 +682,7 @@ export default function Page() {
               queryName={"num_commits_master"}
               metricName={"num"}
               valueRenderer={(value) => value}
-              queryParams={timeParamsClickHouse}
+              queryParams={timeParams}
               badThreshold={(_) => false}
             />
           </Stack>
@@ -749,7 +697,7 @@ export default function Page() {
           >
             <WorkflowDuration
               percentile={ttsPercentile}
-              timeParams={timeParamsClickHouse}
+              timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
             />
           </Stack>
@@ -814,7 +762,7 @@ export default function Page() {
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
             queryParams={{
-              ...timeParamsClickHouse,
+              ...timeParams,
               granlarity: "hour",
             }}
             granularity={"hour"}
@@ -829,7 +777,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
-            queryParams={{ ...timeParamsClickHouse, repo: "pytorch/pytorch" }}
+            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
             granularity={"hour"}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
@@ -844,9 +792,8 @@ export default function Page() {
           branchName={"%"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -854,9 +801,8 @@ export default function Page() {
           branchName={"main"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -864,9 +810,8 @@ export default function Page() {
           branchName={"%"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <JobsDuration
@@ -874,16 +819,15 @@ export default function Page() {
           branchName={"main"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
-          useClickHouse={useClickHouse}
         />
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
-            queryParams={timeParamsClickHouse}
+            queryParams={timeParams}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
@@ -912,7 +856,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Number of new disabled tests"}
             queryName={"disabled_test_historical"}
-            queryParams={{ ...timeParamsClickHouse, repo: "pytorch/pytorch" }}
+            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
             granularity={"day"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"number_of_new_disabled_tests"}
@@ -937,7 +881,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Success rate delta"}
             queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -951,7 +895,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Cancelled rate delta"}
             queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel={"rate delta"}
@@ -965,7 +909,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"LF vs Meta: Duration increase ratio"}
             queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"day"}
             timeFieldName={"bucket"}
             yAxisLabel="increase ratio"
@@ -978,7 +922,7 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
-            queryParams={{ ...timeParamsClickHouse, days_ago: timeRange }}
+            queryParams={{ ...timeParams, days_ago: timeRange }}
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
