@@ -368,12 +368,12 @@ function WorkflowDuration({
 }) {
   const ttsPercentile = percentileParam.value;
 
-  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(", ")} TTS`;
+  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(", ")} duration`;
   let queryName: string = "workflow_duration_percentile";
 
   // -1 is the specical case where we will show the avg instead
   if (ttsPercentile === -1) {
-    title = `avg ${workflowNames.join(", ")} workflow duration`;
+    title = `avg ${workflowNames.join(", ")} duration`;
     queryName = queryName.replace("percentile", "avg");
   }
 
