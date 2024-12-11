@@ -368,7 +368,7 @@ function WorkflowDuration({
 
   // -1 is the specical case where we will show the avg instead
   if (percentile === -1) {
-    title = `avg ${workflowNames.join(", ")} workflow duration`;
+    title = `avg ${workflowNames.join(", ")} TTS`;
     queryName = queryName.replace("percentile", "avg");
   }
 
