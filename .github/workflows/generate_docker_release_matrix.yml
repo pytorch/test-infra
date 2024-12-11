@@ -18,6 +18,7 @@ on:
       generate_dockerhub_images:
         description: "Whether to generate Docker Hub images"
         default: false
+        required: false
         type: boolean
     outputs:
       matrix:
