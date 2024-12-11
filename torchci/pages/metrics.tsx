@@ -186,7 +186,6 @@ function TTSPanel({
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
-      useClickHouse={useClickHouse}
     />
   );
 }
@@ -779,7 +778,7 @@ export default function Page() {
           <TablePanel
             title={"Queued Jobs by Machine Type"}
             queryName={"queued_jobs_by_label"}
-            queryParams={[]}
+            queryParams={{}}
             columns={[
               { field: "count", headerName: "Count", flex: 1 },
               {
@@ -792,7 +791,6 @@ export default function Page() {
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
             dataGridProps={{ getRowId: (el: any) => el.machine_type }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -800,7 +798,7 @@ export default function Page() {
           <TablePanel
             title={"Jobs in Queue"}
             queryName={"queued_jobs"}
-            queryParams={[]}
+            queryParams={{}}
             columns={[
               {
                 field: "queue_s",
@@ -827,7 +825,6 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
@@ -934,8 +931,7 @@ export default function Page() {
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
-            queryCollection={"metrics"}
-            queryParams={useClickHouse ? timeParamsClickHouse : [...timeParams]}
+            queryParams={timeParamsClickHouse}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
@@ -957,7 +953,6 @@ export default function Page() {
               getRowId: (el: any) =>
                 el.captures ? JSON.stringify(el.captures) : "null",
             }}
-            useClickHouse={useClickHouse}
           />
         </Grid>
 
