@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 DISABLED_PREFIX = "DISABLED"
 UNSTABLE_PREFIX = "UNSTABLE"
 DISABLED_TEST_ISSUE_TITLE = re.compile(r"DISABLED\s*test_.+\s*\(.+\)")
+DISABLED_TEST_MULTI_ISSUE_TITLE = re.compile(r"DISABLED AGGREGATE")
 JOB_NAME_MAXSPLIT = 2
 
 OWNER = "pytorch"
@@ -122,12 +123,97 @@ def filter_disable_issues(
         if not title or not title.startswith(prefix):
             continue
 
-        if DISABLED_TEST_ISSUE_TITLE.match(title):
+        if DISABLED_TEST_ISSUE_TITLE.match(
+            title
+        ) or DISABLED_TEST_MULTI_ISSUE_TITLE.match(title):
             disable_test_issues.append(issue)
         else:
             disable_job_issues.append(issue)
 
     return disable_test_issues, disable_job_issues
+
+
+def get_disabled_tests(issues: List[Dict[str, Any]]) -> Dict[str, Tuple]:
+    def get_platforms_to_skip(body: str, prefix: str) -> List[str]:
+        # Empty list = all platforms should skip the test
+        platforms_to_skip = []
+        if body is not None:
+            for line in body.splitlines():
+                line = line.lower()
+                if line.startswith(prefix):
+                    platforms_to_skip.extend(
+                        [x.strip() for x in line[len(prefix) :].split(",") if x.strip()]
+                    )
+        return platforms_to_skip
+
+    disabled_tests = {}
+
+    def update_disabled_tests(
+        key: str, number: str, url: str, platforms_to_skip: List[str]
+    ):
+        # merge the list of platforms to skip if the test is disabled by
+        # multiple issues.  This results in some urls being wrong
+        if key not in disabled_tests:
+            disabled_tests[key] = (number, url, platforms_to_skip)
+        else:
+            disabled_tests[key] = (
+                number,
+                url,
+                list(set(disabled_tests[key][2] + platforms_to_skip)),
+            )
+
+    test_name_regex = re.compile(r"(test_[a-zA-Z0-9-_\.]+)\s+\(([a-zA-Z0-9-_\.]+)\)")
+
+    def parse_test_name(s: str) -> Optional[str]:
+        test_name_match = test_name_regex.match(s)
+        if test_name_match:
+            return f"{test_name_match.group(1)} ({test_name_match.group(2)})"
+        return None
+
+    for issue in issues:
+        try:
+            url = issue["url"]
+            number = url.split("/")[-1]
+            title = issue["title"].strip()
+            body = issue["body"]
+
+            test_name = parse_test_name(title[len("DISABLED") :].strip())
+            if test_name is not None:
+                update_disabled_tests(
+                    test_name, number, url, get_platforms_to_skip(body, "platforms:")
+                )
+            elif DISABLED_TEST_MULTI_ISSUE_TITLE.match(title):
+                # This is a multi-test issue
+                start = body.lower().find("disable the following tests:")
+                # Format for disabling tests:
+                # Title: DISABLED AGGREGATE <whatever>
+                # disable the following tests:
+                # ```
+                # test_name1 (test_suite1): mac, windows
+                # test_name2 (test_suite2): mac, windows
+                # ```
+                for line in body[start:].splitlines()[2:]:
+                    if "```" in line:
+                        break
+                    split_by_colon = line.split(":")
+                    if len(split_by_colon) != 2:
+                        continue
+                    test_name = parse_test_name(split_by_colon[0].strip())
+                    if test_name is None:
+                        continue
+                    update_disabled_tests(
+                        test_name,
+                        number,
+                        url,
+                        get_platforms_to_skip(split_by_colon[1].strip(), ""),
+                    )
+            else:
+                print(f"Unknown disable issue type: {title}")
+        except Exception as e:
+            print(f"Failed to parse issue {issue['url']}: {e}")
+            continue
+
+    return disabled_tests
 
 
 @lru_cache()
@@ -144,38 +230,6 @@ def can_disable_jobs(owner: str, repo: str, username: str, token: str) -> bool:
         return False
 
     return perm and perm.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
-
-
-def condense_disable_tests(
-    disable_issues: List[Dict[str, Any]],
-) -> Dict[str, Tuple]:
-    disabled_test_from_issues = {}
-    for item in disable_issues:
-        issue_url = item["url"]
-        issue_number = issue_url.split("/")[-1]
-
-        title = item["title"]
-        test_name = title[len(DISABLED_PREFIX) :].strip()
-
-        body = item["body"]
-        platforms_to_skip = []
-        key = "platforms:"
-        # When the issue has no body, it is assumed that all platforms should skip the test
-        if body is not None:
-            for line in body.splitlines():
-                line = line.lower()
-                if line.startswith(key):
-                    platforms_to_skip.extend(
-                        [x.strip() for x in line[len(key) :].split(",") if x.strip()]
-                    )
-
-        disabled_test_from_issues[test_name] = (
-            issue_number,
-            issue_url,
-            platforms_to_skip,
-        )
-
-    return disabled_test_from_issues
 
 
 def condense_disable_jobs(
@@ -253,9 +307,7 @@ def main() -> None:
     disable_test_issues, disable_job_issues = filter_disable_issues(disable_issues)
     # Create the list of disabled tests taken into account the list of disabled issues
     # and those that are not flaky anymore
-    dump_json(
-        condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
-    )
+    dump_json(get_disabled_tests(disable_test_issues), "disabled-tests-condensed.json")
     dump_json(
         condense_disable_jobs(disable_job_issues, args.owner, args.repo, token),
         "disabled-jobs.json",
