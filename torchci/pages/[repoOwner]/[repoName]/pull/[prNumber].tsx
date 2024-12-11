@@ -102,7 +102,6 @@ function Page() {
   const router = useRouter();
 
   const { repoOwner, repoName, prNumber, sha } = router.query;
-  const useCH = useCHContext().useCH;
 
   let swrKey;
   if (prNumber !== undefined) {

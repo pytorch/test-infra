@@ -12,7 +12,8 @@ async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
   });
 
   for (const row of response) {
-    // TODO: change the code that relies on this logic?
+    // TODO: change the code that relies id and workflowId being null to handle
+    // 0 instead?
     row.id = row.id == 0 ? null : row.id;
     row.workflowId = row.workflowId == 0 ? null : row.workflowId;
   }
