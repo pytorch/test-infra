@@ -356,23 +356,19 @@ export function TtsPercentilePicker({
 }
 
 function WorkflowDuration({
-  percentileParam,
+  percentile,
   timeParams,
   workflowNames,
-  useClickHouse = false,
 }: {
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
+  percentile: number;
+  timeParams: { [key: string]: string };
   workflowNames: string[];
-  useClickHouse?: boolean;
 }) {
-  const ttsPercentile = percentileParam.value;
-
-  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(", ")} TTS`;
+  let title: string = `p${percentile * 100} ${workflowNames.join(", ")} TTS`;
   let queryName: string = "workflow_duration_percentile";
 
   // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
+  if (percentile === -1) {
     title = `avg ${workflowNames.join(", ")} workflow duration`;
     queryName = queryName.replace("percentile", "avg");
   }
@@ -384,9 +380,9 @@ function WorkflowDuration({
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
       queryParams={{
-        ...RStoCHTimeParams(timeParams),
+        ...timeParams,
         workflowNames: workflowNames,
-        percentile: ttsPercentile,
+        percentile,
       }}
       badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
     />
@@ -772,10 +768,9 @@ export default function Page() {
             spacing={1}
           >
             <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
+              percentile={ttsPercentile}
+              timeParams={timeParamsClickHouse}
               workflowNames={["pull", "trunk"]}
-              useClickHouse={useClickHouse}
             />
           </Stack>
         </Grid>
