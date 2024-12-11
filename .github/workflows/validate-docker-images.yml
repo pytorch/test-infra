@@ -62,6 +62,7 @@ jobs:
       job-name: cuda${{ matrix.cuda }}-cudnn${{ matrix.cudnn_version }}-${{ matrix.image_type }}
       binary-matrix: ${{ toJSON(matrix) }}
       docker-image: ${{matrix.docker}}
+      docker-build-dir: "skip-docker-build"
       timeout: 180
       script: |
         set -ex
