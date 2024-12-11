@@ -17,9 +17,9 @@ on:
         type: string
       generate_dockerhub_images:
         description: "Whether to generate Docker Hub images"
-        default: false
+        default: "false"
         required: false
-        type: boolean
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"
