@@ -10,6 +10,7 @@ import {
 import dayjs from "dayjs";
 import {
   computeCompilationTime,
+  computeExecutionTime,
   computeGeomean,
   computeMemoryCompressionRatio,
   computePassrate,
@@ -175,6 +176,25 @@ function SuiteGraphPanel({
     false
   );
 
+  // Execution time
+  const executionTime = computeExecutionTime(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
+  const executionTimeSeries = seriesWithInterpolatedTimes(
+    executionTime,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "abs_latency",
+    false
+  );
+
   // Memory compression ratio
   const memory = computeMemoryCompressionRatio(data, models).filter(
     (r: any) => {
@@ -335,6 +355,31 @@ function SuiteGraphPanel({
               align: "left",
               formatter: (r: any) => {
                 return r.value[1];
+              },
+            },
+          }}
+        />
+      </Grid>
+
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={executionTime}
+          series={executionTimeSeries}
+          title={`Execution time / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisLabel={"second"}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return Number(r.value[1]).toFixed(0);
               },
             },
           }}
