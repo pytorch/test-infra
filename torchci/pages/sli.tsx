@@ -267,7 +267,6 @@ export default function Page() {
         <TimeSeriesPanel
           title={"GHA Worker Queue Time"}
           queryName={"queue_times_historical_pct"}
-          useClickHouse={true}
           queryParams={{
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             pctile: ttsPercentile,
