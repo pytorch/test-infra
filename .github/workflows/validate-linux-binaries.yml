@@ -34,9 +34,9 @@ on:
         type: boolean
       use-only-dl-pytorch-org:
         description: 'Use only download.pytorch.org when generating wheel install command'
-        default: false
+        default: "false"
         required: false
-        type: boolean
+        type: string
       use-meta-cdn:
         description: 'Use meta cdn for installing pip binaries'
         default: false
@@ -86,9 +86,9 @@ on:
         type: boolean
       use-only-dl-pytorch-org:
         description: 'Use only download.pytorch.org when generating wheel install command'
-        default: false
+        default: "false"
         required: false
-        type: boolean
+        type: string
       use-meta-cdn:
         description: 'Use meta cdn for installing pip binaries'
         default: false

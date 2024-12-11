@@ -12,9 +12,9 @@ on:
         default: 'nightly'
       generate_dockerhub_images:
         description: 'Generate Docker Hub images (strip ghcr.io/ prefix for release)'
-        default: false
+        default: "false"
         required: false
-        type: boolean
+        type: string
       ref:
         description: 'Reference to checkout, defaults to empty'
         default: ""
@@ -33,9 +33,9 @@ on:
           - 'release'
       generate_dockerhub_images:
         description: 'Generate Docker Hub images (strip ghcr.io/ prefix for release)'
-        default: false
+        default: "false"
         required: false
-        type: boolean
+        type: string
       ref:
         description: 'Reference to checkout, defaults to empty'
         default: ""
