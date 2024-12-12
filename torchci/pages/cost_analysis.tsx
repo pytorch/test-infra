@@ -193,26 +193,21 @@ export default function Page() {
 
   const { query } = router;
 
-  // if initialDateRange is not set, set it to -1. If it is set, parse it to an integer, and if that fails, set it to 7
-  let initialDateRange = query.dateRange
-    ? parseInt(query.dateRange as string)
-    : -1;
-
-  // on invalid entry, set initialDateRange to 7
-  if (isNaN(initialDateRange)) {
-    initialDateRange = 7;
-  }
-
-  const initialStartDate = query.dateRange
-    ? dayjs().subtract(initialDateRange, "day")
-    : query.startDate
-    ? dayjs(query.startDate as string)
-    : dayjs();
-  const initialEndDate = query.dateRange
-    ? dayjs()
-    : query.endDate
+  const initialEndDate = query.endDate
     ? dayjs(query.endDate as string)
     : dayjs();
+
+  const initialStartDate = query.startDate
+    ? dayjs(query.startDate as string)
+    : query.dateRange
+    ? dayjs().subtract(parseInt(query.dateRange as string), "day")
+    : dayjs().subtract(7, "day");
+
+  const initialDateRange = query.dateRange
+    ? parseInt(query.dateRange as string)
+    : query.startDate || query.endDate
+    ? -1
+    : 7;
 
   const initialGranularity = query.granularity || "day";
   const initialGroupBy = query.groupby || "workflow_name";
