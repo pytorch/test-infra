@@ -230,7 +230,6 @@ jobs:
             # shellcheck disable=SC2016
             echo 'eval "$(conda shell.bash hook)"';
             echo "set -x";
-            echo "rocminfo"
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
