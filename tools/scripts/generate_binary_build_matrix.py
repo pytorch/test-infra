@@ -2,6 +2,9 @@
 
 """Generates a matrix to be utilized through github actions
 
+Important. After making changes to this file please run following command: 
+python -m tools.tests.test_generate_binary_build_matrix --update-reference-files
+
 Will output a condensed version of the matrix if on a pull request that only
 includes the latest version of python we support built on four different
 architectures:
@@ -21,17 +24,17 @@ from typing import Dict, List, Optional, Tuple, Any, Callable
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13"],
-    "test": ["3.9", "3.10", "3.11", "3.12"],
+    "test": ["3.9", "3.10", "3.11", "3.12", "3.13"],
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.4", "12.6"],
-    "test": ["11.8", "12.1", "12.4"],
+    "test": ["11.8", "12.4", "12.6"],
     "release": ["11.8", "12.1", "12.4"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.1", "6.2.4"],
-    "test": ["6.1", "6.2"],
+    "test": ["6.1", "6.2.4"],
     "release": ["6.1", "6.2"],
 }
 
@@ -66,7 +69,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.6.0"
-CURRENT_CANDIDATE_VERSION = "2.5.1"
+CURRENT_CANDIDATE_VERSION = "2.6.0"
 CURRENT_STABLE_VERSION = "2.5.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
