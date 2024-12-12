@@ -18,7 +18,7 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     "linux-aarch64": "Run Linux ARMv8 jobs",
     "inductor-periodic": "Run inductor jobs",
     "inductor-cu124": "Run inductor-cu124 jobs",
-    "xpu": "Run XPU jobs",
+    xpu: "Run XPU jobs",
   },
 };
 
