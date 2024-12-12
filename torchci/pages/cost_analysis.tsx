@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   FormControl,
   FormGroup,
   Grid,
@@ -26,7 +27,13 @@ import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import { BiLineChart } from "react-icons/bi";
-import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
+import {
+  FaCheck,
+  FaFilter,
+  FaInfoCircle,
+  FaLink,
+  FaRegChartBar,
+} from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
 
@@ -268,6 +275,8 @@ export default function Page() {
 
   const [routerReady, setRouterReady] = useState(false);
 
+  const [isCopied, setIsCopied] = useState(false);
+
   if (!routerReady && router.isReady) {
     setRouterReady(true);
     setDateRange(initialDateRange);
@@ -311,6 +320,15 @@ export default function Page() {
     }
   } else {
   }
+
+  // on isCopied change, set a timeout to reset it to false after 3 seconds
+  useEffect(() => {
+    if (isCopied) {
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 3000);
+    }
+  }, [isCopied]);
 
   // Update URL params on state change
   useEffect(() => {
@@ -595,6 +613,17 @@ export default function Page() {
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
             <FaInfoCircle />
           </Typography>
+        </Tooltip>
+        <Tooltip title="Copy Permalink">
+          <Button
+            variant="outlined"
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setIsCopied(true);
+            }}
+          >
+            {isCopied ? <FaCheck /> : <FaLink />}
+          </Button>
         </Tooltip>
       </Stack>
       <Grid container spacing={2}>
