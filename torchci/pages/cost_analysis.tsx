@@ -1,6 +1,5 @@
 import {
   Box,
-  Button,
   FormControl,
   FormGroup,
   Grid,
@@ -17,6 +16,7 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import CopyLink from "components/CopyLink";
 import TimeSeriesPanel, {
   ChartType,
   Granularity,
@@ -27,13 +27,7 @@ import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import { BiLineChart } from "react-icons/bi";
-import {
-  FaCheck,
-  FaFilter,
-  FaInfoCircle,
-  FaLink,
-  FaRegChartBar,
-} from "react-icons/fa";
+import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
 
@@ -275,8 +269,6 @@ export default function Page() {
 
   const [routerReady, setRouterReady] = useState(false);
 
-  const [isCopied, setIsCopied] = useState(false);
-
   if (!routerReady && router.isReady) {
     setRouterReady(true);
     setDateRange(initialDateRange);
@@ -320,15 +312,6 @@ export default function Page() {
     }
   } else {
   }
-
-  // on isCopied change, set a timeout to reset it to false after 3 seconds
-  useEffect(() => {
-    if (isCopied) {
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 3000);
-    }
-  }, [isCopied]);
 
   // Update URL params on state change
   useEffect(() => {
@@ -602,30 +585,33 @@ export default function Page() {
     );
   };
 
+  // get full url if router is ready
+  const fullUrl = routerReady
+    ? `${window.location.origin}${router.asPath}`
+    : "";
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch CI Cost & Runtime Analytics
         </Typography>
-
         <Tooltip title="This page gives an estimate of cost and duration of CI jobs. Note: prices are list prices for the providers and may not reflect actual costs.">
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
             <FaInfoCircle />
           </Typography>
         </Tooltip>
-        <Tooltip title="Copy Permalink">
-          <Button
-            variant="outlined"
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              setIsCopied(true);
-            }}
-          >
-            {isCopied ? <FaCheck /> : <FaLink />}
-          </Button>
-        </Tooltip>
+        <CopyLink
+          textToCopy={fullUrl}
+          link={true}
+          compressed={false}
+          style={{
+            fontSize: "1rem",
+            borderRadius: 10,
+          }}
+        />
       </Stack>
+
       <Grid container spacing={2}>
         <Grid item xs={8}>
           <DateRangePicker
