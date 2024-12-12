@@ -193,12 +193,27 @@ export default function Page() {
 
   const { query } = router;
 
-  const initialStartDate = query.startDate
+  // if initialDateRange is not set, set it to -1. If it is set, parse it to an integer, and if that fails, set it to 7
+  let initialDateRange = query.dateRange
+    ? parseInt(query.dateRange as string)
+    : -1;
+
+  // on invalid entry, set initialDateRange to 7
+  if (isNaN(initialDateRange)) {
+    initialDateRange = 7;
+  }
+
+  const initialStartDate = query.dateRange
+    ? dayjs().subtract(initialDateRange, "day")
+    : query.startDate
     ? dayjs(query.startDate as string)
-    : dayjs().subtract(7, "day");
-  const initialStopDate = query.stopDate
+    : dayjs();
+  const initialEndDate = query.dateRange
+    ? dayjs()
+    : query.endDate
     ? dayjs(query.endDate as string)
     : dayjs();
+
   const initialGranularity = query.granularity || "day";
   const initialGroupBy = query.groupby || "workflow_name";
   const initialChartType = query.chartType || "stacked_bar";
@@ -223,14 +238,14 @@ export default function Page() {
 
   // State variables
   const [startDate, setStartDate] = useState(initialStartDate);
-  const [stopDate, setStopDate] = useState(initialStopDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
   const [selectedRepos, setSelectedRepos] = useState<string[]>();
   const [availableRepos, setAvailableRepos] = useState<string[]>([]);
 
   const [granularity, setGranularity] = useState<Granularity>(
     initialGranularity as Granularity
   );
-  const [dateRange, setDateRange] = useState(7);
+  const [dateRange, setDateRange] = useState(initialDateRange);
   const [groupby, setGroupBy] = useState<CostCategory>(
     initialGroupBy as CostCategory
   );
@@ -255,8 +270,9 @@ export default function Page() {
 
   if (!routerReady && router.isReady) {
     setRouterReady(true);
+    setDateRange(initialDateRange);
     setStartDate(initialStartDate);
-    setStopDate(initialStopDate);
+    setEndDate(initialEndDate);
     setGranularity(initialGranularity as Granularity);
     setGroupBy(initialGroupBy as CostCategory);
     setChartType(initialChartType as ChartType);
@@ -270,7 +286,7 @@ export default function Page() {
 
   const timeParamsClickHouse = {
     startTime: startDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: stopDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: endDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
   const url = `/api/clickhouse/unique_repos_in_runnercost?parameters=${encodeURIComponent(
@@ -301,9 +317,13 @@ export default function Page() {
     if (!router.isReady) return;
 
     const params = new URLSearchParams();
-    if (startDate && stopDate) {
+    if (dateRange !== -1) {
+      params.set("dateRange", dateRange.toString());
+    } else if (startDate && endDate) {
       params.set("startDate", startDate.utc().format("YYYY-MM-DD"));
-      params.set("endDate", stopDate.utc().format("YYYY-MM-DD"));
+      params.set("endDate", endDate.utc().format("YYYY-MM-DD"));
+    } else {
+      params.set("dateRange", "7");
     }
 
     if (granularity) params.set("granularity", granularity);
@@ -335,7 +355,7 @@ export default function Page() {
     });
   }, [
     startDate,
-    stopDate,
+    endDate,
     granularity,
     dateRange,
     groupby,
@@ -582,8 +602,8 @@ export default function Page() {
           <DateRangePicker
             startDate={startDate}
             setStartDate={setStartDate}
-            stopDate={stopDate}
-            setStopDate={setStopDate}
+            stopDate={endDate}
+            setStopDate={setEndDate}
             dateRange={dateRange}
             setDateRange={setDateRange}
             setGranularity={setGranularity}
