@@ -46,7 +46,7 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Checkout Pytorch repository
-        uses: malfet/checkout@silent-checkout
+        uses: ./.github/actions/silent-checkout
         with:
           repository: pytorch/pytorch
           fetch-depth: -1

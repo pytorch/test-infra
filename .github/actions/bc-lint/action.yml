@@ -29,7 +29,7 @@ runs:
         path: _test-infra
 
     - name: Checkout ${{ inputs.repo }}
-      uses: malfet/checkout@silent-checkout
+      uses: ./.github/actions/silent-checkout
       with:
         ref: ${{ inputs.head_sha }}
         fetch-depth: -1
