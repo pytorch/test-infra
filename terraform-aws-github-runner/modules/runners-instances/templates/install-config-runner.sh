@@ -100,8 +100,17 @@ EOF
 grep 'pswpin' /proc/vmstat | awk '{print $2}' >/tmp/pswpin_after_job || true
 grep 'pswpout' /proc/vmstat | awk '{print $2}' >/tmp/pswpout_after_job || true
 
-cmp --silent /tmp/pswpin_before_job /tmp/pswpin_after_job || echo "[!ALERT!] Swap in detected! [!ALERT!]"
-cmp --silent /tmp/pswpout_before_job /tmp/pswpout_after_job || echo "[!ALERT!] Swap out detected [!ALERT!]"
+if cmp --silent /tmp/pswpin_before_job /tmp/pswpin_after_job ; then
+  echo "[!ALERT!] Swap in detected! [!ALERT!]"
+  metric_report "runner_scripts.swap_in" 1
+  metric_report "runner_scripts.swap_op" 1
+fi
+
+if cmp --silent /tmp/pswpout_before_job /tmp/pswpout_after_job ; then
+  echo "[!ALERT!] Swap out detected [!ALERT!]"
+  metric_report "runner_scripts.swap_out" 1
+  metric_report "runner_scripts.swap_op" 1
+fi
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 metric_report "runner_scripts.after_job" 1
