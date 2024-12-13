@@ -2,7 +2,7 @@
 -- OSS CI benchmark experiments. This powers HUD benchmarks dashboards
 WITH benchmarks AS (
     SELECT
-        replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
+        o.head_branch AS head_branch,
         o.head_sha AS head_sha,
         o.workflow_id AS id,
         IF(
@@ -42,7 +42,7 @@ WITH benchmarks AS (
         AND notEmpty(o.benchmark.dtype)
 )
 SELECT
-    DISTINCT head_branch,
+    DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
     head_sha,
     id,
     event_time
