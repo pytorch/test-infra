@@ -5,7 +5,6 @@ WITH benchmarks AS (
         replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
         o.head_sha AS head_sha,
         o.workflow_id AS id,
-        o.benchmark.name AS benchmark,
         IF(
             empty(o.runners),
             tupleElement(o.benchmark, 'extra_info') [ 'device' ],
@@ -46,7 +45,6 @@ SELECT
     DISTINCT head_branch,
     head_sha,
     id,
-    benchmark,
     event_time
 FROM
     benchmarks
