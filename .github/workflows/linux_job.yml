@@ -261,7 +261,7 @@ jobs:
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
-        if: always()
+        if: ${{ inputs.rocm == false }}
         uses: pmeier/pytest-results-action@v0.3.0
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
