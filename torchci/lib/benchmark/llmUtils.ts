@@ -17,14 +17,9 @@ export function useBenchmark(
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_llms";
 
-  const queryParamsWithBranchAndCommit: { [key: string]: any } = {
-    getJobId: getJobId,
-    ...queryParams,
-  };
-
+  const queryParamsWithBranchAndCommit: { [key: string]: any } = queryParams;
   (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
     branchAndCommit.branch ? [branchAndCommit.branch] : [];
-
   (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
     branchAndCommit.commit ? [branchAndCommit.commit] : [];
 

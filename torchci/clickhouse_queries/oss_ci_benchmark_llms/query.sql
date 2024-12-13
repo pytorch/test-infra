@@ -1,66 +1,93 @@
 --- This query is used to get the LLMs benchmark results from different experiments. It
 --- queries the TPS and memory bandwidth for each model / quantization combos. This powers
 --- the LLMs benchmark dashboard
+WITH benchmarks AS (
+    SELECT
+        replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
+        o.workflow_id AS workflow_id,
+        o.job_id AS job_id,
+        o.model.name AS model,
+        o.model.backend AS backend,
+        o.metric.name AS metric,
+        floor(arrayAvg(o.metric.benchmark_values), 2) AS actual,
+        floor(toFloat64(o.metric.target_value), 2) AS target,
+        o.benchmark.dtype AS dtype,
+        IF(
+            empty(o.runners),
+            tupleElement(o.benchmark, 'extra_info') [ 'device' ],
+            tupleElement(o.runners [ 1 ], 'name')
+        ) AS device,
+        IF(
+            empty(o.runners),
+            tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
+            tupleElement(o.runners [ 1 ], 'type')
+        ) AS arch,
+        DATE_TRUNC(
+            {granularity: String },
+            fromUnixTimestamp(o.timestamp)
+        ) AS granularity_bucket
+    FROM
+        benchmark.oss_ci_benchmark_v3 o
+    WHERE
+        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
+        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        AND o.repo = {repo: String }
+        AND (
+            has({commits: Array(String) }, o.head_sha)
+            OR empty({commits: Array(String) })
+        )
+        AND (
+            has({benchmarks: Array(String) }, o.benchmark.name)
+            OR empty({benchmarks: Array(String) })
+        )
+        AND (
+            has({models: Array(String) }, o.model.name)
+            OR empty({models: Array(String) })
+        )
+        AND (
+            has({dtypes: Array(String) }, o.benchmark.dtype)
+            OR empty({dtypes: Array(String) })
+        )
+        AND (
+            NOT has({excludedMetrics: Array(String) }, o.metric.name)
+            OR empty({excludedMetrics: Array(String) })
+        )
+        AND notEmpty(o.metric.name)
+        AND notEmpty(o.benchmark.dtype)
+)
 SELECT
-    DISTINCT o.workflow_id AS workflow_id,
-    -- As the JSON response is pretty big, only return the field if it's needed
-    IF({getJobId: Bool}, o.job_id, '') AS job_id,
-    o.name,
-    o.metric,
-    floor(toFloat64(o.actual), 2) AS actual,
-    floor(toFloat64(o.target), 2) AS target,
-    DATE_TRUNC(
-        {granularity: String },
-        fromUnixTimestamp64Milli(o.timestamp)
-    ) AS granularity_bucket,
-    o.dtype,
-    o.device,
-    -- NB: Default to NVIDIA A100-SXM4-40GB for old records without arch column
-    IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch) as arch
+    DISTINCT workflow_id,
+    job_id,
+    CONCAT(model, ' ', backend) AS name,
+    metric,
+    actual,
+    target,
+    dtype,
+    device,
+    arch,
+    granularity_bucket
 FROM
-    benchmark.oss_ci_benchmark_v2 o
-    LEFT JOIN default .workflow_run w FINAL ON o.workflow_id = w.id
+    benchmarks
 WHERE
-    o.timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
-    AND o.timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
+    (
+        has({models: Array(String) }, CONCAT(model, ' ', backend))
+        OR empty({models: Array(String) })
+    )
     AND (
-        has({branches: Array(String) }, w.head_branch)
+        has({branches: Array(String) }, head_branch)
         OR empty({branches: Array(String) })
-    )
-    AND (
-        has({commits: Array(String) }, w.head_sha)
-        OR empty({commits: Array(String) })
-    )
-    AND (
-        has({filenames: Array(String) }, o.filename)
-        OR empty({filenames: Array(String) })
-    )
-    AND (
-        has({names: Array(String) }, o.name)
-        OR empty({names: Array(String) })
     )
     -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
     AND (
         CONCAT(
-            o.device,
+            device,
             ' (',
-            IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch),
+            IF(empty(arch), 'NVIDIA A100-SXM4-40GB', arch),
             ')'
         ) = {deviceArch: String }
         OR {deviceArch: String } = ''
     )
-    AND (
-        has({dtypes: Array(String) }, o.dtype)
-        OR empty({dtypes: Array(String) })
-    )
-    AND (
-        NOT has({excludedMetrics: Array(String) }, o.metric)
-        OR empty({excludedMetrics: Array(String) })
-    )
-    AND notEmpty(o.metric)
-    AND notEmpty(o.dtype)
-    AND notEmpty(o.device)
-    AND w.html_url LIKE CONCAT('%', {repo: String }, '%')
+    AND notEmpty(device)
 ORDER BY
     granularity_bucket DESC,
     workflow_id DESC,
