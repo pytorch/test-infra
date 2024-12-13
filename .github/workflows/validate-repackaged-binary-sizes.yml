@@ -1,0 +1,81 @@
+name: Validate manywheel binaries
+
+# This workflow validates the size of the manywheel binaries after repackaging for PyPi
+# Specify the direct URLs to the binaries (from https://download.pytorch.org/whl/test/torch/) in the matrix
+# along with the python version.
+#
+# The workflow will:
+#  * download the binaries,
+#  * run release/pypi/prep_binary_for_pypi.sh
+#  * run smoke tests on the repackaged binaries
+#  * display the size before and after repackaging as the workflow annotation
+#  * optionally upload the repackaged binaries as artifacts (for debug or promotion)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/validate-repackaged-binary-sizes.yml
+      - release/pypi/prep_binary_for_pypi.sh
+
+jobs:
+  generate-linux-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      channel: test
+      use-only-dl-pytorch-org: true
+      use_split_build: false
+      with-xpu: disable
+      with-rocm: disable
+
+  validate-binary-size:
+    needs: generate-linux-matrix
+    strategy:
+      matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
+      fail-fast: false
+    uses: ./.github/workflows/linux_job.yml
+    name: ${{ matrix.build_name }}
+    with:
+      runner: ${{ matrix.validation_runner }}
+      job-name: "Validate binary size"
+      repository: "pytorch/pytorch"
+      docker-build-dir: "skip-docker-build"
+      ref: main
+      script: |
+        set -ex
+
+        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export TARGET_OS="linux"
+
+        # install zip
+        sudo yum install zip -y
+
+        # install patchelf
+        chmod a+x common/install_patchelf.sh
+        sudo common/install_patchelf.sh
+
+        # download torch whl
+        wget ${{ matrix.whl.url }}
+        FILENAME=$(ls -1 *.whl | head -n 1)
+        SIZE_BEFORE=$(du -h $FILENAME | cut -f1)
+
+        # repackage into manywheel
+        release/pypi/prep_binary_for_pypi.sh $FILENAME
+
+        NEW_FILENAME=$(ls -1 *.whl | head -n 1)
+        echo "::notice:: $FILENAME before: $SIZE_BEFORE after: $(du -h $NEW_FILENAME | cut -f1)"
+
+        # cp to ${RUNNER_ARTIFACT_DIR}
+        cp $NEW_FILENAME ${RUNNER_ARTIFACT_DIR}/
+
+        # create conda env
+        conda create -y -n $ENV_NAME python=${MATRIX_PYTHON_VERSION}
+        conda activate $ENV_NAME
+
+        # install torch
+        pip install numpy pillow $NEW_FILENAME
+
+        # run smoke test
+        python ./test/smoke_test/smoke_test.py --package=torchonly
