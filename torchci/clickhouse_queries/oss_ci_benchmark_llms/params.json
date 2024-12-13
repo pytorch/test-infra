@@ -4,10 +4,9 @@
   "deviceArch": "String",
   "dtypes": "Array(String)",
   "excludedMetrics": "Array(String)",
-  "filenames": "Array(String)",
-  "getJobId": "Bool",
+  "benchmarks": "Array(String)",
   "granularity": "String",
-  "names": "Array(String)",
+  "models": "Array(String)",
   "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)"

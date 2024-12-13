@@ -1,51 +1,70 @@
 --- This query is used by HUD benchmarks dashboards to get the list of experiment names
+WITH benchmarks AS (
+    SELECT
+        o.benchmark.name AS benchmark,
+        o.model.name AS model,
+        o.model.backend AS backend,
+        o.metric.name AS metric,
+        o.benchmark.dtype AS dtype,
+        IF(
+            empty(o.runners),
+            tupleElement(o.benchmark, 'extra_info') [ 'device' ],
+            tupleElement(o.runners [ 1 ], 'name')
+        ) AS device,
+        IF(
+            empty(o.runners),
+            tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
+            tupleElement(o.runners [ 1 ], 'type')
+        ) AS arch
+    FROM
+        benchmark.oss_ci_benchmark_v3 o
+    WHERE
+        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
+        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        AND o.repo = {repo: String }
+        AND (
+            has({benchmarks: Array(String) }, o.benchmark.name)
+            OR empty({benchmarks: Array(String) })
+        )
+        AND (
+            has({models: Array(String) }, o.model.name)
+            OR empty({models: Array(String) })
+        )
+        AND (
+            has({dtypes: Array(String) }, o.benchmark.dtype)
+            OR empty({dtypes: Array(String) })
+        )
+        AND (
+            NOT has({excludedMetrics: Array(String) }, o.metric.name)
+            OR empty({excludedMetrics: Array(String) })
+        )
+        AND notEmpty(o.metric.name)
+        AND notEmpty(o.benchmark.dtype)
+)
 SELECT
-    DISTINCT o.filename AS filename,
-    o.name,
-    o.metric,
-    o.dtype,
-    o.device,
-    -- NB: Default to NVIDIA A100-SXM4-40GB for old records without arch column
-    IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch) AS arch
+    DISTINCT benchmark,
+    CONCAT(model, ' ', backend) AS name,
+    metric,
+    dtype,
+    device,
+    arch
 FROM
-    benchmark.oss_ci_benchmark_v2 o
-    LEFT JOIN default .workflow_run w FINAL ON o.workflow_id = w.id
+    benchmarks
 WHERE
-    o.timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
-    AND o.timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
-    AND (
-        has({filenames: Array(String) }, o.filename)
-        OR empty({filenames: Array(String) })
-    )
-    AND (
-        has({names: Array(String) }, o.name)
-        OR empty({names: Array(String) })
-    )
     -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
-    AND (
+    (
         CONCAT(
-            o.device,
+            device,
             ' (',
-            IF(empty(o.arch), 'NVIDIA A100-SXM4-40GB', o.arch),
+            IF(empty(arch), 'NVIDIA A100-SXM4-40GB', arch),
             ')'
         ) = {deviceArch: String }
         OR {deviceArch: String } = ''
     )
-    AND (
-        has({dtypes: Array(String) }, o.dtype)
-        OR empty({dtypes: Array(String) })
-    )
-    AND (
-        NOT has({excludedMetrics: Array(String) }, o.metric)
-        OR empty({excludedMetrics: Array(String) })
-    )
-    AND notEmpty(o.metric)
-    AND w.html_url LIKE CONCAT('%', {repo: String }, '%')
-    AND notEmpty(o.dtype)
-    AND notEmpty(o.device)
+    AND notEmpty(device)
 ORDER BY
-    o.filename,
-    o.name,
-    o.metric,
-    o.dtype,
-    o.device
+    benchmark,
+    name,
+    metric,
+    dtype,
+    device

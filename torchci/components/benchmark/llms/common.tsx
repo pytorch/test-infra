@@ -2,8 +2,8 @@ import { BranchAndCommit } from "lib/types";
 
 export const REPOS = ["pytorch/pytorch", "pytorch/executorch"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
-  "pytorch/pytorch": ["gpt_fast_benchmark"],
-  "pytorch/executorch": ["android-perf", "apple-perf"],
+  "pytorch/pytorch": ["PyTorch gpt-fast benchmark"],
+  "pytorch/executorch": ["ExecuTorch"],
 };
 export const EXCLUDED_METRICS: string[] = ["load_status"];
 export const DEFAULT_MODEL_NAME = "All Models";
