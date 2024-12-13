@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import CopyLink from "components/CopyLink";
 import TimeSeriesPanel, {
   ChartType,
   Granularity,
@@ -580,19 +581,33 @@ export default function Page() {
     );
   };
 
+  // get full url if router is ready
+  const fullUrl = routerReady
+    ? `${window.location.origin}${router.asPath}`
+    : "";
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch CI Cost & Runtime Analytics
         </Typography>
-
         <Tooltip title="This page gives an estimate of cost and duration of CI jobs. Note: prices are list prices for the providers and may not reflect actual costs.">
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
             <FaInfoCircle />
           </Typography>
         </Tooltip>
+        <CopyLink
+          textToCopy={fullUrl}
+          link={true}
+          compressed={false}
+          style={{
+            fontSize: "1rem",
+            borderRadius: 10,
+          }}
+        />
       </Stack>
+
       <Grid container spacing={2}>
         <Grid item xs={8}>
           <DateRangePicker
