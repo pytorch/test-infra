@@ -138,6 +138,11 @@ fi
 
 ${post_install}
 
+sudo fallocate -l 3G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
 ./svc.sh start
 
 metric_report "linux_userdata.success" 1
