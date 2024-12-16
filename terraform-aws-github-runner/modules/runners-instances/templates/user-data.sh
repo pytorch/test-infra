@@ -138,6 +138,10 @@ fi
 
 ${post_install}
 
+# Cleanup any existing swapfile just to be sure
+sudo swapoff /swapfile
+sudo rm /swapfile
+# before allocating a new one
 sudo fallocate -l 3G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
