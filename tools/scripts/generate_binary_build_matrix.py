@@ -163,7 +163,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         XPU: "pytorch/manylinux2_28-builder:xpu",
         # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
-        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
+        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.6",
     }
     LIBTORCH_CONTAINER_IMAGES = {
         **{
@@ -191,7 +191,7 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         CPU: "cpu",
         CPU_AARCH64: CPU,
-        CUDA_AARCH64: "cu124",
+        CUDA_AARCH64: "cu126",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
         XPU: "xpu",
