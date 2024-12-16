@@ -1,4 +1,0 @@
-{
-  "query": "-- The flakiest jobs\nselect AVG(CAST(flaky as FLOAT)) * 100.0 as failure_rate, jobName from commons.jobs_with_flakiness where flaky is not null group by jobName order by failure_rate desc\n",
-  "default_parameters": []
-}

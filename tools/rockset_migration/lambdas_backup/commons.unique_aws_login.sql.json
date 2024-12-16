@@ -1,4 +1,0 @@
-{
-  "query": "SELECT\n    username\nFROM\n    commons.AWS_access_requests\nWHERE\n  entry_type = 'last_login'\nGROUP BY\n  username\n\n",
-  "default_parameters": []
-}

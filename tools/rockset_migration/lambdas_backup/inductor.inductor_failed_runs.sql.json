@@ -1,4 +1,0 @@
-{
-  "query": "-- The specific runs that flaked\nselect _event_time, sha, failureLine, steps,  jobName, workflowName, htmlUrl, logUrl, durationS\nfrom inductor.inductor_jobs_with_annotations \nwhere \n  not successful and gpu_failure = false\norder by _event_time desc\n\n",
-  "default_parameters": []
-}

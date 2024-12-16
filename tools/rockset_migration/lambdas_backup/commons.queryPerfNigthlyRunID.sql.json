@@ -1,4 +1,0 @@
-{
-  "query": "SELECT\n    workflow_id,\n    DATE(_event_time) AS timestamp,\nFROM\n    inductor.torch_dynamo_perf_stats\nGROUP BY\n    workflow_id,\n    timestamp\nORDER BY\n    timestamp DESC",
-  "default_parameters": []
-}
