@@ -50,6 +50,9 @@ jobs:
         # install zip
         sudo yum install zip -y
 
+        ls -las
+        pwd
+
         # install patchelf
         chmod a+x /.ci/docker/common/install_patchelf.sh
         sudo /.ci/docker/common/install_patchelf.sh
