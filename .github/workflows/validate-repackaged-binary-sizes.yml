@@ -24,8 +24,7 @@ jobs:
       package-type: wheel
       os: linux
       channel: test
-      use-only-dl-pytorch-org: true
-      use_split_build: false
+      use-only-dl-pytorch-org: "true"
       with-xpu: disable
       with-rocm: disable
 
