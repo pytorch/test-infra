@@ -23,7 +23,7 @@ import sys
 from typing import Dict, List, Optional, Tuple, Any, Callable
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13"],
+    "nightly": ["3.13"],
     "test": ["3.9", "3.10", "3.11", "3.12", "3.13"],
     "release": ["3.9", "3.10", "3.11", "3.12"],
 }
