@@ -151,39 +151,39 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
-       "11.8": "pytorch/manylinux-builder:cuda11.8",
-       "12.1": "pytorch/manylinux-builder:cuda12.1",
-       "12.4": "pytorch/manylinux-builder:cuda12.4",
-       "12.6": "pytorch/manylinux2_28-builder:cuda12.6",
+       "11.8": "pytorch/manylinux-builder:cuda11.8-2.6",
+       "12.1": "pytorch/manylinux-builder:cuda12.1-2.6",
+       "12.4": "pytorch/manylinux-builder:cuda12.4-2.6",
+       "12.6": "pytorch/manylinux2_28-builder:cuda12.6-2.6",
         **{
             gpu_arch: f"pytorch/manylinux2_28-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
-        CPU: "pytorch/manylinux-builder:cpu",
-        XPU: "pytorch/manylinux2_28-builder:xpu",
+        CPU: "pytorch/manylinux-builder:cpu-2.6",
+        XPU: "pytorch/manylinux2_28-builder:xpu-2.6",
         # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
-        CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
-        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4",
+        CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64-2.6",
+        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.4-2.6",
     }
     LIBTORCH_CONTAINER_IMAGES = {
         **{
-            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:cuda{gpu_arch}"
+            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:cuda{gpu_arch}-2.6"
             for gpu_arch in CUDA_ARCHES
         },
         **{
-            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:cuda{gpu_arch}"
+            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:cuda{gpu_arch}-2.6"
             for gpu_arch in CUDA_ARCHES
         },
         **{
-            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:rocm{gpu_arch}"
+            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:rocm{gpu_arch}-2.6"
             for gpu_arch in ROCM_ARCHES
         },
         **{
-            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:rocm{gpu_arch}"
+            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:rocm{gpu_arch}-2.6"
             for gpu_arch in ROCM_ARCHES
         },
-        (CPU, PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu",
-        (CPU, CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu",
+        (CPU, PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu-2.6",
+        (CPU, CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu-2.6",
     }
 
 
