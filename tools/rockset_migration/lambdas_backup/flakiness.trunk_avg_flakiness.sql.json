@@ -1,4 +1,0 @@
-{
-  "query": "with failed_due_to_flaky_inductor as (\n    select\n        sha,\n        max(flaky) as flaky\n    from\n        commons.jobs_with_flakiness\n    group by\n        sha\n)\n\n-- Overall flakiness on trunk\nselect (select count(*) from failed_due_to_flaky_inductor where flaky) * 100.0/(select count(*) from failed_due_to_flaky_inductor)\n\n-- The flakiest jobs\n-- select AVG(CAST(flaky as FLOAT)) * 100.0 as failure_rate, jobName from commons.jobs_with_flakiness where flaky is not null group by jobName order by failure_rate desc\n\n-- The specific runs that flaked\n-- select * from commons.jobs_with_flakiness where flaky\n",
-  "default_parameters": []
-}

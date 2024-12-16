@@ -1,4 +1,0 @@
-{
-  "query": "SELECT\n\tissue_comment.user.login,\n    body,\n    issue_comment.html_url,\n    issue_comment.author_association,\n    issue_comment.issue_url,\n    issue_comment._event_time\nFROM\n    commons.issue_comment\nWHERE \n\tissue_comment.body LIKE '@pytorchbot revert%'\n    AND issue_comment._event_time > (CURRENT_TIMESTAMP() - DAYS(7))",
-  "default_parameters": []
-}

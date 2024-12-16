@@ -1,4 +1,0 @@
-{
-  "query": "-- with failed_due_to_flaky_inductor as (\n--     select\n--         sha,\n--         max(flaky) as flaky\n--     from\n--         inductor.inductor_jobs_with_annotations\n--     group by\n--         sha\n-- )\n\n-- Overall flakiness on trunk\n-- select (select count(*) from failed_due_to_flaky_inductor where flaky) * 100.0/(select count(*) from failed_due_to_flaky_inductor)\n\n-- The flakiest jobs\n-- select AVG(CAST(flaky as FLOAT)) * 100.0 as failure_rate, jobName from jobs_with_flaky_annotation group by jobName order by failure_rate desc\n\n-- The specific runs that flaked\nselect _event_time, sha, failureLine, steps,  jobName, workflowName, htmlUrl, logUrl, durationS\nfrom inductor.inductor_jobs_with_annotations \nwhere \n  conclusion = 'failure'\n  and gpu_failure = false\norder by _event_time desc\n\n",
-  "default_parameters": []
-}

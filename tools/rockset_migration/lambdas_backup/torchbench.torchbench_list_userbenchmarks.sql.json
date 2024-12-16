@@ -1,4 +1,0 @@
-{
-  "query": "SELECT DISTINCT\n    name\nFROM\n    torchbench.\"torchbench-userbenchmark\"\nWHERE name is not NULL",
-  "default_parameters": []
-}
