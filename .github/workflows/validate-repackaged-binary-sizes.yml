@@ -24,7 +24,6 @@ jobs:
       package-type: wheel
       os: linux
       channel: test
-      use-only-dl-pytorch-org: "true"
       with-xpu: disable
       with-rocm: disable
 
@@ -52,8 +51,8 @@ jobs:
         sudo yum install zip -y
 
         # install patchelf
-        chmod a+x common/install_patchelf.sh
-        sudo common/install_patchelf.sh
+        chmod a+x /.ci/docker/common/install_patchelf.sh
+        sudo /.ci/docker/common/install_patchelf.sh
 
         # download torch whl
         wget ${{ matrix.whl.url }}
@@ -61,7 +60,7 @@ jobs:
         SIZE_BEFORE=$(du -h $FILENAME | cut -f1)
 
         # repackage into manywheel
-        release/pypi/prep_binary_for_pypi.sh $FILENAME
+        ../../test-infra/release/pypi/prep_binary_for_pypi.sh $FILENAME
 
         NEW_FILENAME=$(ls -1 *.whl | head -n 1)
         echo "::notice:: $FILENAME before: $SIZE_BEFORE after: $(du -h $NEW_FILENAME | cut -f1)"
@@ -76,5 +75,7 @@ jobs:
         # install torch
         pip install numpy pillow $NEW_FILENAME
 
+        pushd /.ci/pytorch/smoke_test
         # run smoke test
-        python ./test/smoke_test/smoke_test.py --package=torchonly
+        python smoke_test.py --package=torchonly
+        popd
