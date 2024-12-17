@@ -44,4 +44,4 @@ jobs:
         run: |
           cd aws/ami/windows
           packer init .
-          packer build -var 'skip_create_ami=${{ inputs.skip_create_ami }}' .
+          PACKER_LOG=1 packer build -var 'skip_create_ami=${{ inputs.skip_create_ami }}' .
