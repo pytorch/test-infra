@@ -100,9 +100,9 @@ else
 
     # Regular smoke test
     ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
-    # For pip install also test with numpy 2.0.0 for python 3.8 or above
+    # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
-        pip3 install numpy==2.0.0 --force-reinstall
+        pip3 install numpy --force-reinstall
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
 
