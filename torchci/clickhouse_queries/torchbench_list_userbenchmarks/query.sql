@@ -1,5 +1,5 @@
 SELECT DISTINCT
     name
 FROM
-    torchbench_userbenchmark
+    benchmark.torchbench_userbenchmark
 WHERE name is not NULL
