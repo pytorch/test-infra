@@ -78,7 +78,7 @@ else
 
     pushd ${PWD}/.ci/pytorch/
 
-    if [[ ${MATRIX_GPU_ARCH_VERSION} == "12.6" ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == "12.6" || ${MATRIX_GPU_ARCH_TYPE} == "xpu" ]]; then
         export DESIRED_DEVTOOLSET="cxx11-abi"
     fi
 
