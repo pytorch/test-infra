@@ -113,6 +113,7 @@ jobs:
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ matrix.container_image }}
       binary-matrix: ${{ toJSON(matrix) }}
+      docker-build-dir: "skip-docker-build"
       no-sudo: true
       script: |
         set -ex
@@ -154,4 +155,4 @@ jobs:
         unset LD_LIBRARY_PATH
 
         # Standard case: Validate binaries
-        source ../../.github/scripts/validate_binaries.sh
+        source ../../test-infra/.github/scripts/validate_binaries.sh
