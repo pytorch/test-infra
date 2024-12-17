@@ -7,7 +7,7 @@ import {
   SelectChangeEvent,
   Stack,
 } from "@mui/material";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanelRS";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
