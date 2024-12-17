@@ -108,8 +108,8 @@ jobs:
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.package_type == 'libtorch' && 'windows.4xlarge' || matrix.validation_runner }}
-      repository: "pytorch/pytorch"
-      ref: main
+      repository: "drisspg/pytorch"
+      ref: export-D66797096
       job-name: ${{ matrix.build_name }}
       binary-matrix: ${{ toJSON(matrix) }}
       timeout: 60
