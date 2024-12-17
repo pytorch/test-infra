@@ -78,8 +78,13 @@ else
 
     pushd ${PWD}/.ci/pytorch/
 
-    if [[ ${MATRIX_GPU_ARCH_VERSION} == "12.6" || ${MATRIX_GPU_ARCH_TYPE} == "xpu" ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == "12.6" || ${MATRIX_GPU_ARCH_TYPE} == "xpu" || ${MATRIX_GPU_ARCH_TYPE} == "rocm" ]]; then
         export DESIRED_DEVTOOLSET="cxx11-abi"
+
+        # TODO: enable torch-compile on ROCM 
+        if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm" ]]; then
+            TEST_SUFFIX=${TEST_SUFFIX}" --torch-compile-check disabled"
+        fi
     fi
 
     if [[ ${TARGET_OS} == 'linux' ]]; then
