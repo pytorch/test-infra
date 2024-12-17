@@ -453,6 +453,7 @@ export default function Page() {
               <MenuItem value={"provider"}>Provider</MenuItem>
               <MenuItem value={"owning_account"}>Owning Account</MenuItem>
               <MenuItem value={"gpu"}>GPU/Non-GPU</MenuItem>
+              <MenuItem value={"repo"}>Repository</MenuItem>
             </Select>
           </FormControl>
         </Grid>
