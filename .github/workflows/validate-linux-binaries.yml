@@ -158,6 +158,7 @@ jobs:
         # Due to xpu doesn't use pytorch/conda-builder image, need to install conda firstly
         if [[ ${{ matrix.gpu_arch_type }} == 'xpu' ]]; then
           ANACONDA_PYTHON_VERSION="${MATRIX_PYTHON_VERSION}"
+          BUILD_ENVIRONMENT="xpu"
           source ${PWD}/.ci/docker/common/install_conda.sh
         fi
         eval "$(conda shell.bash hook)"
