@@ -155,14 +155,6 @@ jobs:
 
         export USE_FORCE_REINSTALL="true"
         export TARGET_OS="linux"
-        # Due to xpu doesn't use pytorch/conda-builder image, need to install conda firstly
-        if [[ ${{ matrix.gpu_arch_type }} == 'xpu' ]]; then
-          MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-py311_23.5.2-0-Linux-x86_64.sh
-          wget -q $MINICONDA_URL
-          bash $(basename "$MINICONDA_URL") -b -p /opt/conda
-          rm $(basename "$MINICONDA_URL")
-          export PATH=/opt/conda/bin:$PATH
-        fi
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
