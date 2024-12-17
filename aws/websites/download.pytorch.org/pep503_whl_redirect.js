@@ -4,6 +4,7 @@ function handler(event) {
     var uri_parts = uri.split('/')
     var last_uri_part = uri_parts[uri_parts.length -1]
     var rocm_pattern = /^rocm[0-9]+\.[0-9]+$/
+    var rocm_extended = /^rocm[0-9]+\.[0-9]+\.[0-9]+$/
     
     if (uri.startsWith('/whl')) {
         // Check whether the URI is missing a file name.
@@ -14,6 +15,7 @@ function handler(event) {
         // For example /whl/cpu/torch
         } else if (last_uri_part.indexOf('.') == -1
                 || last_uri_part.match(rocm_pattern)
+                || last_uri_part.match(rocm_extended)
                 || uri == "/whl/lts/1.8") {
             request.uri += '/index.html';
         }
