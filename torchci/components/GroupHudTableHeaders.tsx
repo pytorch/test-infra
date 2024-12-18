@@ -68,9 +68,6 @@ export function GroupHudTableHeader({ names }: { names: string[] }) {
               key={name}
               style={{ ...jobStyle }}
               onClick={(e: React.MouseEvent) => {
-                if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
-                  return;
-                }
                 if (expandedGroups.has(name)) {
                   expandedGroups.delete(name);
                   setExpandedGroups(new Set(expandedGroups));
