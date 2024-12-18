@@ -481,7 +481,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       ))
     ) {
       return await this.addComment(
-        "Can't add following labels to PR: " +
+        "Can't add following labels to PR until the workflows awaiting approval are approved first: " +
           ciflowLabels.join(", ") +
           ". Please ping one of the reviewers for help."
       );
