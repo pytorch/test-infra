@@ -233,7 +233,6 @@ export default function Page() {
                 value: "pytorch",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -257,7 +256,6 @@ export default function Page() {
                 value: "vision",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -281,7 +279,6 @@ export default function Page() {
                 value: "audio",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -305,7 +302,6 @@ export default function Page() {
                 value: "text",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -333,7 +329,6 @@ export default function Page() {
                 value: "release",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -361,7 +356,6 @@ export default function Page() {
                 value: "nightly",
               },
             ]}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -385,7 +379,6 @@ export default function Page() {
             }
             queryName={"nightly_jobs_red_by_name"}
             queryParams={timeParams}
-            queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -401,7 +394,6 @@ export default function Page() {
             }
             queryName={"nightly_jobs_red_by_platform"}
             queryParams={timeParams}
-            queryCollection="nightlies"
             columns={[
               { field: "Count", headerName: "Count", flex: 1 },
               { field: "Platform", headerName: "Platform", flex: 4 },
