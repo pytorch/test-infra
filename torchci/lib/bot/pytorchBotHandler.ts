@@ -481,9 +481,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       ))
     ) {
       return await this.addComment(
-        "Can't add following labels to PR: " +
+        "To add these label(s) (" +
           ciflowLabels.join(", ") +
-          ". Please ping one of the reviewers for help."
+          ") to the PR, please first approve the " +
+          "workflows that are awaiting approval (scroll to the bottom of this page).\n\n" +
+          "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
+          "Please ping one of the reviewers if you do not have access to approve and run workflows."
       );
     }
     if (invalidLabels.length > 0) {

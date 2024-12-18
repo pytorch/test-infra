@@ -162,7 +162,7 @@ describe("label-bot", () => {
       .reply(200, existingRepoLabelsResponse)
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"body":"Can't add following labels to PR: ciflow/trunk`
+          `{"body":"To add these label(s) (ciflow/trunk`
         );
         return true;
       })
