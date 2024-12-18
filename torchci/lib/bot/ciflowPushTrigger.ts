@@ -193,7 +193,10 @@ async function handleLabelEvent(
     }
   }
   if (!has_ci_approved) {
-    let body = `Please seek CI approval before scheduling CIFlow labels`;
+    let body = "To add the ciflow label `" + label + "` to PR please first approve the workflows " +
+    "awaiting approval.\n\n" +
+    "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
+    "Please ping one of the reviewers if you do not have access to approve and run workflows.";
     await context.octokit.issues.createComment(
       context.repo({
         body,
