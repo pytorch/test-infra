@@ -1,14 +1,16 @@
+import ErrorIcon from "@mui/icons-material/Error";
+import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
+import { Stack, Tooltip, Typography } from "@mui/material";
+import { DataGrid, GridEventListener } from "@mui/x-data-grid";
 import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending } from "./TestInfo";
 
 function groupByStatus(info: any) {
-  const flaky = {};
-  const failed = {};
-  const succeeded = {};
+  const tests: any[] = [];
   _.forIn(info, (value, build) => {
     _.forIn(value, (value, testConfig) => {
       _.forIn(value, (value, invokingFile) => {
@@ -30,102 +32,168 @@ function groupByStatus(info: any) {
                 .flatten()
                 .value()
             );
-            if (failuresWithReruns.length == 0) {
-              _.set(
-                succeeded,
-                [build, testConfig, invokingFile, className, testName],
-                failuresWithReruns.concat(successes)
-              );
-            } else if (successes.length > 0) {
-              _.set(
-                flaky,
-                [build, testConfig, invokingFile, className, testName],
-                failuresWithReruns.concat(successes)
-              );
-            } else {
-              _.set(
-                failed,
-                [build, testConfig, invokingFile, className, testName],
-                failuresWithReruns.concat(successes)
-              );
+            if (failuresWithReruns.length != 0) {
+              const status = successes.length > 0 ? "flaky" : "failed";
+              tests.push({
+                build,
+                testConfig,
+                invokingFile,
+                className,
+                testName,
+                info: failuresWithReruns.concat(successes),
+                id: tests.length,
+                status: status,
+              });
             }
           });
         });
       });
     });
   });
-  return {
-    flaky: Object.keys(flaky).length > 0 ? flaky : undefined,
-    failed: Object.keys(failed).length > 0 ? failed : undefined,
-    succeeded: Object.keys(succeeded).length > 0 ? succeeded : undefined,
-  };
+  return _.keyBy(tests, (t) => t.id);
 }
 
-function TestRerunsInfoIndividiual({
-  info,
-  name,
-  numSiblings,
-}: {
-  info: any;
-  name: any;
-  numSiblings: number;
-}) {
-  const [failures, successes] = _.partition(info, (i) => i.failure);
+function Icon({ status }: { status: string }) {
+  if (status === "failed") {
+    return <ErrorIcon color="error" />;
+  } else if (status === "flaky") {
+    return <WarningRoundedIcon sx={{ color: "orange" }} />;
+  } else {
+    return <></>;
+  }
+}
 
-  const [trackbacksToShow, setTrackbacksToShow] = useState(
-    new Set<number>(failures.length == 1 ? [0] : [])
-  );
+function IndividualInfo({ test }: { test: any }) {
+  const [failures, successes] = _.partition(test.info, (i) => i.failure);
 
+  const [trackbacksToShow, setTrackbacksToShow] = useState(new Set());
+  useEffect(() => {
+    // Reset the trackbacks when a different test is clicked
+    setTrackbacksToShow(new Set());
+  }, [test]);
+
+  const params = [
+    { field: "testName", title: "Test Name" },
+    { field: "className", title: "Test Class" },
+    { field: "invokingFile", title: "Test File" },
+    { field: "testConfig", title: "Test Config" },
+    { field: "build", title: "Build" },
+  ];
   return (
-    <details open={numSiblings == 1}>
-      <summary>
-        {name} ({failures.length + successes.length} total runs)
-      </summary>
-      <div style={{ paddingLeft: "1em" }}>
-        {failures.map((i: any, ind: number) => {
-          return (
-            <div key={ind}>
-              <span
-                onClick={() => {
-                  if (trackbacksToShow.has(ind)) {
-                    const newSet = new Set(trackbacksToShow);
-                    newSet.delete(ind);
-                    setTrackbacksToShow(newSet);
-                  } else {
-                    setTrackbacksToShow(new Set(trackbacksToShow).add(ind));
-                  }
-                }}
-              >
-                Show Traceback #{ind + 1} on
-              </span>
-              <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
-              {trackbacksToShow.has(ind) && (
-                <div
+    <Stack spacing={1}>
+      <Stack direction="row" spacing={2} alignItems={"center"}>
+        <Icon status={test.status} />
+        <div>{test.status}</div>
+      </Stack>
+      {params.map((param) => {
+        return (
+          <div key={param.field}>
+            <span style={{ fontWeight: "bold" }}>{param.title}: </span>
+            {test[param.field]}
+          </div>
+        );
+      })}
+      {failures.map((i: any, ind: number) => {
+        return (
+          <div key={ind}>
+            <a
+              href="javascript:void(0)"
+              onClick={() => {
+                if (trackbacksToShow.has(ind)) {
+                  const newSet = new Set(trackbacksToShow);
+                  newSet.delete(ind);
+                  setTrackbacksToShow(newSet);
+                } else {
+                  setTrackbacksToShow(new Set(trackbacksToShow).add(ind));
+                }
+              }}
+            >
+              Show Traceback #{ind + 1}
+            </a>
+            {" on"}
+            <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
+            {trackbacksToShow.has(ind) && (
+              <div>
+                <pre
                   style={{
-                    overflowY: "auto",
-                    maxHeight: "50vh",
-                    borderColor: "black",
-                    borderStyle: "solid",
-                    borderWidth: "1px",
-                    padding: "0em 0.5em",
+                    overflow: "auto",
                   }}
                 >
-                  <pre>{i.failure.text}</pre>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {successes.map((i: any, ind: number) => {
-          return (
-            <div key={ind}>
-              <span>Succeeded on</span>
-              <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
-            </div>
-          );
-        })}
-      </div>{" "}
-    </details>
+                  {i.failure.text}
+                </pre>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {successes.map((i: any, ind: number) => {
+        return (
+          <div key={ind}>
+            <span>Succeeded on</span>
+            <a href={`#${i.job_id}-box`}> job {i.job_id}</a>
+          </div>
+        );
+      })}
+    </Stack>
+  );
+}
+
+export default function Info({ tests }: { tests: _.Dictionary<any> }) {
+  const [clicked, setClicked] = useState(-1);
+
+  const renderCell = (params: any) => (
+    <Tooltip title={params.value}>
+      <span>{params.value}</span>
+    </Tooltip>
+  );
+  const columns = [
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 0.1,
+      renderCell: (params: any) => (
+        <Tooltip title={params.value}>
+          <Icon status={params.value} />
+        </Tooltip>
+      ),
+    },
+    { field: "testName", headerName: "Test Name", flex: 2, renderCell },
+    { field: "className", headerName: "Test Class", flex: 1, renderCell },
+    { field: "invokingFile", headerName: "Test File", flex: 1, renderCell },
+    { field: "testConfig", headerName: "Test Config", flex: 1, renderCell },
+    { field: "build", headerName: "Build", flex: 1, renderCell },
+  ];
+
+  const handleEvent: GridEventListener<"rowClick"> = (
+    params,
+    _event,
+    _details
+  ) => {
+    setClicked(params.row.id);
+  };
+
+  const paperStyle = {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "white",
+    overflow: "auto",
+  };
+  return (
+    <Stack spacing={1} height={600} direction={"row"}>
+      <div style={paperStyle}>
+        <DataGrid
+          rows={_.sortBy(_.values(tests), (t) => t.status)}
+          columns={columns}
+          density="compact"
+          onRowClick={handleEvent}
+        />
+      </div>
+      {clicked != -1 && (
+        <div style={{ ...paperStyle, padding: "1em" }}>
+          <IndividualInfo test={tests[clicked]} />
+        </div>
+      )}
+    </Stack>
   );
 }
 
@@ -183,73 +251,17 @@ export function TestRerunsInfo({
     }
     return <div>{infoString}</div>;
   }
-  const { succeeded, flaky, failed } = groupByStatus(info);
-
-  const divSummaryStyle = {
-    fontWeight: "bold",
-  };
+  const tests = groupByStatus(info);
 
   return (
-    <>
-      <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
+    <Stack spacing={1} paddingTop={"1em"}>
+      <Typography style={{ fontSize: "1.17em", fontWeight: "bold" }}>
         Info about tests that got rerun
-      </div>
+      </Typography>
       {isPending(jobs) && (
         <div>Workflow is still pending. Data may be incomplete.</div>
       )}
-      {flaky && (
-        <div>
-          <div style={divSummaryStyle}>
-            The following tests were flaky: they failed, were rerun, and then
-            succeeded
-          </div>
-          <RecursiveDetailsSummary info={flaky} level={4}>
-            {(name: any, info: any, numSiblings: number) => (
-              <TestRerunsInfoIndividiual
-                key={name}
-                info={info}
-                name={name}
-                numSiblings={numSiblings}
-              />
-            )}
-          </RecursiveDetailsSummary>
-        </div>
-      )}
-      {failed && (
-        <div>
-          <div style={divSummaryStyle}>
-            The following tests failed across all reruns
-          </div>
-          <RecursiveDetailsSummary info={failed} level={4}>
-            {(name: any, info: any, numSiblings: number) => (
-              <TestRerunsInfoIndividiual
-                key={name}
-                info={info}
-                name={name}
-                numSiblings={numSiblings}
-              />
-            )}
-          </RecursiveDetailsSummary>
-        </div>
-      )}
-      {succeeded && (
-        <div>
-          <div style={divSummaryStyle}>
-            The following tests succeded, but were rerun anyways, likely because
-            some other test failed
-          </div>
-          <RecursiveDetailsSummary info={succeeded} level={4}>
-            {(name: any, info: any, numSiblings: number) => (
-              <TestRerunsInfoIndividiual
-                key={name}
-                info={info}
-                name={name}
-                numSiblings={numSiblings}
-              />
-            )}
-          </RecursiveDetailsSummary>
-        </div>
-      )}
-    </>
+      <Info tests={tests} />
+    </Stack>
   );
 }
