@@ -4,6 +4,7 @@ export const REPOS = ["pytorch/pytorch", "pytorch/executorch"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/pytorch": ["PyTorch gpt-fast benchmark"],
   "pytorch/executorch": ["ExecuTorch"],
+  "pytorch/ao": ["TorchAO benchmark"],
 };
 export const EXCLUDED_METRICS: string[] = ["load_status"];
 export const DEFAULT_MODEL_NAME = "All Models";
@@ -31,13 +32,15 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_DTYPE_NAME = "All DType";
+export const DEFAULT_BACKEND_NAME = "All Backends";
 
 // Relative thresholds
 export const RELATIVE_THRESHOLD = 0.05;
 
 export interface LLMsBenchmarkData {
   granularity_bucket: string;
-  name: string;
+  model: string;
+  backend?: string;
   workflow_id: number;
   job_id?: number;
   metric: string;

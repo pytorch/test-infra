@@ -8,11 +8,7 @@ import useSWR from "swr";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
-  modelName: string,
-  dtypeName: string,
-  deviceName: string,
-  branchAndCommit: BranchAndCommit,
-  getJobId: boolean = false
+  branchAndCommit: BranchAndCommit
 ) {
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_llms";
@@ -47,29 +43,23 @@ export function combineLeftAndRight(
 
   const dataGroupedByModel: { [k: string]: any } = {};
   rData.forEach((record: LLMsBenchmarkData) => {
-    const name = record.name;
+    const model = record.model;
+    const backend = record.backend;
     const dtype = record.dtype;
     const device = record.device;
     const arch = record.arch;
     const metric = record.metric;
 
-    if (!(name in dataGroupedByModel)) {
-      dataGroupedByModel[name] = {};
+    const key = `${model};${backend};${dtype};${device};${arch}`;
+    if (!(key in dataGroupedByModel)) {
+      dataGroupedByModel[key] = {};
     }
 
-    if (!(dtype in dataGroupedByModel[name])) {
-      dataGroupedByModel[name][dtype] = {};
+    if (!(metric in dataGroupedByModel[key])) {
+      dataGroupedByModel[key][metric] = {};
     }
 
-    if (!(device in dataGroupedByModel[name][dtype])) {
-      dataGroupedByModel[name][dtype][device] = {};
-    }
-
-    if (!(arch in dataGroupedByModel[name][dtype][device])) {
-      dataGroupedByModel[name][dtype][device][arch] = {};
-    }
-
-    dataGroupedByModel[name][dtype][device][arch][metric] = {
+    dataGroupedByModel[key][metric] = {
       r: record,
     };
   });
@@ -77,106 +67,89 @@ export function combineLeftAndRight(
   // Combine with left (base) data
   if (lCommit !== rCommit && lData !== undefined) {
     lData.forEach((record: LLMsBenchmarkData) => {
-      const name = record.name;
+      const model = record.model;
+      const backend = record.backend;
       const dtype = record.dtype;
       const device = record.device;
       const arch = record.arch;
       const metric = record.metric;
 
-      if (!(name in dataGroupedByModel)) {
-        dataGroupedByModel[name] = {};
+      const key = `${model};${backend};${dtype};${device};${arch}`;
+      if (!(key in dataGroupedByModel)) {
+        dataGroupedByModel[key] = {};
       }
 
-      if (!(dtype in dataGroupedByModel[name])) {
-        dataGroupedByModel[name][dtype] = {};
+      if (!(metric in dataGroupedByModel[key])) {
+        dataGroupedByModel[key][metric] = {};
       }
 
-      if (!(device in dataGroupedByModel[name][dtype])) {
-        dataGroupedByModel[name][dtype][device] = {};
-      }
-
-      if (!(arch in dataGroupedByModel[name][dtype][device])) {
-        dataGroupedByModel[name][dtype][device][arch] = {};
-      }
-
-      if (!(metric in dataGroupedByModel[name][dtype][device][arch])) {
-        dataGroupedByModel[name][dtype][device][arch][metric] = {};
-      }
-
-      dataGroupedByModel[name][dtype][device][arch][metric]["l"] = record;
+      dataGroupedByModel[key][metric]["l"] = record;
     });
   }
 
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
-  Object.keys(dataGroupedByModel).forEach((name: string) => {
-    Object.keys(dataGroupedByModel[name]).forEach((dtype: string) => {
-      Object.keys(dataGroupedByModel[name][dtype]).forEach((device: string) => {
-        Object.keys(dataGroupedByModel[name][dtype][device]).forEach(
-          (arch: string) => {
-            const row: { [k: string]: any } = {
-              // Keep the name as as the row ID as DataGrid requires it
-              name: `${name} (${dtype} / ${device} / ${arch})`,
-            };
+  Object.keys(dataGroupedByModel).forEach((key: string) => {
+    const [model, backend, dtype, device, arch] = key.split(";");
+    const row: { [k: string]: any } = {
+      // Keep the name as as the row ID as DataGrid requires it
+      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
+    };
 
-            for (const metric in dataGroupedByModel[name][dtype][device][
-              arch
-            ]) {
-              const record =
-                dataGroupedByModel[name][dtype][device][arch][metric];
-              const hasL = "l" in record;
-              const hasR = "r" in record;
+    for (const metric in dataGroupedByModel[key]) {
+      const record = dataGroupedByModel[key][metric];
+      const hasL = "l" in record;
+      const hasR = "r" in record;
 
-              if (!("metadata" in row)) {
-                row["metadata"] = {
-                  name: name,
-                  dtype: dtype,
-                  device: device,
-                  arch: arch,
-                  l: hasL ? record["l"]["job_id"] : undefined,
-                  r: hasR ? record["r"]["job_id"] : undefined,
-                };
-              } else {
-                row["metadata"]["l"] =
-                  row["metadata"]["l"] ??
-                  (hasL ? record["l"]["job_id"] : undefined);
-                row["metadata"]["r"] =
-                  row["metadata"]["r"] ??
-                  (hasR ? record["r"]["job_id"] : undefined);
-              }
+      if (!("metadata" in row)) {
+        row["metadata"] = {
+          model: model,
+          backend: backend,
+          dtype: dtype,
+          device: device,
+          arch: arch,
+          l: hasL ? record["l"]["job_id"] : undefined,
+          r: hasR ? record["r"]["job_id"] : undefined,
+        };
+      } else {
+        row["metadata"]["l"] =
+          row["metadata"]["l"] ?? (hasL ? record["l"]["job_id"] : undefined);
+        row["metadata"]["r"] =
+          row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
+      }
 
-              row["device_arch"] = {
-                device: device,
-                arch: arch,
-              };
+      if (backend !== "") {
+        row["backend"] = backend;
+      }
 
-              row[metric] = {
-                l: hasL
-                  ? {
-                      actual: record["l"].actual,
-                      target: record["l"].target,
-                    }
-                  : {
-                      actual: 0,
-                      target: 0,
-                    },
-                r: hasR
-                  ? {
-                      actual: record["r"].actual,
-                      target: record["r"].target,
-                    }
-                  : {
-                      actual: 0,
-                      target: 0,
-                    },
-              };
+      row["device_arch"] = {
+        device: device,
+        arch: arch,
+      };
+
+      row[metric] = {
+        l: hasL
+          ? {
+              actual: record["l"].actual,
+              target: record["l"].target,
             }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        r: hasR
+          ? {
+              actual: record["r"].actual,
+              target: record["r"].target,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+      };
+    }
 
-            data.push(row);
-          }
-        );
-      });
-    });
+    data.push(row);
   });
 
   return data;
