@@ -1,5 +1,6 @@
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import TablePanel from "components/metrics/panels/TablePanel";
+import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -7,7 +8,6 @@ import { fetcher } from "lib/GeneralUtils";
 import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
 import useSWR from "swr";
-import { useCHContext } from "components/UseClickhouseProvider";
 
 function NightlyJobsRedPanel({
   params,
