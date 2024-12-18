@@ -4,6 +4,7 @@ export const REPOS = ["pytorch/pytorch", "pytorch/executorch"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/pytorch": ["PyTorch gpt-fast benchmark"],
   "pytorch/executorch": ["ExecuTorch"],
+  "pytorch/ao": ["TorchAO benchmark"],
 };
 export const EXCLUDED_METRICS: string[] = ["load_status"];
 export const DEFAULT_MODEL_NAME = "All Models";
