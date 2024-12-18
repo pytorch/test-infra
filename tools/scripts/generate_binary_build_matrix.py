@@ -151,15 +151,15 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
-       "11.8": "pytorch/manylinux-builder:cuda11.8",
-       "12.1": "pytorch/manylinux-builder:cuda12.1",
-       "12.4": "pytorch/manylinux-builder:cuda12.4",
-       "12.6": "pytorch/manylinux2_28-builder:cuda12.6",
+        **{
+            gpu_arch: f"pytorch/manylinux2_28-builder:cuda{gpu_arch}"
+            for gpu_arch in CUDA_ARCHES
+        },
         **{
             gpu_arch: f"pytorch/manylinux2_28-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
-        CPU: "pytorch/manylinux-builder:cpu",
+        CPU: "pytorch/manylinux2_28-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
         # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
