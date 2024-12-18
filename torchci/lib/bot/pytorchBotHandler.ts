@@ -481,8 +481,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       ))
     ) {
       return await this.addComment(
-        "Please ensure the workflows awaiting approval are approved first before trying to add any of " +
-        "the following labels: " + ciflowLabels.join(", ") + ".\n\n" +
+        "To add these label(s) (" + ciflowLabels.join(", ") + ") to the PR, please first approve the " +
+        "workflows that are awaiting approval (scroll to the bottom of this page).\n\n" +
         "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
         "Please ping one of the reviewers if you do not have access to approve and run workflows."
       );
