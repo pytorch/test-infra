@@ -4,22 +4,22 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
 import useSWR from "swr";
+import { useCHContext } from "components/UseClickhouseProvider";
 
 function NightlyJobsRedPanel({
   params,
   repo,
 }: {
-  params: RocksetParam[];
+  params: { [key: string]: string };
   repo: string;
 }) {
   let repo_p = params.find(({ name }) => name == "repo");
   if (repo_p && repo) repo_p.value = repo;
 
-  const url = `/api/query/nightlies/nightly_jobs_red?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/nightly_jobs_red??parameters=${encodeURIComponent(
     JSON.stringify(params)
   )}`;
 
@@ -81,7 +81,7 @@ function ValidationRedPanel({
   query_type: string;
 }) {
   const url =
-    `/api/query/nightlies/` +
+    `/api/clickhouse/` +
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
       JSON.stringify([
@@ -181,6 +181,7 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
+  const { useCH: useClickHouse } = useCHContext();
 
   const timeParams: RocksetParam[] = [
     {
