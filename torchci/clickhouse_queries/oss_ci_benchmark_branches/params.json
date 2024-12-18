@@ -4,6 +4,7 @@
   "excludedMetrics": "Array(String)",
   "benchmarks": "Array(String)",
   "models": "Array(String)",
+  "backends": "Array(String)",
   "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)"

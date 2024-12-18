@@ -7,6 +7,7 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
+  DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
@@ -36,6 +37,7 @@ function Report({
   granularity,
   repoName,
   modelName,
+  backendName,
   dtypeName,
   deviceName,
   metricNames,
@@ -48,6 +50,7 @@ function Report({
   granularity: Granularity;
   repoName: string;
   modelName: string;
+  backendName: string;
   dtypeName: string;
   deviceName: string;
   metricNames: string[];
@@ -56,19 +59,11 @@ function Report({
 }) {
   const { data: lData, error: _lError } = useBenchmark(
     queryParams,
-    modelName,
-    dtypeName,
-    deviceName,
-    lBranchAndCommit,
-    true
+    lBranchAndCommit
   );
   const { data: rData, error: _rError } = useBenchmark(
     queryParams,
-    modelName,
-    dtypeName,
-    deviceName,
-    rBranchAndCommit,
-    true
+    rBranchAndCommit
   );
 
   if (
@@ -112,6 +107,7 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         modelName={modelName}
+        backendName={backendName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}
@@ -124,6 +120,7 @@ function Report({
         granularity={granularity}
         repoName={repoName}
         modelName={modelName}
+        backendName={backendName}
         metricNames={metricNames}
         lPerfData={{
           ...lBranchAndCommit,
@@ -154,6 +151,7 @@ export default function Page() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
+  const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
@@ -191,6 +189,12 @@ export default function Page() {
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
       setModelName(modelName);
+    }
+
+    const backendName: string =
+      (router.query.backendName as string) ?? undefined;
+    if (backendName !== undefined) {
+      setBackendName(backendName);
     }
 
     const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
@@ -238,6 +242,7 @@ export default function Page() {
     benchmarks: REPO_TO_BENCHMARKS[repoName],
     granularity: granularity,
     models: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
+    backends: backendName === DEFAULT_BACKEND_NAME ? [] : [backendName],
     repo: repoName,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -247,9 +252,11 @@ export default function Page() {
     JSON.stringify(queryParams)
   )}`;
 
+  console.log(queryParams);
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  console.log(data);
 
   if (data === undefined || data.length === 0) {
     return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
@@ -257,8 +264,12 @@ export default function Page() {
 
   const modelNames: string[] = [
     DEFAULT_MODEL_NAME,
-    ...(_.uniq(data.map((r: any) => r.name)) as string[]),
+    ...(_.uniq(data.map((r: any) => r.model)) as string[]),
   ];
+  const backendNames: string[] = _.compact([
+    DEFAULT_BACKEND_NAME,
+    ...(_.uniq(data.map((r: any) => r.backend)) as string[]),
+  ]);
   const deviceNames: string[] = [
     DEFAULT_DEVICE_NAME,
     ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
@@ -273,7 +284,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          Benchmark DashBoard
+          {REPO_TO_BENCHMARKS[repoName]} dashboard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -284,6 +295,8 @@ export default function Page() {
             repoName
           )}&modelName=${encodeURIComponent(
             modelName
+          )}&backendName=${encodeURIComponent(
+            backendName
           )}&dtypeName=${encodeURIComponent(
             dtypeName
           )}&deviceName=${encodeURIComponent(deviceName)}`}
@@ -309,6 +322,14 @@ export default function Page() {
           dtypes={modelNames}
           label={"Model"}
         />
+        {backendNames.length > 1 && (
+          <DTypePicker
+            dtype={backendName}
+            setDType={setBackendName}
+            dtypes={backendNames}
+            label={"Backend"}
+          />
+        )}
         <DTypePicker
           dtype={dtypeName}
           setDType={setDTypeName}
@@ -359,6 +380,7 @@ export default function Page() {
         granularity={granularity}
         repoName={repoName}
         modelName={modelName}
+        backendName={backendName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}

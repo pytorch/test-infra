@@ -45,6 +45,10 @@ WITH benchmarks AS (
             OR empty({models: Array(String) })
         )
         AND (
+            has({backends: Array(String) }, o.model.backend)
+            OR empty({backends: Array(String) })
+        )
+        AND (
             has({dtypes: Array(String) }, o.benchmark.dtype)
             OR empty({dtypes: Array(String) })
         )
@@ -58,7 +62,8 @@ WITH benchmarks AS (
 SELECT
     DISTINCT workflow_id,
     job_id,
-    CONCAT(model, ' ', backend) AS name,
+    model,
+    backend,
     metric,
     actual,
     target,
@@ -70,10 +75,6 @@ FROM
     benchmarks
 WHERE
     (
-        has({models: Array(String) }, CONCAT(model, ' ', backend))
-        OR empty({models: Array(String) })
-    )
-    AND (
         has({branches: Array(String) }, head_branch)
         OR empty({branches: Array(String) })
     )
@@ -91,6 +92,7 @@ WHERE
 ORDER BY
     granularity_bucket DESC,
     workflow_id DESC,
-    name,
+    backend,
+    model,
     dtype,
     device

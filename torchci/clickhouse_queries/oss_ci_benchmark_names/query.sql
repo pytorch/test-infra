@@ -31,6 +31,10 @@ WITH benchmarks AS (
             OR empty({models: Array(String) })
         )
         AND (
+            has({backends: Array(String) }, o.model.backend)
+            OR empty({backends: Array(String) })
+        )
+        AND (
             has({dtypes: Array(String) }, o.benchmark.dtype)
             OR empty({dtypes: Array(String) })
         )
@@ -43,7 +47,8 @@ WITH benchmarks AS (
 )
 SELECT
     DISTINCT benchmark,
-    CONCAT(model, ' ', backend) AS name,
+    model,
+    backend,
     metric,
     dtype,
     device,
@@ -64,7 +69,8 @@ WHERE
     AND notEmpty(device)
 ORDER BY
     benchmark,
-    name,
+    backend,
+    model,
     metric,
     dtype,
     device

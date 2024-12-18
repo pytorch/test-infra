@@ -27,6 +27,7 @@ export function GraphPanel({
   queryParams,
   granularity,
   modelName,
+  backendName,
   dtypeName,
   deviceName,
   metricNames,
@@ -36,6 +37,7 @@ export function GraphPanel({
   queryParams: { [key: string]: any };
   granularity: Granularity;
   modelName: string;
+  backendName: string;
   dtypeName: string;
   deviceName: string;
   metricNames: string[];
@@ -44,16 +46,10 @@ export function GraphPanel({
 }) {
   // Do not set the commit here to query all the records in the time range to
   // draw a chart
-  const { data, error } = useBenchmark(
-    queryParams,
-    modelName,
-    dtypeName,
-    deviceName,
-    {
-      branch: rBranchAndCommit.branch,
-      commit: "",
-    }
-  );
+  const { data, error } = useBenchmark(queryParams, {
+    branch: rBranchAndCommit.branch,
+    commit: "",
+  });
 
   if (data === undefined || data.length === 0) {
     return (
@@ -86,7 +82,7 @@ export function GraphPanel({
     chartData[metric] = data
       .filter((record: LLMsBenchmarkData) => {
         return (
-          record.name === modelName &&
+          record.model === modelName &&
           (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
           (`${record.device} (${record.arch})` === deviceName ||
             deviceName === DEFAULT_DEVICE_NAME) &&
@@ -102,17 +98,17 @@ export function GraphPanel({
         );
       })
       .map((record: LLMsBenchmarkData) => {
-        const name = record.name;
+        const model = record.model;
         const dtype = record.dtype;
         const device = record.device;
 
-        record.display = name.includes(dtype)
-          ? name.includes(device)
-            ? name
-            : `${name} (${device})`
-          : name.includes(device)
-          ? `${name} (${dtype})`
-          : `${name} (${dtype} / ${device})`;
+        record.display = model.includes(dtype)
+          ? model.includes(device)
+            ? model
+            : `${model} (${device})`
+          : model.includes(device)
+          ? `${model} (${dtype})`
+          : `${model} (${dtype} / ${device})`;
 
         return record;
       });
