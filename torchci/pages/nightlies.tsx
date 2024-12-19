@@ -177,8 +177,8 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(7);
 
   const timeParams = {
-    startTime: startTime,
-    stopTime: stopTime,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     repo: "pytorch",
   };
 
