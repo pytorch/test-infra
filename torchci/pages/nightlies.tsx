@@ -16,7 +16,9 @@ function NightlyJobsRedPanel({
   params: { [key: string]: any };
   repo: string;
 }) {
-  let repo_p = params.find( ({name}:{[key:string]:any}) => name == "repo");
+  let repo_p = params.find(
+    ({ name }: { [key: string]: any }) => name == "repo"
+  );
   if (repo_p && repo) repo_p.value = repo;
 
   const url = `/api/clickhouse/nightly_jobs_red??parameters=${encodeURIComponent(
