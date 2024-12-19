@@ -211,9 +211,9 @@ export default function Page() {
             queryParams={{repo: "pytorch"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 
@@ -228,9 +228,9 @@ export default function Page() {
             queryParams={{ repo: "vision" }}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 
@@ -245,9 +245,9 @@ export default function Page() {
             queryParams={{repo: "audio"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 
@@ -258,9 +258,9 @@ export default function Page() {
             queryParams={{channel: "release"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 
@@ -271,9 +271,9 @@ export default function Page() {
             queryParams={{channel: "nightly"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 
@@ -286,9 +286,9 @@ export default function Page() {
             queryParams={timeParams}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "job.name", headerName: "Name", flex: 4 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
+            dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
         </Grid>
 

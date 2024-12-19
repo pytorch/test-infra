@@ -1,6 +1,6 @@
 SELECT
   COUNT(*) AS COUNT,
-  job.name
+  job.name as name
 FROM
   workflow_job job
   JOIN workflow_run workflow ON workflow.id = job.run_id
