@@ -1424,6 +1424,12 @@ export class ScaleDownMetrics extends Metrics {
   }
 }
 
+export class ScaleUpChronMetrics extends Metrics {
+  constructor() {
+    super('scaleUpChron');
+  }
+}
+
 export interface sendMetricsTimeoutVars {
   metrics?: Metrics;
   setTimeout?: ReturnType<typeof setTimeout>;
