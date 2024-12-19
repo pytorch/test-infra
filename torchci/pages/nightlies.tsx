@@ -18,7 +18,8 @@ function NightlyJobsRedPanel({
 
   const queryParams: { [key: string]: any } = {
     ...params,
-    repo: repo
+    repo: repo,
+    granularity: "day",
   };
   const url = `/api/clickhouse/nightly_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -84,8 +85,7 @@ function ValidationRedPanel({
 
   const queryParams: { [key: string]: any } = {
     ...params,
-    channel: channel,
-    granularity: "month",
+    channel: channel
   };
   const url =
     `/api/clickhouse/` +
