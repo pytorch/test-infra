@@ -84,7 +84,8 @@ function ValidationRedPanel({
 
   const queryParams: { [key: string]: any } = {
     ...params,
-    channel: channel
+    channel: channel,
+    granularity: "month",
   };
   const url =
     `/api/clickhouse/` +
