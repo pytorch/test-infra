@@ -86,14 +86,7 @@ function ValidationRedPanel({
       JSON.stringify([
         params,
         {
-          name: "timezone",
-          type: "string",
-          value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
-        {
-          name: "channel",
-          type: "string",
-          value: channel,
+          "channel": channel
         },
       ])
     )}`;
@@ -184,19 +177,13 @@ export default function Page() {
 
   const timeParams = [
     {
-      name: "startTime",
-      type: "string",
-      value: startTime,
+      "startTime": startTime
     },
     {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
+      "stopTime": stopTime,
     },
     {
-      name: "repo",
-      type: "string",
-      value: "pytorch",
+      "repo": "pytorch",
     },
   ];
 
@@ -227,9 +214,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                name: "repo",
-                type: "string",
-                value: "pytorch",
+                "repo": "pytorch"
               },
             ]}
             columns={[
@@ -250,9 +235,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                name: "repo",
-                type: "string",
-                value: "vision",
+                "repo": "vision"
               },
             ]}
             columns={[
@@ -273,9 +256,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                name: "repo",
-                type: "string",
-                value: "audio",
+                "repo": "audio"
               },
             ]}
             columns={[
@@ -300,9 +281,7 @@ export default function Page() {
             queryName={"validation_jobs_red_past_day"}
             queryParams={[
               {
-                name: "channel",
-                type: "string",
-                value: "release",
+                "channel": "release"
               },
             ]}
             columns={[
@@ -327,9 +306,7 @@ export default function Page() {
             queryName={"validation_jobs_red_past_day"}
             queryParams={[
               {
-                name: "channel",
-                type: "string",
-                value: "nightly",
+                "channel": "nightly"
               },
             ]}
             columns={[
