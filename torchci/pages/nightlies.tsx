@@ -294,14 +294,6 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <ValidationRedPanel
-            params={timeParams}
-            channel={""}
-            query_type={"docker"}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={
               "Failed nightly jobs for PyTorch and Domains for selected time range"
