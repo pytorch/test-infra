@@ -1,6 +1,5 @@
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import TablePanel from "components/metrics/panels/TablePanel";
-import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -86,7 +85,7 @@ function ValidationRedPanel({
       JSON.stringify([
         params,
         {
-          "channel": channel
+          channel: channel,
         },
       ])
     )}`;
@@ -173,17 +172,16 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
-  const { useCH: useClickHouse } = useCHContext();
 
   const timeParams = [
     {
-      "startTime": startTime
+      startTime: startTime,
     },
     {
-      "stopTime": stopTime,
+      stopTime: stopTime,
     },
     {
-      "repo": "pytorch",
+      repo: "pytorch",
     },
   ];
 
@@ -214,7 +212,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                "repo": "pytorch"
+                repo: "pytorch",
               },
             ]}
             columns={[
@@ -235,7 +233,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                "repo": "vision"
+                repo: "vision",
               },
             ]}
             columns={[
@@ -256,7 +254,7 @@ export default function Page() {
             queryName={"nightly_jobs_red_past_day"}
             queryParams={[
               {
-                "repo": "audio"
+                repo: "audio",
               },
             ]}
             columns={[
@@ -281,7 +279,7 @@ export default function Page() {
             queryName={"validation_jobs_red_past_day"}
             queryParams={[
               {
-                "channel": "release"
+                channel: "release",
               },
             ]}
             columns={[
@@ -306,7 +304,7 @@ export default function Page() {
             queryName={"validation_jobs_red_past_day"}
             queryParams={[
               {
-                "channel": "nightly"
+                channel: "nightly",
               },
             ]}
             columns={[
