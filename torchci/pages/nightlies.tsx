@@ -252,14 +252,6 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <ValidationRedPanel
-            params={timeParams}
-            channel={"release"}
-            query_type={"validation"}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Release failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
@@ -269,14 +261,6 @@ export default function Page() {
               { field: "name", headerName: "Name", flex: 4 },
             ]}
             dataGridProps={{ getRowId: (el: any) => el.name }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <ValidationRedPanel
-            params={timeParams}
-            channel={"nightly"}
-            query_type={"validation"}
           />
         </Grid>
 
