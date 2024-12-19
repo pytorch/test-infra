@@ -84,9 +84,9 @@ function ValidationRedPanel({
     `/api/clickhouse/` +
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
-      JSON.stringify(
+      JSON.stringify({
         ...params
-      )
+      })
     )}`;
 
   const { data } = useSWR(url, fetcher, {
