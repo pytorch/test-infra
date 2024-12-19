@@ -211,7 +211,7 @@ export default function Page() {
             queryParams={{repo: "pytorch"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "name", headerName: "Name", flex: 4 },
+              { field: "job.name", headerName: "Name", flex: 4 },
             ]}
             dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
           />
