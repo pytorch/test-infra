@@ -20,7 +20,7 @@ function NightlyJobsRedPanel({
     ...params,
     repo: repo
   };
-  const url = `/api/clickhouse/nightly_jobs_red??parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/nightly_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -176,13 +176,11 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const timeParams = [
-    {
-      startTime: startTime,
-      stopTime: stopTime,
-      repo: "pytorch",
-    },
-  ];
+  const timeParams = {
+    startTime: startTime,
+    stopTime: stopTime,
+    repo: "pytorch",
+  };
 
   return (
     <div>
@@ -202,18 +200,14 @@ export default function Page() {
 
       <Grid container spacing={2}>
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <NightlyJobsRedPanel params={...timeParams} repo={"pytorch"} />
+          <NightlyJobsRedPanel params={timeParams} repo={"pytorch"} />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly PyTorch build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
-                repo: "pytorch",
-              },
-            ]}
+            queryParams={{repo: "pytorch"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -223,18 +217,14 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <NightlyJobsRedPanel params={...timeParams} repo={"vision"} />
+          <NightlyJobsRedPanel params={timeParams} repo={"vision"} />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Vision build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
-                repo: "vision",
-              },
-            ]}
+            queryParams={{ repo: "vision" }}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -244,18 +234,14 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <NightlyJobsRedPanel params={...timeParams} repo={"audio"} />
+          <NightlyJobsRedPanel params={timeParams} repo={"audio"} />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Audio build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
-                repo: "audio",
-              },
-            ]}
+            queryParams={{repo: "audio"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -266,7 +252,7 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <ValidationRedPanel
-            params={...timeParams}
+            params={timeParams}
             channel={"release"}
             query_type={"validation"}
           />
@@ -276,11 +262,7 @@ export default function Page() {
           <TablePanel
             title={"Release failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
-            queryParams={[
-              {
-                channel: "release",
-              },
-            ]}
+            queryParams={{channel: "release"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -291,7 +273,7 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <ValidationRedPanel
-            params={...timeParams}
+            params={timeParams}
             channel={"nightly"}
             query_type={"validation"}
           />
@@ -301,11 +283,7 @@ export default function Page() {
           <TablePanel
             title={"Nightly failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
-            queryParams={[
-              {
-                channel: "nightly",
-              },
-            ]}
+            queryParams={{channel: "nightly"}}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -316,7 +294,7 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <ValidationRedPanel
-            params={...timeParams}
+            params={timeParams}
             channel={""}
             query_type={"docker"}
           />
@@ -328,7 +306,7 @@ export default function Page() {
               "Failed nightly jobs for PyTorch and Domains for selected time range"
             }
             queryName={"nightly_jobs_red_by_name"}
-            queryParams={...timeParams}
+            queryParams={timeParams}
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
@@ -343,7 +321,7 @@ export default function Page() {
               "Failed nightly jobs for PyTorch and Domains for selected time range by platform"
             }
             queryName={"nightly_jobs_red_by_platform"}
-            queryParams={...timeParams}
+            queryParams={timeParams}
             columns={[
               { field: "Count", headerName: "Count", flex: 1 },
               { field: "Platform", headerName: "Platform", flex: 4 },
