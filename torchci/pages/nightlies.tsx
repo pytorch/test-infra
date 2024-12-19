@@ -213,7 +213,7 @@ export default function Page() {
               { field: "COUNT", headerName: "Count", flex: 1 },
               { field: "name", headerName: "Name", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
+            dataGridProps={{ getRowId: (el: any) => el["job.name"] }}
           />
         </Grid>
       </Grid>
