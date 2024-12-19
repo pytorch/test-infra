@@ -78,16 +78,15 @@ function ValidationRedPanel({
   channel: string;
   query_type: string;
 }) {
+
+  params["channel"] = channel;
   const url =
     `/api/clickhouse/` +
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
-      JSON.stringify([
-        params,
-        {
-          channel: channel,
-        },
-      ])
+      JSON.stringify(
+        params
+      )
     )}`;
 
   const { data } = useSWR(url, fetcher, {
