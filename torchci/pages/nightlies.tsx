@@ -16,9 +16,12 @@ function NightlyJobsRedPanel({
   repo: string;
 }) {
 
-  params.repo = repo;
+  const queryParams: { [key: string]: any } = {
+    ...params,
+    repo: repo
+  };
   const url = `/api/clickhouse/nightly_jobs_red??parameters=${encodeURIComponent(
-    JSON.stringify(params)
+    JSON.stringify(queryParams)
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -79,12 +82,15 @@ function ValidationRedPanel({
   query_type: string;
 }) {
 
-  params.channel = channel;
+  const queryParams: { [key: string]: any } = {
+    ...params,
+    channel: channel
+  };
   const url =
     `/api/clickhouse/` +
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
-      JSON.stringify(params)
+      JSON.stringify(queryParams)
     )}`;
 
   const { data } = useSWR(url, fetcher, {
