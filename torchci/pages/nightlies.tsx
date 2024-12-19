@@ -85,7 +85,7 @@ function ValidationRedPanel({
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
       JSON.stringify(
-        params
+        ...params
       )
     )}`;
 
