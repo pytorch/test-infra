@@ -216,8 +216,7 @@ export default function Page() {
             dataGridProps={{ getRowId: (el: any) => el.name }}
           />
         </Grid>
-
-
+      </Grid>
     </div>
   );
 }
