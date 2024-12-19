@@ -15,8 +15,8 @@ function NightlyJobsRedPanel({
   params: { [key: string]: any };
   repo: string;
 }) {
-  if ("repo" in params && repo) params["repo"] = repo;
 
+  params.repo = repo;
   const url = `/api/clickhouse/nightly_jobs_red??parameters=${encodeURIComponent(
     JSON.stringify(params)
   )}`;
@@ -79,14 +79,12 @@ function ValidationRedPanel({
   query_type: string;
 }) {
 
-  params["channel"] = channel;
+  params.channel = channel;
   const url =
     `/api/clickhouse/` +
     query_type +
     `_jobs_red?parameters=${encodeURIComponent(
-      JSON.stringify({
-        ...params
-      })
+      JSON.stringify(params)
     )}`;
 
   const { data } = useSWR(url, fetcher, {
