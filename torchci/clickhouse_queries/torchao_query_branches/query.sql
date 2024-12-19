@@ -1,22 +1,35 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- This query is used to get the list of branches and commits used by different
+-- OSS CI benchmark experiments. This powers HUD TorchAO benchmarks dashboards
+WITH benchmarks AS (
+    SELECT
+        o.head_branch AS head_branch,
+        o.head_sha AS head_sha,
+        o.workflow_id AS id,
+        toStartOfDay(fromUnixTimestamp(o.timestamp)) AS event_time
+    FROM
+        benchmark.oss_ci_benchmark_v3 o
+    WHERE
+        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
+        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        AND o.repo = {repo: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'performance' ] = 'true'
+        AND (
+            has(
+                {dtypes: Array(String) },
+                tupleElement(o.benchmark, 'extra_info') [ 'quantization' ]
+            )
+            OR empty({dtypes: Array(String) })
+        )
+        AND tupleElement(o.benchmark, 'mode') = {mode: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'device' ] = {device: String }
+)
 SELECT
-  DISTINCT head_branch,
-  head_sha,
-  FORMAT_ISO8601(
-    DATE_TRUNC(
-      : granularity, _event_time
-    )
-  ) AS event_time,
+    DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
+    head_sha,
+    id,
+    event_time
 FROM
-  inductor.torchao_perf_stats
-WHERE
-  torchao_perf_stats._event_time >= PARSE_DATETIME_ISO8601(: startTime)
-  AND torchao_perf_stats._event_time < PARSE_DATETIME_ISO8601(: stopTime)
-  AND torchao_perf_stats.filename LIKE '%_performance'
-  AND torchao_perf_stats.filename LIKE CONCAT(
-    '%_', : dtypes, '_', : mode, '_', : device,
-    '_%'
-  )
+    benchmarks
 ORDER BY
-  head_branch,
-  event_time DESC
+    head_branch,
+    event_time DESC

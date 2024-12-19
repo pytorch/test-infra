@@ -3,7 +3,7 @@ import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicke
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
-import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
+import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DTypePicker,
@@ -17,18 +17,18 @@ import {
   DISPLAY_NAMES_TO_DEVICE_NAMES,
   DTYPES,
 } from "components/benchmark/torchao/common";
-import { SuitePicker, SUITES } from "components/benchmark/torchao/SuitePicker";
+import { SUITES } from "components/benchmark/torchao/SuitePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
 
 function Report({
@@ -36,46 +36,29 @@ function Report({
   startTime,
   stopTime,
   granularity,
-  suite,
   mode,
   dtype,
   deviceName,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
-  suite: string;
   mode: string;
   dtype: string;
   deviceName: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const queryCollection = "inductor";
   const queryName = "torchao_query";
-
-  const queryParamsWithL: RocksetParam[] = [
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
-    {
-      name: "branches",
-      type: "string",
-      value: lBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: lBranchAndCommit.commit,
-    },
+  const queryParamsWithL: { [key: string]: any } = {
     ...queryParams,
-  ];
-  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    branches: [lBranchAndCommit.branch],
+    commits: lBranchAndCommit.commit ? [lBranchAndCommit.commit] : [],
+  };
+  const lUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithL)
   )}`;
 
@@ -84,20 +67,12 @@ function Report({
   });
   lData = augmentData(lData);
 
-  const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "branches",
-      type: "string",
-      value: rBranchAndCommit.branch,
-    },
-    {
-      name: "commits",
-      type: "string",
-      value: rBranchAndCommit.commit,
-    },
+  const queryParamsWithR: { [key: string]: any } = {
     ...queryParams,
-  ];
-  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    branches: [rBranchAndCommit.branch],
+    commits: rBranchAndCommit.commit ? [rBranchAndCommit.commit] : [],
+  };
+  const rUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithR)
   )}`;
 
@@ -152,15 +127,21 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      <GraphPanel
-        queryName={"torchao_query"}
-        queryParams={queryParams}
-        granularity={granularity}
-        suite={suite}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
-      />
+      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig) => {
+        return (
+          suiteConfig.showGraph && (
+            <div key={suiteConfig.id}>
+              <CompilerGraphGroup
+                suiteConfig={suiteConfig}
+                queryParams={queryParams}
+                granularity={granularity}
+                lBranchAndCommit={lBranchAndCommit}
+                rBranchAndCommit={rBranchAndCommit}
+              />
+            </div>
+          )
+        );
+      })}
     </div>
   );
 }
@@ -177,7 +158,7 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
-  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
+  const [dtype, setDType] = useState<string>(DTYPES[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -258,43 +239,20 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    {
-      name: "dtypes",
-      type: "string",
-      value: dtype,
-    },
-    {
-      name: "device",
-      type: "string",
-      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    branches: [],
+    commits: [],
+    compilers: [],
+    device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    dtypes: [dtype],
+    granularity: granularity,
+    mode: mode,
+    repo: DEFAULT_REPO_NAME,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    suites: Object.keys(SUITES),
+    workflowId: 0,
+  };
 
   return (
     <div>
@@ -307,7 +265,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+          )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
             deviceName
           )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
@@ -326,13 +284,12 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <SuitePicker suite={suite} setSuite={setSuite} />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
           dtype={dtype}
           setDType={setDType}
           dtypes={DTYPES}
-          label={"Precision"}
+          label={"Quantization"}
         />
         <DTypePicker
           dtype={deviceName}
@@ -351,7 +308,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={false}
+          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -367,22 +324,9 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={false}
+          useClickHouse={true}
         />
       </Stack>
-
-      <Report
-        queryParams={queryParams}
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
-        suite={suite}
-        mode={mode}
-        dtype={dtype}
-        deviceName={deviceName}
-        lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
-        rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
-      />
     </div>
   );
 }

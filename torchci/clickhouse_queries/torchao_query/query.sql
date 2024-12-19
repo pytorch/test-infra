@@ -1,67 +1,75 @@
--- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+-- This powers HUD TorchAO benchmarks dashboards
 WITH performance_results AS (
-  SELECT
-  name,
-  IF(speedup = 'infra_error', NULL, speedup) AS speedup, -- Handle the recent burst of infra error
-  REPLACE(
-    filename,
-    CONCAT(
-      '_', : dtypes, '_', : mode, '_', : device,
-      '_performance'
-    )
-  ) AS filename,
-  compilation_latency,
-  compression_ratio,
-  abs_latency,
-  mfu,
-  memory_bandwidth,
-  dynamo_peak_mem,
-  eager_peak_mem,
-  workflow_id,
-  CAST(job_id AS INT) AS job_id,
-  FORMAT_ISO8601(
-    DATE_TRUNC(: granularity, _event_time)
-  ) AS granularity_bucket,
-  head_sha,
-  head_branch,
-FROM
-  inductor.torchao_perf_stats
-WHERE
-  filename LIKE '%_performance'
-  AND filename LIKE CONCAT(
-    '%_', : dtypes, '_', : mode, '_', : device,
-    '_%'
-  )
-  AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
-  AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
-  AND (workflow_id = :workflowId OR :workflowId = 0)
+    SELECT
+        o.model.name AS model,
+        o.model.backend AS backend,
+        o.metric.name AS metric,
+        floor(arrayAvg(o.metric.benchmark_values), 2) AS actual,
+        o.head_branch AS head_branch,
+        o.head_sha AS head_sha,
+        o.workflow_id AS workflow_id,
+        o.job_id AS job_id,
+        o.timestamp AS timestamp
+    FROM
+        benchmark.oss_ci_benchmark_v3 o
+    WHERE
+        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
+        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        AND o.repo = {repo: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'performance' ] = 'true'
+        AND (
+            has(
+                {dtypes: Array(String) },
+                tupleElement(o.benchmark, 'extra_info') [ 'quantization' ]
+            )
+            OR empty({dtypes: Array(String) })
+        )
+        AND tupleElement(o.benchmark, 'mode') = {mode: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'device' ] = {device: String }
+        AND (
+            workflow_id = {workflowId: Int64}
+            OR {workflowId: Int64} = 0
+        )
+        AND (
+            o.metric.name in [ 'speedup',
+            'compilation_latency',
+            'compression_ratio',
+            'abs_latency',
+            'mfu',
+            'memory_bandwidth',
+            'dynamo_peak_mem',
+            'eager_peak_mem' ]
+        )
 ),
 accuracy_results AS (
   SELECT
-    name,
+    o.model.name AS model,
     accuracy,
-    REPLACE(
-      filename,
-      CONCAT(
-        '_', : dtypes, '_', : mode, '_', : device,
-        '_accuracy'
-      )
-    ) AS filename,
-    workflow_id,
-    CAST(job_id AS INT) AS job_id,
+        o.workflow_id AS workflow_id,
+        o.job_id AS job_id,
   FROM
-    inductor.torchao_perf_stats
+        benchmark.oss_ci_benchmark_v3 o
   WHERE
-    filename LIKE '%_accuracy'
-    AND filename LIKE CONCAT(
-      '%_', : dtypes, '_', : mode, '_', : device,
-      '_%'
-    )
-    AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
-    AND (workflow_id = :workflowId OR :workflowId = 0)
-    AND accuracy != 'model_fail_to_load'
-    AND accuracy != 'eager_fail_to_run'
+        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
+        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        AND o.repo = {repo: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'accuracy' ] = 'true'
+        AND (
+            has(
+                {dtypes: Array(String) },
+                tupleElement(o.benchmark, 'extra_info') [ 'quantization' ]
+            )
+            OR empty({dtypes: Array(String) })
+        )
+        AND tupleElement(o.benchmark, 'mode') = {mode: String }
+        AND tupleElement(o.benchmark, 'extra_info') [ 'device' ] = {device: String }
+        AND (
+            workflow_id = {workflowId: Int64}
+            OR {workflowId: Int64} = 0
+        )
+
+    --AND accuracy != 'model_fail_to_load'
+    --AND accuracy != 'eager_fail_to_run'
 ),
 results AS (
   SELECT
@@ -145,6 +153,9 @@ SELECT DISTINCT
   results.dynamo_peak_mem,
   results.eager_peak_mem,
   results.granularity_bucket,
+  FORMAT_ISO8601(
+    DATE_TRUNC(: granularity, _event_time)
+  ) AS granularity_bucket,
 FROM
   results
 WHERE
