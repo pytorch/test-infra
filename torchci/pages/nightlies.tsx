@@ -176,11 +176,7 @@ export default function Page() {
   const timeParams = [
     {
       startTime: startTime,
-    },
-    {
       stopTime: stopTime,
-    },
-    {
       repo: "pytorch",
     },
   ];
