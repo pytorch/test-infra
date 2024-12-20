@@ -1,5 +1,6 @@
 {
   "branch": "String",
+  "count": "Int64",
   "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)"

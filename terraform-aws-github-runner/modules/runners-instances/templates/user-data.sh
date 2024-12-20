@@ -138,17 +138,6 @@ fi
 
 ${post_install}
 
-if [[ -f /swapfile ]]; then
-  # Cleanup any existing swapfile just to be sure
-  sudo swapoff /swapfile
-  sudo rm /swapfile
-fi
-# before allocating a new one
-sudo fallocate -l 3G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
 ./svc.sh start
 
 metric_report "linux_userdata.success" 1

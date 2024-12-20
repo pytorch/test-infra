@@ -94,7 +94,7 @@ jobs:
     # to have a conversation
     timeout-minutes: ${{ inputs.timeout }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
@@ -127,8 +127,6 @@ jobs:
           arch: ${{ env.ARCH }}
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
-        env:
-          XPU_VERSION: '2025.0'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Install torch dependency

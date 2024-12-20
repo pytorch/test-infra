@@ -12,12 +12,6 @@ import YAML from 'yaml';
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
 
-export interface GHRateLimitInfo {
-  limit: number;
-  remaining: number;
-  used: number;
-}
-
 export async function resetGHRunnersCaches() {
   await redisClearCacheKeyPattern('ghRunners', '');
   clearLocalCacheNamespace('ghRunners');
@@ -361,7 +355,6 @@ export async function getRunnerTypes(
             is_ephemeral: runner_type.is_ephemeral || false,
             /* istanbul ignore next */
             labels: runner_type.labels?.map((label: string) => label.trim()),
-            min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
             max_available: runner_type.max_available,
             os: runner_type.os,
             runnerTypeName: prop,
@@ -372,7 +365,6 @@ export async function getRunnerTypes(
 
       Array.from(result.keys()).forEach((key) => {
         const runnerType = result.get(key);
-        /* istanbul ignore next */
         if (runnerType?.variants === undefined) {
           return;
         }
@@ -380,7 +372,6 @@ export async function getRunnerTypes(
         if (runnerType.variants.size > 0) {
           Array.from(runnerType.variants.keys()).forEach((variant) => {
             const variantType = runnerType.variants?.get(variant);
-            /* istanbul ignore next */
             if (!variantType) {
               return;
             }
@@ -408,10 +399,8 @@ export async function getRunnerTypes(
               typeof runnerType.instance_type === 'string' &&
               alphaNumericStr.test(runnerType.instance_type) &&
               ['linux', 'windows'].includes(runnerType.os) &&
-              /* istanbul ignore next */
               (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
               (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
-              (typeof runnerType.min_available === 'number' || runnerType.min_available === undefined) &&
               (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
               (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
               (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
@@ -526,9 +515,9 @@ export async function createRegistrationTokenOrg(
   }
 }
 
-export async function getGitHubRateLimit(repo: Repo, metrics: Metrics): Promise<GHRateLimitInfo> {
+export async function getGitHubRateLimit(repo: Repo, installationId: number, metrics: Metrics): Promise<void> {
   try {
-    return await redisCached('ghRunners', 'getGitHubRateLimit', 10, 0.5, async () => {
+    const { used, limit, remaining } = await locallyCached('ghRunners', 'getGitHubRateLimit', 10, async () => {
       try {
         const client = await createGitHubClientForRunnerRepo(repo, metrics);
 
@@ -544,13 +533,13 @@ export async function getGitHubRateLimit(repo: Repo, metrics: Metrics): Promise<
 
         return { used, limit, remaining };
       } catch (e) {
-        /* istanbul ignore next */
         console.error(`[getGitHubRateLimit]: <anonymous> ${e}`);
         throw e;
       }
     });
+
+    metrics.gitHubRateLimitStats(limit, remaining, used);
   } catch (e) {
-    /* istanbul ignore next */
     console.error(`[getGitHubRateLimit]: ${e}`);
     throw e;
   }

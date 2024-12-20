@@ -1,0 +1,25 @@
+{
+  "query": "    SELECT\n    test_run.name,\n    test_run.classname as suite,\n    test_run.file,\n    test_run.invoking_file,\n    SUM(\n        ELEMENT_AT(\n            JSON_PARSE(\n                REPLACE(test_run.skipped.message, 'True', 'true')\n            ),\n            'num_green'\n        )\n    ) as numGreen,\n    SUM(\n        ELEMENT_AT(\n            JSON_PARSE(\n                REPLACE(test_run.skipped.message, 'True', 'true')\n            ),\n            'num_red'\n        )\n    ) as numRed,\n    ARRAY_AGG(job.name) as jobNames,\n    ARRAY_AGG(job.id) as jobIds,\n    ARRAY_AGG(workflow.id) as workflowIds,\n    ARRAY_AGG(workflow.name) as workflowNames,\n    ARRAY_AGG(workflow.head_branch) as branches,\n    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,\n    ARBITRARY(\n        if(\n            TYPEOF(test_run.rerun) = 'object',\n            test_run.rerun.text,\n            test_run.rerun[0].text\n        )\n    ) as sampleTraceback\nFROM\n    commons.workflow_job job\n    INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)\n    INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id\nWHERE\n    test_run.skipped.message LIKE '{%\"flaky\": _rue%'\n    AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours))\n    AND test_run.name LIKE :name\n    AND test_run.classname LIKE :suite\n    AND test_run.file LIKE :file\n    AND job.name NOT LIKE '%rerun_disabled_tests%'\nGROUP BY\n    name,\n    suite,\n    file,\n    invoking_file\nUNION\nselect\n    test_run.name,\n    test_run.classname as suite,\n    test_run.file,\n    test_run.invoking_file,\n    COUNT(*) as numGreen,\n    SUM(\n        if(\n            TYPEOF(test_run.rerun) = 'object',\n            1,\n            Length(test_run.rerun)\n        )\n    ) as numRed,\n    ARRAY_AGG(job.name) as jobNames,\n    ARRAY_AGG(job.id) as jobIds,\n    ARRAY_AGG(workflow.id) as workflowIds,\n    ARRAY_AGG(workflow.name) as workflowNames,\n    ARRAY_AGG(workflow.head_branch) as branches,\n    ARRAY_AGG(test_run.workflow_run_attempt) as runAttempts,\n    ARBITRARY(\n        if(\n            TYPEOF(test_run.rerun) = 'object',\n            test_run.rerun.text,\n            test_run.rerun[0].text\n        )\n    ) as sampleTraceback\nFROM\n    commons.workflow_job job\n    INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)\n    INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id\nwhere\n    test_run.rerun is not null\n    and test_run.failure is null\n    AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours))\n    AND test_run.name LIKE :name\n    AND test_run.classname LIKE :suite\n    AND test_run.file LIKE :file\n    AND job.name NOT LIKE '%rerun_disabled_tests%'\nGROUP BY\n    name,\n    suite,\n    file,\n    invoking_file\n",
+  "default_parameters": [
+    {
+      "name": "file",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "3"
+    },
+    {
+      "name": "suite",
+      "type": "string",
+      "value": "%"
+    }
+  ]
+}

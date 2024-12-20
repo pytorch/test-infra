@@ -1,0 +1,34 @@
+{
+  "workspace": "commons",
+  "last_updated_by": null,
+  "last_updated": "2022-09-26T21:04:05Z",
+  "name": "land_validation_usage",
+  "version_count": 5,
+  "collections": [
+    "commons.pytorchbot_logs"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": null,
+    "created_by_apikey_name": null,
+    "created_at": "2022-09-26T21:04:05Z",
+    "name": "land_validation_usage",
+    "version": "a7a38fe74dfd2755",
+    "description": null,
+    "sql": {
+      "query": "with land_checks as (\n    select\n        p._event_time,\n        p.item.event,\n        p.item.extra_data.landChecksEnrolled,\n        p.item.extra_data.landChecks,\n        p.item.extra_data.forceMessage,\n        p.item.extra_data.mergeOnGreen,\n        p.item.prNum,\n        p.item.commentId,\n        p.item.login,\n        p.item.url,\n        p.*\n    from\n        commons.pytorchbot_logs p\n    where\n        p.item.event like '%merge%'\n        and p.item is not null\n  \t\tand p.item.login != 'malfet'\n  \t\tand datetime(p._event_time) > datetime(2022,9,22,0,0,0)\n),\nopt_outs as (\n    select\n        *,\n        'opt_out' as mode\n    from\n        land_checks lc\n    where\n        lc.landChecksEnrolled\n        and (\n            lc.forceMessage is not null\n            or lc.mergeOnGreen\n        )\n),\nopt_ins as (\n    select\n        *,\n        'opt_in' as mode\n    from\n        land_checks lc\n    where\n        not lc.landChecksEnrolled\n        and lc.landChecks\n),\nland_allowed as (\n    select\n        *,\n        'land_allowed' as mode\n    from\n        land_checks lc\n    where\n        lc.landChecksEnrolled\n        and (lc.forceMessage is null)\n        and not lc.mergeOnGreen\n),\nnot_enrolled_no_opt_in as (\n  select \n  \t*,\n  'not_enrolled_no_opt_in' as mode,\n  from land_checks lc\n  where \n  \tnot lc.landChecksEnrolled and not lc.landChecks\n  \n),\nlabeled as (\n  select\n      _event_time,\n      mode,\n      landChecksEnrolled,\n      landChecks,\n      forceMessage,\n      mergeOnGreen,\n      login,\n      prNum,\n      commentId,\n      url\n  from\n      opt_outs\n  UNION\n  select\n      _event_time,\n      mode,\n      landChecksEnrolled,\n      landChecks,\n      forceMessage,\n      mergeOnGreen,\n      login,\n      prNum,\n      commentId,\n      url\n  from\n      opt_ins\n  UNION\n  select\n      _event_time,\n      mode,\n      landChecksEnrolled,\n      landChecks,\n      forceMessage,\n      mergeOnGreen,\n      login,\n      prNum,\n      commentId,\n      url\n  from\n      land_allowed \n  UNION\n  select\n      _event_time,\n      mode,\n      landChecksEnrolled,\n      landChecks,\n      forceMessage,\n      mergeOnGreen,\n      login,\n      prNum,\n      commentId,\n      url\n  from not_enrolled_no_opt_in\n),\ncounts as (\n  select\n          (select count(*) from opt_outs) as opt_outs,\n          (select Count(*) from not_enrolled_no_opt_in) as not_enrolled_no_opt_in,\n          (select Count(*) from land_allowed) as land_allowed,\n          (select count(*) from opt_ins) as opt_ins,\n          (select Count(*) from land_checks) as total,\n)\n\n-- select * from counts\n\nselect * from labeled\nwhere mode = 'opt_out'\norder by mode, _event_time desc",
+      "default_parameters": []
+    },
+    "collections": [
+      "commons.pytorchbot_logs"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

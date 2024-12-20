@@ -1,16 +1,13 @@
-import CheckBoxSelector from "components/CheckBoxSelector";
 import CopyLink from "components/CopyLink";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
-  passesGroupFilter,
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
-import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
@@ -31,6 +28,7 @@ import { track } from "lib/track";
 import {
   formatHudUrlForRoute,
   Highlight,
+  HudData,
   HudParams,
   IssueData,
   JobData,
@@ -46,14 +44,7 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
 
 export function JobCell({
@@ -96,10 +87,14 @@ export function JobCell({
 
 function HudRow({
   rowData,
+  expandedGroups,
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   rowData: RowData;
+  expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
@@ -174,6 +169,8 @@ function HudRow({
       </td>
       <HudJobCells
         rowData={rowData}
+        expandedGroups={expandedGroups}
+        setExpandedGroups={setExpandedGroups}
         names={names}
         unstableIssues={unstableIssues}
       />
@@ -183,45 +180,37 @@ function HudRow({
 
 function HudJobCells({
   rowData,
+  expandedGroups,
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   rowData: RowData;
+  expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
-  const { expandedGroups, setExpandedGroups, groupNameMapping } =
-    useContext(GroupingContext);
+
   return (
     <>
       {names.map((name) => {
         if (groupNames.includes(name)) {
           let numClassified = 0;
-          for (const jobName of groupNameMapping.get(name) ?? []) {
-            if (rowData.nameToJobs.get(jobName)?.failureAnnotation != null) {
+          for (const job of rowData.groupedJobs?.get(name)?.jobs ?? []) {
+            if (job.failureAnnotation != null) {
               numClassified++;
             }
           }
-
-          const failedJobs = groupNameMapping.get(name)?.filter((jobName) => {
-            const job = rowData.nameToJobs.get(jobName);
-            return job && isFailedJob(job);
-          });
-
+          const failedJobs = rowData.groupedJobs
+            ?.get(name)
+            ?.jobs.filter(isFailedJob);
           return (
             <HudGroupedCell
               sha={rowData.sha}
               key={name}
-              groupName={name}
-              jobs={
-                groupNameMapping
-                  .get(name)
-                  ?.map((jobName) => {
-                    return rowData.nameToJobs.get(jobName);
-                  })
-                  .filter((job) => job != null && job != undefined) as JobData[]
-              }
+              groupData={rowData.groupedJobs?.get(name)!}
               isExpanded={expandedGroups.has(name)}
               toggleExpanded={() => {
                 if (expandedGroups.has(name)) {
@@ -238,12 +227,12 @@ function HudJobCells({
             />
           );
         } else {
-          const job = rowData.nameToJobs.get(name);
+          const job = rowData.nameToJobs?.get(name);
           return (
             <JobCell
               sha={rowData.sha}
               key={name}
-              job={job ?? { name: name, conclusion: undefined }}
+              job={job!}
               unstableIssues={unstableIssues}
             />
           );
@@ -255,10 +244,14 @@ function HudJobCells({
 
 function HudTableBody({
   shaGrid,
+  expandedGroups = new Set(),
+  setExpandedGroups,
   names,
   unstableIssues,
 }: {
   shaGrid: RowData[];
+  expandedGroups?: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   names: string[];
   unstableIssues: IssueData[];
 }) {
@@ -268,6 +261,8 @@ function HudTableBody({
         <HudRow
           key={row.sha}
           rowData={row}
+          expandedGroups={expandedGroups}
+          setExpandedGroups={setExpandedGroups}
           names={names}
           unstableIssues={unstableIssues}
         />
@@ -278,57 +273,120 @@ function HudTableBody({
 
 function GroupFilterableHudTable({
   params,
+  groupNameMapping,
   children,
   groupNames,
+  expandedGroups,
+  setExpandedGroups,
   useGrouping,
   setUseGrouping,
   hideUnstable,
   setHideUnstable,
 }: {
   params: HudParams;
+  groupNameMapping: Map<string, string[]>;
   children: React.ReactNode;
   groupNames: string[];
+  expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   useGrouping: boolean;
   setUseGrouping: any;
   hideUnstable: boolean;
   setHideUnstable: any;
 }) {
-  const { jobFilter, handleSubmit } = useTableFilter(params);
+  const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
+    useTableFilter(params);
   const headerNames = groupNames;
-  const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
+        handleInput={handleInput}
         handleFocus={() => {
           setUseGrouping(false);
         }}
       />
-      <CheckBoxSelector
-        value={useGrouping}
-        setValue={(value) => setUseGrouping(value)}
-        checkBoxName="groupView"
-        labelText={"Use grouped view"}
+      <GroupViewCheckBox
+        useGrouping={useGrouping}
+        setUseGrouping={setUseGrouping}
       />
-      <CheckBoxSelector
-        value={hideUnstable}
-        setValue={(value) => setHideUnstable(value)}
-        checkBoxName="hideUnstable"
-        labelText={"Hide unstable jobs"}
-      />
-      <CheckBoxSelector
-        value={mergeLF}
-        setValue={setMergeLF}
-        checkBoxName="mergeLF"
-        labelText={"Condense LF jobs"}
+      <UnstableCheckBox
+        hideUnstable={hideUnstable}
+        setHideUnstable={setHideUnstable}
       />
       <MonsterFailuresCheckbox />
       <table className={styles.hudTable}>
-        <GroupHudTableColumns names={headerNames} />
-        <GroupHudTableHeader names={headerNames} />
+        <GroupHudTableColumns
+          filter={normalizedJobFilter}
+          names={headerNames}
+          groupNameMapping={groupNameMapping}
+        />
+        <GroupHudTableHeader
+          filter={normalizedJobFilter}
+          names={headerNames}
+          expandedGroups={expandedGroups}
+          setExpandedGroups={setExpandedGroups}
+          groupNameMapping={groupNameMapping}
+        />
         {children}
       </table>
+    </>
+  );
+}
+
+function GroupViewCheckBox({
+  useGrouping,
+  setUseGrouping,
+}: {
+  useGrouping: boolean;
+  setUseGrouping: any;
+}) {
+  return (
+    <>
+      <div>
+        <span
+          onClick={() => {
+            setUseGrouping(!useGrouping);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="groupView"
+            checked={useGrouping}
+            onChange={() => {}}
+          />
+          <label htmlFor="groupView"> Use grouped view</label>
+        </span>
+      </div>
+    </>
+  );
+}
+
+function UnstableCheckBox({
+  hideUnstable,
+  setHideUnstable,
+}: {
+  hideUnstable: boolean;
+  setHideUnstable: any;
+}) {
+  return (
+    <>
+      <div>
+        <span
+          onClick={() => {
+            setHideUnstable(!hideUnstable);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="hideUnstable"
+            checked={hideUnstable}
+            onChange={() => {}}
+          />
+          <label htmlFor="hideUnstable"> Hide unstable jobs</label>
+        </span>
+      </div>
     </>
   );
 }
@@ -336,16 +394,6 @@ function GroupFilterableHudTable({
 export const MonsterFailuresContext = createContext<
   [boolean, ((_value: boolean) => void) | undefined]
 >([false, undefined]);
-
-export const GroupingContext = createContext<{
-  groupNameMapping: Map<string, Array<string>>;
-  expandedGroups: Set<string>;
-  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
-}>({
-  groupNameMapping: new Map(),
-  expandedGroups: new Set(),
-  setExpandedGroups: () => {},
-});
 
 export function MonsterFailuresProvider({
   children,
@@ -367,27 +415,28 @@ export function MonsterFailuresCheckbox() {
     MonsterFailuresContext
   );
   return (
-    <div title="Replace `X` with a monster icon based on the error line.">
-      <CheckBoxSelector
-        value={monsterFailures}
-        setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
-        checkBoxName="monsterFailures"
-        labelText={"Monsterize failures"}
-      />
-    </div>
+    <>
+      <div title="Replace `X` with a monster icon based on the error line.">
+        <span
+          onClick={() => {
+            setMonsterFailures && setMonsterFailures(!monsterFailures);
+          }}
+        >
+          <input
+            type="checkbox"
+            name="monsterFailures"
+            checked={monsterFailures}
+            onChange={() => {}}
+          />
+          <label htmlFor="monsterFailures"> Monsterize failures</label>
+        </span>
+      </div>
+    </>
   );
 }
 
 function HudTable({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  if (data === undefined) {
-    return <LoadingPage />;
-  }
-  return (
-    <>
-      <GroupedHudTable params={params} data={data} />
-    </>
-  );
+  return <GroupedView params={params} />;
 }
 
 function HudHeader({ params }: { params: HudParams }) {
@@ -420,15 +469,9 @@ export const PinnedTooltipContext = createContext<[Highlight, any]>([
   null,
 ]);
 
-export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
-  false,
-  (_) => {},
-]);
-
 export default function Hud() {
   const router = useRouter();
-  const [mergeLF, setMergeLF] = usePreference("mergeLF");
-  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
+  const params = packHudParams(router.query);
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -446,51 +489,41 @@ export default function Hud() {
     setPinnedTooltip({ sha: undefined, name: undefined });
   }
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  useEffect(() => {
+    document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    },
-    [setPinnedTooltip]
-  );
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    });
   }, []);
-  const titleRepoInfo =
+  const title =
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
   return (
     <>
       <Head>
-        <title>{`HUD ${titleRepoInfo}`}</title>
+        <title>HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          <MergeLFContext.Provider value={[mergeLF, setMergeLF]}>
-            {params.branch !== undefined && (
-              <div onClick={handleClick}>
-                <div style={{ display: "flex", alignItems: "flex-end" }}>
-                  <HudHeader params={params} />
-                  <CopyPermanentLink
-                    params={params}
-                    style={{ marginLeft: "10px" }}
-                  />
-                </div>
-                <HudTable params={params} />
-                <PageSelector params={params} baseUrl="hud" />
-                <br />
-                <div>
-                  <em>This page automatically updates.</em>
-                </div>
+          {params.branch !== undefined && (
+            <div onClick={handleClick}>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <HudHeader params={params} />
+                <CopyPermanentLink
+                  params={params}
+                  style={{ marginLeft: "10px" }}
+                />
               </div>
-            )}
-          </MergeLFContext.Provider>
+              <HudTable params={params} />
+              <PageSelector params={params} baseUrl="hud" />
+              <br />
+              <div>
+                <em>This page automatically updates.</em>
+              </div>
+            </div>
+          )}
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
@@ -502,14 +535,14 @@ function useLatestCommitSha(params: HudParams) {
   if (data === undefined) {
     return null;
   }
-  if (data.length === 0) {
+  if (data.shaGrid.length === 0) {
     return null; // Nothing worth copying
   }
-  if (data[0].sha === undefined) {
+  if (data.shaGrid[0].sha === undefined) {
     return null; // No sha to copy. This should never happen (TM)
   }
 
-  return data[0].sha;
+  return data.shaGrid[0].sha;
 }
 
 function CopyPermanentLink({
@@ -533,24 +566,26 @@ function CopyPermanentLink({
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
+function GroupedView({ params }: { params: HudParams }) {
+  const data = useHudData(params);
+  if (data === undefined) {
+    return <div>Loading...</div>;
+  }
+
+  return <GroupedHudTable params={params} data={data} />;
+}
+
 function GroupedHudTable({
   params,
   data,
 }: {
   params: HudParams;
-  data: RowData[];
+  data: HudData;
 }) {
-  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
-    `/api/issue/unstable`,
-    fetcher,
-    {
-      dedupingInterval: 300 * 1000,
-      refreshInterval: 300 * 1000, // refresh every 5 minutes
-    }
-  );
-  const jobNames = new Set(
-    data.flatMap((row) => Array.from(row.nameToJobs.keys()))
-  );
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [useGrouping, setUseGrouping] = useGroupingPreference(
@@ -558,15 +593,13 @@ function GroupedHudTable({
   );
 
   const { shaGrid, groupNameMapping } = getGroupingData(
-    data,
-    jobNames,
+    data.shaGrid,
+    data.jobNames,
     (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-    unstableIssuesData ?? []
+    unstableIssuesData ? unstableIssuesData.issues : []
   );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-
-  const { jobFilter } = useTableFilter(params);
 
   const router = useRouter();
   useEffect(() => {
@@ -589,16 +622,23 @@ function GroupedHudTable({
     });
     if (hideUnstable) {
       names = names.filter(
-        (name) => !isUnstableGroup(name, unstableIssuesData ?? [])
+        (name) =>
+          !isUnstableGroup(
+            name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          )
       );
     }
   } else {
-    names = [...jobNames];
+    names = [...data.jobNames];
     groups.forEach((group) => {
       if (
         groupNames.includes(group.name) &&
         (group.persistent ||
-          (isUnstableGroup(group.name, unstableIssuesData ?? []) &&
+          (isUnstableGroup(
+            group.name,
+            unstableIssuesData ? unstableIssuesData.issues : []
+          ) &&
             hideUnstable))
       ) {
         // Add group name, take out all the jobs that belong to that group
@@ -613,28 +653,26 @@ function GroupedHudTable({
       }
     });
   }
-  names = names.filter((name) =>
-    passesGroupFilter(jobFilter, name, groupNameMapping)
-  );
 
   return (
-    <GroupingContext.Provider
-      value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
+    <GroupFilterableHudTable
+      params={params}
+      groupNameMapping={groupNameMapping}
+      groupNames={names}
+      expandedGroups={expandedGroups}
+      setExpandedGroups={setExpandedGroups}
+      useGrouping={useGrouping}
+      setUseGrouping={setUseGrouping}
+      hideUnstable={hideUnstable}
+      setHideUnstable={setHideUnstable}
     >
-      <GroupFilterableHudTable
-        params={params}
-        groupNames={names}
-        useGrouping={useGrouping}
-        setUseGrouping={setUseGrouping}
-        hideUnstable={hideUnstable}
-        setHideUnstable={setHideUnstable}
-      >
-        <HudTableBody
-          shaGrid={shaGrid}
-          names={names}
-          unstableIssues={unstableIssuesData ?? []}
-        />
-      </GroupFilterableHudTable>
-    </GroupingContext.Provider>
+      <HudTableBody
+        shaGrid={shaGrid}
+        expandedGroups={expandedGroups}
+        setExpandedGroups={setExpandedGroups}
+        names={names}
+        unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
+      />
+    </GroupFilterableHudTable>
   );
 }

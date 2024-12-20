@@ -1,0 +1,15 @@
+{
+  "query": "with issue_data as (\n    SELECT\n        issue.number,\n        issue.title,\n        issue.html_url,\n        issue.state,\n        PARSE_TIMESTAMP_ISO8601(issue.closed_at) as closed_at,\n        PARSE_TIMESTAMP_ISO8601(issue.created_at) as created_at\n    from\n        issues as issue\n        cross join UNNEST(issue.labels as label) as labels\n    where\n        labels.label.name = :label\n),\ndate_diffs as (\n    select\n        created_at,\n        date_diff('hour', closed_at, created_at) / (24.0) as day_diff\n    from\n        issue_data\n    where\n        created_at > PARSE_TIMESTAMP_ISO8601(:startTime)\n)\nselect\n    date_trunc('week', created_at) week_bucket,\n    sum(\n        case\n            when day_diff < 2 then 1\n            else 0\n        end\n    ) * 100.0 / count(*) as metric\nfrom\n    date_diffs\ngroup by\n    week_bucket\norder by\n    week_bucket\n",
+  "default_parameters": [
+    {
+      "name": "label",
+      "type": "string",
+      "value": "module: docs"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { createClient } from "@clickhouse/client";
 import { createAppAuth } from "@octokit/auth-app";
+import rockset from "@rockset/client";
 import { App, Octokit } from "octokit";
 import { request } from "urllib";
 
@@ -59,6 +60,7 @@ async function getOctokit(owner, repo) {
   });
 }
 
+const client = rockset.default(process.env.ROCKSET_API_KEY);
 const dClient = getDynamoClient();
 const octokit = await getOctokit("pytorch", "pytorch");
 
@@ -104,12 +106,30 @@ async function backfillWorkflowJob(
     console.log(`Querying dynamo entry for job id ${id}`);
 
     let rows = await queryClickhouse(
-      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}' and j.id = ${id}`,
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}'`,
       {}
     );
 
     if (rows.length === 0) {
       console.log(`No entry found in CH for job id ${id}`);
+      rows = (
+        await client.queries.query({
+          sql: {
+            query: `
+SELECT
+    *
+FROM
+    workflow_job j
+WHERE
+    j.dynamoKey = '${dynamo_key}'
+`,
+          },
+        })
+      ).results;
+    }
+
+    if (rows.length === 0) {
+      console.log(`No entry found in Rockset for job id ${id}`);
       return;
     }
 
@@ -131,8 +151,33 @@ async function backfillWorkflowJob(
 }
 
 console.log("::group::Backfilling jobs without a conclusion...");
+const jobsWithNoConclusion = (
+  await client.queries.query({
+    sql: {
+      query: `
+SELECT
+    j.id,
+    w.repository.name as repo_name,
+    w.repository.owner.login as owner,
+    j.dynamoKey as dynamo_key,
+FROM
+    workflow_job j
+    INNER JOIN workflow_run w on j.run_id = w.id
+WHERE
+    j.conclusion IS NULL
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
+    AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
+ORDER BY
+    j._event_time ASC
+LIMIT 200
+`,
+    },
+  })
+).results;
 
-const jobsWithNoConclusion = await queryClickhouse(
+const chJobsWithNoConclusion = await queryClickhouse(
   `with pending_jobs as (
     SELECT
         j.id as id,
@@ -176,6 +221,15 @@ WHERE
   `,
   {}
 );
+// Add jobs that CH found but Rockset didn't
+for (const job of chJobsWithNoConclusion) {
+  const { dynamo_key } = job;
+  if (jobsWithNoConclusion.find((job) => job.dynamo_key === dynamo_key)) {
+    continue;
+  } else {
+    jobsWithNoConclusion.push(job);
+  }
+}
 
 // Await in a loop???
 // Yes: when GitHub has outages and fails to deliver webhooks en masse, we can
@@ -198,7 +252,33 @@ console.log("::endgroup::");
 console.log("::group::Backfilling queued jobs...");
 // Also try to backfill queued jobs specifically, with a tighter time bound.
 // This is so our queue time stats are as accurate as possible.
-const queuedJobs = await queryClickhouse(
+const queuedJobs = (
+  await client.queries.query({
+    sql: {
+      query: `
+SELECT
+    j.id,
+    w.repository.name as repo_name,
+    w.repository.owner.login as owner,
+    j.dynamoKey as dynamo_key,
+FROM
+    workflow_job j
+    INNER JOIN workflow_run w on j.run_id = w.id
+WHERE
+    j.status = 'queued'
+    AND w.status != 'completed'
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 7 DAY)
+    AND w.repository.name = 'pytorch'
+    AND j.backfill IS NULL
+ORDER BY
+    j._event_time ASC
+LIMIT 200
+`,
+    },
+  })
+).results;
+const chQueuedJobs = await queryClickhouse(
   `with pending_jobs as (
     SELECT
         j.id as id,
@@ -235,6 +315,15 @@ LIMIT
     200`,
   {}
 );
+// Add jobs that CH found but Rockset didn't
+for (const job of chQueuedJobs) {
+  const { dynamo_key } = job;
+  if (queuedJobs.find((job) => job.dynamo_key === dynamo_key)) {
+    continue;
+  } else {
+    queuedJobs.push(job);
+  }
+}
 
 // See above for why we're awaiting in a loop.
 for (const { id, repo_name, owner, dynamo_key } of queuedJobs) {
@@ -249,7 +338,30 @@ for (const { id, repo_name, owner, dynamo_key } of queuedJobs) {
 console.log("::endgroup::");
 
 console.log("::group::Backfill unclassified logs...");
-const unclassifiedJobs = await queryClickhouse(
+const unclassifiedJobs = (
+  await client.queries.query({
+    sql: {
+      query: `
+select
+    j.id,
+from
+    commons.workflow_job j
+    join commons.workflow_run w on w.id = j.run_id
+where
+    j.torchci_classification is null
+    and j.conclusion in ('failure', 'cancelled')
+    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 30 MINUTE
+    and j.name != 'ciflow_should_run'
+    and j.name != 'generate-test-matrix'
+    and w.event != 'workflow_run'
+    and w.event != 'repository_dispatch'
+    and w.head_repository.full_name = 'pytorch/pytorch'
+    AND j.backfill IS NULL
+`,
+    },
+  })
+).results;
+const chUnclassifiedJobs = await queryClickhouse(
   `with jobs as (
     select
         j.id as id,
@@ -283,6 +395,15 @@ where
     )`,
   {}
 );
+// Add jobs that CH found but Rockset didn't
+for (const job of chUnclassifiedJobs) {
+  const { id } = job;
+  if (unclassifiedJobs.find((job) => job.id === id)) {
+    continue;
+  } else {
+    unclassifiedJobs.push(job);
+  }
+}
 
 console.log(`There are ${unclassifiedJobs.length} jobs with unclassified logs`);
 for (const job of unclassifiedJobs) {

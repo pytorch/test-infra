@@ -1,6 +1,11 @@
 import { TIME_0 } from "lib/bot/utils";
 import { isSameAuthor } from "lib/drciUtils";
-import { BasicJobData, PRandJobs, RecentWorkflowsData } from "lib/types";
+import {
+  BasicJobData,
+  IssueData,
+  PRandJobs,
+  RecentWorkflowsData,
+} from "lib/types";
 import nock from "nock";
 import * as getAuthors from "../lib/getAuthors";
 import {
@@ -14,7 +19,7 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "../lib/jobUtils";
-import { genIssueData, getDummyJob } from "./utils";
+import { getDummyJob } from "./drci.test";
 
 nock.disableNetConnect();
 
@@ -561,7 +566,15 @@ describe("Test various job utils", () => {
   });
 
   test("test isDisabledTest", async () => {
-    const mockIssue = genIssueData({});
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
 
     expect(isDisabledTest([])).toEqual(false);
     expect(
@@ -621,8 +634,15 @@ describe("Test various job utils", () => {
         },
       ],
     };
-
-    const mockIssue = genIssueData({});
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
 
     expect(isDisabledTestMentionedInPR([], prInfo)).toEqual(false);
     // Not mention anywhere
@@ -765,7 +785,15 @@ describe("Test various job utils", () => {
   });
 
   test("test isRecentlyCloseDisabledTest", async () => {
-    const mockIssue = genIssueData({});
+    const mockIssue: IssueData = {
+      state: "open",
+      number: 123,
+      title: "",
+      body: "",
+      updated_at: "",
+      author_association: "",
+      html_url: "",
+    };
 
     // At least one of the issue is still open
     expect(
@@ -851,12 +879,16 @@ describe("Test various job utils", () => {
       ],
       name: "pull / linux-focal-py3.11-clang10 / test (default, 1, 3, linux.2xlarge)",
     });
-    const mockIssue = genIssueData({
+    const mockIssue: IssueData = {
+      number: 100152,
       state: "open",
       title:
         "DISABLED test_open_device_registration (__main__.TestCppExtensionOpenRgistration)",
       body: "Platforms: linux, win, mac",
-    });
+      updated_at: "2024-05-06T00:30:00Z",
+      author_association: "",
+      html_url: "",
+    };
 
     // Invalid input should return nothing
     expect(

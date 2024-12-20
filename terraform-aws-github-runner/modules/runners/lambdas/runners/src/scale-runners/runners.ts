@@ -34,7 +34,6 @@ export interface RunnerTypeOptional {
   instance_type?: string;
   is_ephemeral?: boolean;
   labels?: Array<string>;
-  min_available?: number;
   max_available?: number;
   os?: string;
 }
@@ -43,6 +42,7 @@ export interface RunnerType extends RunnerTypeOptional {
   disk_size: number;
   instance_type: string;
   is_ephemeral: boolean;
+  max_available: number;
   os: string;
   runnerTypeName: string;
 }

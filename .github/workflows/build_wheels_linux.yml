@@ -123,10 +123,8 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
-      IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') || contains(matrix.container_image, 'manylinuxaarch64-builder:cuda') }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
@@ -143,44 +141,32 @@ jobs:
           if [[ "${{ inputs.architecture }}" = "aarch64" ]]; then
             rm -rf "${RUNNER_TEMP}/*"
           fi
-          echo "::endgroup::"
 
-      - uses: actions/checkout@v4
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
+          echo "::endgroup::"
+      - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
-
-      - uses: atalman/checkout-action@main
-        if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
+      - uses: actions/checkout@v3
+        if: ${{ env.ARCH == 'aarch64' }}
         with:
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
-
-      - name: Install Miniforge
+          # Support the use case where we need to checkout someone's fork
+          repository: "pytorch/builder"
+          ref: "main"
+          path: builder
+      - name: Set linux aarch64 CI
         if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
         env:
           DESIRED_PYTHON: ${{ matrix.python_version }}
         run: |
-          set -euxo pipefail
-          # TODO: Get rid of Conda, we already have all versions of PyThon one needs in the docker
-          ###############################################################################
-          # Install conda
-          # disable SSL_verify due to getting "Could not find a suitable TLS CA certificate bundle, invalid path"
-          # when using Python version, less than the conda latest
-          ###############################################################################
-          echo 'Installing conda-forge'
-          curl -L -o /mambaforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh
-          chmod +x /mambaforge.sh
-          /mambaforge.sh -b -p /opt/conda
-          rm /mambaforge.sh
-          source /opt/conda/etc/profile.d/conda.sh
-          conda config --set ssl_verify False
+          set +e
+          # TODO: This is temporary aarch64 setup script, this should be integrated into aarch64 docker.
+          ${GITHUB_WORKSPACE}/builder/aarch64_linux/aarch64_ci_setup.sh
           echo "/opt/conda/bin" >> $GITHUB_PATH
+          set -e
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
@@ -195,12 +181,10 @@ jobs:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
-          setup-miniconda: false
+          setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
-          use-github-checkout: ${{ env.IS_MANYLINUX2_28 }}
-
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
@@ -212,7 +196,7 @@ jobs:
         run: |
           {
             echo "set +u"
-            echo "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
+            echo "source /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh"
             echo "source /opt/intel/oneapi/pti/latest/env/vars.sh"
           } >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
@@ -238,7 +222,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python -m pip install build==1.2.2
+          ${CONDA_RUN} python -m pip install build
           echo "Successfully installed Python build package"
           ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Build the wheel (setup-py)
@@ -293,16 +277,7 @@ jobs:
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
-
-      - name: Upload wheel
-        if: ${{ env.IS_MANYLINUX2_28 != 'true' }}
-        uses: ./test-infra/.github/actions/binary-upload
-        with:
-          repository: ${{ inputs.repository }}
-          trigger-event: ${{ inputs.trigger-event }}
-
       - name: Upload wheel to GitHub
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:

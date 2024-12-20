@@ -4,9 +4,7 @@ import { Context, Probot } from "probot";
 import urllib from "urllib";
 
 export function isTime0(time: string): boolean {
-  const v = dayjs.utc(time).valueOf();
-  // NB: This returns NaN when the string is empty
-  return isNaN(v) || v === 0;
+  return dayjs.utc(time).valueOf() == 0;
 }
 
 export const TIME_0 = "1970-01-01 00:00:00.000000000";

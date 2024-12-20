@@ -21,7 +21,6 @@ on:
           - fbgemm
           - executorch
           - torchtune
-          - torchcodec
           - all
 jobs:
   trigger:
@@ -29,7 +28,7 @@ jobs:
     environment: trigger-nightly
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Trigger nightly audio build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
@@ -102,11 +101,4 @@ jobs:
           repository: pytorch/torchtune
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchtune
-      - name: Trigger nightly torchcodec build
-        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchcodec' || inputs.domain == 'all' }}
-        uses: ./.github/actions/trigger-nightly
-        with:
-          ref: main
-          repository: pytorch/torchcodec
-          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-          path: torchcodec
+      

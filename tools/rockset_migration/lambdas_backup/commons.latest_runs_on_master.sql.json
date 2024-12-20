@@ -1,0 +1,10 @@
+{
+  "query": "select\n    id,\n    status,\n    conclusion,\n    job.head_sha,\n    job.name,\n    job._event_time\nfrom\n    commons.workflow_job job\n    left join commit c on job.head_sha = c.sha\nwhere\n    job.name like :jobName\n    and c.ref in ('refs/heads/master', 'refs/head/main')\norder by\n    c.timestamp DESC\nlimit\n    3\n",
+  "default_parameters": [
+    {
+      "name": "jobName",
+      "type": "string",
+      "value": "win-vs2019-cuda11.5-py3 / test (default, 1, 2, windows.8xlarge.nvidia.gpu)"
+    }
+  ]
+}

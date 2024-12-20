@@ -13,8 +13,11 @@ import {
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
-import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
-import { SUITES } from "components/benchmark/compilers/SuitePicker";
+import {
+  SuitePicker,
+  SUITES,
+} from "components/benchmark/compilers/SuitePicker";
+import { GraphPanel } from "components/benchmark/compilers/SummaryGraphPanel";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
   DEFAULT_MODE,
@@ -28,11 +31,11 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
 
 function Report({
@@ -40,29 +43,46 @@ function Report({
   startTime,
   stopTime,
   granularity,
+  suite,
   mode,
   dtype,
   deviceName,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[];
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
+  suite: string;
   mode: string;
   dtype: string;
   deviceName: string;
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
+  const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
-  const queryParamsWithL: { [key: string]: any } = {
+
+  const queryParamsWithL: RocksetParam[] = [
+    {
+      name: "suites",
+      type: "string",
+      value: Object.keys(SUITES).join(","),
+    },
+    {
+      name: "branches",
+      type: "string",
+      value: lBranchAndCommit.branch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: lBranchAndCommit.commit,
+    },
     ...queryParams,
-    branches: [lBranchAndCommit.branch],
-    commits: lBranchAndCommit.commit ? [lBranchAndCommit.commit] : [],
-  };
-  const lUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  ];
+  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithL)
   )}`;
 
@@ -71,12 +91,20 @@ function Report({
   });
   lData = augmentData(lData);
 
-  const queryParamsWithR: { [key: string]: any } = {
+  const queryParamsWithR: RocksetParam[] = [
+    {
+      name: "branches",
+      type: "string",
+      value: rBranchAndCommit.branch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: rBranchAndCommit.commit,
+    },
     ...queryParams,
-    branches: [rBranchAndCommit.branch],
-    commits: rBranchAndCommit.commit ? [rBranchAndCommit.commit] : [],
-  };
-  const rUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  ];
+  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithR)
   )}`;
 
@@ -134,21 +162,15 @@ function Report({
         }}
         all_suites={SUITES}
       />
-      {Array.from(Object.values(COMPILER_SUITES_MAP)).map((suiteConfig) => {
-        return (
-          suiteConfig.showGraph && (
-            <div key={suiteConfig.id}>
-              <CompilerGraphGroup
-                suiteConfig={suiteConfig}
-                queryParams={queryParams}
-                granularity={granularity}
-                lBranchAndCommit={lBranchAndCommit}
-                rBranchAndCommit={rBranchAndCommit}
-              />
-            </div>
-          )
-        );
-      })}
+      <GraphPanel
+        queryName={"compilers_benchmark_performance"}
+        queryParams={queryParams}
+        granularity={granularity}
+        suite={suite}
+        branch={lBranchAndCommit.branch}
+        lCommit={lBranchAndCommit.commit}
+        rCommit={rBranchAndCommit.commit}
+      />
     </div>
   );
 }
@@ -163,6 +185,7 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
+  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
   const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
@@ -199,6 +222,9 @@ export default function Page() {
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
+    if (suite !== undefined) {
+      setSuite(suite);
+    }
 
     const mode: string = (router.query.mode as string) ?? undefined;
     if (mode !== undefined) {
@@ -242,19 +268,43 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryParams: { [key: string]: any } = {
-    commits: [],
-    compilers: [],
-    device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
-    dtypes: dtype,
-    getJobId: false,
-    granularity: granularity,
-    mode: mode,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    suites: Object.keys(SUITES),
-    workflowId: 0,
-  };
+  const queryParams: RocksetParam[] = [
+    {
+      name: "timezone",
+      type: "string",
+      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+    {
+      name: "granularity",
+      type: "string",
+      value: granularity,
+    },
+    {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtype,
+    },
+    {
+      name: "device",
+      type: "string",
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    },
+  ];
 
   return (
     <div>
@@ -267,7 +317,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
             deviceName
           )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
@@ -286,6 +336,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <SuitePicker suite={suite} setSuite={setSuite} />
         <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker
           dtype={dtype}
@@ -310,7 +361,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={false}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -326,14 +377,16 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={false}
         />
       </Stack>
+
       <Report
         queryParams={queryParams}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
+        suite={suite}
         mode={mode}
         dtype={dtype}
         deviceName={deviceName}

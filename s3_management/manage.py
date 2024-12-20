@@ -46,7 +46,7 @@ PREFIXES = [
 # package as specified by setuptools, for packages with "-" (hyphens) in their
 # names you need to convert them to "_" (underscores) in order for them to be
 # allowed here since the name of the wheels is compared here
-PACKAGE_ALLOW_LIST = {x.lower() for x in [
+PACKAGE_ALLOW_LIST = {
     # ---- torchtune additional packages ----
     "aiohttp",
     "aiosignal",
@@ -102,17 +102,6 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "importlib_metadata",
     "importlib_resources",
     "zipp",
-    # ---- torch xpu additional packages ----
-    "dpcpp_cpp_rt",
-    "intel_cmplr_lib_rt",
-    "intel_cmplr_lib_ur",
-    "intel_cmplr_lic_rt",
-    "intel_opencl_rt",
-    "intel_sycl_rt",
-    "intel_openmp",
-    "tcmlib",
-    "umf",
-    "intel_pti",
     # ----
     "Pillow",
     "certifi",
@@ -155,7 +144,6 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "nvidia_curand_cu12",
     "nvidia_cusolver_cu12",
     "nvidia_cusparse_cu12",
-    "nvidia_cusparselt_cu12",
     "nvidia_nccl_cu12",
     "nvidia_nvtx_cu12",
     "nvidia_nvjitlink_cu12",
@@ -173,7 +161,6 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "torch_tensorrt",
     "torcharrow",
     "torchaudio",
-    "torchcodec",
     "torchcsprng",
     "torchdata",
     "torchdistx",
@@ -190,8 +177,8 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "xformers",
     "executorch",
     "setuptools",
-    "wheel",
-]}
+    "wheel"
+}
 
 # Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
 # Group 1: torch-2.0.0.dev
@@ -290,7 +277,7 @@ class S3Index:
             package_name = full_package_name.split('-')[0]
             package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
-            if package_name.lower() not in PACKAGE_ALLOW_LIST:
+            if package_name not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
             if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
@@ -590,15 +577,13 @@ def main() -> None:
         if args.compute_sha256:
             idx.compute_sha256()
         elif args.do_not_upload:
+            idx.save_libtorch_html()
             if generate_pep503:
                 idx.save_pep503_htmls()
-            else:
-                idx.save_libtorch_html()
         else:
+            idx.upload_libtorch_html()
             if generate_pep503:
                 idx.upload_pep503_htmls()
-            else:
-                idx.upload_libtorch_html()
 
 
 if __name__ == "__main__":

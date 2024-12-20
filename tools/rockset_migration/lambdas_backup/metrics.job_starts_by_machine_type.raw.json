@@ -1,0 +1,57 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "darthsuo@gmail.com",
+  "last_updated": "2022-05-26T19:34:55Z",
+  "name": "job_starts_by_machine_type",
+  "version_count": 10,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "darthsuo@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-05-26T19:34:55Z",
+    "name": "job_starts_by_machine_type",
+    "version": "fa54bc5bd6a95375",
+    "description": null,
+    "sql": {
+      "query": "SELECT\n    FORMAT_ISO8601(\n        DATE_TRUNC(\n            :granularity,\n            PARSE_TIMESTAMP_ISO8601(job.started_at) AT TIME ZONE :timezone\n        )\n    ) AS granularity_bucket,\n    IF(\n        LENGTH(job.labels) > 1,\n        ELEMENT_AT(job.labels, 2),\n        ELEMENT_AT(job.labels, 1)\n    ) as machine_type,\n    COUNT(*) as count,\nFROM\n    workflow_job job\n    INNER JOIN workflow_run workflow ON workflow.id = job.run_id\nWHERE\n    PARSE_TIMESTAMP_ISO8601(job.started_at) >= PARSE_DATETIME_ISO8601(:startTime)\n    AND PARSE_TIMESTAMP_ISO8601(workflow.created_at) >= PARSE_DATETIME_ISO8601(:startTime)\n    AND PARSE_TIMESTAMP_ISO8601(job.started_at) < PARSE_DATETIME_ISO8601(:stopTime)\n    AND PARSE_TIMESTAMP_ISO8601(workflow.created_at) < PARSE_DATETIME_ISO8601(:stopTime)\n    AND IF(\n        LENGTH(job.labels) > 1,\n        ELEMENT_AT(job.labels, 2),\n        ELEMENT_AT(job.labels, 1)\n    ) IS NOT NULL\nGROUP BY\n    granularity_bucket,\n    machine_type\nORDER BY\n    count DESC\n",
+      "default_parameters": [
+        {
+          "name": "granularity",
+          "type": "string",
+          "value": "hour"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-05-13T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-05-21T00:06:32.839Z"
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "value": "America/Los_Angeles"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

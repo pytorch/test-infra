@@ -1,12 +1,11 @@
-import { fetcher } from "lib/GeneralUtils";
+import { fetcherWithToken } from "lib/GeneralUtils";
 import { CommitData, JobData } from "lib/types";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useState } from "react";
 import useSWR from "swr";
-import { useCHContext } from "./UseClickhouseProvider";
+import { WithCommitData } from "./WithCommitData";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
@@ -16,9 +15,6 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     slow: "Run slow jobs",
     rocm: "Run rocm jobs",
     "linux-aarch64": "Run Linux ARMv8 jobs",
-    "inductor-periodic": "Run inductor jobs",
-    "inductor-cu124": "Run inductor-cu124 jobs",
-    xpu: "Run XPU jobs",
   },
 };
 
@@ -58,12 +54,12 @@ function Workflow({
 
   const url = `/api/github/dispatch/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
-
   useSWR(
-    isClicked && !alreadyRun ? [url, accessToken] : null,
-    ([url, token]) => fetch(url, { headers: { Authorization: token } }),
+    [isClicked && !alreadyRun ? url : null, accessToken],
+    fetcherWithToken,
     {
       revalidateOnFocus: false,
+      revalidateOnMount: false,
       revalidateOnReconnect: false,
       refreshWhenOffline: false,
       refreshWhenHidden: false,
@@ -168,25 +164,8 @@ export function SingleWorkflowDispatcher({
     repoName = "pytorch";
   }
 
-  const useCH = useCHContext().useCH;
-
-  const { data, error } = useSWR<CommitApiResponse>(
-    runMoreJobsClicked && `/api/${repoOwner}/${repoName}/commit/${sha}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
-
   // extract workflow key from the jobName
-  let workflow = jobName.split(new RegExp(" / "))[0]?.toLowerCase()?.trim();
-  if (workflow === "inductor-periodic") {
-    // inductor-periodic gets run by ciflow/inductor
-    workflow = "inductor";
-  }
+  const workflow = jobName.split(new RegExp("[/-]"))[0]?.toLowerCase()?.trim();
 
   const repo = `${repoOwner}/${repoName}`;
   if (
@@ -202,6 +181,7 @@ export function SingleWorkflowDispatcher({
 
   const accessToken = session.data["accessToken"];
 
+  // avoid commit data fetching if the user hasn't clicked the button
   if (!runMoreJobsClicked) {
     return (
       <div>
@@ -212,24 +192,24 @@ export function SingleWorkflowDispatcher({
     );
   }
 
-  if (error != null) {
-    return <div>Error occurred</div>;
-  }
-
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <div>
-      <Workflow
-        accessToken={accessToken}
+      <WithCommitData
+        sha={sha}
         repoOwner={repoOwner as string}
         repoName={repoName as string}
-        workflow={workflow}
-        sha={sha}
-        jobs={data.jobs}
-      />
+      >
+        {({ commit, jobs }) => (
+          <Workflow
+            accessToken={accessToken}
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            workflow={workflow}
+            sha={sha}
+            jobs={jobs}
+          />
+        )}
+      </WithCommitData>
     </div>
   );
 }

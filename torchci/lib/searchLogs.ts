@@ -1,4 +1,3 @@
-import { IsJobInProgress } from "./JobClassifierUtil";
 import { JobData } from "./types";
 
 export interface LogSearchResult {
@@ -53,10 +52,10 @@ async function searchLog(
 ): Promise<LogSearchResult> {
   // Search individual log
   try {
-    if (IsJobInProgress(job.conclusion)) {
+    if (job.conclusion == "pending") {
       return {
         results: [],
-        info: "Job is still in progress",
+        info: "Job is still running",
       };
     }
 

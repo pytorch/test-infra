@@ -1,10 +1,11 @@
 import argparse
+import json
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple
 
-import requests
+import rockset  # type: ignore[import]
 
 from setuptools import distutils  # type: ignore[import]
 from torchci.check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
@@ -66,10 +67,10 @@ def gen_issue(queues: List[QueueInfo]) -> Any:
     return issue
 
 
-def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
+def filter_long_queues(rockset_result: List[Dict[str, Any]]) -> List[QueueInfo]:
     large_queue: List[QueueInfo] = []
 
-    for result in db_result:
+    for result in rockset_result:
         avg_queue_s, count, machine_type = (
             result["avg_queue_s"],
             result["count"],
@@ -88,13 +89,20 @@ def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
 
 
 def queuing_alert(dry_run: bool) -> None:
-    # %7B%7D = encoded {}
-    url = (
-        "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+    rs_client = rockset.RocksetClient(
+        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
-    response = requests.get(url).json()
+    with open(PROD_VERSIONS_FILE) as f:
+        prod_versions = json.load(f)
 
-    large_queue = filter_long_queues(response)
+    # same lambda as the same used by the chart on the hud metrics page
+    response = rs_client.QueryLambdas.execute_query_lambda(
+        query_lambda="queued_jobs_by_label",
+        version=prod_versions["metrics"]["queued_jobs_by_label"],
+        workspace="metrics",
+    )
+
+    large_queue = filter_long_queues(response.results)
 
     existing_alerts = fetch_alerts([QUEUE_ALERT_LABEL])
 
@@ -120,7 +128,7 @@ def queuing_alert(dry_run: bool) -> None:
         new_issue = gen_issue(large_queue)
         update_issue(new_issue, existing_issue, update_comment, dry_run=dry_run)
     else:
-        print("No new change for queuing alert")
+        print(f"No new change for queuing alert")
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,14 +1,13 @@
 import {
+  GhRunners,
   createGitHubClientForRunnerInstallId,
   createGitHubClientForRunnerOrg,
   createGitHubClientForRunnerRepo,
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
-  getGitHubRateLimit,
   getRunnerOrg,
   getRunnerRepo,
   getRunnerTypes,
-  GhRunners,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
   removeGithubRunnerOrg,
@@ -21,7 +20,7 @@ import { ScaleUpMetrics } from './metrics';
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
 import { mocked } from 'ts-jest/utils';
-import { locallyCached, redisCached } from './cache';
+import { locallyCached } from './cache';
 import nock from 'nock';
 
 const mockEC2 = {
@@ -668,13 +667,12 @@ runner_types:
     linux.2xlarge:
       instance_type: c5.2xlarge
       os: linux
-      min_available: 1
+      max_available: 1
       disk_size: 150
       is_ephemeral: false
     linux.4xlarge:
       instance_type: c5.2xlarge
       os: linux
-      min_available: 1
       max_available: 1
       disk_size: 150
       is_ephemeral: false
@@ -688,8 +686,7 @@ runner_types:
     lf.linux.4xlarge:
       instance_type: c5.2xlarge
       os: linux
-      min_available: 1
-      max_available: -1
+      max_available: 1
       disk_size: 150
       is_ephemeral: false
       variants:
@@ -698,7 +695,7 @@ runner_types:
     lf.c.linux.4xlarge:
       instance_type: c5.2xlarge
       os: linux
-      min_available: 1
+      max_available: 1
       disk_size: 150
       is_ephemeral: false
       variants:
@@ -712,7 +709,7 @@ runner_types:
         runnerTypeName: 'linux.2xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        min_available: 1,
+        max_available: 1,
         disk_size: 150,
         is_ephemeral: false,
       },
@@ -724,7 +721,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
       },
@@ -736,7 +732,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        min_available: 1,
         disk_size: 150,
         is_ephemeral: true,
       },
@@ -748,7 +743,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        min_available: 1,
         disk_size: 300,
         is_ephemeral: false,
       },
@@ -760,7 +754,6 @@ runner_types:
         instance_type: 'c5.2xlarge',
         os: 'linux',
         max_available: 1,
-        min_available: 1,
         disk_size: 150,
         is_ephemeral: false,
         ami: 'ami-123',
@@ -772,8 +765,7 @@ runner_types:
         runnerTypeName: 'lf.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: -1,
-        min_available: 1,
+        max_available: 1,
         disk_size: 150,
         is_ephemeral: false,
       },
@@ -784,8 +776,7 @@ runner_types:
         runnerTypeName: 'lf.ephemeral.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        max_available: -1,
-        min_available: 1,
+        max_available: 1,
         disk_size: 150,
         is_ephemeral: true,
       },
@@ -796,7 +787,7 @@ runner_types:
         runnerTypeName: 'lf.c.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        min_available: 1,
+        max_available: 1,
         disk_size: 150,
         is_ephemeral: false,
       },
@@ -807,7 +798,7 @@ runner_types:
         runnerTypeName: 'lf.c.ephemeral.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
-        min_available: 1,
+        max_available: 1,
         disk_size: 150,
         is_ephemeral: true,
       },
@@ -1074,54 +1065,6 @@ describe('createRegistrationToken', () => {
       await expect(createRegistrationTokenOrg(org, metrics)).rejects.toThrow(Error);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
-    });
-  });
-});
-
-describe('getGitHubRateLimit', () => {
-  const repo = { owner: 'owner', repo: 'repo' };
-
-  it('succeeds, make sure it is using the cache mechanism', async () => {
-    const mocckedRedisCache = mocked(redisCached).mockImplementationOnce((_, __, ___, ____, f) => f());
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
-    });
-    const mockedOctokit = {
-      actions: {
-        deleteSelfHostedRunnerFromRepo: jest.fn().mockResolvedValue({
-          status: 204,
-        }),
-      },
-      apps: { getRepoInstallation: getRepoInstallation },
-      rateLimit: {
-        get: jest.fn().mockResolvedValue({
-          data: {},
-          headers: {
-            'x-ratelimit-limit': '5000',
-            'x-ratelimit-remaining': '4999',
-            'x-ratelimit-used': '1',
-          },
-          status: 200,
-        }),
-      },
-    };
-
-    mockCreateGithubAuth.mockResolvedValueOnce('token1');
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce('token2');
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-
-    await resetGHRunnersCaches();
-    const response = await getGitHubRateLimit(repo, metrics);
-
-    expect(mocckedRedisCache).toBeCalledTimes(2);
-    expect(mockedOctokit.rateLimit.get).toBeCalledTimes(1);
-    expect(response).toEqual({
-      limit: 5000,
-      remaining: 4999,
-      used: 1,
     });
   });
 });

@@ -1,6 +1,6 @@
 self-hosted-runner:
   labels:
-    - macos-13
+    - macos-12-xl
     - macos-m1-stable
     - linux.12xlarge
     - linux.2xlarge

@@ -13,21 +13,15 @@ runs:
           # Pulled from instance metadata endpoint for EC2
           # see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
           category=$1
-          curl -H "X-aws-ec2-metadata-token: $(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30")" -fsSL "http://169.254.169.254/latest/meta-data/${category}"
+          curl -fsSL "http://169.254.169.254/latest/meta-data/${category}"
         }
         echo "ami-id: $(get_ec2_metadata ami-id)"
         echo "instance-id: $(get_ec2_metadata instance-id)"
         echo "instance-type: $(get_ec2_metadata instance-type)"
         echo "system info $(uname -a)"
 
-    - name: Check if in a container runner
-      shell: bash
-      id: check_container_runner
-      run: echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
-
     - name: Start docker if docker deamon is not running
       shell: bash
-      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       run: |
         if systemctl is-active --quiet docker; then
             echo "Docker daemon is running...";
@@ -73,7 +67,6 @@ runs:
         echo "RUNNER_DOCS_DIR=${RUNNER_DOCS_DIR}" >> "${GITHUB_ENV}"
 
     - name: Needs nvidia driver?
-      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       shell: bash
       id: needs-nvidia-driver
       run: |
@@ -85,21 +78,9 @@ runs:
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
       uses: pytorch/test-infra/.github/actions/setup-nvidia@main
-      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'}}
-
-    - name: Set GPU_FLAG if in a container that has a NVIDIA GPU
-      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'true' }}
-      shell: bash
-      run: |
-        if compgen -G "/dev/nvidia[0-9]" ; then
-          echo "Found NVIDIA GPU device in /dev/nvidiaX, exporting GPU_FLAG"
-          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
-        else
-          echo "No NVIDIA GPU device found in /dev/nvidiaX, not exporting GPU_FLAG"
-        fi
+      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
 
     - name: Kill any existing containers, clean up images
-      if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' }}
       shell: bash
       run: |
         # ignore expansion of "docker ps -q" since it could be empty

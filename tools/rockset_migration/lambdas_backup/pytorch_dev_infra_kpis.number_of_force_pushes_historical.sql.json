@@ -1,0 +1,20 @@
+{
+  "query": "SELECT\n    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, issue_comment.created)) AS bucket,\n    COUNT(DISTINCT issue_comment.issue_url) AS count\nFROM\n    commons.issue_comment\nWHERE\n    issue_comment.body LIKE '%@pytorchbot merge -f%'\n    AND created >= PARSE_DATETIME_ISO8601(:startTime)\n    AND created < PARSE_DATETIME_ISO8601(:stopTime)\n    AND issue_comment.user.login NOT LIKE '%pytorch-bot%'\n    AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'\n    AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'\ngroup by\n    bucket\norder by\n    bucket\n",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    }
+  ]
+}

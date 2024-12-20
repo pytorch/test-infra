@@ -1,0 +1,23 @@
+name: Test the update viable/strict
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/update-viablestrict.yml
+      - .github/workflows/test-update-viablestrict.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/update-viablestrict.yml
+    with:
+      repository: pytorch/vision
+      viable_strict_branch: test_strict
+      required_checks: "Build Linux,Build M1,Build Macos,Unit-tests on Linux,Unit-tests on M1"
+    secrets:
+      ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+      GITHUB_DEPLOY_KEY: ${{ secrets.VISION_GITHUB_DEPLOY_KEY }}

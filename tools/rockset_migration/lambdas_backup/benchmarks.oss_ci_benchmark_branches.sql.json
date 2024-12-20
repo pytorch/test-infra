@@ -1,0 +1,30 @@
+{
+  "query": "--- This query is used to get the list of branches and commits used by different\n--- OSS CI benchmark experiments. This powers HUD benchmarks dashboards\nSELECT\n  DISTINCT w.head_branch,\n  w.head_sha,\n  w.id,\n  FORMAT_ISO8601(\n    DATE_TRUNC(: granularity, o._event_time)\n  ) AS event_time,\n  o.filename\nFROM\n  benchmarks.oss_ci_benchmark o\n  LEFT JOIN commons.workflow_run w ON o.workflow_id = w.id\nWHERE\n  o._event_time >= PARSE_DATETIME_ISO8601(: startTime)\n  AND o._event_time < PARSE_DATETIME_ISO8601(: stopTime)\n  AND (\n    ARRAY_CONTAINS(\n      SPLIT(: filenames, ','),\n      o.filename\n    )\n    OR : filenames = ''\n  )\n  AND o.metric IS NOT NULL\n  AND w.html_url LIKE CONCAT('%', : repo, '%')\n  AND o.dtype IS NOT NULL\n  AND o.device IS NOT NULL\nORDER BY\n  w.head_branch,\n  event_time DESC",
+  "default_parameters": [
+    {
+      "name": "filenames",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2024-05-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2024-08-01T00:00:00.00Z"
+    }
+  ]
+}

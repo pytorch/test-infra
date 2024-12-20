@@ -50,16 +50,8 @@ function NavBar() {
       href: "/torchbench/userbenchmark",
     },
     {
-      name: "PyTorch LLMs",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
-    },
-    {
-      name: "ExecuTorch",
-      href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-    },
-    {
-      name: "TorchAO LLMs",
-      href: "/benchmark/llms?repoName=pytorch%2Fao",
+      name: "LLMs",
+      href: "/benchmark/llms",
     },
   ];
 
@@ -94,8 +86,8 @@ function NavBar() {
       href: "/disabled",
     },
     {
-      name: "Cost Analysis",
-      href: "/cost_analysis",
+      name: "Testing Overhead",
+      href: "/testing_overhead",
     },
   ];
 
@@ -163,9 +155,10 @@ function NavBar() {
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "black" }}
             >
-              <AiFillGithub />
+              <a style={{ color: "black" }}>
+                <AiFillGithub />
+              </a>
             </Link>
           </li>
           <li style={{ padding: "0 1rem" }}>

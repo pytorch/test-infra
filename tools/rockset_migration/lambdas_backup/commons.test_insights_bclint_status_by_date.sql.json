@@ -1,0 +1,4 @@
+{
+  "query": "WITH test_runs AS (\n  SELECT \n    *,\n    DATE(_event_time) AS event_date\n  FROM \n    commons.workflow_run \n  WHERE \n    workflow_run._event_time >= PARSE_DATETIME_ISO8601('2023-04-27T00:00:00.000Z') \n    AND workflow_run.name = 'BC Lint'\n)\nSELECT\n  event_date,\n  conclusion as status,\n  COUNT(*) as status_count\nFROM test_runs\nGROUP BY event_date, status\nORDER BY event_date desc, status",
+  "default_parameters": []
+}

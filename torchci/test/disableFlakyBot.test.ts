@@ -166,7 +166,6 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -189,7 +188,6 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -225,7 +223,6 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -248,7 +245,6 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -333,7 +329,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       })
       .reply(200, {});
 
-    const issues: IssueData[] = [
+    const issues = [
       {
         number: 1,
         title: "DISABLED test_a (__main__.suite_a)",
@@ -342,7 +338,6 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -368,7 +363,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       })
       .reply(200, {});
 
-    const issues: IssueData[] = [
+    const issues = [
       {
         number: 1,
         title: "DISABLED test_a (__main__.suite_a)",
@@ -377,7 +372,6 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         body: "random",
         updated_at: dayjs().toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -411,7 +405,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       })
       .reply(200, {});
 
-    const issues: IssueData[] = [
+    const issues = [
       {
         number: 1,
         title: "DISABLED test_a (__main__.suite_a)",
@@ -425,7 +419,6 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           )
           .toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -452,7 +445,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       })
       .reply(200, {});
 
-    const issues: IssueData[] = [
+    const issues = [
       {
         number: 1,
         title: "DISABLED test_a (__main__.suite_a)",
@@ -466,7 +459,6 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           )
           .toString(),
         author_association: "MEMBER",
-        labels: [],
       },
     ];
 
@@ -939,7 +931,6 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       body: "",
       updated_at: "",
       author_association: "MEMBER",
-      labels: [],
     };
     const closedSmall: IssueData = { ...openSmall, number: 2, state: "closed" };
     const openBig: IssueData = { ...openSmall, number: 3 };
@@ -991,7 +982,15 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
   });
 
   describe("updateExistingIssueForFlakyTest", () => {
-    const defaultIssue = utils.genIssueData({});
+    const defaultIssue: IssueData = {
+      number: 1,
+      title: "",
+      html_url: "",
+      state: "open",
+      body: "",
+      updated_at: "",
+      author_association: "MEMBER",
+    };
     beforeEach(() => {});
 
     afterEach(() => {

@@ -1,0 +1,10 @@
+{
+  "query": "with master_commits as (\n    select\n        pr_num,\n        sha,\n        commit.timestamp as commit_time,\n    from\n        commit\n    where\n        ref = 'refs/heads/master'\n        and commit.repository.name = 'pytorch'\n        and commit.repository.owner.name = 'pytorch'\n        and PARSE_TIMESTAMP_ISO8601(commit.timestamp) > PARSE_DATETIME_ISO8601(:startTime)\n),\nhead_shas as (\n    select\n        p.number,\n        p.head.sha as head_sha,\n        master_commits.sha as master_sha,\n        master_commits.commit_time\n    from\n        commons.pull_request p\n        inner join master_commits on cast(p.number as string) = master_commits.pr_num\n),\nsignals as (\n    select\n        sum(\n            case\n                when (\n                    runs.conclusion != 'success'\n                    and runs.conclusion != 'skipped'\n                ) then 1\n                else 0\n            end\n        ) as runs_failed,\n        runs.head_sha,\n        head_shas.commit_time,\n        head_shas.number\n    from\n        commons.workflow_run runs\n        inner join head_shas on runs.head_sha = head_shas.head_sha\n    group by\n        runs.head_sha,\n        head_shas.commit_time,\n        head_shas.number\n)\nselect\n    date_trunc('week', PARSE_TIMESTAMP_ISO8601(commit_time)) as week_bucket,\n    sum(\n        case\n            when runs_failed > 0 then 1\n            else 0\n        end\n    ) * 100.0 / count(*) as percent_ignored,\nfrom\n    signals\ngroup by\n    week_bucket\norder by\n    week_bucket\n",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    }
+  ]
+}

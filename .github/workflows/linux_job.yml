@@ -60,7 +60,7 @@ on:
         type: string
       docker-image:
         description: Identifies the Docker image by name.
-        default: "pytorch/conda-builder"
+        default: "pytorch/almalinux-builder"
         type: string
       docker-build-dir:
         description: |
@@ -85,6 +85,10 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      rocm:
+        description: "Run with ROCm"
+        default: false
+        type: boolean
       binary-matrix:
         description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
         required: false
@@ -106,12 +110,13 @@ on:
         type: boolean
 jobs:
   job:
-    strategy:
-      fail-fast: false
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
+        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}',
+                                                                      inputs.gpu-arch-type,
+                                                                      inputs.gpu-arch-version)
+                                                           || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
@@ -143,7 +148,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
@@ -157,6 +162,11 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+        if: ${{ inputs.rocm == false }}
+
+      - name: Setup ROCm
+        uses: amdfaa/pytorch/.github/actions/setup-rocm@torchao_experiment
+        if: ${{ inputs.rocm == true }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
@@ -167,7 +177,7 @@ jobs:
                docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
@@ -190,16 +200,6 @@ jobs:
         with:
           docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
 
-      - name: Check if in a container runner
-        shell: bash
-        id: check_container_runner
-        run: echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
-
-      - name: Setup SCCACHE_SERVER_PORT environment for docker run when on container
-        id: setup-sscache-port-flag
-        run: echo "SCCACHE_SERVER_PORT_DOCKER_FLAG=-e SCCACHE_SERVER_PORT=$((RUNNER_UID + 4226))" >> "${GITHUB_ENV}"
-        if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'true' }}
-
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
         if: ${{ inputs.download-artifact != '' }}
@@ -221,6 +221,7 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
+          ROCM: ${{ inputs.rocm }}
         run: |
           set -ex
           {
@@ -232,15 +233,6 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-
-          function handle_error() {
-            echo "Please note: We are currently migrating Linux Wheel builds to Manywheel 2.28"
-            echo "If you see error like: ImportError: /lib64/libc.so.6: version GLIBC_2.28 not found"
-            echo "Please migrate to: https://github.com/pytorch/test-infra/blob/main/.github/workflows/linux_job_v2.yml"
-            echo "Issue: https://github.com/pytorch/pytorch/issues/123649"
-          }
-          trap handle_error ERR
-
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
@@ -269,21 +261,20 @@ jobs:
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
-        if: always()
         uses: pmeier/pytest-results-action@v0.3.0
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
 
       - name: Chown repository directory
-        if: always()
+        #if: ${{ inputs.rocm == false }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
           ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
-        if: always()
+        #if: ${{ inputs.rocm == false }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ runner.temp }}
@@ -354,11 +345,11 @@ jobs:
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Teardown Linux
-        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
+        if: ${{ always() }}
         uses: ./test-infra/.github/actions/teardown-linux
 
       - name: Clean workspace after tear down
-        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
+        if: ${{ always() }}
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
           REPOSITORY: ${{ inputs.repository || github.repository }}

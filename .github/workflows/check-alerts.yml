@@ -41,7 +41,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Install Dependencies
         run: pip3 install requests setuptools==61.2.0
       - name: Check for alerts and creates issue
@@ -55,14 +55,15 @@ jobs:
   update-queue-alert:
     env:
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
     runs-on: ubuntu-22.04
     permissions:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Install Dependencies
-        run: pip3 install requests setuptools==61.2.0
+        run: pip3 install requests setuptools==61.2.0 rockset==1.0.3
       - name: Check for alerts and creates issue
         run: |
           cd tools

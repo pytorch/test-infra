@@ -23,7 +23,7 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout pytorch/test-infra repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       with:
         repository: pytorch/test-infra
         path: _test-infra

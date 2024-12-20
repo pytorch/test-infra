@@ -1,0 +1,50 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-03-31T22:13:24Z",
+  "name": "external_contribution_stats",
+  "version_count": 1,
+  "collections": [
+    "metrics.external_contribution_stats"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-03-31T22:13:24Z",
+    "name": "external_contribution_stats",
+    "version": "d98863128f502cdb",
+    "description": "pr count and number of unique external contributors per day",
+    "sql": {
+      "query": "WITH rolling_average_table as (\n  SELECT\n    FORMAT_ISO8601(\n        CAST(date as date)\n    ) AS granularity_bucket,\n    -- weekly granularity with a 4 week rolling average\n    TRUNC(SUM(pr_count)\n           OVER(ORDER BY date ROWS 27 PRECEDING),1)/4\n           AS weekly_pr_count_rolling_average,\n  TRUNC(LENGTH(ARRAY_DISTINCT(ARRAY_FLATTEN(ARRAY_AGG(users)\n  OVER(ORDER BY date ROWS 27 PRECEDING)))),1)/4 as weekly_user_count_rolling_average,\nFROM\n    metrics.external_contribution_stats\n    WHERE CAST(date as date) >= PARSE_DATETIME_ISO8601(:startTime) - DAYS(28)\n    AND CAST(date as date) < PARSE_DATETIME_ISO8601(:stopTime)\n)\nSELECT\ngranularity_bucket,\nweekly_pr_count_rolling_average AS pr_count,\nweekly_user_count_rolling_average AS user_count,\nFROM\nrolling_average_table\nWHERE CAST(granularity_bucket as date) >= PARSE_DATETIME_ISO8601(:startTime)\n    AND CAST(granularity_bucket as date) < PARSE_DATETIME_ISO8601(:stopTime)\n    AND (DATE_DIFF('DAY', CAST(granularity_bucket as date), CAST(PARSE_DATETIME_ISO8601(:startTime) as date)) % 7) = 0",
+      "default_parameters": [
+        {
+          "name": "granularity",
+          "type": "string",
+          "value": "day"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-06-01T00:06:32.839Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2023-03-07T00:06:32.839Z"
+        }
+      ]
+    },
+    "collections": [
+      "metrics.external_contribution_stats"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T13:36:23Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2023-12-26T06:04:01Z",
+      "last_execution_error_message": "Query timeout reached. To extend the query timeout, run an async query by setting `async` to true. Otherwise, please upgrade to a larger Virtual Instance or contact Rockset customer support for assistance constructing a more efficient query."
+    },
+    "public_access_id": null
+  }
+}

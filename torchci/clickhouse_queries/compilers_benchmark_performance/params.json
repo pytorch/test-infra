@@ -1,7 +1,7 @@
 {
-  "branches": "Array(String)",
-  "commits": "Array(String)",
-  "compilers": "Array(String)",
+  "branches": "String",
+  "commits": "String",
+  "compilers": "String",
   "device": "String",
   "dtypes": "String",
   "getJobId": "Bool",
@@ -9,6 +9,7 @@
   "mode": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)",
-  "suites": "Array(String)",
+  "suites": "String",
+  "timezone": "String",
   "workflowId": "Int64"
 }

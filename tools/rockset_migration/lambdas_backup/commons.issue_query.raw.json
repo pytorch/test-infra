@@ -1,0 +1,40 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "csl@fb.com",
+  "last_updated": "2023-05-24T22:42:20Z",
+  "name": "issue_query",
+  "version_count": 1,
+  "collections": [
+    "commons.issues"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "csl@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-24T22:42:20Z",
+    "name": "issue_query",
+    "version": "e4d338de89980044",
+    "description": null,
+    "sql": {
+      "query": "SELECT\n    issue.number,\n    issue.title,\n    issue.html_url,\n    issue.state,\n    issue.body,\n    issue.updated_at,\n    issue.author_association,\nFROM\n    issues AS issue\n    CROSS JOIN UNNEST(issue.labels AS label) AS labels\nWHERE\n    labels.label.name =: label\n",
+      "default_parameters": [
+        {
+          "name": "label",
+          "type": "string",
+          "value": "skipped"
+        }
+      ]
+    },
+    "collections": [
+      "commons.issues"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T16:31:13Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-05-15T16:19:48Z",
+      "last_execution_error_message": "RESOURCE_EXHAUSTED: The instance size you are using does not have the memory capacity to execute the current workload. Please upgrade to a larger instance size, or reduce the rate or complexity of the queries you are running."
+    },
+    "public_access_id": null
+  }
+}

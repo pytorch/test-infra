@@ -1,0 +1,20 @@
+{
+  "query": "SELECT\n    AVG(\n        DATE_DIFF(\n            'second',\n            PARSE_TIMESTAMP_ISO8601(workflow.created_at),\n            PARSE_TIMESTAMP_ISO8601(workflow.updated_at)\n        )\n    ) as duration_sec,\n    name\nFROM\n    commons.workflow_run workflow\nWHERE\n    conclusion = 'success'\n    AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))\n    AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n    AND workflow.run_attempt = 1\nGROUP BY\n    workflow.name\nORDER BY\n    duration_sec DESC\n",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-02-22T00:08:03.395Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-03-01T00:08:03.395Z"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk"
+    }
+  ]
+}

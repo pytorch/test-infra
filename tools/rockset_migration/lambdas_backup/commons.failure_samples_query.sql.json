@@ -1,0 +1,20 @@
+{
+  "query": "SELECT\n    job._event_time AS time,\n    w.name AS workflowName,\n    job.name AS jobName,\n    CONCAT(w.name, ' / ', job.name) AS name,\n    w.head_sha AS sha,\n    job.id AS id,\n    w.head_branch as branch,\n    CASE\n        WHEN job.conclusion IS NULL THEN 'pending'\n        ELSE job.conclusion\n    END AS conclusion,\n    job.html_url AS htmlUrl,\n    CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        CAST(job.id AS string)\n    ) AS logUrl,\n    DATE_DIFF(\n        'SECOND',\n        PARSE_TIMESTAMP_ISO8601(job.started_at),\n        PARSE_TIMESTAMP_ISO8601(job.completed_at)\n    ) AS durationS,\n    ARRAY_CREATE(job.torchci_classification.line) AS failureLines,\n    ARRAY_CREATE(job.torchci_classification.line_num) AS failureLineNumbers,\n    job.torchci_classification.context AS failureContext,\n    job.torchci_classification.captures AS failureCaptures,\nFROM\n    commons.workflow_job job\n    JOIN commons.workflow_run w HINT(access_path = column_scan) ON w.id = job.run_id\nWHERE\n    w.head_branch LIKE :branch\n    AND w.head_repository.full_name = :repo\n    AND job.torchci_classification.line LIKE FORMAT('%{}%', REGEXP_REPLACE(:captures, ',', '%'))\nORDER BY\n    job.torchci_classification._event_time DESC\n",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "captures",
+      "type": "string",
+      "value": "test_cublas_baddbmm_large_input_1_10000_10000_10000_cuda_float32,TestMatmulCudaCUDA"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    }
+  ]
+}

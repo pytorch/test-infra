@@ -1,0 +1,55 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-05-09T04:10:53Z",
+  "name": "test_time_per_oncall",
+  "version_count": 1,
+  "collections": [
+    "metrics.aggregated_test_metrics_with_preproc"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-09T04:10:53Z",
+    "name": "test_time_per_oncall",
+    "version": "a85f4d3243d90f51",
+    "description": null,
+    "sql": {
+      "query": "With\n    workflow_summed_table AS (\n        SELECT\n            workflow_id,\n            -- sum by job name to get total over all shards\n            SUM(sum_duration_in_second) as sum_duration_in_second,\n            oncalls,\n            date,\n            workflow_name\n        FROM\n            metrics.aggregated_test_metrics_with_preproc\n        WHERE\n            DATE_TRUNC('DAY', date) >= DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: startDate))\n            AND DATE_TRUNC('DAY', date) < DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: endDate))\n            AND workflow_name LIKE: workflow_type\n        GROUP BY\n            workflow_id,\n            workflow_name,\n            date,\n            oncalls\n    ),\n    filtered_table AS (\n        SELECT\n            AVG(sum_duration_in_second) as avg_duration_in_second,\n            oncalls,\n            date,\n            workflow_name,\n        FROM\n            workflow_summed_table\n        GROUP BY\n            workflow_name,\n            date,\n            oncalls\n    ),\n    filtered_with_oncalls as (\n        SELECT\n            *\n        FROM\n            (\n                filtered_table\n                CROSS JOIN UNNEST(oncalls AS oncall)\n            )\n        WHERE\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') LIKE: oncall\n    ),\n    t as (\n        SELECT\n            avg_duration_in_second as time_in_seconds,\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') as oncall,\n            CAST(filtered_with_oncalls.date AS STRING) as granularity_bucket,\n            filtered_with_oncalls.workflow_name as workflow_name,\n        FROM\n            filtered_with_oncalls\n    )\nSELECT\n    *,\nFROM\n    t\nORDER BY\n    time_in_seconds DESC\n",
+      "default_parameters": [
+        {
+          "name": "endDate",
+          "type": "string",
+          "value": "2023-04-10T00:06:32.839Z"
+        },
+        {
+          "name": "oncall",
+          "type": "string",
+          "value": "%"
+        },
+        {
+          "name": "startDate",
+          "type": "string",
+          "value": "2023-04-09T00:06:32.839Z"
+        },
+        {
+          "name": "workflow_type",
+          "type": "string",
+          "value": "pull"
+        }
+      ]
+    },
+    "collections": [
+      "metrics.aggregated_test_metrics_with_preproc"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-03-01T01:55:24Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

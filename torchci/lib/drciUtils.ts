@@ -12,7 +12,7 @@ import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
 import { Octokit } from "octokit";
 import { isDrCIEnabled, isPyTorchPyTorch, isTime0, TIME_0 } from "./bot/utils";
-import { queryClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { queryClickhouseSaved } from "./clickhouse";
 // Import itself to ensure that mocks can be applied, see
 // https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
@@ -130,15 +130,13 @@ export async function getDrciComment(
   return { id: 0, body: "" };
 }
 
-export function isMergeBlockingSev(issue: IssueData): boolean {
-  return issue.labels.includes("merge blocking");
-}
-
 export function getActiveSEVs(issues: IssueData[]): [IssueData[], IssueData[]] {
   const activeSEVs = issues.filter(
     (issue: IssueData) => issue.state === "open"
   );
-  return _.partition(activeSEVs, isMergeBlockingSev);
+  return _.partition(activeSEVs, (issue: IssueData) =>
+    issue.body.toLowerCase().includes("merge blocking")
+  );
 }
 
 export function formDrciSevBody(sevs: [IssueData[], IssueData[]]): string {
@@ -150,9 +148,14 @@ export function formDrciSevBody(sevs: [IssueData[], IssueData[]]): string {
     .concat(notMergeBlocking)
     .map(
       (issue: IssueData) =>
-        `* ${isMergeBlockingSev(issue) ? "(merge blocking) " : ""}[${
-          issue.title
-        }](${issue.html_url.replace("github.com", "hud.pytorch.org")})`
+        `* ${
+          issue.body.toLowerCase().includes("merge blocking")
+            ? "(merge blocking) "
+            : ""
+        }[${issue.title}](${issue.html_url.replace(
+          "github.com",
+          "hud.pytorch.org"
+        )})`
     )
     .join("\n");
   if (mergeBlocking.length > 0) {
@@ -427,27 +430,23 @@ export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
   return isExcluded(job, EXCLUDED_FROM_FLAKINESS);
 }
 
-export async function fetchPRLabels(
+export async function fetchIssueLabels(
+  octokit: Octokit,
   owner: string,
   repo: string,
-  prNumber: number
+  issueNumber: number
 ): Promise<string[]> {
-  const query = `
-SELECT
-    arrayJoin(pr.labels).'name' AS label
-from
-    default .pull_request pr final
-where
-    pr.number = {prNumber: Int64}
-    and pr.html_url like concat('https://github.com/', {owner: String}, '/', {repo:String}, '%')
-  `;
-
-  const labels = await queryClickhouse(query, {
-    prNumber,
-    owner,
-    repo,
+  const res = await octokit.rest.issues.listLabelsOnIssue({
+    owner: owner,
+    repo: repo,
+    issue_number: issueNumber,
   });
-  return labels.map((label: any) => label.label);
+
+  if (res.data === undefined || res.data == null) {
+    return [];
+  }
+
+  return _.map(res.data, (label) => label.name);
 }
 
 export function getSuppressedLabels(

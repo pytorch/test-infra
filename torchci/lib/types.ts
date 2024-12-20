@@ -5,7 +5,6 @@ export interface BasicJobData {
   name?: string;
   time?: string;
   conclusion?: string;
-  status?: string;
   runnerName?: string;
   authorEmail?: string;
 }
@@ -85,23 +84,16 @@ export interface Highlight {
   name?: string;
 }
 
-interface RowDataBase extends CommitData {
+export interface RowData extends CommitData {
+  jobs: JobData[];
+  groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
+  nameToJobs?: Map<string, JobData>;
 }
 
-export interface RowData extends RowDataBase {
-  nameToJobs: Map<string, JobData>;
-}
-
-// Returned by the API instead of the above type because it results in a smaller
-// response size
-export interface RowDataAPIResponse extends RowDataBase {
-  jobs: JobData[];
-}
-
-export interface HudDataAPIResponse {
-  shaGrid: RowDataAPIResponse[];
+export interface HudData {
+  shaGrid: RowData[];
   jobNames: string[];
 }
 
@@ -113,7 +105,6 @@ export interface IssueData {
   body: string;
   updated_at: string;
   author_association: string;
-  labels: string[];
 }
 
 export interface HudParams {
@@ -125,7 +116,7 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
-  mergeLF?: boolean;
+  use_ch: boolean;
 }
 
 export interface PRData {
@@ -238,7 +229,7 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
-    mergeLF: input.mergeLF as boolean,
+    use_ch: input.use_ch === "true",
   };
 }
 
@@ -279,9 +270,8 @@ function formatHudURL(
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
 
-  if (params.mergeLF) {
-    base += `&mergeLF=true`;
+  if (params.use_ch) {
+    base += `&use_ch=true`;
   }
-
   return base;
 }

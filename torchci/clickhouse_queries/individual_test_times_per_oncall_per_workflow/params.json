@@ -1,0 +1,7 @@
+{
+  "classname": "String",
+  "oncall": "String",
+  "queryDate": "String",
+  "thresholdInSecond": "Float64",
+  "workflow_name": "String"
+}

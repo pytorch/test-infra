@@ -1,0 +1,45 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "atalman@fb.com",
+  "last_updated": "2022-02-08T15:26:00Z",
+  "name": "cancelled_jobs",
+  "version_count": 2,
+  "collections": [
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "atalman@fb.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-02-08T15:26:00Z",
+    "name": "cancelled_jobs",
+    "version": "83ee333886e8a325",
+    "description": null,
+    "sql": {
+      "query": "SELECT concat('https://github.com/pytorch/pytorch/actions/runs/', CAST(id as string)) AS url, name, head_sha, head_commit_message, updated_at\nFROM commons.workflow_run\nwhere conclusion = 'cancelled' and head_branch = 'master' \n  AND _event_time >= PARSE_DATE_ISO8601(:startTime)\n  AND _event_time < PARSE_DATE_ISO8601(:stopTime)\nORDER BY updated_at desc\n\n",
+      "default_parameters": [
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-01-31"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-02-07"
+        }
+      ]
+    },
+    "collections": [
+      "commons.workflow_run"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

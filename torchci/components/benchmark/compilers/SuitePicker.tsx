@@ -6,7 +6,6 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
-// TODO: move to a common place
 export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
@@ -15,7 +14,6 @@ export const SUITES: { [k: string]: string } = {
   blueberries: "[Blueberries]",
 };
 
-// TODO: DELETE IT
 export function SuitePicker({
   suite,
   setSuite,
