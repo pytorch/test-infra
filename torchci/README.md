@@ -100,6 +100,25 @@ console.
 3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`. (You can skip `<version>` if you want the latest version). This will auto-update sql and lambda files in the `rockset/<workspace>` dir and the query version in `rockset/prodVersion.json`.
 4. Commit the updated files.
 
+## How to edit ClickHouse queries
+
+If you are familiar with the old setup for Rockset, ClickHouse does not have
+versioned query lambdas. Instead, queries are defined in `clickhouse_queries/`
+and HUD sends the entire query text to ClickHouse in the same way Rockset did
+for queries not defined using a query lambda.
+
+Each query should have a folder in `clickhouse_queries/` with two files: one
+containing the query and the other containing a json dictionary mapping
+parameters to their types.
+
+To edit the query, only these files need to be changed. The change will be
+reflected immediately in your local development and in the Vercel preview when
+you submit your PR.
+
+If you want to test your query in ClickHouse Cloud's console, you need to copy
+the query text into the console. If you make changes, you will have to copy the
+query back into the file.
+
 ## Alerts
 
 Code is in `test-infra/tools/torchci/check_alerts.py`. It queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
