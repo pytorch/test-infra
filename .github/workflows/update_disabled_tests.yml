@@ -36,7 +36,7 @@ jobs:
           if [ "$IN_ENVIRONMENT" = "true" ]; then
             ACTIONS="disable_tests disable_jobs unstable_jobs"
           else
-            ACTIONS="disable_tests disable_jobs"
+            ACTIONS="disable_tests"
           fi
           python3 .github/scripts/update_disabled_issues.py \
             --token $GITHUB_TOKEN \
@@ -47,6 +47,7 @@ jobs:
           cat disabled-tests-condensed.json
 
       - name: Print the list of disabled and unstable jobs
+        if: github.event_name != 'pull_request'
         run: |
           echo "Disabled jobs:"
           cat disabled-jobs.json
