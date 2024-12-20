@@ -15,10 +15,11 @@ function labelToTag(label: string, prNum: number): string {
 }
 
 function getAllPRTags(
-  context: Context<"pull_request"> | Context<"pull_request.closed">
+  context: Context,
+  payload: Context<"pull_request" | "pull_request.closed">["payload"]
 ) {
-  const prNum = context.payload.pull_request.number;
-  const labels = context.payload.pull_request.labels
+  const prNum = payload.pull_request.number;
+  const labels = payload.pull_request.labels
     .map((label) => label.name)
     .filter(isCIFlowLabel);
 
@@ -31,11 +32,7 @@ function getAllPRTags(
  * @param tag  looks like "ciflow/trunk/12345", where 12345 is the PR number.
  * @param headSha
  */
-async function syncTag(
-  context: Context<"pull_request"> | Context<"pull_request.labeled">,
-  tag: string,
-  headSha: string
-) {
+async function syncTag(context: Context, tag: string, headSha: string) {
   context.log.info(`Synchronizing tag ${tag} to head sha ${headSha}`);
   const matchingTags = await context.octokit.git.listMatchingRefs(
     context.repo({ ref: `tags/${tag}` })
@@ -67,10 +64,7 @@ async function syncTag(
  * Remove a tag from the repo if necessary.
  * @param tag  looks like "ciflow/trunk/12345", where 12345 is the PR number.
  */
-async function rmTag(
-  context: Context<"pull_request.closed"> | Context<"pull_request.unlabeled">,
-  tag: string
-) {
+async function rmTag(context: Context, tag: string) {
   context.log.info(`Cleaning up tag ${tag}`);
   const matchingTags = await context.octokit.git.listMatchingRefs(
     context.repo({ ref: `tags/${tag}` })
@@ -89,11 +83,14 @@ async function rmTag(
  * We check all the CIFlow labels on the PR and make sure the corresponding tags
  * are pointing to the PR's head SHA.
  */
-async function handleSyncEvent(context: Context<"pull_request">) {
+async function handleSyncEvent(
+  context: Context,
+  payload: Context<"pull_request">["payload"]
+) {
   context.log.debug("START Processing sync event");
 
-  const headSha = context.payload.pull_request.head.sha;
-  const tags = getAllPRTags(context);
+  const headSha = payload.pull_request.head.sha;
+  const tags = getAllPRTags(context, payload);
   const promises = tags.map(
     async (tag) => await syncTag(context, tag, headSha)
   );
@@ -103,41 +100,46 @@ async function handleSyncEvent(context: Context<"pull_request">) {
 
 // Remove the tag corresponding to the removed label.
 async function handleUnlabeledEvent(
-  context: Context<"pull_request.unlabeled">
+  context: Context,
+  payload: Context<"pull_request.unlabeled">["payload"]
 ) {
   context.log.debug("START Processing unlabeled event");
 
-  const label = context.payload.label.name;
+  const label = payload.label.name;
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const prNum = context.payload.pull_request.number;
-  const tag = labelToTag(context.payload.label.name, prNum);
+  const prNum = payload.pull_request.number;
+  const tag = labelToTag(payload.label.name, prNum);
   await rmTag(context, tag);
 }
 
 // Remove all tags as this PR is closed.
-async function handleClosedEvent(context: Context<"pull_request.closed">) {
+async function handleClosedEvent(
+  context: Context,
+  payload: Context<"pull_request.closed">["payload"]
+) {
   context.log.debug("START Processing rm event");
 
-  const tags = getAllPRTags(context);
+  const tags = getAllPRTags(context, payload);
   const promises = tags.map(async (tag) => await rmTag(context, tag));
   await Promise.all(promises);
 }
 
 // Add the tag corresponding to the new label.
 async function handleLabelEvent(
-  context: Context<"pull_request.labeled">,
+  context: Context,
+  payload: Context<"pull_request.labeled">["payload"],
   tracker: CachedConfigTracker
 ) {
   context.log.debug("START Processing label event");
-  if (context.payload.pull_request.state === "closed") {
+  if (payload.pull_request.state === "closed") {
     // Ignore closed PRs. If this PR is reopened, the tags will get pushed as
     // part of the sync event handling.
     return;
   }
 
-  const label = context.payload.label.name;
+  const label = payload.label.name;
   if (!isCIFlowLabel(label)) {
     return;
   }
@@ -151,17 +153,17 @@ async function handleLabelEvent(
           "No ciflow labels are configured for this repo.\n" +
           "For information on how to enable CIFlow bot see " +
           "this [wiki]( https://github.com/pytorch/test-infra/wiki/PyTorch-bot#ciflow-bot)",
-        issue_number: context.payload.pull_request.number,
+        issue_number: payload.pull_request.number,
       })
     );
     return;
   }
-  const prNum = context.payload.pull_request.number;
-  const owner = context.payload.repository.owner.login;
-  const repo = context.payload.repository.name;
+  const prNum = payload.pull_request.number;
+  const owner = payload.repository.owner.login;
+  const repo = payload.repository.name;
   const has_write_permissions = await hasWritePermissions(
     context,
-    context.payload.pull_request.user.login
+    payload.pull_request.user.login
   );
   const has_ci_approved = has_write_permissions
     ? true
@@ -169,7 +171,7 @@ async function handleLabelEvent(
         context.octokit,
         owner,
         repo,
-        context.payload.pull_request.head.sha
+        payload.pull_request.head.sha
       );
   if (!valid_labels.includes(label)) {
     let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
@@ -220,14 +222,14 @@ async function handleLabelEvent(
   if (prNum == 26921 && isPyTorchPyTorch(owner, repo)) {
     return;
   }
-  const tag = labelToTag(context.payload.label.name, prNum);
-  await syncTag(context, tag, context.payload.pull_request.head.sha);
+  const tag = labelToTag(payload.label.name, prNum);
+  await syncTag(context, tag, payload.pull_request.head.sha);
 }
 
 export default function ciflowPushTrigger(app: Probot) {
   const tracker = new CachedConfigTracker(app);
   app.on("pull_request.labeled", async (context) => {
-    await handleLabelEvent(context, tracker);
+    await handleLabelEvent(context, context.payload, tracker);
   });
   app.on(
     [
@@ -235,8 +237,14 @@ export default function ciflowPushTrigger(app: Probot) {
       "pull_request.opened",
       "pull_request.reopened",
     ],
-    handleSyncEvent
+    async (context) => {
+      await handleSyncEvent(context, context.payload);
+    }
   );
-  app.on("pull_request.closed", handleClosedEvent);
-  app.on("pull_request.unlabeled", handleUnlabeledEvent);
+  app.on("pull_request.closed", async (context) => {
+    await handleClosedEvent(context, context.payload);
+  });
+  app.on("pull_request.unlabeled", async (context) => {
+    await handleUnlabeledEvent(context, context.payload);
+  });
 }
