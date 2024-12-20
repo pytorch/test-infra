@@ -353,7 +353,10 @@ def generate_libtorch_matrix(
         if os == WINDOWS:
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
-            abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
+            if with_rocm == ENABLE:
+               abi_versions = [CXX11_ABI]
+            else:
+               abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
         elif os in [MACOS_ARM64]:
             abi_versions = [CXX11_ABI]
         else:
