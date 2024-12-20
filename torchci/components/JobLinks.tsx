@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
-import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
+import { IsJobInProgress } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
@@ -206,18 +206,18 @@ function formatUnstableJobBody() {
 }
 
 function UnstableJob({ job, label }: { job: JobData; label: string }) {
-  const swrKey = isFailure(job.conclusion) ? `/api/issue/${label}` : null;
-  const { data: issues } = useSWR<IssueLabelApiResponse>(swrKey, fetcher, {
-    // Set a 60s cache for the request, so that lots of tooltip hovers don't
-    // spam the backend. Since actually mutating the state (through filing a
-    // disable issue) is a pretty heavy operation, 60s of staleness is fine.
-    dedupingInterval: 60 * 1000,
-    refreshInterval: 60 * 1000, // refresh every minute
-  });
-
-  if (!isFailure(job.conclusion)) {
-    return null;
-  }
+  const swrKey = `/api/issue/${label}`;
+  const { data: issues, isLoading } = useSWR<IssueLabelApiResponse>(
+    swrKey,
+    fetcher,
+    {
+      // Set a 60s cache for the request, so that lots of tooltip hovers don't
+      // spam the backend. Since actually mutating the state (through filing a
+      // disable issue) is a pretty heavy operation, 60s of staleness is fine.
+      dedupingInterval: 60 * 1000,
+      refreshInterval: 60 * 1000, // refresh every minute
+    }
+  );
 
   const jobName = transformJobName(job.name);
   // Ignore invalid job name
@@ -226,8 +226,14 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   }
 
   // If we don't yet have any data, show a loading state.
-  if (issues === undefined) {
+  if (isLoading) {
     return <span>checking for disable jobs</span>;
+  }
+
+  if (issues === undefined) {
+    // Usually this means that it's loading but add this check just in case it
+    // actually returns undefined somehow and hide it from users.
+    return null;
   }
 
   // At this point, we should show something. Search the existing disable issues
@@ -238,6 +244,11 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const matchingIssues = issues.filter((issue) =>
     issueTitle.includes(issue.title)
   );
+
+  if (matchingIssues.length == 0) {
+    return null;
+  }
+
   const repo = job.repo ?? "pytorch/pytorch";
 
   return (
