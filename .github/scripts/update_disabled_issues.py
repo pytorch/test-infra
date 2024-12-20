@@ -266,7 +266,8 @@ def main() -> None:
         # and those that are not flaky anymore
         if "disable_tests" in args.actions:
             dump_json(
-                condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
+                condense_disable_tests(disable_test_issues),
+                "disabled-tests-condensed.json",
             )
         if "disable_jobs" in args.actions:
             dump_json(
