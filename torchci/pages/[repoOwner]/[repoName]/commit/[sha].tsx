@@ -2,8 +2,8 @@ import CommitStatus from "components/CommitStatus";
 import { useSetTitle } from "components/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 
 export function CommitInfo({
