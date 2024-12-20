@@ -6,7 +6,11 @@ Here is a checklist of all the different services used by the HUD. Ask
 @janeyx99 or @suo for help getting access to these services.
 
 - [Rockset](https://rockset.com/): primary data and metrics backend.
-- [Vercel](https://vercel.com/): hosting the website.
+- [Vercel](https://vercel.com/): hosting the website.  If you are a metamate,
+make a post [like
+this](https://fb.workplace.com/groups/osssupport/posts/27574509675504286) in the
+[Open Source - Support](https://fb.workplace.com/groups/773769332671684) group
+to get access to Vercel.
 - [Sematext](https://sematext.com/): log drain for our Vercel instance.
 - [AWS](http://aws.com/): data pipelines for populating Rockset, Lambda, S3, etc.
 
