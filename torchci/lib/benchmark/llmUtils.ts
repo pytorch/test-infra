@@ -1,27 +1,87 @@
 import {
   BranchAndCommitPerfData,
+  DEFAULT_DTYPE_NAME,
+  DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
 } from "components/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
 
 export function useBenchmark(
-  queryParams: { [key: string]: any },
-  branchAndCommit: BranchAndCommit
+  queryParams: RocksetParam[] | {},
+  modelName: string,
+  dtypeName: string,
+  deviceName: string,
+  branchAndCommit: BranchAndCommit,
+  useClickHouse: boolean = false,
+  getJobId: boolean = false
 ) {
   const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_llms";
 
-  const queryParamsWithBranchAndCommit: { [key: string]: any } = queryParams;
-  (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
-    branchAndCommit.branch ? [branchAndCommit.branch] : [];
-  (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
-    branchAndCommit.commit ? [branchAndCommit.commit] : [];
+  const queryParamsWithBranchAndCommit:
+    | RocksetParam[]
+    | { [key: string]: any } = useClickHouse
+    ? {
+        names: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
+        dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
+        getJobId: getJobId,
+        ...queryParams,
+      }
+    : [
+        {
+          name: "names",
+          type: "string",
+          value: modelName === DEFAULT_MODEL_NAME ? "" : modelName,
+        },
+        {
+          name: "dtypes",
+          type: "string",
+          value: dtypeName === DEFAULT_DTYPE_NAME ? "" : dtypeName,
+        },
+        {
+          name: "getJobId",
+          type: "bool",
+          value: getJobId,
+        },
+        ...(queryParams as RocksetParam[]),
+      ];
 
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithBranchAndCommit)
-  )}`;
+  if (useClickHouse) {
+    (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
+      branchAndCommit.branch ? [branchAndCommit.branch] : [];
+  } else {
+    if (branchAndCommit.branch) {
+      queryParamsWithBranchAndCommit.push({
+        name: "branches",
+        type: "string",
+        value: branchAndCommit.branch,
+      });
+    }
+  }
+
+  if (useClickHouse) {
+    (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
+      branchAndCommit.commit ? [branchAndCommit.commit] : [];
+  } else {
+    if (branchAndCommit.commit) {
+      queryParamsWithBranchAndCommit.push({
+        name: "commits",
+        type: "string",
+        value: branchAndCommit.commit,
+      });
+    }
+  }
+
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsWithBranchAndCommit)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsWithBranchAndCommit)
+      )}`;
 
   return useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
@@ -43,23 +103,29 @@ export function combineLeftAndRight(
 
   const dataGroupedByModel: { [k: string]: any } = {};
   rData.forEach((record: LLMsBenchmarkData) => {
-    const model = record.model;
-    const backend = record.backend;
+    const name = record.name;
     const dtype = record.dtype;
     const device = record.device;
     const arch = record.arch;
     const metric = record.metric;
 
-    const key = `${model};${backend};${dtype};${device};${arch}`;
-    if (!(key in dataGroupedByModel)) {
-      dataGroupedByModel[key] = {};
+    if (!(name in dataGroupedByModel)) {
+      dataGroupedByModel[name] = {};
     }
 
-    if (!(metric in dataGroupedByModel[key])) {
-      dataGroupedByModel[key][metric] = {};
+    if (!(dtype in dataGroupedByModel[name])) {
+      dataGroupedByModel[name][dtype] = {};
     }
 
-    dataGroupedByModel[key][metric] = {
+    if (!(device in dataGroupedByModel[name][dtype])) {
+      dataGroupedByModel[name][dtype][device] = {};
+    }
+
+    if (!(arch in dataGroupedByModel[name][dtype][device])) {
+      dataGroupedByModel[name][dtype][device][arch] = {};
+    }
+
+    dataGroupedByModel[name][dtype][device][arch][metric] = {
       r: record,
     };
   });
@@ -67,89 +133,106 @@ export function combineLeftAndRight(
   // Combine with left (base) data
   if (lCommit !== rCommit && lData !== undefined) {
     lData.forEach((record: LLMsBenchmarkData) => {
-      const model = record.model;
-      const backend = record.backend;
+      const name = record.name;
       const dtype = record.dtype;
       const device = record.device;
       const arch = record.arch;
       const metric = record.metric;
 
-      const key = `${model};${backend};${dtype};${device};${arch}`;
-      if (!(key in dataGroupedByModel)) {
-        dataGroupedByModel[key] = {};
+      if (!(name in dataGroupedByModel)) {
+        dataGroupedByModel[name] = {};
       }
 
-      if (!(metric in dataGroupedByModel[key])) {
-        dataGroupedByModel[key][metric] = {};
+      if (!(dtype in dataGroupedByModel[name])) {
+        dataGroupedByModel[name][dtype] = {};
       }
 
-      dataGroupedByModel[key][metric]["l"] = record;
+      if (!(device in dataGroupedByModel[name][dtype])) {
+        dataGroupedByModel[name][dtype][device] = {};
+      }
+
+      if (!(arch in dataGroupedByModel[name][dtype][device])) {
+        dataGroupedByModel[name][dtype][device][arch] = {};
+      }
+
+      if (!(metric in dataGroupedByModel[name][dtype][device][arch])) {
+        dataGroupedByModel[name][dtype][device][arch][metric] = {};
+      }
+
+      dataGroupedByModel[name][dtype][device][arch][metric]["l"] = record;
     });
   }
 
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
-  Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, dtype, device, arch] = key.split(";");
-    const row: { [k: string]: any } = {
-      // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
-    };
+  Object.keys(dataGroupedByModel).forEach((name: string) => {
+    Object.keys(dataGroupedByModel[name]).forEach((dtype: string) => {
+      Object.keys(dataGroupedByModel[name][dtype]).forEach((device: string) => {
+        Object.keys(dataGroupedByModel[name][dtype][device]).forEach(
+          (arch: string) => {
+            const row: { [k: string]: any } = {
+              // Keep the name as as the row ID as DataGrid requires it
+              name: `${name} (${dtype} / ${device} / ${arch})`,
+            };
 
-    for (const metric in dataGroupedByModel[key]) {
-      const record = dataGroupedByModel[key][metric];
-      const hasL = "l" in record;
-      const hasR = "r" in record;
+            for (const metric in dataGroupedByModel[name][dtype][device][
+              arch
+            ]) {
+              const record =
+                dataGroupedByModel[name][dtype][device][arch][metric];
+              const hasL = "l" in record;
+              const hasR = "r" in record;
 
-      if (!("metadata" in row)) {
-        row["metadata"] = {
-          model: model,
-          backend: backend,
-          dtype: dtype,
-          device: device,
-          arch: arch,
-          l: hasL ? record["l"]["job_id"] : undefined,
-          r: hasR ? record["r"]["job_id"] : undefined,
-        };
-      } else {
-        row["metadata"]["l"] =
-          row["metadata"]["l"] ?? (hasL ? record["l"]["job_id"] : undefined);
-        row["metadata"]["r"] =
-          row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
-      }
+              if (!("metadata" in row)) {
+                row["metadata"] = {
+                  name: name,
+                  dtype: dtype,
+                  device: device,
+                  arch: arch,
+                  l: hasL ? record["l"]["job_id"] : undefined,
+                  r: hasR ? record["r"]["job_id"] : undefined,
+                };
+              } else {
+                row["metadata"]["l"] =
+                  row["metadata"]["l"] ??
+                  (hasL ? record["l"]["job_id"] : undefined);
+                row["metadata"]["r"] =
+                  row["metadata"]["r"] ??
+                  (hasR ? record["r"]["job_id"] : undefined);
+              }
 
-      if (backend !== "") {
-        row["backend"] = backend;
-      }
+              row["device_arch"] = {
+                device: device,
+                arch: arch,
+              };
 
-      row["device_arch"] = {
-        device: device,
-        arch: arch,
-      };
-
-      row[metric] = {
-        l: hasL
-          ? {
-              actual: record["l"].actual,
-              target: record["l"].target,
+              row[metric] = {
+                l: hasL
+                  ? {
+                      actual: record["l"].actual,
+                      target: record["l"].target,
+                    }
+                  : {
+                      actual: 0,
+                      target: 0,
+                    },
+                r: hasR
+                  ? {
+                      actual: record["r"].actual,
+                      target: record["r"].target,
+                    }
+                  : {
+                      actual: 0,
+                      target: 0,
+                    },
+              };
             }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        r: hasR
-          ? {
-              actual: record["r"].actual,
-              target: record["r"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-      };
-    }
 
-    data.push(row);
+            data.push(row);
+          }
+        );
+      });
+    });
   });
 
   return data;

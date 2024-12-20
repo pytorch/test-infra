@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { TIME_0 } from "lib/bot/utils";
 import * as drciUtils from "lib/drciUtils";
 import {
@@ -17,9 +18,38 @@ import { removeJobNameSuffix } from "lib/jobUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
-import { genIssueData, getDummyJob } from "./utils";
 
 nock.disableNetConnect();
+
+export function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
+  // Use this function to create a dummy job with default values
+  if (
+    (nonDefaultInputs.conclusion == "failure" ||
+      nonDefaultInputs.conclusion == "cancelled") &&
+    !nonDefaultInputs.hasOwnProperty("failure_captures")
+  ) {
+    nonDefaultInputs.failure_captures = ["a"];
+  }
+  return {
+    workflowUniqueId: 1,
+    jobName: "dummy job name",
+    name: "dummy name",
+    id: 1,
+    workflowId: 1,
+    completed_at: "2022-07-13 19:34:03",
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    head_sha_timestamp: TIME_0,
+    pr_number: 1001,
+    conclusion: "success",
+    failure_captures: [],
+    failure_lines: [],
+    failure_context: [],
+    runnerName: "dummyRunnerName",
+    head_branch: "dummyHeadBranch",
+    ...nonDefaultInputs,
+  };
+}
 
 export const successfulA = getDummyJob({
   name: "linux-docs / build-docs (cpp)",
@@ -227,24 +257,35 @@ const unstableB = getDummyJob({
   runnerName: "dummy",
 });
 
-const sev = genIssueData({
-  number: 1,
+const sev: IssueData = {
+  number: 85362,
+  title: "docker pulls failing with no space left on disk",
+  html_url: "https://github.com/pytorch/pytorch/issues/85362",
   state: "open",
-  body: "not merge blocking",
-  labels: ["ci: sev"],
-});
+  body: "random stuff",
+  updated_at: dayjs().toString(),
+  author_association: "MEMBER",
+};
 
-const mergeBlockingSev = genIssueData({
-  number: 2,
+const mergeBlockingSev: IssueData = {
+  number: 74967,
+  title: "Linux CUDA builds are failing due to missing deps",
+  html_url: "https://github.com/pytorch/pytorch/issues/74967",
   state: "open",
-  labels: ["merge blocking", "ci: sev"],
-});
+  body: "merge blocking",
+  updated_at: dayjs().toString(),
+  author_association: "MEMBER",
+};
 
-const closedSev = genIssueData({
-  number: 3,
+const closedSev: IssueData = {
+  number: 74304,
+  title: "GitHub Outage: No Github Actions workflows can be run",
+  html_url: "https://github.com/pytorch/pytorch/issues/74304",
   state: "closed",
-  labels: ["ci: sev"],
-});
+  body: "random stuff",
+  updated_at: dayjs().toString(),
+  author_association: "MEMBER",
+};
 
 function constructResultsCommentHelper({
   pending = 3,
@@ -541,9 +582,15 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const mockUnstableIssues: IssueData[] = [
-      genIssueData({
+      {
+        number: 3264,
         title: "UNSTABLE trunk / test-coreml-delegate / macos-job",
-      }),
+        html_url: "https://github.com/pytorch/executorch/issues/3264",
+        state: "open",
+        body: "",
+        updated_at: "2024-04-24 00:44:19",
+        author_association: "CONTRIBUTOR",
+      },
     ];
     const pr_1001 = workflowsByPR.get(1001)!;
 

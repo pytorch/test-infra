@@ -1,36 +1,63 @@
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
+import rocksetVersions from "rockset/prodVersions.json";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
-import { getNameWithoutLF, isFailure } from "./JobClassifierUtil";
+import { isFailure } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
-import {
-  HudDataAPIResponse,
-  HudParams,
-  JobData,
-  RowDataAPIResponse,
-} from "./types";
+import getRocksetClient from "./rockset";
+import { HudParams, JobData, RowData } from "./types";
 
-async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
-  const response = await queryClickhouseSaved("hud_query", {
-    repo: `${owner}/${repo}`,
-    shas: shas,
-  });
+async function fetchDatabaseInfo(
+  owner: string,
+  repo: string,
+  shas: string[],
+  useCH: boolean
+) {
+  if (useCH) {
+    const response = await queryClickhouseSaved("hud_query", {
+      repo: `${owner}/${repo}`,
+      shas: shas,
+    });
 
-  for (const row of response) {
-    row.id = row.id == 0 ? null : row.id;
-    if (row.failureAnnotation === "") {
-      // Rockset returns nothing if the left join doesn't have a match but CH returns empty string
-      // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
-      delete row.failureAnnotation;
+    for (const row of response) {
+      row.id = row.id == 0 ? null : row.id;
+      if (row.failureAnnotation === "") {
+        // Rockset returns nothing if the left join doesn't have a match but CH returns empty string
+        // TODO: change code that consumes this to handle empty or nulls when Rockset is deprecated
+        delete row.failureAnnotation;
+      }
     }
+    return response;
+  } else {
+    const rocksetClient = getRocksetClient();
+    const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "hud_query",
+      rocksetVersions.commons.hud_query,
+      {
+        parameters: [
+          {
+            name: "shas",
+            type: "string",
+            value: shas.join(","),
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: `${owner}/${repo}`,
+          },
+        ],
+      }
+    );
+    return hudQuery.results!;
   }
-  return response;
 }
 
-export default async function fetchHud(
-  params: HudParams
-): Promise<HudDataAPIResponse> {
+export default async function fetchHud(params: HudParams): Promise<{
+  shaGrid: RowData[];
+  jobNames: string[];
+}> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(params.repoOwner, params.repoName);
   const branch = await octokit.rest.repos.listCommits({
@@ -41,25 +68,51 @@ export default async function fetchHud(
     page: params.page,
   });
   const commits = branch.data.map(commitDataFromResponse);
+  const rocksetClient = getRocksetClient();
 
-  // Retrieve job data from the database
+  // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);
   const response = await fetchDatabaseInfo(
     params.repoOwner,
     params.repoName,
-    shas
+    shas,
+    params.use_ch
   );
   let results = response as any[];
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr = await queryClickhouseSaved(
-    "filter_forced_merge_pr",
-    {
-      owner: params.repoOwner,
-      project: params.repoName,
-      shas: shas,
-    }
-  );
+  const filterForcedMergePr = params.use_ch
+    ? ((await queryClickhouseSaved("filter_forced_merge_pr", {
+        owner: params.repoOwner,
+        project: params.repoName,
+        shas: shas,
+      })) as any[])
+    : (
+        await rocksetClient.queryLambdas.executeQueryLambda(
+          "commons",
+          "filter_forced_merge_pr",
+          rocksetVersions.commons.filter_forced_merge_pr,
+          {
+            parameters: [
+              {
+                name: "shas",
+                type: "string",
+                value: shas.join(","),
+              },
+              {
+                name: "owner",
+                type: "string",
+                value: params.repoOwner,
+              },
+              {
+                name: "project",
+                type: "string",
+                value: params.repoName,
+              },
+            ],
+          }
+        )
+      ).results;
 
   const forcedMergeShas = new Set(
     _.map(filterForcedMergePr, (r) => {
@@ -89,6 +142,13 @@ export default async function fetchHud(
     );
   }
 
+  const namesSet: Set<string> = new Set();
+  // Built a list of all the distinct job names.
+  results?.forEach((job: JobData) => {
+    namesSet.add(job.name!);
+  });
+  const names = Array.from(namesSet).sort();
+
   // Construct mapping of sha => job name => job data
   const jobsBySha: {
     [sha: string]: { [name: string]: JobData };
@@ -97,41 +157,27 @@ export default async function fetchHud(
     if (jobsBySha[job.sha!] === undefined) {
       jobsBySha[job.sha!] = {};
     }
-    let key = job.name!;
-    if (params.mergeLF) {
-      key = getNameWithoutLF(key);
-    }
 
-    const existingJob = jobsBySha[job.sha!][key];
+    const existingJob = jobsBySha[job.sha!][job.name!];
     if (existingJob !== undefined) {
       // If there are multiple jobs with the same name, we want the most recent.
       // Q: How can there be more than one job with the same name for a given sha?
       // A: Periodic builds can be scheduled multiple times for one sha. In those
       // cases, we want the most recent job to be shown.
       if (job.id! > existingJob.id!) {
-        jobsBySha[job.sha!][key] = job;
-        jobsBySha[job.sha!][key].failedPreviousRun =
+        jobsBySha[job.sha!][job.name!] = job;
+        jobsBySha[job.sha!][job.name!].failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
       } else {
         existingJob.failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(job.conclusion);
       }
     } else {
-      jobsBySha[job.sha!][key] = job;
+      jobsBySha[job.sha!][job.name!] = job;
     }
   });
 
-  const namesSet: Set<string> = new Set();
-
-  // Built a list of all the distinct job names.
-  Object.values(jobsBySha).forEach((jobs) => {
-    for (const name in jobs) {
-      namesSet.add(name);
-    }
-  });
-  const names = Array.from(namesSet).sort();
-
-  const shaGrid: RowDataAPIResponse[] = [];
+  const shaGrid: RowData[] = [];
 
   _.forEach(commitsBySha, (commit, sha) => {
     const jobs: JobData[] = [];
@@ -151,7 +197,7 @@ export default async function fetchHud(
       }
     }
 
-    const row = {
+    const row: RowData = {
       ...commit,
       jobs: jobs,
       isForcedMerge: forcedMergeShas.has(commit.sha),

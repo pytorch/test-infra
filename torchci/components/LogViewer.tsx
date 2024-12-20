@@ -19,14 +19,7 @@ import { parse } from "ansicolor";
 import { isFailure } from "lib/JobClassifierUtil";
 import { LogSearchResult } from "lib/searchLogs";
 import { JobData, LogAnnotation } from "lib/types";
-import {
-  Dispatch,
-  SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
 import LogAnnotationToggle from "./LogAnnotationToggle";
 
@@ -269,20 +262,15 @@ function LogWithLineSelector({
   // any of the lines.  If another line is selected, the log viewer will jump to
   // that line.  To close it, select currently open line.
 
-  const handleKeyDown = useCallback((e: ClipboardEvent) => {
-    const selection = document.getSelection();
-    e.clipboardData?.setData(
-      "text/plain",
-      (selection?.toString() ?? "").replaceAll(ESC_CHAR_REGEX, "")
-    );
-    e.preventDefault();
-  }, []);
-
   useEffect(() => {
-    document.addEventListener("copy", handleKeyDown);
-    return () => {
-      document.removeEventListener("copy", handleKeyDown);
-    };
+    document.addEventListener("copy", (e) => {
+      const selection = document.getSelection();
+      e.clipboardData?.setData(
+        "text/plain",
+        (selection?.toString() ?? "").replaceAll(ESC_CHAR_REGEX, "")
+      );
+      e.preventDefault();
+    });
   });
   // undefined means that no line is selected, so the log viewer is closed
   const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);

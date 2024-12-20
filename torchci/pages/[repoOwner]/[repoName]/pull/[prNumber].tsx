@@ -1,13 +1,9 @@
-import { Stack } from "@mui/material";
 import CommitStatus from "components/CommitStatus";
-import DrCIButton from "components/DrCIButton";
 import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
 import { useCHContext } from "components/UseClickhouseProvider";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
-import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -23,8 +19,10 @@ function CommitInfo({
   sha: string;
 }) {
   const useCH = useCHContext().useCH;
-  const { data: commitData, error } = useSWR<CommitApiResponse>(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
+  const { data: commitData, error } = useSWR(
+    sha != null
+      ? `/api/${repoOwner}/${repoName}/commit/${sha}?use_ch=${useCH}`
+      : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -34,14 +32,10 @@ function CommitInfo({
     }
   );
 
-  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
-    `/api/issue/unstable`,
-    fetcher,
-    {
-      dedupingInterval: 300 * 1000,
-      refreshInterval: 300 * 1000, // refresh every 5 minutes
-    }
-  );
+  const { data: unstableIssuesData } = useSWR(`/api/issue/unstable`, fetcher, {
+    dedupingInterval: 300 * 1000,
+    refreshInterval: 300 * 1000, // refresh every 5 minutes
+  });
 
   if (error != null) {
     return <div>Error occurred</div>;
@@ -59,7 +53,7 @@ function CommitInfo({
       commit={commit}
       jobs={jobs}
       isCommitPage={false}
-      unstableIssues={unstableIssuesData ?? []}
+      unstableIssues={unstableIssuesData ? unstableIssuesData.issues : []}
     />
   );
 }
@@ -110,13 +104,15 @@ function Page() {
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;
   }
-  const { data: prData } = useSWR<PRData>(swrKey, fetcher, {
+  const { data } = useSWR(swrKey, fetcher, {
     refreshInterval: 60 * 1000, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab
     // will always have fresh info.
     refreshWhenHidden: true,
   });
   const [selectedSha, setSelectedSha] = useState("");
+
+  const prData = data as PRData | undefined;
 
   useEffect(() => {
     const selected = (sha ??
@@ -132,30 +128,16 @@ function Page() {
   }
   return (
     <div>
-      <Stack
-        direction="row"
-        spacing={0}
-        sx={{
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
-        <h1>
-          {prData.title}{" "}
-          <code>
-            <a
-              href={`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`}
-            >
-              #{prNumber}
-            </a>
-          </code>
-        </h1>
-        <DrCIButton
-          prNumber={prNumber ? parseInt(prNumber as string) : 0}
-          owner={repoOwner as string}
-          repo={repoName as string}
-        />
-      </Stack>
+      <h1>
+        {prData.title}{" "}
+        <code>
+          <a
+            href={`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`}
+          >
+            #{prNumber}
+          </a>
+        </code>
+      </h1>
       <CommitHeader
         repoOwner={repoOwner as string}
         repoName={repoName as string}

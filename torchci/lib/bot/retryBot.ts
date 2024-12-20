@@ -1,41 +1,9 @@
 import { Probot } from "probot";
-import { queryClickhouseSaved } from "../clickhouse";
+import { getFlakyJobsFromPreviousWorkflow } from "../jobUtils";
 import { CachedConfigTracker } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
-
-// If these jobs fail, they will always be retried
-const ALWAYS_RETRY_JOBS = [
-  // From @laithsakka, we want to retry this job in a different runner as it could
-  // fail flakily sometimes
-  "pr_time_benchmarks",
-];
-
-async function getFlakyJobsFromPreviousWorkflow(
-  owner: string,
-  repo: string,
-  branch: string,
-  workflowName: string,
-  workflowId: number
-): Promise<any> {
-  const flakyJobs = await queryClickhouseSaved("flaky_workflows_jobs", {
-    branches: [branch],
-    maxAttempt: 1, // If the job was retried and still failed, it wasn't flaky
-    nextWorkflowId: workflowId, // Query the flaky status of jobs from the previous workflow
-    numHours: 24, // The default value
-    repo: `${owner}/${repo}`,
-    workflowId: 0,
-    workflowNames: [workflowName],
-  });
-
-  if (flakyJobs === undefined || flakyJobs.length === 0) {
-    return [];
-  }
-
-  // The query returns all the flaky jobs from the previous workflow
-  return flakyJobs;
-}
 
 async function retryPreviousWorkflow(
   ctx: any,
@@ -125,14 +93,6 @@ async function retryCurrentWorkflow(
     // don't rerun unstable jobs as this is not needed
     if (job.name.toLocaleLowerCase().includes("unstable")) {
       return false;
-    }
-
-    for (const flakyJobName of ALWAYS_RETRY_JOBS) {
-      // if the job is a known flaky one, we want to retry it whenever if fails,
-      // even if the failed step is a test step
-      if (job.name.toLocaleLowerCase().includes(flakyJobName)) {
-        return true;
-      }
     }
 
     // if no test steps failed, can rerun

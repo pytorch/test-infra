@@ -2,6 +2,10 @@ import assert from "assert";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
 import {
+  CODEV_INDICATOR,
+  genCodevNoWritePermComment,
+} from "./codevNoWritePermBot";
+import {
   addLabels,
   CachedIssueTracker,
   CachedLabelerConfigTracker,
@@ -12,25 +16,14 @@ import {
   LabelToLabelConfigTracker,
 } from "./utils";
 
-// List of regex patterns for assigning labels to both Pull Requests and Issues
-const IssueAndPRRegexToLabel: [RegExp, string][] = [
+const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
-  [/vulkan/gi, "module: vulkan"],
-];
-
-// List of regex patterns for assigning labels to Pull Requests
-const PrTitleRegexToLabel: [RegExp, string][] = [
-  [/reland/gi, "ci-no-td"],
   [/rocm/gi, "ciflow/rocm"],
-  ...IssueAndPRRegexToLabel,
-];
-
-// List of regex patterns for assigning labels to Issues
-const IssueTitleRegexToLabel: [RegExp, string][] = [
+  [/vulkan/gi, "module: vulkan"],
+  [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
+  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
-  [/DISABLED\s+test.*\(.*\)/g, "skipped"],
-  ...IssueAndPRRegexToLabel,
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
@@ -155,6 +148,8 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
 };
 
+const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+
 export async function getLabelsFromLabelerConfig(
   context: Context,
   labelerConfigTracker: CachedLabelerConfigTracker,
@@ -242,7 +237,7 @@ function TDRolloutIssueParser(rawSubsText: string): object {
   return authors;
 }
 
-export async function canRunWorkflows(
+async function canRunWorkflows(
   context: Context<"pull_request"> | Context<"pull_request_review">
 ) {
   return (
@@ -294,22 +289,14 @@ function isNotUserFacing(filesChanged: string[]): boolean {
   );
 }
 
-function getLabelsToAddFromIssueTitle(title: string): string[] {
-  return getLabelsToAdd(title, IssueTitleRegexToLabel);
-}
-
-function getLabelsToAddFromPrTitle(title: string): string[] {
-  return getLabelsToAdd(title, PrTitleRegexToLabel);
-}
-
-function getLabelsToAdd(
+function getLabelsToAddFromTitle(
   title: string,
-  regexToLabelList: [RegExp, string][]
+  labelFilter: RegExp = /.*/
 ): string[] {
   const labelsToAdd: string[] = [];
 
-  for (const [regex, label] of regexToLabelList) {
-    if (title.match(regex)) {
+  for (const [regex, label] of titleRegexToLabel) {
+    if (title.match(regex) && label.match(labelFilter)) {
       labelsToAdd.push(label);
     }
   }
@@ -398,7 +385,7 @@ function getReleaseNotesCategoryAndTopic(
   return ["uncategorized", topic];
 }
 
-export async function addNewLabels(
+async function addNewLabels(
   existingLabels: string[],
   labelsToAdd: string[],
   context: Context
@@ -471,7 +458,7 @@ function myBot(app: Probot): void {
     const title = context.payload["issue"]["title"];
     context.log({ existingLabels, title });
 
-    const labelsToAdd = getLabelsToAddFromIssueTitle(title);
+    const labelsToAdd = getLabelsToAddFromTitle(title, /^(?!ciflow\/.*).*/);
     await addNewLabels(existingLabels, labelsToAdd, context);
   });
 
@@ -492,7 +479,7 @@ function myBot(app: Probot): void {
       );
       context.log({ labels, title, filesChanged });
 
-      var labelsToAdd = getLabelsToAddFromPrTitle(title);
+      var labelsToAdd = getLabelsToAddFromTitle(title);
 
       // only categorize for release notes for prs in pytorch/pytorch
       if (isPyTorchPyTorch(owner, repo)) {
@@ -546,6 +533,45 @@ function myBot(app: Probot): void {
       await addNewLabels(labels, labelsToAdd, context);
     }
   );
+
+  app.on("pull_request_review.submitted", async (context) => {
+    // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed a
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+    const prAuthor = context.payload.pull_request.user.login;
+    const body = context.payload.pull_request.body;
+    const existingLabels = context.payload.pull_request.labels.map(
+      (e) => e["name"]
+    );
+
+    if (context.payload.review.state !== "approved") {
+      return;
+    }
+
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return;
+    }
+
+    // only applies label to codev diffs.
+    if (!body?.match(CODEV_INDICATOR)) {
+      return;
+    }
+
+    // Is codev but doesn't have approvals means the author is a metamate but
+    // doesn't have write permissions, so post link to get write access
+    // I think only one of these checks is really needed
+    if (!(await canRunWorkflows(context))) {
+      await context.octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: context.payload.pull_request.number,
+        body: genCodevNoWritePermComment(prAuthor),
+      });
+      return;
+    }
+
+    await addNewLabels(existingLabels, [CIFLOW_TRUNK_LABEL], context);
+  });
 }
 
 export default myBot;

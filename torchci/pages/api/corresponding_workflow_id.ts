@@ -3,27 +3,35 @@
 // the trunk workflow, then this will return the workflow id for the trunk
 // workflow on the provided sha
 
-import { queryClickhouse } from "lib/clickhouse";
+import getRocksetClient, { RocksetParam } from "lib/rockset";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 async function getCorrespondingWorkflowID(sha: string, workflowId: string) {
+  const parameters: RocksetParam[] = [
+    { name: "sha", type: "string", value: sha },
+    { name: "workflow_id", type: "int", value: workflowId },
+  ];
+
   const query = `
 select
-    distinct w2.id as id
+    w2.id
 from
-    -- Not bothering with final since ids and shas shouldn't change
-    default.workflow_run w1
-    join default.workflow_run w2 on w1.workflow_id = w2.workflow_id
+    workflow_run w1
+    join workflow_run w2 on w1.workflow_id = w2.workflow_id
 where
-    w1.id = {workflow_id: Int64}
-    and w2.head_sha = {sha: String}
+    w1.id = :workflow_id
+    and w2.head_sha = :sha
 order by w2.id desc
 `;
 
-  return await queryClickhouse(query, {
-    workflow_id: workflowId,
-    sha: sha,
+  const client = getRocksetClient();
+  const results = await client.queries.query({
+    sql: {
+      query,
+      parameters,
+    },
   });
+  return results.results;
 }
 
 export default async function handler(

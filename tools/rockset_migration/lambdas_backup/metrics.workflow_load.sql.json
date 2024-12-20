@@ -1,0 +1,30 @@
+{
+  "query": "SELECT\n    FORMAT_ISO8601(\n        DATE_TRUNC(\n            :granularity,\n            PARSE_TIMESTAMP_ISO8601(workflow.created_at) AT TIME ZONE :timezone\n        )\n    ) AS granularity_bucket,\n    workflow.name,\n    COUNT(*) as count,\nFROM\n    workflow_run workflow\nWHERE\n    PARSE_TIMESTAMP_ISO8601(workflow.created_at) >= PARSE_DATETIME_ISO8601(:startTime)\n    AND PARSE_TIMESTAMP_ISO8601(workflow.created_at) < PARSE_DATETIME_ISO8601(:stopTime)\n    AND workflow.name IN (\n        'pull',\n        'trunk',\n        'nightly',\n        'periodic',\n        'inductor',\n        'inductor-periodic',\n        'inductor-A100-perf-compare',\n        'inductor-A100-perf-nightly',\n        'inductor-cu124'\n    )\n    AND workflow.repository.full_name like :repo\nGROUP BY\n    granularity_bucket,\n    workflow.name\nORDER BY\n    count DESC\n",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "hour"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-05-13T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-05-21T00:06:32.839Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ]
+}

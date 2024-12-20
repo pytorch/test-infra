@@ -1,0 +1,4 @@
+{
+  "query": "SELECT\n    filename,\n    COUNT(lines_added + lines_deleted) as total_edits\nFROM\n    tutorials.filenames\nWHERE\n    REGEXP_LIKE(\n        filename,\n        'beginner|intermediate|advanced|prototype|recipes'\n    )\n    AND REGEXP_LIKE(filename, '.py|.rst|.ipnyb')\n    AND filename NOT LIKE '%README%'\n    AND filename NOT LIKE '%index%'\n    AND filename NOT LIKE '%former_torchies%'\n    AND filename NOT LIKE '%=>%'\n    AND filename NOT LIKE '%colab.rst%'\nGROUP BY\n    filename\nLIMIT\n    1000\n",
+  "default_parameters": []
+}

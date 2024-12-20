@@ -1,0 +1,25 @@
+{
+  "query": "SELECT\n      FORMAT_ISO8601(\n        DATE_TRUNC(\n            :granularity,\n            started_at AT TIME ZONE :timezone\n        )\n    ) AS started_date,\n  label,\n  SUM(DATE_DIFF('SECOND',started_at,completed_at)) AS duration,\nFROM (SELECT\n  PARSE_TIMESTAMP_ISO8601(started_at) as started_at,\n  PARSE_TIMESTAMP_ISO8601(completed_at) as completed_at,\n  ELEMENT_AT(labels, 1) AS label\n  FROM commons.workflow_job\n  WHERE\n      status = 'completed' AND\n      runner_group_name = 'GitHub Actions' AND\n      PARSE_DATETIME_ISO8601(started_at) >= PARSE_DATETIME_ISO8601(:startTime) AND\n      PARSE_DATETIME_ISO8601(started_at) < PARSE_DATETIME_ISO8601(:stopTime)\n  ) AS gha_jobs\nGROUP BY started_date, label\nORDER BY started_date DESC, label\nLIMIT 500;",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-31T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ]
+}

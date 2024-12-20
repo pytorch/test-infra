@@ -1,0 +1,15 @@
+{
+  "query": "WITH\n    filtered_table as (\n        SELECT\n            *\n        FROM\n            commons.alerts\n        WHERE\n            repo = :repo\n            and organization = :organization\n            and (\n                closed = false\n                or (\n                    PARSE_DATETIME_ISO8601(timestamp) > (CURRENT_DATETIME() - INTERVAL 1 DAY)\n                )\n            )\n    )\nSELECT\n    *\nFROM\n    filtered_table alerts\n    INNER JOIN (\n        SELECT\n            AlertObject,\n            MAX(filtered_table.timestamp)\n        FROM\n            filtered_table\n        GROUP BY\n            AlertObject\n    ) b ON alerts.AlertObject = b.AlertObject\n",
+  "default_parameters": [
+    {
+      "name": "organization",
+      "type": "string",
+      "value": "test_org"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "test_repo"
+    }
+  ]
+}

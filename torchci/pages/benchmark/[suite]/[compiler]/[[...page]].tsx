@@ -30,6 +30,7 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -54,7 +55,7 @@ function Report({
 }: {
   dashboard: string;
   queryName: string;
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[];
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
@@ -67,13 +68,27 @@ function Report({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  const queryParamsWithL: { [key: string]: any } = {
+  const queryCollection = "inductor";
+
+  const queryParamsWithL: RocksetParam[] = [
+    {
+      name: "branches",
+      type: "string",
+      value: lBranchAndCommit.branch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: lBranchAndCommit.commit,
+    },
+    {
+      name: "getJobId",
+      type: "bool",
+      value: true,
+    },
     ...queryParams,
-    branches: [lBranchAndCommit.branch],
-    commits: [lBranchAndCommit.commit],
-    getJobId: true,
-  };
-  const lUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  ];
+  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithL)
   )}`;
 
@@ -85,13 +100,25 @@ function Report({
     ? lData.filter((e: CompilerPerformanceData) => e.suite === suite)
     : lData;
 
-  const queryParamsWithR: { [key: string]: any } = {
+  const queryParamsWithR: RocksetParam[] = [
+    {
+      name: "branches",
+      type: "string",
+      value: rBranchAndCommit.branch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: rBranchAndCommit.commit,
+    },
+    {
+      name: "getJobId",
+      type: "bool",
+      value: true,
+    },
     ...queryParams,
-    branches: [rBranchAndCommit.branch],
-    commits: [rBranchAndCommit.commit],
-    getJobId: true,
-  };
-  const rUrl = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  ];
+  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithR)
   )}`;
 
@@ -166,7 +193,7 @@ function Report({
 export default function Page() {
   const router = useRouter();
 
-  // The dimensions to query
+  // The dimensions to query Rockset
   const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
@@ -264,19 +291,48 @@ export default function Page() {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const queryParams: { [key: string]: any } = {
-    commits: [],
-    compilers: [compiler],
-    device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
-    dtypes: dtype,
-    getJobId: false,
-    granularity: granularity,
-    mode: mode,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    suites: [],
-    workflowId: 0,
-  };
+  const queryParams: RocksetParam[] = [
+    {
+      name: "timezone",
+      type: "string",
+      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+    {
+      name: "granularity",
+      type: "string",
+      value: granularity,
+    },
+    {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
+      name: "compilers",
+      type: "string",
+      value: compiler,
+    },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtype,
+    },
+    {
+      name: "device",
+      type: "string",
+      value: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+    },
+  ];
 
   return (
     <div>
@@ -336,7 +392,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={false}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -352,7 +408,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={false}
         />
       </Stack>
 

@@ -17,6 +17,7 @@ import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
@@ -162,11 +163,12 @@ function WorkerTypePicker({
 }: {
   workerTypes: string[];
   setWorkerTypes: any;
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[];
 }) {
   const queryName = "get_workers_on_period";
+  const queryCollection = "metrics";
 
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -221,13 +223,21 @@ function WorkerTypePicker({
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
-  const [timeRange, setTimeRange] = useState<number>(7);
+  const [timeRange, setTimeRange] = useState<number>(30);
   const [workerTypes, setWorkerTypes] = useState<string[]>(["all"]);
 
-  const timeParams: { [key: string]: any } = {
-    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-  };
+  const timeParams: RocksetParam[] = [
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+  ];
 
   const [ttsPercentile, setTtsPercentile] = useState<string>("p95");
 
@@ -256,10 +266,14 @@ export default function Page() {
         <WorkerTypePicker
           workerTypes={workerTypes}
           setWorkerTypes={setWorkerTypes}
-          queryParams={{
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          queryParams={[
+            {
+              name: "timezone",
+              type: "string",
+              value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
             ...timeParams,
-          }}
+          ]}
         />
       </Stack>
 
@@ -267,12 +281,24 @@ export default function Page() {
         <TimeSeriesPanel
           title={"GHA Worker Queue Time"}
           queryName={"queue_times_historical_pct"}
-          queryParams={{
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            pctile: ttsPercentile,
-            workersTypes: workerTypes,
+          queryParams={[
+            {
+              name: "timezone",
+              type: "string",
+              value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            {
+              name: "pctile",
+              type: "string",
+              value: ttsPercentile,
+            },
+            {
+              name: "workersTypes",
+              type: "string",
+              value: workerTypes.join(","),
+            },
             ...timeParams,
-          }}
+          ]}
           granularity={"hour"}
           groupByFieldName={"machine_type"}
           timeFieldName={"granularity_bucket"}

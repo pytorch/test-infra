@@ -1,5 +1,4 @@
 import { IssueData } from "lib/types";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import styles from "./SevReport.module.css";
 
@@ -16,7 +15,7 @@ function SevBox({ issue }: { issue: IssueData }) {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function SevReport() {
-  let { data: issues } = useSWR<IssueLabelApiResponse>(
+  const { data } = useSWR(
     `/api/issue/${encodeURIComponent("ci: sev")}`,
     fetcher,
     {
@@ -26,10 +25,12 @@ export default function SevReport() {
       refreshWhenHidden: true,
     }
   );
-  if (issues === undefined) {
+  if (data === undefined) {
     return null;
   }
-  issues = issues.filter((issue: IssueData) => issue.state === "open");
+  const issues: IssueData[] = data.issues.filter(
+    (issue: IssueData) => issue.state === "open"
+  );
   if (issues.length === 0) {
     return null;
   }

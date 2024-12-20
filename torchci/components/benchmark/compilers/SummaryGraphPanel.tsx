@@ -10,7 +10,6 @@ import {
 import dayjs from "dayjs";
 import {
   computeCompilationTime,
-  computeExecutionTime,
   computeGeomean,
   computeMemoryCompressionRatio,
   computePassrate,
@@ -18,6 +17,7 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import useSWR from "swr";
 
 const GRAPH_ROW_HEIGHT = 245;
@@ -32,7 +32,7 @@ export function GraphPanel({
   rCommit,
 }: {
   queryName: string;
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   branch: string;
@@ -40,7 +40,7 @@ export function GraphPanel({
   rCommit: string;
 }) {
   // NB: I need to do multiple queries here for different suites to keep the response
-  // from the database small enough (<6MB) to fit into Vercel lambda limit
+  // from Rockset small enough (<6MB) to fit into Vercel lambda limit
   return (
     <SuiteGraphPanel
       queryName={queryName}
@@ -64,7 +64,7 @@ function SuiteGraphPanel({
   rCommit,
 }: {
   queryName: string;
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   branch: string;
@@ -73,19 +73,27 @@ function SuiteGraphPanel({
 }) {
   const queryCollection = "inductor";
 
-  const queryParamsWithSuite: { [key: string]: any } = {
+  const queryParamsWithSuite: RocksetParam[] = [
+    {
+      name: "suites",
+      type: "string",
+      value: suite,
+    },
+    {
+      name: "branches",
+      type: "string",
+      value: branch,
+    },
     ...queryParams,
-    branches: [branch],
-    suites: [suite],
-  };
-  // NB: Querying data for all the suites blows up the response from the database
-  // over the lambda reponse body limit of 6MB. So I need to split up the query
-  // here into multiple smaller ones to keep them under the limit
+  ];
+  // NB: Querying data for all the suites blows up the response from Rockset over
+  // the lambda reponse body limit of 6MB. So I need to split up the query here
+  // into multiple smaller ones to keep them under the limit
   //
   // See more:
   // * https://nextjs.org/docs/messages/api-routes-body-size-limit
   // * https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
@@ -107,9 +115,13 @@ function SuiteGraphPanel({
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from the database
-  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
-  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
+  // align with the data we get from Rockset
+  const startTime = dayjs(
+    queryParams.find((p) => p.name === "startTime")?.value
+  ).startOf(granularity);
+  const stopTime = dayjs(
+    queryParams.find((p) => p.name === "stopTime")?.value
+  ).startOf(granularity);
 
   // Compute the metrics for all passing models
   const models = getPassingModels(data);
@@ -173,25 +185,6 @@ function SuiteGraphPanel({
     groupByFieldName,
     TIME_FIELD_NAME,
     "compilation_latency",
-    false
-  );
-
-  // Execution time
-  const executionTime = computeExecutionTime(data, models).filter((r: any) => {
-    const id = r.workflow_id;
-    return (
-      (id >= lWorkflowId && id <= rWorkflowId) ||
-      (id <= lWorkflowId && id >= rWorkflowId)
-    );
-  });
-  const executionTimeSeries = seriesWithInterpolatedTimes(
-    executionTime,
-    startTime,
-    stopTime,
-    granularity,
-    groupByFieldName,
-    TIME_FIELD_NAME,
-    "abs_latency",
     false
   );
 
@@ -355,31 +348,6 @@ function SuiteGraphPanel({
               align: "left",
               formatter: (r: any) => {
                 return r.value[1];
-              },
-            },
-          }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={executionTime}
-          series={executionTimeSeries}
-          title={`Execution time / ${SUITES[suite]}`}
-          groupByFieldName={groupByFieldName}
-          yAxisLabel={"second"}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              scale: true,
-            },
-            label: {
-              show: true,
-              align: "left",
-              formatter: (r: any) => {
-                return Number(r.value[1]).toFixed(0);
               },
             },
           }}

@@ -1,0 +1,57 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-05-09T03:54:42Z",
+  "name": "test_time_and_price_per_oncall",
+  "version_count": 1,
+  "collections": [
+    "commons.price_per_config",
+    "metrics.aggregated_test_metrics_with_preproc"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-05-09T03:54:42Z",
+    "name": "test_time_and_price_per_oncall",
+    "version": "7af6d14035a19439",
+    "description": null,
+    "sql": {
+      "query": "With\n    workflow_summed_table AS (\n        SELECT\n            workflow_id,\n            -- sum by job name to get total over all shards\n            SUM(sum_duration_in_second) as sum_duration_in_second,\n            oncalls,\n            date,\n            workflow_name,\n            test_class,\n            test_file,\n            config_job_name,\n            config_shard_name,\n        FROM\n            metrics.aggregated_test_metrics_with_preproc\n        WHERE\n            DATE_TRUNC('DAY', date) >= DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: startDate))\n            AND DATE_TRUNC('DAY', date) < DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(: endDate))\n            AND workflow_name LIKE: workflow_type\n        GROUP BY\n            workflow_id,\n            workflow_name,\n            test_class,\n            test_file,\n            date,\n            oncalls,\n            config_job_name,\n            config_shard_name\n    ),\n    filtered_table AS (\n        SELECT\n            AVG(sum_duration_in_second) as avg_duration_in_second,\n            COUNT(DISTINCT(workflow_id)) as workflow_occurences,\n            oncalls,\n            date,\n            workflow_name,\n            test_class,\n            test_file,\n            config_job_name,\n            config_shard_name,\n        FROM\n            workflow_summed_table\n        GROUP BY\n            workflow_name,\n            test_class,\n            test_file,\n            date,\n            oncalls,\n            config_job_name,\n            config_shard_name\n    ),\n    filtered_with_costs as (\n        SELECT\n            t.avg_duration_in_second as avg_duration_in_second,\n            t.oncalls as oncalls,\n            t.date as date,\n            t.workflow_name as workflow_name,\n            t.test_class as test_class,\n            t.test_file as test_file,\n            t.config_job_name as config_job_name,\n            t.config_shard_name as config_shard_name,\n            t.workflow_occurences,\n            CASE\n                WHEN p.price IS NULL THEN 0\n                ELSE CAST(p.price AS float)\n            END as price_per_hour\n        FROM\n            filtered_table t\n            LEFT JOIN commons.price_per_config p ON (\n                t.config_job_name = p.job_name\n                AND t.config_shard_name = p.shard_name\n            )\n    ),\n    total_table as (\n        SELECT\n            date,\n            workflow_name,\n            SUM(avg_duration_in_second) as total_duration_per_workflow_per_run,\n            SUM(price_per_hour * avg_duration_in_second / 60 / 60) as total_price_per_workflow_per_run\n        FROM\n            filtered_with_costs\n        GROUP BY\n            date,\n            workflow_name\n    ),\n    filtered_with_oncalls as (\n        SELECT\n            *\n        FROM\n            (\n                filtered_with_costs\n                CROSS JOIN UNNEST(oncalls AS oncall)\n            )\n        WHERE\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') LIKE: oncall\n    ),\n    filtered_with_oncalls_and_totals as (\n        SELECT\n            avg_duration_in_second,\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') as oncall,\n            filtered_with_oncalls.date as date,\n            filtered_with_oncalls.workflow_name as workflow_name,\n            test_class,\n            test_file,\n            total_duration_per_workflow_per_run,\n            total_price_per_workflow_per_run,\n            workflow_occurences,\n            price_per_hour,\n        FROM\n            filtered_with_oncalls\n            INNER JOIN total_table ON filtered_with_oncalls.date = total_table.date\n            AND filtered_with_oncalls.workflow_name = total_table.workflow_name\n        WHERE\n            REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') LIKE: oncall\n    ),\n    t as (\n        SELECT\n            oncall,\n            workflow_name as workflow_type,\n            SUM(avg_duration_in_second) as time_in_seconds,\n            TRUNC(\n                SUM(price_per_hour * avg_duration_in_second / 60 / 60),\n                2\n            ) as estimated_price_per_run_in_dollars,\n            TRUNC(\n                SUM(\n                    price_per_hour * avg_duration_in_second * workflow_occurences / 60 / 60\n                ),\n                2\n            ) as estimated_price_per_day_in_dollars,\n            CAST(date as STRING) as granularity_bucket,\n            TRUNC(\n                SUM(avg_duration_in_second) / ARBITRARY(\n                    -- add noise to avoid divide by 0\n                    total_duration_per_workflow_per_run + 0.000001\n                ) * 100,\n                2\n            ) as percentage_of_time,\n            TRUNC(\n                SUM(price_per_hour * avg_duration_in_second / 60 / 60) / ARBITRARY(\n                    -- add noise to avoid divide by 0\n                    total_price_per_workflow_per_run + 0.000001\n                ) * 100,\n                2\n            ) as percentage_of_cost\n        FROM\n            filtered_with_oncalls_and_totals as t\n        GROUP BY\n            t.oncall,\n            t.date,\n            t.workflow_name\n    )\nSELECT\n    *,\nFROM\n    t\nORDER BY\n    time_in_seconds DESC\n",
+      "default_parameters": [
+        {
+          "name": "endDate",
+          "type": "string",
+          "value": "2023-05-09T03:46:31.152Z"
+        },
+        {
+          "name": "oncall",
+          "type": "string",
+          "value": "functorch"
+        },
+        {
+          "name": "startDate",
+          "type": "string",
+          "value": "2023-04-09T03:46:31.152Z"
+        },
+        {
+          "name": "workflow_type",
+          "type": "string",
+          "value": "%"
+        }
+      ]
+    },
+    "collections": [
+      "commons.price_per_config",
+      "metrics.aggregated_test_metrics_with_preproc"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": "2024-06-25T09:24:31Z",
+      "last_executed_by": "darthsuo@gmail.com",
+      "last_execution_error": "2024-06-25T09:24:31Z",
+      "last_execution_error_message": "Query timeout reached. To extend the query timeout, run an async query by setting `async` to true. Otherwise, please upgrade to a larger Virtual Instance or contact Rockset customer support for assistance constructing a more efficient query."
+    },
+    "public_access_id": null
+  }
+}

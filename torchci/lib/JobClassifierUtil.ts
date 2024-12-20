@@ -1,6 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
-import { IssueData, RowData } from "./types";
+import { GroupData, IssueData, RowData } from "./types";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
@@ -215,8 +215,6 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Failure:
       return "X";
-    case GroupedJobStatus.Queued:
-      return "Q";
     case GroupedJobStatus.Pending:
       return "?";
     case GroupedJobStatus.AllNull:
@@ -241,31 +239,12 @@ export function isFailure(conclusion?: string): boolean {
     case JobStatus.Success:
     case JobStatus.Neutral:
     case JobStatus.Skipped:
-    case JobStatus.Queued:
     case JobStatus.Pending:
     case undefined:
     default:
       return false;
   }
 }
-
-export function IsJobInProgress(conclusion?: string): boolean {
-  switch (conclusion) {
-    case JobStatus.Queued:
-    case JobStatus.Pending:
-      return true;
-    case JobStatus.Success:
-    case JobStatus.Neutral:
-    case JobStatus.Skipped:
-    case JobStatus.Failure:
-    case JobStatus.Cancelled:
-    case JobStatus.Timed_out:
-    case undefined:
-    default:
-      return false;
-  }
-}
-
 export function getConclusionChar(
   conclusion?: string,
   failedPreviousRun?: boolean
@@ -286,8 +265,6 @@ export function getConclusionChar(
       return "T";
     case JobStatus.Skipped:
       return "S";
-    case JobStatus.Queued:
-      return "Q";
     case JobStatus.Pending:
       return "?";
     case undefined:
@@ -309,32 +286,46 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
       return 2;
     case JobStatus.Cancelled:
       return 3;
-    case JobStatus.Queued:
-      return 4;
     case JobStatus.Pending:
-      return 5;
+      return 4;
     case undefined:
-      return 6;
+      return 5;
     case JobStatus.Failure:
-      return 7;
+      return 6;
     default:
-      return 8;
+      return 7;
   }
 }
 
 export function getGroupingData(
   shaGrid: RowData[],
-  jobNames: Set<string>,
+  jobNames: string[],
   showUnstableGroup: boolean,
   unstableIssues?: IssueData[]
 ) {
   // Construct Job Groupping Mapping
-  const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
+  const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
+  const jobToGroupName = new Map<string, string>(); // job -> group
   for (const name of jobNames) {
     const groupName = classifyGroup(name, showUnstableGroup, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
+    jobToGroupName.set(name, groupName);
+  }
+  const groupNamesArray = Array.from(groupNameMapping.keys());
+
+  // Group Jobs per Row
+  for (const row of shaGrid) {
+    const groupedJobs = new Map<string, GroupData>();
+    for (const groupName of groupNamesArray) {
+      groupedJobs.set(groupName, { groupName, jobs: [] });
+    }
+    for (const job of row.jobs) {
+      const groupName = jobToGroupName.get(job.name!)!;
+      groupedJobs.get(groupName)!.jobs.push(job);
+    }
+    row.groupedJobs = groupedJobs;
   }
   return { shaGrid, groupNameMapping };
 }
@@ -352,9 +343,4 @@ export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
     name.toLocaleLowerCase().includes("unstable") ||
     (openUnstableIssues !== undefined && openUnstableIssues.length !== 0)
   );
-}
-
-export function getNameWithoutLF(name: string) {
-  const lfRegex = /, lf\.(linux|windows)/g;
-  return name.replace(lfRegex, ", $1");
 }

@@ -1,5 +1,4 @@
 import CopyLink from "components/CopyLink";
-import { JobStatus } from "components/GroupJobConclusion";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
@@ -202,13 +201,11 @@ function CommitLinks({ row }: { row: RowData }) {
 
 function CommitSummaryLine({
   row,
-  numQueued,
   numPending,
   showRevert,
   ttsAlert,
 }: {
   row: RowData;
-  numQueued: number;
   numPending: number;
   showRevert: boolean;
   ttsAlert: boolean;
@@ -234,11 +231,7 @@ function CommitSummaryLine({
           textToCopy={`${location.href.replace(location.hash, "")}#${row.sha}`}
         />
       </span>
-      {numQueued > 0 && (
-        <span className={styles.shaTitleElement}>
-          <em>{numQueued} queued</em>
-        </span>
-      )}
+
       {numPending > 0 && (
         <span className={styles.shaTitleElement}>
           <em>{numPending} pending</em>
@@ -438,21 +431,17 @@ function CommitSummary({
   const [showDurationInfo] = useContext(ShowDurationContext);
   const [highlighted, setHighlighted] = useState(false);
 
-  const existingJobs = Array.from(row.nameToJobs.values()).filter(
-    (job) => job.conclusion !== undefined
-  );
+  const existingJobs = row.jobs.filter((job) => job.conclusion !== undefined);
   const jobs =
     jobFilter === null
       ? existingJobs
       : existingJobs.filter((job) =>
           includesCaseInsensitive(job.name!, jobFilter)
         );
+
   const failedJobs = jobs.filter(isFailedJob);
   const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
-  const pendingJobs = jobs.filter(
-    (job) => job.conclusion === JobStatus.Pending
-  );
-  const queuedJobs = jobs.filter((job) => job.conclusion === JobStatus.Queued);
+  const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
 
   let className;
   if (jobs.length === 0) {
@@ -477,8 +466,8 @@ function CommitSummary({
     jobs,
     // also filter the previous jobs
     jobFilter === null
-      ? Array.from(prevRow?.nameToJobs.values() ?? [])
-      : Array.from(prevRow?.nameToJobs.values() ?? []).filter((job) =>
+      ? prevRow?.jobs
+      : prevRow?.jobs.filter((job) =>
           includesCaseInsensitive(job.name!, jobFilter)
         )
   );
@@ -508,7 +497,6 @@ function CommitSummary({
       >
         <CommitSummaryLine
           row={row}
-          numQueued={queuedJobs.length}
           numPending={pendingJobs.length}
           showRevert={failedJobs.length !== 0}
           ttsAlert={concerningTTS.length > 0}
@@ -557,7 +545,7 @@ function MiniHud({ params }: { params: HudParams }) {
     return <div>Loading...</div>;
   }
 
-  const shaGrid = data;
+  const { shaGrid } = data;
 
   return (
     <>
@@ -581,8 +569,8 @@ function MiniHud({ params }: { params: HudParams }) {
         <CommitSummary
           row={row}
           prevRow={
-            index + 1 >= array.length && extraRow
-              ? extraRow[0]
+            index + 1 >= array.length
+              ? extraRow?.shaGrid[0]
               : array.at(index + 1)
           }
           key={row.sha}
@@ -646,6 +634,7 @@ export default function Page() {
         width="50%"
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
+        handleInput={setJobFilter}
       />
 
       <JobFilterContext.Provider value={[jobFilter, setJobFilter]}>

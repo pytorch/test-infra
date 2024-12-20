@@ -1,5 +1,4 @@
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
-import _ from "lodash";
 import { useSession } from "next-auth/react";
 import React from "react";
 import { JobAnnotation, JobData } from "../lib/types";
@@ -16,10 +15,7 @@ export default function JobAnnotationToggle({
   repo?: string | null;
 }) {
   const allJobs = similarJobs ?? [];
-  // Double check if the job exists before adding it
-  if (!_.find(allJobs, (j: JobData) => j.id === job.id)) {
-    allJobs.push(job);
-  }
+  allJobs.push(job);
 
   const [state, setState] = React.useState<JobAnnotation>(
     (annotation ?? "null") as JobAnnotation

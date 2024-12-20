@@ -5,7 +5,7 @@ import {
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { IssueData, JobData } from "lib/types";
+import { GroupData, IssueData, JobData } from "lib/types";
 import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
 import hudStyles from "./hud.module.css";
@@ -19,48 +19,43 @@ export enum JobStatus {
   Cancelled = "cancelled",
   Timed_out = "timed_out",
   Skipped = "skipped",
-  Queued = "queued",
   Pending = "pending",
 }
 
 export enum GroupedJobStatus {
   Failure = "failure",
+  Pending = "pending",
   AllNull = "all_null",
-  Queued = "queued",
   Success = "success",
   Classified = "classified",
   Flaky = "flaky",
   WarningOnly = "warning",
-  Pending = "pending",
 }
 
 export default function HudGroupedCell({
   sha,
-  groupName,
-  jobs,
+  groupData,
   isExpanded,
   toggleExpanded,
   isClassified,
   unstableIssues,
 }: {
   sha: string;
-  groupName: string;
-  jobs: JobData[];
+  groupData: GroupData;
   isExpanded: boolean;
   toggleExpanded: () => void;
   isClassified: boolean;
   unstableIssues: IssueData[];
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == groupName ? hudStyles.highlight : "";
+  const style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
 
   const erroredJobs = [];
   const warningOnlyJobs = [];
-  const queuedJobs = [];
   const pendingJobs = [];
   const noStatusJobs = [];
   const failedPreviousRunJobs = [];
-  for (const job of jobs) {
+  for (const job of groupData.jobs) {
     if (isFailedJob(job)) {
       if (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues)) {
         warningOnlyJobs.push(job);
@@ -69,8 +64,6 @@ export default function HudGroupedCell({
       }
     } else if (job.conclusion === JobStatus.Pending) {
       pendingJobs.push(job);
-    } else if (job.conclusion === JobStatus.Queued) {
-      queuedJobs.push(job);
     } else if (job.conclusion === undefined) {
       noStatusJobs.push(job);
     } else if (job.conclusion === JobStatus.Success && job.failedPreviousRun) {
@@ -87,9 +80,7 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.Flaky;
   } else if (!(warningOnlyJobs.length == 0)) {
     conclusion = GroupedJobStatus.WarningOnly;
-  } else if (!(queuedJobs.length === 0)) {
-    conclusion = GroupedJobStatus.Queued;
-  } else if (noStatusJobs.length === jobs.length) {
+  } else if (noStatusJobs.length === groupData.jobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }
 
@@ -98,16 +89,15 @@ export default function HudGroupedCell({
       <td className={style}>
         <TooltipTarget
           sha={sha}
-          name={groupName}
+          name={groupData.groupName}
           pinnedId={pinnedId}
           setPinnedId={setPinnedId}
           tooltipContent={
             <GroupTooltip
               conclusion={conclusion}
-              groupName={groupName}
+              groupName={groupData.groupName}
               erroredJobs={erroredJobs}
               pendingJobs={pendingJobs}
-              queuedJobs={queuedJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
             />
@@ -137,7 +127,6 @@ function GroupTooltip({
   groupName,
   erroredJobs,
   pendingJobs,
-  queuedJobs,
   failedPreviousRunJobs,
   sha,
 }: {
@@ -145,7 +134,6 @@ function GroupTooltip({
   groupName: string;
   erroredJobs: JobData[];
   pendingJobs: JobData[];
-  queuedJobs: JobData[];
   failedPreviousRunJobs: JobData[];
   sha?: string;
 }) {
@@ -156,15 +144,6 @@ function GroupTooltip({
         groupName={groupName}
         jobs={erroredJobs}
         message={"The following jobs errored out:"}
-      />
-    );
-  } else if (conclusion === GroupedJobStatus.Queued) {
-    return (
-      <ToolTip
-        conclusion={conclusion}
-        groupName={groupName}
-        jobs={queuedJobs}
-        message={"The following jobs are still in queue:"}
       />
     );
   } else if (conclusion === GroupedJobStatus.Pending) {

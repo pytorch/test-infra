@@ -10,6 +10,7 @@ import TimeSeriesPanel, {
 import ValuePicker from "components/ValuePicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -90,13 +91,14 @@ function generateDisabledTestsTable(data: any) {
   return _.sortBy(disabledTests, (r) => !r.metadata.hiprio);
 }
 
-function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
+function GraphPanel({ queryParams }: { queryParams: RocksetParam[] }) {
   return (
     <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
-        queryParams={queryParams}
+        queryCollection={"metrics"}
+        queryParams={[...queryParams]}
         granularity={"day"}
         timeFieldName={"granularity_bucket"}
         yAxisFieldName={"number_of_open_disabled_tests"}
@@ -106,13 +108,10 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
   );
 }
 
-function DisabledTestsPanel({
-  queryParams,
-}: {
-  queryParams: { [key: string]: any };
-}) {
+function DisabledTestsPanel({ queryParams }: { queryParams: RocksetParam[] }) {
+  const queryCollection = "commons";
   const queryName = "disabled_tests";
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -307,19 +306,48 @@ export default function Page() {
     );
   }, [router.query]);
 
-  const queryParams: { [key: string]: any } = {
-    label: label !== DEFAULT_LABEL ? label : "skipped",
-    platform: platform !== DEFAULT_PLATFORM ? platform : "",
-    repo: "pytorch/pytorch",
-    state: state,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    triaged: triaged !== DEFAULT_TRIAGED_STATE ? triaged : "",
-  };
+  const queryParams: RocksetParam[] = [
+    {
+      name: "timezone",
+      type: "string",
+      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+    {
+      name: "state",
+      type: "string",
+      value: state,
+    },
+    {
+      name: "platform",
+      type: "string",
+      value: platform !== DEFAULT_PLATFORM ? platform : "",
+    },
+    {
+      name: "label",
+      type: "string",
+      value: label !== DEFAULT_LABEL ? label : "skipped",
+    },
+    {
+      name: "triaged",
+      type: "string",
+      value: triaged !== DEFAULT_TRIAGED_STATE ? triaged : "",
+    },
+  ];
 
+  const queryCollection = "commons";
   const queryName = "disabled_test_labels";
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify({ ...queryParams, states: [] })
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
   )}`;
 
   let { data, error } = useSWR(url, fetcher, {

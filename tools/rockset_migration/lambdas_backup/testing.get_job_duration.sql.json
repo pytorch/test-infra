@@ -1,0 +1,25 @@
+{
+  "query": "WITH shard_duration AS (\n  SELECT\n    AVG(DATE_DIFF(\n      'second',\n      PARSE_TIMESTAMP_ISO8601(job.started_at),\n      PARSE_TIMESTAMP_ISO8601(job.completed_at)\n    )) AS duration_avg_sec,\n    workflow.name AS workflow_name,\n    job.name AS shard_name\n  FROM\n    commons.workflow_job job\n    JOIN commons.workflow_run workflow ON workflow.id = job.run_id\n  WHERE\n    job.name LIKE CONCAT('%', :jobName, '%')\n    AND job.name != 'ciflow_should_run'\n    AND job.name != 'generate-test-matrix'\n    AND job.name NOT LIKE '%rerun_disabled_tests%'\n    AND job.name NOT LIKE '%mem_leak_check%'\n    AND job.name NOT LIKE '%filter%'\n    AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\n    AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), workflow.name)\n    AND workflow.head_branch LIKE 'master'\n    AND workflow.run_attempt = 1\n  GROUP BY\n    workflow_name,\n    shard_name\n),\njob_duration AS (\n  SELECT\n    ROUND(SUM(duration_avg_sec) / 60) AS duration_in_minutes,\n    CONCAT(\n      workflow_name,\n      ' / ',\n      ELEMENT_AT(SPLIT(shard_name, ' / '), 1),\n      IF(\n        shard_name LIKE '%/%',\n        CONCAT(' / ', ELEMENT_AT(SPLIT(ELEMENT_AT(SPLIT(shard_name, ' / '), 2), ', '), 1)),\n        ''\n      )\n    ) AS name\n  FROM\n    shard_duration\n  GROUP BY\n    name\n)\nSELECT\n  duration_in_minutes,\n  IF (name LIKE '%(%' AND name NOT LIKE '%)%', CONCAT(name, ')'), name) AS name,\nFROM\n  job_duration\nWHERE\n  duration_in_minutes != 0\nORDER BY\n  name",
+  "default_parameters": [
+    {
+      "name": "jobName",
+      "type": "string",
+      "value": "macos"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-03-22T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.00Z"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk,periodic"
+    }
+  ]
+}

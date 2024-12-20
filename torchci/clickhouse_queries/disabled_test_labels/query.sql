@@ -1,16 +1,23 @@
--- This query returns the list of DISABLED tests labels.  This powers
--- the disabled tests dashboard label dropdown list
+-- !!! Query is not converted to CH syntax yet.  Delete this line when it gets converted
+--- This query returns the list of DISABLED tests labels.  This powers
+--- the disabled tests dashboard label dropdown list
 SELECT
-    DISTINCT arrayJoin(i.labels. 'name') AS label
+  DISTINCT labels.value.name AS label,
 FROM
-    default .issues i FINAL
+  commons.issues i,
+  UNNEST (i.labels AS value) AS labels
 WHERE
-    (
-        has({states: Array(String) }, i.state)
-        OR empty({states: Array(String) })
+  (
+    ARRAY_CONTAINS(
+      SPLIT(: states, ','),
+      i.state
     )
-    AND i.repository_url = CONCAT('https://api.github.com/repos/', {repo: String })
-    AND i.title LIKE '%DISABLED%'
-    AND NOT empty(label)
+    OR : states = ''
+  )
+  AND i.repository_url = CONCAT(
+    'https://api.github.com/repos/',
+    : repo
+  )
+  AND i.title LIKE '%DISABLED%'
 ORDER BY
-    label ASC
+  label ASC

@@ -4,7 +4,6 @@ WITH job AS (
         job.name as job_name,
         workflow.name as workflow_name,
         job.id as id,
-        job.status as status,
         job.conclusion as conclusion,
         job.html_url as html_url,
         IF(
@@ -20,11 +19,11 @@ WITH job AS (
               job.id::String
             )
           ) as log_url,
-        if(
-            job.completed_at = 0,
-            null,
-            DATE_DIFF('SECOND', job.started_at, job.completed_at)
-        ) AS duration_s,
+        DATE_DIFF(
+            'SECOND',
+            job.started_at,
+            job.completed_at
+        ) as duration_s,
         workflow.repository.'full_name' as repo,
         job.torchci_classification.'line' as line,
         job.torchci_classification.'captures' as captures,
@@ -42,22 +41,17 @@ WITH job AS (
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
         AND workflow.repository.'full_name' = {repo: String}
-        AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
     -- Removed CircleCI query
 )
 SELECT
     sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
     id,
-    multiIf(
-        conclusion = ''
-        and status = 'queued' ,
-        'queued',
-        conclusion = '',
-        'pending',
-        conclusion
-    ) as conclusion,
-    status as status,
+    if(
+      conclusion = '',
+      'pending',
+      conclusion
+     ) as conclusion,
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,

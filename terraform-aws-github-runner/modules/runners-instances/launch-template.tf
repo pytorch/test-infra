@@ -109,8 +109,7 @@ resource "aws_launch_template" "linux_runner" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 3
+    http_tokens                 = "optional"
     instance_metadata_tags      = "enabled"
   }
 
@@ -165,8 +164,7 @@ resource "aws_launch_template" "linux_runner_nvidia" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 3
+    http_tokens                 = "optional"
     instance_metadata_tags      = "enabled"
   }
 
@@ -221,8 +219,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 3
+    http_tokens                 = "optional"
     instance_metadata_tags      = "enabled"
   }
 
@@ -289,14 +286,6 @@ resource "aws_launch_template" "windows_runner" {
       },
     )
   }
-
-    metadata_options {
-    http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 3
-    instance_metadata_tags      = "enabled"
-  }
-
 
   user_data = base64encode(templatefile(local.userdata_template_windows, {
     environment                     = var.environment

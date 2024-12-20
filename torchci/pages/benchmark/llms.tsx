@@ -7,12 +7,10 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
-  DEFAULT_BACKEND_NAME,
+  BENCHMARKS,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
-  EXCLUDED_METRICS,
-  REPO_TO_BENCHMARKS,
 } from "components/benchmark/llms/common";
 import { GraphPanel } from "components/benchmark/llms/ModelGraphPanel";
 import { SummaryPanel } from "components/benchmark/llms/SummaryPanel";
@@ -20,15 +18,17 @@ import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import { useCHContext } from "components/UseClickhouseProvider";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { TimeRangePicker } from "../metrics";
+import { RStoCHTimeParams, TimeRangePicker } from "../metrics";
 
 function Report({
   queryParams,
@@ -37,33 +37,43 @@ function Report({
   granularity,
   repoName,
   modelName,
-  backendName,
   dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  useClickHouse,
 }: {
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[] | {};
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
   modelName: string;
-  backendName: string;
   dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  useClickHouse: boolean;
 }) {
   const { data: lData, error: _lError } = useBenchmark(
     queryParams,
-    lBranchAndCommit
+    modelName,
+    dtypeName,
+    deviceName,
+    lBranchAndCommit,
+    useClickHouse,
+    true
   );
   const { data: rData, error: _rError } = useBenchmark(
     queryParams,
-    rBranchAndCommit
+    modelName,
+    dtypeName,
+    deviceName,
+    rBranchAndCommit,
+    useClickHouse,
+    true
   );
 
   if (
@@ -107,20 +117,18 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         modelName={modelName}
-        backendName={backendName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
+        useClickHouse={useClickHouse}
       />
       <SummaryPanel
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
-        repoName={repoName}
         modelName={modelName}
-        backendName={backendName}
         metricNames={metricNames}
         lPerfData={{
           ...lBranchAndCommit,
@@ -151,9 +159,11 @@ export default function Page() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
-  const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+
+  // TODO (huydhn): Clean this up once ClickHouse migration finishes
+  const { useCH: useClickHouse } = useCHContext();
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -189,12 +199,6 @@ export default function Page() {
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
       setModelName(modelName);
-    }
-
-    const backendName: string =
-      (router.query.backendName as string) ?? undefined;
-    if (backendName !== undefined) {
-      setBackendName(backendName);
     }
 
     const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
@@ -234,42 +238,74 @@ export default function Page() {
     );
   }, [router.query]);
 
+  const queryCollection = "benchmarks";
   const queryName = "oss_ci_benchmark_names";
-  const queryParams = {
-    deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
-    dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
-    excludedMetrics: EXCLUDED_METRICS,
-    benchmarks: REPO_TO_BENCHMARKS[repoName],
+
+  const timeParams: RocksetParam[] = [
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+  ];
+  const timeParamsClickHouse = RStoCHTimeParams(timeParams);
+
+  const queryParams: RocksetParam[] = [
+    {
+      name: "granularity",
+      type: "string",
+      value: granularity,
+    },
+    {
+      name: "filenames",
+      type: "string",
+      value: BENCHMARKS.join(","),
+    },
+    {
+      name: "repo",
+      type: "string",
+      value: repoName,
+    },
+    {
+      name: "deviceArch",
+      type: "string",
+      value: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    },
+    ...timeParams,
+  ];
+  const queryParamsClickHouse = {
     granularity: granularity,
-    models: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
-    backends: backendName === DEFAULT_BACKEND_NAME ? [] : [backendName],
+    filenames: BENCHMARKS,
     repo: repoName,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    ...timeParamsClickHouse,
   };
 
-  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const url = useClickHouse
+    ? `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParamsClickHouse)
+      )}`
+    : `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParams)
+      )}`;
 
-  console.log(queryParams);
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  console.log(data);
 
   if (data === undefined || data.length === 0) {
-    return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
+    return <>Loading {BENCHMARKS.join(", ")}...</>;
   }
 
   const modelNames: string[] = [
     DEFAULT_MODEL_NAME,
-    ...(_.uniq(data.map((r: any) => r.model)) as string[]),
+    ...(_.uniq(data.map((r: any) => r.name)) as string[]),
   ];
-  const backendNames: string[] = _.compact([
-    DEFAULT_BACKEND_NAME,
-    ...(_.uniq(data.map((r: any) => r.backend)) as string[]),
-  ]);
   const deviceNames: string[] = [
     DEFAULT_DEVICE_NAME,
     ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
@@ -284,7 +320,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          {REPO_TO_BENCHMARKS[repoName]} dashboard
+          LLMs Benchmark DashBoard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -295,8 +331,6 @@ export default function Page() {
             repoName
           )}&modelName=${encodeURIComponent(
             modelName
-          )}&backendName=${encodeURIComponent(
-            backendName
           )}&dtypeName=${encodeURIComponent(
             dtypeName
           )}&deviceName=${encodeURIComponent(deviceName)}`}
@@ -322,14 +356,6 @@ export default function Page() {
           dtypes={modelNames}
           label={"Model"}
         />
-        {backendNames.length > 1 && (
-          <DTypePicker
-            dtype={backendName}
-            setDType={setBackendName}
-            dtypes={backendNames}
-            label={"Backend"}
-          />
-        )}
         <DTypePicker
           dtype={dtypeName}
           setDType={setDTypeName}
@@ -345,15 +371,15 @@ export default function Page() {
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
-          queryParams={queryParams}
+          queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to previous commit
+          fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={useClickHouse}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -361,7 +387,7 @@ export default function Page() {
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryCollection={"benchmarks"}
-          queryParams={queryParams}
+          queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
@@ -369,23 +395,23 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
+          useClickHouse={useClickHouse}
         />
       </Stack>
 
       <Report
-        queryParams={queryParams}
+        queryParams={useClickHouse ? queryParamsClickHouse : queryParams}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
         repoName={repoName}
         modelName={modelName}
-        backendName={backendName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
+        useClickHouse={useClickHouse}
       />
     </div>
   );

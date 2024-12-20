@@ -1,0 +1,10 @@
+{
+  "query": "select\n    DATE_DIFF(\n        'second',\n        workflow._event_time,\n        CURRENT_TIMESTAMP()\n    ) as last_success_seconds_ago\nfrom\n    workflow_run workflow\n    JOIN push on workflow.head_commit.id = push.head_commit.id\nwhere\n    push.ref IN ('refs/heads/master', 'refs/heads/main')\n    AND push.repository.owner.name = 'pytorch'\n    AND push.repository.name = 'pytorch'\n    AND workflow.conclusion = 'success'\n    AND workflow.name = :workflowName\norder by\n    workflow._event_time desc\nLIMIT\n    1\n",
+  "default_parameters": [
+    {
+      "name": "workflowName",
+      "type": "string",
+      "value": "docker-builds"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
 {
-  "days_ago": "Int64"
+  "days_ago": "Int64",
+  "granularity": "String"
 }

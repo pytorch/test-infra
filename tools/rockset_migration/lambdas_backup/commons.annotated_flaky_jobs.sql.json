@@ -1,0 +1,25 @@
+{
+  "query": "select\n    job.head_sha as sha,\n    CONCAT(w.name, ' / ', job.name) as jobName,\n    job.id,\n    job.conclusion,\n    job.html_url as htmlUrl,\n    CONCAT(\n        'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n        CAST(job.id as string)\n    ) as logUrl,\n    DATE_DIFF(\n        'SECOND',\n        PARSE_TIMESTAMP_ISO8601(job.started_at),\n        PARSE_TIMESTAMP_ISO8601(job.completed_at)\n    ) as durationS,\n    w.repository.full_name as repo,\n    ARRAY_CREATE(job.torchci_classification.line) as failureLines,\n    job.torchci_classification.captures as failureCaptures,\n    ARRAY_CREATE(job.torchci_classification.line_num) as failureLineNumbers,\nfrom\n    commons.job_annotation a\n    join commons.workflow_job job on job.id = a.jobID\n    join commons.workflow_run w on w.id = job.run_id\n    and w.head_repository.full_name = a.repo and a.repo = :repo\nwhere\n    a.annotation != 'BROKEN_TRUNK'\n    and w.head_branch = :branch\n    and job._event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    and job._event_time < PARSE_DATETIME_ISO8601(:stopTime)\norder by\n    job._event_time\n",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "main"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-10-15T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-09-19T00:06:32.839Z"
+    }
+  ]
+}

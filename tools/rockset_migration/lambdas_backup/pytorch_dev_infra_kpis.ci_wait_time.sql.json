@@ -1,0 +1,20 @@
+{
+  "query": "WITH percentiles_desired AS (\n  -- All the percentiles that we want the query to return\n  SELECT 'p25' as percentile, 0.25 as percentile_num\n  UNION ALL\n  SELECT 'p50', 0.50\n  UNION ALL\n  SELECT 'p75', 0.75\n  UNION ALL\n  SELECT 'p90', 0.90\n),\n-- Set the bucket to the desired granularity\ngranular_pr_stats as (\n    SELECT\n      DATE_TRUNC(:granularity, end_time) AS bucket,\n      *\n    FROM metrics.pr_stats\n),\n-- Within each bucket, figure out what percentile duration and num_commits each PR falls under\npercentiles as (\n  SELECT\n      pr_number,\n      bucket,\n      duration_mins,\n      PERCENT_RANK() OVER(\n          PARTITION BY bucket\n          ORDER by duration_mins\n      ) as duration_percentile,\n      num_commits,\n      PERCENT_RANK() OVER(\n          PARTITION BY bucket\n          ORDER by num_commits\n      ) as num_commits_percentile\n  FROM\n      granular_pr_stats\n  WHERE 1 = 1\n    AND PARSE_DATETIME_ISO8601(:startTime) <= bucket\n    AND DATE(PARSE_DATETIME_ISO8601(:stopTime)) >= bucket \n),\n-- For each bucket, get just the durations corresponding to the desired percentiles\nduration_percentile as (\n  SELECT \n    p.bucket,\n    pd.percentile,\n    MIN(p.duration_mins) as duration_mins\n  FROM percentiles p \n    CROSS JOIN percentiles_desired pd \n  WHERE p.duration_percentile >= pd.percentile_num\n  GROUP BY\n   p.bucket, pd.percentile\n),\n-- For each bucket, get just the number of commits corresponding to the desired percentiles\nnum_commits_percentile as (\n  SELECT \n    p.bucket,\n    pd.percentile,\n    MIN(p.num_commits) as num_commits\n  FROM percentiles p \n    CROSS JOIN percentiles_desired pd \n  WHERE p.num_commits_percentile >= pd.percentile_num\n  GROUP BY\n   p.bucket, pd.percentile\n)\n-- Keep the percentiles on the same row so that this one query can give the results for both types of data\nSELECT \n  FORMAT_TIMESTAMP('%Y-%m-%d', d.bucket) as bucket,\n  d.percentile,\n  d.duration_mins,\n  c.num_commits\nFROM \n  duration_percentile d \n  INNER JOIN num_commits_percentile c on d.bucket = c.bucket and d.percentile = c.percentile\nWHERE\n  d.bucket < (SELECT max(bucket) from granular_pr_stats) -- discard the latest bucket, which will have noisy, partial data\nORDER BY bucket DESC, duration_mins\n",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-05-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-06-01T00:06:32.839Z"
+    }
+  ]
+}

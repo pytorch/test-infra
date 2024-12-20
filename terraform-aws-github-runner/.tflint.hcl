@@ -10,5 +10,5 @@ plugin "aws" {
 }
 
 config {
-  call_module_type = "all"
+  module = true
 }

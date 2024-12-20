@@ -10,6 +10,7 @@ import { TestInfo } from "./additionalTestInfo/TestInfo";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
+import TestInsightsLink from "./TestInsights";
 import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
@@ -53,6 +54,11 @@ function WorkflowJobSummary({
         <i>Duration:</i> {durationDisplay(job.durationS)}
       </>
     );
+  }
+
+  const testInsightsLink = TestInsightsLink({ job: job, separator: "" });
+  if (testInsightsLink != null) {
+    subInfo.push(testInsightsLink);
   }
 
   const hasArtifacts = artifacts && artifacts.length > 0;
@@ -216,7 +222,7 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
-              artifacts={groupedArtifacts?.get(job.id?.toString())}
+              artifacts={groupedArtifacts?.get(job.id)}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
               unstableIssues={unstableIssues}
@@ -237,17 +243,13 @@ export default function WorkflowBox({
 }
 
 function useArtifacts(workflowId: string | undefined): {
-  artifacts: Artifact[];
+  artifacts: any;
   error: any;
 } {
-  const { data, error } = useSWR<Artifact[]>(
-    `/api/artifacts/s3/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000,
-      refreshWhenHidden: true,
-    }
-  );
+  const { data, error } = useSWR(`/api/artifacts/s3/${workflowId}`, fetcher, {
+    refreshInterval: 60 * 1000,
+    refreshWhenHidden: true,
+  });
   if (workflowId === undefined) {
     return { artifacts: [], error: "No workflow ID" };
   }
@@ -262,7 +264,7 @@ function useArtifacts(workflowId: string | undefined): {
 
 function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
   // Group artifacts by job id if possible
-  const jobIds = jobs.map((job) => job.id?.toString());
+  const jobIds = jobs.map((job) => job.id);
   const grouping = new Map<string | undefined, Artifact[]>();
   for (const artifact of artifacts) {
     let key = "none";

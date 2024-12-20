@@ -15,10 +15,9 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
-      generate_dockerhub_images:
+      generate_dockerhub_images: 
         description: "Whether to generate Docker Hub images"
         default: "false"
-        required: false
         type: string
     outputs:
       matrix:
@@ -31,11 +30,11 @@ jobs:
       matrix: ${{ steps.generate.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
       - name: Checkout test-infra repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}

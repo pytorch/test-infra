@@ -1,0 +1,4 @@
+{
+  "query": "SELECT\n    *\nFROM\n    commons.AWS_access_requests\n",
+  "default_parameters": []
+}

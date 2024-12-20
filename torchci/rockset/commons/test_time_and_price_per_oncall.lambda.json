@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/test_time_and_price_per_oncall.sql",
+  "default_parameters": [
+    {
+      "name": "endDate",
+      "type": "string",
+      "value": "2023-05-09T03:46:31.152Z"
+    },
+    {
+      "name": "oncall",
+      "type": "string",
+      "value": "functorch"
+    },
+    {
+      "name": "startDate",
+      "type": "string",
+      "value": "2023-04-09T03:46:31.152Z"
+    },
+    {
+      "name": "workflow_type",
+      "type": "string",
+      "value": "%"
+    }
+  ],
+  "description": ""
+}

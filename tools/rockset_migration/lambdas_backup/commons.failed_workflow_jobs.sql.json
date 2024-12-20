@@ -1,0 +1,30 @@
+{
+  "query": "WITH repeats AS (\n  SELECT\n    array_agg(j.id) AS ids\n  FROM\n    workflow_run w\n    JOIN workflow_job j ON w.id = j.run_id HINT(join_strategy = lookup)\n  WHERE\n    j._event_time >= PARSE_DATETIME_ISO8601(: startTime)\n    AND j._event_time < PARSE_DATETIME_ISO8601(: stopTime)\n    AND w.head_repository.full_name = : repo\n    AND w.head_branch = : branch\n    AND w.event != 'workflow_run'\n    AND w.event != 'repository_dispatch'\n  GROUP BY\n    j.head_sha,\n    j.name,\n    w.name\n  HAVING\n    count(*) > : count\n    AND bool_or(\n      j.conclusion IN (\n        'failure', 'cancelled', 'time_out'\n      )\n    )\n),\nids AS (\n  SELECT\n    ids.id\n  FROM\n    repeats,\n    UNNEST(repeats.ids AS id) AS ids\n)\nSELECT\n  job.head_sha AS sha,\n  CONCAT(w.name, ' / ', job.name) AS jobName,\n  job.id,\n  job.conclusion,\n  job.html_url AS htmlUrl,\n  CONCAT(\n    'https://ossci-raw-job-status.s3.amazonaws.com/log/',\n    CAST(job.id AS string)\n  ) AS logUrl,\n  DATE_DIFF(\n    'SECOND',\n    PARSE_TIMESTAMP_ISO8601(job.started_at),\n    PARSE_TIMESTAMP_ISO8601(job.completed_at)\n  ) AS durationS,\n  w.repository.full_name AS repo,\n  ARRAY_CREATE(job.torchci_classification.line) AS failureLines,\n  job.torchci_classification.captures AS failureCaptures,\n  ARRAY_CREATE(job.torchci_classification.line_num) AS failureLineNumbers,\nFROM\n  ids\n  JOIN workflow_job job on job.id = ids.id\n  INNER JOIN workflow_run w on w.id = job.run_id\nWHERE\n  job.conclusion IN (\n    'failure', 'cancelled', 'time_out'\n  )",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "master"
+    },
+    {
+      "name": "count",
+      "type": "int",
+      "value": "1"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-03-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.00Z"
+    }
+  ]
+}

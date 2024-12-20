@@ -5,7 +5,7 @@ import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
-  fetchPRLabels,
+  fetchIssueLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
   formDrciSevBody,
@@ -31,7 +31,7 @@ import {
   fetchFailedJobsFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import { getOctokit } from "lib/github";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -44,7 +44,6 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
-import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -60,13 +59,6 @@ export interface UpdateCommentBody {
   repo: string;
 }
 
-// Attempt to set the maxDuration of this serveless function on Vercel https://vercel.com/docs/functions/configuring-functions/duration,
-// also according to https://vercel.com/docs/functions/runtimes#max-duration, the max duration
-// for an enterprise account is 900
-export const config = {
-  maxDuration: 900,
-};
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{
@@ -75,38 +67,20 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization == process.env.DRCI_BOT_KEY) {
-    // Dr. CI bot key is used to update the comment, probably called from the
-    // update Dr. CI workflow
-  } else if (authorization) {
-    // Authorization provided, probably a user calling it.
-    // Check that they are only updating a single PR
+  if (authorization === process.env.DRCI_BOT_KEY) {
     const { prNumber } = req.query;
-    if (prNumber === undefined) {
-      return res.status(403).end();
-    }
-    // Check if they exceed the rate limit
-    const userOctokit = await getOctokitWithUserToken(authorization as string);
-    const user = await userOctokit.rest.users.getAuthenticated();
-    if (await drCIRateLimitExceeded(user.data.login)) {
-      return res.status(429).end();
-    }
-    incrementDrCIRateLimit(user.data.login);
-  } else {
-    // No authorization provided, return 403
-    return res.status(403).end();
+    const { repo }: UpdateCommentBody = req.body;
+    const octokit = await getOctokit(OWNER, repo);
+
+    const failures = await updateDrciComments(
+      octokit,
+      repo,
+      prNumber ? [prNumber as unknown as number] : []
+    );
+    res.status(200).json(failures);
   }
 
-  const { prNumber } = req.query;
-  const { repo }: UpdateCommentBody = req.body;
-  const octokit = await getOctokit(OWNER, repo);
-
-  const failures = await updateDrciComments(
-    octokit,
-    repo,
-    prNumber ? [parseInt(prNumber as string)] : []
-  );
-  res.status(200).json(failures);
+  res.status(403).end();
 }
 
 export async function updateDrciComments(
@@ -114,18 +88,18 @@ export async function updateDrciComments(
   repo: string = "pytorch",
   prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
-  // Fetch in two separate queries because combining into one query took much
-  // longer to run on CH
   const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
+    // Fetch in two separate queries because combinidng into one query took much
+    // longer to run on CH
     fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
-    // Only fetch if we are not updating a specific PR
-    prNumbers.length != 0
-      ? []
-      : fetchRecentWorkflows(
-          `${OWNER}/${repo}`,
-          await getPRsWithPendingJobInComment(`${OWNER}/${repo}`),
-          NUM_MINUTES + ""
-        ),
+    fetchRecentWorkflows(
+      `${OWNER}/${repo}`,
+      // Only fetch if we are not updating a specific PR
+      prNumbers.length == 0
+        ? await getPRsWithPendingJobInComment(`${OWNER}/${repo}`)
+        : [],
+      NUM_MINUTES + ""
+    ),
   ]);
 
   const workflowsByPR = await reorganizeWorkflows(
@@ -161,7 +135,8 @@ export async function updateDrciComments(
       // Find the merge commits of the PR to check if it has already been merged before
       const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
 
-      const labels = await fetchPRLabels(
+      const labels = await fetchIssueLabels(
+        octokit,
         pr_info.owner,
         pr_info.repo,
         pr_info.pr_number
@@ -261,9 +236,7 @@ export async function updateDrciComments(
           title: "Dr.CI classification results",
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
-          summary: JSON.stringify(
-            removeFailureContext(failures[pr_info.pr_number])
-          ),
+          summary: JSON.stringify(failures[pr_info.pr_number]),
         },
       });
     },
@@ -273,25 +246,6 @@ export async function updateDrciComments(
   );
 
   return failures;
-}
-
-/**
- * Changes the failure context of each job to an empty array. This is done to
- * reduce the size of the payload, which can some times exceed the maximum size
- * allowed by GitHub
- * @param failure
- * @returns
- */
-function removeFailureContext(failure: {
-  [cat: string]: RecentWorkflowsData[];
-}) {
-  const result = { ...failure };
-  for (const cat in result) {
-    result[cat] = result[cat].map((job) => {
-      return { ...job, failure_context: [] };
-    });
-  }
-  return result;
 }
 
 /**
@@ -307,10 +261,10 @@ async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
 select
     issue_url
 from
-    default.issue_comment final
+    issue_comment final
 where
     body like '<!-- drci-comment-start -->%'
-    and match(body, '\\d Pending')
+    and body like '%hourglass_flowing_sand%'
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String}`;
   const results = await queryClickhouse(query, { repo: `%${repo}%` });
@@ -1126,7 +1080,7 @@ export async function reorganizeWorkflows(
       let prShas: { sha: string; title: string }[] = [];
       // Gate this to PyTorch as disabled tests feature is only available there
       if (octokit && repo === "pytorch") {
-        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
+        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit, true);
         prTitle = prData.title;
         prBody = prData.body;
         prShas = prData.shas;

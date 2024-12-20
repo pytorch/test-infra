@@ -1,0 +1,36 @@
+{
+  "workspace": "flakiness",
+  "last_updated_by": null,
+  "last_updated": "2022-11-09T21:52:22Z",
+  "name": "trunk_avg_flakiness",
+  "version_count": 1,
+  "collections": [
+    "commons.workflow_job",
+    "commons.workflow_run"
+  ],
+  "latest_version": {
+    "workspace": "flakiness",
+    "created_by": null,
+    "created_by_apikey_name": null,
+    "created_at": "2022-11-09T21:52:22Z",
+    "name": "trunk_avg_flakiness",
+    "version": "938b5ac6187ca23e",
+    "description": "Average flakiness on trunk over the past two weeks",
+    "sql": {
+      "query": "with failed_due_to_flaky_inductor as (\n    select\n        sha,\n        max(flaky) as flaky\n    from\n        commons.jobs_with_flakiness\n    group by\n        sha\n)\n\n-- Overall flakiness on trunk\nselect (select count(*) from failed_due_to_flaky_inductor where flaky) * 100.0/(select count(*) from failed_due_to_flaky_inductor)\n\n-- The flakiest jobs\n-- select AVG(CAST(flaky as FLOAT)) * 100.0 as failure_rate, jobName from commons.jobs_with_flakiness where flaky is not null group by jobName order by failure_rate desc\n\n-- The specific runs that flaked\n-- select * from commons.jobs_with_flakiness where flaky\n",
+      "default_parameters": []
+    },
+    "collections": [
+      "commons.workflow_run",
+      "commons.workflow_job"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

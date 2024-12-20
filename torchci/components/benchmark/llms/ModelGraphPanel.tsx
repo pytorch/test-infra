@@ -19,6 +19,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useBenchmark } from "lib/benchmark/llmUtils";
+import { RocksetParam } from "lib/rockset";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
@@ -27,29 +28,36 @@ export function GraphPanel({
   queryParams,
   granularity,
   modelName,
-  backendName,
   dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  useClickHouse,
 }: {
-  queryParams: { [key: string]: any };
+  queryParams: RocksetParam[] | {};
   granularity: Granularity;
   modelName: string;
-  backendName: string;
   dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  useClickHouse: boolean;
 }) {
   // Do not set the commit here to query all the records in the time range to
   // draw a chart
-  const { data, error } = useBenchmark(queryParams, {
-    branch: rBranchAndCommit.branch,
-    commit: "",
-  });
+  const { data, error } = useBenchmark(
+    queryParams,
+    modelName,
+    dtypeName,
+    deviceName,
+    {
+      branch: rBranchAndCommit.branch,
+      commit: "",
+    },
+    useClickHouse
+  );
 
   if (data === undefined || data.length === 0) {
     return (
@@ -67,8 +75,18 @@ export function GraphPanel({
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
-  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
-  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
+  const startTime = useClickHouse
+    ? (queryParams as { [key: string]: any })["startTime"].startOf(granularity)
+    : dayjs(
+        (queryParams as RocksetParam[]).find((p) => p.name === "startTime")
+          ?.value
+      ).startOf(granularity);
+  const stopTime = useClickHouse
+    ? (queryParams as { [key: string]: any })["stopTime"].startOf(granularity)
+    : dayjs(
+        (queryParams as RocksetParam[]).find((p) => p.name === "stopTime")
+          ?.value
+      ).startOf(granularity);
 
   // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
@@ -82,7 +100,7 @@ export function GraphPanel({
     chartData[metric] = data
       .filter((record: LLMsBenchmarkData) => {
         return (
-          record.model === modelName &&
+          record.name === modelName &&
           (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
           (`${record.device} (${record.arch})` === deviceName ||
             deviceName === DEFAULT_DEVICE_NAME) &&
@@ -98,17 +116,17 @@ export function GraphPanel({
         );
       })
       .map((record: LLMsBenchmarkData) => {
-        const model = record.model;
+        const name = record.name;
         const dtype = record.dtype;
         const device = record.device;
 
-        record.display = model.includes(dtype)
-          ? model.includes(device)
-            ? model
-            : `${model} (${device})`
-          : model.includes(device)
-          ? `${model} (${dtype})`
-          : `${model} (${dtype} / ${device})`;
+        record.display = name.includes(dtype)
+          ? name.includes(device)
+            ? name
+            : `${name} (${device})`
+          : name.includes(device)
+          ? `${name} (${dtype})`
+          : `${name} (${dtype} / ${device})`;
 
         return record;
       });

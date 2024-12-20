@@ -1,0 +1,34 @@
+{
+  "workspace": "commons",
+  "last_updated_by": "sahanp@meta.com",
+  "last_updated": "2023-10-30T21:04:44Z",
+  "name": "unique_aws_job_launches",
+  "version_count": 3,
+  "collections": [
+    "commons.AWS_access_requests"
+  ],
+  "latest_version": {
+    "workspace": "commons",
+    "created_by": "sahanp@meta.com",
+    "created_by_apikey_name": null,
+    "created_at": "2023-10-30T21:04:44Z",
+    "name": "unique_aws_job_launches",
+    "version": "f39c3d932ecb41bd",
+    "description": "Get everything from commons.AWS_access_requests",
+    "sql": {
+      "query": "SELECT\n    username,\n    COUNT(username) as jobs_launched\nFROM\n    commons.AWS_access_requests as t\nWHERE\n  entry_type = 'squeue'\n  AND PARSE_DATETIME_ISO8601(t.checked_time) > CURRENT_DATETIME() - INTERVAL 2 WEEK\nGROUP BY\n  username\nORDER BY\njobs_launched DESC\n\n",
+      "default_parameters": []
+    },
+    "collections": [
+      "commons.AWS_access_requests"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}

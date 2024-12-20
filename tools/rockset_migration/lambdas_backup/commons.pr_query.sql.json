@@ -1,0 +1,20 @@
+{
+  "query": "select\n    pr.title as title,\nfrom\n    pull_request pr\nwhere\n    pr.number = :pr\n    AND pr.html_url LIKE CONCAT('https://github.com/', :owner, '/', :repo, '/%')\n",
+  "default_parameters": [
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "pr",
+      "type": "int",
+      "value": "70005"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ]
+}

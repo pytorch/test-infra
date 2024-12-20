@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 
-from torchci.clickhouse import query_clickhouse
+from torchci.rockset_utils import query_rockset
 
 from torchci.td.utils import (
     calculate_generic_test_ratings,
@@ -12,13 +12,13 @@ from torchci.td.utils import (
 FAILED_TESTS_QUERY = """
 select
     w.head_sha,
-    JSONExtractString(t.info, 'failure') as failure
+    t.failure,
 from
-    default.workflow_run w
-    join misc.ossci_uploaded_metrics t on t.run_id = w.id
+    workflow_run w
+    join metrics.metrics t on t.run_id = w.id
 where
     t.metric_name = 'td_test_failure_stats_v2'
-    and t.timestamp > CURRENT_TIMESTAMP() - interval 90 day
+    and t._event_time > CURRENT_TIMESTAMP() - DAYS(90)
 """
 
 
@@ -34,7 +34,7 @@ def filter_tests(failed_tests, merge_bases):
     for test in failed_tests:
         sha = test["head_sha"]
         if sha not in merge_bases:
-            # Should only happen if the table is unfilled, or if the sha
+            # Should only happen if rockset table is unfilled, or if the sha
             # doesn't exist somehow
             continue
         merge_base = merge_bases[sha]["merge_base"]
@@ -49,9 +49,9 @@ def filter_tests(failed_tests, merge_bases):
 
 
 def main() -> None:
-    failed_tests = query_clickhouse(FAILED_TESTS_QUERY, {})
+    failed_tests = query_rockset(FAILED_TESTS_QUERY)
     merge_bases = get_merge_bases_dict()
-    print("done querying", flush=True)
+    print("done querying rockset", flush=True)
 
     filtered_tests = filter_tests(failed_tests, merge_bases)
 

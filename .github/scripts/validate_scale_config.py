@@ -1,17 +1,18 @@
 # Takes the scale-config.yml file in test-infra/.github/scale-config.yml and runs the following
 # validations against it:
-# 1. Internal validation: Runs a custom set of sanity checks against the runner types defined in the file
+# 1. Internal validation: Ensure that every linux runner type listed has the corresponding Amazon 2023 variant
 # 2. External validation: Ensure that every runner type listed (linux & windows) have corresponding runner types in
-#    the Linux Foundation fleet's scale config files (.github/lf-scale-config.yml and .github/lf-canary-scale-config.yml).
-#    Those files are expected to have the "lf." and "lf.c." prefixes added to each runner type
+#    pytorch/pytorch's .github/lf-scale-config.yml and .github/lf-canary-scale-config.yml that have the "lf."
+#    "lf.c." prefixes added correspondingly
+# This script assumes that it is being run from the root of the test-infra repository
 
 import argparse
 import copy
 import json
 import os
+import tempfile
 
 import urllib.request
-from pathlib import Path
 
 from typing import Any, cast, Dict, List, NamedTuple
 
@@ -28,6 +29,8 @@ LF_CANARY_SCALE_CONFIG_PATH = ".github/lf-canary-scale-config.yml"
 
 RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
+GITHUB_PYTORCH_REPO_RAW_URL = "https://raw.githubusercontent.com/pytorch/pytorch/main/"
+
 PREFIX_META = ""
 PREFIX_LF = "lf."
 PREFIX_LF_CANARY = "lf.c."
@@ -42,7 +45,6 @@ _RUNNER_BASE_JSCHEMA = {
         "instance_type": {"type": "string"},
         "is_ephemeral": {"type": "boolean"},
         "labels": {"type": "array", "items": {"type": "string"}},
-        "min_available": {"type": "number"},
         "max_available": {"type": "number"},
         "os": {"type": "string", "enum": ["linux", "windows"]},
     },
@@ -60,6 +62,7 @@ RUNNER_JSCHEMA["required"] = [
     "disk_size",
     "instance_type",
     "is_ephemeral",
+    "max_available",
     "os",
 ]
 
@@ -68,17 +71,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate scale-config.yml file")
 
     parser.add_argument(
-        "--generate",
-        "-g",
-        action="store_true",
-        help="Update the generated scale configs based on the source scale config",
+        "--test-infra-repo-root",
+        type=str,
+        required=False,
+        default=".",
+        help="Path to the root of the local test-infra repository. Default is the current directory",
+    )
+    parser.add_argument(
+        "--pytorch-repo-root",
+        type=str,
+        required=False,
+        help="Path to the root of the local pytorch repository. If omitted, uses the "
+        "main branch from github pytorch/pytorch",
     )
 
     return parser.parse_args()
-
-
-def get_repo_root() -> Path:
-    return Path(__file__).resolve().parent.parent.parent
 
 
 def runner_types_are_equivalent(
@@ -139,21 +146,21 @@ def runner_types_are_equivalent(
     return are_same
 
 
-def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
-    """
+def is_config_consistent_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
+    f"""
     Ensure that for every linux runner type in the config:
 
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
-    2 - they have a max_available of at least 50, or is not enforced
+    2 - they have a max_available of at least 50
     """
-    invalid_runners = set()
+    errors_found = False
 
     for runner_type, runner_config in runner_types.items():
         try:
             jsonschema.validate(runner_config, RUNNER_JSCHEMA)
         except jsonschema.ValidationError as e:
             print(f"Runner type {runner_type} has invalid configuration: {e.message}")
-            invalid_runners.add(runner_type)
+            errors_found = True
             # continue, as the syntax is invalid and we can't trust the rest of the config
             # so the next part of the code might break
             continue
@@ -161,34 +168,14 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
-        if "max_available" not in runner_config:
-            continue
-
-        if runner_config["max_available"] == None:
-            print(
-                f"Runner type {runner_type} can't have max_available set to Null, Python, "
-                "between other cases, will load a value as None when its property is "
-                "defined as null in the yaml file. It is preferable to remove the max_available "
-                "property or set it to a negative value."
-            )
-            invalid_runners.add(runner_type)
-        elif (
-            runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
-            and runner_config["max_available"] >= 0
-        ):
+        if runner_config["max_available"] < MAX_AVAILABLE_MINIMUM:
             print(
                 f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
                 f"which is less than the minimum required value of {MAX_AVAILABLE_MINIMUM}"
             )
-            invalid_runners.add(runner_type)
+            errors_found = True
 
-    if invalid_runners:
-        invalid_runners_str = ", ".join(invalid_runners)
-        print(
-            f"Found a total of {len(invalid_runners)} invalid runner configurations: {invalid_runners_str}"
-        )
-
-    return not invalid_runners
+    return not errors_found
 
 
 def is_consistent_across_configs(
@@ -231,6 +218,8 @@ def generate_repo_scale_config(
     Generate the new scale config file with the same layout as the original file,
     but with the expected_prefix added to the runner types
     """
+
+    print(f"Generating updated {dest_config_file}")
     source_config = load_yaml_file(source_config_file)
     base_runner_types = set(source_config[RUNNER_TYPE_CONFIG_KEY].keys())
 
@@ -256,9 +245,9 @@ def generate_repo_scale_config(
             f.write(line)
 
 
-def load_yaml_file(scale_config_path: Path) -> Dict[str, Any]:
+def load_yaml_file(scale_config_path: str) -> Dict[str, Any]:
     # Verify file exists
-    if not scale_config_path.exists():
+    if not os.path.exists(scale_config_path):
         print(
             f"Could not find file {scale_config_path}. Please verify the path given on the command line."
         )
@@ -279,50 +268,96 @@ def download_file(url: str, local_filename: str) -> None:
         f.write(content)
 
 
+def pull_temp_config_from_github_repo(config_path: str) -> str:
+    config_url = GITHUB_PYTORCH_REPO_RAW_URL + config_path
+
+    temp_dir = tempfile.mkdtemp()
+    config_path = os.path.join(temp_dir, config_path)
+    download_file(config_url, config_path)
+
+    return config_path
+
+
 class ScaleConfigInfo(NamedTuple):
-    path: Path  # full path to scale config file
+    path: str  # full path to scale config file
     prefix: str  # prefix this fleet's runners types should have
 
 
 def main() -> None:
-    repo_root = get_repo_root()
-
     args = parse_args()
 
     source_scale_config_info = ScaleConfigInfo(
-        path=repo_root / META_SCALE_CONFIG_PATH,
+        path=os.path.join(args.test_infra_repo_root, META_SCALE_CONFIG_PATH),
         prefix=PREFIX_META,
     )
 
     # Contains scale configs that are generated from the source scale config
     generated_scale_config_infos: List[ScaleConfigInfo] = [
         ScaleConfigInfo(
-            path=repo_root / LF_SCALE_CONFIG_PATH,
+            path=os.path.join(args.test_infra_repo_root, LF_SCALE_CONFIG_PATH),
             prefix=PREFIX_LF,
         ),
         ScaleConfigInfo(
-            path=repo_root / LF_CANARY_SCALE_CONFIG_PATH,
+            path=os.path.join(args.test_infra_repo_root, LF_CANARY_SCALE_CONFIG_PATH),
             prefix=PREFIX_LF_CANARY,
         ),
     ]
 
+    generate_files = True
+    if args.pytorch_repo_root is None:
+        # This is expected during a CI run
+        generate_files = False
+        print(
+            "Using github's pytorch/pytorch repository as the source for the pytorch scale config files"
+        )
+
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=pull_temp_config_from_github_repo(LF_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF,
+            )
+        )
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=pull_temp_config_from_github_repo(LF_CANARY_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF_CANARY,
+            )
+        )
+    else:
+        # This is expected during a local run
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=os.path.join(args.pytorch_repo_root, LF_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF,
+            )
+        )
+        generated_scale_config_infos.append(
+            ScaleConfigInfo(
+                path=os.path.join(args.pytorch_repo_root, LF_CANARY_SCALE_CONFIG_PATH),
+                prefix=PREFIX_LF_CANARY,
+            )
+        )
+
     source_scale_config = load_yaml_file(source_scale_config_info.path)
     validation_success = True
 
-    validation_success = is_config_valid_internally(
-        source_scale_config[RUNNER_TYPE_CONFIG_KEY]
-    )
-    print(f"scaled-config.yml is {'valid' if validation_success else 'invalid'}\n")
+    if not is_config_consistent_internally(source_scale_config[RUNNER_TYPE_CONFIG_KEY]):
+        validation_success = False
+        print("scale-config.yml is not internally consistent\n")
+    else:
+        print("scale-config.yml is internally consistent\n")
 
     def validate_config(generated_config_info: ScaleConfigInfo) -> bool:
-        if args.generate:
-            print(f"Generating updated {generated_config_info.path}")
-
+        if generate_files:
             generate_repo_scale_config(
                 source_scale_config_info.path,
                 generated_config_info.path,
                 generated_config_info.prefix,
             )
+
+        print(
+            f"Generated updated pytorch/pytorch scale config file at {generated_config_info.path}\n"
+        )
 
         cloned_scale_config = load_yaml_file(generated_config_info.path)
 
@@ -332,7 +367,7 @@ def main() -> None:
             generated_config_info.prefix,
         ):
             print(
-                f"Consistency validation failed between {source_scale_config_info.path} and {generated_config_info.path}\n"
+                f"Consistency validation failed between {source_scale_config.path} and {generated_config_info.path}\n"
             )
             return False
         else:
@@ -345,9 +380,9 @@ def main() -> None:
     if not validation_success:
         print(
             "Validation failed\n\n"
-            "Please run `python .github/scripts/validate_scale_config.py --generate` "
-            "locally to validate the scale-config.yml file and generate the updated "
-            "variant scale config files.\n\n"
+            "Please run `python .github/scripts/validate_scale_config.py --test-infra-repo-root [path] "
+            "--pytorch-repo-root [path]` locally to validate the scale-config.yml file and generate the "
+            "updated pytorch/pytorch scale config files.\n\n"
             "Note: You still need to fix internal consistency errors yourself.\n\n"
             "If this script passes locally and you already have a PR open on pytorch/pytorch with the "
             " relevant changes, you can merge that pytorch/pytorch PR first to make this job pass."

@@ -7,6 +7,19 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 
+function mockHasApprovedWorkflowRun(repoFullName: string) {
+  nock("https://api.github.com")
+    .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
+    .reply(200, {
+      workflow_runs: [
+        {
+          event: "pull_request",
+          conclusion: "success",
+        },
+      ],
+    });
+}
+
 describe("auto-label-bot", () => {
   let probot: Probot;
   function emptyMockConfig(repoFullName: string) {
@@ -19,7 +32,7 @@ describe("auto-label-bot", () => {
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
     // zhouzhuojie/gha-ci-playground is the repo used in almost all the tests
-    utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
+    mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
     emptyMockConfig("zhouzhuojie/gha-ci-playground");
   });
 
@@ -94,7 +107,7 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ciflow/rocm", "module: rocm"] });
+        expect(body).toMatchObject({ labels: ["module: rocm", "ciflow/rocm"] });
         return true;
       })
       .reply(200);
@@ -102,81 +115,6 @@ describe("auto-label-bot", () => {
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
-  });
-
-  test("add ci-no-td label when PR title contains Reland", async () => {
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-
-    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
-      "payload"
-    ];
-    payload["pull_request"]["title"] = "Failed test [Reland]";
-    payload["pull_request"]["labels"] = [];
-
-    const scope = nock("https://api.github.com")
-      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
-      .reply(200)
-      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ci-no-td"] });
-        return true;
-      })
-      .reply(200);
-    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
-
-    scope.done();
-  });
-
-  test("add ci-no-td label when PR title contains mixed cases reLanD", async () => {
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-
-    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
-      "payload"
-    ];
-    payload["pull_request"]["title"] = "[reLanD] detect failure";
-    payload["pull_request"]["labels"] = [];
-
-    const scope = nock("https://api.github.com")
-      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
-      .reply(200)
-      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ci-no-td"] });
-        return true;
-      })
-      .reply(200);
-    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
-
-    scope.done();
-  });
-
-  test("no reland label added when issue title contains reland", async () => {
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-
-    const payload = requireDeepCopy("./fixtures/issues.opened");
-    payload["issue"]["title"] = "Issue Reland Does not work";
-    payload["issue"]["labels"] = [{ name: "test" }];
-
-    const scope = nock("https://api.github.com")
-      .post(
-        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
-        (body) => {
-          expect(body).toMatchObject({
-            labels: ["ROCm"],
-          });
-          return true;
-        }
-      )
-      .reply(200);
-
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    // the api never been called.
-    expect(scope.isDone()).toBe(false);
   });
 
   test("add skipped label when issue title contains DISABLED test", async () => {
@@ -203,7 +141,7 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("no skipped label added when PR title contains DISABLED test", async () => {
+  test("add skipped label when PR title contains DISABLED test", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -226,8 +164,7 @@ describe("auto-label-bot", () => {
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
-    // the api never been called.
-    expect(scope.isDone()).toBe(false);
+    scope.done();
   });
 
   test("non pytorch/pytorch repo do NOT add any release notes category labels", async () => {
@@ -425,7 +362,7 @@ describe("auto-label-bot", () => {
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
     emptyMockConfig("pytorch/fake-test-repo");
-    utils.mockHasApprovedWorkflowRun("pytorch/fake-test-repo");
+    mockHasApprovedWorkflowRun("pytorch/fake-test-repo");
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")[
       "payload"
@@ -861,6 +798,87 @@ describe("auto-label-bot", () => {
 
     scope.done();
   });
+
+  test("Review adds ciflow/trunk label for codev pr", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.pull_request.number;
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+    mockHasApprovedWorkflowRun(`${owner}/${repo}`);
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`"ciflow/trunk"`);
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label if it is not approving", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "CHANGES_REQUESTED";
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label for non-codev pr", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    event.payload.pull_request.body = "Definitely not a codev pr";
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+
+    scope.done();
+  });
+
+  test("Review does not add ciflow/trunk label for codev pr without write permissions", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    event.payload.repository.owner.login = "random";
+    event.payload.repository.name = "random";
+    event.payload.pull_request.body = "Differential Revision: D12345678";
+    const pr_number = event.payload.pull_request.number;
+    const author = event.payload.pull_request.user.login;
+    const repoFullName = `${event.payload.repository.owner.login}/${event.payload.repository.name}`;
+    const headSha = event.payload.pull_request.head.sha;
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = [
+      utils.mockPermissions(repoFullName, author, "read"),
+      utils.mockApprovedWorkflowRuns(repoFullName, headSha, false),
+      utils.mockPostComment(repoFullName, pr_number, [
+        "This appears to be a diff that was exported from phabricator, ",
+      ]),
+    ];
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
 });
 
 describe("auto-label-bot: labeler.yml config", () => {
@@ -921,7 +939,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const prNumber = 31;
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     await probot.receive(event);
     scope.done();
   });
@@ -934,7 +952,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const prNumber = 31;
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     const scope2 = utils.mockAddLabels(
       ["module: dynamo"],
       repoFullName,
@@ -953,7 +971,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const prNumber = 31;
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     const scope2 = utils.mockAddLabels(
       ["module: dynamo", "ciflow/inductor"],
       repoFullName,
@@ -975,7 +993,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     const prNumber = 31;
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     const scope2 = utils.mockAddLabels(
       ["module: dynamo", "ciflow/inductor"],
       repoFullName,
@@ -1191,7 +1209,7 @@ adfadsfasd
     const prNumber = event.payload.pull_request.number;
     event.payload.pull_request.user.login = "clee2000";
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
     const scope = utils.mockAddLabels(
       ["ci-td-distributed"],
@@ -1209,7 +1227,7 @@ adfadsfasd
     const prNumber = event.payload.pull_request.number;
     event.payload.pull_request.user.login = "random";
     defaultMockConfig(repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
     await probot.receive(event);
   });
@@ -1220,7 +1238,7 @@ adfadsfasd
     const prNumber = event.payload.pull_request.number;
     event.payload.pull_request.user.login = "random";
     utils.mockConfig("pytorch-probot.yml", "", repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
     await probot.receive(event);
   });

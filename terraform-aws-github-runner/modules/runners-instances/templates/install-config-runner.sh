@@ -85,9 +85,6 @@ case \$ami_id in
   *) echo "AMI Name: unknown";;
 esac
 
-grep 'pswpin' /proc/vmstat | awk '{print $2}' >/tmp/pswpin_before_job || true
-grep 'pswpout' /proc/vmstat | awk '{print $2}' >/tmp/pswpout_before_job || true
-
 echo "AMI ID: \$ami_id"
 
 metric_report "runner_scripts.before_job" 1
@@ -96,21 +93,6 @@ EOF
   cat > $AFTER_JOB_SCRIPT <<EOF
 #!/bin/bash
 . /home/$USER_NAME/runner-scripts/utils.sh
-
-grep 'pswpin' /proc/vmstat | awk '{print $2}' >/tmp/pswpin_after_job || true
-grep 'pswpout' /proc/vmstat | awk '{print $2}' >/tmp/pswpout_after_job || true
-
-if cmp --silent /tmp/pswpin_before_job /tmp/pswpin_after_job ; then
-  echo "[!ALERT!] Swap in detected! [!ALERT!]"
-  metric_report "runner_scripts.swap_in" 1
-  metric_report "runner_scripts.swap_op" 1
-fi
-
-if cmp --silent /tmp/pswpout_before_job /tmp/pswpout_after_job ; then
-  echo "[!ALERT!] Swap out detected [!ALERT!]"
-  metric_report "runner_scripts.swap_out" 1
-  metric_report "runner_scripts.swap_op" 1
-fi
 
 sudo chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/actions-runner
 metric_report "runner_scripts.after_job" 1
@@ -204,6 +186,14 @@ EOF
   popd
 }
 
+# TODO (huydhn): Remove this after moving to AmazonLinux2023
+fallback_to_node16() {
+  # https://github.blog/changelog/2024-03-07-github-actions-all-actions-will-run-on-node20-instead-of-node16-by-default/
+  FALLBACK_TO_NODE16="ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true"
+  export $FALLBACK_TO_NODE16
+  echo $FALLBACK_TO_NODE16 >> $RUNNER_ENV
+}
+
 get_labels_from_config() {
   while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -222,6 +212,7 @@ tar xzf ./actions-runner.tar.gz
 rm -rf actions-runner.tar.gz
 
 install_hooks
+fallback_to_node16
 
 ${arm_patch}
 

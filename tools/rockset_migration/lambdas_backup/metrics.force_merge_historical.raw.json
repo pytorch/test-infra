@@ -1,0 +1,55 @@
+{
+  "workspace": "metrics",
+  "last_updated_by": "huydhn@gmail.com",
+  "last_updated": "2022-08-03T00:28:18Z",
+  "name": "force_merge_historical",
+  "version_count": 1,
+  "collections": [
+    "commons.issue_comment"
+  ],
+  "latest_version": {
+    "workspace": "metrics",
+    "created_by": "huydhn@gmail.com",
+    "created_by_apikey_name": null,
+    "created_at": "2022-08-03T00:28:18Z",
+    "name": "force_merge_historical",
+    "version": "45ed5b45ba39b2a6",
+    "description": "The number of force merge over time",
+    "sql": {
+      "query": "SELECT\n    FORMAT_ISO8601(\n        DATE_TRUNC(\n            :granularity,\n            _event_time AT TIME ZONE :timezone\n        )\n    ) AS granularity_bucket,\n    COUNT(issue_comment.issue_url) AS count\nFROM\n    commons.issue_comment\nWHERE\n    issue_comment.body LIKE '%pytorchbot merge -f%'\n    AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)\n    AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)\n    AND issue_comment.user.login NOT LIKE '%pytorch-bot%'\n    AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'\nGROUP BY\n    granularity_bucket\nORDER BY\n\tgranularity_bucket DESC",
+      "default_parameters": [
+        {
+          "name": "granularity",
+          "type": "string",
+          "value": "day"
+        },
+        {
+          "name": "startTime",
+          "type": "string",
+          "value": "2022-07-01T00:00:00.000Z"
+        },
+        {
+          "name": "stopTime",
+          "type": "string",
+          "value": "2022-08-01T00:00:00.000Z"
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "value": "America/Los_Angeles"
+        }
+      ]
+    },
+    "collections": [
+      "commons.issue_comment"
+    ],
+    "state": "ACTIVE",
+    "stats": {
+      "last_executed": null,
+      "last_executed_by": null,
+      "last_execution_error": null,
+      "last_execution_error_message": null
+    },
+    "public_access_id": null
+  }
+}
