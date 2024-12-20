@@ -126,6 +126,7 @@ class TestUpdateDisabledIssues(TestCase):
         )
 
     def test_get_disable_tests_aggregate_issue(self, mock_get_disable_issues):
+        # Test that the function can read aggregate issues
         self.maxDiff = None
         mock_data = [
             {
@@ -153,6 +154,8 @@ class TestUpdateDisabledIssues(TestCase):
         )
 
     def test_get_disable_tests_merge_issues(self, mock_get_disable_issues):
+        # Test that the function can merge multiple issues with the same test
+        # name
         self.maxDiff = None
         mock_data = [
             {
