@@ -156,10 +156,15 @@ def get_disabled_tests(issues: List[Dict[str, Any]]) -> Dict[str, Tuple]:
         if key not in disabled_tests:
             disabled_tests[key] = (number, url, platforms_to_skip)
         else:
+            original_platforms = disabled_tests[key][2]
+            if len(original_platforms) == 0 or len(platforms_to_skip) == 0:
+                platforms = []
+            else:
+                platforms = sorted(set(original_platforms + platforms_to_skip))
             disabled_tests[key] = (
                 number,
                 url,
-                list(set(disabled_tests[key][2] + platforms_to_skip)),
+                platforms,
             )
 
     test_name_regex = re.compile(r"(test_[a-zA-Z0-9-_\.]+)\s+\(([a-zA-Z0-9-_\.]+)\)")
@@ -196,8 +201,7 @@ def get_disabled_tests(issues: List[Dict[str, Any]]) -> Dict[str, Tuple]:
                     if "```" in line:
                         break
                     split_by_colon = line.split(":")
-                    if len(split_by_colon) != 2:
-                        continue
+
                     test_name = parse_test_name(split_by_colon[0].strip())
                     if test_name is None:
                         continue
@@ -205,7 +209,12 @@ def get_disabled_tests(issues: List[Dict[str, Any]]) -> Dict[str, Tuple]:
                         test_name,
                         number,
                         url,
-                        get_platforms_to_skip(split_by_colon[1].strip(), ""),
+                        get_platforms_to_skip(
+                            split_by_colon[1].strip()
+                            if len(split_by_colon) > 1
+                            else "",
+                            "",
+                        ),
                     )
             else:
                 print(f"Unknown disable issue type: {title}")
