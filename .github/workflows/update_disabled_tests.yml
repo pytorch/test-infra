@@ -38,6 +38,7 @@ jobs:
           else
             ACTIONS="disable_tests"
           fi
+          # shellcheck disable=SC2086
           python3 .github/scripts/update_disabled_issues.py \
             --token $GITHUB_TOKEN \
             --actions $ACTIONS
