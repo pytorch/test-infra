@@ -3,8 +3,8 @@ from unittest import main, mock, TestCase
 from update_disabled_issues import (
     condense_disable_jobs,
     filter_disable_issues,
-    get_disabled_tests,
     get_disable_issues,
+    get_disabled_tests,
     OWNER,
     REPO,
     UNSTABLE_PREFIX,
