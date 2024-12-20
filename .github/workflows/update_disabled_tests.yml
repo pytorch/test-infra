@@ -17,7 +17,7 @@ permissions:
 jobs:
   update-disabled-tests:
     runs-on: ubuntu-latest
-    environment: trigger-nightly
+    environment: ${{ github.ref == 'refs/heads/main' && 'trigger-nightly' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,16 +27,28 @@ jobs:
           # The token is used to confirm issue creator's write permission before
           # allowing them to disable jobs. Note that the token needs to have access
           # to the target repo, i.e. pytorch/pytorch instead of test-infra. Using
-          # PyTorch bot token is the most obvious choice.
-          GH_PYTORCHBOT_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          # PyTorch bot token is the most obvious choice.  Outside of the
+          # environment, we do not have access to this token so fall back to the
+          # GITHUB_TOKEN.
+          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}
+          IN_ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
         run: |
-          python3 .github/scripts/update_disabled_issues.py
+          if [ "$IN_ENVIRONMENT" = "true" ]; then
+            ACTIONS="disable_tests disable_jobs unstable_jobs"
+          else
+            ACTIONS="disable_tests"
+          fi
+          # shellcheck disable=SC2086
+          python3 .github/scripts/update_disabled_issues.py \
+            --token $GITHUB_TOKEN \
+            --actions $ACTIONS
 
       - name: Print the list of disabled tests
         run: |
           cat disabled-tests-condensed.json
 
       - name: Print the list of disabled and unstable jobs
+        if: github.event_name != 'pull_request'
         run: |
           echo "Disabled jobs:"
           cat disabled-jobs.json
