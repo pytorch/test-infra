@@ -30,7 +30,7 @@ jobs:
           # PyTorch bot token is the most obvious choice.  Outside of the
           # environment, we do not have access to this token so fall back to the
           # GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}' }}
+          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}
           IN_ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
         run: |
           if [ "$IN_ENVIRONMENT" = "true" ]; then
