@@ -132,7 +132,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: validations_2.6
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && matrix.container_image) || (matrix.gpu_arch_version == '12.6' && 'pytorch/almalinux-builder:cpu-main') || 'pytorch/conda-builder' }}
       binary-matrix: ${{ toJSON(matrix) }}
