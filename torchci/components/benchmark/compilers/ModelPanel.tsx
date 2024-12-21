@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import { LOG_PREFIX, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import {
@@ -142,8 +142,11 @@ export function ModelPanel({
 
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
-    <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
+    <Grid2 container spacing={2} style={{ height: "100%" }}>
+      <Grid2
+        size={{ xs: 12, lg: 12 }}
+        height={minEntries * ROW_HEIGHT + ROW_GAP}
+      >
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -152,7 +155,7 @@ export function ModelPanel({
               field: "metadata",
               headerName: "Name",
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const name = params.value.name;
                 if (name === undefined) {
                   return "";
@@ -228,7 +231,7 @@ export function ModelPanel({
                   ? ACCURACY_HEADER
                   : `${ACCURACY_HEADER}: ${DIFF_HEADER}`,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r == undefined) {
                   return "";
@@ -281,7 +284,7 @@ export function ModelPanel({
               field: "speedup",
               headerName: SPEEDUP_HEADER,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r === 0) {
                   return "";
@@ -338,7 +341,7 @@ export function ModelPanel({
               field: "compilation_latency",
               headerName: COMPILATION_LATENCY_HEADER,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r === 0) {
                   return "";
@@ -388,7 +391,7 @@ export function ModelPanel({
               field: "compression_ratio",
               headerName: MEMORY_HEADER,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r === 0) {
                   return "";
@@ -442,7 +445,7 @@ export function ModelPanel({
               field: "abs_latency",
               headerName: ABS_LATENCY_HEADER,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r === 0) {
                   return "";
@@ -492,7 +495,7 @@ export function ModelPanel({
               field: "dynamo_peak_mem",
               headerName: PEAK_MEMORY_USAGE_HEADER,
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 const v = params.value;
                 if (v === undefined || v.r === 0) {
                   return "";
@@ -541,7 +544,7 @@ export function ModelPanel({
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 }

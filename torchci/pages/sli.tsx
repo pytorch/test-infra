@@ -1,7 +1,7 @@
 import {
   Autocomplete,
   FormControl,
-  Grid,
+  Grid2,
   InputLabel,
   MenuItem,
   Select,
@@ -26,7 +26,6 @@ function TimePicker({ label, value, setValue }: any) {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <DateTimePicker
-        renderInput={(props) => <TextField {...props} />}
         label={label}
         value={value}
         onChange={(newValue) => {
@@ -263,7 +262,7 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"GHA Worker Queue Time"}
           queryName={"queue_times_historical_pct"}
@@ -279,7 +278,7 @@ export default function Page() {
           yAxisFieldName={`queue_s_${ttsPercentile}`}
           yAxisRenderer={durationDisplay}
         />
-      </Grid>
+      </Grid2>
     </div>
   );
 }

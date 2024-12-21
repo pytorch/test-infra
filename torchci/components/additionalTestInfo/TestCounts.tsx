@@ -14,7 +14,7 @@ function TestCountsDataGrid({
   info: any;
   showComparison?: boolean;
 }) {
-  function renderTime(params: GridRenderCellParams<string>) {
+  function renderTime(params: GridRenderCellParams<any, string>) {
     if (params.value === undefined) {
       return <></>;
     }
