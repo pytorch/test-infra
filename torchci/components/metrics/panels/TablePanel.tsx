@@ -100,9 +100,7 @@ export function TablePanelWithData({
       columns={columns}
       hideFooter={!showFooter}
       autoPageSize={showFooter}
-      components={{
-        Toolbar: Header,
-      }}
+      slots={{ toolbar: Header }}
     />
   );
 }
