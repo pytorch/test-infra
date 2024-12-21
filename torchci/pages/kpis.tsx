@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Grid2 } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -16,8 +16,8 @@ export default function Kpis() {
   };
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+    <Grid2 container spacing={2}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"% of commits red on trunk (Weekly)"}
           queryName={"master_commit_red_percent"}
@@ -34,9 +34,9 @@ export default function Kpis() {
           }}
           groupByFieldName={"name"}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"# of force merges (Weekly)"}
           queryName={"number_of_force_pushes_historical"}
@@ -46,9 +46,9 @@ export default function Kpis() {
           yAxisFieldName={"count"}
           yAxisRenderer={(unit) => `${unit}`}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Time to Red Signal - (Weekly, pull workflow)"}
           queryName={"ttrs_percentiles"}
@@ -81,9 +81,9 @@ export default function Kpis() {
               .flat();
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"% of force merges (Weekly, 2 week rolling avg)"}
           queryName={"weekly_force_merge_stats"}
@@ -101,9 +101,9 @@ export default function Kpis() {
           }}
           groupByFieldName={"name"}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Avg time-to-signal - E2E (Weekly)"}
           queryName={"time_to_signal"}
@@ -115,9 +115,9 @@ export default function Kpis() {
           yAxisRenderer={(unit) => `${unit}`}
           groupByFieldName="branch"
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"# of reverts (2 week moving avg)"}
           queryName={"num_reverts"}
@@ -128,9 +128,9 @@ export default function Kpis() {
           yAxisRenderer={(unit) => `${unit}`}
           groupByFieldName={"code"}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"viable/strict lag (Daily)"}
           queryName={"strict_lag_historical"}
@@ -152,9 +152,9 @@ export default function Kpis() {
           // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
           additionalOptions={{ yAxis: { max: 10 } }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Weekly external PR count (4 week moving average)"}
           queryName={"external_contribution_stats"}
@@ -165,9 +165,9 @@ export default function Kpis() {
           yAxisRenderer={(value) => value}
           additionalOptions={{ yAxis: { scale: true } }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Monthly external PR count"}
           queryName={"monthly_contribution_stats"}
@@ -179,9 +179,9 @@ export default function Kpis() {
           yAxisRenderer={(value) => value}
           additionalOptions={{ yAxis: { scale: true } }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Total number of open disabled tests (Daily)"}
           queryName={"disabled_test_historical"}
@@ -191,7 +191,7 @@ export default function Kpis() {
           yAxisFieldName={"number_of_open_disabled_tests"}
           yAxisRenderer={(duration) => duration}
         />
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 }

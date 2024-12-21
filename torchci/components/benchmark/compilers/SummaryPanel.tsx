@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   ACCURACY_THRESHOLD,
@@ -214,11 +214,9 @@ export function SummaryPanel({
 
   return (
     <div>
-      <Grid container spacing={2} style={{ height: "100%" }}>
-        <Grid
-          item
-          xs={12}
-          lg={6}
+      <Grid2 container spacing={2} style={{ height: "100%" }}>
+        <Grid2
+          size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(passrate).length + ROW_GAP}
         >
           <TablePanelWithData
@@ -267,7 +265,7 @@ export function SummaryPanel({
                       );
                     }
                   },
-                  cellClassName: (params: GridCellParams<any>) => {
+                  cellClassName: (params: GridCellParams<any, any>) => {
                     const v = params.value;
                     if (v === undefined) {
                       return "";
@@ -309,12 +307,10 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid
-          item
-          xs={12}
-          lg={6}
+        <Grid2
+          size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(geomean).length + ROW_GAP}
         >
           <TablePanelWithData
@@ -360,7 +356,7 @@ export function SummaryPanel({
                       );
                     }
                   },
-                  cellClassName: (params: GridCellParams<any>) => {
+                  cellClassName: (params: GridCellParams<any, any>) => {
                     const v = params.value;
                     if (
                       v === undefined ||
@@ -404,12 +400,10 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid
-          item
-          xs={12}
-          lg={6}
+        <Grid2
+          size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(compTime).length + ROW_GAP}
         >
           <TablePanelWithData
@@ -455,7 +449,7 @@ export function SummaryPanel({
                       );
                     }
                   },
-                  cellClassName: (params: GridCellParams<any>) => {
+                  cellClassName: (params: GridCellParams<any, any>) => {
                     const v = params.value;
                     if (
                       v === undefined ||
@@ -495,12 +489,10 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid
-          item
-          xs={12}
-          lg={6}
+        <Grid2
+          size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(memory).length + ROW_GAP}
         >
           <TablePanelWithData
@@ -546,7 +538,7 @@ export function SummaryPanel({
                       );
                     }
                   },
-                  cellClassName: (params: GridCellParams<any>) => {
+                  cellClassName: (params: GridCellParams<any, any>) => {
                     const v = params.value;
                     if (
                       v === undefined ||
@@ -592,8 +584,8 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </div>
   );
 }

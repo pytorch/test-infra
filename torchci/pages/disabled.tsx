@@ -92,7 +92,7 @@ function generateDisabledTestsTable(data: any) {
 
 function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
   return (
-    <Grid2  size={{xs: 12, lg: 6}} height={GRAPH_ROW_HEIGHT}>
+    <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
@@ -156,6 +156,7 @@ function DisabledTestsPanel({
             cellClassName: (params: GridCellParams<any, any>) => {
               return params.value.hiprio ? styles.warning : "";
             },
+            sortComparator: (v1, v2) => v1.number - v2.number,
             renderCell: (params: GridRenderCellParams<any>) => {
               const number = params.value.number;
               const url = params.value.url;
@@ -223,6 +224,7 @@ function DisabledTestsPanel({
           },
         ]}
         dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
+        showFooter={true}
       />
     </div>
   );
