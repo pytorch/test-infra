@@ -1,4 +1,4 @@
-import { Grid, Stack, Typography } from "@mui/material";
+import { Grid2, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
@@ -92,7 +92,7 @@ function generateDisabledTestsTable(data: any) {
 
 function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
   return (
-    <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+    <Grid2  size={{xs: 12, lg: 6}} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
@@ -102,7 +102,7 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
         yAxisFieldName={"number_of_open_disabled_tests"}
         yAxisRenderer={(duration) => duration}
       />
-    </Grid>
+    </Grid2>
   );
 }
 
@@ -144,95 +144,87 @@ function DisabledTestsPanel({
   const minEntries =
     disabledTests.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
-    <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid
-        item
-        xs={12}
-        lg={12}
-        height={minEntries * TABLE_ROW_HEIGHT + ROW_GAP}
-      >
-        <TablePanelWithData
-          title={`Disabled tests (${disabledTests.length})`}
-          data={disabledTests}
-          columns={[
-            {
-              field: "metadata",
-              headerName: "GitHub Issue (⚠ ~ high priority)",
-              flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
-                return params.value.hiprio ? styles.warning : "";
-              },
-              renderCell: (params: GridRenderCellParams<any>) => {
-                const number = params.value.number;
-                const url = params.value.url;
-                const hiprio = params.value.hiprio ? "⚠" : "";
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <TablePanelWithData
+        title={`Disabled tests (${disabledTests.length})`}
+        data={disabledTests}
+        columns={[
+          {
+            field: "metadata",
+            headerName: "GitHub Issue (⚠ ~ high priority)",
+            flex: 1,
+            cellClassName: (params: GridCellParams<any, any>) => {
+              return params.value.hiprio ? styles.warning : "";
+            },
+            renderCell: (params: GridRenderCellParams<any>) => {
+              const number = params.value.number;
+              const url = params.value.url;
+              const hiprio = params.value.hiprio ? "⚠" : "";
 
-                return (
-                  <>
-                    <a href={url}>
-                      <b>
-                        {hiprio} #{number}
-                      </b>
-                    </a>
-                  </>
-                );
-              },
+              return (
+                <>
+                  <a href={url}>
+                    <b>
+                      {hiprio} #{number}
+                    </b>
+                  </a>
+                </>
+              );
             },
-            {
-              field: "testCase",
-              headerName: "Testcase",
-              flex: 1,
-              renderCell: (params: GridRenderCellParams<any>) => {
-                return params.value;
-              },
+          },
+          {
+            field: "testCase",
+            headerName: "Testcase",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<any>) => {
+              return params.value;
             },
-            {
-              field: "testClass",
-              headerName: "Test Class",
-              flex: 1,
-              renderCell: (params: GridRenderCellParams<any>) => {
-                return params.value;
-              },
+          },
+          {
+            field: "testClass",
+            headerName: "Test Class",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<any>) => {
+              return params.value;
             },
-            {
-              field: "testPath",
-              headerName: "Test File",
-              flex: 1,
-              renderCell: (params: GridRenderCellParams<any>) => {
-                return (
-                  <>
-                    <a
-                      href={`https://github.com/pytorch/pytorch/blob/main/test/${params.value}`}
-                    >
-                      {params.value}
-                    </a>
-                  </>
-                );
-              },
+          },
+          {
+            field: "testPath",
+            headerName: "Test File",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<any>) => {
+              return (
+                <>
+                  <a
+                    href={`https://github.com/pytorch/pytorch/blob/main/test/${params.value}`}
+                  >
+                    {params.value}
+                  </a>
+                </>
+              );
             },
-            {
-              field: "assignee",
-              headerName: "Assignee",
-              flex: 1,
-              renderCell: (params: GridRenderCellParams<any>) => {
-                return params.value !== null ? params.value : "";
-              },
+          },
+          {
+            field: "assignee",
+            headerName: "Assignee",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<any>) => {
+              return params.value !== null ? params.value : "";
             },
+          },
 
-            {
-              field: "timestamp",
-              headerName: "Last Updated",
-              flex: 1,
-              renderCell: (params: GridRenderCellParams<any>) => {
-                return dayjs(params.value).toString();
-              },
+          {
+            field: "timestamp",
+            headerName: "Last Updated",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<any>) => {
+              return dayjs(params.value).toString();
             },
-          ]}
-          dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
-          showFooter={true}
-        />
-      </Grid>
-    </Grid>
+          },
+        ]}
+        dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
+      />
+    </div>
   );
 
   return <></>;
