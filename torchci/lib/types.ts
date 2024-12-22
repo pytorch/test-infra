@@ -204,6 +204,18 @@ export interface CompilerPerformanceData {
   job_id?: number;
 }
 
+export interface BenchmarkData {
+  extra_info: { [key: string]: string };
+  granularity_bucket: string;
+  job_id: number;
+  metric: string;
+  model: string;
+  quantization?: string;
+  suite: string;
+  value: number;
+  workflow_id: number;
+}
+
 export interface BranchAndCommit {
   branch: string;
   commit: string;

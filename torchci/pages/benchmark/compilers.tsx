@@ -139,6 +139,7 @@ function Report({
           suiteConfig.showGraph && (
             <div key={suiteConfig.id}>
               <CompilerGraphGroup
+                dashboard={"torchinductor"}
                 suiteConfig={suiteConfig}
                 queryParams={queryParams}
                 granularity={granularity}

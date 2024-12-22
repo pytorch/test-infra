@@ -1,5 +1,10 @@
 export const DEFAULT_REPO_NAME = "pytorch/benchmark";
-export const DTYPES = ["autoquant", "int8dynamic", "int8weightonly", "noquant"];
+export const QUANTIZATIONS = [
+  "autoquant",
+  "int8dynamic",
+  "int8weightonly",
+  "noquant",
+];
 export const DEFAULT_MODE = "inference";
 
 export const DEFAULT_DEVICE_NAME = "cuda (a100)";

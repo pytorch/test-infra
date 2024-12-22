@@ -5,24 +5,20 @@ import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
-import {
-  DTypePicker,
-  ModePicker,
-  MODES,
-} from "components/benchmark/ModeAndDTypePicker";
+import { DTypePicker, MODES } from "components/benchmark/ModeAndDTypePicker";
 import {
   DEFAULT_DEVICE_NAME,
   DEFAULT_MODE,
   DEFAULT_REPO_NAME,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
-  DTYPES,
+  QUANTIZATIONS,
 } from "components/benchmark/torchao/common";
 import { SUITES } from "components/benchmark/torchao/SuitePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";
@@ -65,7 +61,6 @@ function Report({
   let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  lData = augmentData(lData);
 
   const queryParamsWithR: { [key: string]: any } = {
     ...queryParams,
@@ -79,7 +74,6 @@ function Report({
   let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  rData = augmentData(rData);
 
   if (
     lData === undefined ||
@@ -89,6 +83,9 @@ function Report({
   ) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+
+  lData = convertToCompilerPerformanceData(lData);
+  rData = convertToCompilerPerformanceData(rData);
 
   return (
     <div>
@@ -132,6 +129,7 @@ function Report({
           suiteConfig.showGraph && (
             <div key={suiteConfig.id}>
               <CompilerGraphGroup
+                dashboard={"torchao"}
                 suiteConfig={suiteConfig}
                 queryParams={queryParams}
                 granularity={granularity}
@@ -158,7 +156,7 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
-  const [dtype, setDType] = useState<string>(DTYPES[0]);
+  const [dtype, setDType] = useState<string>(QUANTIZATIONS[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -284,11 +282,16 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
+        <DTypePicker
+          dtype={mode}
+          setDType={setMode}
+          dtypes={Object.keys(MODES)}
+          label={"Mode"}
+        />
         <DTypePicker
           dtype={dtype}
           setDType={setDType}
-          dtypes={DTYPES}
+          dtypes={QUANTIZATIONS}
           label={"Quantization"}
         />
         <DTypePicker
@@ -327,6 +330,17 @@ export default function Page() {
           useClickHouse={true}
         />
       </Stack>
+      <Report
+        queryParams={queryParams}
+        startTime={startTime}
+        stopTime={stopTime}
+        granularity={granularity}
+        mode={mode}
+        dtype={dtype}
+        deviceName={deviceName}
+        lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
+        rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
+      />
     </div>
   );
 }

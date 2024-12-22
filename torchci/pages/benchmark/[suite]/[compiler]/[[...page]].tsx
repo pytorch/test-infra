@@ -24,10 +24,12 @@ import {
   ModePicker,
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
+import { QUANTIZATIONS } from "components/benchmark/torchao/common";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
 import { augmentData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
@@ -80,6 +82,10 @@ function Report({
   let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
+  // new database schema
+  lData =
+    dashboard === "torchao" ? convertToCompilerPerformanceData(lData) : lData;
   lData = augmentData(lData);
   lData = lData
     ? lData.filter((e: CompilerPerformanceData) => e.suite === suite)
@@ -98,6 +104,10 @@ function Report({
   let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
+  // new database schema
+  rData =
+    dashboard === "torchao" ? convertToCompilerPerformanceData(rData) : rData;
   rData = augmentData(rData);
   rData = rData
     ? rData.filter((e: CompilerPerformanceData) => e.suite === suite)
@@ -171,7 +181,7 @@ export default function Page() {
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
   const dashboard: string =
-    (router.query.dashboard as string) ?? "TorchInductor";
+    (router.query.dashboard as string) ?? "torchinductor";
   const queryName: string =
     DASHBOARD_QUERY_MAP[dashboard] ?? "compilers_benchmark_performance";
   const branchQueryName = queryName + "_branches";
@@ -264,19 +274,37 @@ export default function Page() {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const queryParams: { [key: string]: any } = {
-    commits: [],
-    compilers: [compiler],
-    device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
-    dtypes: dtype,
-    getJobId: false,
-    granularity: granularity,
-    mode: mode,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    suites: [],
-    workflowId: 0,
-  };
+  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
+  // new database schema
+  const queryParams: { [key: string]: any } =
+    dashboard === "torchao"
+      ? {
+          branches: [],
+          commits: [],
+          compilers: [compiler],
+          device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+          dtypes: [dtype],
+          granularity: granularity,
+          mode: mode,
+          repo: "pytorch/benchmark",
+          startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+          stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+          suites: [],
+          workflowId: 0,
+        }
+      : {
+          commits: [],
+          compilers: [compiler],
+          device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+          dtypes: dtype,
+          getJobId: false,
+          granularity: granularity,
+          mode: mode,
+          startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+          stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+          suites: [],
+          workflowId: 0,
+        };
 
   return (
     <div>
@@ -312,12 +340,22 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
+        {dashboard === "torchao" && (
+          <DTypePicker
+            dtype={mode}
+            setDType={setMode}
+            dtypes={Object.keys(MODES)}
+            label={"Mode"}
+          />
+        )}
+        {dashboard === "torchinductor" && (
+          <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
+        )}
         <DTypePicker
           dtype={dtype}
           setDType={setDType}
-          dtypes={DTYPES}
-          label={"Precision"}
+          dtypes={dashboard === "torchao" ? QUANTIZATIONS : DTYPES}
+          label={dashboard === "torchao" ? "Quantization" : "Precision"}
         />
         <DTypePicker
           dtype={deviceName}

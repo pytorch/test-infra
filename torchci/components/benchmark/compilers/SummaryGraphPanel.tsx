@@ -8,6 +8,7 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
 import {
   computeCompilationTime,
   computeExecutionTime,
@@ -71,8 +72,6 @@ function SuiteGraphPanel({
   lCommit: string;
   rCommit: string;
 }) {
-  const queryCollection = "inductor";
-
   const queryParamsWithSuite: { [key: string]: any } = {
     ...queryParams,
     branches: [branch],
@@ -105,6 +104,13 @@ function SuiteGraphPanel({
   if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+
+  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
+  // new database schema
+  data =
+    queryName === "torchao_query"
+      ? convertToCompilerPerformanceData(data)
+      : data;
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
