@@ -135,10 +135,9 @@ function Report({
               : undefined,
         }}
         workflowName={
-          DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName] ??
-          (dashboard === "torchao"
+          dashboard === "torchao"
             ? "Torchao nightly workflow (A100)".toLowerCase()
-            : "inductor-A100-perf-nightly")
+            : DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName]
         }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
