@@ -102,7 +102,7 @@ function Report({
               ? rData[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"torchao-nightly"}
+        workflowName={"Torchao nightly workflow (A100)".toLowerCase()}
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>

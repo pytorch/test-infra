@@ -120,7 +120,9 @@ function Report({
   return (
     <div>
       <CommitPanel
-        repoName={DEFAULT_REPO_NAME}
+        repoName={
+          dashboard === "torchao" ? "pytorch/benchmark" : DEFAULT_REPO_NAME
+        }
         lBranchAndCommit={{
           ...lBranchAndCommit,
           date: lData[0].granularity_bucket,
@@ -134,7 +136,9 @@ function Report({
         }}
         workflowName={
           DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName] ??
-          "inductor-a100-perf-nightly"
+          (dashboard === "torchao"
+            ? "Torchao nightly workflow (A100)".toLowerCase()
+            : "inductor-A100-perf-nightly")
         }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
