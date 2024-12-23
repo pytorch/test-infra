@@ -39,6 +39,7 @@ jobs:
       job-name: "Validate binary size"
       repository: "pytorch/pytorch"
       docker-build-dir: "skip-docker-build"
+      binary-matrix: ${{ toJSON(matrix) }}
       ref: main
       script: |
         set -ex
