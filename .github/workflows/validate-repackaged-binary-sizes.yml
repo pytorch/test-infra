@@ -87,7 +87,7 @@ jobs:
         conda activate $ENV_NAME
 
         # install torch
-        pip install numpy pillow $NEW_FILENAME
+        pip install numpy pillow $NEW_FILENAME --extra-index-url base_url
 
         pushd ./.ci/pytorch/smoke_test
         # run smoke test
