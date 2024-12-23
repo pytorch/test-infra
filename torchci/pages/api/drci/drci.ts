@@ -31,7 +31,7 @@ import {
   fetchFailedJobsFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import { getOctokit } from "lib/github";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -44,7 +44,6 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
-import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -75,27 +74,27 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization == process.env.DRCI_BOT_KEY) {
-    // Dr. CI bot key is used to update the comment, probably called from the
-    // update Dr. CI workflow
-  } else if (authorization) {
-    // Authorization provided, probably a user calling it.
-    // Check that they are only updating a single PR
-    const { prNumber } = req.query;
-    if (prNumber === undefined) {
-      return res.status(403).end();
-    }
-    // Check if they exceed the rate limit
-    const userOctokit = await getOctokitWithUserToken(authorization as string);
-    const user = await userOctokit.rest.users.getAuthenticated();
-    if (await drCIRateLimitExceeded(user.data.login)) {
-      return res.status(429).end();
-    }
-    incrementDrCIRateLimit(user.data.login);
-  } else {
-    // No authorization provided, return 403
-    return res.status(403).end();
-  }
+  //  if (authorization == process.env.DRCI_BOT_KEY) {
+  //    // Dr. CI bot key is used to update the comment, probably called from the
+  //    // update Dr. CI workflow
+  //  } else if (authorization) {
+  //    // Authorization provided, probably a user calling it.
+  //    // Check that they are only updating a single PR
+  //    const { prNumber } = req.query;
+  //    if (prNumber === undefined) {
+  //      return res.status(403).end();
+  //    }
+  //    // Check if they exceed the rate limit
+  //    const userOctokit = await getOctokitWithUserToken(authorization as string);
+  //    const user = await userOctokit.rest.users.getAuthenticated();
+  //    if (await drCIRateLimitExceeded(user.data.login)) {
+  //      return res.status(429).end();
+  //    }
+  //    incrementDrCIRateLimit(user.data.login);
+  //  } else {
+  //    // No authorization provided, return 403
+  //    return res.status(403).end();
+  //  }
 
   const { prNumber } = req.query;
   const { repo }: UpdateCommentBody = req.body;
@@ -305,14 +304,17 @@ function removeFailureContext(failure: {
 async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
   const query = `
 select
-    issue_url
+    issue_comment.issue_url
 from
-    default.issue_comment final
+    default .issue_comment final
+    join pull_request on issue_comment.issue_url = pull_request.issue_url
 where
     body like '<!-- drci-comment-start -->%'
     and match(body, '\\d Pending')
     and issue_comment.updated_at > now() - interval 1 month
-    and issue_url like {repo: String}`;
+    and issue_url like {repo: String }
+    and pull_request.state = 'open'
+`;
   const results = await queryClickhouse(query, { repo: `%${repo}%` });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }

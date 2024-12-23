@@ -120,8 +120,9 @@ function Page() {
 
   useEffect(() => {
     const selected = (sha ??
-      prData?.shas[prData.shas.length - 1].sha ??
-      "") as string;
+      (prData && prData.shas.length > 0
+        ? prData?.shas[prData.shas.length - 1].sha
+        : "")) as string;
     setSelectedSha(selected);
   }, [prData?.shas, sha]);
 
@@ -130,6 +131,7 @@ function Page() {
   if (prData === undefined) {
     return <div>Loading...</div>;
   }
+
   return (
     <div>
       <Stack
@@ -156,18 +158,23 @@ function Page() {
           repo={repoName as string}
         />
       </Stack>
-      <CommitHeader
-        repoOwner={repoOwner as string}
-        repoName={repoName as string}
-        prData={prData}
-        selectedSha={selectedSha}
-      />
-      <ErrorBoundary>
-        <CommitInfo
+      {selectedSha === "" && <div>Empty pull request without any commit</div>}
+      {selectedSha !== "" && (
+        <CommitHeader
           repoOwner={repoOwner as string}
           repoName={repoName as string}
-          sha={selectedSha}
+          prData={prData}
+          selectedSha={selectedSha}
         />
+      )}
+      <ErrorBoundary>
+        {selectedSha !== "" && (
+          <CommitInfo
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            sha={selectedSha}
+          />
+        )}
       </ErrorBoundary>
     </div>
   );

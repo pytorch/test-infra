@@ -47,11 +47,13 @@ export default async function fetchPR(
 
   // Ideally historicalCommits will be a superset of commits, but if there's a propagation delay with
   // getting the data to our database it may be missing recent commits for a bit.
-  if (shas.length == 0) {
+  if (shas.length === 0) {
     // If we got no data from our database, just use the commits from GitHub.
     shas = commits.map((commit) => {
       return { sha: commit.sha, title: commit.commit.message.split("\n")[0] };
     });
+  } else if (commits.length === 0) {
+    return { title, body, shas };
   } else {
     // For the very last sha, check to see if the shas themselves match as a proxy for detecting any missing commit.
     const lastCommit = commits[commits.length - 1];
