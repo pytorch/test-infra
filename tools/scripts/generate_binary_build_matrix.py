@@ -375,6 +375,10 @@ def generate_libtorch_matrix(
                 gpu_arch_type = arch_type(arch_version)
                 gpu_arch_version = "" if arch_version == CPU else arch_version
 
+                # Rocm builds where removed for pre-cxx11 abi 
+                if gpu_arch_type == "rocm" and abi_version == PRE_CXX11_ABI:  
+                    continue
+
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
                 devtoolset = abi_version if os != WINDOWS else ""
                 libtorch_config = abi_version if os == WINDOWS else ""
