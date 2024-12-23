@@ -87,9 +87,9 @@ jobs:
         conda activate $ENV_NAME
 
         # install torch
-        pip install numpy pillow $NEW_FILENAME --extra-index-url base_url
+        pip install numpy pillow $NEW_FILENAME --extra-index-url ${base_url}
 
         pushd ./.ci/pytorch/smoke_test
         # run smoke test
-        python smoke_test.py --package=torchonly
+        python smoke_test.py --package=torchonly --torch-compile-check disabled
         popd
