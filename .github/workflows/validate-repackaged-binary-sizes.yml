@@ -43,6 +43,10 @@ jobs:
       script: |
         set -ex
 
+        pyndt="$(echo $MATRIX_PYTHON_VERSION | tr -d m.u)"
+        base_torch_url = "https://download.pytorch.org/whl/${MATRIX_CHANNEL}/${MATRIX_DESIRED_CUDA}/torch"
+        whl_url = "${base_torch_url}/torch-${MATRIX_STABLE_VERSION}+${MATRIX_DESIRED_CUDA}-cp${pyndt}-cp${pyndt}-linux_x86_64.whl"
+
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="linux"
@@ -58,7 +62,7 @@ jobs:
         sudo ./.ci/docker/common/install_patchelf.sh
 
         # download torch whl
-        wget ${{ matrix.whl.url }}
+        wget ${whl_url}
         FILENAME=$(ls -1 *.whl | head -n 1)
         SIZE_BEFORE=$(du -h $FILENAME | cut -f1)
 
