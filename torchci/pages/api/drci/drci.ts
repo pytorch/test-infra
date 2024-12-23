@@ -305,14 +305,17 @@ function removeFailureContext(failure: {
 async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
   const query = `
 select
-    issue_url
+    issue_comment.issue_url
 from
     default.issue_comment final
+    join default.pull_request on issue_comment.issue_url = pull_request.issue_url
 where
     body like '<!-- drci-comment-start -->%'
     and match(body, '\\d Pending')
     and issue_comment.updated_at > now() - interval 1 month
-    and issue_url like {repo: String}`;
+    and issue_url like {repo: String }
+    and pull_request.state = 'open'
+`;
   const results = await queryClickhouse(query, { repo: `%${repo}%` });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }

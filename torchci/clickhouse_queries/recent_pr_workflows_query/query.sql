@@ -31,6 +31,8 @@ recent_prs AS (
     pull_request.base.'repo'.'full_name' = {repo: String}
     -- Filter pull request table to be smaller to amke query faster
     and pull_request.number in (select number from materialized_views.pr_by_sha where head_sha in (select head_sha from relevant_shas))
+    -- This query is used by Dr.CI, so we just want to update open PR(s)
+    and pull_request.state = 'open'
 )
 SELECT
   w.id AS workflowId,
