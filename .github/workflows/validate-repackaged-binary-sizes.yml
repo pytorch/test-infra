@@ -45,8 +45,8 @@ jobs:
         set -ex
 
         pyndt="$(echo $MATRIX_PYTHON_VERSION | tr -d m.u)"
-        base_torch_url = "https://download.pytorch.org/whl/${MATRIX_CHANNEL}/${MATRIX_DESIRED_CUDA}/torch"
-        whl_url = "${base_torch_url}/torch-${MATRIX_STABLE_VERSION}+${MATRIX_DESIRED_CUDA}-cp${pyndt}-cp${pyndt}-linux_x86_64.whl"
+        base_url="https://download.pytorch.org/whl/${MATRIX_CHANNEL}/${MATRIX_DESIRED_CUDA}/torch"
+        whl_url="${base_url}/torch-${MATRIX_STABLE_VERSION}+${MATRIX_DESIRED_CUDA}-cp${pyndt}-cp${pyndt}-linux_x86_64.whl"
 
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export ENV_NAME="conda-env-${{ github.run_id }}"
