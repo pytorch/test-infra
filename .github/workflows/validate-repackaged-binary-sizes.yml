@@ -54,8 +54,8 @@ jobs:
         pwd
 
         # install patchelf
-        chmod a+x /.ci/docker/common/install_patchelf.sh
-        sudo /.ci/docker/common/install_patchelf.sh
+        chmod a+x ./.ci/docker/common/install_patchelf.sh
+        sudo ./.ci/docker/common/install_patchelf.sh
 
         # download torch whl
         wget ${{ matrix.whl.url }}
