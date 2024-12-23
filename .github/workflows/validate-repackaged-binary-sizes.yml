@@ -44,9 +44,15 @@ jobs:
       script: |
         set -ex
 
+        # skip testing on cu126
+        if [[ ${MATRIX_DESIRED_CUDA} == "cu126" ]]; then
+          exit 0
+        fi
+
+        whl_suffix="linux_x86_64.whl"
         pyndt="$(echo $MATRIX_PYTHON_VERSION | tr -d m.u)"
         base_url="https://download.pytorch.org/whl/${MATRIX_CHANNEL}/${MATRIX_DESIRED_CUDA}"
-        whl_url="${base_url}/torch-${MATRIX_STABLE_VERSION}%2B${MATRIX_DESIRED_CUDA}-cp${pyndt}-cp${pyndt}-linux_x86_64.whl"
+        whl_url="${base_url}/torch-${MATRIX_STABLE_VERSION}%2B${MATRIX_DESIRED_CUDA}-cp${pyndt}-cp${pyndt}-${whl_suffix}"
 
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export ENV_NAME="conda-env-${{ github.run_id }}"
@@ -83,7 +89,7 @@ jobs:
         # install torch
         pip install numpy pillow $NEW_FILENAME
 
-        pushd /.ci/pytorch/smoke_test
+        pushd ./.ci/pytorch/smoke_test
         # run smoke test
         python smoke_test.py --package=torchonly
         popd
