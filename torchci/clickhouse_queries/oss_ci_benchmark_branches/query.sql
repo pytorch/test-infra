@@ -15,6 +15,7 @@ WITH benchmarks AS (
             tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
             tupleElement(o.runners [ 1 ], 'type')
         ) AS arch,
+        o.timestamp AS timestamp,
         toStartOfDay(fromUnixTimestamp(o.timestamp)) AS event_time
     FROM
         benchmark.oss_ci_benchmark_v3 o
@@ -43,7 +44,6 @@ WITH benchmarks AS (
             OR empty({excludedMetrics: Array(String) })
         )
         AND notEmpty(o.metric.name)
-        AND notEmpty(o.benchmark.dtype)
 )
 SELECT
     DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
@@ -66,4 +66,4 @@ WHERE
     AND notEmpty(device)
 ORDER BY
     head_branch,
-    event_time DESC
+    timestamp DESC

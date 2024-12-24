@@ -252,11 +252,9 @@ export default function Page() {
     JSON.stringify(queryParams)
   )}`;
 
-  console.log(queryParams);
   const { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  console.log(data);
 
   if (data === undefined || data.length === 0) {
     return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
@@ -274,10 +272,10 @@ export default function Page() {
     DEFAULT_DEVICE_NAME,
     ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
   ];
-  const dtypeNames: string[] = [
+  const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
     ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
-  ];
+  ]);
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
   return (
@@ -330,12 +328,14 @@ export default function Page() {
             label={"Backend"}
           />
         )}
-        <DTypePicker
-          dtype={dtypeName}
-          setDType={setDTypeName}
-          dtypes={dtypeNames}
-          label={"DType"}
-        />
+        {dtypeNames.length > 1 && (
+          <DTypePicker
+            dtype={dtypeName}
+            setDType={setDTypeName}
+            dtypes={dtypeNames}
+            label={"DType"}
+          />
+        )}
         <DTypePicker
           dtype={deviceName}
           setDType={setDeviceName}
