@@ -32,15 +32,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/ao
-            package-name: torchao
+          - repository: pytorch/torchtune
+            package-name: torchtune
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: main
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       package-name: ${{ matrix.package-name }}
+      pre-script: .github/scripts/pre_build_script.sh
       trigger-event: "${{ github.event_name }}"
+      build-platform: python-build-package
+      pip-install-torch-extra-args:
+        torchvision
+        torchao
