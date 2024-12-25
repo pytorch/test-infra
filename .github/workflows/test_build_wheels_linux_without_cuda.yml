@@ -32,8 +32,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/torchtune
-            package-name: torchtune
+          - repository: pytorch/ao
+            package-name: torchao
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
