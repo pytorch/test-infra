@@ -242,41 +242,56 @@ def main() -> None:
         default=REPO,
         help="Set the repo to query the issues from",
     )
+    parser.add_argument(
+        "--token",
+        help="Set the GitHub token to use for the API requests",
+        required=True,
+    )
+    parser.add_argument(
+        "--actions",
+        help="Set the actions to perform",
+        choices=["disable_tests", "disable_jobs", "unstable_jobs"],
+        nargs="+",
+        required=True,
+    )
     args = parser.parse_args()
-    token = os.getenv("GH_PYTORCHBOT_TOKEN")
-    if not token:
-        raise RuntimeError("The GH_PYTORCHBOT_TOKEN environment variable is required")
+    token = args.token
 
     # Get the list of disabled issues and sort them
-    disable_issues = get_disable_issues(token)
+    if "disable_tests" in args.actions or "disable_jobs" in args.actions:
+        disable_issues = get_disable_issues(token)
 
-    disable_test_issues, disable_job_issues = filter_disable_issues(disable_issues)
-    # Create the list of disabled tests taken into account the list of disabled issues
-    # and those that are not flaky anymore
-    dump_json(
-        condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
-    )
-    dump_json(
-        condense_disable_jobs(disable_job_issues, args.owner, args.repo, token),
-        "disabled-jobs.json",
-    )
+        disable_test_issues, disable_job_issues = filter_disable_issues(disable_issues)
+        # Create the list of disabled tests taken into account the list of disabled issues
+        # and those that are not flaky anymore
+        if "disable_tests" in args.actions:
+            dump_json(
+                condense_disable_tests(disable_test_issues),
+                "disabled-tests-condensed.json",
+            )
+        if "disable_jobs" in args.actions:
+            dump_json(
+                condense_disable_jobs(disable_job_issues, args.owner, args.repo, token),
+                "disabled-jobs.json",
+            )
 
-    # Also handle UNSTABLE issues that mark CI jobs as unstable
-    unstable_issues = get_disable_issues(token, prefix=UNSTABLE_PREFIX)
+    if "unstable_jobs" in args.actions:
+        # Handle UNSTABLE issues that mark CI jobs as unstable
+        unstable_issues = get_disable_issues(token, prefix=UNSTABLE_PREFIX)
 
-    _, unstable_job_issues = filter_disable_issues(
-        unstable_issues, prefix=UNSTABLE_PREFIX
-    )
-    dump_json(
-        condense_disable_jobs(
-            unstable_job_issues,
-            args.owner,
-            args.repo,
-            token,
-            prefix=UNSTABLE_PREFIX,
-        ),
-        "unstable-jobs.json",
-    )
+        _, unstable_job_issues = filter_disable_issues(
+            unstable_issues, prefix=UNSTABLE_PREFIX
+        )
+        dump_json(
+            condense_disable_jobs(
+                unstable_job_issues,
+                args.owner,
+                args.repo,
+                token,
+                prefix=UNSTABLE_PREFIX,
+            ),
+            "unstable-jobs.json",
+        )
 
 
 if __name__ == "__main__":
