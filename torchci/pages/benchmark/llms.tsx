@@ -21,6 +21,7 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { computeSpeedup, TORCHAO_BASELINE } from "lib/benchmark/aoUtils";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
@@ -81,6 +82,16 @@ function Report({
     );
   }
 
+  const lDataWithSpeedup = computeSpeedup(repoName, TORCHAO_BASELINE, lData);
+  const rDataWithSpeedup = computeSpeedup(repoName, TORCHAO_BASELINE, rData);
+
+  if (
+    lDataWithSpeedup.length !== lData.length ||
+    rDataWithSpeedup.length !== rData.length
+  ) {
+    metricNames = ["speedup", ...metricNames];
+  }
+
   return (
     <div>
       <CommitPanel
@@ -88,15 +99,15 @@ function Report({
         lBranchAndCommit={{
           ...rBranchAndCommit,
           date:
-            rData !== undefined && rData.length !== 0
-              ? rData[0].granularity_bucket
+            rDataWithSpeedup !== undefined && rDataWithSpeedup.length !== 0
+              ? rDataWithSpeedup[0].granularity_bucket
               : undefined,
         }}
         rBranchAndCommit={{
           ...lBranchAndCommit,
           date:
-            lData !== undefined && lData.length !== 0
-              ? lData[0].granularity_bucket
+            lDataWithSpeedup !== undefined && lDataWithSpeedup.length !== 0
+              ? lDataWithSpeedup[0].granularity_bucket
               : undefined,
         }}
         workflowName={"inductor-micro-benchmark"}
@@ -124,11 +135,11 @@ function Report({
         metricNames={metricNames}
         lPerfData={{
           ...lBranchAndCommit,
-          data: lData,
+          data: lDataWithSpeedup,
         }}
         rPerfData={{
           ...rBranchAndCommit,
-          data: rData,
+          data: rDataWithSpeedup,
         }}
       />
     </div>
@@ -237,7 +248,12 @@ export default function Page() {
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
     deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
-    dtypes: dtypeName === DEFAULT_DTYPE_NAME ? [] : [dtypeName],
+    dtypes:
+      dtypeName === DEFAULT_DTYPE_NAME
+        ? []
+        : repoName !== "pytorch/ao"
+        ? [dtypeName]
+        : [dtypeName, TORCHAO_BASELINE],
     excludedMetrics: EXCLUDED_METRICS,
     benchmarks: REPO_TO_BENCHMARKS[repoName],
     granularity: granularity,
@@ -274,7 +290,10 @@ export default function Page() {
   ];
   const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
-    ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
+    ..._.filter(
+      _.uniq(data.map((r: any) => r.dtype)) as string[],
+      (r: string) => r !== TORCHAO_BASELINE
+    ),
   ]);
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
@@ -372,7 +391,6 @@ export default function Page() {
           useClickHouse={true}
         />
       </Stack>
-
       <Report
         queryParams={queryParams}
         startTime={startTime}

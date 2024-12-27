@@ -1,6 +1,6 @@
 import { BranchAndCommit } from "lib/types";
 
-export const REPOS = ["pytorch/pytorch", "pytorch/executorch"];
+export const REPOS = ["pytorch/pytorch", "pytorch/executorch", "pytorch/ao"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/pytorch": ["PyTorch gpt-fast benchmark"],
   "pytorch/executorch": ["ExecuTorch"],
@@ -40,9 +40,9 @@ export const RELATIVE_THRESHOLD = 0.05;
 export interface LLMsBenchmarkData {
   granularity_bucket: string;
   model: string;
-  backend?: string;
+  backend: string;
   workflow_id: number;
-  job_id?: number;
+  job_id: number;
   metric: string;
   actual: number;
   target: number;

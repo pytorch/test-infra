@@ -63,42 +63,50 @@ export function SummaryPanel({
       },
       renderCell: (params: GridRenderCellParams<any>) => {
         const model = params.value.model;
-        const dtype = params.value.dtype;
-        const deviceArch = `${params.value.device} (${params.value.arch})`;
         if (model === undefined) {
           return `Invalid model name`;
         }
-        if (dtype === undefined) {
-          return `Invalid dtype for model ${model}`;
-        }
 
+        const dtype =
+          params.value.dtype !== undefined
+            ? `&dtypeName=${encodeURIComponent(params.value.dtype)}`
+            : "";
         const backend =
           params.value.backend !== undefined
-            ? `&${encodeURIComponent(params.value.backend)}`
+            ? `&backendName=${encodeURIComponent(params.value.backend)}`
             : "";
+        const deviceArch = `${params.value.device} (${params.value.arch})`;
+
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}&dtypeName=${encodeURIComponent(
-          dtype
-        )}&deviceName=${encodeURIComponent(deviceArch)}`;
+        )}${backend}${dtype}&deviceName=${encodeURIComponent(deviceArch)}`;
 
         const isNewModel = params.value.l === undefined ? "(NEW!) " : "";
         const isModelStopRunning = params.value.r === undefined ? "❌" : "";
 
-        const displayName = model.includes(dtype)
-          ? model
-          : `${model} (${dtype})`;
         return (
           <a href={url}>
             {isNewModel}
-            {isModelStopRunning}&nbsp;<b>{displayName}</b>
+            {isModelStopRunning}&nbsp;<b>{model}</b>
           </a>
         );
       },
     },
   ];
+
+  const hasDtype = data.length > 0 && "dtype" in data[0] ? true : false;
+  if (hasDtype) {
+    columns.push({
+      field: "dtype",
+      headerName: "Quantization",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
 
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
   if (hasBackend) {
