@@ -43,7 +43,6 @@ WITH benchmarks AS (
             OR empty({excludedMetrics: Array(String) })
         )
         AND notEmpty(o.metric.name)
-        AND notEmpty(o.benchmark.dtype)
 )
 SELECT
     DISTINCT benchmark,
