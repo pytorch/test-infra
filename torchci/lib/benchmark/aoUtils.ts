@@ -56,7 +56,7 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
 
 export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
   if (repoName !== TORCHAO_REPO) {
-    return [];
+    return data;
   }
 
   const baselineMetrics: { [key: string]: LLMsBenchmarkData } = {};
