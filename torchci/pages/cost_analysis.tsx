@@ -407,7 +407,7 @@ export default function Page() {
       marginTop: 20,
     };
     return (
-      <Grid2 size={{ xs: 2 }} container style={marginStyle} columns={2}>
+      <Grid2 size={{ xs: 2 }} container columns={2}>
         <Grid2 size={{ xs: 2 }}>
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
             Dimension
@@ -698,7 +698,7 @@ export default function Page() {
         </Grid2>
       </Grid2>
       <Grid2 container spacing={2}>
-        <Grid2 container marginTop={4}>
+        <Grid2 container marginTop={4} size={{ xs: 12 }}>
           {generateTimeSeriesGridItem(
             groupby || "workflow_name",
             selectedYAxis || "cost"
