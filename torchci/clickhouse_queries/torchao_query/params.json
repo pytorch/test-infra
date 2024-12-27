@@ -1,15 +1,13 @@
 {
-  "branches": "String",
-  "commits": "String",
-  "compilers": "String",
+  "branches": "Array(String)",
+  "commits": "Array(String)",
   "device": "String",
-  "dtypes": "String",
-  "getJobId": "Bool",
+  "dtypes": "Array(String)",
   "granularity": "String",
   "mode": "String",
+  "repo": "String",
   "startTime": "DateTime64(3)",
   "stopTime": "DateTime64(3)",
-  "suites": "String",
-  "timezone": "String",
+  "suites": "Array(String)",
   "workflowId": "Int64"
 }

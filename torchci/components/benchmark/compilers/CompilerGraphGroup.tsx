@@ -12,25 +12,34 @@ const GraphCardGroup = styled(Card)({
 /** Mui Styles */
 
 export default function CompilerGraphGroup({
+  dashboard,
   suiteConfig,
   queryParams,
   granularity,
   lBranchAndCommit,
   rBranchAndCommit,
 }: {
-  lBranchAndCommit: BranchAndCommit;
-  rBranchAndCommit: BranchAndCommit;
+  dashboard: string;
+  suiteConfig: SuiteConfig;
   queryParams: { [key: string]: any };
   granularity: Granularity;
-  suiteConfig: SuiteConfig;
+  lBranchAndCommit: BranchAndCommit;
+  rBranchAndCommit: BranchAndCommit;
 }) {
+  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
+  // new database schema
+  const queryName =
+    dashboard === "torchao"
+      ? "torchao_query"
+      : "compilers_benchmark_performance";
+
   return (
     <>
       <GraphCardGroup>
         <CardHeader title={`Suite: ${suiteConfig.name}`} />
         <CardContent>
           <GraphPanel
-            queryName={"compilers_benchmark_performance"}
+            queryName={queryName}
             queryParams={queryParams}
             granularity={granularity}
             suite={suiteConfig.id}
