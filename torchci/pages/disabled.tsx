@@ -141,7 +141,7 @@ function DisabledTestsPanel({
   const disabledTests = generateDisabledTestsTable(data);
   return (
     <Grid2 container spacing={2} style={{ height: "100%" }}>
-      <Grid2 size={{ xs: 12, lg: 12 }} >
+      <Grid2 size={{ xs: 12, lg: 12 }}>
         <TablePanelWithData
           title={`Disabled tests (${disabledTests.length})`}
           data={disabledTests}
