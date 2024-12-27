@@ -82,8 +82,8 @@ function Report({
     );
   }
 
-  const lDataWithSpeedup = computeSpeedup(repoName, TORCHAO_BASELINE, lData);
-  const rDataWithSpeedup = computeSpeedup(repoName, TORCHAO_BASELINE, rData);
+  const lDataWithSpeedup = computeSpeedup(repoName, lData);
+  const rDataWithSpeedup = computeSpeedup(repoName, rData);
 
   if (
     lDataWithSpeedup.length !== lData.length ||
@@ -117,6 +117,7 @@ function Report({
       <GraphPanel
         queryParams={queryParams}
         granularity={granularity}
+        repoName={repoName}
         modelName={modelName}
         backendName={backendName}
         dtypeName={dtypeName}

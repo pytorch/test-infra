@@ -54,18 +54,14 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
   return Object.values(convertData);
 }
 
-export function computeSpeedup(
-  repoName: string,
-  baseline: string,
-  data: LLMsBenchmarkData[]
-) {
+export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
   if (repoName !== TORCHAO_REPO) {
     return [];
   }
 
   const baselineMetrics: { [key: string]: LLMsBenchmarkData } = {};
   data.forEach((r: LLMsBenchmarkData) => {
-    if (r.dtype !== baseline) {
+    if (r.dtype !== TORCHAO_BASELINE) {
       return;
     }
 
@@ -75,7 +71,7 @@ export function computeSpeedup(
 
   const withSpeedup: LLMsBenchmarkData[] = [];
   data.forEach((r: LLMsBenchmarkData) => {
-    if (r.dtype === baseline) {
+    if (r.dtype === TORCHAO_BASELINE) {
       return;
     }
 
