@@ -407,12 +407,14 @@ export default function Page() {
       marginTop: 20,
     };
     return (
-      <div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Dimension
-        </Typography>
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
-          <FormControl style={{ width: 195 }}>
+      <Grid2 size={{ xs: 2 }} container style={marginStyle} columns={2}>
+        <Grid2 size={{ xs: 2 }}>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Dimension
+          </Typography>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <FormControl style={{ width: "100%" }}>
             <InputLabel id="y-axis-select-label">Y-Axis</InputLabel>
             <Select
               value={selectedYAxis}
@@ -427,16 +429,16 @@ export default function Page() {
             </Select>
           </FormControl>
         </Grid2>
-
-        <div style={{ marginTop: 25, marginBottom: 25 }}>
-          <hr />
-        </div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Grouping
-        </Typography>
-
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
-          <FormControl style={{ width: 195 }}>
+        <Grid2 size={{ xs: 2 }}>
+          <div style={{ marginTop: 25, marginBottom: 25 }}>
+            <hr />
+          </div>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Grouping
+          </Typography>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <FormControl style={{ width: "100%" }}>
             <InputLabel id="group-by-select-label">Group By</InputLabel>
             <Select
               value={groupby}
@@ -455,16 +457,19 @@ export default function Page() {
             </Select>
           </FormControl>
         </Grid2>
-        {generateFilterBar(groupby, marginStyle)}
-
-        <div style={{ marginTop: 25, marginBottom: 25 }}>
-          <hr />
-        </div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Filters
-        </Typography>
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
-          {!isLoading && (
+        <Grid2 size={{ xs: 2 }}>
+          {generateFilterBar(groupby, marginStyle)}
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <div style={{ marginTop: 25, marginBottom: 25 }}>
+            <hr />
+          </div>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Filters
+          </Typography>
+        </Grid2>
+        {!isLoading && (
+          <Grid2 size={{ xs: 2 }}>
             <MultiSelectPicker
               initialSelected={selectedRepos}
               onSelectChanged={setSelectedRepos}
@@ -478,11 +483,11 @@ export default function Page() {
                   .map((item: string) => item?.split("/")[1])
                   .join(",");
               }}
-              style={{ width: 195 }}
+              style={{ width: "100%" }}
             />
-          )}
-        </Grid2>
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
+          </Grid2>
+        )}
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedOS}
             onSelectChanged={setSelectedOS}
@@ -493,10 +498,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
         </Grid2>
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedProviders}
             onSelectChanged={setSelectedProviders}
@@ -507,10 +512,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
         </Grid2>
-        <Grid2 size={{ xs: 2 }} style={marginStyle}>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedOwners}
             onSelectChanged={setSelectedOwners}
@@ -521,10 +526,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
         </Grid2>
-        <Grid2 size={{ xs: 1 }} style={marginStyle}>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedGPU.map((item) =>
               item === 1 ? "gpu" : "non-gpu"
@@ -547,10 +552,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
         </Grid2>
-      </div>
+      </Grid2>
     );
   };
 
@@ -565,18 +570,17 @@ export default function Page() {
     };
 
     return (
-      <Grid2 size={{ xs: 12 }} style={style}>
-        <TextField
-          id={`outlined-basic-${type}`}
-          label={
-            <div>
-              <FaFilter /> Filter {type}
-            </div>
-          }
-          onChange={handleChange}
-          variant="outlined"
-        />
-      </Grid2>
+      <TextField
+        id={`outlined-basic-${type}`}
+        label={
+          <div>
+            <FaFilter /> Filter {type}
+          </div>
+        }
+        onChange={handleChange}
+        variant="outlined"
+        fullWidth
+      />
     );
   };
 

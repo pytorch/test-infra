@@ -17,8 +17,6 @@ import useSWR from "swr";
 import { TimeRangePicker } from "./metrics";
 
 const MIN_ENTRIES = 10;
-const ROW_GAP = 30;
-const TABLE_ROW_HEIGHT = 48;
 const GRAPH_ROW_HEIGHT = 240;
 const DEFAULT_ISSUE_STATE = "open";
 const ISSUE_STATES = [DEFAULT_ISSUE_STATE, "closed"];
@@ -141,92 +139,92 @@ function DisabledTestsPanel({
   }
 
   const disabledTests = generateDisabledTestsTable(data);
-  const minEntries =
-    disabledTests.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <TablePanelWithData
-        title={`Disabled tests (${disabledTests.length})`}
-        data={disabledTests}
-        columns={[
-          {
-            field: "metadata",
-            headerName: "GitHub Issue (⚠ ~ high priority)",
-            flex: 1,
-            cellClassName: (params: GridCellParams<any, any>) => {
-              return params.value.hiprio ? styles.warning : "";
-            },
-            sortComparator: (v1, v2) => v1.number - v2.number,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              const number = params.value.number;
-              const url = params.value.url;
-              const hiprio = params.value.hiprio ? "⚠" : "";
+    <Grid2 container spacing={2} style={{ height: "100%" }}>
+      <Grid2 size={{ xs: 12, lg: 12 }} >
+        <TablePanelWithData
+          title={`Disabled tests (${disabledTests.length})`}
+          data={disabledTests}
+          columns={[
+            {
+              field: "metadata",
+              headerName: "GitHub Issue (⚠ ~ high priority)",
+              flex: 1,
+              cellClassName: (params: GridCellParams<any, any>) => {
+                return params.value.hiprio ? styles.warning : "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const number = params.value.number;
+                const url = params.value.url;
+                const hiprio = params.value.hiprio ? "⚠" : "";
 
-              return (
-                <>
-                  <a href={url}>
-                    <b>
-                      {hiprio} #{number}
-                    </b>
-                  </a>
-                </>
-              );
+                return (
+                  <>
+                    <a href={url}>
+                      <b>
+                        {hiprio} #{number}
+                      </b>
+                    </a>
+                  </>
+                );
+              },
             },
-          },
-          {
-            field: "testCase",
-            headerName: "Testcase",
-            flex: 1,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              return params.value;
+            {
+              field: "testCase",
+              headerName: "Testcase",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return params.value;
+              },
             },
-          },
-          {
-            field: "testClass",
-            headerName: "Test Class",
-            flex: 1,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              return params.value;
+            {
+              field: "testClass",
+              headerName: "Test Class",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return params.value;
+              },
             },
-          },
-          {
-            field: "testPath",
-            headerName: "Test File",
-            flex: 1,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              return (
-                <>
-                  <a
-                    href={`https://github.com/pytorch/pytorch/blob/main/test/${params.value}`}
-                  >
-                    {params.value}
-                  </a>
-                </>
-              );
+            {
+              field: "testPath",
+              headerName: "Test File",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return (
+                  <>
+                    <a
+                      href={`https://github.com/pytorch/pytorch/blob/main/test/${params.value}`}
+                    >
+                      {params.value}
+                    </a>
+                  </>
+                );
+              },
             },
-          },
-          {
-            field: "assignee",
-            headerName: "Assignee",
-            flex: 1,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              return params.value !== null ? params.value : "";
+            {
+              field: "assignee",
+              headerName: "Assignee",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return params.value !== null ? params.value : "";
+              },
             },
-          },
 
-          {
-            field: "timestamp",
-            headerName: "Last Updated",
-            flex: 1,
-            renderCell: (params: GridRenderCellParams<any>) => {
-              return dayjs(params.value).toString();
+            {
+              field: "timestamp",
+              headerName: "Last Updated",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<any>) => {
+                return dayjs(params.value).toString();
+              },
             },
-          },
-        ]}
-        dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
-        showFooter={true}
-      />
-    </div>
+          ]}
+          dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
+          showFooter={true}
+          pageSize={100}
+        />
+      </Grid2>
+    </Grid2>
   );
 
   return <></>;
