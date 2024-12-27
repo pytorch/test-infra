@@ -1,6 +1,6 @@
 import {
   FormControl,
-  Grid,
+  Grid2,
   InputLabel,
   MenuItem,
   Select,
@@ -90,7 +90,7 @@ export default function Page() {
           setRunnerType={setRunnerType}
         />
       </Stack>
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily"}
           queryCollection={"utilization"}
@@ -109,8 +109,8 @@ export default function Page() {
             ...timeParams,
           ]}
         />
-      </Grid>
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      </Grid2>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily by repo"}
           queryCollection={"utilization"}
@@ -134,8 +134,8 @@ export default function Page() {
             ...timeParams,
           ]}
         />
-      </Grid>
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      </Grid2>
+      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Runners utilization daily by activity on PyTorch"}
           queryCollection={"utilization"}
@@ -159,7 +159,7 @@ export default function Page() {
             ...timeParams,
           ]}
         />
-      </Grid>
+      </Grid2>
     </div>
   );
 }

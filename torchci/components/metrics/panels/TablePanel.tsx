@@ -63,6 +63,7 @@ export function TablePanelWithData({
   helpLink,
   // An optional flag to show the table footer
   showFooter,
+  pageSize,
 }: {
   title: string;
   data: any;
@@ -70,6 +71,7 @@ export function TablePanelWithData({
   dataGridProps: any;
   helpLink?: string;
   showFooter?: boolean;
+  pageSize?: number;
 }) {
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -99,10 +101,9 @@ export function TablePanelWithData({
       rows={data}
       columns={columns}
       hideFooter={!showFooter}
-      autoPageSize={showFooter}
-      components={{
-        Toolbar: Header,
-      }}
+      autoPageSize={showFooter && pageSize === undefined}
+      pageSize={pageSize}
+      slots={{ toolbar: Header }}
     />
   );
 }
