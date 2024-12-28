@@ -163,18 +163,23 @@ export function SummaryPanel({
                 return styles.error;
               }
 
-              // Higher value
-              if (r - l > RELATIVE_THRESHOLD * l) {
-                return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                  ? styles.ok
-                  : styles.error;
-              }
+              if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
+                // Higher value
+                if (r - l > RELATIVE_THRESHOLD * l) {
+                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                    ? styles.ok
+                    : styles.error;
+                }
 
-              // Lower value
-              if (l - r > RELATIVE_THRESHOLD * r) {
-                return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                  ? styles.error
-                  : styles.ok;
+                // Lower value
+                if (l - r > RELATIVE_THRESHOLD * r) {
+                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                    ? styles.error
+                    : styles.ok;
+                }
+              } else {
+                // No data
+                return "";
               }
             }
 

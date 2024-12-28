@@ -23,6 +23,7 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   token_per_sec: true,
   flops_utilization: true,
   "compilation_time(s)": false,
+  speedup: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",

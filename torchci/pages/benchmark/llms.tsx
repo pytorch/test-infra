@@ -85,10 +85,7 @@ function Report({
   const lDataWithSpeedup = computeSpeedup(repoName, lData);
   const rDataWithSpeedup = computeSpeedup(repoName, rData);
 
-  if (
-    lDataWithSpeedup.length !== lData.length ||
-    rDataWithSpeedup.length !== rData.length
-  ) {
+  if (repoName === "pytorch/ao") {
     metricNames = ["speedup", ...metricNames];
   }
 

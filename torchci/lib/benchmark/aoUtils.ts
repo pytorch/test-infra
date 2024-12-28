@@ -77,11 +77,19 @@ export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
 
     if (SPEEDUP_METRICS.includes(r.metric)) {
       const k = `${r.workflow_id} ${r.job_id} ${r.model} ${r.metric} ${r.device} ${r.arch}`;
-      if (k in baselineMetrics && baselineMetrics[k].actual !== 0) {
+      if (
+        k in baselineMetrics &&
+        baselineMetrics[k].actual !== 0 &&
+        r.actual !== 0
+      ) {
+        const speedup = r.metric.includes("time")
+          ? baselineMetrics[k].actual / r.actual
+          : r.actual / baselineMetrics[k].actual;
+
         withSpeedup.push({
           ...r,
           metric: "speedup",
-          actual: Number((r.actual / baselineMetrics[k].actual).toFixed(4)),
+          actual: Number(speedup.toFixed(4)),
           target: 0,
         });
       }
