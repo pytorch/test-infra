@@ -83,13 +83,9 @@ export function SummaryPanel({
           model
         )}${backend}${dtype}&deviceName=${encodeURIComponent(deviceArch)}`;
 
-        const isNewModel = params.value.l === undefined ? "(NEW!) " : "";
-        const isModelStopRunning = params.value.r === undefined ? "❌" : "";
-
         return (
           <a href={url}>
-            {isNewModel}
-            {isModelStopRunning}&nbsp;<b>{model}</b>
+            <b>{model}</b>
           </a>
         );
       },
