@@ -18,6 +18,7 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { computeSpeedup } from "lib/benchmark/aoUtils";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { BranchAndCommit } from "lib/types";
 
@@ -26,6 +27,7 @@ const GRAPH_ROW_HEIGHT = 245;
 export function GraphPanel({
   queryParams,
   granularity,
+  repoName,
   modelName,
   backendName,
   dtypeName,
@@ -36,6 +38,7 @@ export function GraphPanel({
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
+  repoName: string;
   modelName: string;
   backendName: string;
   dtypeName: string;
@@ -65,6 +68,8 @@ export function GraphPanel({
     return <></>;
   }
 
+  const dataWithSpeedup = computeSpeedup(repoName, data);
+
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
   const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
@@ -79,7 +84,7 @@ export function GraphPanel({
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
   metricNames.forEach((metric: string) => {
-    chartData[metric] = data
+    chartData[metric] = dataWithSpeedup
       .filter((record: LLMsBenchmarkData) => {
         return (
           record.model === modelName &&

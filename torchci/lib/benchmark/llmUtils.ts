@@ -118,6 +118,10 @@ export function combineLeftAndRight(
           row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
       }
 
+      if (dtype !== "") {
+        row["dtype"] = dtype;
+      }
+
       if (backend !== "") {
         row["backend"] = backend;
       }
