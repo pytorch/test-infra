@@ -89,10 +89,24 @@ export function GraphPanel({
     const geomean = computeGeomean(dataWithSpeedup, metric);
     chartData[metric] =
       modelName === DEFAULT_MODEL_NAME
-        ? geomean.map((record: LLMsBenchmarkData) => {
-            record.display = `${record.device} (${record.arch})`;
-            return record;
-          })
+        ? geomean
+            .filter((record: LLMsBenchmarkData) => {
+              const id = record.workflow_id;
+              return (
+                (id >= lWorkflowId && id <= rWorkflowId) ||
+                (id <= lWorkflowId && id >= rWorkflowId) ||
+                (lWorkflowId === undefined && rWorkflowId === undefined) ||
+                // This is a hack to handle the mock workflow ID coming from running TorchAO benchmark locally
+                // In such caase, the workflow ID is actually the epoch timestamp and the value is completely
+                // different than the regular GitHub workflow ID
+                0.5 > rWorkflowId / lWorkflowId ||
+                rWorkflowId / lWorkflowId > 2
+              );
+            })
+            .map((record: LLMsBenchmarkData) => {
+              record.display = `${record.device} (${record.arch})`;
+              return record;
+            })
         : dataWithSpeedup
             .filter((record: LLMsBenchmarkData) => {
               return (
