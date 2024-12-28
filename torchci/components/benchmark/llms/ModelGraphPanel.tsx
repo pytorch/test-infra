@@ -19,7 +19,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { computeSpeedup } from "lib/benchmark/aoUtils";
-import { useBenchmark } from "lib/benchmark/llmUtils";
+import { computeGeomean, useBenchmark } from "lib/benchmark/llmUtils";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
@@ -64,10 +64,6 @@ export function GraphPanel({
     );
   }
 
-  if (modelName === DEFAULT_MODEL_NAME) {
-    return <></>;
-  }
-
   const dataWithSpeedup = computeSpeedup(repoName, data);
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
@@ -84,39 +80,67 @@ export function GraphPanel({
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
   metricNames.forEach((metric: string) => {
-    chartData[metric] = dataWithSpeedup
-      .filter((record: LLMsBenchmarkData) => {
-        return (
-          record.model === modelName &&
-          (record.dtype === dtypeName || dtypeName === DEFAULT_DTYPE_NAME) &&
-          (`${record.device} (${record.arch})` === deviceName ||
-            deviceName === DEFAULT_DEVICE_NAME) &&
-          record.metric === metric
-        );
-      })
-      .filter((record: LLMsBenchmarkData) => {
-        const id = record.workflow_id;
-        return (
-          (id >= lWorkflowId && id <= rWorkflowId) ||
-          (id <= lWorkflowId && id >= rWorkflowId) ||
-          (lWorkflowId === undefined && rWorkflowId === undefined)
-        );
-      })
-      .map((record: LLMsBenchmarkData) => {
-        const model = record.model;
-        const dtype = record.dtype;
-        const device = record.device;
+    // TODO (huydhn): Only display aggregated speedup metric for now
+    if (modelName === DEFAULT_MODEL_NAME && metric !== "speedup") {
+      chartData[metric] = [];
+      return;
+    }
 
-        record.display = model.includes(dtype)
-          ? model.includes(device)
-            ? model
-            : `${model} (${device})`
-          : model.includes(device)
-          ? `${model} (${dtype})`
-          : `${model} (${dtype} / ${device})`;
+    const geomean = computeGeomean(dataWithSpeedup, metric);
+    chartData[metric] =
+      modelName === DEFAULT_MODEL_NAME
+        ? geomean
+            .filter((record: LLMsBenchmarkData) => {
+              const id = record.workflow_id;
+              return (
+                (id >= lWorkflowId && id <= rWorkflowId) ||
+                (id <= lWorkflowId && id >= rWorkflowId) ||
+                (lWorkflowId === undefined && rWorkflowId === undefined) ||
+                // This is a hack to handle the mock workflow ID coming from running TorchAO benchmark locally
+                // In such caase, the workflow ID is actually the epoch timestamp and the value is completely
+                // different than the regular GitHub workflow ID
+                0.5 > rWorkflowId / lWorkflowId ||
+                rWorkflowId / lWorkflowId > 2
+              );
+            })
+            .map((record: LLMsBenchmarkData) => {
+              record.display = `${record.device} (${record.arch})`;
+              return record;
+            })
+        : dataWithSpeedup
+            .filter((record: LLMsBenchmarkData) => {
+              return (
+                record.model === modelName &&
+                (record.dtype === dtypeName ||
+                  dtypeName === DEFAULT_DTYPE_NAME) &&
+                (`${record.device} (${record.arch})` === deviceName ||
+                  deviceName === DEFAULT_DEVICE_NAME) &&
+                record.metric === metric
+              );
+            })
+            .filter((record: LLMsBenchmarkData) => {
+              const id = record.workflow_id;
+              return (
+                (id >= lWorkflowId && id <= rWorkflowId) ||
+                (id <= lWorkflowId && id >= rWorkflowId) ||
+                (lWorkflowId === undefined && rWorkflowId === undefined)
+              );
+            })
+            .map((record: LLMsBenchmarkData) => {
+              const model = record.model;
+              const dtype = record.dtype;
+              const device = record.device;
 
-        return record;
-      });
+              record.display = model.includes(dtype)
+                ? model.includes(device)
+                  ? model
+                  : `${model} (${device})`
+                : model.includes(device)
+                ? `${model} (${dtype})`
+                : `${model} (${dtype} / ${device})`;
+
+              return record;
+            });
 
     graphSeries[metric] = seriesWithInterpolatedTimes(
       chartData[metric],
@@ -141,7 +165,13 @@ export function GraphPanel({
           {metricNames
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
-              <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT} key={metric}>
+              <Grid
+                item
+                xs={12}
+                lg={modelName === DEFAULT_MODEL_NAME ? 12 : 4}
+                height={GRAPH_ROW_HEIGHT}
+                key={metric}
+              >
                 <TimeSeriesPanelWithData
                   data={chartData[metric]}
                   series={graphSeries[metric]}
@@ -169,54 +199,56 @@ export function GraphPanel({
             ))}
         </Grid>
       </div>
-      <div>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Commit</th>
-              {metricNames.map((metric: string) => (
-                <th key={metric}>
-                  {chartData[metric].length !== 0
-                    ? metric in METRIC_DISPLAY_SHORT_HEADERS
-                      ? METRIC_DISPLAY_SHORT_HEADERS[metric]
-                      : metric
-                    : ""}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {chartData[availableMetric].map((entry: any, index: number) => {
-              let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
-              return (
-                <tr key={index}>
-                  <td>{entry.granularity_bucket}</td>
-                  <td>
-                    <code>
-                      <a
-                        onClick={() => navigator.clipboard.writeText(commit)}
-                        className="animate-on-click"
-                      >
-                        {commit}
-                      </a>
-                    </code>
-                  </td>
-                  {metricNames
-                    .filter((metric) => chartData[metric].length !== 0)
-                    .map((metric: string) => (
-                      <td key={`${metric}-${index}`}>
-                        {chartData[metric][index] !== undefined
-                          ? chartData[metric][index].actual
-                          : ""}
-                      </td>
-                    ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {modelName !== DEFAULT_MODEL_NAME && (
+        <div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Commit</th>
+                {metricNames.map((metric: string) => (
+                  <th key={metric}>
+                    {chartData[metric].length !== 0
+                      ? metric in METRIC_DISPLAY_SHORT_HEADERS
+                        ? METRIC_DISPLAY_SHORT_HEADERS[metric]
+                        : metric
+                      : ""}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {chartData[availableMetric].map((entry: any, index: number) => {
+                let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+                return (
+                  <tr key={index}>
+                    <td>{entry.granularity_bucket}</td>
+                    <td>
+                      <code>
+                        <a
+                          onClick={() => navigator.clipboard.writeText(commit)}
+                          className="animate-on-click"
+                        >
+                          {commit}
+                        </a>
+                      </code>
+                    </td>
+                    {metricNames
+                      .filter((metric) => chartData[metric].length !== 0)
+                      .map((metric: string) => (
+                        <td key={`${metric}-${index}`}>
+                          {chartData[metric][index] !== undefined
+                            ? chartData[metric][index].actual
+                            : ""}
+                        </td>
+                      ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

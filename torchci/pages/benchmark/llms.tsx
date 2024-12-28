@@ -152,7 +152,7 @@ export default function Page() {
   const defaultStopTime = dayjs();
   const [stopTime, setStopTime] = useState(defaultStopTime);
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
-  const [granularity, setGranularity] = useState<Granularity>("hour");
+  const [granularity, setGranularity] = useState<Granularity>("day");
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);

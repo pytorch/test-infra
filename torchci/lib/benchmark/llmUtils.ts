@@ -2,6 +2,7 @@ import {
   BranchAndCommitPerfData,
   LLMsBenchmarkData,
 } from "components/benchmark/llms/common";
+import { geomean } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
@@ -157,4 +158,46 @@ export function combineLeftAndRight(
   });
 
   return data;
+}
+
+export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
+  const metricValues: { [key: string]: number[] } = {};
+  const returnedGeomean: LLMsBenchmarkData[] = [];
+
+  data.forEach((r: LLMsBenchmarkData) => {
+    if (r.metric !== metricName) {
+      return;
+    }
+
+    const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${r.device}+${r.arch}+${r.metric}`;
+    if (!(k in metricValues)) {
+      metricValues[k] = [];
+    }
+
+    if (r.actual !== 0) {
+      metricValues[k].push(r.actual);
+    }
+  });
+
+  Object.keys(metricValues).forEach((k: string) => {
+    const gm = geomean(metricValues[k]);
+
+    const [bucket, workflowId, jobId, backend, dtype, device, arch, metric] =
+      k.split("+");
+    returnedGeomean.push({
+      granularity_bucket: bucket,
+      model: "",
+      backend: backend,
+      workflow_id: Number(workflowId),
+      job_id: Number(jobId),
+      metric: `${metric} (geomean)`,
+      actual: Number(gm),
+      target: 0,
+      dtype: dtype,
+      device: device,
+      arch: arch,
+    });
+  });
+
+  return returnedGeomean;
 }
