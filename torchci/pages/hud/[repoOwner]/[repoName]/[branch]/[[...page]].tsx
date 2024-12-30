@@ -298,10 +298,7 @@ function GroupFilterableHudTable({
   const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
-      <JobFilterInput
-        currentFilter={jobFilter}
-        handleSubmit={handleSubmit}
-      />
+      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
       <CheckBoxSelector
         value={useGrouping}
         setValue={(value) => setUseGrouping(value)}
