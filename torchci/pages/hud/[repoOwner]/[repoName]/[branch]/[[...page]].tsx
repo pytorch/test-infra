@@ -301,9 +301,6 @@ function GroupFilterableHudTable({
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
-        handleFocus={() => {
-          setUseGrouping(false);
-        }}
       />
       <CheckBoxSelector
         value={useGrouping}
