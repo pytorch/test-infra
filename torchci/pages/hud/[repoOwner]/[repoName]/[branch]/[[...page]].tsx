@@ -551,7 +551,7 @@ function GroupedHudTable({
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [useGrouping, setUseGrouping] = useGroupingPreference(
-    params.nameFilter != null && params.nameFilter !== ""
+    params.nameFilter
   );
 
   const { shaGrid, groupNameMapping } = getGroupingData(

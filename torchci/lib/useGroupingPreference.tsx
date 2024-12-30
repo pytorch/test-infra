@@ -10,7 +10,7 @@ export function usePreference(
   name: string,
   override: boolean | undefined = undefined,
   defaultValue: boolean = true
-): [boolean, (_grouping: boolean) => void] {
+): [boolean, (_grouping: boolean) => void, (_grouping: boolean) => void] {
   const settingFromStorage =
     typeof window === "undefined"
       ? String(defaultValue)
@@ -29,24 +29,37 @@ export function usePreference(
     setState(initialVal);
   }, [initialVal]);
 
-  return [state, setStatePersist];
+  return [state, setStatePersist, setState];
 }
 
 export function useGroupingPreference(
-  hasParams: boolean
+  nameFilter: string | undefined | null
 ): [boolean, (_grouping: boolean) => void] {
-  const override = hasParams ? false : undefined;
+  const hasNameFilter =
+    nameFilter !== "" && nameFilter !== null && nameFilter !== undefined;
+  const override = hasNameFilter ? false : undefined;
+  const [state, setState, setStateTemp] = usePreference(
+    "useGrouping",
+    override
+  );
+  useEffect(() => {
+    if (hasNameFilter) {
+      // Set grouping to be false if there is a name filter.
+      setStateTemp(false);
+    }
+  }, [nameFilter]);
 
-  return usePreference("useGrouping", override);
+  return [state, setState];
 }
 
 export function useMonsterFailuresPreference(): [
   boolean,
   (_useMonsterFailuresValue: boolean) => void
 ] {
-  return usePreference(
+  const [state, setState] = usePreference(
     "useMonsterFailures",
     /*override*/ undefined,
     /*default*/ false
   );
+  return [state, setState];
 }
