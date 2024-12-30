@@ -44,9 +44,9 @@ export function useGroupingPreference(
   );
   useEffect(() => {
     if (hasNameFilter) {
-      // Manually set grouping to be false if there is a name filter.  Without this
-      // setState, if you enter a filter, check use grouping, then enter another
-      // filter, it will still be grouped
+      // Manually set grouping to be false if there is a name filter on first
+      // load.  Without this setState, if you enter a filter, check use
+      // grouping, then enter another filter, it will still be grouped
       setStateTemp(false);
     }
   }, [nameFilter]);
