@@ -24,9 +24,6 @@ jobs:
           yarn prettier --check . || (echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m' from the /torchci dir. If it doesn't work, run 'yarn install' and try again." && exit 1)
       - run: yarn tsc
       - run: yarn test
-      - run: yarn node scripts/checkRockset.mjs
-        env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
   python-tests:
     runs-on: ubuntu-latest
