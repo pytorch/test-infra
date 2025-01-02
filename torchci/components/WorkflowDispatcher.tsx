@@ -16,20 +16,21 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     slow: "Run slow jobs",
     rocm: "Run rocm jobs",
     "linux-aarch64": "Run Linux ARMv8 jobs",
-    "inductor-periodic": "Run inductor jobs",
+    "inductor-periodic": "Run periodic inductor jobs",
     "inductor-cu124": "Run inductor-cu124 jobs",
     xpu: "Run XPU jobs",
   },
 };
 
 function hasWorkflow(jobs: JobData[], workflow: string) {
-  // A custom hack for inductor as ciflow/inductor is used to trigger both
-  // inductor and inductor-periodic workflows
-  workflow = workflow === "inductor" ? "inductor-periodic" : workflow;
   return _.find(
     jobs,
-    (job) => job.name !== undefined && job.name.startsWith(workflow)
+    (job) => job.name !== undefined && getWorkflowName(job.name) === workflow
   );
+}
+
+function getWorkflowName(jobName: string) {
+  return jobName.split(new RegExp(" / "))[0]?.toLowerCase()?.trim();
 }
 
 function Workflow({
@@ -181,12 +182,7 @@ export function SingleWorkflowDispatcher({
     }
   );
 
-  // extract workflow key from the jobName
-  let workflow = jobName.split(new RegExp(" / "))[0]?.toLowerCase()?.trim();
-  if (workflow === "inductor-periodic") {
-    // inductor-periodic gets run by ciflow/inductor
-    workflow = "inductor";
-  }
+  let workflow = getWorkflowName(jobName);
 
   const repo = `${repoOwner}/${repoName}`;
   if (
