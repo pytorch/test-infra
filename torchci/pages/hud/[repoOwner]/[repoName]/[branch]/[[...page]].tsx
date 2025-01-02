@@ -298,13 +298,7 @@ function GroupFilterableHudTable({
   const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
-      <JobFilterInput
-        currentFilter={jobFilter}
-        handleSubmit={handleSubmit}
-        handleFocus={() => {
-          setUseGrouping(false);
-        }}
-      />
+      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
       <CheckBoxSelector
         value={useGrouping}
         setValue={(value) => setUseGrouping(value)}
@@ -554,7 +548,7 @@ function GroupedHudTable({
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [useGrouping, setUseGrouping] = useGroupingPreference(
-    params.nameFilter != null && params.nameFilter !== ""
+    params.nameFilter
   );
 
   const { shaGrid, groupNameMapping } = getGroupingData(
