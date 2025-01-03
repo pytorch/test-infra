@@ -5,14 +5,14 @@
 Here is a checklist of all the different services used by the HUD. Ask
 @janeyx99 or @suo for help getting access to these services.
 
-- [Rockset](https://rockset.com/): primary data and metrics backend.
+- [ClickHouse](https://console.clickhouse.cloud/): primary data and metrics backend.
 - [Vercel](https://vercel.com/): hosting the website. If you are a metamate,
   make a post [like
   this](https://fb.workplace.com/groups/osssupport/posts/27574509675504286) in the
   [Open Source - Support](https://fb.workplace.com/groups/773769332671684) group
   to get access to Vercel.
 - [Sematext](https://sematext.com/): log drain for our Vercel instance.
-- [AWS](http://aws.com/): data pipelines for populating Rockset, Lambda, S3, etc.
+- [AWS](http://aws.com/): data pipelines for populating ClickHouse, Lambda, S3, etc.
 
 ### Quickstart
 
@@ -74,36 +74,6 @@ the bot comments for how to view.
 
 Logs for the Vercel instance can be found in [Sematext](https://sematext.com/).
 
-## How to edit Rockset query lambdas
-
-The source of truth for our query lambdas is in `rockset/`. We use the Rockset
-CLI to deploy these queries to Rockset. To get started:
-
-- Follow the steps to [install and authenticate the Rockset
-  CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
-- Optionally, install the [Rockset VSCode
-  extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
-
-Then, you have two options for editing your query, locally or in the Rockset
-console.
-
-### Work on the query locally
-
-1. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
-   parameter definitions are found in `rockset/<workspace>`.
-2. You can test your query lambda using the [Rockset
-   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
-3. Run `yarn node scripts/uploadQueryLambda.mjs`. This will upload _all_ of the
-   local query lambdas to Rockset and update `rockset/prodVersions.json` to
-   point to the new versions.
-
-### Work on the query in Rockset console
-
-1. Edit the query on console.rockset.com.
-2. Save the query, creating a new version.
-3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`. (You can skip `<version>` if you want the latest version). This will auto-update sql and lambda files in the `rockset/<workspace>` dir and the query version in `rockset/prodVersion.json`.
-4. Commit the updated files.
-
 ## How to edit ClickHouse queries
 
 If you are familiar with the old setup for Rockset, ClickHouse does not have
@@ -122,6 +92,9 @@ you submit your PR.
 If you want to test your query in ClickHouse Cloud's console, you need to copy
 the query text into the console. If you make changes, you will have to copy the
 query back into the file.
+
+To get access to ClickHouse Cloud's console, please see
+[here](https://github.com/pytorch/test-infra/wiki/Querying-ClickHouse-database-for-fun-and-profit#prerequisites).
 
 ## Alerts
 

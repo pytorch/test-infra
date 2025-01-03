@@ -21,8 +21,8 @@ These webhooks are delivered to an API endpoint on [hud.pytorch.org]
 table corresponding to the event type. For example, `workflow_job` payloads are
 written to `torchci-workflow-job`.
 
-Rockset is [integrated][dynamo] with DynamoDB and automatically picks up any
-changes in the tables in its collections.
+ClickHouse [ingests from DynamoDB using an AWS Lambda] to automatically pick up
+changes in the tables.
 
 [webhook event]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks
 [webhook payload]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads
@@ -30,7 +30,7 @@ changes in the tables in its collections.
 [github apps]: https://docs.github.com/en/developers/apps/getting-started-with-apps/about-apps
 [pytorch bot]: https://github.com/apps/pytorch-bot
 [`/api/github/webhooks`]: https://github.com/pytorch/test-infra/blob/main/torchci/pages/api/github/webhooks.ts
-[dynamo]: https://rockset.com/docs/amazon-dynamodb/
+[ingests from DynamoDB using an AWS Lambda]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
 
 ## Secondary write paths
 
