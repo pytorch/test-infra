@@ -577,7 +577,8 @@ class S3Index:
         rc = cls([S3Object(key=sanitize_key(key),
                            orig_key=key,
                            checksum=None,
-                           size=None) for key in obj_names], prefix)
+                           size=None,
+                           pep658=None) for key in obj_names], prefix)
         if prefix == "whl/nightly":
             rc.objects = rc.nightly_packages_to_show()
         if with_metadata:
