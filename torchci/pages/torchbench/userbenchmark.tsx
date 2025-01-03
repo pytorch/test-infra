@@ -14,11 +14,9 @@ import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
-import { RocksetParam } from "lib/rockset";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
-const queryCollection = "torchbench";
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
 const MIN_ENTRIES = 10;
@@ -42,8 +40,8 @@ function UserbenchmarkPicker({
     setUserbenchmark(e.target.value);
   }
   const queryName = "torchbench_list_userbenchmarks";
-  const queryParams: any[] = [];
-  const list_userbenchmark_url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const queryParams = {};
+  const list_userbenchmark_url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -118,15 +116,10 @@ function CommitPicker({
   }
 
   const queryName = "torchbench_userbenchmark_list_commits";
-  const queryCollection = "torchbench";
-  const queryParams: RocksetParam[] = [
-    {
-      name: "userbenchmark",
-      type: "string",
-      value: userbenchmark,
-    },
-  ];
-  const list_commits_url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const queryParams: { [key: string]: any } = {
+    userbenchmark: userbenchmark,
+  };
+  const list_commits_url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -220,8 +213,8 @@ function Report({
     return "";
   }
 
-  function getQueryUrl(params: RocksetParam[]) {
-    return `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  function getQueryUrl(params: { [key: string]: any }) {
+    return `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
       JSON.stringify(params)
     )}`;
   }
@@ -236,10 +229,14 @@ function Report({
     // Return a list of metrics that are the union of cMetrics and tMetrics
     cMetrics = cMetrics === undefined ? {} : cMetrics;
     tMetrics = tMetrics === undefined ? {} : tMetrics;
+    let cMetricsData =
+      "metrics" in cMetrics ? JSON.parse(cMetrics["metrics"]) : {};
+    let tMetricsData =
+      "metrics" in tMetrics ? JSON.parse(tMetrics["metrics"]) : {};
     let cMetricNames: string[] =
-      "metrics" in cMetrics ? Array.from(Object.keys(cMetrics["metrics"])) : [];
+      "metrics" in cMetrics ? Array.from(Object.keys(cMetricsData)) : [];
     let tMetricNames: string[] =
-      "metrics" in tMetrics ? Array.from(Object.keys(tMetrics["metrics"])) : [];
+      "metrics" in tMetrics ? Array.from(Object.keys(tMetricsData)) : [];
     const metricNameSet: Set<string> = new Set([
       ...cMetricNames,
       ...tMetricNames,
@@ -249,16 +246,15 @@ function Report({
       const hasL =
         cMetrics === undefined || !("metrics" in cMetrics)
           ? false
-          : name in cMetrics["metrics"];
+          : name in cMetricsData;
       const hasR =
         tMetrics === undefined || !("metrics" in tMetrics)
           ? false
-          : name in tMetrics["metrics"];
+          : name in tMetricsData;
 
       const delta =
         hasL && hasR
-          ? (tMetrics["metrics"][name] - cMetrics["metrics"][name]) /
-            cMetrics["metrics"][name]
+          ? (tMetricsData[name] - cMetricsData[name]) / cMetricsData[name]
           : "undefined";
       return {
         // Keep the name as as the row ID as DataGrid requires it
@@ -272,13 +268,13 @@ function Report({
         // The metrics value on base commit
         control: {
           name: name,
-          v: hasL ? cMetrics["metrics"][name] : "undefined",
+          v: hasL ? cMetricsData[name] : "undefined",
         },
 
         // The metrics value on head commit
         treatment: {
           name: name,
-          v: hasR ? tMetrics["metrics"][name] : "undefined",
+          v: hasR ? tMetricsData[name] : "undefined",
         },
 
         // The metrics value delta
@@ -295,31 +291,14 @@ function Report({
   const rCommitHash: string = getCommitHash(rCommit);
 
   const queryName = "torchbench_userbenchmark_query_metrics";
-  const queryCollection = "torchbench";
-  const queryControlParams: RocksetParam[] = [
-    {
-      name: "userbenchmark",
-      type: "string",
-      value: userbenchmark,
-    },
-    {
-      name: "commit",
-      type: "string",
-      value: lCommitHash,
-    },
-  ];
-  const queryTreatmentParams: RocksetParam[] = [
-    {
-      name: "userbenchmark",
-      type: "string",
-      value: userbenchmark,
-    },
-    {
-      name: "commit",
-      type: "string",
-      value: rCommitHash,
-    },
-  ];
+  const queryControlParams: { [key: string]: any } = {
+    userbenchmark: userbenchmark,
+    commit: lCommitHash,
+  };
+  const queryTreatmentParams: { [key: string]: any } = {
+    userbenchmark: userbenchmark,
+    commit: rCommitHash,
+  };
   // We only submit the query if both commit IDs are available
   if (lCommitHash.length === 0 || rCommitHash.length === 0) {
     return <div>Please select both left and right commits.</div>;
