@@ -21,7 +21,7 @@ These webhooks are delivered to an API endpoint on [hud.pytorch.org]
 table corresponding to the event type. For example, `workflow_job` payloads are
 written to `torchci-workflow-job`.
 
-ClickHouse [ingests from DynamoDB using an AWS Lambda] to automatically pick up
+ClickHouse [ingests from DynamoDB using an AWS Lambda][ch_dynamo] to automatically pick up
 changes in the tables.
 
 [webhook event]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks
@@ -30,7 +30,7 @@ changes in the tables.
 [github apps]: https://docs.github.com/en/developers/apps/getting-started-with-apps/about-apps
 [pytorch bot]: https://github.com/apps/pytorch-bot
 [`/api/github/webhooks`]: https://github.com/pytorch/test-infra/blob/main/torchci/pages/api/github/webhooks.ts
-[ingests from dynamodb using an aws lambda]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
+[ch_dynamo]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
 
 ## Secondary write paths
 
