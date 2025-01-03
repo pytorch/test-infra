@@ -16,6 +16,7 @@ from re import sub, match, search
 from packaging.version import parse as _parse_version, Version, InvalidVersion
 
 import boto3
+import botocore
 
 
 S3 = boto3.resource('s3')
@@ -217,6 +218,7 @@ class S3Object:
     orig_key: str
     checksum: Optional[str]
     size: Optional[int]
+    pep658: Optional[str]
 
     def __hash__(self):
         return hash(self.key)
@@ -380,7 +382,16 @@ class S3Index:
         out.append('    <h1>Links for {}</h1>'.format(package_name.lower().replace("_", "-")))
         for obj in sorted(self.gen_file_list(subdir, package_name)):
             maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
-            out.append(f'    <a href="/{obj.key}{maybe_fragment}">{path.basename(obj.key).replace("%2B","+")}</a><br/>')
+            pep658_attribute = ""
+            if obj.pep658:
+                pep658_sha = f"sha256={obj.pep658}"
+                # pep714 renames the attribute to data-core-metadata
+                pep658_attribute = (
+                    f' data-dist-info-metadata="{pep658_sha}" data-core-metadata="{pep658_sha}"'
+                )
+            out.append(
+                f'    <a href="/{obj.key}{maybe_fragment}"{pep658_attribute}>{path.basename(obj.key).replace("%2B","+")}</a><br/>'
+            )
         # Adding html footer
         out.append('  </body>')
         out.append('</html>')
@@ -529,6 +540,32 @@ class S3Index:
                 if size := response.get("ContentLength"):
                     self.objects[idx].size = int(size)
 
+    def fetch_pep658(self: S3IndexType) -> None:
+        def _fetch_metadata(key: str) -> str:
+            try:
+                response = CLIENT.head_object(
+                    Bucket=BUCKET.name, Key=f"{key}.metadata", ChecksumMode="Enabled"
+                )
+                sha256 = base64.b64decode(response.get("ChecksumSHA256")).hex()
+                return sha256
+            except botocore.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] == "404":
+                    return None
+                raise
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            metadata_futures = {
+                idx: executor.submit(
+                    _fetch_metadata,
+                    obj.orig_key,
+                )
+                for (idx, obj) in enumerate(self.objects)
+            }
+            for idx, future in metadata_futures.items():
+                response = future.result()
+                if response is not None:
+                    self.objects[idx].pep658 = response
+
     @classmethod
     def from_S3(cls: Type[S3IndexType], prefix: str, with_metadata: bool = True) -> S3IndexType:
         prefix = prefix.rstrip("/")
@@ -540,11 +577,13 @@ class S3Index:
         rc = cls([S3Object(key=sanitize_key(key),
                            orig_key=key,
                            checksum=None,
-                           size=None) for key in obj_names], prefix)
+                           size=None,
+                           pep658=None) for key in obj_names], prefix)
         if prefix == "whl/nightly":
             rc.objects = rc.nightly_packages_to_show()
         if with_metadata:
             rc.fetch_metadata()
+            rc.fetch_pep658()
         return rc
 
     @classmethod
