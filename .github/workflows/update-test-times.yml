@@ -35,7 +35,6 @@ jobs:
         run: |
           python -m torchci.update_test_times
         env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}

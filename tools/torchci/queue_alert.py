@@ -11,8 +11,6 @@ from torchci.check_alerts import clear_alerts, create_issue, fetch_alerts, updat
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-PROD_VERSIONS_FILE = REPO_ROOT / "torchci" / "rockset" / "prodVersions.json"
-
 QUEUE_ALERT_LABEL = "queue-alert"
 
 MAX_HOURS = 4
