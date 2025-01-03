@@ -10,12 +10,12 @@ title: torchci write path
 ---
 flowchart LR
    pytorchbot[Github App
-   <sup><sub>PyTorchBot</sub></sup>] --> vercel@{ shape: das, label: "vercel
-   <sup><sub>/api/github/webhooks</sub></sup>" }
+   PyTorchBot] --> vercel@{ shape: das, label: "vercel
+   /api/github/webhooks" }
    vercel --> dynamodb[DynamoDB
-   <sup><sub>torchci-* tables</sub></sup>]
+   torchci-* tables]
    dynamodb --> replicatorlambda@{ shape: das, label: "AWS Lambda
-   <sup><sub>clickhouse-replicator-dynamo</sub></sup>"}
+   clickhouse-replicator-dynamo"}
    replicatorlambda --> ClickHouse
 ```
 
