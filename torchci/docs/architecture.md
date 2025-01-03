@@ -4,7 +4,20 @@
 
 How does data get from GitHub to `torchci`?
 
-![torchci write path](write-path.png)
+```mermaid
+---
+title: torchci write path
+---
+flowchart LR
+   pytorchbot[Github App
+   <sup><sub>PyTorchBot</sub></sup>] --> vercel@{ shape: das, label: "vercel
+   <sup><sub>/api/github/webhooks</sub></sup>" }
+   vercel --> dynamodb[DynamoDB
+   <sup><sub>torchci-* tables</sub></sup>]
+   dynamodb --> replicatorlambda@{ shape: das, label: "AWS Lambda
+   <sup><sub>clickhouse-replicator-dynamo</sub></sup>"}
+   replicatorlambda --> ClickHouse
+```
 
 Whenever something happens on GitHub, a [webhook event] is created and sent to
 all subscribers. The [webhook payload] will contain all the necessary
