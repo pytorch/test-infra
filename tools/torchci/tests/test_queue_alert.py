@@ -5,15 +5,15 @@ from torchci.queue_alert import filter_long_queues, gen_update_comment, QueueInf
 
 class TestGitHubPR(TestCase):
     def test_filter_long_queues(self):
-        rockset_results = [
+        db_results = [
             {"count": 30, "avg_queue_s": 0, "machine_type": "linux.gcp.a100.large"},
             {"count": 100, "avg_queue_s": 0, "machine_type": "machine1"},
             {"count": 30, "avg_queue_s": 3600 * 5, "machine_type": "machine2"},
         ]
-        long_queues = filter_long_queues(rockset_results)
+        long_queues = filter_long_queues(db_results)
         self.assertEqual(len(long_queues), 3)
 
-        rockset_results = [
+        db_results = [
             {
                 "count": 0,
                 "avg_queue_s": 3600 * 30,
@@ -22,7 +22,7 @@ class TestGitHubPR(TestCase):
             {"count": 10, "avg_queue_s": 0, "machine_type": "machine1"},
             {"count": 10, "avg_queue_s": 3600 * 1, "machine_type": "machine2"},
         ]
-        long_queues = filter_long_queues(rockset_results)
+        long_queues = filter_long_queues(db_results)
         self.assertEqual(len(long_queues), 1)
         self.assertEqual(long_queues[0].machine, "linux.gcp.a100.large")
 
