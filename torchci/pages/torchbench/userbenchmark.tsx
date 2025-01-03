@@ -229,8 +229,10 @@ function Report({
     // Return a list of metrics that are the union of cMetrics and tMetrics
     cMetrics = cMetrics === undefined ? {} : cMetrics;
     tMetrics = tMetrics === undefined ? {} : tMetrics;
-    let cMetricsData = "metrics" in cMetrics ? JSON.parse(cMetrics["metrics"]) : {};
-    let tMetricsData = "metrics" in tMetrics ? JSON.parse(tMetrics["metrics"]) : {};
+    let cMetricsData =
+      "metrics" in cMetrics ? JSON.parse(cMetrics["metrics"]) : {};
+    let tMetricsData =
+      "metrics" in tMetrics ? JSON.parse(tMetrics["metrics"]) : {};
     let cMetricNames: string[] =
       "metrics" in cMetrics ? Array.from(Object.keys(cMetricsData)) : [];
     let tMetricNames: string[] =
@@ -303,7 +305,6 @@ function Report({
   }
   let cMetrics = QueryMetrics(getQueryUrl(queryControlParams));
   cMetrics = cMetrics === undefined ? {} : cMetrics[0];
-
   let tMetrics = QueryMetrics(getQueryUrl(queryTreatmentParams));
   tMetrics = tMetrics === undefined ? {} : tMetrics[0];
   const metrics: Record<string, any>[] = genABMetrics(cMetrics, tMetrics);
