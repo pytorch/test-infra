@@ -361,7 +361,6 @@ export default function Page() {
         />
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
-          queryCollection={"benchmarks"}
           queryParams={queryParams}
           branch={lBranch}
           setBranch={setLBranch}
@@ -370,14 +369,12 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={1} // Default to previous commit
           timeRange={timeRange}
-          useClickHouse={true}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
         </Divider>
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
-          queryCollection={"benchmarks"}
           queryParams={queryParams}
           branch={rBranch}
           setBranch={setRBranch}
@@ -386,7 +383,6 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          useClickHouse={true}
         />
       </Stack>
       <Report
