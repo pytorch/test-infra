@@ -45,7 +45,7 @@
     "lodash": "^4.17.21",
     "minimatch": "^9.0.3",
     "minimist": "^1.2.6",
-    "next": "14.2.16",
+    "next": "14.2.21",
     "next-auth": "^4.24.5",
     "octokit": "^1.7.1",
     "probot": "^12.3.3",
