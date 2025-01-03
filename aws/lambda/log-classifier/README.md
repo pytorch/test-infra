@@ -5,7 +5,7 @@ The log classifier:
 1. Downloads a log file from S3.
 2. Classifies it, according to rules defined in `ruleset.toml`.
 3. Uploads the classification to DynamoDB, mutating the `torchci-workflow-job`
-   table, which in turn populates the `workflow_job` collection in Rockset.
+   table, which in turn populates the `workflow_job` collection in ClickHouse.
 
 It is written in a natively compiled language for efficiency/tail latency
 reasons (there was a Python implementation at one point which had quite bad tail
@@ -45,9 +45,10 @@ The lambda is deployed from main (see:
 ## Why mutate the the `workflow_job` collection instead of creating a separate one for classifications?
 
 We used to do this. Queries get a lot slower (~5x) when you have to perform a
-big join between `workflow_job` and the classifications table. Mutations are
-handled transparently by Rockset, so there is no real disadvantage to doing
-this.
+big join between `workflow_job` and the classifications table. Mutations were
+handled transparently by Rockset, and ClickHouse would need ReplacingMergeTrees
+to handle updating statuses from webhooks regardless of the log classifier, so
+there is no real disadvantage to doing this.
 
 [`log-classifier`]: https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/log_classifier?tab=monitoring
 [`cargo-lambda`]: https://www.cargo-lambda.info/
