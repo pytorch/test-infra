@@ -4,6 +4,7 @@
 // deploy.
 import { createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
+import { v4 as uuidv4 } from "uuid";
 // Import itself to ensure that mocks can be applied, see
 // https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
@@ -27,8 +28,14 @@ export function getClickhouseClientWritable() {
 
 export async function queryClickhouse(
   query: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  query_id?: string
 ): Promise<any[]> {
+  if (query_id === undefined) {
+    query_id = "adhoc";
+  }
+  // This needs to be unique for each query
+  query_id = `${query_id}-${uuidv4()}`;
   /**
    * queryClickhouse
    * @param query: string, the sql query
@@ -43,6 +50,7 @@ export async function queryClickhouse(
       output_format_json_quote_64bit_integers: 0,
       date_time_output_format: "iso",
     },
+    query_id,
   });
 
   return (await res.json()) as any[];
@@ -75,6 +83,7 @@ export async function queryClickhouseSaved(
   );
   return await thisModule.queryClickhouse(
     query,
-    Object.fromEntries(queryParams)
+    Object.fromEntries(queryParams),
+    queryName
   );
 }
