@@ -14,7 +14,7 @@ import useSWR from "swr";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
-// again from Rockset in the compilers_benchmark_performance query which
+// again from the database in the compilers_benchmark_performance query which
 // already returns close to the 6MB data transfer limit. I need to figure
 // out a way to compress the data later
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};

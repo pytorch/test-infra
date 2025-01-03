@@ -1,5 +1,5 @@
 /**
- * Represents the individual job information returned by Rockset.
+ * Represents the individual job information returned by queries.
  */
 export interface BasicJobData {
   name?: string;
@@ -37,7 +37,7 @@ export interface RecentWorkflowsData extends BasicJobData {
   // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
   name: string; // In BasicJobData, but required here
   workflowId: number;
-  // Each workflow file has an id. In rockset this is workflow_run.workflow_id.
+  // Each workflow file has an id. In the webhook this is workflow_id.
   // This can be used to group normal workflows (ex trunk) and those that failed
   // to run (ex .github/workflows/trunk.yml) together even when they have
   // different names.
