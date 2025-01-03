@@ -30,7 +30,7 @@ changes in the tables.
 [github apps]: https://docs.github.com/en/developers/apps/getting-started-with-apps/about-apps
 [pytorch bot]: https://github.com/apps/pytorch-bot
 [`/api/github/webhooks`]: https://github.com/pytorch/test-infra/blob/main/torchci/pages/api/github/webhooks.ts
-[ingests from DynamoDB using an AWS Lambda]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
+[ingests from dynamodb using an aws lambda]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
 
 ## Secondary write paths
 
