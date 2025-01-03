@@ -6,7 +6,6 @@ import { useRouter } from "next/router";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useState } from "react";
 import useSWR from "swr";
-import { useCHContext } from "./UseClickhouseProvider";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
@@ -168,8 +167,6 @@ export function SingleWorkflowDispatcher({
     repoOwner = "pytorch";
     repoName = "pytorch";
   }
-
-  const useCH = useCHContext().useCH;
 
   const { data, error } = useSWR<CommitApiResponse>(
     runMoreJobsClicked && `/api/${repoOwner}/${repoName}/commit/${sha}`,
