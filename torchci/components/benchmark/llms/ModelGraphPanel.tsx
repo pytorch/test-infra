@@ -104,7 +104,11 @@ export function GraphPanel({
               );
             })
             .map((record: LLMsBenchmarkData) => {
-              record.display = `${record.dtype} @ ${record.device} (${record.arch})`;
+              const origins =
+                record.origins.length !== 0
+                  ? `${record.origins.join(",")} `
+                  : "";
+              record.display = `${origins}${record.dtype} @ ${record.device} (${record.arch})`;
               return record;
             })
         : dataWithSpeedup

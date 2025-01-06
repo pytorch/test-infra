@@ -169,7 +169,8 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
       return;
     }
 
-    const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${r.device}+${r.arch}+${r.metric}`;
+    const origins = r.origins.join(",");
+    const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${origins}+${r.device}+${r.arch}+${r.metric}`;
     if (!(k in metricValues)) {
       metricValues[k] = [];
     }
@@ -182,12 +183,22 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
   Object.keys(metricValues).forEach((k: string) => {
     const gm = geomean(metricValues[k]);
 
-    const [bucket, workflowId, jobId, backend, dtype, device, arch, metric] =
-      k.split("+");
+    const [
+      bucket,
+      workflowId,
+      jobId,
+      backend,
+      dtype,
+      origins,
+      device,
+      arch,
+      metric,
+    ] = k.split("+");
     returnedGeomean.push({
       granularity_bucket: bucket,
       model: "",
       backend: backend,
+      origins: origins.split(","),
       workflow_id: Number(workflowId),
       job_id: Number(jobId),
       metric: `${metric} (geomean)`,
@@ -199,5 +210,6 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
     });
   });
 
+  console.log(returnedGeomean);
   return returnedGeomean;
 }
