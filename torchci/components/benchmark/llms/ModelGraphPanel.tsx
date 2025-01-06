@@ -104,7 +104,7 @@ export function GraphPanel({
               );
             })
             .map((record: LLMsBenchmarkData) => {
-              record.display = `${record.device} (${record.arch})`;
+              record.display = `${record.dtype} @ ${record.device} (${record.arch})`;
               return record;
             })
         : dataWithSpeedup
@@ -194,6 +194,7 @@ export function GraphPanel({
                       },
                     },
                   }}
+                  legendPadding={modelName === DEFAULT_MODEL_NAME ? 320 : 200}
                 />
               </Grid>
             ))}

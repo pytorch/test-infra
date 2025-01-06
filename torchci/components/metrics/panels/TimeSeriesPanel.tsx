@@ -162,6 +162,8 @@ export function TimeSeriesPanelWithData({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
+  // To avoid overlapping long legends and the chart
+  legendPadding = 200,
 }: {
   data: any;
   series: any;
@@ -171,9 +173,10 @@ export function TimeSeriesPanelWithData({
   yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
+  legendPadding?: number;
 }) {
   // Add extra padding when the legend is active
-  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
+  const legend_padding = groupByFieldName !== undefined ? legendPadding : 48;
   const title_padding = yAxisLabel ? 65 : 48;
   const options: EChartsOption = _.merge(
     {
