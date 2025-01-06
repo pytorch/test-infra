@@ -210,6 +210,5 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
     });
   });
 
-  console.log(returnedGeomean);
   return returnedGeomean;
 }
