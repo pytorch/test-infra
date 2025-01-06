@@ -5,8 +5,8 @@ import { useSetTitle } from "components/DynamicTitle";
 import ErrorBoundary from "components/ErrorBoundary";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 

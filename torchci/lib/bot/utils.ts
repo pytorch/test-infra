@@ -11,9 +11,7 @@ export function isTime0(time: string): boolean {
 
 export const TIME_0 = "1970-01-01 00:00:00.000000000";
 
-export function repoKey(
-  context: Context | Context<"pull_request.labeled">
-): string {
+export function repoKey(context: Context): string {
   const repo = context.repo();
   return `${repo.owner}/${repo.repo}`;
 }
@@ -59,10 +57,7 @@ export class CachedConfigTracker {
     });
   }
 
-  async loadConfig(
-    context: Context | Context<"pull_request.labeled">,
-    force = false
-  ): Promise<object> {
+  async loadConfig(context: Context, force = false): Promise<object> {
     const key = repoKey(context);
     if (!(key in this.repoConfigs) || force) {
       context.log({ key }, "loadConfig");
