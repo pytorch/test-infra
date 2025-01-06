@@ -43,6 +43,7 @@ export interface LLMsBenchmarkData {
   granularity_bucket: string;
   model: string;
   backend: string;
+  origins: string[];
   workflow_id: number;
   job_id: number;
   metric: string;
