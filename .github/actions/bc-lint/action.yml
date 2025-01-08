@@ -29,12 +29,12 @@ runs:
         path: _test-infra
 
     - name: Checkout ${{ inputs.repo }}
-      uses: malfet/checkout@silent-checkout
+      uses: actions/checkout@v4
       with:
         ref: ${{ inputs.head_sha }}
         fetch-depth: -1
         submodules: false
-        quiet-checkout: true
+        show-progress: false
         path: _repo
 
     - name: Merge PR changes onto base
