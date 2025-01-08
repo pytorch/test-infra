@@ -42,4 +42,6 @@ jobs:
 
             # Install requirements
             pip install -r s3_management/requirements.txt
+            # Upload metadata for files without it
+            python s3_management/upload_metadata.py --prefix ${{ matrix.prefix }} --past-day
             python s3_management/manage.py ${{ matrix.prefix }}
