@@ -2,9 +2,9 @@ from unittest import main, mock, TestCase
 
 from update_disabled_issues import (
     condense_disable_jobs,
-    condense_disable_tests,
     filter_disable_issues,
     get_disable_issues,
+    get_disabled_tests,
     OWNER,
     REPO,
     UNSTABLE_PREFIX,
@@ -98,13 +98,13 @@ class TestUpdateDisabledIssues(TestCase):
             [item["number"] for item in disabled_jobs], [32132, 42345, 94861]
         )
 
-    def test_condense_disable_tests(self, mock_get_disable_issues):
+    def test_get_disable_tests(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_DATA
 
         disabled_issues = get_disable_issues("dummy token")
 
         disabled_tests, _ = filter_disable_issues(disabled_issues)
-        results = condense_disable_tests(disabled_tests)
+        results = get_disabled_tests(disabled_tests)
 
         self.assertDictEqual(
             {
@@ -123,6 +123,86 @@ class TestUpdateDisabledIssues(TestCase):
                 ),
             },
             results,
+        )
+
+    def test_get_disable_tests_aggregate_issue(self, mock_get_disable_issues):
+        # Test that the function can read aggregate issues
+        self.maxDiff = None
+        mock_data = [
+            {
+                "url": "https://github.com/pytorch/pytorch/issues/32644",
+                "number": 32644,
+                "title": "DISABLED MULTIPLE dummy test",
+                "body": "disable the following tests:\n```\ntest_quantized_nn (test_quantization.PostTrainingDynamicQuantTest): mac, win\ntest_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)\n```",
+            }
+        ]
+        disabled_tests = get_disabled_tests(mock_data)
+        self.assertDictEqual(
+            {
+                "test_quantized_nn (test_quantization.PostTrainingDynamicQuantTest)": (
+                    str(mock_data[0]["number"]),
+                    mock_data[0]["url"],
+                    ["mac", "win"],
+                ),
+                "test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)": (
+                    str(mock_data[0]["number"]),
+                    mock_data[0]["url"],
+                    [],
+                ),
+            },
+            disabled_tests,
+        )
+
+    def test_get_disable_tests_merge_issues(self, mock_get_disable_issues):
+        # Test that the function can merge multiple issues with the same test
+        # name
+        self.maxDiff = None
+        mock_data = [
+            {
+                "url": "https://github.com/pytorch/pytorch/issues/32644",
+                "number": 32644,
+                "title": "DISABLED MULTIPLE dummy test",
+                "body": "disable the following tests:\n```\ntest_2 (abc.ABC): mac, win\ntest_3 (DEF)\n```",
+            },
+            {
+                "url": "https://github.com/pytorch/pytorch/issues/32645",
+                "number": 32645,
+                "title": "DISABLED MULTIPLE dummy test",
+                "body": "disable the following tests:\n```\ntest_2 (abc.ABC): mac, win, linux\ntest_3 (DEF): mac\n```",
+            },
+            {
+                "url": "https://github.com/pytorch/pytorch/issues/32646",
+                "number": 32646,
+                "title": "DISABLED test_1 (__main__.Test1)",
+                "body": "platforms: linux",
+            },
+            {
+                "url": "https://github.com/pytorch/pytorch/issues/32647",
+                "number": 32647,
+                "title": "DISABLED test_2 (abc.ABC)",
+                "body": "platforms: dynamo",
+            },
+        ]
+        disabled_tests = get_disabled_tests(mock_data)
+        self.assertDictEqual(
+            {
+                "test_2 (abc.ABC)": (
+                    str(mock_data[3]["number"]),
+                    mock_data[3]["url"],
+                    ["dynamo", "linux", "mac", "win"],
+                ),
+                "test_3 (DEF)": (
+                    str(mock_data[1]["number"]),
+                    mock_data[1]["url"],
+                    [],
+                ),
+                "test_1 (__main__.Test1)": (
+                    str(mock_data[2]["number"]),
+                    mock_data[2]["url"],
+                    ["linux"],
+                ),
+            },
+            disabled_tests,
         )
 
     def test_condense_disable_jobs(self, mock_get_disable_issues):
