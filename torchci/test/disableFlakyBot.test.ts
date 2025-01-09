@@ -568,10 +568,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
@@ -587,10 +584,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       "triaged",
     ]);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
@@ -604,10 +598,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: ill-formatted file should return module: unknown", async () => {
@@ -621,10 +612,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: retry getting file fails all times", async () => {
@@ -653,10 +641,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       "Error: Error retrieving file_a.py: 404, file_a: 404"
     );
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: retry getting file", async () => {
@@ -673,10 +658,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: fallback to invoking file when retrieving file", async () => {
@@ -699,10 +681,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: fft", "module: rocm", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: give dynamo and inductor oncall: pt2 label", async () => {
