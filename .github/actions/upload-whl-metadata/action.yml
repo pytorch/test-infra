@@ -22,9 +22,10 @@ runs:
     - name: Upload whl metadata
       shell: bash
       run: |
+        TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
         set -eux
         for pkg in ${{ inputs.pkg-dir }}/*; do
-          uv run test-infra/tools/pkg-helpers/pytorch_pkg_helpers/upload_whl_metadata.py \
+          uv run ${TEST_INFRA_PATH}/tools/pkg-helpers/pytorch_pkg_helpers/upload_whl_metadata.py \
             --package "$pkg" \
             --s3-path "${{ inputs.s3-path }}"
         done
