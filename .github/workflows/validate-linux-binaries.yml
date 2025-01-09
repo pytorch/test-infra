@@ -185,5 +185,13 @@ jobs:
         set -ex
         cd .ci/pytorch/
         python3 -m ensurepip --upgrade
-        python3 -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/test/cu124
+
+        DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu124"
+        if [[ ${{ inputs.channel }} == 'test' ]]; then
+          DWN_PYTORCH_ORG="https://download.pytorch.org/whl/test/cu124"
+        elif [[ ${{ inputs.channel }} == 'release' ]]; then
+          DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu124"
+        fi
+
+        python3 -m pip install torch==2.5.1 --index-url ${DWN_PYTORCH_ORG}
         python3 -c "import torch;"
