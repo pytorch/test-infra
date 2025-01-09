@@ -169,3 +169,20 @@ jobs:
 
         # Validate binaries
         source ../../test-infra/.github/scripts/validate_binaries.sh
+
+  linux-amazon-2023:
+    uses: ./.github/workflows/linux_job.yml
+    name: amazon-linux-2023-test
+    with:
+      runner: "linux.g5.4xlarge.nvidia.gpu"
+      repository: "pytorch/pytorch"
+      ref: main
+      job-name: "amazon-linux-2023-test"
+      docker-image: 'almalinux/9-base'
+      docker-build-dir: "skip-docker-build"
+      timeout: 180
+      script: |
+        set -ex
+        python3 -m ensurepip --upgrade
+        python3 -m pip install torch --index-url https://download.pytorch.org/whl/test/cu124
+        python3 -c "import torch;"
