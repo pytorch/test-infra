@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
-import { IsJobInProgress } from "../lib/JobClassifierUtil";
+import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
 import { isFailedJob, transformJobName } from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
@@ -245,7 +245,7 @@ function UnstableJob({ job, label }: { job: JobData; label: string }) {
     issueTitle.includes(issue.title)
   );
 
-  if (matchingIssues.length == 0) {
+  if (!isFailure(job.conclusion) && matchingIssues.length == 0) {
     return null;
   }
 
