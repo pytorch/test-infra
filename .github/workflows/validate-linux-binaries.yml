@@ -194,4 +194,4 @@ jobs:
         fi
 
         python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
-        python3 -c "import torch;"
+        python3 -c "import torch"
