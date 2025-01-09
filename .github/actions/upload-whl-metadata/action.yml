@@ -1,0 +1,30 @@
+name: Upload whl metadata for pep658
+
+inputs:
+  pkg-dir:
+    description: 'Directory containing the whl packages'
+    required: true
+    type: string
+  s3-path:
+    description: 'S3 path to upload the metadata to'
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        set -eux
+        pip install uv
+
+    - name: Upload whl metadata
+      shell: bash
+      run: |
+        set -eux
+        for pkg in ${{ inputs.pkg-dir }}/*; do
+          uv run test-infra/tools/pkg-helpers/pytorch_pkg_helpers/upload_whl_metadata.py \
+            --package "$pkg" \
+            --s3-path "${{ inputs.s3-path }}"
+        done

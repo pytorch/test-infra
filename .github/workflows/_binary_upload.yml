@@ -100,6 +100,7 @@ jobs:
           echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
 
       - name: Upload package to pytorch.org
+        id: upload-s3
         if: ${{ env.DO_UPLOAD == 'true' }}
         shell: bash
         working-directory: ${{ inputs.repository }}
@@ -119,6 +120,13 @@ jobs:
           for pkg in dist/*; do
             ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
+
+      - name: Upload whl metadata
+        if: ${{ env.DO_UPLOAD == 'true' && steps.upload-s3.outcome == 'success' }}
+        uses: ./test-infra/.github/actions/upload-whl-metadata
+        with:
+          pkg-dir: ${{ inputs.repository }}/dist
+          s3-path: ${{ env.PYTORCH_S3_BUCKET_PATH }}
 
       - name: Upload package to pypi
         if: ${{ env.DO_UPLOAD == 'true' && env.NIGHTLY_OR_TEST == '1' && contains(inputs.upload-to-pypi, matrix.desired_cuda) }}
