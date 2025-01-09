@@ -2666,7 +2666,7 @@ echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
 2024-07-08T16:56:30.3149089Z Prepare all required actions
 2024-07-08T16:56:30.3149643Z Getting action download info
 2024-07-08T16:56:30.4102028Z Download action repository 'seemethere/download-artifact-s3@v4' (SHA:1da556a7aa0a088e3153970611f6c432d58e80e6)
-2024-07-08T16:56:30.6162257Z Download action repository 'actions/download-artifact@v4' (SHA:9bc31d5ccc31df68ecc42ccf4149144866c47d8a)
+2024-07-08T16:56:30.6162257Z Download action repository 'actions/download-artifact@v3' (SHA:9bc31d5ccc31df68ecc42ccf4149144866c47d8a)
 2024-07-08T16:56:30.7507218Z ##[group]Run ./.github/actions/download-build-artifacts
 2024-07-08T16:56:30.7507922Z with:
 2024-07-08T16:56:30.7508418Z   name: linux-focal-cuda12.1-py3.10-gcc9-sm86
@@ -4139,7 +4139,7 @@ python3 -m pip install boto3==1.19.12
 2024-07-08T16:59:13.5425818Z ##[endgroup]
 2024-07-08T16:59:13.5611040Z Prepare all required actions
 2024-07-08T16:59:13.5611492Z Getting action download info
-2024-07-08T16:59:13.7004614Z Download action repository 'actions/upload-artifact@v4' (SHA:a8a3f3ad30e3422c9c7b888a15615d19a852ae32)
+2024-07-08T16:59:13.7004614Z Download action repository 'actions/upload-artifact@v3' (SHA:a8a3f3ad30e3422c9c7b888a15615d19a852ae32)
 2024-07-08T16:59:13.8532069Z ##[group]Run ./.github/actions/upload-test-artifacts
 2024-07-08T16:59:13.8532560Z with:
 2024-07-08T16:59:13.8533103Z   file-suffix: test-inductor_huggingface-1-1-linux.g5.4xlarge.nvidia.gpu_27175320579
