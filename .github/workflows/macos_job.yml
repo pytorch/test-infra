@@ -132,7 +132,7 @@ jobs:
           echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
 
       - name: Download artifacts (if any)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         if: ${{ inputs.download-artifact != '' }}
         with:
           name: ${{ inputs.download-artifact }}
@@ -193,7 +193,7 @@ jobs:
       # NB: Keep this for compatibility with existing jobs and also keep in mind that only
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
         with:
           name: ${{ inputs.upload-artifact }}
