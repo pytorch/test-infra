@@ -193,5 +193,5 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu124"
         fi
 
-        python3 -m pip install torch==2.5.1 --index-url ${DWN_PYTORCH_ORG}
+        python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
         python3 -c "import torch;"
