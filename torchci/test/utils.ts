@@ -89,7 +89,7 @@ export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
     .reply(200, body);
 }
 
-export function mockCreatePR(
+export function mockCreateIssue(
   repoFullName: string,
   title: string,
   bodyContains: string[],

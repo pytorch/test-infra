@@ -122,7 +122,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
       flakyTestAcrossJobA.file,
       `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
     );
-    const scope2 = utils.mockCreatePR(
+    const scope2 = utils.mockCreateIssue(
       "pytorch/pytorch",
       "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
       ["Platforms: "],
@@ -270,7 +270,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       flakyTestA.file,
       `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
     );
-    const scope2 = utils.mockCreatePR(
+    const scope2 = utils.mockCreateIssue(
       "pytorch/pytorch",
       "DISABLED test_a (__main__.suite_a)",
       ["Platforms: "],
@@ -294,7 +294,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       flakyTestB.file,
       `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
     );
-    const scope2 = utils.mockCreatePR(
+    const scope2 = utils.mockCreateIssue(
       "pytorch/pytorch",
       "DISABLED test_b (__main__.suite_b)",
       ["Platforms:"],
