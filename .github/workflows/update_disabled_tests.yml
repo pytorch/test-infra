@@ -17,7 +17,7 @@ permissions:
 jobs:
   update-disabled-tests:
     runs-on: ubuntu-latest
-    environment: trigger-nightly
+    environment: ${{ github.ref == 'refs/heads/main' && 'trigger-nightly' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +27,10 @@ jobs:
           # The token is used to confirm issue creator's write permission before
           # allowing them to disable jobs. Note that the token needs to have access
           # to the target repo, i.e. pytorch/pytorch instead of test-infra. Using
-          # PyTorch bot token is the most obvious choice.
-          GH_PYTORCHBOT_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          # PyTorch bot token is the most obvious choice.  Outside of the
+          # environment, we do not have access to this token so fall back to the
+          # GITHUB_TOKEN.
+          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           python3 .github/scripts/update_disabled_issues.py
 
