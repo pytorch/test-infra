@@ -21,4 +21,3 @@ group by
     platform
 order by
     granularity_bucket asc
-

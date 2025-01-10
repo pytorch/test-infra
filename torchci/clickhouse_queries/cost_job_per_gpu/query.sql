@@ -21,4 +21,3 @@ group by
     gpu
 order by
     granularity_bucket asc
-

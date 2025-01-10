@@ -21,4 +21,3 @@ group by
     repo
 order by
     granularity_bucket asc
-
