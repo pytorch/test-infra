@@ -49,8 +49,8 @@ class_duration_per_job AS (
         test_run.invoking_file,
         test_run.classname,
         base_name,
-  		test_config,
-  		job.run_id
+        test_config,
+        job.run_id
 )
 SELECT
     REPLACE(file, '.', '/') AS file,
