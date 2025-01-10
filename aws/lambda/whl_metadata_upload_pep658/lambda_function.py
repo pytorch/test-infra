@@ -8,6 +8,7 @@ import boto3  # type: ignore[import]
 from botocore import UNSIGNED
 from botocore.config import Config
 
+
 @cache
 def get_client(read_only: bool) -> Any:
     if read_only:
