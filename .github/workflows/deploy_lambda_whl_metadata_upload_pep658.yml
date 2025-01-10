@@ -1,19 +1,19 @@
-name: Deploy whl_metadata_uplaod_pep658 to pytorch AWS account
+name: Deploy whl_metadata_upload_pep658 to pytorch AWS account
 
 on:
   # pull_request:
   #   paths:
-  #     - aws/lambda/whl_metadata_uplaod_pep658/**
+  #     - aws/lambda/whl_metadata_upload_pep658/**
   push:
     # branches:
     #   - main
     paths:
-      - .github/workflows/whl_metadata_uplaod_pep658.yml
-      - aws/lambda/whl_metadata_uplaod_pep658/**
+      - .github/workflows/deploy_lambda_whl_metadata_upload_pep658.yml
+      - aws/lambda/whl_metadata_upload_pep658/**
 
 defaults:
   run:
-    working-directory: aws/lambda/whl_metadata_uplaod_pep658/
+    working-directory: aws/lambda/whl_metadata_upload_pep658/
 
 jobs:
   test:
