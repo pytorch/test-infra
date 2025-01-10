@@ -15,9 +15,10 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
-      generate_dockerhub_images: 
+      generate_dockerhub_images:
         description: "Whether to generate Docker Hub images"
         default: "false"
+        required: false
         type: string
     outputs:
       matrix:
