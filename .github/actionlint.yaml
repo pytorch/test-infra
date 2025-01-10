@@ -8,3 +8,4 @@ self-hosted-runner:
     - linux.4xlarge.nvidia.gpu
     - linux.g5.4xlarge.nvidia.gpu
     - linux.g5.12xlarge.nvidia.gpu
+    - windows.4xlarge.nonephemeral
