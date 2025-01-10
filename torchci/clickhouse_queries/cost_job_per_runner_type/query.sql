@@ -21,4 +21,3 @@ group by
     runner_type
 order by
     granularity_bucket asc
-

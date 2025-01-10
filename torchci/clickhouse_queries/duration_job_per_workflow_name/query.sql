@@ -21,4 +21,3 @@ group by
     workflow_name
 order by
     granularity_bucket asc
-

@@ -111,6 +111,9 @@ exclude_patterns=[
     '**/*.ptl',
     '**/fixtures/**',
     '**/snapshots/**',
+    '.github/actions/setup-ssh/index.js',
+    'aws/lambda/log-classifier/data/**',
+    'tools/clang-tidy-checks/*-patches/**',
 ]
 command = [
     'python3',

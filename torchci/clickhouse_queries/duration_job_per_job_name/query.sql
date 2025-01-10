@@ -21,4 +21,3 @@ group by
     job_name
 order by
     granularity_bucket asc
-

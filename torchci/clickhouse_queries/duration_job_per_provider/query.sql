@@ -21,4 +21,3 @@ group by
     rc.provider
 order by
     granularity_bucket asc
-

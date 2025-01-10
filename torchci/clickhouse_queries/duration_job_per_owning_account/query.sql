@@ -21,4 +21,3 @@ group by
     owning_account
 order by
     granularity_bucket asc
-

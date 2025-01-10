@@ -123,4 +123,3 @@ jobs:
     - name: "Run terraform validate terraform-aws-github-runner"
       working-directory: terraform-aws-github-runner
       run: terraform validate
-
