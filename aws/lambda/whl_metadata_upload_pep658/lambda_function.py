@@ -1,16 +1,18 @@
-import boto3
-from functools import cache
 import os
 import zipfile
+from functools import cache
+from typing import Any
 from urllib.parse import unquote
+
+import boto3  # type: ignore[import]
 
 
 @cache
-def get_client():
+def get_client() -> Any:
     return boto3.client("s3")
 
 
-def upload_s3(bucket, key, filename, dry_run):
+def upload_s3(bucket: str, key: str, filename: str, dry_run: bool) -> None:
     print(f"Uploading to {bucket}/{key}")
     if not dry_run:
         get_client().upload_file(
@@ -21,7 +23,7 @@ def upload_s3(bucket, key, filename, dry_run):
         )
 
 
-def lambda_handler(event, context, dry_run=False):
+def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
     zip_location = "/tmp/wheel.zip"
     metadata_location = "/tmp/METADATA"
     for record in event["Records"]:

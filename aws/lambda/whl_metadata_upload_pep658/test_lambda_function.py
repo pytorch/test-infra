@@ -1,9 +1,9 @@
+import argparse
 import json
 from pathlib import Path
 from typing import Generator
 
-from lambda_function import lambda_handler, get_client
-import argparse
+from lambda_function import get_client, lambda_handler
 
 GENERATE_EVENT_HELP_TEXT = """
 Generate an test_event.json for all files in this s3 path and test the lambda
@@ -12,7 +12,8 @@ complete data, only known attributes that are needed for the lambda function.
 Format should be `<bucket>/<key prefix>`, ex `pytorch/whl/nightly`.
 """
 
-def parse_args():
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     # Default to dry run (not uploading)
     parser.add_argument("--no-dry-run", action="store_true")
@@ -25,7 +26,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_all_keys(bucket, key_prefix) -> Generator[str, None, None]:
+def get_all_keys(bucket: str, key_prefix: str) -> Generator[str, None, None]:
     paginator = get_client().get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket, Prefix=key_prefix):
         for obj in page["Contents"]:
