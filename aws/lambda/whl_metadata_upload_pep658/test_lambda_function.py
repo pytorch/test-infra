@@ -10,7 +10,8 @@ GENERATE_EVENT_HELP_TEXT = """
 Generate an test_event.json for all files in this s3 path and test the lambda
 function with this new test_event.json. The test_event.json does not have
 complete data, only known attributes that are needed for the lambda function.
-Format should be `<bucket>/<key prefix>`, ex `pytorch/whl/nightly`.
+Format should be `<bucket>/<key prefix>`, ex `pytorch/whl/nightly`.  Note that
+you will need more permissions to list objects in the bucket.
 """
 
 
@@ -28,7 +29,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_all_keys(bucket: str, key_prefix: str) -> Generator[str, None, None]:
-    paginator = get_client().get_paginator("list_objects_v2")
+    paginator = get_client(False).get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket, Prefix=key_prefix):
         for obj in page["Contents"]:
             if obj["Key"].endswith(".whl"):

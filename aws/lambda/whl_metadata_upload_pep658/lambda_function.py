@@ -5,17 +5,20 @@ from typing import Any
 from urllib.parse import unquote
 
 import boto3  # type: ignore[import]
-
+from botocore import UNSIGNED
+from botocore.config import Config
 
 @cache
-def get_client() -> Any:
+def get_client(read_only: bool) -> Any:
+    if read_only:
+        return boto3.client("s3", config=Config(signature_version=UNSIGNED))
     return boto3.client("s3")
 
 
 def upload_s3(bucket: str, key: str, filename: str, dry_run: bool) -> None:
     print(f"Uploading to {bucket}/{key}")
     if not dry_run:
-        get_client().upload_file(
+        get_client(False).upload_file(
             filename,
             bucket,
             key,
@@ -37,7 +40,7 @@ def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
         if os.path.exists(zip_location):
             os.remove(zip_location)
 
-        get_client().download_file(bucket, key, zip_location)
+        get_client(dry_run).download_file(bucket, key, zip_location)
 
         if os.path.exists(metadata_location):
             os.remove(metadata_location)
