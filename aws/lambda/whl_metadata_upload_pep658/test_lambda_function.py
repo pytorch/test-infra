@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Generator
 
@@ -34,9 +35,21 @@ def get_all_keys(bucket: str, key_prefix: str) -> Generator[str, None, None]:
                 yield obj["Key"]
 
 
+def set_dummy_env_vars(env_var: str) -> None:
+    if os.environ.get(env_var) is None:
+        os.environ[env_var] = "dummy"
+
+
 if __name__ == "__main__":
     args = parse_args()
     test_file = Path(__file__).parent / "test_event.json"
+
+    # Set env vars to dummy values if they are not set to avoid boto3 errors
+    # during CI, which only runs the non-uploading version of this script
+    set_dummy_env_vars("AWS_ACCESS_KEY_ID")
+    set_dummy_env_vars("AWS_SECRET_ACCESS_KEY")
+    set_dummy_env_vars("AWS_SESSION_TOKEN")
+
     with open(test_file) as f:
         event = json.load(f)
     if args.generate_event:
