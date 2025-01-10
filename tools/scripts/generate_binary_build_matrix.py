@@ -2,7 +2,7 @@
 
 """Generates a matrix to be utilized through github actions
 
-Important. After making changes to this file please run following command: 
+Important. After making changes to this file please run following command:
 python -m tools.tests.test_generate_binary_build_matrix --update-reference-files
 
 Will output a condensed version of the matrix if on a pull request that only
@@ -375,8 +375,8 @@ def generate_libtorch_matrix(
                 gpu_arch_type = arch_type(arch_version)
                 gpu_arch_version = "" if arch_version == CPU else arch_version
 
-                # Rocm builds where removed for pre-cxx11 abi 
-                if gpu_arch_type == "rocm" and abi_version == PRE_CXX11_ABI:  
+                # Rocm builds where removed for pre-cxx11 abi
+                if gpu_arch_type == "rocm" and abi_version == PRE_CXX11_ABI:
                     continue
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)

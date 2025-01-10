@@ -8,7 +8,7 @@ import os
 def read_log_dataset(file_location):
     """
     Reads a log dataset from a CSV file and returns a list of dictionaries.
-    The CSV file should have the following schema: 
+    The CSV file should have the following schema:
     "id","startTime","conclusion","dynamoKey","name","job_name"
 
     Args:
