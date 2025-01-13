@@ -1,5 +1,5 @@
 name: 'BC Lint Action'
-description: 'A reusable action for running the BC Lint workflow. 
+description: 'A reusable action for running the BC Lint workflow.
     See https://github.com/pytorch/test-infra/wiki/BC-Linter for more information.'
 inputs:
   repo:

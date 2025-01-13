@@ -406,7 +406,7 @@ def commits_missing_in_release(repo: GitRepo, branch: str, orig_branch: str, min
     print(f"issue_num: {issue_num}, len(issue_comments)={len(current_issue_comments)}")
     print("URL;Title;Status")
 
-    # Iterate over the previous release branch to find potentially missing cherry picks in the current issue. 
+    # Iterate over the previous release branch to find potentially missing cherry picks in the current issue.
     for commit in prev_release_commits.values():
         not_cherry_picked_in_current_issue = any(commit.pr_url not in issue_comment['body'] for issue_comment in current_issue_comments)
         for main_commit in main_commits.values():
@@ -475,7 +475,7 @@ def main():
     if args.analyze_stacks:
         analyze_stacks(repo)
         return
-    
+
     # Use milestone idx or search it along milestone titles
     try:
         milestone_idx = int(args.milestone_id)
@@ -491,11 +491,11 @@ def main():
 
     if args.missing_in_branch:
         commits_missing_in_branch(repo,
-                                  args.branch, 
+                                  args.branch,
                                   f'orig/{args.branch}',
                                   milestone_idx)
         return
-    
+
     if args.missing_in_release:
         commits_missing_in_release(repo,
                                   args.branch,

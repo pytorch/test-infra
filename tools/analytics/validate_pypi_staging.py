@@ -16,10 +16,10 @@ PLATFORMS = [
     "macosx_11_0_arm64",
 ]
 PYTHON_VERSIONS = [
-    "cp38", 
-    "cp39", 
-    "cp310", 
-    "cp311", 
+    "cp38",
+    "cp39",
+    "cp310",
+    "cp311",
     "cp312"
     ]
 S3_PYPI_STAGING = "pytorch-backup"

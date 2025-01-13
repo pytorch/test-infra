@@ -4,7 +4,7 @@ function handler(event) {
     var uri_parts = uri.split('/')
     var last_uri_part = uri_parts[uri_parts.length -1]
     var rocm_pattern = /^rocm[0-9]+(\.[0-9]+)*$/
-    
+
     if (uri.startsWith('/whl')) {
         // Check whether the URI is missing a file name.
         if (uri.endsWith('/')) {
@@ -18,7 +18,7 @@ function handler(event) {
             request.uri += '/index.html';
         }
     }
-    
+
     // Similar behavior for libtorch
     if (uri.startsWith('/libtorch')) {
         // Check whether the URI is missing a file name.

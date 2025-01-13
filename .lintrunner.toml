@@ -132,6 +132,7 @@ exclude_patterns = [
     '**/*.patch',
     '**/fixtures/**',
     '**/snapshots/**',
+    '.github/actions/setup-ssh/index.js',
 ]
 command = [
     'python3',
