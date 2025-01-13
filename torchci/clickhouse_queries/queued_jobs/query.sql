@@ -4,7 +4,7 @@ with possible_queued_jobs as (
   from default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
   where status = 'queued'
     AND created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 MONTH)
+    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
 )
 SELECT
   DATE_DIFF(

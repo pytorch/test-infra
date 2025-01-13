@@ -2,7 +2,7 @@
 WITH possible_queued_jobs as (
     select id, run_id from default.workflow_job where status = 'queued'
     AND created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 MONTH)
+    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
 ), queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP()) AS queue_s,
