@@ -1,7 +1,7 @@
 import {
   Divider,
   FormControl,
-  Grid,
+  Grid2,
   InputLabel,
   MenuItem,
   Select,
@@ -317,8 +317,11 @@ function Report({
 
   return (
     <div>
-      <Grid container spacing={2} style={{ height: "100%" }}>
-        <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
+      <Grid2 container spacing={2} style={{ height: "100%" }}>
+        <Grid2
+          size={{ xs: 12, lg: 12 }}
+          height={minEntries * ROW_HEIGHT + ROW_GAP}
+        >
           <TablePanelWithData
             title={"Metrics"}
             data={metrics}
@@ -328,7 +331,7 @@ function Report({
                 field: "metadata",
                 headerName: "Metrics Name",
                 flex: 1,
-                cellClassName: (params: GridCellParams<any>) => {
+                cellClassName: (params: GridCellParams<any, any>) => {
                   const name = params.value.name;
                   if (name === undefined) {
                     return "";
@@ -349,7 +352,7 @@ function Report({
                 field: "control",
                 headerName: "Base Commit: " + lCommit,
                 flex: 1,
-                cellClassName: (params: GridCellParams<any>) => {
+                cellClassName: (params: GridCellParams<any, any>) => {
                   const v = params.value.v;
                   if (v === undefined) {
                     return "";
@@ -364,7 +367,7 @@ function Report({
                 field: "treatment",
                 headerName: "New Commit: " + rCommit,
                 flex: 1,
-                cellClassName: (params: GridCellParams<any>) => {
+                cellClassName: (params: GridCellParams<any, any>) => {
                   const v = params.value.v;
                   if (v === undefined) {
                     return "";
@@ -379,7 +382,7 @@ function Report({
                 field: "delta",
                 headerName: "Value Delta",
                 flex: 1,
-                cellClassName: (params: GridCellParams<any>) => {
+                cellClassName: (params: GridCellParams<any, any>) => {
                   const v = params.value.v;
                   if (v === undefined) {
                     return "";
@@ -395,8 +398,8 @@ function Report({
               getRowId: (el: any) => el.name,
             }}
           />
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </div>
   );
 }

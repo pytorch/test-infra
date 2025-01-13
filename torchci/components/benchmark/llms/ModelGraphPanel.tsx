@@ -1,4 +1,4 @@
-import { Grid, Stack, Typography } from "@mui/material";
+import { Grid2, Stack, Typography } from "@mui/material";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -165,14 +165,12 @@ export function GraphPanel({
   return (
     <>
       <div>
-        <Grid container spacing={2}>
+        <Grid2 container spacing={2}>
           {metricNames
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
-              <Grid
-                item
-                xs={12}
-                lg={modelName === DEFAULT_MODEL_NAME ? 12 : 4}
+              <Grid2
+                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 4 }}
                 height={GRAPH_ROW_HEIGHT}
                 key={metric}
               >
@@ -200,9 +198,9 @@ export function GraphPanel({
                   }}
                   legendPadding={modelName === DEFAULT_MODEL_NAME ? 320 : 200}
                 />
-              </Grid>
+              </Grid2>
             ))}
-        </Grid>
+        </Grid2>
       </div>
       {modelName !== DEFAULT_MODEL_NAME && (
         <div>

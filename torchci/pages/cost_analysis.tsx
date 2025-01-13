@@ -2,7 +2,7 @@ import {
   Box,
   FormControl,
   FormGroup,
-  Grid,
+  Grid2,
   InputLabel,
   MenuItem,
   Select,
@@ -35,7 +35,6 @@ function CustomDatePicker({ label, value, setValue }: any) {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <DatePicker
-        renderInput={(props) => <TextField {...props} />}
         label={label}
         value={value}
         onChange={(newValue) => {
@@ -370,7 +369,7 @@ export default function Page() {
     yAxis: "cost" | "duration"
   ) => {
     return (
-      <Grid item xs={8} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 8 }} height={ROW_HEIGHT}>
         {!isLoading && (
           <TimeSeriesPanel
             title={`CI ${yAxis} per ${groupby} per ${granularity}`}
@@ -399,7 +398,7 @@ export default function Page() {
           />
         )}
         {isLoading && <div>Loading...</div>}
-      </Grid>
+      </Grid2>
     );
   };
 
@@ -408,12 +407,14 @@ export default function Page() {
       marginTop: 20,
     };
     return (
-      <div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Dimension
-        </Typography>
-        <Grid item xs={2} style={marginStyle}>
-          <FormControl style={{ width: 195 }}>
+      <Grid2 size={{ xs: 2 }} container columns={2}>
+        <Grid2 size={{ xs: 2 }}>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Dimension
+          </Typography>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <FormControl style={{ width: "100%" }}>
             <InputLabel id="y-axis-select-label">Y-Axis</InputLabel>
             <Select
               value={selectedYAxis}
@@ -427,17 +428,17 @@ export default function Page() {
               <MenuItem value={"duration"}>Duration</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-
-        <div style={{ marginTop: 25, marginBottom: 25 }}>
-          <hr />
-        </div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Grouping
-        </Typography>
-
-        <Grid item xs={2} style={marginStyle}>
-          <FormControl style={{ width: 195 }}>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <div style={{ marginTop: 25, marginBottom: 25 }}>
+            <hr />
+          </div>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Grouping
+          </Typography>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <FormControl style={{ width: "100%" }}>
             <InputLabel id="group-by-select-label">Group By</InputLabel>
             <Select
               value={groupby}
@@ -455,17 +456,20 @@ export default function Page() {
               <MenuItem value={"repo"}>Repository</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-        {generateFilterBar(groupby, marginStyle)}
-
-        <div style={{ marginTop: 25, marginBottom: 25 }}>
-          <hr />
-        </div>
-        <Typography fontSize={"1rem"} fontWeight={"bold"}>
-          Filters
-        </Typography>
-        <Grid item xs={2} style={marginStyle}>
-          {!isLoading && (
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          {generateFilterBar(groupby, marginStyle)}
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
+          <div style={{ marginTop: 25, marginBottom: 25 }}>
+            <hr />
+          </div>
+          <Typography fontSize={"1rem"} fontWeight={"bold"}>
+            Filters
+          </Typography>
+        </Grid2>
+        {!isLoading && (
+          <Grid2 size={{ xs: 2 }}>
             <MultiSelectPicker
               initialSelected={selectedRepos}
               onSelectChanged={setSelectedRepos}
@@ -479,11 +483,11 @@ export default function Page() {
                   .map((item: string) => item?.split("/")[1])
                   .join(",");
               }}
-              style={{ width: 195 }}
+              style={{ width: "100%" }}
             />
-          )}
-        </Grid>
-        <Grid item xs={2} style={marginStyle}>
+          </Grid2>
+        )}
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedOS}
             onSelectChanged={setSelectedOS}
@@ -494,10 +498,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
-        </Grid>
-        <Grid item xs={2} style={marginStyle}>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedProviders}
             onSelectChanged={setSelectedProviders}
@@ -508,10 +512,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
-        </Grid>
-        <Grid item xs={2} style={marginStyle}>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedOwners}
             onSelectChanged={setSelectedOwners}
@@ -522,10 +526,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
-        </Grid>
-        <Grid item xs={1} style={marginStyle}>
+        </Grid2>
+        <Grid2 size={{ xs: 2 }}>
           <MultiSelectPicker
             initialSelected={selectedGPU.map((item) =>
               item === 1 ? "gpu" : "non-gpu"
@@ -548,10 +552,10 @@ export default function Page() {
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
-            style={{ width: 195 }}
+            style={{ width: "100%" }}
           />
-        </Grid>
-      </div>
+        </Grid2>
+      </Grid2>
     );
   };
 
@@ -566,18 +570,17 @@ export default function Page() {
     };
 
     return (
-      <Grid item xs={12} style={style}>
-        <TextField
-          id={`outlined-basic-${type}`}
-          label={
-            <div>
-              <FaFilter /> Filter {type}
-            </div>
-          }
-          onChange={handleChange}
-          variant="outlined"
-        />
-      </Grid>
+      <TextField
+        id={`outlined-basic-${type}`}
+        label={
+          <div>
+            <FaFilter /> Filter {type}
+          </div>
+        }
+        onChange={handleChange}
+        variant="outlined"
+        fullWidth
+      />
     );
   };
 
@@ -608,8 +611,8 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid container spacing={2}>
-        <Grid item xs={8}>
+      <Grid2 container spacing={2}>
+        <Grid2 size={{ xs: 8 }}>
           <DateRangePicker
             startDate={startDate}
             setStartDate={setStartDate}
@@ -692,18 +695,18 @@ export default function Page() {
               </ToggleButtonGroup>
             </FormGroup>
           </FormControl>
-        </Grid>
-      </Grid>
-      <Grid container spacing={2}>
-        <Grid container marginTop={4}>
+        </Grid2>
+      </Grid2>
+      <Grid2 container spacing={2}>
+        <Grid2 container marginTop={4} size={{ xs: 12 }}>
           {generateTimeSeriesGridItem(
             groupby || "workflow_name",
             selectedYAxis || "cost"
           )}
-          <Grid item xs={1}></Grid>
+          <Grid2 size={{ xs: 1 }}></Grid2>
           {generateGroupByAndFilterBar()}
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </div>
   );
 }

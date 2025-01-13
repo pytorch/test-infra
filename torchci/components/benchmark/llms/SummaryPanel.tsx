@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
@@ -51,7 +51,7 @@ export function SummaryPanel({
       field: "metadata",
       headerName: "Name",
       flex: 1,
-      cellClassName: (params: GridCellParams<any>) => {
+      cellClassName: (params: GridCellParams<any, any>) => {
         const model = params.value.model;
         if (model === undefined) {
           return "";
@@ -136,7 +136,7 @@ export function SummaryPanel({
               ? METRIC_DISPLAY_HEADERS[metric]
               : metric,
           flex: 1,
-          cellClassName: (params: GridCellParams<any>) => {
+          cellClassName: (params: GridCellParams<any, any>) => {
             const v = params.value;
             if (v === undefined || v.l.actual === 0) {
               return "";
@@ -216,15 +216,18 @@ export function SummaryPanel({
   );
 
   return (
-    <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid item xs={12} lg={12} height={data.length * ROW_HEIGHT + ROW_GAP}>
+    <Grid2 container spacing={2} style={{ height: "100%" }}>
+      <Grid2
+        size={{ xs: 12, lg: 12 }}
+        height={data.length * ROW_HEIGHT + ROW_GAP}
+      >
         <TablePanelWithData
           title={"Models"}
           data={data}
           columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 }

@@ -1,4 +1,4 @@
-import { Grid, Stack, Typography } from "@mui/material";
+import { Grid2, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
@@ -17,8 +17,6 @@ import useSWR from "swr";
 import { TimeRangePicker } from "./metrics";
 
 const MIN_ENTRIES = 10;
-const ROW_GAP = 30;
-const TABLE_ROW_HEIGHT = 48;
 const GRAPH_ROW_HEIGHT = 240;
 const DEFAULT_ISSUE_STATE = "open";
 const ISSUE_STATES = [DEFAULT_ISSUE_STATE, "closed"];
@@ -92,7 +90,7 @@ function generateDisabledTestsTable(data: any) {
 
 function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
   return (
-    <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+    <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
@@ -102,7 +100,7 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
         yAxisFieldName={"number_of_open_disabled_tests"}
         yAxisRenderer={(duration) => duration}
       />
-    </Grid>
+    </Grid2>
   );
 }
 
@@ -141,16 +139,9 @@ function DisabledTestsPanel({
   }
 
   const disabledTests = generateDisabledTestsTable(data);
-  const minEntries =
-    disabledTests.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
-    <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid
-        item
-        xs={12}
-        lg={12}
-        height={minEntries * TABLE_ROW_HEIGHT + ROW_GAP}
-      >
+    <Grid2 container spacing={2} style={{ height: "100%" }}>
+      <Grid2 size={{ xs: 12, lg: 12 }}>
         <TablePanelWithData
           title={`Disabled tests (${disabledTests.length})`}
           data={disabledTests}
@@ -159,7 +150,7 @@ function DisabledTestsPanel({
               field: "metadata",
               headerName: "GitHub Issue (⚠ ~ high priority)",
               flex: 1,
-              cellClassName: (params: GridCellParams<any>) => {
+              cellClassName: (params: GridCellParams<any, any>) => {
                 return params.value.hiprio ? styles.warning : "";
               },
               renderCell: (params: GridRenderCellParams<any>) => {
@@ -230,9 +221,10 @@ function DisabledTestsPanel({
           ]}
           dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
           showFooter={true}
+          pageSize={100}
         />
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 
   return <></>;

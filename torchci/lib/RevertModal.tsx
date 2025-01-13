@@ -2,6 +2,7 @@ import {
   Box,
   Dialog,
   FormControl,
+  Grid2,
   IconButton,
   InputLabel,
   MenuItem,
@@ -9,7 +10,6 @@ import {
   TextField,
 } from "@mui/material";
 import Button from "@mui/material/Button";
-import Grid from "@mui/material/Grid";
 import { GridCloseIcon } from "@mui/x-data-grid";
 import { revertClassifications } from "lib/bot/Constants";
 import { getFailureMessage, getMessage } from "lib/GeneralUtils";
@@ -87,8 +87,8 @@ export default function Revert({ row }: { row: RowData }) {
 
   return (
     <div style={{ margin: "16px" }}>
-      <Grid container spacing={2}>
-        <Grid item xs={6}>
+      <Grid2 container spacing={2}>
+        <Grid2 size={{ xs: 6 }}>
           <h1>
             Revert PR #{prNumber} in {repoOwner}/{repoName}
           </h1>
@@ -126,8 +126,8 @@ export default function Revert({ row }: { row: RowData }) {
               )}
             </Select>
           </FormControl>
-        </Grid>
-        <Grid item xs={6}>
+        </Grid2>
+        <Grid2 size={{ xs: 6 }}>
           <h1>Message Preview</h1>
           <div
             style={{
@@ -139,8 +139,8 @@ export default function Revert({ row }: { row: RowData }) {
           >
             <ReactMarkdown>{msg}</ReactMarkdown>
           </div>
-        </Grid>
-        <Grid item lg={12}>
+        </Grid2>
+        <Grid2 size={{ lg: 12 }}>
           <Button
             style={{ marginTop: 32 }}
             fullWidth={true}
@@ -164,8 +164,8 @@ export default function Revert({ row }: { row: RowData }) {
           >
             Revert!
           </Button>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </div>
   );
 }

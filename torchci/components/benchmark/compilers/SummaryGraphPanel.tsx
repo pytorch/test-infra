@@ -1,4 +1,4 @@
-import { Grid, Skeleton } from "@mui/material";
+import { Grid2, Skeleton } from "@mui/material";
 import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
@@ -242,8 +242,8 @@ function SuiteGraphPanel({
   );
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+    <Grid2 container spacing={2}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={passrate}
           series={passrateSeries}
@@ -266,9 +266,9 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={geomean}
           series={geomeanSeries}
@@ -291,9 +291,9 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={compTime}
           series={compTimeSeries}
@@ -316,9 +316,9 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={memory}
           series={memorySeries}
@@ -340,9 +340,9 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={peakMemory}
           series={peakMemorySeries}
@@ -365,9 +365,9 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
+      </Grid2>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={executionTime}
           series={executionTimeSeries}
@@ -390,7 +390,7 @@ function SuiteGraphPanel({
             },
           }}
         />
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 }

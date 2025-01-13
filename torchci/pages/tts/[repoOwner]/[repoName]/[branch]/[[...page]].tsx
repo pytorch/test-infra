@@ -1,4 +1,4 @@
-import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import GranularityPicker from "components/GranularityPicker";
 import styles from "components/hud.module.css";
 import {
@@ -164,16 +164,16 @@ function Graphs({
   const jobUrlPrefix = `/tts/${repo}/${encodedBranchName}?jobName=`;
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={9} height={ROW_HEIGHT}>
+    <Grid2 container spacing={2}>
+      <Grid2 size={{ xs: 9 }} height={ROW_HEIGHT}>
         <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
           <Panel title={"tts"} series={tts_series} />
         </Paper>
         <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
           <Panel title={"duration"} series={duration_series} />
         </Paper>
-      </Grid>
-      <Grid item xs={3} height={ROW_HEIGHT}>
+      </Grid2>
+      <Grid2 size={{ xs: 3 }} height={ROW_HEIGHT}>
         <div
           style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
           ref={checkboxRef}
@@ -197,8 +197,8 @@ function Graphs({
             </div>
           ))}
         </div>
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 }
 

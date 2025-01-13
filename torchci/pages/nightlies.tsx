@@ -1,4 +1,4 @@
-import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import TablePanel from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
@@ -100,12 +100,12 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid container spacing={2}>
-        <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid2 container spacing={2}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <NightlyJobsRedPanel params={timeParams} repo={"pytorch"} />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly PyTorch build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
@@ -116,13 +116,13 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <NightlyJobsRedPanel params={timeParams} repo={"vision"} />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Vision build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
@@ -133,13 +133,13 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <NightlyJobsRedPanel params={timeParams} repo={"audio"} />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Audio build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
@@ -150,9 +150,9 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Release failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
@@ -163,9 +163,9 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
@@ -176,9 +176,9 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={
               "Failed nightly jobs for PyTorch and Domains for selected time range"
@@ -191,9 +191,9 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el["name"] }}
           />
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={
               "Failed nightly jobs for PyTorch and Domains for selected time range by platform"
@@ -206,8 +206,8 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el.Platform }}
           />
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </div>
   );
 }
