@@ -1,0 +1,48 @@
+name: Deploy whl_metadata_upload_pep658 to pytorch AWS account
+
+on:
+  pull_request:
+    paths:
+      - aws/lambda/whl_metadata_upload_pep658/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/deploy_lambda_whl_metadata_upload_pep658.yml
+      - aws/lambda/whl_metadata_upload_pep658/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/whl_metadata_upload_pep658/
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python test_lambda_function.py
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-22.04
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_whl_metadata_upload_pep658
+          aws-region: us-east-1
+      - run: make deploy

@@ -1,0 +1,14 @@
+{
+  "Records": [
+    {
+      "s3": {
+        "bucket": {
+          "name": "pytorch"
+        },
+        "object": {
+          "key": "whl/cpu_pypi_pkg/torch_no_python-2.6.0.dev20240914+cpu-py3-none-any.whl"
+        }
+      }
+    }
+  ]
+}

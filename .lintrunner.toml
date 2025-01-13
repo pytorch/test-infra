@@ -38,6 +38,7 @@ include_patterns = [
     'torchci/**/*.py',
     'torchci/**/*.pyi',
     '.github/scripts/*.py',
+    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
 ]
 command = [
     'python3',
@@ -259,6 +260,7 @@ code = 'UFMT'
 include_patterns = [
     'tools/torchci/**/*.py',
     '.github/scripts/*.py',
+    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
 ]
 command = [
     'python3',
