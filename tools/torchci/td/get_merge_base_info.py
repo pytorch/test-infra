@@ -8,7 +8,7 @@ from typing import List
 
 import boto3  # type: ignore
 from torchci.clickhouse import query_clickhouse
-from torchci.td.utils import list_past_year_shas, run_command
+from torchci.td.utils import list_past_year_shas
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -88,7 +88,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
             body = io.StringIO()
             json.dump(data, body)
             S3_RESOURCE.Object(
-                f"ossci-raw-job-status",
+                "ossci-raw-job-status",
                 f"merge_bases/pytorch/pytorch/{sha}.gzip",
             ).put(
                 Body=gzip.compress(body.getvalue().encode()),

@@ -50,7 +50,6 @@ MOCK_DATA = [
     },
     {
         "url": "https://github.com/pytorch/pytorch/issues/53457",
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
         "number": 53457,
         "title": "Not a DISABLED issue, but has the disabled keyword",
     },
@@ -133,7 +132,13 @@ class TestUpdateDisabledIssues(TestCase):
                 "url": "https://github.com/pytorch/pytorch/issues/32644",
                 "number": 32644,
                 "title": "DISABLED MULTIPLE dummy test",
-                "body": "disable the following tests:\n```\ntest_quantized_nn (test_quantization.PostTrainingDynamicQuantTest): mac, win\ntest_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)\n```",
+                "body": (
+                    "disable the following tests:\n"
+                    "```\n"
+                    "test_quantized_nn (test_quantization.PostTrainingDynamicQuantTest): mac, win\n"
+                    "test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)\n"
+                    "```",
+                ),
             }
         ]
         disabled_tests = get_disabled_tests(mock_data)

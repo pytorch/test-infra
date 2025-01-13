@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import os
 import re
 import shlex
 from collections import defaultdict

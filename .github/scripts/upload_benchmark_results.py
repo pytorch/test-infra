@@ -172,7 +172,7 @@ def upload_to_dynamodb(
     """
     Copied from upload stats script
     """
-    info(f"Writing {len(docs)} documents to DynamoDB {dynamodb_table}")
+    info("Writing %d documents to DynamoDB %s", len(docs), dynamodb_table)
     if not dry_run:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#batch-writing
         with boto3.resource("dynamodb").Table(dynamodb_table).batch_writer() as batch:
@@ -284,10 +284,10 @@ def upload_to_s3(
     """
     s3_path = generate_s3_path(benchmark_results, filepath, schema_version)
     if not s3_path:
-        info(f"Could not generate an S3 path for {filepath}, skipping...")
+        info("Could not generate an S3 path for %s, skipping...", filepath)
         return
 
-    info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
+    info("Upload %s to s3://%s/%s", filepath, s3_bucket, s3_path)
     if not dry_run:
         # Write in JSONEachRow format
         data = "\n".join([json.dumps(result) for result in benchmark_results])
@@ -314,7 +314,7 @@ def main() -> None:
         # NB: This is for backward compatibility before we move to schema v3
         if schema_version == "v2":
             with open(filepath) as f:
-                info(f"Uploading {filepath} to dynamoDB ({schema_version})")
+                info("Uploading %s to dynamoDB (%s)", filepath, schema_version)
                 upload_to_dynamodb(
                     dynamodb_table=args.dynamodb_table,
                     # NB: DynamoDB only accepts decimal number, not float

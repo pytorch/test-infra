@@ -152,9 +152,6 @@ def backfill_s3(
     # For calculating the rate
     time_start = time.time()
 
-    # For counting number of times the scan has been called
-    batch_count = 0
-
     # I'm still not sure what the optimal numbers are
     pool_size = 30
     pool = Pool(pool_size)
@@ -166,17 +163,14 @@ def backfill_s3(
     # Uses threads to generate the next batch of items while the current batch
     # runs to reduce the wait time for the next batch
     # https://github.com/justheuristic/prefetch_generator
-    for key in BackgroundGenerator(
+    for item_count, key in enumerate(BackgroundGenerator(
         scan_s3_bucket(
             bucket=bucket,
             prefix=prefix,
             last_evaluated_key=exclusive_start_key,
         ),
         max_prefetch=max_prefetch,
-    ):
-        batch_count += 1
-        item_count = batch_count
-
+    )):
         async_res.append(
             pool.apply_async(
                 ADAPTERS[clickhouse_table], args=(clickhouse_table, bucket, key)

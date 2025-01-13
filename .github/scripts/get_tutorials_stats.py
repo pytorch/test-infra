@@ -63,8 +63,9 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
 
     def do_replace(x: str) -> str:
         """
-        Replace patterns from git log with empty string. This helps us get rid of unnecessary "insertions" and "deletions"
-        and we'd like to have only numbers.
+        Replace patterns from git log with empty string. This helps us get rid
+        of unnecessary "insertions" and "deletions" and we'd like to have only
+        numbers.
         Args:   x: String to replace
         Returns:
             Replaced string
@@ -227,7 +228,7 @@ def main() -> None:
         filenames,
     )
     print(f"Finished uploading data to {FILENAMES_PATH}")
-    print(f"Success!")
+    print("Success!")
 
 
 if __name__ == "__main__":

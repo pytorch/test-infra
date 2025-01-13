@@ -24,7 +24,7 @@ def download_s3_file(s3_key):
     except HTTPError as e:
         if "The specified key does not exist" in e.read().decode():
             # Acceptable error, file can be uploaded safely without overwriting
-            print(f"Cannot find the file on s3")
+            print("Cannot find the file on s3")
             return
         raise
 

@@ -179,7 +179,9 @@ class GitRepo:
         self.repo_dir = path
         self.remote = remote
 
-    def _run_git_log(self, revision_range, additional_args=[]) -> List[GitCommit]:
+    def _run_git_log(self, revision_range, additional_args=None) -> List[GitCommit]:
+        if additional_args is None:
+            additional_args = []
         log = _check_output(
             [
                 "git",

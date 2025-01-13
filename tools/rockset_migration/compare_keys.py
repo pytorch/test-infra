@@ -76,9 +76,7 @@ if __name__ == "__main__":
     with get_clickhouse_client().query_rows_stream(
         f"select dynamoKey from {args.table} final"
     ) as stream:
-        count = 0
-        for s in stream:
-            count += 1
+        for count, s in enumerate(stream):
             clickhouse_ids.append(s[0])
 
     rockset_ids = []

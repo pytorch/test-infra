@@ -3,7 +3,6 @@ import boto3
 import bz2
 import json
 import os
-import re
 import requests
 
 import pandas as pd

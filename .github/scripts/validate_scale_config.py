@@ -164,7 +164,7 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
         if "max_available" not in runner_config:
             continue
 
-        if runner_config["max_available"] == None:
+        if runner_config["max_available"] is None:
             print(
                 f"Runner type {runner_type} can't have max_available set to Null, Python, "
                 "between other cases, will load a value as None when its property is "

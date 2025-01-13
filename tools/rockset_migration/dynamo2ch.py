@@ -224,9 +224,6 @@ def backfill_dynamo(
     item_count = 0
     time_start = time.time()
 
-    # For counting number of times the scan has been called
-    batch_count = 0
-
     # Still not sure what the optimal numbers are.  I'm pretty sure the dynamodb
     # reads are the bottleneck
     pool_size = 12
@@ -240,7 +237,7 @@ def backfill_dynamo(
     # Uses threads to generate the next batch of items while the current batch
     # runs to reduce the wait time for the next batch
     # https://github.com/justheuristic/prefetch_generator
-    for items, last_evaluated_key in BackgroundGenerator(
+    for batch_count, (items, last_evaluated_key) in enumerate(BackgroundGenerator(
         scan_dynamodb_table(
             get_dynamo_client(),
             table=dynamodb_table,
@@ -249,8 +246,7 @@ def backfill_dynamo(
             total_segments=total_segments,
         ),
         max_prefetch=max_prefetch,
-    ):
-        batch_count += 1
+    )):
         records = []
         for item in items:
             item_count += 1

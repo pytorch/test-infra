@@ -13,7 +13,6 @@ Will output a condensed version of the matrix. Will include fllowing:
 
 import json
 import os
-import sys
 import argparse
 from typing import Dict, List
 from datetime import datetime

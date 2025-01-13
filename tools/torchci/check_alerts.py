@@ -396,7 +396,7 @@ def is_job_failed(job: Any) -> bool:
 
 def is_job_skipped(job: Any) -> bool:
     conclusion = job["conclusion"] if "conclusion" in job else None
-    return conclusion is None or conclusion == NEUTRAL or conclusion == SKIPPED
+    return conclusion is None or conclusion in (NEUTRAL, SKIPPED)
 
 
 def get_failed_jobs(job_data: List[Any]) -> List[Any]:
