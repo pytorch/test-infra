@@ -14,13 +14,12 @@ architectures:
     * Latest XPU
 """
 
-
 import argparse
 import json
 import os
 import sys
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from typing import Dict, List, Optional, Tuple, Any, Callable
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13"],
@@ -472,7 +471,6 @@ def generate_wheels_matrix(
     ret: List[Dict[str, Any]] = []
     for python_version in python_versions:
         for arch_version in arches:
-
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version

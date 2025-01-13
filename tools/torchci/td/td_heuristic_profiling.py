@@ -1,7 +1,6 @@
 import json
 
 import requests
-
 from torchci.td.utils import evaluate, get_filtered_failed_tests, get_merge_bases_dict
 
 

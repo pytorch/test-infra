@@ -5,12 +5,12 @@ from api.types import Attribute, Constant, Generic, TypeName, Unknown
 
 
 def test_none() -> None:
-    assert _check_type_compatibility(TypeName('int'), None) is True
+    assert _check_type_compatibility(TypeName("int"), None) is True
 
     assert (
         _check_type_compatibility(
             None,
-            TypeName('int'),
+            TypeName("int"),
         )
         is True
     )
@@ -27,16 +27,16 @@ def test_none() -> None:
 def test_simple_types() -> None:
     assert (
         _check_type_compatibility(
-            TypeName('int'),
-            TypeName('int'),
+            TypeName("int"),
+            TypeName("int"),
         )
         is True
     )
 
     assert (
         _check_type_compatibility(
-            TypeName('int'),
-            TypeName('str'),
+            TypeName("int"),
+            TypeName("str"),
         )
         is False
     )
@@ -44,12 +44,12 @@ def test_simple_types() -> None:
     assert (
         _check_type_compatibility(
             Attribute(
-                value=TypeName('types'),
-                attr='Test',
+                value=TypeName("types"),
+                attr="Test",
             ),
             Attribute(
-                value=TypeName('types'),
-                attr='Test',
+                value=TypeName("types"),
+                attr="Test",
             ),
         )
         is True
@@ -58,12 +58,12 @@ def test_simple_types() -> None:
     assert (
         _check_type_compatibility(
             Attribute(
-                value=TypeName('types'),
-                attr='Test',
+                value=TypeName("types"),
+                attr="Test",
             ),
             Attribute(
-                value=TypeName('types'),
-                attr='Test2',
+                value=TypeName("types"),
+                attr="Test2",
             ),
         )
         is False
@@ -73,16 +73,16 @@ def test_simple_types() -> None:
 def test_unknown_types() -> None:
     assert (
         _check_type_compatibility(
-            TypeName('int'),
-            Unknown('?'),
+            TypeName("int"),
+            Unknown("?"),
         )
         is True
     )
 
     assert (
         _check_type_compatibility(
-            Unknown('?'),
-            TypeName('int'),
+            Unknown("?"),
+            TypeName("int"),
         )
         is True
     )
@@ -91,32 +91,32 @@ def test_unknown_types() -> None:
 def test_constant_types() -> None:
     assert (
         _check_type_compatibility(
-            Constant('None'),
-            Constant('None'),
+            Constant("None"),
+            Constant("None"),
         )
         is True
     )
 
     assert (
         _check_type_compatibility(
-            Constant('None'),
-            Constant('True'),
+            Constant("None"),
+            Constant("True"),
         )
         is False
     )
 
     assert (
         _check_type_compatibility(
-            Constant('None'),
-            Constant('False'),
+            Constant("None"),
+            Constant("False"),
         )
         is False
     )
 
     assert (
         _check_type_compatibility(
-            Constant('True'),
-            TypeName('bool'),
+            Constant("True"),
+            TypeName("bool"),
         )
         is True
     )
@@ -124,8 +124,8 @@ def test_constant_types() -> None:
     # note: asymmetry
     assert (
         _check_type_compatibility(
-            TypeName('bool'),
-            Constant('True'),
+            TypeName("bool"),
+            Constant("True"),
         )
         is False
     )
@@ -134,8 +134,8 @@ def test_constant_types() -> None:
     # thus it is compatible with any type
     assert (
         _check_type_compatibility(
-            Constant('True'),
-            TypeName('int'),
+            Constant("True"),
+            TypeName("int"),
         )
         is True
     )
@@ -145,68 +145,12 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
             ),
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
-            ),
-        )
-        is True
-    )
-
-    assert (
-        _check_type_compatibility(
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
-            ),
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('str')],
-            ),
-        )
-        is False
-    )
-
-    assert (
-        _check_type_compatibility(
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
-            ),
-            Generic(
-                base=TypeName('Tuple'),
-                arguments=[TypeName('int')],
-            ),
-        )
-        is False
-    )
-
-    assert (
-        _check_type_compatibility(
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int'), TypeName('str')],
-            ),
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('str'), TypeName('int')],
-            ),
-        )
-        is False
-    )
-
-    assert (
-        _check_type_compatibility(
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int'), TypeName('str')],
-            ),
-            Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int'), TypeName('str')],
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
             ),
         )
         is True
@@ -215,12 +159,12 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int'), TypeName('str')],
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
             ),
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
+                base=TypeName("List"),
+                arguments=[TypeName("str")],
             ),
         )
         is False
@@ -229,12 +173,40 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
             ),
             Generic(
-                base=TypeName('List'),
-                arguments=[Unknown('?')],
+                base=TypeName("Tuple"),
+                arguments=[TypeName("int")],
+            ),
+        )
+        is False
+    )
+
+    assert (
+        _check_type_compatibility(
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("int"), TypeName("str")],
+            ),
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("str"), TypeName("int")],
+            ),
+        )
+        is False
+    )
+
+    assert (
+        _check_type_compatibility(
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("int"), TypeName("str")],
+            ),
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("int"), TypeName("str")],
             ),
         )
         is True
@@ -243,12 +215,40 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
-                arguments=[Unknown('?')],
+                base=TypeName("List"),
+                arguments=[TypeName("int"), TypeName("str")],
             ),
             Generic(
-                base=TypeName('List'),
-                arguments=[TypeName('int')],
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
+            ),
+        )
+        is False
+    )
+
+    assert (
+        _check_type_compatibility(
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
+            ),
+            Generic(
+                base=TypeName("List"),
+                arguments=[Unknown("?")],
+            ),
+        )
+        is True
+    )
+
+    assert (
+        _check_type_compatibility(
+            Generic(
+                base=TypeName("List"),
+                arguments=[Unknown("?")],
+            ),
+            Generic(
+                base=TypeName("List"),
+                arguments=[TypeName("int")],
             ),
         )
         is True
@@ -258,20 +258,20 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
+                base=TypeName("List"),
                 arguments=[
                     Generic(
-                        base=TypeName('List'),
-                        arguments=[TypeName('int')],
+                        base=TypeName("List"),
+                        arguments=[TypeName("int")],
                     )
                 ],
             ),
             Generic(
-                base=TypeName('List'),
+                base=TypeName("List"),
                 arguments=[
                     Generic(
-                        base=TypeName('List'),
-                        arguments=[TypeName('int')],
+                        base=TypeName("List"),
+                        arguments=[TypeName("int")],
                     )
                 ],
             ),
@@ -282,20 +282,20 @@ def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(
-                base=TypeName('List'),
+                base=TypeName("List"),
                 arguments=[
                     Generic(
-                        base=TypeName('List'),
-                        arguments=[TypeName('int')],
+                        base=TypeName("List"),
+                        arguments=[TypeName("int")],
                     )
                 ],
             ),
             Generic(
-                base=TypeName('List'),
+                base=TypeName("List"),
                 arguments=[
                     Generic(
-                        base=TypeName('List'),
-                        arguments=[TypeName('str')],
+                        base=TypeName("List"),
+                        arguments=[TypeName("str")],
                     )
                 ],
             ),

@@ -9,6 +9,7 @@ import click
 import requests
 from bs4 import BeautifulSoup
 
+
 Wheel = namedtuple("Wheel", ["name", "url"])
 
 

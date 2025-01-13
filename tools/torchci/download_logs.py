@@ -8,6 +8,7 @@ from pathlib import Path
 import requests
 from torchci.clickhouse import query_clickhouse
 
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 

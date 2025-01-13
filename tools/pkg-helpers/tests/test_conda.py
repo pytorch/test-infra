@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from pytorch_pkg_helpers.conda import (
     get_conda_cuda_variables,
     get_conda_version_variables,

@@ -1,5 +1,6 @@
 from binary_size_validation import parse_index
 
+
 # ignore long lines in this file
 # flake8: noqa: E501
 test_html = """

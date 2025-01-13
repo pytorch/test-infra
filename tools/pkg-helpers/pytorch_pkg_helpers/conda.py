@@ -1,5 +1,4 @@
 import re
-
 from typing import List
 
 from .utils import transform_cuversion

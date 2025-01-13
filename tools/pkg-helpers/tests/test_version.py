@@ -1,8 +1,8 @@
 from datetime import datetime
 
 import pytest
-
 from pytorch_pkg_helpers.version import get_version_variables
+
 
 DATE_STR = datetime.today().strftime("%Y%m%d")
 

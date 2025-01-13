@@ -42,10 +42,11 @@ def parse_args() -> argparse.Namespace:
         "--platform",
         help="Platform to generate for",
         type=str,
-        default= (
-            sys.platform if os.getenv("PLATFORM", sys.platform) == ""
+        default=(
+            sys.platform
+            if os.getenv("PLATFORM", sys.platform) == ""
             else os.getenv("PLATFORM", sys.platform)
-            ),
+        ),
     )
     parser.add_argument(
         "--gpu-arch-version",

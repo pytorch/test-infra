@@ -2,18 +2,19 @@
 Helper script to compare dynamo keys present between Rockset and Clickhouse, and
 upload missing keys to Clickhouse if any are missing
 """
+
+import os
 from argparse import ArgumentParser
 from functools import lru_cache
 from typing import Any, List
-import os
-import rockset
 
+import rockset
 from dynamo2ch import (
     ADAPTERS,
+    get_clickhouse_client,
     get_dynamo_client,
     unmarshal,
     upload_to_clickhouse,
-    get_clickhouse_client,
 )
 
 

@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 import requests
 
+
 UPDATEBOT_TOKEN = os.environ["UPDATEBOT_TOKEN"]
 PYTORCHBOT_TOKEN = os.environ["PYTORCHBOT_TOKEN"]
 

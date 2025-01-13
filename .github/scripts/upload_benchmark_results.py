@@ -14,12 +14,12 @@ import time
 from argparse import Action, ArgumentParser, Namespace
 from decimal import Decimal
 from json.decoder import JSONDecodeError
-
 from logging import info
 from typing import Any, Callable, Dict, List, Optional
 from warnings import warn
 
 import boto3
+
 
 logging.basicConfig(level=logging.INFO)
 

@@ -1,8 +1,8 @@
 import sys
-
 from typing import List
 
 from .utils import transform_cuversion
+
 
 WINDOWS_PATH_PREFIX = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v"
 

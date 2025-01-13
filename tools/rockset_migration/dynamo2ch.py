@@ -5,19 +5,19 @@ using screen/tmux.
 """
 
 import datetime
-from functools import lru_cache
 import json
-from multiprocessing import Pool
 import os
 import time
 from argparse import ArgumentParser
+from functools import lru_cache
+from multiprocessing import Pool
 from typing import Any, Dict, Optional, Union
-
 
 import boto3
 import clickhouse_connect
 import line_profiler
 from prefetch_generator import BackgroundGenerator
+
 
 S3_RESOURCE = boto3.resource("s3")
 CLICKHOUSE_ENDPOINT = os.environ.get("CLICKHOUSE_ENDPOINT", "localhost")

@@ -12,28 +12,28 @@ import api.github
 
 def run() -> None:
     parser = argparse.ArgumentParser(prog=sys.argv[0], description=__doc__)
-    parser.add_argument('--base-commit', type=str, required=True)
-    parser.add_argument('--head-commit', type=str, required=True)
+    parser.add_argument("--base-commit", type=str, required=True)
+    parser.add_argument("--head-commit", type=str, required=True)
     parser.add_argument(
-        '--suppressed',
+        "--suppressed",
         default=False,
         required=False,
-        action='store_true',
-        help='Failures are suppressed'
-        '(alternative to #suppress-api-compatibility-check commit message tag).',
+        action="store_true",
+        help="Failures are suppressed"
+        "(alternative to #suppress-api-compatibility-check commit message tag).",
     )
     args = parser.parse_args(sys.argv[1:])
 
-    repo = api.git.Repository(pathlib.Path('.'))
+    repo = api.git.Repository(pathlib.Path("."))
 
     # By default, our GitHub jobs only fetch to a depth of one. This
     # means that the base commit will not be known to our local
     # clone. We must fetch it in order to compare head and base.
     #
     # The fetch is a smidge noisy, hide it by default.
-    print('::group::fetch github.event.pull_request.base.sha')
-    repo.run(['fetch', 'origin', args.base_commit], check=True)
-    print('::endgroup::')
+    print("::group::fetch github.event.pull_request.base.sha")
+    repo.run(["fetch", "origin", args.base_commit], check=True)
+    print("::endgroup::")
 
     violations = api.compatibility.check_range(
         repo, head=args.head_commit, base=args.base_commit
@@ -43,18 +43,18 @@ def run() -> None:
 
     pinfo = repo.run(
         [
-            'show',
+            "show",
             # Don't show the file contents.
-            '--no-patch',
+            "--no-patch",
             # Show the title and the full commit message.
-            '--pretty=format:%B',
+            "--pretty=format:%B",
         ],
         check=True,
         stdout=subprocess.PIPE,
     )
-    suppression_tags = ['#suppress-api-compatibility-check', '#suppress-bc-linter']
+    suppression_tags = ["#suppress-api-compatibility-check", "#suppress-bc-linter"]
     suppressed = args.suppressed or any(tag in pinfo.stdout for tag in suppression_tags)
-    level = 'notice' if suppressed else 'warning'
+    level = "notice" if suppressed else "warning"
 
     for file, file_violations in violations.items():
         for violation in file_violations:

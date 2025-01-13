@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Tuple
 import api
 import api.ast
 import api.types
-
 from testing import source
 
 
@@ -36,9 +35,9 @@ def test_named_types(tmp_path: pathlib.Path) -> None:
 
     params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
-        api.types.TypeName('int'),
-        api.types.TypeName('float'),
-        api.types.TypeName('List'),
+        api.types.TypeName("int"),
+        api.types.TypeName("float"),
+        api.types.TypeName("List"),
     ]
 
 
@@ -48,9 +47,9 @@ def test_constant_types(tmp_path: pathlib.Path) -> None:
 
     params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
-        api.types.Constant('None'),
-        api.types.Constant('True'),
-        api.types.Constant('False'),
+        api.types.Constant("None"),
+        api.types.Constant("True"),
+        api.types.Constant("False"),
     ]
 
 
@@ -63,23 +62,23 @@ def test_generic_types(tmp_path: pathlib.Path) -> None:
     params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
         api.types.Generic(
-            base=api.types.TypeName('List'),
-            arguments=[api.types.TypeName('int')],
+            base=api.types.TypeName("List"),
+            arguments=[api.types.TypeName("int")],
         ),
         api.types.Generic(
-            base=api.types.TypeName('Dict'),
-            arguments=[api.types.TypeName('str'), api.types.TypeName('int')],
+            base=api.types.TypeName("Dict"),
+            arguments=[api.types.TypeName("str"), api.types.TypeName("int")],
         ),
         api.types.Generic(
-            base=api.types.TypeName('Tuple'),
-            arguments=[api.types.TypeName('int'), api.types.TypeName('str')],
+            base=api.types.TypeName("Tuple"),
+            arguments=[api.types.TypeName("int"), api.types.TypeName("str")],
         ),
         api.types.Generic(
-            base=api.types.TypeName('List'),
+            base=api.types.TypeName("List"),
             arguments=[
                 api.types.Generic(
-                    base=api.types.TypeName('Dict'),
-                    arguments=[api.types.TypeName('str'), api.types.TypeName('int')],
+                    base=api.types.TypeName("Dict"),
+                    arguments=[api.types.TypeName("str"), api.types.TypeName("int")],
                 )
             ],
         ),
@@ -94,17 +93,17 @@ def test_attribute_types(tmp_path: pathlib.Path) -> None:
     assert params == [
         api.types.Attribute(
             value=api.types.Attribute(
-                value=api.types.TypeName('api'),
-                attr='types',
+                value=api.types.TypeName("api"),
+                attr="types",
             ),
-            attr='TypeName',
+            attr="TypeName",
         ),
         api.types.Attribute(
             value=api.types.Attribute(
-                value=api.types.TypeName('api'),
-                attr='types',
+                value=api.types.TypeName("api"),
+                attr="types",
             ),
-            attr='Attribute',
+            attr="Attribute",
         ),
     ]
 

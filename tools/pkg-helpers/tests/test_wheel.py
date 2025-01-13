@@ -1,5 +1,4 @@
 import pytest
-
 from pytorch_pkg_helpers.wheel import (
     get_pytorch_pip_install_command,
     get_pytorch_s3_bucket_path,

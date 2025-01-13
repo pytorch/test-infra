@@ -1,5 +1,4 @@
 import pytest
-
 from pytorch_pkg_helpers.cuda import get_cuda_arch_list, get_cuda_variables
 from pytorch_pkg_helpers.utils import transform_cuversion
 

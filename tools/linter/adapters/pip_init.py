@@ -1,13 +1,13 @@
 """
 Initializer script that installs stuff to pip.
 """
+
 import argparse
 import logging
 import os
 import subprocess
 import sys
 import time
-
 from typing import List
 
 
