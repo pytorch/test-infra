@@ -20,10 +20,11 @@ build-backend = "setuptools.build_meta:__legacy__"
 # line-length = 120
 target-version = ["py38", "py39", "py310", "py311"]
 
-
 [tool.ruff]
 target-version = "py38"
+line-length = 120
 
+[tool.ruff.lint]
 # NOTE: Synchoronize the ignores with .flake8
 ignore = [
     # these ignores are from flake8-bugbear; please fix!
@@ -55,7 +56,6 @@ ignore = [
     "SIM117",
     "SIM118",
 ]
-line-length = 120
 select = [
     "B",
     "C4",
@@ -66,5 +66,5 @@ select = [
     "W",
     # Not included in flake8
     "PLE",
-    "TRY302",
+    "TRY203",
 ]
