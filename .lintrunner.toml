@@ -5,6 +5,10 @@ code = 'FLAKE8'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
+    '.github/scripts/**',
+    'aws/lambda/**',
+    's3_management/**',
+    'tools/**',
 ]
 command = [
     'python3',
@@ -16,16 +20,17 @@ init_command = [
     'python3',
     'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
-    'flake8==6.0.0',
+    'flake8==6.1.0',
     'flake8-bugbear==23.3.23',
-    'flake8-comprehensions==3.12.0',
+    'flake8-comprehensions==3.15.0',
     'flake8-executable==2.1.3',
     'flake8-logging-format==0.9.0',
     'flake8-pyi==23.3.1',
     'flake8-simplify==0.19.3',
     'mccabe==0.7.0',
-    'pycodestyle==2.10.0',
-    'pyflakes==3.0.1',
+    'pycodestyle==2.11.1',
+    'pyflakes==3.1.0',
+    'torchfix==0.4.0 ; python_version >= "3.9" and python_version < "3.13"',
 ]
 
 [[linter]]
@@ -254,17 +259,21 @@ init_command = [
     '--output-name=actionlint',
 ]
 
-# Black + usort
+# usort + ruff-format
 [[linter]]
-code = 'UFMT'
+code = 'PYFMT'
 include_patterns = [
-    'tools/torchci/**/*.py',
-    '.github/scripts/*.py',
-    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
+    '**/*.py',
+]
+exclude_patterns = [
+    '.github/scripts/**',
+    'aws/lambda/**',
+    's3_management/**',
+    'tools/**',
 ]
 command = [
     'python3',
-    'tools/linter/adapters/ufmt_linter.py',
+    'tools/linter/adapters/pyfmt_linter.py',
     '--',
     '@{{PATHSFILE}}'
 ]
@@ -273,9 +282,10 @@ init_command = [
     'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
     '--no-black-binary',
-    'black==23.3.0',
-    'ufmt==2.1.0',
-    'usort==1.0.6',
+    'black==23.12.1',
+    'usort==1.0.8.post1',
+    'isort==5.13.2',
+    'ruff==0.8.4',  # sync with RUFF
 ]
 is_formatter = true
 
@@ -309,6 +319,10 @@ command = [
 code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
+    '.github/scripts/**',
+    'aws/lambda/**',
+    's3_management/**',
+    'tools/**',
 ]
 command = [
     'python3',
@@ -322,7 +336,7 @@ init_command = [
     'python3',
     'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
-    'ruff==0.0.269',
+    'ruff==0.8.4',  # sync with PYFMT
 ]
 is_formatter = true
 
