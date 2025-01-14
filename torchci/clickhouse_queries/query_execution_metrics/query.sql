@@ -15,6 +15,7 @@ where
     and initial_user = 'hud_user'
     and length(query_id) > 37
     and type = 'QueryFinish'
+    and left(query_id, -37) != 'adhoc'
 group by
     name
 order by num desc
