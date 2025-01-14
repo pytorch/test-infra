@@ -94,13 +94,6 @@ export default function Page() {
         ? bytesRenderCell(value, useReadableMemory)
         : `${value} ms`;
 
-        const defaultYAxisParams = {
-          type: "value",
-          alignTicks: true,
-          axisLabel: {
-            formatter: yAxisFormatter,
-          },
-        };
     return (
       <Paper sx={{ height: 400 }} elevation={0}>
         <TimeSeriesPanelWithData
