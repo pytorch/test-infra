@@ -20,6 +20,9 @@ dayjs.extend(utc);
 
 function bytesRenderCell(val: number, useReadableMemory: boolean) {
   if (useReadableMemory) {
+    if (val > 1024 * 1024 * 1024) {
+      return `${(val / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
+    }
     if (val > 1024 * 1024) {
       return `${(val / (1024 * 1024)).toFixed(2)} MiB`;
     }
