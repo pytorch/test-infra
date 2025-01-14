@@ -167,10 +167,10 @@ export default function Page() {
         ClickHouse Database Query Execution Time and Memory
       </Typography>
       <Typography>
-        This page shows the execution time and memory usage of the queries in
-        the ClickHouse database. The data is collected from the system.query_log
-        table in ClickHouse. Data prior to Jan 3, 2025 should be considered
-        invalid.
+        This page shows the execution time and memory usage of queries to the
+        ClickHouse database. The data is collected from the system.query_log
+        table in ClickHouse. Data prior to Jan 3, 2025 is invalid. Click on a
+        row in the table to see information about a specific query.
       </Typography>
       <Stack direction="row" spacing={2}>
         <TimeRangePicker
