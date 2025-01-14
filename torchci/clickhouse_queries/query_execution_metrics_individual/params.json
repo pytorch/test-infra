@@ -1,0 +1,6 @@
+{
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "query": "String",
+    "granularity": "String"
+}
