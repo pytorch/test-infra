@@ -96,6 +96,10 @@ function NavBar() {
       name: "Cost Analysis",
       href: "/cost_analysis",
     },
+    {
+      name: "Query Execution Metrics",
+      href: "/query_execution_metrics",
+    },
   ];
 
   return (
