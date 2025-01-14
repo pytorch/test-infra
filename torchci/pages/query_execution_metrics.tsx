@@ -217,7 +217,7 @@ export default function Page() {
           }}
         />
       </div>
-      {expandedQuery !== null && (
+      {expandedQuery !== null && individualQueryData !== null && (
         <Stack spacing={2}>
           <Typography variant="h5">{expandedQuery}</Typography>
           <IndividualQueryPanel type="duration" />
