@@ -275,6 +275,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -299,6 +300,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -324,6 +326,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -349,6 +352,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -373,6 +377,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -398,6 +403,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -423,6 +429,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
     </Grid2>
