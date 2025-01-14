@@ -1,8 +1,21 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
 --- during a period of time
-WITH all_jobs AS (
+with commits as (
+  select
+    push.head_commit.'timestamp' as time,
+    push.head_commit.'id' as sha
+  from
+    push final
+  where
+    push.ref in ('refs/heads/master', 'refs/heads/main')
+    and push.repository.'owner'.'name' = 'pytorch'
+    and push.repository.'name' = 'pytorch'
+    and push.head_commit.'timestamp' >= {startTime: DateTime64(3)}
+    and push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
+),
+all_jobs AS (
   SELECT
-    push.head_commit.'timestamp' AS time,
+    commits.time AS time,
     CASE
       WHEN job.conclusion = 'failure' THEN 'red'
       WHEN job.conclusion = 'timed_out' THEN 'red'
@@ -10,11 +23,11 @@ WITH all_jobs AS (
       WHEN job.conclusion = '' THEN 'pending'
       ELSE 'green'
     END as conclusion,
-    push.head_commit.'id' AS sha
+    commits.sha AS sha
   FROM
     workflow_job job FINAL
     JOIN workflow_run FINAL ON workflow_run.id = workflow_job.run_id
-    JOIN push FINAL ON workflow_run.head_commit.'id' = push.head_commit.'id'
+    JOIN commits ON workflow_run.head_commit.'id' = commits.sha
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
@@ -26,13 +39,8 @@ WITH all_jobs AS (
     AND job.name NOT LIKE '%rerun_disabled_tests%'
     AND job.name NOT LIKE '%unstable%'
     AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
-    AND push.ref IN (
-      'refs/heads/master', 'refs/heads/main'
-    )
-    AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = 'pytorch'
-    AND push.head_commit.'timestamp' >= {startTime: DateTime64(3)}
-    AND push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
+    and job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in (select sha from commits))
+    and workflow_run.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in (select sha from commits))
 ),
 commit_overall_conclusion AS (
   SELECT
