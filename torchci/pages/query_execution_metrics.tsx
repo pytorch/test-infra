@@ -53,6 +53,9 @@ export default function Page() {
 
   useEffect(() => {
     // Don't use swr since we don't need to refresh
+    if (expandedQuery === null) {
+      return;
+    }
     fetch(
       `/api/clickhouse/query_execution_metrics_individual?parameters=${JSON.stringify(
         {
