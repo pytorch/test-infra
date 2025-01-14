@@ -25,6 +25,7 @@ ORDER BY
         arch,
         metric_name,
         head_branch,
+        workflow_id,
         timestamp
     ) SETTINGS index_granularity = 8192;
 
