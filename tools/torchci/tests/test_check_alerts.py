@@ -14,6 +14,7 @@ from torchci.check_alerts import (
     PYTORCH_ALERT_LABEL,
 )
 
+
 JOB_NAME = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
 DISABLED_JOB_NAMES = [
     "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
@@ -164,9 +165,9 @@ class TestGitHubPR(TestCase):
         self.assertFalse(update_comment)
 
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        original_issue[
-            "body"
-        ] = "- [job1](a) failed consecutively starting with commit []()"
+        original_issue["body"] = (
+            "- [job1](a) failed consecutively starting with commit []()"
+        )
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("started failing" in update_comment)
         self.assertTrue("job2" in update_comment)

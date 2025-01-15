@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 from typing import Any, Dict, List
 
 import boto3
-
 from dateutil import parser  # type: ignore[import]
 from rockset import RocksetClient  # type: ignore[import]
 from rockset.models import QueryParameter, QueryRequestSql  # type: ignore[import]

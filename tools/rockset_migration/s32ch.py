@@ -5,23 +5,23 @@ using screen/tmux.
 """
 
 import datetime
-from functools import lru_cache
 import importlib
 import json
-from multiprocessing import Pool
 import os
-from pathlib import Path
 import sys
 import time
-from argparse import ArgumentParser
-from typing import Any, Optional
 import urllib
-
+from argparse import ArgumentParser
+from functools import lru_cache
+from multiprocessing import Pool
+from pathlib import Path
+from typing import Any, Optional
 
 import boto3
 import clickhouse_connect
 import line_profiler
 from prefetch_generator import BackgroundGenerator
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(REPO_ROOT))

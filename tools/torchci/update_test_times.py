@@ -4,6 +4,7 @@ from collections import defaultdict
 import requests
 from torchci.clickhouse import query_clickhouse_saved
 
+
 TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
 TEST_CLASS_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-class-times.json"
 

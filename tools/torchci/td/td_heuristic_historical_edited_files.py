@@ -12,6 +12,7 @@ from torchci.td.utils import (
     list_past_year_shas,
 )
 
+
 CHANGED_FILES_QUERY = """
 select
     sha,

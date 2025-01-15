@@ -2,12 +2,12 @@ import json
 from collections import defaultdict
 
 from torchci.clickhouse import query_clickhouse
-
 from torchci.td.utils import (
     calculate_generic_test_ratings,
     evaluate,
     get_merge_bases_dict,
 )
+
 
 FAILED_TESTS_QUERY = """
 select

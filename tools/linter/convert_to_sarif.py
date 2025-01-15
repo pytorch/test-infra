@@ -19,7 +19,7 @@ def severity_to_github_level(severity: str) -> str:
 
 
 def parse_single_lintrunner_result(
-    lintrunner_result: dict[str, Any]
+    lintrunner_result: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     r"""Parse a single lintrunner result.
 

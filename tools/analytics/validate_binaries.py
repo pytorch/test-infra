@@ -1,13 +1,13 @@
+import json
+from datetime import datetime
+
 from conda.cli.python_api import Commands, run_command
 from tabulate import tabulate
-from datetime import datetime
-import json
+
 
 PLATFORMS = ["osx-64", "linux-64", "win-64"]
 PYTHON_VERSIONS = ["3.10", "3.9", "3.8", "3.7"]
-CUDA_CUDNN_VERSION = [
-    ("11.7", "8.5.0"), ("cpu", None)
-]
+CUDA_CUDNN_VERSION = [("11.7", "8.5.0"), ("cpu", None)]
 CHANNEL = "pytorch-test"
 VERSION = "1.13.*"
 
@@ -47,7 +47,10 @@ def main() -> None:
 
         # Actual builds available in Conda
         stdout, stderr, return_code = run_command(
-            Commands.SEARCH, f"{CHANNEL}::*[name=pytorch version={VERSION} subdir={platform}]", "--json")
+            Commands.SEARCH,
+            f"{CHANNEL}::*[name=pytorch version={VERSION} subdir={platform}]",
+            "--json",
+        )
 
         if return_code != 0:
             raise Exception(stderr)
@@ -58,18 +61,22 @@ def main() -> None:
         actual_builds = set()
         for version in available_versions["pytorch"]:
             actual_builds.add(version["build"])
-            output_data.append((
-                version["fn"],
-                datetime.fromtimestamp(version["timestamp"] / 1000),
-                size_format(version["size"])
-            ))
+            output_data.append(
+                (
+                    version["fn"],
+                    datetime.fromtimestamp(version["timestamp"] / 1000),
+                    size_format(version["size"]),
+                )
+            )
 
         assert len(expected_builds) > 0, "expected builds set should not be empty."
-        assert expected_builds == actual_builds, (
-            f"Missing following builds in conda: {expected_builds.difference(actual_builds)} for platform {platform}"
-        )
+        assert (
+            expected_builds == actual_builds
+        ), f"Missing following builds in conda: {expected_builds.difference(actual_builds)} for platform {platform}"
 
-        print(f"\nSuccessfully verified following binaries are available in Conda for {platform}...")
+        print(
+            f"\nSuccessfully verified following binaries are available in Conda for {platform}..."
+        )
         print(tabulate(output_data, headers=headers, tablefmt="grid"))
 
 

@@ -35,11 +35,11 @@ class Generic:
     Represents a generic type, like `List[int]` or `Dict[str, int]`.
     """
 
-    base: Union[TypeName, 'Attribute']
+    base: Union[TypeName, "Attribute"]
     arguments: List[TypeHint]
 
     def __str__(self) -> str:
-        arguments_str = ', '.join(str(arg) for arg in self.arguments)
+        arguments_str = ", ".join(str(arg) for arg in self.arguments)
         return f"{str(self.base)}[{arguments_str}]"
 
 
@@ -52,7 +52,7 @@ class Tuple:
     arguments: List[TypeHint]
 
     def __str__(self) -> str:
-        return ', '.join(str(arg) for arg in self.arguments)
+        return ", ".join(str(arg) for arg in self.arguments)
 
 
 @dataclass
@@ -61,7 +61,7 @@ class Attribute:
     Represents an attribute, like `foo.bar` or `foo.bar.baz`.
     """
 
-    value: Union[TypeName, 'Attribute']
+    value: Union[TypeName, "Attribute"]
     attr: str
 
     def __str__(self) -> str:

@@ -11,28 +11,36 @@ Will output a condensed version of the matrix. Will include fllowing:
 
 """
 
+import argparse
 import json
 import os
 import sys
-import argparse
-from typing import Dict, List
 from datetime import datetime
+from typing import Dict, List
 
 import generate_binary_build_matrix
+
 
 DOCKER_IMAGE_TYPES = ["runtime", "devel"]
 
 
-def generate_docker_matrix(channel: str, generate_dockerhub_images: str) -> Dict[str, List[Dict[str, str]]]:
-
+def generate_docker_matrix(
+    channel: str, generate_dockerhub_images: str
+) -> Dict[str, List[Dict[str, str]]]:
     ret: List[Dict[str, str]] = []
     prefix = "ghcr.io/pytorch/pytorch"
     docker_image_version = ""
     if channel == "release":
-        prefix_for_release = prefix.replace("ghcr.io/", "") if generate_dockerhub_images == "true" else prefix
+        prefix_for_release = (
+            prefix.replace("ghcr.io/", "")
+            if generate_dockerhub_images == "true"
+            else prefix
+        )
         docker_image_version = f"{prefix_for_release}:{generate_binary_build_matrix.CURRENT_STABLE_VERSION}"
     elif channel == "test":
-        docker_image_version = f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
+        docker_image_version = (
+            f"{prefix}-test:{generate_binary_build_matrix.CURRENT_CANDIDATE_VERSION}"
+        )
     else:
         docker_image_version = f"{prefix}-nightly:{generate_binary_build_matrix.CURRENT_NIGHTLY_VERSION}.dev{datetime.today().strftime('%Y%m%d')}"
 
@@ -83,8 +91,11 @@ def main() -> None:
     )
     options = parser.parse_args()
 
-    build_matrix = generate_docker_matrix(options.channel, options.generate_dockerhub_images)
+    build_matrix = generate_docker_matrix(
+        options.channel, options.generate_dockerhub_images
+    )
     print(json.dumps(build_matrix))
+
 
 if __name__ == "__main__":
     main()

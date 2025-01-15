@@ -3,8 +3,10 @@ Use this to generate a Clickhouse schema from a Rockset table. It still requires
 some manual work to verify and fill in some types if the script cannot infer
 them.
 """
+
 import re
 from typing import Dict, List
+
 from rockset_queries import get_query_lambdas
 from torchci.rockset_utils import query_rockset
 

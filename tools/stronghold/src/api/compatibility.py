@@ -5,7 +5,6 @@ from __future__ import annotations
 import difflib
 import pathlib
 import tempfile
-
 from collections.abc import Iterable, Mapping, Sequence
 
 import api
@@ -18,28 +17,28 @@ def check_range(
     repo: api.git.Repository, *, head: str, base: str
 ) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
     result = {}
-    for file in repo.get_files_in_range(f'{base}..{head}'):
+    for file in repo.get_files_in_range(f"{base}..{head}"):
         # Someday, we'll want to customize the filters we use to
         # ignore files.
-        if file.suffix != '.py':
+        if file.suffix != ".py":
             # Only consider Python files.
             continue
-        if any(dir.name.startswith('_') for dir in file.parents):
+        if any(dir.name.startswith("_") for dir in file.parents):
             # Ignore any internal packages.
             continue
-        if any(dir.name.startswith('.') for dir in file.parents):
+        if any(dir.name.startswith(".") for dir in file.parents):
             # Ignore any internal packages and ci modules
             continue
-        if file.name.startswith('_'):
+        if file.name.startswith("_"):
             # Ignore internal modules.
             continue
-        if any(dir.name == 'test' for dir in file.parents):
+        if any(dir.name == "test" for dir in file.parents):
             # Ignore tests (not part of PyTorch package).
             continue
-        if any(dir.name == 'benchmarks' for dir in file.parents):
+        if any(dir.name == "benchmarks" for dir in file.parents):
             # Ignore benchmarks (not part of PyTorch package).
             continue
-        if file.name.startswith('test_') or file.stem.endswith('_test'):
+        if file.name.startswith("test_") or file.stem.endswith("_test"):
             # Ignore test files.
             continue
 
@@ -47,8 +46,8 @@ def check_range(
         #
         # Note that if the file doesn't exist, it is equivalent to it
         # being empty.
-        after = repo.get_contents(file, commit_id=head) or ''
-        before = repo.get_contents(file, commit_id=base) or ''
+        after = repo.get_contents(file, commit_id=head) or ""
+        before = repo.get_contents(file, commit_id=base) or ""
 
         with tempfile.NamedTemporaryFile() as before_file:
             before_path = pathlib.Path(before_file.name)
@@ -74,7 +73,7 @@ def check(
 
     violations: list[api.violations.Violation] = []
     for name, before_def in before_api.items():
-        if any(token.startswith('_') for token in name.split('.')):
+        if any(token.startswith("_") for token in name.split(".")):
             continue
 
         after_def = after_api.get(name)
@@ -182,9 +181,9 @@ def _check_by_position(
 
     matcher = difflib.SequenceMatcher(a=before_param_names, b=after_param_names)
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == 'equal':
+        if tag == "equal":
             continue
-        if tag == 'replace':
+        if tag == "replace":
             yield api.violations.ParameterRenamed(
                 func=func,
                 parameter=before_param_names[i1],
@@ -192,7 +191,7 @@ def _check_by_position(
                 line=after.line,
             )
             continue
-        if tag == 'insert':
+        if tag == "insert":
             after_param = after_params[j1]
             if after_param.required:
                 yield api.violations.ParameterNowRequired(
@@ -201,7 +200,7 @@ def _check_by_position(
                     line=after_param.line,
                 )
             continue
-        if tag == 'delete':
+        if tag == "delete":
             yield api.violations.ParameterRemoved(
                 func=func,
                 parameter=before_params[i1].name,

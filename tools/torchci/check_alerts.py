@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Set, Tuple
 import requests
 from setuptools import distutils  # type: ignore[import]
 
+
 ALL_SKIPPED_THRESHOLD = 100
 SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
@@ -273,9 +274,9 @@ def generate_failed_job_issue(
 ) -> Any:
     failed_jobs.sort(key=lambda status: status.job_name)
     issue = {}
-    issue[
-        "title"
-    ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on {repo} {branch}"
+    issue["title"] = (
+        f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on {repo} {branch}"
+    )
     body = "Within the last 50 commits, there are the following failures on the main branch of pytorch: \n"
     for job in failed_jobs:
         failing_sha = job.failure_chain[-1]["sha"]
@@ -326,9 +327,9 @@ def gen_update_comment(original_issue: Dict[str, Any], jobs: List[JobStatus]) ->
 
 def generate_no_flaky_tests_issue() -> Any:
     issue = {}
-    issue[
-        "title"
-    ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
+    issue["title"] = (
+        f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
+    )
     issue["body"] = (
         f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for "
         f"the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}.\n"

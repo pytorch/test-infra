@@ -266,10 +266,8 @@ include_patterns = [
     '**/*.py',
 ]
 exclude_patterns = [
-    '.github/scripts/**',
     'aws/lambda/**',
     's3_management/**',
-    'tools/**',
 ]
 command = [
     'python3',

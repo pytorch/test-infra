@@ -1,11 +1,11 @@
+import argparse
 import json
 import os
-
-import argparse
 import sys
 from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import generate_build_matrix
+
 
 ASSETS_DIR = "tools/tests/assets"
 
