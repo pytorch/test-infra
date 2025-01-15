@@ -84,7 +84,7 @@ accuracy_results AS (
             OR { workflowId: Int64 } = 0
         )
 ),
-results AS (
+performance_join_accuracy_results AS (
     SELECT
         performance_results.workflow_id AS workflow_id,
         performance_results.job_id AS job_id,
@@ -145,6 +145,56 @@ results AS (
     WHERE
         accuracy != 'model_fail_to_load'
         AND accuracy != 'eager_fail_to_run'
+),
+-- This is to accommodate export case where only accuracy results are available
+export_results AS (
+    SELECT
+        workflow_id AS workflow_id,
+        job_id AS job_id,
+        CASE
+            WHEN replaced_filename LIKE '%_torchbench' THEN 'torchbench'
+            WHEN replaced_filename LIKE '%_timm_models' THEN 'timm_models'
+            WHEN replaced_filename LIKE '%_huggingface' THEN 'huggingface'
+            ELSE ''
+        END AS suite,
+        CASE
+            WHEN replaced_filename LIKE '%_torchbench' THEN REPLACE(
+                replaced_filename,
+                '_torchbench',
+                ''
+            )
+            WHEN replaced_filename LIKE '%_timm_models' THEN REPLACE(
+                replaced_filename,
+                '_timm_models',
+                ''
+            )
+            WHEN replaced_filename LIKE '%_huggingface' THEN REPLACE(
+                replaced_filename,
+                '_huggingface',
+                ''
+            )
+            ELSE ''
+        END AS compiler,
+        name,
+        0.0 AS speedup,
+        accuracy,
+        0.0 AS compilation_latency,
+        0.0 AS compression_ratio,
+        0.0 AS abs_latency,
+        0.0 AS dynamo_peak_mem,
+        0.0 AS eager_peak_mem,
+        timestamp
+    FROM
+        accuracy_results
+    WHERE
+        replaced_filename like '%export%'
+        AND accuracy != 'model_fail_to_load'
+        AND accuracy != 'eager_fail_to_run'
+),
+results AS (
+    SELECT * FROM performance_join_accuracy_results
+    UNION ALL
+    SELECT * FROM export_results
 )
 SELECT
     DISTINCT results.workflow_id,
