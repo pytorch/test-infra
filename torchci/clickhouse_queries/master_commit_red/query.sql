@@ -43,7 +43,7 @@ all_jobs AS (
     END as conclusion,
     workflow_run.sha AS sha
   FROM
-    all_runs workflow_run join default.workflow_job job final on workflow_run.id = workflow_job.run_id
+    default.workflow_job job final join all_runs workflow_run on workflow_run.id = workflow_job.run_id
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
