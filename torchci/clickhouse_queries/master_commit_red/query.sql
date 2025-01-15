@@ -13,9 +13,27 @@ with commits as (
     and push.head_commit.'timestamp' >= {startTime: DateTime64(3)}
     and push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
 ),
+all_runs as (
+  select
+    workflow_run.id as id,
+    workflow_run.head_commit.'id' as sha,
+    workflow_run.name as name,
+    commit.time as time
+  from
+    workflow_run final
+    join commits commit on workflow_run.head_commit.'id' = commit.sha
+  where
+    (
+      -- Limit it to workflows which block viable/strict upgrades
+      workflow_run.name in ('Lint', 'pull', 'trunk')
+      OR workflow_run.name like 'linux-binary%'
+    )
+    AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+    and workflow_run.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in (select sha from commits))
+),
 all_jobs AS (
   SELECT
-    commits.time AS time,
+    workflow_run.time AS time,
     CASE
       WHEN job.conclusion = 'failure' THEN 'red'
       WHEN job.conclusion = 'timed_out' THEN 'red'
@@ -23,24 +41,15 @@ all_jobs AS (
       WHEN job.conclusion = '' THEN 'pending'
       ELSE 'green'
     END as conclusion,
-    commits.sha AS sha
+    workflow_run.sha AS sha
   FROM
-    workflow_job job FINAL
-    JOIN workflow_run FINAL ON workflow_run.id = workflow_job.run_id
-    JOIN commits ON workflow_run.head_commit.'id' = commits.sha
+    all_runs workflow_run join default.workflow_job job on workflow_run.id = workflow_job.run_id
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
-    AND (
-      -- Limit it to workflows which block viable/strict upgrades
-      workflow_run.name in ('Lint', 'pull', 'trunk')
-      OR workflow_run.name like 'linux-binary%'
-    )
     AND job.name NOT LIKE '%rerun_disabled_tests%'
     AND job.name NOT LIKE '%unstable%'
-    AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
     and job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in (select sha from commits))
-    and workflow_run.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in (select sha from commits))
 ),
 commit_overall_conclusion AS (
   SELECT
