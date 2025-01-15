@@ -102,6 +102,12 @@ const nonFlakyTestZ = {
   num_red: 0,
 };
 
+function mockGetRawTestFile(file: string, content: string) {
+  return nock("https://raw.githubusercontent.com")
+    .get(`/pytorch/pytorch/main/test/${file}`)
+    .reply(200, Buffer.from(content));
+}
+
 describe("Disable Flaky Test Bot Across Jobs", () => {
   const octokit = utils.testOctokit();
 
@@ -112,28 +118,22 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
   });
 
   test("Create new issue", async () => {
-    const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
-      .reply(
-        200,
-        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
-      );
-    const scope2 = nock("https://api.github.com")
-      .post("/repos/pytorch/pytorch/issues", (body) => {
-        expect(body.title).toEqual(
-          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)"
-        );
-        expect(body.labels).toEqual([
-          "skipped",
-          "module: flaky-tests",
-          "module: fft",
-          "module: rocm",
-          "triaged",
-        ]);
-        expect(JSON.stringify(body.body)).toContain("Platforms: ");
-        return true;
-      })
-      .reply(200, {});
+    const scope = mockGetRawTestFile(
+      flakyTestAcrossJobA.file,
+      `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
+    );
+    const scope2 = utils.mockCreateIssue(
+      "pytorch/pytorch",
+      "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
+      ["Platforms: "],
+      [
+        "skipped",
+        "module: flaky-tests",
+        "module: fft",
+        "module: rocm",
+        "triaged",
+      ]
+    );
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestAcrossJobA, [], octokit);
 
@@ -266,26 +266,22 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
   });
 
   test("previously undetected flaky test should create an issue", async () => {
-    const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
-      .reply(
-        200,
-        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
-      );
-    const scope2 = nock("https://api.github.com")
-      .post("/repos/pytorch/pytorch/issues", (body) => {
-        expect(body.title).toEqual("DISABLED test_a (__main__.suite_a)");
-        expect(body.labels).toEqual([
-          "skipped",
-          "module: flaky-tests",
-          "module: fft",
-          "module: windows",
-          "triaged",
-        ]);
-        expect(JSON.stringify(body.body)).toContain("Platforms: ");
-        return true;
-      })
-      .reply(200, {});
+    const scope = mockGetRawTestFile(
+      flakyTestA.file,
+      `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
+    );
+    const scope2 = utils.mockCreateIssue(
+      "pytorch/pytorch",
+      "DISABLED test_a (__main__.suite_a)",
+      ["Platforms: "],
+      [
+        "skipped",
+        "module: flaky-tests",
+        "module: fft",
+        "module: windows",
+        "triaged",
+      ]
+    );
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, [], octokit);
 
@@ -294,26 +290,22 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
   });
 
   test("previously undetected flaky test should create an issue on main", async () => {
-    const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/main/test/${flakyTestB.file}`)
-      .reply(
-        200,
-        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
-      );
-    const scope2 = nock("https://api.github.com")
-      .post("/repos/pytorch/pytorch/issues", (body) => {
-        expect(body.title).toEqual("DISABLED test_b (__main__.suite_b)");
-        expect(body.labels).toEqual([
-          "skipped",
-          "module: flaky-tests",
-          "module: fft",
-          "module: windows",
-          "triaged",
-        ]);
-        expect(JSON.stringify(body.body)).toContain("Platforms: ");
-        return true;
-      })
-      .reply(200, {});
+    const scope = mockGetRawTestFile(
+      flakyTestB.file,
+      `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
+    );
+    const scope2 = utils.mockCreateIssue(
+      "pytorch/pytorch",
+      "DISABLED test_b (__main__.suite_b)",
+      ["Platforms:"],
+      [
+        "skipped",
+        "module: flaky-tests",
+        "module: fft",
+        "module: windows",
+        "triaged",
+      ]
+    );
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestB, [], octokit);
 
@@ -567,33 +559,23 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
   });
 
   test("getTestOwnerLabels: owned test file should return proper module and be triaged", async () => {
-    const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
-      .reply(
-        200,
-        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
-      );
-
+    const scope = mockGetRawTestFile(
+      flakyTestA.file,
+      `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
+    );
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
-    const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
-      .reply(
-        200,
-        Buffer.from(
-          `# Owner(s): ["oncall: distributed"]\nimport blah;\nrest of file`
-        )
-      );
+    const scope = mockGetRawTestFile(
+      flakyTestA.file,
+      `# Owner(s): ["oncall: distributed"]\nimport blah;\nrest of file`
+    );
 
     const { labels } = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual([
@@ -602,50 +584,35 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       "triaged",
     ]);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
-    const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
-      .reply(
-        200,
-        Buffer.from(
-          `# Owner(s): ["module: unknown"]\nimport blah;\nrest of file`
-        )
-      );
+    const scope = mockGetRawTestFile(
+      flakyTestA.file,
+      `# Owner(s): ["module: unknown"]\nimport blah;\nrest of file`
+    );
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: ill-formatted file should return module: unknown", async () => {
-    const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
-      .reply(
-        200,
-        Buffer.from("line1\nline2\nline3\nstill no owners\nline4\nlastline\n")
-      );
+    const scope = mockGetRawTestFile(
+      flakyTestA.file,
+      `line1\nline2\nline3\nstill no owners\nline4\nlastline\n`
+    );
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: retry getting file fails all times", async () => {
@@ -674,10 +641,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       "Error: Error retrieving file_a.py: 404, file_a: 404"
     );
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: retry getting file", async () => {
@@ -694,10 +658,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: fallback to invoking file when retrieving file", async () => {
@@ -720,22 +681,17 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(labels).toEqual(["module: fft", "module: rocm", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("getTestOwnerLabels: give dynamo and inductor oncall: pt2 label", async () => {
     const test = { ...flakyTestA };
     test.jobNames = ["dynamo linux"];
 
-    let scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${test.file}`)
-      .reply(
-        200,
-        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
-      );
+    let scope = mockGetRawTestFile(
+      test.file,
+      `# Owner(s): ["module: fft"]\nimport blah;\nrest of file`
+    );
 
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
@@ -749,10 +705,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const test = { ...flakyTestA };
     test.jobNames = ["inductor linux"];
 
-    let scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${test.file}`)
-      .reply(200, Buffer.from(`import blah;\nrest of file`));
-
+    let scope = mockGetRawTestFile(test.file, `import blah;\nrest of file`);
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
@@ -765,10 +718,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const test = { ...flakyTestA };
     test.jobNames = ["rocm"];
 
-    let scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${test.file}`)
-      .reply(200, Buffer.from(`import blah;\nrest of file`));
-
+    let scope = mockGetRawTestFile(test.file, `import blah;\nrest of file`);
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
@@ -781,9 +731,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const test = { ...flakyTestA };
     test.jobNames = ["rocm", "linux"];
 
-    let scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/main/test/${test.file}`)
-      .reply(200, Buffer.from(`import blah;\nrest of file`));
+    let scope = mockGetRawTestFile(test.file, `import blah;\nrest of file`);
 
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
