@@ -143,6 +143,16 @@ function SuiteGraphPanel({
     "passrate",
     false
   );
+  const totalModelCountSeries = seriesWithInterpolatedTimes(
+    passrate,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "total_count",
+    false
+  );
 
   // Geomean speedup
   const geomean = computeGeomean(data, models).filter((r: any) => {
@@ -265,6 +275,32 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
+        />
+      </Grid2>
+
+      <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={passrate}
+          series={totalModelCountSeries}
+          title={`Number of Models / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return r.value[1];
+              },
+            },
+          }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -290,6 +326,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -315,6 +352,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -339,6 +377,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -364,6 +403,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
 
@@ -389,6 +429,7 @@ function SuiteGraphPanel({
               },
             },
           }}
+          legendPadding={310}
         />
       </Grid2>
     </Grid2>
