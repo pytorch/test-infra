@@ -1,5 +1,6 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
 --- during a period of time
+-- Split up the query into multiple CTEs to make it faster.
 with commits as (
   select
     push.head_commit.'timestamp' as time,
