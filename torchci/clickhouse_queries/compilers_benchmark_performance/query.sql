@@ -83,8 +83,6 @@ accuracy_results AS (
             workflow_id = { workflowId: Int64 }
             OR { workflowId: Int64 } = 0
         )
-        AND accuracy != 'model_fail_to_load'
-        AND accuracy != 'eager_fail_to_run'
 ),
 results AS (
     SELECT
@@ -144,6 +142,9 @@ results AS (
         LEFT JOIN accuracy_results ON performance_results.name = accuracy_results.name
         AND performance_results.replaced_filename = accuracy_results.replaced_filename
         AND performance_results.workflow_id = accuracy_results.workflow_id
+    WHERE
+        accuracy != 'model_fail_to_load'
+        AND accuracy != 'eager_fail_to_run'
 )
 SELECT
     DISTINCT results.workflow_id,
