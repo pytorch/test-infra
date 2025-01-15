@@ -146,36 +146,36 @@ performance_join_accuracy_results AS (
         accuracy != 'model_fail_to_load'
         AND accuracy != 'eager_fail_to_run'
 ),
--- This is to accommodate export case where only accuracy results are available
-export_results AS (
+-- This is to accommodate cases where only accuracy results are available, i.e. export
+accuracy_join_performance_results AS (
     SELECT
-        workflow_id AS workflow_id,
-        job_id AS job_id,
+        accuracy_results.workflow_id AS workflow_id,
+        accuracy_results.job_id AS job_id,
         CASE
-            WHEN replaced_filename LIKE '%_torchbench' THEN 'torchbench'
-            WHEN replaced_filename LIKE '%_timm_models' THEN 'timm_models'
-            WHEN replaced_filename LIKE '%_huggingface' THEN 'huggingface'
+            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
+            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
+            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
             ELSE ''
         END AS suite,
         CASE
-            WHEN replaced_filename LIKE '%_torchbench' THEN REPLACE(
-                replaced_filename,
+            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
+                accuracy_results.replaced_filename,
                 '_torchbench',
                 ''
             )
-            WHEN replaced_filename LIKE '%_timm_models' THEN REPLACE(
-                replaced_filename,
+            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN REPLACE(
+                accuracy_results.replaced_filename,
                 '_timm_models',
                 ''
             )
-            WHEN replaced_filename LIKE '%_huggingface' THEN REPLACE(
-                replaced_filename,
+            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN REPLACE(
+                accuracy_results.replaced_filename,
                 '_huggingface',
                 ''
             )
             ELSE ''
         END AS compiler,
-        name,
+        accuracy_results.name,
         0.0 AS speedup,
         accuracy,
         0.0 AS compilation_latency,
@@ -183,18 +183,21 @@ export_results AS (
         0.0 AS abs_latency,
         0.0 AS dynamo_peak_mem,
         0.0 AS eager_peak_mem,
-        timestamp
+        accuracy_results.timestamp AS timestamp
     FROM
         accuracy_results
+        LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
+        AND performance_results.replaced_filename = accuracy_results.replaced_filename
+        AND performance_results.workflow_id = accuracy_results.workflow_id
     WHERE
-        replaced_filename like '%export%'
+        performance_results.name = ''
         AND accuracy != 'model_fail_to_load'
         AND accuracy != 'eager_fail_to_run'
 ),
 results AS (
     SELECT * FROM performance_join_accuracy_results
     UNION ALL
-    SELECT * FROM export_results
+    SELECT * FROM accuracy_join_performance_results
 )
 SELECT
     DISTINCT results.workflow_id,
