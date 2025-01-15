@@ -306,9 +306,9 @@ def main() -> None:
         help="Set the repo to query the issues from",
     )
     args = parser.parse_args()
-    token = os.getenv("GH_PYTORCHBOT_TOKEN")
+    token = os.getenv("GITHUB_TOKEN")
     if not token:
-        raise RuntimeError("The GH_PYTORCHBOT_TOKEN environment variable is required")
+        raise RuntimeError("The GITHUB_TOKEN environment variable is required")
 
     # Get the list of disabled issues and sort them
     disable_issues = get_disable_issues(token)
