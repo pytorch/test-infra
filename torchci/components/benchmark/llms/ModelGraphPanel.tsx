@@ -176,7 +176,7 @@ export function GraphPanel({
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
               <Grid2
-                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 6 : 4 }}
+                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 4 }}
                 height={GRAPH_ROW_HEIGHT}
                 key={metric}
               >
