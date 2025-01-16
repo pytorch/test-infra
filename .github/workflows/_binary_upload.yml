@@ -73,7 +73,7 @@ jobs:
 
       - name: Download the artifact
         if: ${{ env.DO_UPLOAD == 'true' }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
