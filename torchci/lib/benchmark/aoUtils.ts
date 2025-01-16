@@ -79,7 +79,14 @@ export function computeSpeedup(
       return;
     }
 
-    const k = `${r.workflow_id} ${r.job_id} ${r.model} ${r.metric} ${r.device} ${r.arch}`;
+    const k = `${r.model} ${r.metric} ${r.device} ${r.arch}`;
+    // Compare against the oldest base commit
+    if (
+      k in baselineMetrics &&
+      baselineMetrics[k].workflow_id < r.workflow_id
+    ) {
+      return;
+    }
     baselineMetrics[k] = r;
   });
 
@@ -91,11 +98,12 @@ export function computeSpeedup(
     }
 
     if (SPEEDUP_METRICS.includes(r.metric)) {
-      const k = `${r.workflow_id} ${r.job_id} ${r.model} ${r.metric} ${r.device} ${r.arch}`;
+      const k = `${r.model} ${r.metric} ${r.device} ${r.arch}`;
       if (
         k in baselineMetrics &&
         baselineMetrics[k].actual !== 0 &&
-        r.actual !== 0
+        r.actual !== 0 &&
+        baselineMetrics[k].workflow_id <= r.workflow_id
       ) {
         const speedup = r.metric.includes("time")
           ? baselineMetrics[k].actual / r.actual
