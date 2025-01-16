@@ -21,7 +21,11 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { computeSpeedup, TORCHAO_BASELINE } from "lib/benchmark/aoUtils";
+import {
+  computeSpeedup,
+  TORCHAO_BASELINE,
+  TORCHAO_SPEEDUP_METRIC_NAMES,
+} from "lib/benchmark/aoUtils";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
@@ -82,11 +86,22 @@ function Report({
     );
   }
 
-  const lDataWithSpeedup = computeSpeedup(repoName, lData);
-  const rDataWithSpeedup = computeSpeedup(repoName, rData);
+  const lDataWithSpeedup = computeSpeedup(
+    repoName,
+    computeSpeedup(repoName, lData, false, true),
+    true,
+    false
+  );
+
+  const rDataWithSpeedup = computeSpeedup(
+    repoName,
+    computeSpeedup(repoName, rData, false, true),
+    true,
+    false
+  );
 
   if (repoName === "pytorch/ao") {
-    metricNames = ["speedup", ...metricNames];
+    metricNames = [...TORCHAO_SPEEDUP_METRIC_NAMES, ...metricNames];
   }
 
   return (
@@ -288,10 +303,7 @@ export default function Page() {
   ];
   const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
-    ..._.filter(
-      _.uniq(data.map((r: any) => r.dtype)) as string[],
-      (r: string) => r !== TORCHAO_BASELINE
-    ),
+    ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
   ]);
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
@@ -367,7 +379,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to previous commit
+          fallbackIndex={-1} // Default to oldest commit
           timeRange={timeRange}
         />
         <Divider orientation="vertical" flexItem>

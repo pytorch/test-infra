@@ -23,6 +23,11 @@ WITH benchmarks AS (
             tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
             tupleElement(o.runners [ 1 ], 'type')
         ) AS arch,
+        IF(
+            tupleElement(o.benchmark, 'extra_info') [ 'compile' ] = '',
+            'true',  -- Default to true
+            tupleElement(o.benchmark, 'extra_info') [ 'compile' ]
+        ) AS use_torch_compile,
         DATE_TRUNC(
             {granularity: String },
             fromUnixTimestamp(o.timestamp)
@@ -71,6 +76,7 @@ SELECT
     dtype,
     device,
     arch,
+    toBool(use_torch_compile) AS use_torch_compile,
     granularity_bucket
 FROM
     benchmarks
