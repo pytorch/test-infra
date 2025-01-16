@@ -85,6 +85,11 @@ export function computeSpeedup(
 
   const withSpeedup: LLMsBenchmarkData[] = [];
   data.forEach((r: LLMsBenchmarkData) => {
+    // No need to keep eager record here anymore
+    if (r.dtype === TORCHAO_BASELINE && r.use_torch_compile === false) {
+      return;
+    }
+
     if (SPEEDUP_METRICS.includes(r.metric)) {
       const k = `${r.workflow_id} ${r.job_id} ${r.model} ${r.metric} ${r.device} ${r.arch}`;
       if (
@@ -100,6 +105,10 @@ export function computeSpeedup(
           r.dtype === TORCHAO_BASELINE
             ? TORCHAO_SPEEDUP_METRIC_NAMES[`${r.dtype}-${useTorchCompile}`]
             : TORCHAO_SPEEDUP_METRIC_NAMES[`-${useTorchCompile}`];
+
+        if (speedupMetricName === undefined) {
+          return;
+        }
 
         withSpeedup.push({
           ...r,

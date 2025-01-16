@@ -6,7 +6,6 @@ import {
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import {
   DEFAULT_DEVICE_NAME,
-  DEFAULT_DTYPE_NAME,
   DEFAULT_MODEL_NAME,
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
@@ -124,8 +123,6 @@ export function GraphPanel({
             .filter((record: LLMsBenchmarkData) => {
               return (
                 record.model === modelName &&
-                (record.dtype === dtypeName ||
-                  dtypeName === DEFAULT_DTYPE_NAME) &&
                 (`${record.device} (${record.arch})` === deviceName ||
                   deviceName === DEFAULT_DEVICE_NAME) &&
                 record.metric === metric
