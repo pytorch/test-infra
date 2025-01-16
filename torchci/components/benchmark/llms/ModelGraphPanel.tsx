@@ -18,7 +18,11 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { computeSpeedup } from "lib/benchmark/aoUtils";
+import {
+  AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+  AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
+  computeSpeedup,
+} from "lib/benchmark/aoUtils";
 import { computeGeomean, useBenchmark } from "lib/benchmark/llmUtils";
 import { BranchAndCommit } from "lib/types";
 
@@ -64,7 +68,12 @@ export function GraphPanel({
     );
   }
 
-  const dataWithSpeedup = computeSpeedup(repoName, data);
+  const dataWithSpeedup = computeSpeedup(
+    repoName,
+    computeSpeedup(repoName, data, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
+    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    true
+  );
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
@@ -80,8 +89,11 @@ export function GraphPanel({
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
   metricNames.forEach((metric: string) => {
-    // TODO (huydhn): Only display aggregated speedup metric for now
-    if (modelName === DEFAULT_MODEL_NAME && metric !== "speedup") {
+    if (
+      modelName === DEFAULT_MODEL_NAME &&
+      metric !== AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME &&
+      metric !== AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME
+    ) {
       chartData[metric] = [];
       return;
     }
@@ -170,7 +182,7 @@ export function GraphPanel({
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
               <Grid2
-                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 4 }}
+                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 6 : 4 }}
                 height={GRAPH_ROW_HEIGHT}
                 key={metric}
               >

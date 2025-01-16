@@ -10,6 +10,10 @@ export const TORCHAO_BASELINE = "noquant";
 // here on the dashboard
 const SPEEDUP_METRICS = ["tok/s", "time_ms(avg)", "time_s(avg)", "img_s(avg)"];
 
+// Different speedup metrics
+export const AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME = "speedup";
+export const AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME = "eager_speedup";
+
 // TODO (huydhn): Use this function to convert the generic benchmark data to the old
 // CompilerPerformanceData format. This is needed until the TorchInductor dashboard
 // is migrated to the new format
@@ -54,14 +58,22 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
   return Object.values(convertData);
 }
 
-export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
+export function computeSpeedup(
+  repoName: string,
+  data: LLMsBenchmarkData[],
+  speedupMetricName: string,
+  useTorchCompile: boolean
+) {
   if (repoName !== TORCHAO_REPO) {
     return data;
   }
 
   const baselineMetrics: { [key: string]: LLMsBenchmarkData } = {};
   data.forEach((r: LLMsBenchmarkData) => {
-    if (r.dtype !== TORCHAO_BASELINE) {
+    if (
+      r.dtype !== TORCHAO_BASELINE ||
+      r.use_torch_compile !== useTorchCompile
+    ) {
       return;
     }
 
@@ -71,7 +83,10 @@ export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
 
   const withSpeedup: LLMsBenchmarkData[] = [];
   data.forEach((r: LLMsBenchmarkData) => {
-    if (r.dtype === TORCHAO_BASELINE) {
+    if (
+      r.dtype === TORCHAO_BASELINE &&
+      r.use_torch_compile === useTorchCompile
+    ) {
       return;
     }
 
@@ -88,7 +103,7 @@ export function computeSpeedup(repoName: string, data: LLMsBenchmarkData[]) {
 
         withSpeedup.push({
           ...r,
-          metric: "speedup",
+          metric: speedupMetricName,
           actual: Number(speedup.toFixed(4)),
           target: 0,
         });

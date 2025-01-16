@@ -21,7 +21,12 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { computeSpeedup, TORCHAO_BASELINE } from "lib/benchmark/aoUtils";
+import {
+  AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+  AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
+  computeSpeedup,
+  TORCHAO_BASELINE,
+} from "lib/benchmark/aoUtils";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
@@ -82,11 +87,26 @@ function Report({
     );
   }
 
-  const lDataWithSpeedup = computeSpeedup(repoName, lData);
-  const rDataWithSpeedup = computeSpeedup(repoName, rData);
+  const lDataWithSpeedup = computeSpeedup(
+    repoName,
+    computeSpeedup(repoName, lData, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
+    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    true
+  );
+
+  const rDataWithSpeedup = computeSpeedup(
+    repoName,
+    computeSpeedup(repoName, rData, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
+    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    true
+  );
 
   if (repoName === "pytorch/ao") {
-    metricNames = ["speedup", ...metricNames];
+    metricNames = [
+      AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
+      AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+      ...metricNames,
+    ];
   }
 
   return (
@@ -367,7 +387,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to previous commit
+          fallbackIndex={-1} // Default to oldest commit
           timeRange={timeRange}
         />
         <Divider orientation="vertical" flexItem>
