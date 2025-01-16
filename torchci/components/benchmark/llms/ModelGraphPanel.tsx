@@ -68,8 +68,9 @@ export function GraphPanel({
 
   const dataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, data, false),
-    true
+    computeSpeedup(repoName, data, false, true),
+    true,
+    false
   );
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
@@ -88,7 +89,7 @@ export function GraphPanel({
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
-      !Object.values(TORCHAO_SPEEDUP_METRIC_NAMES).includes(metric)
+      !TORCHAO_SPEEDUP_METRIC_NAMES.includes(metric)
     ) {
       chartData[metric] = [];
       return;

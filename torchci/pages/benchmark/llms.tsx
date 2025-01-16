@@ -88,21 +88,20 @@ function Report({
 
   const lDataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, lData, false),
-    true
+    computeSpeedup(repoName, lData, false, true),
+    true,
+    false
   );
 
   const rDataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, rData, false),
-    true
+    computeSpeedup(repoName, rData, false, true),
+    true,
+    false
   );
 
   if (repoName === "pytorch/ao") {
-    metricNames = [
-      ...Object.values(TORCHAO_SPEEDUP_METRIC_NAMES),
-      ...metricNames,
-    ];
+    metricNames = [...TORCHAO_SPEEDUP_METRIC_NAMES, ...metricNames];
   }
 
   return (
