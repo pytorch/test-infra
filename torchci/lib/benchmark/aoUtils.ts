@@ -10,9 +10,12 @@ export const TORCHAO_BASELINE = "noquant";
 // here on the dashboard
 const SPEEDUP_METRICS = ["tok/s", "time_ms(avg)", "time_s(avg)", "img_s(avg)"];
 
-// Different speedup metrics
-export const AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME = "speedup";
-export const AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME = "eager_speedup";
+// Different speedup metrics, the key is quantization-torch.compile
+export const TORCHAO_SPEEDUP_METRIC_NAMES: { [key: string]: string } = {
+  "noquant-false": "compile_vs_eager_speedup",
+  "-true": "autoquant_vs_compile_speedup",
+  "-false": "autoquant_vs_eager_speedup",
+};
 
 // TODO (huydhn): Use this function to convert the generic benchmark data to the old
 // CompilerPerformanceData format. This is needed until the TorchInductor dashboard
@@ -61,7 +64,6 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
 export function computeSpeedup(
   repoName: string,
   data: LLMsBenchmarkData[],
-  speedupMetricName: string,
   useTorchCompile: boolean
 ) {
   if (repoName !== TORCHAO_REPO) {
@@ -83,13 +85,6 @@ export function computeSpeedup(
 
   const withSpeedup: LLMsBenchmarkData[] = [];
   data.forEach((r: LLMsBenchmarkData) => {
-    if (
-      r.dtype === TORCHAO_BASELINE &&
-      r.use_torch_compile === useTorchCompile
-    ) {
-      return;
-    }
-
     if (SPEEDUP_METRICS.includes(r.metric)) {
       const k = `${r.workflow_id} ${r.job_id} ${r.model} ${r.metric} ${r.device} ${r.arch}`;
       if (
@@ -101,10 +96,15 @@ export function computeSpeedup(
           ? baselineMetrics[k].actual / r.actual
           : r.actual / baselineMetrics[k].actual;
 
+        const speedupMetricName =
+          r.dtype === TORCHAO_BASELINE
+            ? TORCHAO_SPEEDUP_METRIC_NAMES[`${r.dtype}-${useTorchCompile}`]
+            : TORCHAO_SPEEDUP_METRIC_NAMES[`-${useTorchCompile}`];
+
         withSpeedup.push({
           ...r,
           metric: speedupMetricName,
-          actual: Number(speedup.toFixed(4)),
+          actual: Number(speedup.toFixed(2)),
           target: 0,
         });
       }

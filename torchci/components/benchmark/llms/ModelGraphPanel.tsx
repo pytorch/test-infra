@@ -19,9 +19,8 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
-  AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
-  AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
   computeSpeedup,
+  TORCHAO_SPEEDUP_METRIC_NAMES,
 } from "lib/benchmark/aoUtils";
 import { computeGeomean, useBenchmark } from "lib/benchmark/llmUtils";
 import { BranchAndCommit } from "lib/types";
@@ -70,8 +69,7 @@ export function GraphPanel({
 
   const dataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, data, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
-    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    computeSpeedup(repoName, data, false),
     true
   );
 
@@ -91,8 +89,7 @@ export function GraphPanel({
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
-      metric !== AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME &&
-      metric !== AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME
+      !Object.values(TORCHAO_SPEEDUP_METRIC_NAMES).includes(metric)
     ) {
       chartData[metric] = [];
       return;

@@ -22,10 +22,9 @@ import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
-  AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
-  AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
   computeSpeedup,
   TORCHAO_BASELINE,
+  TORCHAO_SPEEDUP_METRIC_NAMES,
 } from "lib/benchmark/aoUtils";
 import { useBenchmark } from "lib/benchmark/llmUtils";
 import { fetcher } from "lib/GeneralUtils";
@@ -89,22 +88,19 @@ function Report({
 
   const lDataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, lData, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
-    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    computeSpeedup(repoName, lData, false),
     true
   );
 
   const rDataWithSpeedup = computeSpeedup(
     repoName,
-    computeSpeedup(repoName, rData, AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME, false),
-    AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+    computeSpeedup(repoName, rData, false),
     true
   );
 
   if (repoName === "pytorch/ao") {
     metricNames = [
-      AUTOQUANT_EAGER_SPEEDUP_METRIC_NAME,
-      AUTOQUANT_COMPILE_SPEEDUP_METRIC_NAME,
+      ...Object.values(TORCHAO_SPEEDUP_METRIC_NAMES),
       ...metricNames,
     ];
   }
@@ -308,10 +304,7 @@ export default function Page() {
   ];
   const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
-    ..._.filter(
-      _.uniq(data.map((r: any) => r.dtype)) as string[],
-      (r: string) => r !== TORCHAO_BASELINE
-    ),
+    ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
   ]);
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
