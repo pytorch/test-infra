@@ -11,8 +11,8 @@ export const TORCHAO_BASELINE = "noquant";
 const SPEEDUP_METRICS = ["tok/s", "time_ms(avg)", "time_s(avg)", "img_s(avg)"];
 
 export const TORCHAO_SPEEDUP_METRIC_NAMES = [
-  "compile_vs_eager_speedup",
   "autoquant_vs_compile_speedup",
+  "compile_vs_eager_speedup",
   "eager_speedup",
 ];
 // Different speedup metrics, the key is quantization-torch.compile
