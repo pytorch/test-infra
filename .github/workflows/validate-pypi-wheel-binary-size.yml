@@ -1,16 +1,27 @@
-name: Validate Nightly PyPI Wheel Binary Size
+name: Validate PyPI Wheel Binary Size
 on:
   pull_request:
     paths:
-      - .github/workflows/validate-nightly-pypi-wheel-binary-size.yml
+      - .github/workflows/validate-pypi-wheel-binary-size.yml
   workflow_dispatch:
+    inputs:
+      channel:
+          description: "Channel to use (nightly, test)"
+          required: true
+          type: choice
+          default: test
+          options:
+            - nightly
+            - test
   schedule:
     # At 2:30 pm UTC (7:30 am PDT)
     - cron: "30 14 * * *"
 
 jobs:
-  nightly-pypi-binary-size-validation:
+  pypi-binary-size-validation:
     runs-on: ubuntu-latest
+    env:
+      CHANNEL: ${{ inputs.channel || 'nightly' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -22,5 +33,5 @@ jobs:
       - name: Run validation
         run: |
           python tools/binary_size_validation/binary_size_validation.py \
-              --url https://download.pytorch.org/whl/nightly/cu121/torch/ \
+              --url https://download.pytorch.org/whl/${CHANNEL}/cu124/torch/ \
               --include "linux" --only-latest-version --threshold 750
