@@ -28,6 +28,7 @@ CREATE TABLE misc.oss_ci_utilization_metadata
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(started_at)
 ORDER BY (workflow_id, job_id, started_at)
+-- data exists in the db for a year.
 -- time to live is based on created_at which is when the record is inserted in db.
 TTL toDate(created_at) + toIntervalYear(1)
 SETTINGS index_granularity = 8192
@@ -57,6 +58,7 @@ ORDER BY
         type,
         time_stamp,
     )
+-- data exists in the db for a year.
 -- time to live is based on created_at which is when the record is inserted in db.
 TTL toDate(created_at) + toIntervalYear(1)
 SETTINGS index_granularity = 8192
