@@ -44,6 +44,7 @@ CREATE TABLE misc.oss_ci_time_series(
     `workflow_template_id` UInt64,
     `job_name` String,
     -- the data stored as raw json string.
+    -- Notice in clickhouse the length of string type is not limited.
     `json_data` String,
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String),
