@@ -17,6 +17,7 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     `gpu_type` String DEFAULT 'None',
     `start_at` DateTime64(0, 'UTC'),
     `end_at` DateTime64(0, 'UTC'),
+    -- segments are post-job processed data to identify detected test intervals
     `segments` Array(Tuple(level String, name String, start_at DateTime64(0, 'UTC'), end_at DateTime64(0, 'UTC'), extra_info Map(String, String))),
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String)
