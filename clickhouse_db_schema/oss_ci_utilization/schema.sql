@@ -15,8 +15,8 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     `gpu_count` UInt32,
     `cpu_count` UInt32,
     `gpu_type` String DEFAULT 'None',
-    `started_at` DateTime64(0, 'UTC'),
-    `ended_at` DateTime64(0, 'UTC'),
+    `start_at` DateTime64(0, 'UTC'),
+    `end_at` DateTime64(0, 'UTC'),
     `segments` Array(Tuple(level String, name String, start_at DateTime64(0, 'UTC'), end_at DateTime64(0, 'UTC'), extra_info Map(String, String))),
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String)
