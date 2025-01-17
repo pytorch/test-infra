@@ -15,12 +15,9 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     -- metadata
     `usage_collect_interval` Float32,
     `data_model_version` String,
-    `runner_info` Tuple(
-        gpu_count UInt32,
-        cpu_count UInt32,
-        gpu_types Array(String),
-        extra_info Map(String, String)
-    ),
+    `gpu_count` UInt32,
+    `cpu_count` UInt32,
+    `gpu_type` String,
     `segments` Array(Tuple(level String, name String, start_at DateTime64(0, 'UTC'), end_at DateTime64(0, 'UTC'), extra_info Map(String, String))),
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String)
@@ -36,12 +33,13 @@ SETTINGS index_granularity = 8192
 CREATE TABLE misc.oss_ci_time_series(
      -- created_at DateTime when the record is processed in db.
     `created_at` DateTime64(0,'UTC'),
+    -- type of time series, for instance, utilization log data is 'utilization'.
+    `type` String,
+    `tags` Array(string),
     `time_stamp` DateTime64(0,'UTC'),
     `workflow_id` UInt64,
     `job_id` UInt64,
     `run_attempt` UInt32,
-    -- type of time series, for instance, utilization log data is 'utilization'.
-    `type` String,
     `workflow_template_id` UInt64,
     `job_name` String,
     -- the data stored as raw json string.
