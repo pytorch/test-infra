@@ -532,9 +532,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     is_pr_comment: boolean = true
   ) {
     let args;
+    let split_args: string[] = [];
+
     try {
       const parser = getParser();
-      args = parser.parse_args(shlex.split(inputArgs));
+
+      split_args = shlex.split(inputArgs);
+      args = parser.parse_args(split_args);
     } catch (err: any) {
       // If the args are invalid, comment with the error + some help.
       await this.addComment(
@@ -546,7 +550,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       return;
     }
 
-    if (args.help) {
+    // if help is present as an option on the main command, or -h or --help is in any location in the args (parseargs fails to get -h at the start of the args)
+    if (
+      args.help ||
+      split_args.includes("-h") ||
+      split_args.includes("--help")
+    ) {
       return await this.addComment(getHelp());
     }
 
