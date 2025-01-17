@@ -1562,6 +1562,56 @@ some other text lol
 
     handleScope(scope);
   });
+
+  test("pytorchmergebot -h rebase command on pull request prints help message and does not execute rebase", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot -h rebase";
+    event.payload.comment.user.login = "wdvr";
+    event.payload.issue.user.login = "random";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch."
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("pytorchmergebot rebase -h command on pull request prints help message and does not execute rebase", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot rebase -h";
+    event.payload.comment.user.login = "wdvr";
+    event.payload.issue.user.login = "random";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch."
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
 });
 
 describe("merge-bot not supported repo", () => {
