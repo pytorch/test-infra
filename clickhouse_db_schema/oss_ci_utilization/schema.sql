@@ -30,6 +30,7 @@ ORDER BY (workflow_id, job_id, started_at)
 TTL toDate(created_at) + toIntervalYear(1)
 SETTINGS index_granularity = 8192
 
+-- This query creates the oss_ci_time_series table on ClickHouse
 CREATE TABLE misc.oss_ci_time_series(
      -- created_at DateTime when the record is processed in db.
     `created_at` DateTime64(0,'UTC'),
