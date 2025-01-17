@@ -32,6 +32,7 @@ jobs:
           pip3 install -r tools/binary_size_validation/requirements.txt
       - name: Run validation
         run: |
+          # shellcheck disable=SC2086
           python tools/binary_size_validation/binary_size_validation.py \
               --url https://download.pytorch.org/whl/${CHANNEL}/cu124/torch/ \
               --include "linux" --only-latest-version --threshold 750
