@@ -1,5 +1,3 @@
-"""Adapter for https://github.com/charliermarsh/ruff."""
-
 from __future__ import annotations
 
 import argparse
@@ -14,11 +12,8 @@ import sys
 import time
 from typing import Any, BinaryIO
 
-from tools.linter.adapters.ruff_linter import SYNTAX_ERROR
-
 
 LINTER_CODE = "CLICKHOUSE"
-SYNTAX_ERROR = "E999"
 IS_WINDOWS: bool = os.name == "nt"
 
 
@@ -26,14 +21,6 @@ def eprint(*args: Any, **kwargs: Any) -> None:
     """Print to stderr."""
     print(*args, file=sys.stderr, flush=True, **kwargs)
 
-
-class LintSeverity(str, enum.Enum):
-    """Severity of a lint message."""
-
-    ERROR = "error"
-    WARNING = "warning"
-    ADVICE = "advice"
-    DISABLED = "disabled"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -44,7 +31,6 @@ class LintMessage:
     line: int | None
     char: int | None
     code: str
-    severity: LintSeverity
     name: str
     original: str | None
     replacement: str | None
@@ -151,55 +137,13 @@ def add_default_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def explain_rule(code: str) -> str:
-    proc = run_command(
-        ["ruff", "rule", "--output-format=json", code],
-        check=True,
-    )
-    rule = json.loads(str(proc.stdout, "utf-8").strip())
-    return f"\n{rule['linter']}: {rule['summary']}"
-
-
-def get_issue_severity(code: str) -> LintSeverity:
-    # "B901": `return x` inside a generator
-    # "B902": Invalid first argument to a method
-    # "B903": __slots__ efficiency
-    # "B950": Line too long
-    # "C4": Flake8 Comprehensions
-    # "C9": Cyclomatic complexity
-    # "E2": PEP8 horizontal whitespace "errors"
-    # "E3": PEP8 blank line "errors"
-    # "E5": PEP8 line length "errors"
-    # "T400": type checking Notes
-    # "T49": internal type checker errors or unmatched messages
-    if any(
-        code.startswith(x)
-        for x in (
-            "B9",
-            "C4",
-            "C9",
-            "E2",
-            "E3",
-            "E5",
-            "T400",
-            "T49",
-            "PLC",
-            "PLR",
-        )
-    ):
-        return LintSeverity.ADVICE
-
-    # "F821": Undefined name
-    # "E999": syntax error
-    if any(code.startswith(x) for x in ("F821", SYNTAX_ERROR, "PLE")):
-        return LintSeverity.ERROR
-
-    # "F": PyFlakes Error
-    # "B": flake8-bugbear Error
-    # "E": PEP8 "Error"
-    # "W": PEP8 Warning
-    # possibly other plugins...
-    return LintSeverity.WARNING
+# def explain_rule(code: str) -> str:
+#     proc = run_command(
+#         ["clickhouse", "rule", "--output-format=json", code],
+#         check=True,
+#     )
+#     rule = json.loads(str(proc.stdout, "utf-8").strip())
+#     return f"\n{rule['linter']}: {rule['summary']}"
 
 
 def format_lint_message(
@@ -207,27 +151,26 @@ def format_lint_message(
 ) -> str:
     if rules:
         message += f".\n{rules.get(code) or ''}"
-    message += ".\nSee https://beta.ruff.rs/docs/rules/"
+    message += (
+        ".\nSee https://clickhouse.com/docs/en/operations/utilities/clickhouse-format"
+    )
     if show_disable:
         message += f".\n\nTo disable, use `  # noqa: {code}`"
     return message
 
 
-def check_files(
-    filenames: list[str],
-    severities: dict[str, LintSeverity],
-    *,
-    config: str | None,
-    retries: int,
-    timeout: int,
-    explain: bool,
-    show_disable: bool,
-) -> list[LintMessage]:
+# def check_files(
+#     filenames: list[str],
+#     *,
+#     config: str | None,
+#     retries: int,
+#     timeout: int,
+#     explain: bool,
+#     show_disable: bool,
+# ) -> list[LintMessage]:
     try:
         proc = run_command(
             [
-                sys.executable,
-                "-m",
                 "clickhouse-format",
                 "--query",
                 '"',
@@ -245,7 +188,6 @@ def check_files(
                 line=None,
                 char=None,
                 code=LINTER_CODE,
-                severity=LintSeverity.ERROR,
                 name="command-failed",
                 original=None,
                 replacement=None,
@@ -272,7 +214,7 @@ def check_files(
         rules = {}
 
     def lint_message(vuln: dict[str, Any]) -> LintMessage:
-        code = vuln["code"] or SYNTAX_ERROR
+        code = vuln["code"] 
         return LintMessage(
             path=vuln["filename"],
             name=code,
@@ -287,7 +229,6 @@ def check_files(
             line=int(vuln["location"]["row"]),
             char=int(vuln["location"]["column"]),
             code=LINTER_CODE,
-            severity=severities.get(code, get_issue_severity(code)),
             original=None,
             replacement=None,
         )
@@ -309,7 +250,6 @@ def check_file_for_fixes(
             proc_fix = run_command(
                 [
                     sys.executable,
-                    "-m",
                     "clickhouse-format",
                     "--query",
                     '"',
@@ -328,7 +268,6 @@ def check_file_for_fixes(
                 line=None,
                 char=None,
                 code=LINTER_CODE,
-                severity=LintSeverity.ERROR,
                 name="command-failed",
                 original=None,
                 replacement=None,
@@ -357,7 +296,6 @@ def check_file_for_fixes(
             line=None,
             char=None,
             code=LINTER_CODE,
-            severity=LintSeverity.WARNING,
             original=original.decode("utf-8"),
             replacement=replacement.decode("utf-8"),
         )
@@ -369,15 +307,7 @@ def main() -> None:
         description=f"Clickhouse format linter. Linter code: {LINTER_CODE}. Use with CLICKHOUSE-FIX to auto-fix issues.",
         fromfile_prefix_chars="@",
     )
-    parser.add_argument(
-        "--query",
-        default="store-true",
-        help="Format queries of any length and complexity.",
-    )
-    parser.add_argument(
-        "--help",
-        help="produce help message",
-    )
+
     add_default_options(parser)
     args = parser.parse_args()
 
@@ -391,30 +321,21 @@ def main() -> None:
         stream=sys.stderr,
     )
 
-    severities: dict[str, LintSeverity] = {}
-    if args.severity:
-        for severity in args.severity:
-            parts = severity.split(":", 1)
-            assert len(parts) == 2, f"invalid severity `{severity}`"
-            severities[parts[0]] = LintSeverity(parts[1])
+    #trying this here since having issues with init_command'
+    run_command(
+                [
+                    sys.executable,
+                    '-m',
+                    'pip',
+                    'install',
+                    'clickhouse',
+                ],
+                retries=0,
+                timeout=0,
+                check=True,
+            )
+    # run_command(["python3 -m pip install clickhouse"])             
 
-    lint_messages = check_files(
-        args.filenames,
-        severities=severities,
-        config=args.config,
-        retries=args.retries,
-        timeout=args.timeout,
-        explain=args.explain,
-        show_disable=args.show_disable,
-    )
-    for lint_message in lint_messages:
-        lint_message.display()
-
-    if args.no_fix or not lint_messages:
-        # If we're not fixing, we can exit early
-        return
-
-    files_with_lints = {lint.path for lint in lint_messages if lint.path is not None}
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=os.cpu_count(),
         thread_name_prefix="Thread",
@@ -423,11 +344,11 @@ def main() -> None:
             executor.submit(
                 check_file_for_fixes,
                 path,
-                config=args.config,
-                retries=args.retries,
-                timeout=args.timeout,
+                config='',
+                retries=0,
+                timeout=90,
             ): path
-            for path in files_with_lints
+            for path in args.filenames
         }
         for future in concurrent.futures.as_completed(futures):
             try:
