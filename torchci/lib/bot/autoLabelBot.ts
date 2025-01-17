@@ -150,7 +150,9 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/pytorch": [
     [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
     [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
+    [/torch\/_inductor\/codegen\/mps.py/gi, "ciflow/mps"],
     [/test\/test_mps.py/gi, "ciflow/mps"],
+    [/test\/inductor\/test_mps_basic.py/gi, "ciflow/mps"],
   ],
   "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
 };
