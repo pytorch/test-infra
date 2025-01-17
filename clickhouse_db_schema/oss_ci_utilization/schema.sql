@@ -26,14 +26,14 @@ PARTITION BY toYYYYMM(started_at)
 ORDER BY (workflow_id, job_id, started_at)
 SETTINGS index_granularity = 8192
 
-CREATE TABLE misc.oss_ci_utilization_time_series(
+CREATE TABLE misc.oss_ci_time_series(
      -- created_at DateTime when the record is processed in db.
     `created_at` DateTime64(0,'UTC'),
     `time_stamp` DateTime64(0,'UTC'),
     `workflow_id` UInt64,
     `job_id` UInt64,
     `run_attempt` UInt32,
-    -- the type of time series, for utilization
+    -- type of time series
     `type` String,
     `workflow_template_id` UInt64,
     `job_name` String,
@@ -47,5 +47,6 @@ ORDER BY
     (
         workflow_id,
         job_id,
+        type,
         time_stamp,
     ) SETTINGS index_granularity = 8192
