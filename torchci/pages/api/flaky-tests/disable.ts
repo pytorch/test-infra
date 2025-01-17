@@ -29,8 +29,7 @@ export default async function handler(
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
     await disableFlakyTestsAndReenableNonFlakyTests();
     res.status(200).end();
-  }
-  else {
+  } else {
     res.status(403).end();
   }
 }
