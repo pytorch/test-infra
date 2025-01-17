@@ -1,4 +1,4 @@
--- This query creates the oss_ci_benchmark_v3 table on ClickHouse
+-- This query creates the oss_ci_utilization_metadata table on ClickHouse
 CREATE TABLE misc.oss_ci_utilization_metadata
 (
     -- time stamp info
