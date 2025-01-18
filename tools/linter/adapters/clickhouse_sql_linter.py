@@ -62,11 +62,26 @@ def run_command(
 
 def check_file(
     binary: str,
-    file: str,
+    filename: str,
 ) -> List[LintMessage]:
+    with open(filename) as f:
+        original = f.read()
+
     try:
-        proc = run_command([binary, '--format','--query', file])
+        proc = run_command(
+            [
+                binary,
+                "--format",
+                "--comments",
+                "--max_line_length",
+                "80",
+                "--query",
+                original,
+            ]
+        )
     except OSError as err:
+        with open("debug.txt", "a") as f:
+            print("HERE", file=f)
         return [
             LintMessage(
                 path=None,
@@ -80,20 +95,23 @@ def check_file(
                 description=(f"Failed due to {err.__class__.__name__}:\n{err}"),
             )
         ]
-    stdout = str(proc.stdout, "utf-8").strip()
+
+    replacement = proc.stdout
+    if original == replacement:
+        return []
+
     return [
         LintMessage(
-            path=match["file"],
-            name=match["code"],
-            description=match["message"],
-            line=int(match["line"]),
-            char=int(match["char"]),
+            path=filename,
+            line=None,
+            char=None,
             code=LINTER_CODE,
-            severity=LintSeverity.ERROR,
-            original=None,
-            replacement=replacement,
+            severity=LintSeverity.WARNING,
+            name="format",
+            original=original,
+            replacement=replacement.decode("utf-8"),
+            description="See https://clickhouse.com/docs/en/operations/utilities/clickhouse-format.\nRun `lintrunner -a` to apply this patch.",
         )
-        for match in RESULTS_RE.finditer(stdout)
     ]
 
 
@@ -114,7 +132,6 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-
 
     if not os.path.exists(args.binary):
         err_msg = LintMessage(
@@ -153,6 +170,7 @@ def main() -> None:
             except Exception:
                 logging.critical('Failed at "%s".', futures[future])
                 raise
+
 
 if __name__ == "__main__":
     main()
