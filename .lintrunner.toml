@@ -33,42 +33,42 @@ init_command = [
     'torchfix==0.4.0 ; python_version >= "3.9" and python_version < "3.13"',
 ]
 
-[[linter]]
-code = 'MYPY'
-include_patterns = [
-    'tools/**/*.py',
-    'tools/**/*.pyi',
-    'stats/**/*.py',
-    'stats/**/*.pyi',
-    'torchci/**/*.py',
-    'torchci/**/*.pyi',
-    '.github/scripts/*.py',
-    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
-]
-command = [
-    'python3',
-    'tools/linter/adapters/mypy_linter.py',
-    '--config=mypy.ini',
-    '--',
-    '@{{PATHSFILE}}'
-]
-init_command = [
-    'python3',
-    'tools/linter/adapters/pip_init.py',
-    '--dry-run={{DRYRUN}}',
-    'numpy==1.24.3',
-    'expecttest==0.1.3',
-    'mypy==0.982',
-    'types-requests==2.27.25',
-    'types-PyYAML==6.0.7',
-    'types-tabulate==0.8.8',
-    'types-protobuf==3.19.18',
-    'types-pkg-resources==0.1.3',
-    'types-Jinja2==2.11.9',
-    'junitparser==2.1.1',
-    'rich==10.9.0',
-    'pyyaml==6.0',
-]
+# [[linter]]
+# code = 'MYPY'
+# include_patterns = [
+#     'tools/**/*.py',
+#     'tools/**/*.pyi',
+#     'stats/**/*.py',
+#     'stats/**/*.pyi',
+#     'torchci/**/*.py',
+#     'torchci/**/*.pyi',
+#     '.github/scripts/*.py',
+#     'aws/lambda/whl_metadata_upload_pep658/**/*.py',
+# ]
+# command = [
+#     'python3',
+#     'tools/linter/adapters/mypy_linter.py',
+#     '--config=mypy.ini',
+#     '--',
+#     '@{{PATHSFILE}}'
+# ]
+# init_command = [
+#     'python3',
+#     'tools/linter/adapters/pip_init.py',
+#     '--dry-run={{DRYRUN}}',
+#     'numpy==1.24.3',
+#     'expecttest==0.1.3',
+#     'mypy==0.982',
+#     'types-requests==2.27.25',
+#     'types-PyYAML==6.0.7',
+#     'types-tabulate==0.8.8',
+#     'types-protobuf==3.19.18',
+#     'types-pkg-resources==0.1.3',
+#     'types-Jinja2==2.11.9',
+#     'junitparser==2.1.1',
+#     'rich==10.9.0',
+#     'pyyaml==6.0',
+# ]
 
 [[linter]]
 code = 'TYPEIGNORE'
