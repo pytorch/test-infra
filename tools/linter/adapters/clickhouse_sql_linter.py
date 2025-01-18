@@ -91,7 +91,7 @@ def check_file(
             code=LINTER_CODE,
             severity=LintSeverity.ERROR,
             original=None,
-            replacement='CAMYLL',
+            replacement=replacement,
         )
         for match in RESULTS_RE.finditer(stdout)
     ]
