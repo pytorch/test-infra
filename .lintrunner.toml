@@ -340,21 +340,24 @@ is_formatter = true
 
 [[linter]]
 code = 'CLICKHOUSE'
-include_patterns = ['**/torchci/clickhouse_queries/**/*.sql']
+include_patterns = ['torchci/clickhouse_queries/**/*.sql']
 exclude_patterns = [
 ]
 command = [
     'python3',
     'tools/linter/adapters/clickhouse_sql_linter.py',
-    '--',
-    '@{{PATHSFILE}}'
+    '--binary=.lintbin/clickhouse',
+    '@{{PATHSFILE}}',
 ]
-# init_command = [
-#     'python3',
-#     'tools/linter/adapters/pip_init.py',
-#     '--dry-run={{DRYRUN}}',
-#     'clickhouse==0.1.6',
-# ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/s3_init.py',
+    '--config-json=tools/linter/adapters/s3_init_config.json',
+    '--linter=clickhouse',
+    '--dry-run={{DRYRUN}}',
+    '--output-dir=.lintbin',
+    '--output-name=clickhouse',
+]
 is_formatter = true
 
 [[linter]]
