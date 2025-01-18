@@ -73,8 +73,6 @@ def check_file(
                 binary,
                 "--format",
                 "--comments",
-                "--max_line_length",
-                "80",
                 "--query",
                 original,
             ]
