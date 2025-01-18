@@ -78,8 +78,6 @@ def check_file(
             ]
         )
     except OSError as err:
-        with open("debug.txt", "a") as f:
-            print("HERE", file=f)
         return [
             LintMessage(
                 path=None,
