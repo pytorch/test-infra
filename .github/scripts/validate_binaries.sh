@@ -22,7 +22,7 @@ else
     fi
 
     if [[ ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
-        conda create -y -n ${ENV_NAME} python=3.13 python-freethreading
+        conda create -y -n ${ENV_NAME} python=3.13 python-freethreading -c conda-forge
         conda activate ${ENV_NAME}
         TORCH_ONLY='true'
     else
