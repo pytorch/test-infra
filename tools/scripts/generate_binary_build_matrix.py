@@ -435,6 +435,7 @@ def generate_wheels_matrix(
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+        python_versions += ["3.13t"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -448,6 +449,7 @@ def generate_wheels_matrix(
             # Only want the one arch as the CPU type is different and
             # uses different build/test scripts
             arches = [CPU_AARCH64, CUDA_AARCH64]
+            python_versions += ["3.13t"]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
