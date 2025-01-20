@@ -14,6 +14,12 @@ requires = [
 # Use legacy backend to import local packages in setup.py
 build-backend = "setuptools.build_meta:__legacy__"
 
+[tool.isort]
+lines_after_imports = 2
+multi_line_output = 3
+indent = 4
+include_trailing_comma = true
+combine_as_imports = true
 
 [tool.black]
 # Uncomment if pyproject.toml worked fine to ensure consistency with flake8

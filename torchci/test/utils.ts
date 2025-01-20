@@ -89,6 +89,25 @@ export function mockGetPR(repoFullName: string, prNumber: number, body: any) {
     .reply(200, body);
 }
 
+export function mockCreateIssue(
+  repoFullName: string,
+  title: string,
+  bodyContains: string[],
+  labels: string[]
+) {
+  return nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues`, (body) => {
+      expect(body.title).toEqual(title);
+      expect(body.labels.sort()).toEqual(labels.sort());
+      const bodyString = JSON.stringify(body.body);
+      for (const containedString of bodyContains) {
+        expect(bodyString).toContain(containedString);
+      }
+      return true;
+    })
+    .reply(200, {});
+}
+
 export function mockPostComment(
   repoFullName: string,
   prNumber: number,
@@ -131,18 +150,7 @@ export function mockHasApprovedWorkflowRun(repoFullName: string) {
     });
 }
 
-export function genIssueData(
-  nonDefaultInputs: {
-    number?: number;
-    title?: string;
-    html_url?: string;
-    state?: "open" | "closed";
-    body?: string;
-    updated_at?: string;
-    author_association?: string;
-    labels?: string[];
-  } = {}
-): IssueData {
+export function genIssueData(nonDefaultInputs: Partial<IssueData>): IssueData {
   return {
     number: 1,
     title: "test issue",
@@ -156,7 +164,9 @@ export function genIssueData(
   };
 }
 
-export function getDummyJob(nonDefaultInputs: any = {}): RecentWorkflowsData {
+export function getDummyJob(
+  nonDefaultInputs: Partial<RecentWorkflowsData>
+): RecentWorkflowsData {
   // Use this function to create a dummy job with default values
   if (
     (nonDefaultInputs.conclusion == "failure" ||

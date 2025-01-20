@@ -5,7 +5,6 @@ from functools import lru_cache
 from typing import Any, Dict, List
 
 import requests
-
 from torchci.clickhouse import query_clickhouse
 from torchci.utils import cache_json, run_command
 

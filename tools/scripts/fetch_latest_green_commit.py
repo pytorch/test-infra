@@ -1,13 +1,15 @@
 import json
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
-from torchci.clickhouse import query_clickhouse_saved
 from scripts.gitutils import _check_output
+from torchci.clickhouse import query_clickhouse_saved
+
 
 sys.path.pop(0)
 

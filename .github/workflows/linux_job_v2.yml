@@ -104,6 +104,10 @@ on:
         required: false
         default: false
         type: boolean
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   job:
     strategy:
@@ -111,10 +115,13 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
+        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
-                                                           || inputs.docker-image }}
+                                                            || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
+                                                                      inputs.gpu-arch-type,
+                                                                      inputs.gpu-arch-version)
+                                                            || inputs.docker-image }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
       # Will be blank outside of this
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -157,6 +164,11 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
+        if: ${{ inputs.gpu-arch-type != 'rocm' }}
+
+      - name: Setup ROCM
+        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        if: ${{ inputs.gpu-arch-type == 'rocm' }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
@@ -266,15 +278,30 @@ jobs:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
 
+      - name: configure aws credentials
+        id: aws_creds
+        if: ${{ inputs.gpu-arch-type == 'rocm' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_s3_and_ecr_read_only
+          aws-region: us-east-1
+          role-duration-seconds: 18000
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        if: ${{ inputs.gpu-arch-type == 'rocm' }}
+        continue-on-error: true
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Chown repository directory
-        if: always()
+        if: ${{ inputs.gpu-arch-type != 'rocm' }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
           ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
-        if: always()
+        if: ${{ inputs.gpu-arch-type != 'rocm' }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ runner.temp }}

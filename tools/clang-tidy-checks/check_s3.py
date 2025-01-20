@@ -8,10 +8,11 @@ lintrunner in pytorch/pytorch.  If you upload a new file, remember to add the
 s3 path and hash to the lintrunner s3 init config:
 https://github.com/pytorch/pytorch/blob/915625307eeda338fef00c984e223c5774c00a2b/tools/linter/adapters/s3_init_config.json#L1
 """
-import hashlib
-from urllib.request import Request, urlopen
+
 import argparse
+import hashlib
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 
 def download_s3_file(s3_key):

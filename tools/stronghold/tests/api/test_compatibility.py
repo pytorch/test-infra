@@ -4,9 +4,7 @@ from typing import Any, List
 
 import api.compatibility
 import api.violations
-
 import pytest
-
 from testing import git, source
 
 
@@ -19,7 +17,7 @@ def test_deleted_function(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, lambda: None)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.FunctionDeleted(func='func', line=1)
+        api.violations.FunctionDeleted(func="func", line=1)
     ]
 
 
@@ -39,7 +37,7 @@ def test_renamed_function(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, rose_by_any_other_name)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.FunctionDeleted(func='rose', line=1)
+        api.violations.FunctionDeleted(func="rose", line=1)
     ]
 
 
@@ -53,7 +51,7 @@ def test_deleted_method(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, lambda: None)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.FunctionDeleted(func='Class.func', line=1)
+        api.violations.FunctionDeleted(func="Class.func", line=1)
     ]
 
 
@@ -69,7 +67,7 @@ def test_deleted_variadic_args(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.VarArgsDeleted(func='func', line=1)
+        api.violations.VarArgsDeleted(func="func", line=1)
     ]
 
 
@@ -85,7 +83,7 @@ def test_deleted_variadic_kwargs(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.KwArgsDeleted(func='func', line=1)
+        api.violations.KwArgsDeleted(func="func", line=1)
     ]
 
 
@@ -433,8 +431,8 @@ def test_parameter_type_change_positional(tmp_path: pathlib.Path) -> None:
             func=func.__name__,
             parameter="a",
             line=1,
-            type_before='int',
-            type_after='str',
+            type_before="int",
+            type_after="str",
         )
     ]
 
@@ -455,8 +453,8 @@ def test_parameter_type_change_named(tmp_path: pathlib.Path) -> None:
             func=func.__name__,
             parameter="a",
             line=1,
-            type_before='int',
-            type_after='str',
+            type_before="int",
+            type_after="str",
         )
     ]
 
@@ -476,14 +474,14 @@ def test_no_parameter_type_change_generic(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.parametrize(
-    'path',
+    "path",
     [
-        'python.cpp',
-        '_internal/module.py',
-        '_module.py',
-        'test/module.py',
-        'test_module.py',
-        'module_test.py',
+        "python.cpp",
+        "_internal/module.py",
+        "_module.py",
+        "test/module.py",
+        "test_module.py",
+        "module_test.py",
     ],
 )
 def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
@@ -491,34 +489,34 @@ def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
         git_repo,
         pathlib.Path(path),
         textwrap.dedent(
-            '''
+            """
             def will_be_deleted():
               pass
-            '''
+            """
         ),
     )
-    git.commit_file(git_repo, pathlib.Path(path), '')
-    violations = api.compatibility.check_range(git_repo, head='HEAD', base='HEAD~')
+    git.commit_file(git_repo, pathlib.Path(path), "")
+    violations = api.compatibility.check_range(git_repo, head="HEAD", base="HEAD~")
     assert violations == {}
 
 
 def test_check_range(git_repo: api.git.Repository) -> None:
     git.commit_file(
         git_repo,
-        pathlib.Path('module.py'),
+        pathlib.Path("module.py"),
         textwrap.dedent(
-            '''
+            """
             def will_be_deleted():
               pass
-            '''
+            """
         ),
     )
-    git.commit_file(git_repo, pathlib.Path('module.py'), '')
+    git.commit_file(git_repo, pathlib.Path("module.py"), "")
 
-    violations = api.compatibility.check_range(git_repo, head='HEAD', base='HEAD~')
+    violations = api.compatibility.check_range(git_repo, head="HEAD", base="HEAD~")
 
     assert violations == {
-        pathlib.Path('module.py'): [
-            api.violations.FunctionDeleted(func='will_be_deleted', line=1)
+        pathlib.Path("module.py"): [
+            api.violations.FunctionDeleted(func="will_be_deleted", line=1)
         ],
     }

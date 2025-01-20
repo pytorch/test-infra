@@ -12,6 +12,7 @@ name: Validate manywheel binaries
 #  * optionally upload the repackaged binaries as artifacts (for debug or promotion)
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - .github/workflows/validate-repackaged-binary-sizes.yml

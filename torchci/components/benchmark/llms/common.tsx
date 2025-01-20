@@ -14,7 +14,9 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   token_per_sec: "Token per second",
   flops_utilization: "FLOPs utilization",
   "compilation_time(s)": "Compilation Time (s)",
-  speedup: "Speedup",
+  compile_vs_eager_speedup: "Compile vs eager speedup",
+  autoquant_vs_compile_speedup: "Autoquant vs compile speedup",
+  eager_speedup: "Eager speedup",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -53,6 +55,7 @@ export interface LLMsBenchmarkData {
   device: string;
   arch: string;
   display?: string;
+  use_torch_compile?: boolean;
 }
 
 export interface BranchAndCommitPerfData extends BranchAndCommit {

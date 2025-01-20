@@ -1,41 +1,55 @@
 #!/usr/bin/env python3
-from typing import Dict, List
-from subprocess import check_output
 import os
 import sys
+from subprocess import check_output
+from typing import Dict, List
 
 
 def get_defined_symbols(fname: str, verbose: bool = False) -> Dict[str, int]:
     if verbose:
-        print(f"Processing {fname}...", end='', flush=True)
-    if sys.platform == 'darwin':
-        lines = check_output(['nm', '--defined-only', '-n', fname]).decode('ascii').split("\n")[:-1]
+        print(f"Processing {fname}...", end="", flush=True)
+    if sys.platform == "darwin":
+        lines = (
+            check_output(["nm", "--defined-only", "-n", fname])
+            .decode("ascii")
+            .split("\n")[:-1]
+        )
         rc = {}
         for idx, line in enumerate(lines):
-            addr, stype, name = line.split(' ')
-            size = 4 if idx + 1 == len(lines) else (int(lines[idx + 1].split(' ')[0], 16) - int(addr, 16))
+            addr, stype, name = line.split(" ")
+            size = (
+                4
+                if idx + 1 == len(lines)
+                else (int(lines[idx + 1].split(" ")[0], 16) - int(addr, 16))
+            )
             rc[name] = size
     else:
-        lines = check_output(['nm', '--print-size', '--defined-only', fname]).decode('ascii').split('\n')
-        rc = {e[3]: int(e[1], 16) for e in [line.split() for line in lines] if len(e) == 4}
+        lines = (
+            check_output(["nm", "--print-size", "--defined-only", fname])
+            .decode("ascii")
+            .split("\n")
+        )
+        rc = {
+            e[3]: int(e[1], 16) for e in [line.split() for line in lines] if len(e) == 4
+        }
     if verbose:
         print("done")
     return rc
 
 
 def get_deps(fname: str) -> List[str]:
-    if sys.platform == 'darwin':
+    if sys.platform == "darwin":
         rc = []
-        lines = check_output(['otool', '-l', fname]).decode('ascii').split("\n")[1:-1]
+        lines = check_output(["otool", "-l", fname]).decode("ascii").split("\n")[1:-1]
         for idx, line in enumerate(lines):
-            if line.strip() != 'cmd LC_LOAD_DYLIB':
+            if line.strip() != "cmd LC_LOAD_DYLIB":
                 continue
             path = lines[idx + 2].strip()
-            assert path.startswith('name')
-            rc.append(os.path.basename(path.split(' ')[1]))
+            assert path.startswith("name")
+            rc.append(os.path.basename(path.split(" ")[1]))
         return rc
-    lines = check_output(['readelf', '--dynamic', fname]).decode('ascii').split('\n')
-    return [line.split('[')[1][:-1] for line in lines if '(NEEDED)' in line]
+    lines = check_output(["readelf", "--dynamic", fname]).decode("ascii").split("\n")
+    return [line.split("[")[1][:-1] for line in lines if "(NEEDED)" in line]
 
 
 def humansize(size):
@@ -85,14 +99,18 @@ def print_symbols_overlap(libname1: str, libname2: str) -> None:
     sym_overlap = set(sym1.keys()).intersection(set(sym2.keys()))
     overlap_size = sum(sym1[s] for s in sym_overlap)
     if overlap_size == 0:
-        print(f"{libname1} symbols size {humansize(sym1_size)} does not overlap with {libname2}")
+        print(
+            f"{libname1} symbols size {humansize(sym1_size)} does not overlap with {libname2}"
+        )
         return
-    print(f"{libname1} symbols size {humansize(sym1_size)} overlap {humansize(overlap_size)} ({100.0 * overlap_size/sym1_size :.2f}%)")
+    print(
+        f"{libname1} symbols size {humansize(sym1_size)} overlap {humansize(overlap_size)} ({100.0 * overlap_size/sym1_size :.2f}%)"
+    )
     for sym in sym_overlap:
         print(sym)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) == 3:
         print_symbols_overlap(sys.argv[1], sys.argv[2])
     else:

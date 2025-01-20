@@ -4,11 +4,12 @@ import gzip
 import json
 import os
 from typing import Any
-from warnings import warn
 from urllib.request import urlopen
+from warnings import warn
 
 import boto3
 from octokit import Octokit
+
 
 S3 = boto3.resource("s3")
 BUCKET_NAME = "ossci-raw-job-status"
@@ -22,7 +23,9 @@ def json_dumps(body: Any) -> str:
     return json.dumps(body, sort_keys=True, indent=4, separators=(",", ": "))
 
 
-def upload_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion: str) -> None:
+def upload_log(
+    client: Octokit, owner: str, repo: str, job_id: int, conclusion: str
+) -> None:
     # This logic is copied from github-status-test lambda function
     log = client.actions.download_job_logs_for_workflow_run(
         owner=owner, repo=repo, job_id=job_id
@@ -48,8 +51,8 @@ def upload_log(client: Octokit, owner: str, repo: str, job_id: int, conclusion: 
         )
     except Exception as error:
         warn(
-            f"Failed to upload {log} for job {job_id} from repo {owner}/{repo}: " +
-            f"{error}, skipping..."
+            f"Failed to upload {log} for job {job_id} from repo {owner}/{repo}: "
+            + f"{error}, skipping..."
         )
 
 
@@ -104,8 +107,8 @@ def process_workflow_run(
         response = client.actions.list_jobs_for_workflow_run(**params).json
         if not response:
             warn(
-                f"Fetching workflow_job for run {run_id} from repo {owner}/{repo} " +
-                f"with {params} returns no response, skipping..."
+                f"Fetching workflow_job for run {run_id} from repo {owner}/{repo} "
+                + f"with {params} returns no response, skipping..."
             )
             return
 
@@ -137,7 +140,9 @@ def process_workflow_run(
         params["page"] += 1
 
 
-def backfill(owner: str, repo: str, event: str, branch: str = "", limit: int = 0) -> None:
+def backfill(
+    owner: str, repo: str, event: str, branch: str = "", limit: int = 0
+) -> None:
     token = os.environ.get("GITHUB_TOKEN", "")
     client = Octokit(auth="token", token=token)
     count = 0

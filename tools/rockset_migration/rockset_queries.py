@@ -19,10 +19,10 @@ import datetime
 import json
 import os
 from pathlib import Path
-
 from typing import Any, Dict, List, NamedTuple
 
 import requests
+
 
 ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
 
@@ -249,16 +249,13 @@ def backup_lambdas(queries: Dict[str, LambdaQuery], dir: Path) -> None:
 # In[ ]:
 
 if __name__ == "__main__":
-
     queries = get_query_lambdas()
 
     # In[ ]:
 
-
     backup_lambdas(queries, Path("lambdas_backup"))
 
     # In[ ]:
-
 
     prob_unneeded = {
         **not_run(queries),
@@ -266,7 +263,6 @@ if __name__ == "__main__":
     }
 
     # In[ ]:
-
 
     # This code will be used to delete unused lambads, 10 at a time
 
@@ -283,7 +279,6 @@ if __name__ == "__main__":
 
     # In[ ]:
 
-
     important_queries = not_in(queries, prob_unneeded)
 
     len(have_human_descriptions(important_queries))
@@ -295,7 +290,6 @@ if __name__ == "__main__":
             query.printfields(fields)
             print()
 
-
     def print_query_descriptions(queries: Dict[str, LambdaQuery]) -> None:
         for query in queries.values():
             print(f"{query.workspace}.{query.name}", end="")
@@ -306,14 +300,10 @@ if __name__ == "__main__":
             else:
                 print()
 
-
     occasionally_run = not_in(important_queries, queries_run_recently(queries, 7))
     len(occasionally_run)
 
-
-
     # In[ ]:
-
 
     collections = get_collections()
     len(collections)
@@ -330,7 +320,6 @@ if __name__ == "__main__":
             used_collections.update(query.collections)
         return {k: v for k, v in collections.items() if k not in used_collections}
 
-
     def used_collections(
         collections: Dict[str, Collections], queries: Dict[str, LambdaQuery]
     ) -> Dict[str, Collections]:
@@ -338,7 +327,6 @@ if __name__ == "__main__":
         for query in queries.values():
             used_collections.update(query.collections)
         return {k: v for k, v in collections.items() if k in used_collections}
-
 
     print("Used collections:")
     for collection in used_collections(collections, important_queries).values():

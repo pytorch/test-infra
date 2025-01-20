@@ -1,5 +1,4 @@
 import pytest
-
 from pytorch_pkg_helpers.macos import get_macos_variables
 
 

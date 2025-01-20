@@ -2,7 +2,6 @@
 
 import argparse
 import collections
-
 import re
 import typing
 

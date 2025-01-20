@@ -3,6 +3,7 @@ from unittest import main, mock, TestCase
 
 from tools.scripts.fetch_latest_green_commit import is_green, WorkflowCheck
 
+
 workflow_names = [
     "pull",
     "trunk",

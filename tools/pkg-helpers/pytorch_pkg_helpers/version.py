@@ -1,9 +1,9 @@
 import re
 import subprocess
-
 from datetime import datetime
 from pathlib import Path
 from typing import List
+
 
 LEADING_V_PATTERN = re.compile("^v")
 TRAILING_RC_PATTERN = re.compile("-rc[0-9]*$")
@@ -104,7 +104,11 @@ def get_version_variables(
 ) -> List[str]:
     version = PytorchVersion(
         gpu_arch_version=gpu_arch_version,
-        no_build_suffix=(platform == "darwin" or platform == "linux-aarch64" or package_type == "conda"),
+        no_build_suffix=(
+            platform == "darwin"
+            or platform == "linux-aarch64"
+            or package_type == "conda"
+        ),
         base_build_version=base_build_version,
     )
     output_version = version.get_nightly_version()

@@ -9,15 +9,13 @@ import argparse
 import copy
 import json
 import os
-
 import urllib.request
 from pathlib import Path
-
 from typing import Any, cast, Dict, List, NamedTuple
 
 import jsonschema
-
 import yaml
+
 
 MAX_AVAILABLE_MINIMUM = 50
 
