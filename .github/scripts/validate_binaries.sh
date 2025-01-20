@@ -85,7 +85,7 @@ else
         export DESIRED_DEVTOOLSET="cxx11-abi"
 
         # TODO: enable torch-compile on ROCM
-        if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm"]]; then
+        if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm" ]]; then
             TEST_SUFFIX=${TEST_SUFFIX}" --torch-compile-check disabled"
         fi
     fi
