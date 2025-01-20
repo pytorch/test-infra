@@ -31,54 +31,54 @@ ORDER BY
 
 CREATE MATERIALIZED VIEW benchmark.oss_ci_benchmark_metadata_mv TO benchmark.oss_ci_benchmark_metadata AS
 SELECT
-    o.repo AS repo,
-    o.benchmark.name AS benchmark_name,
-    o.benchmark.dtype AS benchmark_dtype,
-    o.model.name AS model_name,
-    o.model.backend AS model_backend,
+    repo AS repo,
+    tupleElement(benchmark, 'name') AS benchmark_name,
+    tupleElement(benchmark, 'dtype') AS benchmark_dtype,
+    tupleElement(model, 'name') AS model_name,
+    tupleElement(model, 'backend') AS model_backend,
     IF(
-        empty(o.runners),
-        tupleElement(o.benchmark, 'extra_info') [ 'device' ],
-        tupleElement(o.runners [ 1 ], 'name')
+        empty(runners),
+        tupleElement(benchmark, 'extra_info') [ 'device' ],
+        tupleElement(runners [ 1 ], 'name')
     ) AS device,
     IF(
-        empty(o.runners),
-        tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
-        tupleElement(o.runners [ 1 ], 'type')
+        empty(runners),
+        tupleElement(benchmark, 'extra_info') [ 'arch' ],
+        tupleElement(runners [ 1 ], 'type')
     ) AS arch,
-    o.metric.name AS metric_name,
-    o.head_branch AS head_branch,
-    o.head_sha AS head_sha,
-    o.workflow_id AS workflow_id,
-    o.timestamp AS timestamp
+    tupleElement(metric, 'name') AS metric_name,
+    head_branch AS head_branch,
+    head_sha AS head_sha,
+    workflow_id AS workflow_id,
+    timestamp AS timestamp
 FROM
-    benchmark.oss_ci_benchmark_v3 o;
+    benchmark.oss_ci_benchmark_v3
+WHERE
+    timestamp >= toUnixTimestamp(toDateTime('2025-01-20 22:45:00'));
 
 -- Below is the SQL query to backfill the view with all data from 2024 onward
 INSERT INTO
     benchmark.oss_ci_benchmark_metadata
 SELECT
-    o.repo AS repo,
-    o.benchmark.name AS benchmark_name,
-    o.benchmark.dtype AS benchmark_dtype,
-    o.model.name AS model_name,
-    o.model.backend AS model_backend,
+    repo AS repo,
+    tupleElement(benchmark, 'name') AS benchmark_name,
+    tupleElement(benchmark, 'dtype') AS benchmark_dtype,
+    tupleElement(model, 'name') AS model_name,
+    tupleElement(model, 'backend') AS model_backend,
     IF(
-        empty(o.runners),
-        tupleElement(o.benchmark, 'extra_info') [ 'device' ],
-        tupleElement(o.runners [ 1 ], 'name')
+        empty(runners),
+        tupleElement(benchmark, 'extra_info') [ 'device' ],
+        tupleElement(runners [ 1 ], 'name')
     ) AS device,
     IF(
-        empty(o.runners),
-        tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
-        tupleElement(o.runners [ 1 ], 'type')
+        empty(runners),
+        tupleElement(benchmark, 'extra_info') [ 'arch' ],
+        tupleElement(runners [ 1 ], 'type')
     ) AS arch,
-    o.metric.name AS metric_name,
-    o.head_branch AS head_branch,
-    o.head_sha AS head_sha,
-    o.workflow_id AS workflow_id,
-    o.timestamp AS timestamp
+    tupleElement(metric, 'name') AS metric_name,
+    head_branch AS head_branch,
+    head_sha AS head_sha,
+    workflow_id AS workflow_id,
+    timestamp AS timestamp
 FROM
-    benchmark.oss_ci_benchmark_v3 o
-WHERE
-    o.timestamp > toUnixTimestamp(toDateTime('2024-01-01 00:00:00'));
+    benchmark.oss_ci_benchmark_v3
