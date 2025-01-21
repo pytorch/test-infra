@@ -4,7 +4,7 @@ CREATE TABLE misc.oss_ci_time_series(
     `created_at` DateTime64(0,'UTC'),
     -- type of time series, for instance, utilization log data is 'utilization'.
     `type` String,
-    `tags` Array(String),
+    `tags` Array(String) DEFAULT [],
     `time_stamp` DateTime64(0,'UTC'),
     `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_id` UInt64,
@@ -14,7 +14,7 @@ CREATE TABLE misc.oss_ci_time_series(
     `job_name` String,
     -- the data stored as raw json string.
     -- Notice in clickhouse the length of string type is not limited.
-    `json_data` String,
+    `json_data` String DEFAULT '{}',
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String),
 )ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')

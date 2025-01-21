@@ -23,14 +23,14 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     `_meta` Tuple(bucket String, key String)
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
-PARTITION BY toYYYYMM(started_at)
+PARTITION BY toYYYYMM(start_at)
 ORDER BY (
     workflow_id,
     job_id,
     repo,
     workflow_name,
     job_name,
-    started_at)
+    start_at)
 -- data exists in the db for a year.
 -- time to live is based on created_at which is when the record is inserted in db.
 TTL toDate(created_at) + toIntervalYear(1)
