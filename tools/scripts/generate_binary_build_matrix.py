@@ -476,6 +476,9 @@ def generate_wheels_matrix(
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
 
+           if gpu_arch_type == "xpu" and python_version == "3.13t":
+              continue
+
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             entry = {
                 "python_version": python_version,
