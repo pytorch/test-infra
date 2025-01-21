@@ -4,8 +4,8 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     `created_at` DateTime64(0, 'UTC'),
     -- github info
     `repo` String DEFAULT 'pytorch/pytorch',
-    `run_attempt` UInt32,
     `workflow_id` UInt64,
+    `run_attempt` UInt32,
     `job_id` UInt64,
     `workflow_name` String,
     `job_name` String,

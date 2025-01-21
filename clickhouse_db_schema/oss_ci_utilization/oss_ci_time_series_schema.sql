@@ -6,9 +6,10 @@ CREATE TABLE misc.oss_ci_time_series(
     `type` String,
     `tags` Array(String),
     `time_stamp` DateTime64(0,'UTC'),
+    `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_id` UInt64,
-    `job_id` UInt64,
     `run_attempt` UInt32,
+    `job_id` UInt64,
     `workflow_name` String,
     `job_name` String,
     -- the data stored as raw json string.
