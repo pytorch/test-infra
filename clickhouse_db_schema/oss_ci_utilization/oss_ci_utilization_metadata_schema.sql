@@ -12,8 +12,8 @@ CREATE TABLE misc.oss_ci_utilization_metadata
     -- metadata
     `usage_collect_interval` Float32,
     `data_model_version` String,
-    `gpu_count` UInt32 DEFAULT 0,
-    `cpu_count` UInt32 DEFAULT 0,
+    `gpu_count` UInt32,
+    `cpu_count` UInt32,
     `gpu_type` String DEFAULT 'None',
     `start_at` DateTime64(0, 'UTC'),
     `end_at` DateTime64(0, 'UTC'),
