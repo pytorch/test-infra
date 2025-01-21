@@ -1,11 +1,8 @@
-:root {
+.navbar {
   --navbar-bg-color: rgb(255, 227, 227);
   --navbar-bg-gradient: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
   --navbar-box-shadow: 0 -4px 20px 0px #c2c2c2;
   --navbar-dropdown-bg-color: white;
-}
-
-.navbar {
   display: flex;
   padding: 0 1rem;
   font: bold;
@@ -66,7 +63,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  .navbar {
     --navbar-bg-color: rgb(34, 34, 34);
     --navbar-bg-gradient: linear-gradient(326deg, rgb(45, 45, 45), rgb(34, 34, 34));
     --navbar-box-shadow: 0 -4px 20px 0px #000000;

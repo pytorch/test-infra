@@ -1,9 +1,6 @@
-:root {
+.announcementBanner {
   --announcement-border-color: black;
   --announcement-bg-color: #daedf4;
-}
-
-.announcementBanner {
   border: 1px solid var(--announcement-border-color);
   border-radius: 5px;
   background-color: var(--announcement-bg-color);
@@ -13,7 +10,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  .announcementBanner {
     --announcement-border-color: white;
     --announcement-bg-color: #2b2b2b;
   }
