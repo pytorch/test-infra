@@ -1,8 +1,9 @@
 import styles from "components/NavBar.module.css";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import LoginSection from "./LoginSection";
+import { DarkModeContext } from "../pages/_app"; // Import DarkModeContext
 
 const NavBarDropdown = ({
   title,
@@ -102,6 +103,8 @@ function NavBar() {
     },
   ];
 
+  const { isDarkMode, toggleDarkMode } = useContext(DarkModeContext); // Use DarkModeContext
+
   return (
     <div className={styles.navbar}>
       <div>
@@ -173,6 +176,11 @@ function NavBar() {
           </li>
           <li style={{ padding: "0 1rem" }}>
             <LoginSection></LoginSection>
+          </li>
+          <li>
+            <button onClick={toggleDarkMode}>
+              {isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            </button>
           </li>
         </ul>
       </div>

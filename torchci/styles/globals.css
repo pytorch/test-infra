@@ -1,7 +1,34 @@
+:root {
+  --background-color: #ffffff;
+  --text-color: #000000;
+  --link-color: #0064cf;
+  --code-background-color: aliceblue;
+  --button-background-color: #ffffff;
+  --button-text-color: #212529;
+  --button-border-color: transparent;
+  --button-border-radius: 0.25rem;
+  --button-active-background-color: green;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #121212;
+    --text-color: #ffffff;
+    --link-color: #1e90ff;
+    --code-background-color: #2b2b2b;
+    --button-background-color: #333333;
+    --button-text-color: #ffffff;
+    --button-border-color: #444444;
+    --button-active-background-color: #006400;
+  }
+}
+
 html {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 h1 {
@@ -11,10 +38,12 @@ h1 {
 body {
   margin: 0;
   padding: 5px;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 a {
-  color: inherit;
+  color: var(--link-color);
   text-decoration: none;
 }
 
@@ -23,34 +52,35 @@ a {
 }
 
 pre {
-  background-color: aliceblue;
+  background-color: var(--code-background-color);
 }
 
 code {
-  background-color: aliceblue;
+  background-color: var(--code-background-color);
 }
 
 a {
   text-decoration: none;
-  color: #0064cf;
+  color: var(--link-color);
 }
 
 button {
   cursor: pointer;
   display: inline-block;
   font-weight: 400;
-  color: #212529;
+  color: var(--button-text-color);
   text-align: center;
   vertical-align: middle;
   user-select: none;
-  border: 1px solid transparent;
-  border-radius: 0.25rem;
+  border: 1px solid var(--button-border-color);
+  border-radius: var(--button-border-radius);
+  background-color: var(--button-background-color);
 }
 
 .animate-on-click {
-  background-color: white;
+  background-color: var(--button-background-color);
 }
 
 .animate-on-click:active {
-  background-color: green;
+  background-color: var(--button-active-background-color);
 }

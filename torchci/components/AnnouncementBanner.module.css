@@ -1,8 +1,20 @@
+:root {
+  --announcement-border-color: black;
+  --announcement-bg-color: #daedf4;
+}
+
 .announcementBanner {
-  border: 1px solid black;
+  border: 1px solid var(--announcement-border-color);
   border-radius: 5px;
-  background-color: #daedf4;
+  background-color: var(--announcement-bg-color);
   padding: 10px;
   margin-bottom: 10px;
   margin-top: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --announcement-border-color: white;
+    --announcement-bg-color: #2b2b2b;
+  }
 }

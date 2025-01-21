@@ -1,10 +1,16 @@
+:root {
+  --navbar-bg-color: rgb(255, 227, 227);
+  --navbar-bg-gradient: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
+  --navbar-box-shadow: 0 -4px 20px 0px #c2c2c2;
+  --navbar-dropdown-bg-color: white;
+}
+
 .navbar {
   display: flex;
   padding: 0 1rem;
   font: bold;
-  background: rgb(255, 227, 227);
-  background: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
-  box-shadow: 0 -4px 20px 0px #c2c2c2;
+  background: var(--navbar-bg-gradient);
+  box-shadow: var(--navbar-box-shadow);
   width: 100%;
 }
 
@@ -51,10 +57,19 @@
 
 .dropdown {
   position: absolute;
-  box-shadow: 0 -4px 20px 0px #c2c2c2;
+  box-shadow: var(--navbar-box-shadow);
   z-index: 9999;
   min-width: 10rem;
   padding: 0.5rem 0;
-  background-color: white;
+  background-color: var(--navbar-dropdown-bg-color);
   display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --navbar-bg-color: rgb(34, 34, 34);
+    --navbar-bg-gradient: linear-gradient(326deg, rgb(45, 45, 45), rgb(34, 34, 34));
+    --navbar-box-shadow: 0 -4px 20px 0px #000000;
+    --navbar-dropdown-bg-color: #2b2b2b;
+  }
 }
