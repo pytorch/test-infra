@@ -49,7 +49,7 @@ CREATE TABLE misc.oss_ci_time_series(
     `json_data` String,
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String),
-)ENGINE = MergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
+)ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(time_stamp)
 ORDER BY
     (
