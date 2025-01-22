@@ -196,6 +196,6 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu124"
         fi
 
-        python3 -m pip install torch torchvision torchaudio --index-url ${DWN_PYTORCH_ORG}
+        python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
         python3 -c "import torch"
-        python3  ./smoke_test/smoke_test.py
+        python3  ./smoke_test/smoke_test.py --package torchonly
