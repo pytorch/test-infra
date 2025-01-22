@@ -77,7 +77,10 @@ export async function queryClickhouseSaved(
     `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
     "utf8"
   );
-  const paramsText = require(`clickhouse_queries/${queryName}/params.json`);
+  let paramsText = require(`clickhouse_queries/${queryName}/params.json`).params;
+  if (paramsText === undefined) {
+    paramsText = {};
+  }
 
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
