@@ -6,6 +6,7 @@ from typing import Generator
 
 from lambda_function import get_client, lambda_handler
 
+
 GENERATE_EVENT_HELP_TEXT = """
 Generate an test_event.json for all files in this s3 path and test the lambda
 function with this new test_event.json. The test_event.json does not have

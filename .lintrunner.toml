@@ -264,9 +264,17 @@ init_command = [
 code = 'PYFMT'
 include_patterns = [
     '**/*.py',
+    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
 ]
 exclude_patterns = [
-    'aws/lambda/**',
+    # 'aws/lambda/**',
+    'aws/lambda/usage-log-aggregator/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/log-classifier/**',
+    'aws/lambda/github-status-test/**',
+    'aws/lambda/gha-artifacts/**',
+    'aws/lambda/clickhouse-replicator-s3/**',
+    'aws/lambda/clickhouse-replicator-dynamo/**',
     's3_management/**',
 ]
 command = [

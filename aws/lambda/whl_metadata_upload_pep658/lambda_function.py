@@ -27,6 +27,19 @@ def upload_s3(bucket: str, key: str, filename: str, dry_run: bool) -> None:
         )
 
 
+def reupload_s3(bucket: str, key: str, dry_run: bool) -> None:
+    print(f"Reuploading {bucket}/{key} with checksum")
+    if not dry_run:
+        get_client(dry_run).copy_object(
+            ACL="public-read",
+            Bucket=bucket,
+            Key=key,
+            CopySource={"Bucket": bucket, "Key": key},
+            MetadataDirective="REPLACE",
+            ChecksumAlgorithm="SHA256",
+        )
+
+
 def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
     zip_location = "/tmp/wheel.zip"
     metadata_location = "/tmp/METADATA"
@@ -40,6 +53,21 @@ def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
 
         if os.path.exists(zip_location):
             os.remove(zip_location)
+
+        # Check if the binary has a checksum and reupload with a checksum if it
+        # doesn't. This is for pep503. This will retrigger the lambda, so it
+        # will return if it uploads and assume the next run of the lambda will
+        # handle the pep658 metadata upload.
+        if (
+            get_client(dry_run)
+            .head_object(Bucket=bucket, Key=key, ChecksumMode="ENABLED")
+            .get("ChecksumSHA256")
+            is not None
+        ):
+            print(f"Checksum already exists for {bucket}/{key}")
+        else:
+            reupload_s3(bucket, key, dry_run)
+            return
 
         get_client(dry_run).download_file(bucket, key, zip_location)
 

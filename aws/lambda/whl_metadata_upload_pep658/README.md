@@ -1,6 +1,10 @@
-This lambda is used on the pytorch AWS account to upload metadata files from whl
-to be used in [pep658].  They are then added to the index by
-[s3_management/manage.py][managepy].
+This lambda is used on the pytorch AWS account to upload the sha256 of binaries
+for [pep503] and metadata files from whl to be used in [pep658].  They are then
+added to the index by [s3_management/manage.py][managepy].
+
+If a binary does not have a sha256, the lambda reuploads the binary with the
+sha256 as metadata. If a binary does have a sha256, the lambda extracts the
+metatdata file and uploads it to s3.
 
 This account does not use terraform, so this is the source of truth for the
 code, and the configuration should be:
@@ -21,3 +25,4 @@ Please see `test_lambda_function.py`.
 
 [pep658]: https://peps.python.org/pep-0658/
 [managepy]: https://github.com/pytorch/test-infra/blob/73eea9088162354f937230cb518f19f50f557062/s3_management/manage.py
+[pep503]: https://peps.python.org/pep-0503/
