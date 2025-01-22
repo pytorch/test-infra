@@ -54,3 +54,45 @@ button {
 .animate-on-click:active {
   background-color: green;
 }
+
+/* CSS variables for light and dark themes */
+:root {
+  --background-color-light: #ffffff;
+  --background-color-dark: #121212;
+  --text-color-light: #000000;
+  --text-color-dark: #ffffff;
+  --link-color-light: #0064cf;
+  --link-color-dark: #bb86fc;
+  --code-background-color-light: aliceblue;
+  --code-background-color-dark: #2e2e2e;
+}
+
+/* Light theme styles */
+.light {
+  background-color: var(--background-color-light);
+  color: var(--text-color-light);
+}
+
+.light a {
+  color: var(--link-color-light);
+}
+
+.light pre,
+.light code {
+  background-color: var(--code-background-color-light);
+}
+
+/* Dark theme styles */
+.dark {
+  background-color: var(--background-color-dark);
+  color: var(--text-color-dark);
+}
+
+.dark a {
+  color: var(--link-color-dark);
+}
+
+.dark pre,
+.dark code {
+  background-color: var(--code-background-color-dark);
+}
