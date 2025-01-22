@@ -40,6 +40,14 @@ def reupload_s3(bucket: str, key: str, dry_run: bool) -> None:
         )
 
 
+def is_public(bucket: str, key: str) -> bool:
+    try:
+        get_client(True).head_object(Bucket=bucket, Key=key)
+        return True
+    except Exception:
+        return False
+
+
 def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
     zip_location = "/tmp/wheel.zip"
     metadata_location = "/tmp/METADATA"
@@ -49,6 +57,11 @@ def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
         if not key.endswith(".whl"):
             print(f"Skipping {bucket}/{key} as it is not a wheel")
             continue
+
+        if not is_public(bucket, key):
+            print(f"Skipping {bucket}/{key} as it is not public")
+            continue
+
         print(f"Processing {bucket}/{key}")
 
         if os.path.exists(zip_location):
