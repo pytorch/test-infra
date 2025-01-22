@@ -339,13 +339,13 @@ init_command = [
 is_formatter = true
 
 [[linter]]
-code = 'CLICKHOUSE'
+code = 'SQLFLUFF'
 include_patterns = ['torchci/clickhouse_queries/**/*.sql']
 exclude_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/clickhouse_sql_linter.py',
+    'tools/linter/adapters/sqlfluff_linter.py',
     '@{{PATHSFILE}}',
 ]
 init_command = [
