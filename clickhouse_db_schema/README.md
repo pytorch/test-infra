@@ -1,5 +1,5 @@
 # clickhouse db schema
-Table schemas used to create tables and materialized views in clickhouse.
+Table schemas used to create tables and materialized view tables in clickhouse.
 
 ## Add new table
 Currently we do not have automation to upstream the table schema to clickhouse.
