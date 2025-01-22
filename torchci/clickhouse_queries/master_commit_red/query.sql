@@ -6,7 +6,8 @@ with commits as (
     push.head_commit.'timestamp' as time,
     push.head_commit.'id' as sha
   from
-    push final
+    -- Not using final since push table doesn't really get updated
+    push
   where
     push.ref in ('refs/heads/master', 'refs/heads/main')
     and push.repository.'owner'.'name' = 'pytorch'
@@ -34,7 +35,7 @@ all_runs as (
 ),
 all_jobs AS (
   SELECT
-    workflow_run.time AS time,
+    all_runs.time AS time,
     CASE
       WHEN job.conclusion = 'failure' THEN 'red'
       WHEN job.conclusion = 'timed_out' THEN 'red'
@@ -42,9 +43,9 @@ all_jobs AS (
       WHEN job.conclusion = '' THEN 'pending'
       ELSE 'green'
     END as conclusion,
-    workflow_run.sha AS sha
+    all_runs.sha AS sha
   FROM
-    default.workflow_job job final join all_runs workflow_run on workflow_run.id = workflow_job.run_id
+    default.workflow_job job final join all_runs all_runs on all_runs.id = workflow_job.run_id
   WHERE
     job.name != 'ciflow_should_run'
     AND job.name != 'generate-test-matrix'
