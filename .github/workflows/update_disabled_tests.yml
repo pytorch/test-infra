@@ -112,7 +112,7 @@ jobs:
       - name: Upload files to s3
         if: github.event_name != 'pull_request'
         run: |
-          python3 -mpip install awscli==1.27.69
+          python3 -mpip install awscli==1.37.0
 
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json

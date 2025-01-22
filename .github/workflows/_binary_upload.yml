@@ -109,7 +109,7 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
 
-          pip install awscli==1.32.18
+          pip install awscli==1.37.0
 
           AWS_CMD="aws s3 cp --dryrun"
           if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
@@ -117,7 +117,7 @@ jobs:
           fi
 
           for pkg in dist/*; do
-            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read --checksum-algorithm SHA256
           done
 
       - name: Upload package to pypi
