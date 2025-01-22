@@ -61,20 +61,16 @@ def run_command(
 
 
 def check_file(
-    binary: str,
     filename: str,
 ) -> List[LintMessage]:
-    with open(filename) as f:
-        original = f.read()
-
     try:
         proc = run_command(
             [
-                binary,
-                "--format",
-                "--comments",
-                "--query",
-                original,
+                "sqlfluff",
+                "format",
+                "--dialect",
+                "clickhouse",
+                filename,
             ]
         )
     except OSError as err:
@@ -92,9 +88,7 @@ def check_file(
             )
         ]
 
-    replacement = proc.stdout
-    if original == replacement:
-        return []
+    lint_message = proc.stdout
 
     return [
         LintMessage(
@@ -104,9 +98,9 @@ def check_file(
             code=LINTER_CODE,
             severity=LintSeverity.WARNING,
             name="format",
-            original=original,
-            replacement=replacement.decode("utf-8"),
-            description="See https://clickhouse.com/docs/en/operations/utilities/clickhouse-format.\nRun `lintrunner -a` to apply this patch.",
+            original=None,
+            replacement=None,
+            description=lint_message.decode("utf-8"),
         )
     ]
 
@@ -121,31 +115,8 @@ def main() -> None:
         nargs="+",
         help="paths to lint",
     )
-    parser.add_argument(
-        "--binary",
-        required=True,
-        help="clickhouse binary path",
-    )
 
     args = parser.parse_args()
-
-    if not os.path.exists(args.binary):
-        err_msg = LintMessage(
-            path="<none>",
-            line=None,
-            char=None,
-            code=LINTER_CODE,
-            severity=LintSeverity.ERROR,
-            name="command-failed",
-            original=None,
-            replacement=None,
-            description=(
-                f"Could not find clickhouse binary at {args.binary},"
-                " you may need to run `lintrunner init`."
-            ),
-        )
-        print(json.dumps(err_msg._asdict()), flush=True)
-        exit(0)
 
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=os.cpu_count(),
@@ -154,7 +125,6 @@ def main() -> None:
         futures = {
             executor.submit(
                 check_file,
-                args.binary,
                 filename,
             ): filename
             for filename in args.filenames
