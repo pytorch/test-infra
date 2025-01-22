@@ -186,6 +186,8 @@ jobs:
         set -ex
         cd .ci/pytorch/
         python3 -m ensurepip --upgrade
+        export MATRIX_GPU_ARCH_VERSION="12.4"
+        export MATRIX_GPU_ARCH_TYPE="cuda"
 
         DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu124"
         if [[ ${{ inputs.channel }} == 'test' ]]; then
@@ -194,5 +196,6 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu124"
         fi
 
-        python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
+        python3 -m pip install torch torchvision torchaudio --index-url ${DWN_PYTORCH_ORG}
         python3 -c "import torch"
+        python3  ./smoke_test/smoke_test.py
