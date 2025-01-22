@@ -6,14 +6,14 @@ select
     ) as last_success_seconds_ago
 from
     default.workflow_run workflow final
-    JOIN default.push final on workflow.head_commit.'id' = push.head_commit.'id'
+join default.push final on workflow.head_commit.'id' = push.head_commit.'id'
 where
-    push.ref IN ('refs/heads/master', 'refs/heads/main')
-    AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = 'pytorch'
-    AND workflow.conclusion = 'success'
-    AND workflow.name = {workflowName: String}
+    push.ref in ('refs/heads/master', 'refs/heads/main')
+    and push.repository.'owner'.'name' = 'pytorch'
+    and push.repository.'name' = 'pytorch'
+    and workflow.conclusion = 'success'
+    and workflow.name = {workflowName: String}
 order by
-    workflow.created_at DESC
-LIMIT
+    workflow.created_at desc
+limit
     1

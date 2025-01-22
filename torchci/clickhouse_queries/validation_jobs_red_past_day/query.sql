@@ -1,15 +1,15 @@
 SELECT
-  COUNT(*) AS COUNT,
-  job.name as name
+    COUNT(*) AS COUNT,
+    JOB.NAME AS NAME
 FROM
-  workflow_job job
-  JOIN workflow_run workflow ON workflow.id = job.run_id
+    WORKFLOW_JOB JOB
+JOIN WORKFLOW_RUN WORKFLOW ON WORKFLOW.ID = JOB.RUN_ID
 WHERE
-  job.head_branch = 'main'
-  AND workflow.name like '%Binaries Validations%'
-  AND workflow.event = 'schedule'
-  AND job.name like concat('%', {channel: String}, '%')
-  AND job.conclusion IN ('failure', 'timed_out', 'cancelled')
-  AND job.completed_at >= today() - 1
-GROUP BY job.name
+    JOB.HEAD_BRANCH = 'main'
+    AND WORKFLOW.NAME LIKE '%Binaries Validations%'
+    AND WORKFLOW.EVENT = 'schedule'
+    AND JOB.NAME LIKE CONCAT('%', {channel: String}, '%')
+    AND JOB.CONCLUSION IN ('failure', 'timed_out', 'cancelled')
+    AND JOB.COMPLETED_AT >= TODAY() - 1
+GROUP BY JOB.NAME
 ORDER BY COUNT DESC;

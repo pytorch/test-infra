@@ -5,26 +5,28 @@ WITH benchmarks AS (
         o.head_branch AS head_branch,
         o.head_sha AS head_sha,
         o.workflow_id AS id,
-        toStartOfDay(fromUnixTimestamp(o.timestamp)) AS event_time
+        TOSTARTOFDAY(FROMUNIXTIMESTAMP(o.timestamp)) AS event_time
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
-        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
-        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        o.timestamp >= TOUNIXTIMESTAMP({startTime: DateTime64(3) })
+        AND o.timestamp < TOUNIXTIMESTAMP({stopTime: DateTime64(3) })
         AND o.repo = {repo: String }
-        AND tupleElement(o.benchmark, 'extra_info') [ 'performance' ] = 'true'
+        AND TUPLEELEMENT(o.benchmark, 'extra_info')['performance'] = 'true'
         AND (
-            has(
+            HAS(
                 {dtypes: Array(String) },
-                tupleElement(o.benchmark, 'extra_info') [ 'quantization' ]
+                TUPLEELEMENT(o.benchmark, 'extra_info')['quantization']
             )
-            OR empty({dtypes: Array(String) })
+            OR EMPTY({dtypes: Array(String) })
         )
-        AND tupleElement(o.benchmark, 'mode') = {mode: String }
-        AND tupleElement(o.benchmark, 'extra_info') [ 'device' ] = {device: String }
+        AND TUPLEELEMENT(o.benchmark, 'mode') = {mode: String }
+        AND TUPLEELEMENT(o.benchmark, 'extra_info')['device']
+        = {device: String }
 )
-SELECT
-    DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
+
+SELECT DISTINCT
+    REPLACEONE(head_branch, 'refs/heads/', '') AS head_branch,
     head_sha,
     id,
     event_time

@@ -3,69 +3,70 @@
 --- the LLMs benchmark dashboard
 WITH benchmarks AS (
     SELECT
-        replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
+        REPLACEONE(o.head_branch, 'refs/heads/', '') AS head_branch,
         o.workflow_id AS workflow_id,
         o.job_id AS job_id,
         o.model.name AS model,
         o.model.backend AS backend,
         o.model.origins AS origins,
         o.metric.name AS metric,
-        floor(arrayAvg(o.metric.benchmark_values), 2) AS actual,
-        floor(toFloat64(o.metric.target_value), 2) AS target,
+        FLOOR(ARRAYAVG(o.metric.benchmark_values), 2) AS actual,
+        FLOOR(TOFLOAT64(o.metric.target_value), 2) AS target,
         o.benchmark.dtype AS dtype,
         IF(
-            empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info') [ 'device' ],
-            tupleElement(o.runners [ 1 ], 'name')
+            EMPTY(o.runners),
+            TUPLEELEMENT(o.benchmark, 'extra_info')['device'],
+            TUPLEELEMENT(o.runners[1], 'name')
         ) AS device,
         IF(
-            empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
-            tupleElement(o.runners [ 1 ], 'type')
+            EMPTY(o.runners),
+            TUPLEELEMENT(o.benchmark, 'extra_info')['arch'],
+            TUPLEELEMENT(o.runners[1], 'type')
         ) AS arch,
         IF(
-            tupleElement(o.benchmark, 'extra_info') [ 'compile' ] = '',
+            TUPLEELEMENT(o.benchmark, 'extra_info')['compile'] = '',
             'true',  -- Default to true
-            tupleElement(o.benchmark, 'extra_info') [ 'compile' ]
+            TUPLEELEMENT(o.benchmark, 'extra_info')['compile']
         ) AS use_torch_compile,
         DATE_TRUNC(
             {granularity: String },
-            fromUnixTimestamp(o.timestamp)
+            FROMUNIXTIMESTAMP(o.timestamp)
         ) AS granularity_bucket
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
-        o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
-        AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+        o.timestamp >= TOUNIXTIMESTAMP({startTime: DateTime64(3) })
+        AND o.timestamp < TOUNIXTIMESTAMP({stopTime: DateTime64(3) })
         AND o.repo = {repo: String }
         AND (
-            has({commits: Array(String) }, o.head_sha)
-            OR empty({commits: Array(String) })
+            HAS({commits: Array(String) }, o.head_sha)
+            OR EMPTY({commits: Array(String) })
         )
         AND (
-            has({benchmarks: Array(String) }, o.benchmark.name)
-            OR empty({benchmarks: Array(String) })
+            HAS({benchmarks: Array(String) }, o.benchmark.name)
+            OR EMPTY({benchmarks: Array(String) })
         )
         AND (
-            has({models: Array(String) }, o.model.name)
-            OR empty({models: Array(String) })
+            HAS({models: Array(String) }, o.model.name)
+            OR EMPTY({models: Array(String) })
         )
         AND (
-            has({backends: Array(String) }, o.model.backend)
-            OR empty({backends: Array(String) })
+            HAS({backends: Array(String) }, o.model.backend)
+            OR EMPTY({backends: Array(String) })
         )
         AND (
-            has({dtypes: Array(String) }, o.benchmark.dtype)
-            OR empty({dtypes: Array(String) })
+            HAS({dtypes: Array(String) }, o.benchmark.dtype)
+            OR EMPTY({dtypes: Array(String) })
         )
         AND (
-            NOT has({excludedMetrics: Array(String) }, o.metric.name)
-            OR empty({excludedMetrics: Array(String) })
+            NOT HAS({excludedMetrics: Array(String) }, o.metric.name)
+            OR EMPTY({excludedMetrics: Array(String) })
         )
-        AND notEmpty(o.metric.name)
+        AND NOTEMPTY(o.metric.name)
 )
-SELECT
-    DISTINCT workflow_id,
+
+SELECT DISTINCT
+    workflow_id,
     job_id,
     model,
     backend,
@@ -76,26 +77,26 @@ SELECT
     dtype,
     device,
     arch,
-    toBool(use_torch_compile) AS use_torch_compile,
+    TOBOOL(use_torch_compile) AS use_torch_compile,
     granularity_bucket
 FROM
     benchmarks
 WHERE
     (
-        has({branches: Array(String) }, head_branch)
-        OR empty({branches: Array(String) })
+        HAS({branches: Array(String) }, head_branch)
+        OR EMPTY({branches: Array(String) })
     )
     -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
     AND (
         CONCAT(
             device,
             ' (',
-            IF(empty(arch), 'NVIDIA A100-SXM4-40GB', arch),
+            IF(EMPTY(arch), 'NVIDIA A100-SXM4-40GB', arch),
             ')'
         ) = {deviceArch: String }
         OR {deviceArch: String } = ''
     )
-    AND notEmpty(device)
+    AND NOTEMPTY(device)
 ORDER BY
     granularity_bucket DESC,
     workflow_id DESC,

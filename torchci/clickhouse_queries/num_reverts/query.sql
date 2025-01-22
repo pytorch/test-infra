@@ -3,8 +3,9 @@
 
 WITH coded_reverts AS (
     SELECT
-        formatDateTime(toStartOfWeek(ic.created_at), '%Y-%m-%d') AS bucket,
-        extract(ic.body, '(?:-c|--classification)[\s =]+["\']?(\w+)["\']?') AS code,
+        FORMATDATETIME(TOSTARTOFWEEK(ic.created_at), '%Y-%m-%d') AS bucket,
+        EXTRACT(ic.body, '(?:-c|--classification)[\s =]+["\']?(\w+)["\']?')
+            AS code,
         COUNT(*) AS num
     FROM
         default.issue_comment AS ic FINAL
@@ -15,23 +16,27 @@ WITH coded_reverts AS (
         FROM
             default.issue_comment FINAL
         WHERE
-            match(issue_comment.body, '@pytorch(merge|)bot revert')
+            MATCH(issue_comment.body, '@pytorch(merge|)bot revert')
         GROUP BY
             issue_comment.issue_url
-        ) AS rc ON ic.issue_url = rc.issue_url
+    ) AS rc ON ic.issue_url = rc.issue_url
     WHERE
         ic.created_at = rc.created
         AND ic.created_at >= {startTime: DateTime64(3)}
         AND ic.created_at <= {stopTime: DateTime64(3)}
         AND ic.user.login != 'pytorch-bot[bot]'
-        AND extract(ic.body, '(?:-c|--classification)[\s =]+["\']?(\w+)["\']?') IS NOT NULL
+        AND EXTRACT(
+            ic.body, '(?:-c|--classification)[\s =]+["\']?(\w+)["\']?'
+        ) IS NOT NULL
     GROUP BY
         code,
         bucket
 ),
+
 weekly_results AS (
     SELECT
-        formatDateTime(toStartOfWeek(push.head_commit.timestamp), '%Y-%m-%d') AS bucket,
+        FORMATDATETIME(TOSTARTOFWEEK(push.head_commit.timestamp), '%Y-%m-%d')
+            AS bucket,
         'total' AS code,
         COUNT(*) AS num
     FROM
@@ -61,18 +66,20 @@ weekly_results AS (
         'non-ghfirst-total' AS code,
         SUM(cr.num) AS num
     FROM
-        coded_reverts as cr
+        coded_reverts AS cr
     WHERE
         cr.code != 'ghfirst'
     GROUP BY
         cr.bucket
 )
+
 SELECT
     bucket,
     SUM(num) OVER (
         PARTITION BY code
         ORDER BY
-            bucket ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
+            bucket
+        ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
     ) / 2.0 AS num,
     code
 FROM

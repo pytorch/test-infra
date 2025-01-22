@@ -1,6 +1,6 @@
 SELECT
-    toStartOfHour(
-        toDateTime(q.time, {timezone: String})
+    TOSTARTOFHOUR(
+        TODATETIME(q.time, {timezone: String})
     ) AS granularity_bucket,
     q.queue_s_max,
     q.queue_s_p99,
@@ -13,8 +13,14 @@ SELECT
 FROM
     misc.queue_times_24h_stats q
 WHERE
-    q.time >= toStartOfHour(toDateTime({startTime: DateTime64(3)}, {timezone: String}))
-    AND q.time < toStartOfHour(toDateTime({stopTime: DateTime64(3)}, {timezone: String}))
-    AND has({workersTypes: Array(String)}, q.machine_type)
+    q.time
+    >= TOSTARTOFHOUR(
+        TODATETIME({startTime: DateTime64(3)}, {timezone: String})
+    )
+    AND q.time
+    < TOSTARTOFHOUR(
+        TODATETIME({stopTime: DateTime64(3)}, {timezone: String})
+    )
+    AND HAS({workersTypes: Array(String)}, q.machine_type)
 ORDER BY
     granularity_bucket, machine_type ASC
