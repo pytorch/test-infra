@@ -346,17 +346,14 @@ exclude_patterns = [
 command = [
     'python3',
     'tools/linter/adapters/clickhouse_sql_linter.py',
-    '--binary=.lintbin/clickhouse',
     '@{{PATHSFILE}}',
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/s3_init.py',
-    '--config-json=tools/linter/adapters/s3_init_config.json',
-    '--linter=clickhouse',
+    'python3',
+    'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
-    '--output-dir=.lintbin',
-    '--output-name=clickhouse',
+    'sqlfluff',
 ]
 is_formatter = true
 
