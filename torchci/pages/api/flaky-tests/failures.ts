@@ -1,6 +1,5 @@
 import { queryClickhouse } from "lib/clickhouse";
 import { JobData } from "lib/types";
-import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -15,20 +14,12 @@ export default async function handler(
   res.status(200).json(await getFlakyTestInfo(name, suite, file, limit));
 }
 
-export interface FlakyTestInfoHUD {
-  name: string;
-  classname: string;
-  file: string;
-  invoking_file: string;
-  jobs: JobData[];
-}
-
 async function getFlakyTestInfo(
   name: string,
   suite: string,
   file: string,
   limit: number
-): Promise<FlakyTestInfoHUD[]> {
+): Promise<JobData[]> {
   const query = `
 select
   t.name as name,
@@ -50,9 +41,9 @@ from
   join default.failed_test_runs t on j.id = t.job_id
   join default.workflow_run w on w.id = j.run_id
 where
-  t.name like {name: String}
-  and t.classname like {suite: String}
-  and t.file like {file: String}
+  t.name = {name: String}
+  and t.classname = {suite: String}
+  and t.file = {file: String}
 group by
   t.name,
   t.classname,
@@ -74,44 +65,27 @@ limit
   {limit: Int32}
 `;
   const flakyTestQuery = await queryClickhouse(query, {
-    name: `%${name}%`,
-    suite: `%${suite}%`,
-    file: `%${file}%`,
-    limit: limit,
+    name,
+    suite,
+    file,
+    limit,
   });
 
-  const flakyTestQueryResults = flakyTestQuery ?? [];
-
-  const groupedByTest = _.groupBy(
-    flakyTestQueryResults,
-    (result) => (
-      result.name, result.classname, result.file, result.invoking_file
-    )
-  );
   const res = [];
-  for (const test of Object.values(groupedByTest)) {
-    const info: FlakyTestInfoHUD = {
-      name: test[0].name,
-      classname: test[0].classname,
-      file: test[0].file,
-      invoking_file: test[0].invoking_file,
-      jobs: [],
+  for (const test of Object.values(flakyTestQuery ?? [])) {
+    const info: JobData = {
+      jobName: test.job_name,
+      id: test.job_id,
+      htmlUrl: test.job_url,
+      time: test.job_started_at,
+      logUrl: `https://ossci-raw-job-status.s3.amazonaws.com/log/${test.job_id}`,
+      conclusion: test.conclusion,
+      failureLines: [test.line],
+      failureLineNumbers: [test.line_num],
+      failureCaptures: [test.captures],
+      branch: test.head_branch,
+      sha: test.head_sha,
     };
-    for (const row of test) {
-      info.jobs.push({
-        jobName: row.job_name,
-        id: row.job_id,
-        htmlUrl: row.job_url,
-        time: row.job_started_at,
-        logUrl: `https://ossci-raw-job-status.s3.amazonaws.com/log/${row.job_id}`,
-        conclusion: row.conclusion,
-        failureLines: [row.line],
-        failureLineNumbers: [row.line_num],
-        failureCaptures: [row.captures],
-        branch: row.head_branch,
-        sha: row.head_sha,
-      });
-    }
     res.push(info);
   }
   return res;
