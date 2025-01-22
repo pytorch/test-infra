@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-import boto3  # type: ignore
+import boto3  # type: ignore[import]
 from torchci.clickhouse import query_clickhouse
 from torchci.td.utils import list_past_year_shas, run_command
 
