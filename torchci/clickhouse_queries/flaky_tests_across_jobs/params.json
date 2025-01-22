@@ -1,5 +1,8 @@
 {
-  "ignoreMessages": "String",
-  "numHours": "Int64",
-  "threshold": "Int64"
+  "params": {
+    "ignoreMessages": "String",
+    "numHours": "Int64",
+    "threshold": "Int64"
+  },
+  "tests": []
 }

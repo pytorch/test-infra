@@ -1,10 +1,13 @@
 {
-  "granularity": "String",
-  "startTime": "DateTime64(9)",
-  "stopTime": "DateTime64(9)",
-  "selectedRepos": "Array(String)",
-  "selectedGPU": "Array(UInt8)",
-  "selectedPlatforms": "Array(String)",
-  "selectedProviders": "Array(String)",
-  "selectedOwners": "Array(String)"
+  "params": {
+    "granularity": "String",
+    "startTime": "DateTime64(9)",
+    "stopTime": "DateTime64(9)",
+    "selectedRepos": "Array(String)",
+    "selectedGPU": "Array(UInt8)",
+    "selectedPlatforms": "Array(String)",
+    "selectedProviders": "Array(String)",
+    "selectedOwners": "Array(String)"
+  },
+  "tests": []
 }

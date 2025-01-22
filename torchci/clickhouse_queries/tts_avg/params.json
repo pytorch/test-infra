@@ -1,5 +1,8 @@
 {
-  "branch": "String",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)"
+  "params": {
+    "branch": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": []
 }

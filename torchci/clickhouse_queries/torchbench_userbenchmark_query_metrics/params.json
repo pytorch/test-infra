@@ -1,4 +1,7 @@
 {
-  "commit": "String",
-  "userbenchmark": "String"
+  "params": {
+    "commit": "String",
+    "userbenchmark": "String"
+  },
+  "tests": []
 }
