@@ -381,7 +381,14 @@ class S3Index:
         out.append('  <body>')
         out.append('    <h1>Links for {}</h1>'.format(package_name.lower().replace("_", "-")))
         for obj in sorted(self.gen_file_list(subdir, package_name)):
+
             maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
+
+            # Temporary skip assigning sha256 to nightly index
+            # to be reverted on Jan 24, 2025.
+            if subdir is not None and "nightly" in subdir:
+                maybe_fragment = ""
+
             pep658_attribute = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
