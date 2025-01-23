@@ -29,7 +29,7 @@ runs:
         # shellcheck disable=SC1090
         source "${BUILD_ENV_FILE}"
 
-        pip install awscli==1.37.0
+        pip install awscli==1.32.18
         yum install -y jq
 
         export AWS_ROLE_ARN="arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels"
@@ -43,5 +43,5 @@ runs:
           | jq -r '.value' > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
 
         for pkg in dist/*; do
-          aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read --checksum-algorithm SHA256
+          aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
         done
