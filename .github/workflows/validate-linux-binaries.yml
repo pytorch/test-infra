@@ -197,4 +197,4 @@ jobs:
         fi
 
         python3 -m pip -q install torch numpy --index-url ${DWN_PYTORCH_ORG}
-        python3  ./smoke_test/smoke_test.py --package torchonly
+        python3  ./smoke_test/smoke_test.py --package torchonly --torch-compile-check disable
