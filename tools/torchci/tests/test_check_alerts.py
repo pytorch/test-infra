@@ -157,7 +157,7 @@ class TestGitHubPR(TestCase):
 
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        original_issue: Dict[str, Any] = {"closed": False}
+        original_issue: Dict[str, Any] = {"closed": False}  # type: ignore[annotation-unchecked]
         original_issue["body"] = (
             "- [job1](a) failed consecutively starting with commit []()\n"
             "- [job2](a) failed consecutively starting with commit []()"
@@ -313,7 +313,7 @@ class TestGitHubPR(TestCase):
 
     @patch("requests.post", side_effect=mock_fetch_alerts)
     def test_fetch_alert(self, mocked_alerts):
-        cases: List[Dict[str, Any]] = [
+        cases: List[Dict[str, Any]] = [  # type: ignore[annotation-unchecked]
             {
                 "repo": "pytorch/builder",
                 "branch": "main",

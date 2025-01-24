@@ -5,7 +5,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict
 
-from github import Github, PaginatedList, SelfHostedActionsRunner
+from github import (  # type: ignore[import-not-found]
+    Github,
+    PaginatedList,
+    SelfHostedActionsRunner,
+)
 
 
 @dataclass
@@ -46,7 +50,7 @@ def parse_args() -> argparse.Namespace:
     return options
 
 
-def get_self_hosted_runners_org(org):
+def get_self_hosted_runners_org(org):  # type: ignore[no-untyped-def]
     return PaginatedList.PaginatedList(
         SelfHostedActionsRunner.SelfHostedActionsRunner,
         org._requester,
@@ -60,7 +64,7 @@ def main() -> None:
     options = parse_args()
     gh = Github(options.token)
     org = gh.get_organization(options.org)
-    runners = get_self_hosted_runners_org(org)
+    runners = get_self_hosted_runners_org(org)  # type: ignore[no-untyped-call]
     include_pattern = re.compile(options.include)
     state = RunnersState()
     for runner in runners:
@@ -78,11 +82,11 @@ def main() -> None:
     percentage_of = lambda num, label: f"{state.num_busy_per_label[label]}/{num}"
     print(f"Self Hosted stats for {options.org}")
     print(f"{state.num_total:>15} total runners")
-    print(f"{over_total(state.num_online):>15} online runners")
+    print(f"{over_total(state.num_online):>15} online runners")  # type: ignore[no-untyped-call]
     print()
     print("Number of busy/online runners per label")
     for label, num_label in sorted(state.num_per_label.items()):
-        print(f"{percentage_of(num_label, label):>15} {label}")
+        print(f"{percentage_of(num_label, label):>15} {label}")  # type: ignore[no-untyped-call]
 
     if options.repo:
         repo = gh.get_repo(f"{options.org}/{options.repo}")

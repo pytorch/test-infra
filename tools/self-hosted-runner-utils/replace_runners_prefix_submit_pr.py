@@ -73,7 +73,7 @@ def get_runners_names(prefix: str, scale_config: str) -> list[str]:
     return runners
 
 
-def find_replace(directory, runners, prefix, filePattern) -> None: # type: ignore[no-untyped-def]
+def find_replace(directory, runners, prefix, filePattern) -> None:  # type: ignore[no-untyped-def]
     for path, dirs, files in os.walk(os.path.abspath(directory)):
         for filename in fnmatch.filter(files, filePattern):
             filepath = os.path.join(path, filename)

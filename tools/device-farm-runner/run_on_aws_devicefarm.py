@@ -14,7 +14,7 @@ from logging import info
 from typing import Any, Dict, List, Optional
 from warnings import warn
 
-import boto3
+import boto3  # type: ignore[import-not-found]
 import requests
 
 

@@ -1,3 +1,5 @@
+# mypy: disable-error-code="var-annotated"
+
 import gzip
 import os
 import re
@@ -6,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import boto3
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 
 S3 = boto3.resource("s3")

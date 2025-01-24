@@ -18,7 +18,7 @@ from logging import info
 from typing import Any, Callable, Dict, List, Optional
 from warnings import warn
 
-import boto3
+import boto3  # type: ignore[import-not-found]
 
 
 logging.basicConfig(level=logging.INFO)

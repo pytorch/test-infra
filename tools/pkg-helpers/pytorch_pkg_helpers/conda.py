@@ -1,3 +1,4 @@
+# mypy: disable-error-code="index"
 import re
 from typing import List
 

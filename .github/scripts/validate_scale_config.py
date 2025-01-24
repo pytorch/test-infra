@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast, Dict, List, NamedTuple
 
-import jsonschema
+import jsonschema  # type: ignore[import-untyped]
 import yaml
 
 
@@ -47,7 +47,7 @@ _RUNNER_BASE_JSCHEMA = {
 }
 
 RUNNER_JSCHEMA = copy.deepcopy(_RUNNER_BASE_JSCHEMA)
-RUNNER_JSCHEMA["properties"]["variants"] = {
+RUNNER_JSCHEMA["properties"]["variants"] = {  # type: ignore[index]
     "type": "object",
     "patternProperties": {
         "^[a-zA-Z0-9]+$": _RUNNER_BASE_JSCHEMA,
@@ -171,8 +171,8 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
             )
             invalid_runners.add(runner_type)
         elif (
-            runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
-            and runner_config["max_available"] >= 0
+            int(runner_config["max_available"]) < MAX_AVAILABLE_MINIMUM
+            and int(runner_config["max_available"]) >= 0
         ):
             print(
                 f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
@@ -223,7 +223,7 @@ def is_consistent_across_configs(
 
 
 def generate_repo_scale_config(
-    source_config_file: str, dest_config_file: str, expected_prefix: str
+    source_config_file: Path, dest_config_file: Path, expected_prefix: str
 ) -> None:
     """
     Generate the new scale config file with the same layout as the original file,

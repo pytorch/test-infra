@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict
 
-from github import Github
+from github import Github  # type: ignore[import-not-found]
 
 
 @dataclass
@@ -68,11 +68,11 @@ def main() -> None:
     )
     print(f"Self Hosted stats for {options.repo}")
     print(f"{state.num_total:>15} total runners")
-    print(f"{over_total(state.num_online):>15} online runners")
+    print(f"{over_total(state.num_online):>15} online runners")  # type: ignore[no-untyped-call]
     print()
     print("Number of busy/online runners per label")
     for label, num_label in sorted(state.num_per_label.items()):
-        print(f"{percentage_of(num_label, label):>15} {label}")
+        print(f"{percentage_of(num_label, label):>15} {label}")  # type: ignore[no-untyped-call]
     print()
     print(f"Workflow stats for {options.repo}")
     print(f"{num_queued_workflows:>15} queued workflows")

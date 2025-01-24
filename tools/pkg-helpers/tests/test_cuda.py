@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore[import-not-found]
 from pytorch_pkg_helpers.cuda import get_cuda_arch_list, get_cuda_variables
 from pytorch_pkg_helpers.utils import transform_cuversion
 
@@ -22,7 +22,7 @@ def test_cuda_variables_cpu_wheel(platform):
 
 
 @pytest.mark.parametrize("platform", ["linux-aarch64"])
-def test_cuda_variables_cpu_wheel(platform):
+def test_cuda_variables_cpu_wheel_aarch64(platform):
     assert get_cuda_variables("wheel", platform, "cpu") == [
         "export VERSION_SUFFIX=''",
         "export PYTORCH_VERSION_SUFFIX=''",

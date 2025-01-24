@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import boto3
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 import requests
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 
 S3 = boto3.resource("s3")
@@ -104,7 +104,7 @@ def parse_and_export_stats(
                     data["sha"] = sha
                     data["job"] = job_name
                     df = _json_to_df(data, granularity)
-                    dataframe = df if dataframe is None else dataframe.append(df)
+                    dataframe = df if dataframe is None else dataframe.append(df)  # type: ignore[attr-defined]
     return dataframe
 
 
