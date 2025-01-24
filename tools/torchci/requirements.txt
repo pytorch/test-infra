@@ -2,4 +2,4 @@ setuptools==70.0.0
 requests
 boto3==1.19.12
 pytest==7.2.0
-clickhouse-connect==0.7.16
+clickhouse-connect==0.8.14

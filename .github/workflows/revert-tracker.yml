@@ -25,7 +25,7 @@ jobs:
       - id: generate-reverts-file
         run: |
           cd test-infra/tools
-          python3 -m pip install clickhouse-connect==0.7.16
+          python3 -m pip install clickhouse-connect==0.8.14
           python3 -m torchci.reverts
           echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:

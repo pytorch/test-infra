@@ -31,7 +31,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip3 install --upgrade pip
-          pip3 install boto3==1.19.12 clickhouse-connect==0.7.16
+          pip3 install boto3==1.19.12 clickhouse-connect==0.8.14
           cd test-infra/tools/torchci
           pip3 install -e .
 

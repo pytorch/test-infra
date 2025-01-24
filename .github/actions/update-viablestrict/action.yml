@@ -75,7 +75,7 @@ runs:
     - name: Install Python Packages
       shell: bash
       run: |
-        pip install clickhouse-connect==0.7.16 boto3==1.19.12
+        pip install clickhouse-connect==0.8.14 boto3==1.19.12
 
     - name: Get latest viable commit
       id: get-latest-commit
