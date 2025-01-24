@@ -11,7 +11,7 @@ import { JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { TestInfoAPIResponse } from "pages/api/flaky-tests/3dStats";
-import { encodeParams } from "pages/flakytest";
+import { encodeParams } from "pages/tests/search";
 import { useState } from "react";
 import useSWRImmutable from "swr/immutable";
 

@@ -1,11 +1,12 @@
 import { Box, Button, TextField } from "@mui/material";
+import { encodeParams } from "pages/tests/search";
 
-function setURL(name: string, suite: string, file: string, limit: string) {
-  window.location.href = `/flakytest?name=${encodeURIComponent(
-    name
-  )}&suite=${encodeURIComponent(suite)}&file=${encodeURIComponent(
-    file
-  )}&limit=${encodeURIComponent(limit)}`;
+function setURL(name: string, suite: string, file: string) {
+  window.location.href = `/tests/search?${encodeParams({
+    name,
+    suite,
+    file,
+  })}`;
 }
 
 export default function TestSearchForm({
