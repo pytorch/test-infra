@@ -444,13 +444,48 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 def oss_ci_util_metadata_adapter(table, bucket, key):
-
-
-def oss_ci_util_time_series_adapter(table, bucket, key):
-    schma:
-
+    schema = """
+        `created_at` DateTime64(0, 'UTC'),
+        `repo` String DEFAULT 'pytorch/pytorch',
+        `workflow_id` UInt64,
+        `run_attempt` UInt32,
+        `job_id` UInt64,
+        `workflow_name` String,
+        `job_name` String,
+        `usage_collect_interval` Float32,
+        `data_model_version` String,
+        `gpu_count` UInt32,
+        `cpu_count` UInt32,
+        `gpu_type` String DEFAULT 'None',
+        `start_at` DateTime64(0, 'UTC'),
+        `end_at` DateTime64(0, 'UTC'),
+        `segments` Array(
+                    Tuple(
+                        level String,
+                        name String,
+                        start_at DateTime64(0, 'UTC'),
+                        end_at DateTime64(0, 'UTC'),
+                        extra_info Map(String, String)
+                     )
+        )
+    """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
+def oss_ci_util_time_series_adapter(table, bucket, key):
+    schema = """
+        `created_at` DateTime64(0,'UTC'),
+        `type` String,
+        `tags` Array(String) DEFAULT [],
+        `time_stamp` DateTime64(0,'UTC'),
+        `repo` String DEFAULT 'pytorch/pytorch',
+        `workflow_id` UInt64,
+        `run_attempt` UInt32,
+        `job_id` UInt64,
+        `workflow_name` String,
+        `job_name` String,
+        `json_data` String DEFAULT
+     """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
