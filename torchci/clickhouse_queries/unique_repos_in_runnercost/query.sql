@@ -1,6 +1,5 @@
-select
-    distinct(rc.group_repo) as repo
-    -- count(rc.group_repo) as count
+select distinct rc.group_repo as repo
+-- count(rc.group_repo) as count
 from
     misc.runner_cost rc
 where

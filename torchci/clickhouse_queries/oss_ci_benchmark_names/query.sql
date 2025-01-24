@@ -1,6 +1,6 @@
 --- This query is used by HUD benchmarks dashboards to get the list of experiment names
-SELECT
-    DISTINCT benchmark_name AS benchmark,
+SELECT DISTINCT
+    benchmark_name AS benchmark,
     model_name AS model,
     model_backend AS backend,
     metric_name AS metric,

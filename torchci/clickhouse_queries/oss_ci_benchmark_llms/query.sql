@@ -15,18 +15,18 @@ WITH benchmarks AS (
         o.benchmark.dtype AS dtype,
         IF(
             empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info') [ 'device' ],
-            tupleElement(o.runners [ 1 ], 'name')
+            tupleElement(o.benchmark, 'extra_info')['device'],
+            tupleElement(o.runners[1], 'name')
         ) AS device,
         IF(
             empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info') [ 'arch' ],
-            tupleElement(o.runners [ 1 ], 'type')
+            tupleElement(o.benchmark, 'extra_info')['arch'],
+            tupleElement(o.runners[1], 'type')
         ) AS arch,
         IF(
-            tupleElement(o.benchmark, 'extra_info') [ 'compile' ] = '',
+            tupleElement(o.benchmark, 'extra_info')['compile'] = '',
             'true',  -- Default to true
-            tupleElement(o.benchmark, 'extra_info') [ 'compile' ]
+            tupleElement(o.benchmark, 'extra_info')['compile']
         ) AS use_torch_compile,
         DATE_TRUNC(
             {granularity: String },
@@ -64,8 +64,9 @@ WITH benchmarks AS (
         )
         AND notEmpty(o.metric.name)
 )
-SELECT
-    DISTINCT workflow_id,
+
+SELECT DISTINCT
+    workflow_id,
     job_id,
     model,
     backend,
