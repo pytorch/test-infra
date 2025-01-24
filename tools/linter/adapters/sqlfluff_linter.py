@@ -8,6 +8,8 @@ import subprocess
 import time
 from enum import Enum
 from typing import List, NamedTuple, Optional, Pattern
+import tempfile
+from isort.api import _tmp_file
 
 
 LINTER_CODE = "SQLFLUFF"
@@ -65,19 +67,20 @@ def check_file(
 ) -> List[LintMessage]:
     with open(filename, 'r') as f:
         original = f.read()
-        original = original.replace('{', '\'{').replace('}', '}\'')
-    with open(filename, 'w') as f:
-        f.write(original)
+        original_edited = original.replace('{', '\'{').replace('}', '}\'')
 
+    
+    tmp = filename.split('query.sql')[0] + 'query_tmp.sql'
+    with open(tmp, "w") as f:
+        f.write(original_edited)
     try:
-        # proc.run_command(sed -i -e "s/'{/{/g" -e "s/}'/}/g")
         proc = run_command(
             [
                 "sqlfluff",
                 "format",
                 "--dialect",
                 "clickhouse",
-                filename,
+                tmp,
             ]
         )
     except OSError as err:
@@ -95,12 +98,11 @@ def check_file(
             )
         ]
 
-    with open(filename, 'r') as f:
-        final = f.read()
-        final = final.replace('\'{', '{').replace('}\'', '}')
-    with open(filename, 'w') as f:
-        f.write(final)
-
+    with open(tmp, "r") as f:
+        replacement = f.read().replace('\'{', '{').replace('}\'', '}')
+    os.remove(tmp)
+    if original == replacement:
+        return []
     lint_message = proc.stdout
 
 
@@ -112,8 +114,8 @@ def check_file(
             code=LINTER_CODE,
             severity=LintSeverity.WARNING,
             name="format",
-            original=None,
-            replacement=None,
+            original=original,
+            replacement=replacement,
             description=lint_message.decode("utf-8"),
         )
     ]
