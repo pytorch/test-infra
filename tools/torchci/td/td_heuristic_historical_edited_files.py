@@ -51,7 +51,7 @@ def gen_correlation_dict() -> Dict[str, Dict[str, float]]:
         for test_file in test_files:
             for file in changed_files:
                 d[file][test_file] += 1 / len(changed_files)
-    return d
+    return d  # type: ignore[return-value]
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from functools import lru_cache
 from subprocess import check_output
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
-import boto3  # type: ignore[import]
+import boto3  # type: ignore[import-not-found]
 
 
 METADATA_PATH = "ossci_tutorials_stats/metadata.csv"

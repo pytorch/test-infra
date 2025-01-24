@@ -10,7 +10,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict
+from typing import Dict, List
 
 
 mod = sys.modules[__name__]
@@ -103,7 +103,7 @@ RELEASE_DICT = {
 }
 
 
-def main(args) -> None:
+def main(args: List[str]) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--version",
