@@ -443,6 +443,14 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
     """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
+def oss_ci_util_metadata_adapter(table, bucket, key):
+
+
+def oss_ci_util_time_series_adapter(table, bucket, key):
+    schma:
+
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
@@ -450,6 +458,7 @@ def torchbench_userbenchmark_adapter(table, bucket, key):
     `metrics` String,
     `name` String
     """
+
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
@@ -500,6 +509,8 @@ SUPPORTED_PATHS = {
     "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
     "stable_pushes": "misc.stable_pushes",
     "v3": "benchmark.oss_ci_benchmark_v3",
+    "util_metadata": "fortesting.oss_ci_utilization_metadata",
+    "util_timeseries": "fortesting.oss_ci_time_series",
 }
 
 OBJECT_CONVERTER = {
@@ -517,12 +528,14 @@ OBJECT_CONVERTER = {
     "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
     "misc.stable_pushes": stable_pushes_adapter,
     "benchmark.oss_ci_benchmark_v3": oss_ci_benchmark_v3_adapter,
+    "fortesting.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
+    "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
 }
 
 
 def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
     """
-    Extract the DynamoDB table name from the source ARN. This will be used later as
+    Extract the clickhouse table name from the source ARN. This will be used later as
     the index name
     """
     if key is None:
