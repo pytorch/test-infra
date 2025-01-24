@@ -1,18 +1,18 @@
 SELECT
-  COUNT(*) AS COUNT,
-  job.name as name
+    COUNT(*) AS COUNT,
+    JOB.NAME AS NAME
 FROM
-  workflow_job job
-  JOIN workflow_run workflow ON workflow.id = job.run_id
-  join push on push.head_commit.'id' = workflow.head_commit.'id'
+    WORKFLOW_JOB JOB
+JOIN WORKFLOW_RUN WORKFLOW ON WORKFLOW.ID = JOB.RUN_ID
+JOIN PUSH ON PUSH.HEAD_COMMIT.'id' = WORKFLOW.HEAD_COMMIT.'id'
 WHERE
-  job.name NOT LIKE '%generate-matrix%'
-  AND job.name NOT LIKE '%unittests%'
-  AND workflow.name NOT IN ('cron', 'Bandit', 'tests')
-  AND push.ref = 'refs/heads/nightly'
-  AND push.repository.'owner'.'name' = 'pytorch'
-  AND push.repository.'name' = {repo: String }
-  AND job.conclusion IN ('failure', 'timed_out', 'cancelled')
-  AND job.completed_at >= today() - 1
-GROUP BY job.name
+    JOB.NAME NOT LIKE '%generate-matrix%'
+    AND JOB.NAME NOT LIKE '%unittests%'
+    AND WORKFLOW.NAME NOT IN ('cron', 'Bandit', 'tests')
+    AND PUSH.REF = 'refs/heads/nightly'
+    AND PUSH.REPOSITORY.'owner'.'name' = 'pytorch'
+    AND PUSH.REPOSITORY.'name' = {repo: String }
+    AND JOB.CONCLUSION IN ('failure', 'timed_out', 'cancelled')
+    AND JOB.COMPLETED_AT >= today() - 1
+GROUP BY JOB.NAME
 ORDER BY COUNT;

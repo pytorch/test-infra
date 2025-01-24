@@ -1,5 +1,4 @@
-SELECT
-    DISTINCT(qts.machine_type) AS machine_type
+SELECT DISTINCT qts.machine_type AS machine_type
 FROM
     misc.queue_times_24h_stats qts
 WHERE
