@@ -8,7 +8,7 @@ from functools import lru_cache
 from subprocess import check_output
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
-import boto3  # type: ignore[import]
+import boto3  # type: ignore[import-not-found]
 
 
 METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
@@ -171,14 +171,14 @@ def upload_to_s3(
         f"{bucket_name}",
         f"{key}",
     ).put(
-        Body=gzip.compress(body.getvalue().encode()),
+        Body=gzip.compress(body.getvalue().encode()),  # type: ignore[attr-defined]
         ContentEncoding="gzip",
         ContentType="application/csv",
     )
     print("Done!")
 
 
-def conv_to_csv(json_data: List[Dict[str, Any]]) -> str:
+def conv_to_csv(json_data: List[Dict[str, Any]]) -> io.StringIO:
     # Will not handle nested
     body = io.StringIO()
     f = csv.writer(body)

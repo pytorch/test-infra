@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 
 import requests
-from torchci.clickhouse import query_clickhouse_saved
+from torchci.clickhouse import query_clickhouse_saved  # type: ignore[import-not-found]
 
 
 TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"

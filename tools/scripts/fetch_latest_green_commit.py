@@ -47,7 +47,7 @@ def get_latest_commits(viable_strict_branch: str, main_branch: str) -> List[str]
         encoding="ascii",
     ).splitlines()
 
-    return commits
+    return commits  # type: ignore[no-any-return]
 
 
 def query_commits(commits: List[str]) -> List[Dict[str, Any]]:

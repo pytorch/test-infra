@@ -5,7 +5,7 @@ import sys
 from typing import Dict
 
 
-def main(args) -> None:
+def main(args: list[str]) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input-file",

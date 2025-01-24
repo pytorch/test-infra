@@ -3,8 +3,8 @@ import os
 import re
 import sys
 
-from github import Github
-from tqdm import tqdm
+from github import Github  # type: ignore[import-not-found]
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 
 def parse_args() -> argparse.Namespace:

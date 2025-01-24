@@ -4,9 +4,9 @@ from functools import cache
 from typing import Any
 from urllib.parse import unquote
 
-import boto3  # type: ignore[import]
-from botocore import UNSIGNED
-from botocore.config import Config
+import boto3  # type: ignore[import-not-found]
+from botocore import UNSIGNED # type: ignore[import-not-found]
+from botocore.config import Config # type: ignore[import-not-found]
 
 
 @cache

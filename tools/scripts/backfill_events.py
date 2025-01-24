@@ -188,7 +188,7 @@ def backfill(
                 # Finish processing all events
                 return
 
-            params["page"] += 1
+            params["page"] += 1  # type: ignore[operator]
 
 
 def parse_args() -> Any:

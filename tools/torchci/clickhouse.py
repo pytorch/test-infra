@@ -46,7 +46,7 @@ def query_clickhouse(
 
     def convert_to_json_list(res: str) -> List[Dict[str, Any]]:
         rows = []
-        for row in res.decode().split("\n"):
+        for row in res.decode().split("\n"):  # type: ignore[attr-defined]
             if row:
                 rows.append(json.loads(row))
         return rows

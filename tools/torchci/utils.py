@@ -15,7 +15,7 @@ CACHE_FOLDER = REPO_ROOT / "_logs" / ".torchci_python_utils_cache"
 def js_beautify(obj):
     # Like json.dumps with indent=2, but only at the first level.  Nice for
     # dictionaries of str -> really long list
-    import jsbeautifier
+    import jsbeautifier  # type: ignore[import-not-found]
 
     opts = jsbeautifier.default_options()
     opts.indent_size = 2

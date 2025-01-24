@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from unittest import main, TestCase
 
 from torchci.queue_alert import filter_long_queues, gen_update_comment, QueueInfo
@@ -27,7 +28,7 @@ class TestGitHubPR(TestCase):
         self.assertEqual(long_queues[0].machine, "linux.gcp.a100.large")
 
     def test_gen_update_comment(self):
-        original_issue = {"closed": True}
+        original_issue: Dict[str, Any] = {"closed": True}  # type: ignore[annotation-unchecked]
         new_queues = [
             QueueInfo("machine1", 1, 2),
             QueueInfo("machine2", 2, 3),

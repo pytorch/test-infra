@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore[import-not-found]
 from pytorch_pkg_helpers.macos import get_macos_variables
 
 

@@ -38,18 +38,6 @@ from
 """
 
 
-def run_command(command: str) -> str:
-    cwd = REPO_ROOT / ".." / "pytorch"
-    return (
-        subprocess.check_output(
-            command.split(" "),
-            cwd=cwd,
-        )
-        .decode("utf-8")
-        .strip()
-    )
-
-
 def pull_shas(shas: List[str]) -> None:
     fetch_command = "git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin"
     try:
@@ -96,7 +84,7 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 ContentType="application/json",
             )
         except Exception as e:
-            return e
+            return
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# mypy: disable-error-code="union-attr, call-arg, call-overload, var-annotated, return-value, import-untyped"
+
 import enum
 import json
 import os

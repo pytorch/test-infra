@@ -19,7 +19,7 @@ def download_lambda(client, name, basename="."):
 
     print(f"Downloading {name}")
     with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
-        urllib.request.urlretrieve(url, tmp.name)
+        urllib.request.urlretrieve(url, tmp.name)  # type: ignore[attr-defined]
         with zipfile.ZipFile(tmp.name) as zip:
             os.makedirs(os.path.join(basename, name))
             zip.extractall(os.path.join(basename, name))

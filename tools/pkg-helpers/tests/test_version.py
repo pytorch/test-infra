@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 from pytorch_pkg_helpers.version import get_version_variables
 
 

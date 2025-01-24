@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 
 import click
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore[import-untyped]
 
 
 Wheel = namedtuple("Wheel", ["name", "url"])
@@ -45,7 +45,7 @@ def parse_index(
         # get the prefixes (up to the second '+'/'-' sign) of the wheels
         prefixes = set()
         for wheel in wheels:
-            prefix = re.search(r"^([^-+]+[-+][^-+]+)[-+]", wheel.name).group(1)
+            prefix = re.search(r"^([^-+]+[-+][^-+]+)[-+]", wheel.name).group(1)  # type: ignore[union-attr]
             if not prefix:
                 raise RuntimeError(
                     f"Failed to get version prefix of {wheel.name}"

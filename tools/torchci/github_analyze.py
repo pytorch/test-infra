@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # taken from the builder repo https://github.com/pytorch/builder/blob/main/analytics/github_analyze.py
 
+# mypy: disable-error-code="var-annotated, union-attr, call-arg, return-value, import-untyped"
+
 import enum
 import json
 import os
