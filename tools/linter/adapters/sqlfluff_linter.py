@@ -69,9 +69,8 @@ def check_file(
         original = f.read()
         original_edited = original.replace('{', '\'{').replace('}', '}\'')
 
-    
-    tmp = filename.split('query.sql')[0] + 'query_tmp.sql'
-    with open(tmp, "w") as f:
+    tmp = tempfile.NamedTemporaryFile(suffix='.sql')
+    with open(tmp.name, "w") as f:
         f.write(original_edited)
     try:
         proc = run_command(
@@ -80,7 +79,7 @@ def check_file(
                 "format",
                 "--dialect",
                 "clickhouse",
-                tmp,
+                tmp.name,
             ]
         )
     except OSError as err:
@@ -98,9 +97,8 @@ def check_file(
             )
         ]
 
-    with open(tmp, "r") as f:
+    with open(tmp.name, "r") as f:
         replacement = f.read().replace('\'{', '{').replace('}\'', '}')
-    os.remove(tmp)
     if original == replacement:
         return []
     lint_message = proc.stdout

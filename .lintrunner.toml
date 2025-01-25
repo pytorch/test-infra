@@ -370,7 +370,6 @@ command = [
 ]
 init_command = [
     'python3',
-    'python3',
     'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
     'sqlfluff==3.3.0',
