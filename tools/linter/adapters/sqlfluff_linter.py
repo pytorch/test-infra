@@ -5,10 +5,11 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 import time
 from enum import Enum
 from typing import List, NamedTuple, Optional, Pattern
-import tempfile
+
 from isort.api import _tmp_file
 
 
@@ -65,11 +66,11 @@ def run_command(
 def check_file(
     filename: str,
 ) -> List[LintMessage]:
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         original = f.read()
-        original_edited = original.replace('{', '\'{').replace('}', '}\'')
+        original_edited = original.replace("{", "'{").replace("}", "}'")
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.sql')
+    tmp = tempfile.NamedTemporaryFile(suffix=".sql")
     with open(tmp.name, "w") as f:
         f.write(original_edited)
     try:
@@ -98,11 +99,10 @@ def check_file(
         ]
 
     with open(tmp.name, "r") as f:
-        replacement = f.read().replace('\'{', '{').replace('}\'', '}')
+        replacement = f.read().replace("'{", "{").replace("}'", "}")
     if original == replacement:
         return []
     lint_message = proc.stdout
-
 
     return [
         LintMessage(
