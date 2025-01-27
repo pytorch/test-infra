@@ -27,7 +27,7 @@ MACOS_X86_64="macosx_.*_x86_64"
 MACOS_ARM64="macosx_.*_arm64"
 
 PLATFORM="linux_x86_64"          VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu124" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
-PLATFORM="manylinux2014_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"               upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 PLATFORM="win_amd64"             VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 PLATFORM="${MACOS_ARM64}"        VERSION_SUFFIX=""                                     upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 
