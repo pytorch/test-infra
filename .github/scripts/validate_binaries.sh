@@ -111,7 +111,10 @@ else
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --force-reinstall
         # install triton from pypi
-        pip3 install triton --force-reinstall
+        if [[ ${TARGET_OS} == 'linux' && ${MATRIX_GPU_ARCH_TYPE} == 'cuda' && ${MATRIX_PYTHON_VERSION} != "3.13t"]]; then
+            pip3 install triton --force-reinstall
+        fi
+        
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
 
