@@ -468,6 +468,7 @@ def oss_ci_util_metadata_adapter(table, bucket, key):
                         extra_info Map(String, String)
                      )
         )
+        `tags` Array(String)
     """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
