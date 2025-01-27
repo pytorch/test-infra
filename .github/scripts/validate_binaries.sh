@@ -31,7 +31,7 @@ else
         conda activate ${ENV_NAME}
     fi
 
-    pip3 install numpy --force-reinstall
+    pip install numpy==1.26.4 --force-reinstall
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
@@ -110,6 +110,8 @@ else
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --force-reinstall
+        # install triton from pypi
+        pip3 install triton --force-reinstall
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
 
