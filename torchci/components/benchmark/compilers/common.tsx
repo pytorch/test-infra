@@ -65,6 +65,7 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a10g)": "cuda_a10g",
   "cpu (x86)": "cpu_x86",
   "cpu (aarch64)": "cpu_aarch64",
+  rocm: "rocm",
   mps: "mps",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
@@ -72,5 +73,6 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a10g)": "inductor-perf-nightly-A10g",
   "cpu (x86)": "inductor-perf-nightly-x86",
   "cpu (aarch64)": "inductor-perf-nightly-aarch64",
+  rocm: "inductor-perf-nightly-rocm",
   mps: "inductor-perf-nightly-macos",
 };
