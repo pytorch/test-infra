@@ -19,7 +19,7 @@ VERSION_SUFFIX=${VERSION_SUFFIX:-}
 PLATFORM=${PLATFORM:-}
 # Refers to the specific architecture we'd like to promote
 # i.e. cpu, cu121, cu124
-ARCH==${ARCH:-cpu}
+ARCH=${ARCH:-cpu}
 
 pkgs_to_promote=$(\
     curl -fsSL "https://download.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
@@ -47,12 +47,9 @@ for pkg in ${pkgs_to_promote}; do
     if [[ "${pkg}" != *aarch64* && "${pkg}" != *torchao* ]]; then
         # sub out linux for manylinux1
         pkg_basename="$(basename "${pkg//linux/manylinux1}")"
-    elif [[ "${pkg}" == *manylinux_2_17_aarch64* ]]; then
-        # strip manylinux_2_17 from core filename
-        pkg_basename="$(basename "${pkg//manylinux_2_17_aarch64./}")"
     elif [[ "${pkg}" == *linux_aarch64* ]]; then
-        # domains change linux_aarch64 to manylinux2014_aarch64
-        pkg_basename="$(basename "${pkg//linux_aarch64/manylinux2014_aarch64}")"
+        # domains change linux_aarch64 to manylinux_2_28_aarch64
+        pkg_basename="$(basename "${pkg//linux_aarch64/manylinux_2_28_aarch64}")"
     fi
 
     orig_pkg="${tmp_dir}/${pkg_basename}"
