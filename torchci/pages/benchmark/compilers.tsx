@@ -9,9 +9,9 @@ import {
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   DEFAULT_DEVICE_NAME,
-  DEFAULT_FILTER_NAME,
+  DEFAULT_HIGHLIGHT_KEY,
+  DISPLAY_KEYS_TO_HIGHLIGHT,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
-  DISPLAY_NAMES_TO_FILTER,
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
@@ -174,7 +174,9 @@ export default function Page() {
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
-  const [filter, setFilter] = useState<string>(DEFAULT_FILTER_NAME);
+  const [highlightKey, setHighlightKey] = useState<string>(
+    DEFAULT_HIGHLIGHT_KEY
+  );
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -304,9 +306,9 @@ export default function Page() {
           label={"Device"}
         />
         <DTypePicker
-          dtype={filter}
-          setDType={setFilter}
-          dtypes={Object.values(DISPLAY_NAMES_TO_FILTER)}
+          dtype={highlightKey}
+          setDType={setHighlightKey}
+          dtypes={Object.values(DISPLAY_KEYS_TO_HIGHLIGHT)}
           label={"Highlight"}
         />
         <BranchAndCommitPicker
@@ -320,7 +322,7 @@ export default function Page() {
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
           highlightConfig={{
-            key: filter,
+            key: highlightKey,
             highlightColor: "yellow",
           }}
         />
@@ -338,7 +340,7 @@ export default function Page() {
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
           highlightConfig={{
-            key: filter,
+            key: highlightKey,
             highlightColor: "yellow",
           }}
         />
