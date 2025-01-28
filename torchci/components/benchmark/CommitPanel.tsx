@@ -16,6 +16,9 @@ export function CommitPanel({
   workflowName: string;
   children: ReactNode;
 }) {
+  if (!lBranchAndCommit.commit || !rBranchAndCommit.commit) {
+    return <> No commits are selected </>;
+  }
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>

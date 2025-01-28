@@ -20,16 +20,33 @@ import useSWR from "swr";
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
+
+function filterCommitsByFilename(commits: any[], filenameFilter: string|undefined) {
+  if (filenameFilter === undefined || filenameFilter == "all") {
+    return commits;
+  }
+
+  const filteredCommits =  commits.filter((r:any)=>{
+    const found =  r.filenames.filter((f: string) => f.includes(filenameFilter));
+    return found.length > 0;
+  })
+  return filteredCommits;
+}
+
 function groupCommitByBranch(data: any) {
+
   const dedups: { [k: string]: Set<string> } = {};
   const branches: { [k: string]: any[] } = {};
+
   data.forEach((r: any) => {
     const b = r.head_branch;
     if (!(b in branches)) {
       branches[b] = [];
       dedups[b] = new Set<string>();
     }
+
     if (dedups[b].has(r.head_sha)) {
+      branches[b].find((c: any) => c.head_sha === r.head_sha).filenames.push(r.filename);
       return;
     }
 
@@ -38,6 +55,9 @@ function groupCommitByBranch(data: any) {
       event_time: r.event_time,
       // This is used to sort the list of branches to show the main branch first
       display_priority: r.head_branch === MAIN_BRANCH ? 99 : 1,
+      // store list of config files for the commit, this is used to filter out tags
+      filenames: [r.filename],
+      id: r.id,
     });
     dedups[b].add(r.head_sha);
   });
@@ -55,6 +75,7 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
+  filenameFilter,
 }: {
   queryName: string;
   queryParams: { [k: string]: any };
@@ -65,6 +86,7 @@ export function BranchAndCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
+  filenameFilter?: string;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -86,25 +108,29 @@ export function BranchAndCommitPicker({
         // Fallback to the main branch or the first available branch found in result
         setBranch(branch);
       }
-      const branchCommits = branches[branch].map((r: any) => r.head_sha);
+
+      const resultCommits =filterCommitsByFilename(branches[branch],filenameFilter);
+      const branchCommits = resultCommits.map((r: any) => r.head_sha);
 
       if (
         commit === undefined ||
         commit === "" ||
-        !branchCommits.includes(commit) ||
+        !resultCommits.includes(commit) ||
         timeRange !== -1
       ) {
         const index =
-          (branchCommits.length + fallbackIndex) % branchCommits.length;
-        setCommit(branchCommits[index]);
+         setCommit(branchCommits.length + fallbackIndex) % branchCommits.length;
+        (branchCommits[index]);
       }
+
+      console.log("BranchAndCommitPicker", branch, commit);
 
       data.forEach((r: any) => {
         COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
         WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
       });
     }
-  }, [data]);
+  }, [data,filenameFilter]);
 
   if (error !== undefined) {
     return (
@@ -140,6 +166,12 @@ export function BranchAndCommitPicker({
   const displayBranches = Object.keys(branches).sort(
     (x, y) => branches[y][0].display_priority - branches[x][0].display_priority
   );
+
+  const resultCommits = filterCommitsByFilename(branches[branch],filenameFilter);
+
+  console.log("BranchAndCommitPicker2", branch, commit,filenameFilter);
+
+
   return (
     <div>
       <FormControl>
@@ -160,8 +192,7 @@ export function BranchAndCommitPicker({
           ))}
         </Select>
       </FormControl>
-
-      <FormControl>
+      {resultCommits.length > 0 && <FormControl>
         <InputLabel id={`commit-picker-input-label-${commit}`}>
           {titlePrefix} Commit
         </InputLabel>
@@ -172,7 +203,7 @@ export function BranchAndCommitPicker({
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
         >
-          {branches[branch].map((r: any) => (
+          {resultCommits.map((r: any) => (
             <MenuItem key={r.head_sha} value={r.head_sha}>
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
@@ -180,6 +211,7 @@ export function BranchAndCommitPicker({
           ))}
         </Select>
       </FormControl>
+      }
     </div>
   );
 }

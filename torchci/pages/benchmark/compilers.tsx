@@ -8,15 +8,18 @@ import {
 } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
+  DEFAULT_FILTER_NAME,
   DEFAULT_DEVICE_NAME,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
+  DISPLAY_NAMES_TO_FILTER,
 } from "components/benchmark/compilers/common";
 import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
+  FilterPicker,
   DEFAULT_MODE,
   DTypePicker,
   ModePicker,
@@ -56,6 +59,10 @@ function Report({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
+  if (!lBranchAndCommit.commit || !rBranchAndCommit.commit) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
   const queryName = "compilers_benchmark_performance";
   const queryParamsWithL: { [key: string]: any } = {
     ...queryParams,
@@ -116,6 +123,7 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
+      <div> I'm here </div>
       <SummaryPanel
         dashboard={"torchinductor"}
         startTime={startTime}
@@ -172,6 +180,7 @@ export default function Page() {
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+  const [filter, setFilter] = useState<string>(DEFAULT_FILTER_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -300,6 +309,12 @@ export default function Page() {
           dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
           label={"Device"}
         />
+        <DTypePicker
+          dtype={filter}
+          setDType={setFilter}
+          dtypes={Object.values(DISPLAY_NAMES_TO_FILTER)}
+          label={"Filter"}
+        />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
           queryParams={queryParams}
@@ -310,6 +325,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
+          filenameFilter= {filter}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -324,6 +340,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+          filenameFilter= {filter}
         />
       </Stack>
       <Report
