@@ -36,6 +36,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
+import { keyBy } from "lodash";
 
 function Report({
   queryParams,
@@ -319,7 +320,12 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          filenameFilter= {filter}
+          highlightConfig= {
+            {
+              key:filter,
+              highlightColor:"yellow"
+            }
+          }
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -334,7 +340,10 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          filenameFilter= {filter}
+          highlightConfig= {{
+            key:filter,
+            highlightColor:"yellow"
+          }}
         />
       </Stack>
       <Report

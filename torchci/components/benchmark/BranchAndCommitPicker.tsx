@@ -14,7 +14,7 @@ import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { HighlightMenuItem, isCommitHighlight, isCommitStringHighlight } from "./compilers/HighlightMenu";
+import { DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR, HighlightMenuItem, isCommitHighlight, isCommitStringHighlight } from "./compilers/HighlightMenu";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -24,16 +24,9 @@ import { HighlightMenuItem, isCommitHighlight, isCommitStringHighlight } from ".
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
-function filterCommitsByFilename(commits: any[], filenameFilter: string|undefined) {
-  if (filenameFilter === undefined || filenameFilter == "all") {
-    return commits;
-  }
-
-  const filteredCommits =  commits.filter((r:any)=>{
-    const found =  r.filenames.filter((f: string) => f.includes(filenameFilter));
-    return found.length > 0;
-  })
-  return filteredCommits;
+interface HighlightConfig {
+  key?: string;
+  highlightColor?: string;
 }
 
 function groupCommitByBranch(data: any) {
@@ -77,7 +70,7 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
-  filenameFilter,
+  highlightConfig
 }: {
   queryName: string;
   queryParams: { [k: string]: any };
@@ -88,7 +81,7 @@ export function BranchAndCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
-  filenameFilter?: string;
+  highlightConfig?: HighlightConfig;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -194,14 +187,14 @@ export function BranchAndCommitPicker({
           labelId={`commit-picker-select-label-${commit}`}
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
-          sx={{...(isCommitStringHighlight(commit,branches[branch],filenameFilter) && { backgroundColor: 'yellow' })}}
+          sx={{...(isCommitStringHighlight(commit,branches[branch],highlightConfig?.key) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR })}}
         >
           {branches[branch].map((r: any) => (
-            <HighlightMenuItem key={r.head_sha} value={r.head_sha} condition={isCommitHighlight(filenameFilter,r)}>
+            <HighlightMenuItem key={r.head_sha} value={r.head_sha} condition={isCommitHighlight(highlightConfig?.key,r)} customColor={highlightConfig?.highlightColor}>
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
-              {isCommitHighlight(filenameFilter,r) &&
-            <Tooltip id="button-report" title={filenameFilter}>
+              {isCommitHighlight(highlightConfig?.key,r) &&
+            <Tooltip id="button-report" title={highlightConfig?.key}>
               <InfoOutlinedIcon />
             </Tooltip>}
             </HighlightMenuItem>

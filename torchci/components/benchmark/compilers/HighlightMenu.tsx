@@ -1,4 +1,4 @@
-import { MenuItem } from "@mui/material";
+import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { match } from "assert";
 
 interface HighlightMenuItemProps extends React.ComponentProps<typeof MenuItem>{
@@ -6,9 +6,11 @@ interface HighlightMenuItemProps extends React.ComponentProps<typeof MenuItem>{
     customColor?: string;
   }
 
-export const HighlightMenuItem = ({ condition, children, customColor = 'yellow', ...props }: HighlightMenuItemProps) => {
+export const DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR = 'yellow';
+
+export const HighlightMenuItem = ({ condition, children, customColor = DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR, ...props }: HighlightMenuItemProps) => {
     const highlightStyle = {
-      backgroundColor: customColor,
+      backgroundColor: customColor?customColor:DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR,
     };
     return (
       <MenuItem
