@@ -153,6 +153,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "nvidia_cuda_runtime_cu12",
     "nvidia_cudnn_cu12",
     "nvidia_cufft_cu12",
+    "nvidia_cufile_cu12",
     "nvidia_curand_cu12",
     "nvidia_cusolver_cu12",
     "nvidia_cusparse_cu12",
