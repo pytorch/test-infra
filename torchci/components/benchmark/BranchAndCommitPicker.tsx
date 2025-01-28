@@ -1,14 +1,18 @@
 import {
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   SelectChangeEvent,
   Skeleton,
+  Tooltip,
 } from "@mui/material";
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import { set } from "lodash";
 import { useEffect } from "react";
 import useSWR from "swr";
 
@@ -20,6 +24,52 @@ import useSWR from "swr";
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
+interface Commit {
+  head_sha: string;
+  event_time: number;
+  display_priority: number;
+  filenames: string[];
+  id: number;
+}
+
+interface HighlightMenuItemProps extends React.ComponentProps<typeof MenuItem>{
+  condition: boolean;
+}
+
+function isCommitHighlightItem(commit:string,commits: any[],filenameFilter:string|undefined){
+  const matchedCommits =  commits.filter((c:Commit) => c.head_sha === commit);
+  if (matchedCommits.length === 0) {
+    return false;
+  }
+  return isHighlight(filenameFilter,matchedCommits[0]);
+}
+
+const HighlightMenuItem = ({ condition, children, ...props }: HighlightMenuItemProps) => {
+  const highlightStyle = {
+    backgroundColor: 'yellow',
+  };
+  return (
+    <MenuItem
+     {...props}
+      sx={{
+        ...(condition && highlightStyle),
+      }}
+    >
+      {children}
+    </MenuItem>
+  );
+};
+
+function isHighlight(filenameFilter: string | undefined, commit: any) {
+  if (filenameFilter === undefined || filenameFilter == "all") {
+    return false;
+  }
+  const found =  commit.filenames.filter((f: string) => f.includes(filenameFilter));
+
+
+  return found.length > 0;
+
+}
 
 function filterCommitsByFilename(commits: any[], filenameFilter: string|undefined) {
   if (filenameFilter === undefined || filenameFilter == "all") {
@@ -108,29 +158,25 @@ export function BranchAndCommitPicker({
         // Fallback to the main branch or the first available branch found in result
         setBranch(branch);
       }
-
-      const resultCommits =filterCommitsByFilename(branches[branch],filenameFilter);
-      const branchCommits = resultCommits.map((r: any) => r.head_sha);
+      const branchCommits = branches[branch].map((r: any) => r.head_sha);
 
       if (
         commit === undefined ||
         commit === "" ||
-        !resultCommits.includes(commit) ||
+        !branchCommits.includes(commit) ||
         timeRange !== -1
       ) {
         const index =
-         setCommit(branchCommits.length + fallbackIndex) % branchCommits.length;
-        (branchCommits[index]);
+          (branchCommits.length + fallbackIndex) % branchCommits.length;
+        setCommit(branchCommits[index]);
       }
-
-      console.log("BranchAndCommitPicker", branch, commit);
 
       data.forEach((r: any) => {
         COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
         WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
       });
     }
-  }, [data,filenameFilter]);
+  }, [data]);
 
   if (error !== undefined) {
     return (
@@ -166,12 +212,6 @@ export function BranchAndCommitPicker({
   const displayBranches = Object.keys(branches).sort(
     (x, y) => branches[y][0].display_priority - branches[x][0].display_priority
   );
-
-  const resultCommits = filterCommitsByFilename(branches[branch],filenameFilter);
-
-  console.log("BranchAndCommitPicker2", branch, commit,filenameFilter);
-
-
   return (
     <div>
       <FormControl>
@@ -192,7 +232,7 @@ export function BranchAndCommitPicker({
           ))}
         </Select>
       </FormControl>
-      {resultCommits.length > 0 && <FormControl>
+      <FormControl>
         <InputLabel id={`commit-picker-input-label-${commit}`}>
           {titlePrefix} Commit
         </InputLabel>
@@ -202,16 +242,20 @@ export function BranchAndCommitPicker({
           labelId={`commit-picker-select-label-${commit}`}
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
+          sx={{...(isCommitHighlightItem(commit,branches[branch],filenameFilter) && { backgroundColor: 'yellow' })}}
         >
-          {resultCommits.map((r: any) => (
-            <MenuItem key={r.head_sha} value={r.head_sha}>
+          {branches[branch].map((r: any) => (
+            <HighlightMenuItem key={r.head_sha} value={r.head_sha} condition={isHighlight(filenameFilter,r)}>
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
-            </MenuItem>
+              {isHighlight(filenameFilter,r) &&
+            <Tooltip id="button-report" title={filenameFilter}>
+              <InfoOutlinedIcon />
+            </Tooltip>}
+            </HighlightMenuItem>
           ))}
         </Select>
       </FormControl>
-      }
     </div>
   );
 }

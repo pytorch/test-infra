@@ -77,9 +77,8 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   mps: "inductor-perf-nightly-macos",
 };
 
-export const DEFAULT_FILTER_NAME = "all";
-
+export const DEFAULT_FILTER_NAME = "unselected";
 export const DISPLAY_NAMES_TO_FILTER: { [k: string]: string } = {
-  "All": DEFAULT_FILTER_NAME,
+  "Unselected": DEFAULT_FILTER_NAME,
   "Max_autotune": "max_autotune",
 };

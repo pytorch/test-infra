@@ -19,7 +19,6 @@ import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGrou
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
 import {
-  FilterPicker,
   DEFAULT_MODE,
   DTypePicker,
   ModePicker,
@@ -313,7 +312,7 @@ export default function Page() {
           dtype={filter}
           setDType={setFilter}
           dtypes={Object.values(DISPLAY_NAMES_TO_FILTER)}
-          label={"Filter"}
+          label={"Highlight"}
         />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
