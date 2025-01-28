@@ -117,8 +117,6 @@ function Report({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  console.log(lBranchAndCommit, rBranchAndCommit)
-
   return (
     <div>
       <CommitPanel
@@ -310,8 +308,7 @@ export default function Page() {
           suites: [],
           workflowId: 0,
         };
-  console.log("testing",lCommit, rCommit)
-  
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -398,7 +395,7 @@ export default function Page() {
 
 
       <Grid2 size={{ xs: 12 }}>
-        {lCommit && rCommit && <Report
+        <Report
           dashboard={dashboard}
           queryName={queryName}
           queryParams={queryParams}
@@ -413,8 +410,7 @@ export default function Page() {
           model={model}
           lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
           rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
-        />}
-        {lCommit.length==0 || rCommit.length === 0 && <div> cannot detect commits to compare </div>}
+        />
       </Grid2>
     </div>
   );

@@ -251,7 +251,6 @@ export function SummaryPanel({
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
 
-
                     if (l === undefined) {
                       return "";
                     }
