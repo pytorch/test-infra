@@ -18,7 +18,7 @@ import {
   HighlightMenuItem,
   isCommitHighlight,
   isCommitStringHighlight,
-} from "./compilers/HighlightMenu";
+} from "./HighlightMenu";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
