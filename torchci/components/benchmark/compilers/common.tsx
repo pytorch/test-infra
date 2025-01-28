@@ -65,7 +65,7 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a10g)": "cuda_a10g",
   "cpu (x86)": "cpu_x86",
   "cpu (aarch64)": "cpu_aarch64",
-  rocm: "rocm",
+  "rocm (mi300x)": "rocm",
   mps: "mps",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
