@@ -45,9 +45,11 @@ function groupCommitByBranch(data: any) {
     }
 
     if (dedups[b].has(r.head_sha)) {
-      branches[b]
-        ?.find((c: any) => c.head_sha === r.head_sha)
-        .filenames.push(r.filename);
+      if (r.filename) {
+        branches[b]
+          ?.find((c: any) => c.head_sha === r.head_sha)
+          .filenames.push(r.filename);
+      }
       return;
     }
 
@@ -56,13 +58,12 @@ function groupCommitByBranch(data: any) {
       event_time: r.event_time,
       // This is used to sort the list of branches to show the main branch first
       display_priority: r.head_branch === MAIN_BRANCH ? 99 : 1,
-      // store list of config files for the commit, this is used to filter out tags
-      filenames: [r.filename],
+      // store list of config files for the commit, this is used to highlight
+      filenames: r.filename ? [r.filename] : [],
       id: r.id,
     });
     dedups[b].add(r.head_sha);
   });
-
   return branches;
 }
 

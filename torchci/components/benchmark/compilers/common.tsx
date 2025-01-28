@@ -77,8 +77,8 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   mps: "inductor-perf-nightly-macos",
 };
 
-export const DEFAULT_HIGHLIGHT_KEY = "unselected";
+export const DEFAULT_HIGHLIGHT_KEY = "none";
 export const DISPLAY_KEYS_TO_HIGHLIGHT: { [k: string]: string } = {
-  Unselected: DEFAULT_HIGHLIGHT_KEY,
+  None: DEFAULT_HIGHLIGHT_KEY,
   Max_autotune: "max_autotune",
 };
