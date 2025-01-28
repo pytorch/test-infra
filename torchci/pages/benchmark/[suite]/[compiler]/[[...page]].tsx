@@ -393,7 +393,6 @@ export default function Page() {
         />
       </Stack>
 
-
       <Grid2 size={{ xs: 12 }}>
         <Report
           dashboard={dashboard}

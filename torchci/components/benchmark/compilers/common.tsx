@@ -79,6 +79,6 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
 
 export const DEFAULT_FILTER_NAME = "unselected";
 export const DISPLAY_NAMES_TO_FILTER: { [k: string]: string } = {
-  "Unselected": DEFAULT_FILTER_NAME,
-  "Max_autotune": "max_autotune",
+  Unselected: DEFAULT_FILTER_NAME,
+  Max_autotune: "max_autotune",
 };

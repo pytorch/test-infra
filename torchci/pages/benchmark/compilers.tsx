@@ -8,12 +8,12 @@ import {
 } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
-  DEFAULT_FILTER_NAME,
   DEFAULT_DEVICE_NAME,
+  DEFAULT_FILTER_NAME,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
+  DISPLAY_NAMES_TO_FILTER,
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
-  DISPLAY_NAMES_TO_FILTER,
 } from "components/benchmark/compilers/common";
 import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
@@ -36,7 +36,6 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
-import { keyBy } from "lodash";
 
 function Report({
   queryParams,
@@ -320,12 +319,10 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          highlightConfig= {
-            {
-              key:filter,
-              highlightColor:"yellow"
-            }
-          }
+          highlightConfig={{
+            key: filter,
+            highlightColor: "yellow",
+          }}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -340,9 +337,9 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          highlightConfig= {{
-            key:filter,
-            highlightColor:"yellow"
+          highlightConfig={{
+            key: filter,
+            highlightColor: "yellow",
           }}
         />
       </Stack>

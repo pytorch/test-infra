@@ -1,6 +1,6 @@
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -8,13 +8,17 @@ import {
   Skeleton,
   Tooltip,
 } from "@mui/material";
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR, HighlightMenuItem, isCommitHighlight, isCommitStringHighlight } from "./compilers/HighlightMenu";
+import {
+  DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR,
+  HighlightMenuItem,
+  isCommitHighlight,
+  isCommitStringHighlight,
+} from "./compilers/HighlightMenu";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -41,7 +45,9 @@ function groupCommitByBranch(data: any) {
     }
 
     if (dedups[b].has(r.head_sha)) {
-      branches[b]?.find((c: any) => c.head_sha === r.head_sha).filenames.push(r.filename);
+      branches[b]
+        ?.find((c: any) => c.head_sha === r.head_sha)
+        .filenames.push(r.filename);
       return;
     }
 
@@ -70,7 +76,7 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
-  highlightConfig
+  highlightConfig,
 }: {
   queryName: string;
   queryParams: { [k: string]: any };
@@ -187,16 +193,28 @@ export function BranchAndCommitPicker({
           labelId={`commit-picker-select-label-${commit}`}
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
-          sx={{...(isCommitStringHighlight(commit,branches[branch],highlightConfig?.key) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR })}}
+          sx={{
+            ...(isCommitStringHighlight(
+              commit,
+              branches[branch],
+              highlightConfig?.key
+            ) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR }),
+          }}
         >
           {branches[branch].map((r: any) => (
-            <HighlightMenuItem key={r.head_sha} value={r.head_sha} condition={isCommitHighlight(highlightConfig?.key,r)} customColor={highlightConfig?.highlightColor}>
+            <HighlightMenuItem
+              key={r.head_sha}
+              value={r.head_sha}
+              condition={isCommitHighlight(highlightConfig?.key, r)}
+              customColor={highlightConfig?.highlightColor}
+            >
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
-              {isCommitHighlight(highlightConfig?.key,r) &&
-            <Tooltip id="button-report" title={highlightConfig?.key}>
-              <InfoOutlinedIcon />
-            </Tooltip>}
+              {isCommitHighlight(highlightConfig?.key, r) && (
+                <Tooltip id="button-report" title={highlightConfig?.key}>
+                  <InfoOutlinedIcon />
+                </Tooltip>
+              )}
             </HighlightMenuItem>
           ))}
         </Select>
