@@ -31,7 +31,11 @@ else
         conda activate ${ENV_NAME}
     fi
 
-    pip install numpy==1.26.4 --force-reinstall
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
+        pip install numpy --force-reinstall
+    else
+        pip install numpy==1.26.4 --force-reinstall
+    fi
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
