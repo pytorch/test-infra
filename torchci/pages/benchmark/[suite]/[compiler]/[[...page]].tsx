@@ -48,10 +48,11 @@ function Report({
   suite,
   mode,
   dtype,
-  deviceName,
   compiler,
   model,
+  lDeviceName,
   lBranchAndCommit,
+  rDeviceName,
   rBranchAndCommit,
 }: {
   dashboard: string;
@@ -63,14 +64,16 @@ function Report({
   suite: string;
   mode: string;
   dtype: string;
-  deviceName: string;
   compiler: string;
   model: string;
+  lDeviceName: string;
   lBranchAndCommit: BranchAndCommit;
+  rDeviceName: string;
   rBranchAndCommit: BranchAndCommit;
 }) {
   const queryParamsWithL: { [key: string]: any } = {
     ...queryParams,
+    device: DISPLAY_NAMES_TO_DEVICE_NAMES[lDeviceName],
     branches: [lBranchAndCommit.branch],
     commits: [lBranchAndCommit.commit],
     getJobId: true,
@@ -93,6 +96,7 @@ function Report({
 
   const queryParamsWithR: { [key: string]: any } = {
     ...queryParams,
+    device: DISPLAY_NAMES_TO_DEVICE_NAMES[rDeviceName],
     branches: [rBranchAndCommit.branch],
     commits: [rBranchAndCommit.commit],
     getJobId: true,
@@ -137,7 +141,7 @@ function Report({
         workflowName={
           dashboard === "torchao"
             ? "Torchao nightly workflow (A100)".toLowerCase()
-            : DISPLAY_NAMES_TO_WORKFLOW_NAMES[deviceName]
+            : DISPLAY_NAMES_TO_WORKFLOW_NAMES[lDeviceName]
         }
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
@@ -160,13 +164,14 @@ function Report({
         suite={suite}
         mode={mode}
         dtype={dtype}
-        deviceName={deviceName}
         compiler={compiler}
         model={model}
+        lDeviceName={lDeviceName}
         lPerfData={{
           ...lBranchAndCommit,
           data: lData,
         }}
+        rDeviceName={rDeviceName}
         rPerfData={{
           ...rBranchAndCommit,
           data: rData,
@@ -198,12 +203,13 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [mode, setMode] = useState<string>(DEFAULT_MODE);
   const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
+  const [lDeviceName, setLDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
+  const [rDeviceName, setRDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
-  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -241,9 +247,10 @@ export default function Page() {
       setDType(dtype);
     }
 
-    const deviceName: string = (router.query.deviceName as string) ?? undefined;
-    if (deviceName !== undefined) {
-      setDeviceName(deviceName);
+    const lDeviceName: string =
+      (router.query.lDeviceName as string) ?? undefined;
+    if (lDeviceName !== undefined) {
+      setLDeviceName(lDeviceName);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -254,6 +261,12 @@ export default function Page() {
     const lCommit: string = (router.query.lCommit as string) ?? undefined;
     if (lCommit !== undefined) {
       setLCommit(lCommit);
+    }
+
+    const rDeviceName: string =
+      (router.query.rDeviceName as string) ?? undefined;
+    if (rDeviceName !== undefined) {
+      setRDeviceName(rDeviceName);
     }
 
     const rBranch: string = (router.query.rBranch as string) ?? undefined;
@@ -285,7 +298,7 @@ export default function Page() {
           branches: [],
           commits: [],
           compilers: [compiler],
-          device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+          device: DISPLAY_NAMES_TO_DEVICE_NAMES[lDeviceName],
           dtypes: [dtype],
           granularity: granularity,
           mode: mode,
@@ -298,7 +311,7 @@ export default function Page() {
       : {
           commits: [],
           compilers: [compiler],
-          device: DISPLAY_NAMES_TO_DEVICE_NAMES[deviceName],
+          device: DISPLAY_NAMES_TO_DEVICE_NAMES[lDeviceName],
           dtypes: dtype,
           getJobId: false,
           granularity: granularity,
@@ -322,8 +335,10 @@ export default function Page() {
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
-            )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
-              deviceName
+            )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
+              lDeviceName
+            )}&rDeviceName=${encodeURIComponent(
+              rDeviceName
             )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
             (model === undefined ? "" : `&model=${model}`)
           }
@@ -360,9 +375,14 @@ export default function Page() {
           dtypes={dashboard === "torchao" ? QUANTIZATIONS : DTYPES}
           label={dashboard === "torchao" ? "Quantization" : "Precision"}
         />
+        <Divider
+          orientation="vertical"
+          flexItem
+          style={{ background: "black" }}
+        />
         <DTypePicker
-          dtype={deviceName}
-          setDType={setDeviceName}
+          dtype={rDeviceName}
+          setDType={setRDeviceName}
           dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
           label={"Device"}
         />
@@ -372,7 +392,10 @@ export default function Page() {
           setBranch={setRBranch}
           commit={rCommit}
           setCommit={setRCommit}
-          queryParams={queryParams}
+          queryParams={{
+            ...queryParams,
+            device: DISPLAY_NAMES_TO_DEVICE_NAMES[rDeviceName],
+          }}
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
@@ -386,10 +409,19 @@ export default function Page() {
           setBranch={setLBranch}
           commit={lCommit}
           setCommit={setLCommit}
-          queryParams={queryParams}
+          queryParams={{
+            ...queryParams,
+            device: DISPLAY_NAMES_TO_DEVICE_NAMES[lDeviceName],
+          }}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
+        />
+        <DTypePicker
+          dtype={lDeviceName}
+          setDType={setLDeviceName}
+          dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
+          label={"Device"}
         />
       </Stack>
 
@@ -404,10 +436,11 @@ export default function Page() {
           suite={suite}
           mode={mode}
           dtype={dtype}
-          deviceName={deviceName}
           compiler={compiler}
           model={model}
+          lDeviceName={lDeviceName}
           lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
+          rDeviceName={rDeviceName}
           rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
         />
       </Grid2>
