@@ -41,6 +41,11 @@ def parse_args() -> argparse.Namespace:
         help="Number of times to run the query. Only relevant if --perf is used",
         default=10,
     )
+    parser.add_argument(
+        "--strict-results",
+        action="store_true",
+        help="Only relevant if --results is used. If set, it will sort the query results before comparing",
+    )
     args = parser.parse_args()
     return args
 
@@ -163,10 +168,10 @@ def perf_compare(args: argparse.Namespace) -> None:
 
 
 def results_compare(args: argparse.Namespace) -> None:
-    query, tests = get_query(args.query)
     if not args.base:
         print("Base sha is required for results comparison")
         return
+    query, tests = get_query(args.query, args.head)
     base_query, _ = get_query(args.query, args.base)
     print(
         f"Comparing results for query: {args.query}\nNum tests: {len(tests)}\nHead: {args.head} Base: {args.base}"
@@ -174,12 +179,21 @@ def results_compare(args: argparse.Namespace) -> None:
     for i, test in enumerate(tests):
         new_results = query_clickhouse(query, test)
         base_results = query_clickhouse(base_query, test)
+        if args.strict_results:
+            new_results = sorted(
+                new_results, key=lambda x: json.dumps(x, sort_keys=True)
+            )
+            base_results = sorted(
+                base_results, key=lambda x: json.dumps(x, sort_keys=True)
+            )
         if new_results != base_results:
             print(f"Results for test {i} differ")
             print(f"Test: {json.dumps(test, indent=2)}")
             print(f"New: {new_results}")
             print(f"Base: {base_results}")
             print()
+        else:
+            print(f"Results for test {i} match")
 
 
 if __name__ == "__main__":
