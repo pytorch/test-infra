@@ -540,7 +540,12 @@ class S3Index:
                 if obj.size is None
             }.items():
                 response = future.result()
-                sha256 = (_b64 := response.get("ChecksumSHA256")) and base64.b64decode(_b64).hex()
+                raw = response.get("ChecksumSHA256")
+                if len(raw) != 44:
+                    # Possibly part of a multipart upload, making the checksum incorrect
+                    print(f"WARNING: {self.objects[idx].orig_key} has incorrect checksum")
+                    raw = None
+                sha256 = raw and base64.b64decode(raw).hex()
                 # For older files, rely on checksum-sha256 metadata that can be added to the file later
                 if sha256 is None:
                     sha256 = response.get("Metadata", {}).get("checksum-sha256")
