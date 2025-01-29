@@ -42,6 +42,12 @@ export function isCommitStringHighlight(
   return isCommitHighlight(filenameFilterList, matchedCommit);
 }
 
+/**
+ * isCommitHighlight returns true if the commit's filenames list contains all filter names from filenameFilterList.
+ * @param filenameFilterList
+ * @param commit
+ * @returns
+ */
 export function isCommitHighlight(
   filenameFilterList: string[] | undefined,
   commit: any
@@ -56,6 +62,12 @@ export function isCommitHighlight(
   return isStringMatchedAll(filenameFilterList, commit.filenames.join(","));
 }
 
+/**
+ * getMatchedFilters return all matched filtername in commit.filename list.
+ * @param filenameFilterList
+ * @param commit
+ * @returns
+ */
 export function getMatchedFilters(
   filenameFilterList: string[] | undefined,
   commit: any
