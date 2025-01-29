@@ -17,6 +17,7 @@ export function getClickhouseClient() {
     password: process.env.CLICKHOUSE_HUD_USER_PASSWORD ?? "",
   });
 }
+//
 
 export function getClickhouseClientWritable() {
   return createClient({

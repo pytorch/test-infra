@@ -1,3 +1,4 @@
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   FormControl,
   InputLabel,
@@ -5,12 +6,20 @@ import {
   Select,
   SelectChangeEvent,
   Skeleton,
+  Tooltip,
 } from "@mui/material";
 import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
+import {
+  DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR,
+  getMatchedFilters,
+  HighlightMenuItem,
+  isCommitHighlight,
+  isCommitStringHighlight,
+} from "./HighlightMenu";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -20,16 +29,28 @@ import useSWR from "swr";
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
+interface HighlightConfig {
+  keys?: string[];
+  highlightColor?: string;
+}
+
 function groupCommitByBranch(data: any) {
   const dedups: { [k: string]: Set<string> } = {};
   const branches: { [k: string]: any[] } = {};
+
   data.forEach((r: any) => {
     const b = r.head_branch;
     if (!(b in branches)) {
       branches[b] = [];
       dedups[b] = new Set<string>();
     }
+
     if (dedups[b].has(r.head_sha)) {
+      if (r.filename) {
+        branches[b]
+          ?.find((c: any) => c.head_sha === r.head_sha)
+          .filenames.push(r.filename);
+      }
       return;
     }
 
@@ -38,10 +59,12 @@ function groupCommitByBranch(data: any) {
       event_time: r.event_time,
       // This is used to sort the list of branches to show the main branch first
       display_priority: r.head_branch === MAIN_BRANCH ? 99 : 1,
+      // store list of config files for the commit, this is used to highlight
+      filenames: r.filename ? [r.filename] : [],
+      id: r.id,
     });
     dedups[b].add(r.head_sha);
   });
-
   return branches;
 }
 
@@ -55,6 +78,7 @@ export function BranchAndCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
+  highlightConfig,
 }: {
   queryName: string;
   queryParams: { [k: string]: any };
@@ -65,6 +89,7 @@ export function BranchAndCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
+  highlightConfig?: HighlightConfig;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -160,7 +185,6 @@ export function BranchAndCommitPicker({
           ))}
         </Select>
       </FormControl>
-
       <FormControl>
         <InputLabel id={`commit-picker-input-label-${commit}`}>
           {titlePrefix} Commit
@@ -171,12 +195,32 @@ export function BranchAndCommitPicker({
           labelId={`commit-picker-select-label-${commit}`}
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
+          sx={{
+            ...(isCommitStringHighlight(
+              commit,
+              branches[branch],
+              highlightConfig?.keys
+            ) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR }),
+          }}
         >
           {branches[branch].map((r: any) => (
-            <MenuItem key={r.head_sha} value={r.head_sha}>
+            <HighlightMenuItem
+              key={r.head_sha}
+              value={r.head_sha}
+              condition={isCommitHighlight(highlightConfig?.keys, r)}
+              customColor={highlightConfig?.highlightColor}
+            >
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
-            </MenuItem>
+              {isCommitHighlight(highlightConfig?.keys, r) && (
+                <Tooltip
+                  id="button-report"
+                  title={getMatchedFilters(highlightConfig?.keys, r).join(",")}
+                >
+                  <InfoOutlinedIcon />
+                </Tooltip>
+              )}
+            </HighlightMenuItem>
           ))}
         </Select>
       </FormControl>

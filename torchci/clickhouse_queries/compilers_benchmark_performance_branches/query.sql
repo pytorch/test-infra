@@ -4,6 +4,7 @@ SELECT
     DISTINCT w.head_branch AS head_branch,
     w.head_sha,
     w.id,
+    p.filename,
     toStartOfDay(fromUnixTimestamp64Milli(p.timestamp)) AS event_time
 FROM
     benchmark.inductor_torch_dynamo_perf_stats p
