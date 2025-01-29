@@ -1,10 +1,12 @@
+import { Button, TextField } from "@mui/material";
+import { Box, Stack } from "@mui/system";
 import CheckBoxSelector from "components/CheckBoxSelector";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
+import LoadingPage from "components/LoadingPage";
 import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { ParamSelector } from "lib/ParamSelector";
 import { JobData } from "lib/types";
 import { usePreference } from "lib/useGroupingPreference";
 import { useRouter } from "next/router";
@@ -15,6 +17,20 @@ import { encodeParams } from "./tests/search";
 dayjs.extend(utc);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+export function formatFailureCaptures(failureCaptures: string) {
+  // Format the failure captures to be string[] for the API
+  let captures: any = [];
+  try {
+    captures = JSON.parse(failureCaptures);
+  } catch (e) {
+    captures = failureCaptures as string;
+  }
+  if (!Array.isArray(captures)) {
+    captures = [captures];
+  }
+  return captures as string[];
+}
 
 function FuzzySearchCheckBox({
   useFuzzySearch,
@@ -273,11 +289,11 @@ function getTestInfo(failureCapture: string) {
 }
 
 function setURL(name: string, jobName: string, failureCaptures: string) {
-  window.location.href = `/failure?name=${encodeURIComponent(
-    name
-  )}&jobName=${encodeURIComponent(
-    jobName
-  )}&failureCaptures=${encodeURIComponent(failureCaptures)}`;
+  window.location.href = `/failure?${encodeParams({
+    name,
+    jobName,
+    failureCaptures,
+  })}`;
 }
 
 export default function Page() {
@@ -295,38 +311,53 @@ export default function Page() {
   // `useSWR` to avoid sending a garbage request to the server.
   const swrKey =
     failureCaptures !== undefined
-      ? `/api/failure?name=${encodeURIComponent(
-          name
-        )}&jobName=${encodeURIComponent(
-          jobName
-        )}&failureCaptures=${encodeURIComponent(
-          failureCaptures
-        )}&useFuzzySearch=${useFuzzySearch}`
+      ? `/api/failure?${encodeParams({
+          name,
+          jobName,
+          failureCaptures,
+          useFuzzySearch: useFuzzySearch.toString(),
+        })}`
       : null;
   const { data } = useSWR(swrKey, fetcher);
 
   useEffect(() => {
-    setTestInfo(
-      getTestInfo(failureCaptures ? JSON.parse(failureCaptures)[0] : "")
-    );
+    if (failureCaptures) {
+      setTestInfo(
+        getTestInfo(formatFailureCaptures(failureCaptures as string)[0])
+      );
+    }
   }, [failureCaptures]);
 
+  if (!router.isReady) {
+    return <LoadingPage />;
+  }
+
   return (
-    <div>
+    <Stack spacing={1}>
       <h1>PyTorch CI Failure Info</h1>
-      <h2>
-        <div>
-          Job:{" "}
-          <ParamSelector
-            value={name}
-            handleSubmit={(e: any) => setURL(e, jobName, failureCaptures)}
-          />
-        </div>
-        <ParamSelector
-          value={failureCaptures}
-          handleSubmit={(e: any) => setURL(name, jobName, e)}
-        />
-      </h2>
+      <p>Search for log classifier results</p>
+      <Box
+        component="form"
+        noValidate
+        autoComplete="off"
+        sx={{
+          "& .MuiTextField-root": { m: 1 },
+          "& .MuiButton-root": { m: 2 },
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          // @ts-ignore
+          setURL(e.target[0].value, jobName, e.target[2].value);
+        }}
+      >
+        <Stack spacing={1}>
+          <TextField label="Job" defaultValue={name} />
+          <TextField label="Failure Captures" defaultValue={failureCaptures} />
+          <Button variant="contained" color="primary" type="submit">
+            Search
+          </Button>
+        </Stack>
+      </Box>
       {testInfo && (
         <div>
           <a
@@ -353,6 +384,6 @@ export default function Page() {
           samples={data.samples}
         />
       )}
-    </div>
+    </Stack>
   );
 }
