@@ -137,13 +137,9 @@ export class Config {
   }
 
   get shuffledAwsRegionInstances(): string[] {
-    let arr: string[];
-    if (this.awsRegionsToVpcIds.size > 0) {
-      arr = Array.from(this.awsRegionsToVpcIds.keys());
-    } else {
-      arr = [...this.awsRegionInstances];
-    }
-    return shuffleArrayInPlace(arr);
+    const regions: Set<string> = new Set(this.awsRegionsToVpcIds.keys());
+    this.awsRegionInstances.forEach((region) => regions.add(region));
+    return shuffleArrayInPlace(Array.from(regions));
   }
 
   get ghesUrlApi(): undefined | string {

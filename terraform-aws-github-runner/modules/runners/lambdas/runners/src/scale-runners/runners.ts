@@ -146,10 +146,11 @@ export async function listRunners(
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
-    console.debug(`[listRunners]: REGIONS ${Config.Instance.shuffledAwsRegionInstances}`);
+    const awsRegionsInstances = Config.Instance.shuffledAwsRegionInstances;
+    console.debug(`[listRunners]: REGIONS ${awsRegionsInstances}`);
     const runningInstances = (
       await Promise.all(
-        Config.Instance.shuffledAwsRegionInstances
+        awsRegionsInstances
           .filter((r) => regions?.has(r) ?? true)
           .map((awsRegion) => {
             console.debug(`[listRunners]: Running for region ${awsRegion}`);
@@ -482,8 +483,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       runnerParameters.runnerType.labels ? ' [' + runnerParameters.runnerType.labels.join(',') + ']' : ''
     }`;
 
-    const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
-    for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
+    const awsRegionsInstances = Config.Instance.shuffledAwsRegionInstances;
+    for (const [awsRegionIdx, awsRegion] of awsRegionsInstances.entries()) {
       const runnerSubnetSequence = await getCreateRunnerSubnetSequence(runnerParameters, awsRegion, metrics);
 
       const ec2 = new EC2({ region: awsRegion });
@@ -582,7 +583,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           const msg =
             `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
             `[${vpcId}] ` +
-            `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
+            `[${awsRegionIdx}/${awsRegionsInstances.length} - ${awsRegion}] Issue creating instance ` +
             `${runnerParameters.runnerType.instance_type}${labelsStrLog}: ${e}`;
           errors.push([msg, e, awsRegion]);
           console.warn(msg);
