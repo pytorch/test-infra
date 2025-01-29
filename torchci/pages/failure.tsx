@@ -11,6 +11,7 @@ import { useRouter } from "next/router";
 import { CSSProperties, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import useSWR from "swr";
+import { encodeParams } from "./tests/search";
 dayjs.extend(utc);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -329,9 +330,10 @@ export default function Page() {
       {testInfo && (
         <div>
           <a
-            href={`/flakytest?name=${encodeURIComponent(
-              testInfo.testName
-            )}&suite=${encodeURIComponent(testInfo.moduleName)}&limit=100`}
+            href={`/tests/search?${encodeParams({
+              name: testInfo.testName,
+              suite: testInfo.moduleName,
+            })}`}
           >
             More Failures Page for {testInfo.testName}
           </a>
