@@ -39,10 +39,11 @@ export function ModelPanel({
   suite,
   mode,
   dtype,
-  deviceName,
   compiler,
   model,
+  lDeviceName,
   lPerfData,
+  rDeviceName,
   rPerfData,
 }: {
   dashboard: string;
@@ -52,10 +53,11 @@ export function ModelPanel({
   suite: string;
   mode: string;
   dtype: string;
-  deviceName: string;
   compiler: string;
   model: string;
+  lDeviceName: string;
   lPerfData: BranchAndCommitPerfData;
+  rDeviceName: string;
   rPerfData: BranchAndCommitPerfData;
 }) {
   const lBranch = lPerfData.branch;
@@ -181,8 +183,10 @@ export function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&deviceName=${encodeURIComponent(
-                  deviceName
+                const url = `/benchmark/${suite}/${compiler}?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
+                  lDeviceName
+                )}&rDeviceName=${encodeURIComponent(
+                  rDeviceName
                 )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
