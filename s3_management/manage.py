@@ -528,6 +528,7 @@ class S3Index:
 
     def fetch_metadata(self: S3IndexType) -> None:
         # Add PEP 503-compatible hashes to URLs to allow clients to avoid spurious downloads, if possible.
+        regex_multipart_upload = r"^[A-Za-z0-9+/=]+=-[0-9]+$"
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             for idx, future in {
                 idx: executor.submit(
@@ -541,9 +542,9 @@ class S3Index:
             }.items():
                 response = future.result()
                 raw = response.get("ChecksumSHA256")
-                if raw and raw.match("^[A-Za-z0-9+/=]+=-[0-9]+$") is None:
+                if raw and match(regex_multipart_upload, raw):
                     # Possibly part of a multipart upload, making the checksum incorrect
-                    print(f"WARNING: {self.objects[idx].orig_key} has incorrect checksum")
+                    print(f"WARNING: {self.objects[idx].orig_key} has bad checksum: {raw}")
                     raw = None
                 sha256 = raw and base64.b64decode(raw).hex()
                 # For older files, rely on checksum-sha256 metadata that can be added to the file later
