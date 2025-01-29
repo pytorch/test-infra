@@ -9,8 +9,6 @@ import {
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import {
   DEFAULT_DEVICE_NAME,
-  DEFAULT_HIGHLIGHT_KEY,
-  DISPLAY_KEYS_TO_HIGHLIGHT,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
@@ -36,6 +34,10 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { COMPILER_SUITES_MAP } from "../../lib/benchmark/compliers/CompilerSuites";
 import { TimeRangePicker } from "../metrics";
+const HardCodedHightlightConfig = {
+  keys: ["max_autotune"],
+  highlightColor: "yellow",
+};
 
 function Report({
   queryParams,
@@ -174,9 +176,6 @@ export default function Page() {
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
-  const [highlightKey, setHighlightKey] = useState<string>(
-    DEFAULT_HIGHLIGHT_KEY
-  );
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -305,12 +304,6 @@ export default function Page() {
           dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
           label={"Device"}
         />
-        <DTypePicker
-          dtype={highlightKey}
-          setDType={setHighlightKey}
-          dtypes={Object.values(DISPLAY_KEYS_TO_HIGHLIGHT)}
-          label={"Highlight"}
-        />
         <BranchAndCommitPicker
           queryName={"compilers_benchmark_performance_branches"}
           queryParams={queryParams}
@@ -321,10 +314,7 @@ export default function Page() {
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
           timeRange={timeRange}
-          highlightConfig={{
-            key: highlightKey,
-            highlightColor: "yellow",
-          }}
+          highlightConfig={HardCodedHightlightConfig}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -339,10 +329,7 @@ export default function Page() {
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
           timeRange={timeRange}
-          highlightConfig={{
-            key: highlightKey,
-            highlightColor: "yellow",
-          }}
+          highlightConfig={HardCodedHightlightConfig}
         />
       </Stack>
       <Report

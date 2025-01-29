@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import {
   DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR,
+  getMatchedFilters,
   HighlightMenuItem,
   isCommitHighlight,
   isCommitStringHighlight,
@@ -29,7 +30,7 @@ export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
 interface HighlightConfig {
-  key?: string;
+  keys?: string[];
   highlightColor?: string;
 }
 
@@ -198,7 +199,7 @@ export function BranchAndCommitPicker({
             ...(isCommitStringHighlight(
               commit,
               branches[branch],
-              highlightConfig?.key
+              highlightConfig?.keys
             ) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR }),
           }}
         >
@@ -206,13 +207,16 @@ export function BranchAndCommitPicker({
             <HighlightMenuItem
               key={r.head_sha}
               value={r.head_sha}
-              condition={isCommitHighlight(highlightConfig?.key, r)}
+              condition={isCommitHighlight(highlightConfig?.keys, r)}
               customColor={highlightConfig?.highlightColor}
             >
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
-              {isCommitHighlight(highlightConfig?.key, r) && (
-                <Tooltip id="button-report" title={highlightConfig?.key}>
+              {isCommitHighlight(highlightConfig?.keys, r) && (
+                <Tooltip
+                  id="button-report"
+                  title={getMatchedFilters(highlightConfig?.keys, r).join(",")}
+                >
                   <InfoOutlinedIcon />
                 </Tooltip>
               )}

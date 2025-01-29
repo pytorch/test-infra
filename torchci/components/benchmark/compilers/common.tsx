@@ -76,9 +76,3 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   rocm: "inductor-perf-nightly-rocm",
   mps: "inductor-perf-nightly-macos",
 };
-
-export const DEFAULT_HIGHLIGHT_KEY = "none";
-export const DISPLAY_KEYS_TO_HIGHLIGHT: { [k: string]: string } = {
-  None: DEFAULT_HIGHLIGHT_KEY,
-  Max_autotune: "max_autotune",
-};

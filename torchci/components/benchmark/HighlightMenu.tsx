@@ -33,24 +33,53 @@ export const HighlightMenuItem = ({
 export function isCommitStringHighlight(
   commit: string,
   commits: any[],
-  filenameFilter: string | undefined
+  filenameFilterList: string[] | undefined
 ) {
   const matchedCommit = commits.find((c: any) => c.head_sha === commit);
   if (!matchedCommit) {
     return false;
   }
-  return isCommitHighlight(filenameFilter, matchedCommit);
+  return isCommitHighlight(filenameFilterList, matchedCommit);
 }
 
 export function isCommitHighlight(
-  filenameFilter: string | undefined,
+  filenameFilterList: string[] | undefined,
   commit: any
 ) {
-  if (filenameFilter === undefined || filenameFilter == "all") {
+  if (filenameFilterList === undefined || filenameFilterList.length == 0) {
     return false;
   }
-  const found = commit.filenames.filter((f: string) =>
-    f.includes(filenameFilter)
-  );
-  return found.length > 0;
+
+  if (!commit || !commit.filenames) {
+    return false;
+  }
+  return isStringMatchedAll(filenameFilterList, commit.filenames.join(","));
+}
+
+export function getMatchedFilters(
+  filenameFilterList: string[] | undefined,
+  commit: any
+) {
+  if (filenameFilterList === undefined || filenameFilterList.length == 0) {
+    return [];
+  }
+
+  if (!commit || !commit.filenames) {
+    return [];
+  }
+  return getMatchedList(commit.filenames.join(","), filenameFilterList);
+}
+
+function getMatchedList(text: string, substrings: string[]): string[] {
+  let matched = [];
+  for (const substring of substrings) {
+    if (text.includes(substring)) {
+      matched.push(substring);
+    }
+  }
+  return matched;
+}
+
+function isStringMatchedAll(substrings: string[], text: string) {
+  return substrings.every((substring) => text.includes(substring));
 }
