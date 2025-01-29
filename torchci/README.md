@@ -98,7 +98,9 @@ To get access to ClickHouse Cloud's console, please see
 [here](https://github.com/pytorch/test-infra/wiki/Querying-ClickHouse-database-for-fun-and-profit#prerequisites).
 
 ### `params.json`
+
 An example `params.json` file with params and tests:
+
 ```
 {
   "params": {
@@ -112,6 +114,7 @@ An example `params.json` file with params and tests:
   ]
 }
 ```
+
 A test can set a parameter to be a dictionary with the field `from_now` to get a
 dynamic timestamp where the entry is the difference from now in days. For
 example `from_now: 0` is now and `from_now: -7` would be 7 days in the past.

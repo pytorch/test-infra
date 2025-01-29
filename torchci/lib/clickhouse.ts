@@ -77,7 +77,8 @@ export async function queryClickhouseSaved(
     `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
     "utf8"
   );
-  let paramsText = require(`clickhouse_queries/${queryName}/params.json`).params;
+  let paramsText =
+    require(`clickhouse_queries/${queryName}/params.json`).params;
   if (paramsText === undefined) {
     paramsText = {};
   }
