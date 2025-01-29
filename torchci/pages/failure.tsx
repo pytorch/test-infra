@@ -353,7 +353,12 @@ export default function Page() {
         <Stack spacing={1}>
           <TextField label="Job" defaultValue={name} />
           <TextField label="Failure Captures" defaultValue={failureCaptures} />
-          <Button variant="contained" color="primary" type="submit">
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            style={{ width: "max-content" }}
+          >
             Search
           </Button>
         </Stack>
