@@ -541,7 +541,7 @@ class S3Index:
             }.items():
                 response = future.result()
                 raw = response.get("ChecksumSHA256")
-                if raw and len(raw) != 44:
+                if raw and raw.match("^[A-Za-z0-9+/=]+=-[0-9]+$") is None:
                     # Possibly part of a multipart upload, making the checksum incorrect
                     print(f"WARNING: {self.objects[idx].orig_key} has incorrect checksum")
                     raw = None
