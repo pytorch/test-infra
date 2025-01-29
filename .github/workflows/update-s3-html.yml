@@ -5,6 +5,7 @@ on:
     # Update the indices every 30 minutes
     - cron: "*/30 * * * *"
   workflow_dispatch:
+  pull_request:
 
 permissions:
   id-token: write
@@ -12,21 +13,21 @@ permissions:
 
 jobs:
   update:
-    runs-on: ubuntu-22.04
-    environment: pytorchbot-env
+    runs-on: linux.2xlarge
+    # environment: pytorchbot-env
     strategy:
       matrix:
         prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly"]
       fail-fast: False
-    container:
-      image: continuumio/miniconda3:23.10.0-1
+    # container:
+      # image: continuumio/miniconda3:23.10.0-1
     steps:
-      - name: configure aws credentials
-        id: aws_creds
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
-          aws-region: us-east-1
+      # - name: configure aws credentials
+      #   id: aws_creds
+      #   uses: aws-actions/configure-aws-credentials@v3
+      #   with:
+      #     role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+      #     aws-region: us-east-1
       - name: Checkout repository test-infra
         uses: actions/checkout@v4
         with:
@@ -37,9 +38,9 @@ jobs:
         run: |
             set -ex
 
-            # Output info on default conda env
-            conda info
+            # # Output info on default conda env
+            # conda info
 
             # Install requirements
-            pip install -r s3_management/requirements.txt
-            python s3_management/manage.py ${{ matrix.prefix }}
+            pip3 install -r s3_management/requirements.txt
+            python3 s3_management/manage.py ${{ matrix.prefix }} --do-not-upload
