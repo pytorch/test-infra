@@ -377,6 +377,17 @@ init_command = [
 is_formatter = true
 
 [[linter]]
+code = 'SQL_PARAMS'
+include_patterns = ['torchci/clickhouse_queries/**/params.json']
+exclude_patterns = []
+command = [
+    'python3',
+    'tools/linter/adapters/sql_params_linter.py',
+    '@{{PATHSFILE}}',
+]
+is_formatter = false
+
+[[linter]]
 code = 'RUSTFMT'
 include_patterns = ['**/*.rs']
 command = [
