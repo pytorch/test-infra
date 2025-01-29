@@ -287,6 +287,7 @@ def get_wheel_install_command(
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
+        and (python_version != "3.13t")
         and (
             (gpu_arch_version == "12.4" and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
