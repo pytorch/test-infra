@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from warnings import warn
 import clickhouse_connect
 import urllib
+import argparse
 
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
@@ -298,7 +299,8 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
         exceptions = []
         for compression in compressions:
             try:
-                get_clickhouse_client().query(get_insert_query(compression))
+                print(get_insert_query(compression))
+                # get_clickhouse_client().query(get_insert_query(compression))
                 return
             except Exception as e:
                 exceptions.append(e)
@@ -306,7 +308,8 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
             f"Failed to insert into {table} with {[str(x) for x in exceptions]}"
         )
     except Exception as e:
-        log_failure_to_clickhouse(table, bucket, key, e)
+        print(e)
+        # log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
@@ -443,10 +446,11 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
     """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
+
 def oss_ci_util_metadata_adapter(table, bucket, key):
     schema = """
-        `created_at` DateTime64(0, 'UTC'),
-        `repo` String DEFAULT 'pytorch/pytorch',
+        `created_at` DateTime64(0),
+        `repo` String,
         `workflow_id` UInt64,
         `run_attempt` UInt32,
         `job_id` UInt64,
@@ -456,37 +460,37 @@ def oss_ci_util_metadata_adapter(table, bucket, key):
         `data_model_version` String,
         `gpu_count` UInt32,
         `cpu_count` UInt32,
-        `gpu_type` String DEFAULT 'None',
-        `start_at` DateTime64(0, 'UTC'),
-        `end_at` DateTime64(0, 'UTC'),
-        `segments` Array(
-                    Tuple(
-                        level String,
-                        name String,
-                        start_at DateTime64(0, 'UTC'),
-                        end_at DateTime64(0, 'UTC'),
-                        extra_info Map(String, String)
-                     )
-        )
+        `gpu_type` String,
+        `start_at` DateTime64(0),
+        `end_at` DateTime64(0),
+        `segments` Array(Tuple(
+                `level` String,
+                `name` String,
+                `start_at` DateTime64(0),
+                `end_at` DateTime64(0),
+                `extra_info` Map(String, String)
+                )),
         `tags` Array(String)
     """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
+
 def oss_ci_util_time_series_adapter(table, bucket, key):
     schema = """
-        `created_at` DateTime64(0,'UTC'),
+        `created_at` DateTime64(0),
         `type` String,
-        `tags` Array(String) DEFAULT [],
-        `time_stamp` DateTime64(0,'UTC'),
-        `repo` String DEFAULT 'pytorch/pytorch',
+        `tags` Array(String),
+        `time_stamp` DateTime64(0),
+        `repo` String,
         `workflow_id` UInt64,
         `run_attempt` UInt32,
         `job_id` UInt64,
         `workflow_name` String,
         `job_name` String,
-        `json_data` String DEFAULT
+        `json_data` String
      """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
 
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
@@ -547,8 +551,8 @@ SUPPORTED_PATHS = {
     "v3": "benchmark.oss_ci_benchmark_v3",
     "util_metadata": "misc.oss_ci_utilization_metadata",
     "util_timeseries": "misc.oss_ci_time_series",
-    "debug_util_metadata":"fortesting.oss_ci_utilization_metadata",
-    "debug_util_timeseries":"fortesting.oss_ci_time_series",
+    "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
+    "debug_util_timeseries": "fortesting.oss_ci_time_series",
 }
 
 OBJECT_CONVERTER = {
