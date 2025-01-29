@@ -41,7 +41,15 @@ export default function Page() {
       renderCell: (params) => {
         return (
           <Tooltip title={params.value}>
-            <span>{params.value}</span>
+            <a
+              href={`/tests/testInfo?${encodeParams({
+                name: params.value,
+                suite: params.row.classname,
+                file: params.row.file,
+              })}`}
+            >
+              {params.value}
+            </a>
           </Tooltip>
         );
       },
@@ -71,7 +79,6 @@ export default function Page() {
     <Stack spacing={{ xs: 1 }}>
       <h1>Test Search</h1>
       <TestSearchForm name={name} suite={suite} file={file} />
-      <div>Double click a row to see individual stats</div>
       <Pagination
         count={count}
         page={page}
@@ -91,13 +98,6 @@ export default function Page() {
               `${row.name}-${row.classname}-${row.file}-${row.invoking_file}`
             }
             pagination={undefined}
-            onRowDoubleClick={(e) => {
-              window.location.href = `/tests/testInfo?${encodeParams({
-                name: e.row.name,
-                suite: e.row.classname,
-                file: e.row.file,
-              })}`;
-            }}
           />
         )}
       </div>

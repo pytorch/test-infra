@@ -93,7 +93,7 @@ export default function Page() {
     <Stack spacing={{ xs: 1 }}>
       <h1>Test Info</h1>
       <TestSearchForm name={name} suite={suite} file={file} />
-      <h2>Last 3 Days</h2>
+      <h2>Last 3 Days on main Branch</h2>
       <Box
         component="form"
         noValidate
@@ -108,9 +108,9 @@ export default function Page() {
           setJobFilter(e.target[0].value);
         }}
       >
-        <TextField label="Job Filter" defaultValue={jobFilter} />
+        <TextField label="Chart Job Filter" defaultValue={jobFilter} />
         <Button variant="contained" color="primary" type="submit">
-          Search
+          Filter
         </Button>
       </Box>
 
@@ -124,7 +124,7 @@ export default function Page() {
         />
       )}
 
-      <h2>Failures and Reruns</h2>
+      <h2>Failures and Reruns on All Branches</h2>
       {failureInfoIsLoading ? (
         <LoadingPage />
       ) : (
