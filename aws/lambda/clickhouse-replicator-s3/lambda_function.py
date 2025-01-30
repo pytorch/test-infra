@@ -299,8 +299,7 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
         exceptions = []
         for compression in compressions:
             try:
-                print(get_insert_query(compression))
-                # get_clickhouse_client().query(get_insert_query(compression))
+                get_clickhouse_client().query(get_insert_query(compression))
                 return
             except Exception as e:
                 exceptions.append(e)
@@ -308,8 +307,7 @@ def general_adapter(table, bucket, key, schema, compressions, format) -> None:
             f"Failed to insert into {table} with {[str(x) for x in exceptions]}"
         )
     except Exception as e:
-        print(e)
-        # log_failure_to_clickhouse(table, bucket, key, e)
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 def external_aggregated_test_metrics_adapter(table, bucket, key) -> None:
