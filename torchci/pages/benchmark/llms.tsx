@@ -307,7 +307,7 @@ export default function Page() {
               dtypeName
             )}&deviceName=${encodeURIComponent(
               deviceName
-            )}&archName=${encodeURIComponent(archName)}`}
+            )}`}
           />
         </Stack>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
