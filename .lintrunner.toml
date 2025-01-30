@@ -360,7 +360,12 @@ is_formatter = true
 [[linter]]
 code = 'SQLFLUFF'
 # include_patterns = ['torchci/clickhouse_queries/**/*.sql']
-include_patterns = ['torchci/clickhouse_queries/workflow_load/query.sql']
+include_patterns = [
+    'torchci/clickhouse_queries/workflow_load/query.sql',
+    'torchci/clickhouse_queries/oss_ci_benchmark_branches/query.sql',
+    'torchci/clickhouse_queries/oss_ci_benchmark_llms/query.sql',
+    'torchci/clickhouse_queries/oss_ci_benchmark_names/query.sql',
+]
 exclude_patterns = [
 ]
 command = [

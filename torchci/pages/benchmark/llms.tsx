@@ -7,7 +7,7 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
-  DEFAULT_ARCH_NAME,
+  ARCH_NAMES,
   DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
@@ -182,7 +182,7 @@ export default function Page() {
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
-  const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
+  const [archName, setArchName] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -239,7 +239,7 @@ export default function Page() {
     // Set the default arch to Android for ExecuTorch as it has only 2 options Android and iOS
     const archName: string =
       (router.query.archName as string) ??
-      (repoName === "pytorch/executorch" ? "Android" : undefined);
+      (repoName in ARCH_NAMES ? ARCH_NAMES[repoName][0] : undefined);
     if (archName !== undefined) {
       setArchName(archName);
     }
@@ -273,7 +273,7 @@ export default function Page() {
 
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
-    arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
+    arch: archName,
     device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     dtypes:
       dtypeName === DEFAULT_DTYPE_NAME
@@ -391,7 +391,7 @@ export default function Page() {
           <DTypePicker
             dtype={archName}
             setDType={setArchName}
-            dtypes={["Android", "iOS"]}
+            dtypes={ARCH_NAMES[repoName]}
             label={"Platform"}
           />
         )}
