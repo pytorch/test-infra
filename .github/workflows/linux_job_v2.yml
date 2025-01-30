@@ -163,7 +163,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Setup Linux
-        uses: ./test-infra/.github/actions/setup-linux
+        uses: ./test-infra/.github/actions/setup-linux@jeanschmidt/NVIDIA_IMEX_CHANNELS
         if: ${{ inputs.gpu-arch-type != 'rocm' }}
 
       - name: Setup ROCM
