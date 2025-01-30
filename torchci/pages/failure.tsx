@@ -20,16 +20,16 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function formatFailureCaptures(failureCaptures: string) {
   // Format the failure captures to be string[] for the API
-  let captures: any = [];
   try {
-    captures = JSON.parse(failureCaptures);
+    let captures = JSON.parse(failureCaptures);
+    if (captures instanceof Array) {
+      return captures;
+    } else {
+      return [failureCaptures as string];
+    }
   } catch (e) {
-    captures = failureCaptures as string;
+    return [failureCaptures as string];
   }
-  if (!Array.isArray(captures)) {
-    captures = [captures];
-  }
-  return captures as string[];
 }
 
 function FuzzySearchCheckBox({
@@ -277,7 +277,7 @@ function FailureInfo({
 }
 
 function getTestInfo(failureCapture: string) {
-  const pytestFailureRe = /.*.py::(.*)::(test_\S*)/;
+  const pytestFailureRe = /.*.py::(.*)::(test_\w*)/;
   const match = failureCapture.match(pytestFailureRe);
   if (match == null) {
     return null;
