@@ -85,17 +85,15 @@ WHERE
         has({branches: Array(String) }, head_branch)
         OR empty({branches: Array(String) })
     )
-    -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
     AND (
-        CONCAT(
-            device,
-            ' (',
-            IF(empty(arch), 'NVIDIA A100-SXM4-40GB', arch),
-            ')'
-        ) = {deviceArch: String }
-        OR {deviceArch: String } = ''
+        startsWith({device: String }, device)
+        OR {device: String } = ''
     )
     AND notEmpty(device)
+    AND (
+        arch LIKE concat('%', {arch: String }, '%')
+        OR {arch: String } = ''
+    )
 ORDER BY
     granularity_bucket DESC,
     workflow_id DESC,

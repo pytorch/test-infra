@@ -1,7 +1,8 @@
 {
+  "arch": "String",
   "branches": "Array(String)",
   "commits": "Array(String)",
-  "deviceArch": "String",
+  "device": "String",
   "dtypes": "Array(String)",
   "excludedMetrics": "Array(String)",
   "benchmarks": "Array(String)",

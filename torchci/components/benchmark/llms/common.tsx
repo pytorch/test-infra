@@ -35,6 +35,7 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "compilation_time(s)": "CompTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
+export const DEFAULT_ARCH_NAME = "";
 export const DEFAULT_DTYPE_NAME = "All DType";
 export const DEFAULT_BACKEND_NAME = "All Backends";
 

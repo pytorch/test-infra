@@ -7,6 +7,7 @@ import {
   MAIN_BRANCH,
 } from "components/benchmark/common";
 import {
+  DEFAULT_ARCH_NAME,
   DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
@@ -45,6 +46,7 @@ function Report({
   backendName,
   dtypeName,
   deviceName,
+  archName,
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
@@ -58,6 +60,7 @@ function Report({
   backendName: string;
   dtypeName: string;
   deviceName: string;
+  archName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
@@ -146,6 +149,7 @@ function Report({
         modelName={modelName}
         backendName={backendName}
         metricNames={metricNames}
+        archName={archName}
         lPerfData={{
           ...lBranchAndCommit,
           data: lDataWithSpeedup,
@@ -178,6 +182,7 @@ export default function Page() {
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+  const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -231,6 +236,14 @@ export default function Page() {
       setDeviceName(deviceName);
     }
 
+    // Set the default arch to Android for ExecuTorch as it has only 2 options Android and iOS
+    const archName: string =
+      (router.query.archName as string) ??
+      (repoName === "pytorch/executorch" ? "Android" : undefined);
+    if (archName !== undefined) {
+      setArchName(archName);
+    }
+
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
     if (lBranch !== undefined) {
       setLBranch(lBranch);
@@ -260,7 +273,8 @@ export default function Page() {
 
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
-    deviceArch: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
+    device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     dtypes:
       dtypeName === DEFAULT_DTYPE_NAME
         ? []
@@ -286,7 +300,50 @@ export default function Page() {
   });
 
   if (data === undefined || data.length === 0) {
-    return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
+    return (
+      <div>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Typography fontSize={"2rem"} fontWeight={"bold"}>
+            {REPO_TO_BENCHMARKS[repoName]} dashboard
+          </Typography>
+          <CopyLink
+            textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+              startTime.toString()
+            )}&stopTime=${encodeURIComponent(
+              stopTime.toString()
+            )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+              repoName
+            )}&modelName=${encodeURIComponent(
+              modelName
+            )}&backendName=${encodeURIComponent(
+              backendName
+            )}&dtypeName=${encodeURIComponent(
+              dtypeName
+            )}&deviceName=${encodeURIComponent(
+              deviceName
+            )}&archName=${encodeURIComponent(archName)}`}
+          />
+        </Stack>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <TimeRangePicker
+            startTime={startTime}
+            setStartTime={setStartTime}
+            stopTime={stopTime}
+            setStopTime={setStopTime}
+            timeRange={timeRange}
+            setTimeRange={setTimeRange}
+            setGranularity={setGranularity}
+          />
+          <GranularityPicker
+            granularity={granularity}
+            setGranularity={setGranularity}
+          />
+        </Stack>
+        <Stack>
+          <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>
+        </Stack>
+      </div>
+    );
   }
 
   const modelNames: string[] = [
@@ -326,7 +383,9 @@ export default function Page() {
             backendName
           )}&dtypeName=${encodeURIComponent(
             dtypeName
-          )}&deviceName=${encodeURIComponent(deviceName)}`}
+          )}&deviceName=${encodeURIComponent(
+            deviceName
+          )}&archName=${encodeURIComponent(archName)}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -371,6 +430,14 @@ export default function Page() {
           dtypes={deviceNames}
           label={"Device"}
         />
+        {repoName === "pytorch/executorch" && (
+          <DTypePicker
+            dtype={archName}
+            setDType={setArchName}
+            dtypes={["Android", "iOS"]}
+            label={"Platform"}
+          />
+        )}
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryParams={queryParams}
@@ -407,6 +474,7 @@ export default function Page() {
         backendName={backendName}
         dtypeName={dtypeName}
         deviceName={deviceName}
+        archName={archName}
         metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}

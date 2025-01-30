@@ -23,6 +23,7 @@ export function SummaryPanel({
   modelName,
   backendName,
   metricNames,
+  archName,
   lPerfData,
   rPerfData,
 }: {
@@ -33,6 +34,7 @@ export function SummaryPanel({
   modelName: string;
   backendName: string;
   metricNames: string[];
+  archName: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
 }) {
@@ -75,13 +77,15 @@ export function SummaryPanel({
           params.value.backend !== undefined
             ? `&backendName=${encodeURIComponent(params.value.backend)}`
             : "";
-        const deviceArch = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${params.value.device} (${params.value.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}${dtype}&deviceName=${encodeURIComponent(deviceArch)}`;
+        )}${backend}${dtype}&deviceName=${encodeURIComponent(
+          deviceName
+        )}&archName=${encodeURIComponent(archName)}`;
 
         return (
           <a href={url}>
