@@ -305,9 +305,7 @@ export default function Page() {
               backendName
             )}&dtypeName=${encodeURIComponent(
               dtypeName
-            )}&deviceName=${encodeURIComponent(
-              deviceName
-            )}`}
+            )}&deviceName=${encodeURIComponent(deviceName)}`}
           />
         </Stack>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
