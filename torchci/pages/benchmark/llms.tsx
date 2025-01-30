@@ -300,50 +300,7 @@ export default function Page() {
   });
 
   if (data === undefined || data.length === 0) {
-    return (
-      <div>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            {REPO_TO_BENCHMARKS[repoName]} dashboard
-          </Typography>
-          <CopyLink
-            textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-              startTime.toString()
-            )}&stopTime=${encodeURIComponent(
-              stopTime.toString()
-            )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
-              repoName
-            )}&modelName=${encodeURIComponent(
-              modelName
-            )}&backendName=${encodeURIComponent(
-              backendName
-            )}&dtypeName=${encodeURIComponent(
-              dtypeName
-            )}&deviceName=${encodeURIComponent(
-              deviceName
-            )}&archName=${encodeURIComponent(archName)}`}
-          />
-        </Stack>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <TimeRangePicker
-            startTime={startTime}
-            setStartTime={setStartTime}
-            stopTime={stopTime}
-            setStopTime={setStopTime}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
-            setGranularity={setGranularity}
-          />
-          <GranularityPicker
-            granularity={granularity}
-            setGranularity={setGranularity}
-          />
-        </Stack>
-        <Stack>
-          <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>
-        </Stack>
-      </div>
-    );
+    return <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>;
   }
 
   const modelNames: string[] = [
