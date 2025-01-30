@@ -547,8 +547,6 @@ SUPPORTED_PATHS = {
     "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
     "stable_pushes": "misc.stable_pushes",
     "v3": "benchmark.oss_ci_benchmark_v3",
-    "util_metadata": "misc.oss_ci_utilization_metadata",
-    "util_timeseries": "misc.oss_ci_time_series",
     "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
     "debug_util_timeseries": "fortesting.oss_ci_time_series",
 }
