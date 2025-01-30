@@ -154,7 +154,7 @@ jobs:
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
+          ref: jeanschmidt/NVIDIA_IMEX_CHANNELS
           path: test-infra
 
           # PyTorch, the primary target for this job template, heavily
@@ -163,7 +163,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Setup Linux
-        uses: ./test-infra/.github/actions/setup-linux@jeanschmidt/NVIDIA_IMEX_CHANNELS
+        uses: ./test-infra/.github/actions/setup-linux
         if: ${{ inputs.gpu-arch-type != 'rocm' }}
 
       - name: Setup ROCM
