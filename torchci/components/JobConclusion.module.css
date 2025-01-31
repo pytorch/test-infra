@@ -62,3 +62,8 @@
 .warning {
   color: #f8b88b;
 }
+
+.viablestrict_blocking {
+  font-weight: bold;
+  background-color: #cccccc;
+}

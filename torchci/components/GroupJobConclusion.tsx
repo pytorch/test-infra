@@ -34,6 +34,27 @@ export enum GroupedJobStatus {
   Pending = "pending",
 }
 
+function isJobViableStrictBlocking(jobName: string | undefined): boolean {
+  if (!jobName) {
+    return false;
+  }
+
+  // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
+  const viablestrict_blocking_jobs_patterns = [
+    /trunk/i,
+    /pull/i,
+    /linux-binary/i,
+    /lint/i,
+  ]
+
+  for (const regex of viablestrict_blocking_jobs_patterns) {
+    if (jobName.match(regex)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export default function HudGroupedCell({
   sha,
   groupName,
@@ -60,12 +81,17 @@ export default function HudGroupedCell({
   const pendingJobs = [];
   const noStatusJobs = [];
   const failedPreviousRunJobs = [];
+
+  let viableStrictBlocking = false;
   for (const job of jobs) {
     if (isFailedJob(job)) {
       if (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues)) {
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);
+        if (isJobViableStrictBlocking(job.name)) {
+          viableStrictBlocking = true;
+        }
       }
     } else if (job.conclusion === JobStatus.Pending) {
       pendingJobs.push(job);
@@ -113,7 +139,7 @@ export default function HudGroupedCell({
             />
           }
         >
-          <span className={styles.conclusion}>
+          <span className={`${styles.conclusion} ${viableStrictBlocking ? styles.viablestrict_blocking : ''}`}>
             <span
               className={
                 isClassified
