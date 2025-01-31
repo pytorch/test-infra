@@ -8,8 +8,8 @@ FROM
     fortesting.oss_ci_time_series
 WHERE
     workflow_id = {workflowId: UInt64}
-    And run_attempt = {runAttempt: UInt32}
-    And job_id = {jobId: UInt64}
+    AND run_attempt = {runAttempt: UInt32}
+    AND job_id = {jobId: UInt64}
     AND repo = {repo: String }
     AND type = {type: String}
 ORDER BY
