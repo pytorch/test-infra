@@ -9,7 +9,7 @@ export interface UtilizationParams {
 
 export interface TimeSeriesDbData {
     ts: string;
-    data: any
+    data: string;
     tags: string[]
 }
 
@@ -37,4 +37,9 @@ export interface Segments{
 
 export interface UtilizationAPIResponse{
 
+}
+
+export interface TimeSeriesDataPoint{
+    ts: string,
+    value: number,
 }

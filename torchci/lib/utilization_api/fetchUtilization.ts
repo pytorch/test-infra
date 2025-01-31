@@ -1,5 +1,5 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
-import { TimeSeriesDbData, UtilizationAPIResponse, UtilizationMetadata, UtilizationParams } from "./types";
+import { TimeSeriesDataPoint, TimeSeriesDbData, UtilizationAPIResponse, UtilizationMetadata, UtilizationParams } from "./types";
 
 const DEFAULT_REPO = "pytorch/pytorch";
 const UTIL_TS_QUERY_FOLDER_NAME = "oss_ci_util_ts";
@@ -59,18 +59,99 @@ export default async function fetchUtilization(
     return {};
   }
 
-  const response = await getUtilTimesSeries(
+  const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
     params.run_attempt,
     params.type,
   );
-  let results = response as TimeSeriesDbData[];
 
-   results.map((re) => {
-    
-   });
-
-
+  const tsList = flattenTS(resp)
   return {};
+}
+
+export function flattenTS(resp:TimeSeriesDbData[]){
+  let tsData = new Map<String,TimeSeriesDataPoint[]>()
+  resp.map((re) => {
+    let data: any = JSON.parse(re.data);
+    let dp:{name:string,value:number}[] = []
+    getData(data,"",dp)
+    dp.forEach((d)=>{
+      const li = tsData.get(d.name) || [];
+      li.push({
+        ts: re.ts,
+        value:d.value
+      });
+      if (!tsData.has(d.name)){
+        tsData.set(d.name,li)
+      }
+    })
+  })
+  return tsData;
+}
+
+/**
+ * Iterates throught nested object to form the name path, if found number it's value.
+ * @param obj
+ * @param path
+ * @param res
+ * @returns
+ */
+function getData(
+  obj:any,
+  path:string, res:{
+  name: string,
+  value: number,
+}[]){
+  if (!obj){
+    return
+  }
+
+  if (checkType(obj) === "number"){
+    res.push({name:path,value:obj})
+    return
+  }
+
+  if (checkType(obj) == "array"){
+    for (let idx = 0; idx < obj.length; idx++) {
+      const nextObj = obj[idx]
+      let next_path = path + "_" + idx
+      if (checkType(nextObj) == "object"){
+        if (nextObj.uuid){
+          next_path = formPath(path,nextObj.uuid)
+        }
+      }
+      getData(nextObj, next_path, res)
+    }
+  }
+  if (checkType(obj)=== "object"){
+    const keys = Object.keys(obj)
+    for (let idx = 0; idx < keys.length; idx++) {
+      const key = keys[idx]
+      const el = obj[key]
+      let nextP = formPath(path, key)
+      getData(el, nextP, res)
+    }
+  }
+}
+
+function checkType(item: any) {
+  if (typeof item === "string") {
+    return "string";
+  } else if (Array.isArray(item)) {
+    return "array";
+  } else if (typeof item === "number") {
+    return "number";
+  } else if (typeof item === "object" && item !== null) {
+    return "object";
+  } else {
+    return "unknown";
+  }
+}
+
+function formPath(exist:string, addson: string){
+  if(exist == ""){
+    return addson
+  }
+  return `${exist}|${addson}`
 }
