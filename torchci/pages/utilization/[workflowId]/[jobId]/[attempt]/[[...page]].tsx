@@ -2,7 +2,7 @@ import { fetcherHandleError } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 
-const ApiData = () => {
+const Utilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
@@ -41,4 +41,4 @@ const ApiData = () => {
     </div>
   );
 };
-export default ApiData;
+export default Utilization;

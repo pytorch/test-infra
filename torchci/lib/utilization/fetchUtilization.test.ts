@@ -268,6 +268,7 @@ describe("fetchUtilization", () => {
 
     // Assert query sent to clickhouse
     expect(mockQuery).toHaveBeenCalledTimes(2);
+    console.log(mockQuery.mock.calls);
     const firstQuery = mockQuery.mock.calls[0][0];
     expect(firstQuery.query_params).toEqual({
       workflowId: "1234",
