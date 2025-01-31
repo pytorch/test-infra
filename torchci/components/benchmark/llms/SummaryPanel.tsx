@@ -219,7 +219,7 @@ export function SummaryPanel({
     ]
   );
 
-  // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-prod
+  // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
     <Grid2 container spacing={2} style={{ height: "100%" }}>
       <Grid2
