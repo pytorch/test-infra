@@ -215,7 +215,7 @@ jest.mock("@clickhouse/client", () => ({
   createClient: jest.fn(),
 }));
 
-describe("ClickHouse Client", () => {
+describe("fetchUtilization", () => {
   let mockQuery: jest.Mock;
   const mockMetadata = {
     workflow_name: "test_workflow",
