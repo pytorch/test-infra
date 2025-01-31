@@ -1,6 +1,6 @@
 import { flattenTS } from "./fetchUtilization";
 import { TimeSeriesDbData } from "./types";
-
+// run test using yarn test test-infra/torchci/lib/utilization_api/fetchUtilization.test.ts
 const TEST_GPU_USAGE_11 = {
     uuid: "uuid-1",
     util_percent: {
@@ -98,8 +98,8 @@ const TEST_DATA_3 ={
             max: 5.8
             },
             gpu_usage: null,
-        }),
-        tags:[]
+    }),
+    tags:[]
     }
 
  const BASE_TEST_LIST:TimeSeriesDbData[] = [
@@ -111,7 +111,7 @@ describe('Test timestamp flattening', () => {
     it('should generate map of timestamp', () => {
         const res = flattenTS(BASE_TEST_LIST);
         const resKeys = Array.from(res.keys())
-        console.log(res)
+
         // assert map keys
         expect(resKeys.length).toEqual(12);
         expect(resKeys.filter(x => x.includes("cpu")).length).toEqual(2);
@@ -135,5 +135,74 @@ describe('Test timestamp flattening', () => {
             { ts: '2023-10-10 13:00:00', value: 10 },
             { ts: '2023-10-10 16:00:00', value: 30 }]);
 
+    });
+
+    it('should generate map of timestamp when gpu_usage is null', () => {
+        const res = flattenTS([TEST_DATA_3]);
+        const resKeys = Array.from(res.keys())
+
+        // assert map keys
+        expect(resKeys.length).toEqual(4);
+        expect(resKeys.filter(x => x.includes("gpu")).length).toEqual(0);
+        expect(resKeys.filter(x => x.includes("cpu")).length).toEqual(2);
+        expect(resKeys.filter(x => x.includes("memory")).length).toEqual(2);
+        expect(resKeys.filter(x => x.includes("max")).length).toEqual(2);
+        expect(resKeys.filter(x => x.includes("avg")).length).toEqual(2);
+
+        // assert map values
+         resKeys.forEach((key,_) => {
+            expect(res.get(key)?.length).toEqual(1);
+         });
+    });
+
+    it('should skip data missing ts field', () => {
+        const res = flattenTS([TEST_DATA_3,{
+            data: JSON.stringify({test: "test"}),
+            tags:[]
+        }]);
+        const resKeys = Array.from(res.keys())
+        // assert map keys
+        expect(resKeys.length).toEqual(4);
+        // assert map values
+         resKeys.forEach((key,_) => {
+            expect(res.get(key)?.length).toEqual(1);
+         });
+    });
+    it('should skip data missing data field', () => {
+        const res = flattenTS([TEST_DATA_3,{
+            ts: "2023-10-10 18:00:00",
+            data: null,
+            tags:[]
+        }]);
+
+        const resKeys = Array.from(res.keys())
+        // assert map keys
+        expect(resKeys.length).toEqual(4);
+        // assert map values
+         resKeys.forEach((key,_) => {
+            expect(res.get(key)?.length).toEqual(1);
+         });
+    });
+
+    it('should skip data with invalid data field and logged the error', () => {
+        // set up log spy to capture log messages from console.log
+        const logSpy = jest.spyOn(console, 'log')
+
+        const invalidData = "{{}dsad}"
+        const res = flattenTS([TEST_DATA_3,{
+            ts: "2023-10-10 18:00:00",
+            data: invalidData,
+            tags:[]
+        }]);
+        const resKeys = Array.from(res.keys())
+        // assert map keys
+        expect(resKeys.length).toEqual(4);
+        // assert map values
+         resKeys.forEach((key,_) => {
+            expect(res.get(key)?.length).toEqual(1);
+         });
+
+         // assert log
+         expect(logSpy).toHaveBeenCalledWith(`Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`);
     });
   });

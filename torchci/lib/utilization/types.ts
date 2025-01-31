@@ -1,16 +1,14 @@
 
 export interface UtilizationParams {
-    workflow_id:number;
-    job_id:number;
-    run_attempt:number;
-    type:string;
-    repo:string;
+    workflow_id:string;
+    job_id:string;
+    run_attempt:string;
 }
 
 export interface TimeSeriesDbData {
-    ts: string;
-    data: string;
-    tags: string[]
+    ts?: string | null;
+    data?: string | null;
+    tags?: string[] | null
 }
 
 export interface UtilizationMetadata{
@@ -36,7 +34,8 @@ export interface Segments{
 }
 
 export interface UtilizationAPIResponse{
-
+    metadata: UtilizationMetadata,
+    ts_list: {name: string, value: TimeSeriesDataPoint[]}[]
 }
 
 export interface TimeSeriesDataPoint{

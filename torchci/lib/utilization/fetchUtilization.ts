@@ -4,34 +4,63 @@ import { TimeSeriesDataPoint, TimeSeriesDbData, UtilizationAPIResponse, Utilizat
 const DEFAULT_REPO = "pytorch/pytorch";
 const UTIL_TS_QUERY_FOLDER_NAME = "oss_ci_util_ts";
 const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata"
+const UTILIZATION_TYPE = "utilization"
 
+export default async function fetchUtilization(
+  params: UtilizationParams
+): Promise<UtilizationAPIResponse|null> {
+  const meta_resp = await getUtilizationMetadata(
+    params.workflow_id,
+    params.job_id,
+    params.run_attempt,
+  )
+  const metadata = getLatestMetadata(meta_resp)
+  if (!metadata) {
+    console.log("No util metadata found for workflow_id: " + params.workflow_id + " job_id: " + params.job_id + " run_attempt: " + params.run_attempt + " type: " +UTILIZATION_TYPE);
+    return null;
+  }
+
+  const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
+    params.workflow_id,
+    params.job_id,
+    params.run_attempt,
+    UTILIZATION_TYPE,
+  );
+
+  const tsMap = flattenTS(resp)
+  const tsList = Array.from(tsMap).map(([key, value]) => ({ name:key, value:value }));
+  return {
+    metadata:metadata,
+    ts_list: tsList,
+  };
+}
+
+// API methods
 async function getUtilTimesSeries(
-  workflow_id: number,
-  job_id: number,
-  run_attempt: number,
-  type:string,
+  workflow_id: string,
+  job_id: string,
+  run_attempt: string,
+  type:string = "",
   from:string = "",
   to: string = "") {
     const response = await queryClickhouseSaved(UTIL_TS_QUERY_FOLDER_NAME, {
       workflowId: workflow_id,
       jobId: job_id,
       runAttempt: run_attempt,
-      type: type,
+      type: UTILIZATION_TYPE,
       repo: DEFAULT_REPO,
     });
     return response;
   }
 
 async function getUtilizationMetadata(
-  workflow_id: number,
-  job_id: number,
-  run_attempt: number,
-  type:string){
+  workflow_id: string,
+  job_id: string,
+  run_attempt: string,){
   const response = await queryClickhouseSaved(UTIL_METADATA_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,
     jobId: job_id,
     runAttempt: run_attempt,
-    type: type,
     repo: DEFAULT_REPO,
   });
   return response;
@@ -44,60 +73,52 @@ function getLatestMetadata(items: UtilizationMetadata[]): UtilizationMetadata | 
   }, items[0]);
 }
 
-export default async function fetchUtilization(
-  params: UtilizationParams
-): Promise<UtilizationAPIResponse> {
 
-  const meta_resp = await getUtilizationMetadata(params.workflow_id,
-    params.job_id,
-    params.run_attempt,
-    params.type,
-  )
-  const metadata = getLatestMetadata(meta_resp)
-  if (!metadata) {
-    console.log("No util metadata found for workflow_id: " + params.workflow_id + " job_id: " + params.job_id + " run_attempt: " + params.run_attempt + " type: " + params.type);
-    return {};
-  }
-
-  const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
-    params.workflow_id,
-    params.job_id,
-    params.run_attempt,
-    params.type,
-  );
-
-  const tsList = flattenTS(resp)
-  return {};
-}
-
+// Helper functions
+/**
+ * flatten nested timeseries data to form multiple timeseries list.
+ * @param resp
+ */
 export function flattenTS(resp:TimeSeriesDbData[]){
-  let tsData = new Map<String,TimeSeriesDataPoint[]>()
-  resp.map((re) => {
-    let data: any = JSON.parse(re.data);
+  let tsData = new Map<string,TimeSeriesDataPoint[]>()
+  for (const re of resp) {
+    if (!re.ts || !re.tags || !re.data){
+      continue
+    }
+    const timestamp = re.ts
+
+    // convert json string to json object
+    let data: any|null = toJson(re.data)
+    if(!data){
+      continue
+    }
+
+    // for each timestamp, flatten the json data input multiple time series point by category
     let dp:{name:string,value:number}[] = []
-    getData(data,"",dp)
+    getDataPath(data,"",dp)
     dp.forEach((d)=>{
       const li = tsData.get(d.name) || [];
       li.push({
-        ts: re.ts,
+        ts: timestamp,
         value:d.value
       });
       if (!tsData.has(d.name)){
         tsData.set(d.name,li)
       }
     })
-  })
+  }
   return tsData;
 }
 
 /**
- * Iterates throught nested object to form the name path, if found number it's value.
+ * DFS throught nested object to form the name-path and stats value.
+ * Example expected values {name: "gpu_usage|{gpu_uuid}|util_percent|avg", value: 20.1}
  * @param obj
  * @param path
  * @param res
  * @returns
  */
-function getData(
+function getDataPath(
   obj:any,
   path:string, res:{
   name: string,
@@ -115,22 +136,21 @@ function getData(
   if (checkType(obj) == "array"){
     for (let idx = 0; idx < obj.length; idx++) {
       const nextObj = obj[idx]
-      let next_path = path + "_" + idx
+      let next_path = formPath(path,`{idx}`)
       if (checkType(nextObj) == "object"){
         if (nextObj.uuid){
           next_path = formPath(path,nextObj.uuid)
         }
       }
-      getData(nextObj, next_path, res)
+      getDataPath(nextObj, next_path, res)
     }
   }
   if (checkType(obj)=== "object"){
     const keys = Object.keys(obj)
-    for (let idx = 0; idx < keys.length; idx++) {
-      const key = keys[idx]
+    for (const key of keys){
       const el = obj[key]
       let nextP = formPath(path, key)
-      getData(el, nextP, res)
+      getDataPath(el, nextP, res)
     }
   }
 }
@@ -154,4 +174,18 @@ function formPath(exist:string, addson: string){
     return addson
   }
   return `${exist}|${addson}`
+}
+
+function toJson(data: string){
+  if (!data){
+    return null;
+  }
+
+  try {
+    const jsonData = JSON.parse(data);
+    return jsonData
+  } catch (error) {
+    console.log(`Warning: Error parsing JSON:${error} for data string '${data}'`);
+    return null;
+  }
 }
