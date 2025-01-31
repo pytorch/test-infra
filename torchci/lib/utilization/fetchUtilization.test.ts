@@ -1,6 +1,8 @@
 import { createClient } from "@clickhouse/client";
 import fetchUtilization, { flattenTS } from "./fetchUtilization";
 import { TimeSeriesDbData } from "./types";
+
+
 // run test using yarn test test-infra/torchci/lib/utilization_api/fetchUtilization.test.ts
 const TEST_GPU_USAGE_11 = {
   uuid: "uuid-1",
@@ -98,6 +100,10 @@ const TEST_DATA_3 = {
 };
 
 const BASE_TEST_LIST: TimeSeriesDbData[] = [TEST_DATA_1, TEST_DATA_2];
+
+jest.mock("@clickhouse/client", () => ({
+  createClient: jest.fn(),
+}));
 
 describe("Test flattenTS to flatten timestamp", () => {
   it("should generate map of timestamp", () => {
@@ -211,9 +217,7 @@ describe("Test flattenTS to flatten timestamp", () => {
   });
 });
 
-jest.mock("@clickhouse/client", () => ({
-  createClient: jest.fn(),
-}));
+
 
 describe("fetchUtilization", () => {
   let mockQuery: jest.Mock;
