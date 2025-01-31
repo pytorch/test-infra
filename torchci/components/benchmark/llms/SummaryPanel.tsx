@@ -219,17 +219,23 @@ export function SummaryPanel({
     ]
   );
 
+  // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-prod
   return (
     <Grid2 container spacing={2} style={{ height: "100%" }}>
       <Grid2
         size={{ xs: 12, lg: 12 }}
-        height={data.length * ROW_HEIGHT + ROW_GAP}
+        height={
+          data.length > 99
+            ? 99 * ROW_HEIGHT
+            : data.length * ROW_HEIGHT + ROW_GAP
+        }
       >
         <TablePanelWithData
           title={"Models"}
           data={data}
           columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
+          showFooter={true}
         />
       </Grid2>
     </Grid2>

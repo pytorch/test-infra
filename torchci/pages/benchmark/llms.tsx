@@ -8,6 +8,7 @@ import {
 } from "components/benchmark/common";
 import {
   ARCH_NAMES,
+  DEFAULT_ARCH_NAME,
   DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
@@ -182,7 +183,7 @@ export default function Page() {
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
-  const [archName, setArchName] = useState<string>("");
+  const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -237,9 +238,7 @@ export default function Page() {
     }
 
     // Set the default arch to Android for ExecuTorch as it has only 2 options Android and iOS
-    const archName: string =
-      (router.query.archName as string) ??
-      (repoName in ARCH_NAMES ? ARCH_NAMES[repoName][0] : undefined);
+    const archName: string = (router.query.archName as string) ?? undefined;
     if (archName !== undefined) {
       setArchName(archName);
     }
@@ -273,7 +272,7 @@ export default function Page() {
 
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
-    arch: archName,
+    arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
     device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
     dtypes:
       dtypeName === DEFAULT_DTYPE_NAME
@@ -381,20 +380,20 @@ export default function Page() {
             label={"DType"}
           />
         )}
+        {repoName === "pytorch/executorch" && (
+          <DTypePicker
+            dtype={archName}
+            setDType={setArchName}
+            dtypes={[DEFAULT_ARCH_NAME, ...ARCH_NAMES[repoName]]}
+            label={"Platform"}
+          />
+        )}
         <DTypePicker
           dtype={deviceName}
           setDType={setDeviceName}
           dtypes={deviceNames}
           label={"Device"}
         />
-        {repoName === "pytorch/executorch" && (
-          <DTypePicker
-            dtype={archName}
-            setDType={setArchName}
-            dtypes={ARCH_NAMES[repoName]}
-            label={"Platform"}
-          />
-        )}
         <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryParams={queryParams}
