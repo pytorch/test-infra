@@ -1,17 +1,14 @@
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
-import useSWR from "swr";
+import useSWRImmutable from "swr";
 
 const Utilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
-  let { data, error } = useSWR(
+  let { data, error } = useSWRImmutable(
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
-    fetcherHandleError,
-    {
-      refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
-    }
+    fetcherHandleError
   );
 
   if (error) {

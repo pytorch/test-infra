@@ -2,7 +2,6 @@ import { createClient } from "@clickhouse/client";
 import fetchUtilization, { flattenTS } from "./fetchUtilization";
 import { TimeSeriesDbData } from "./types";
 
-
 // run test using yarn test test-infra/torchci/lib/utilization_api/fetchUtilization.test.ts
 const TEST_GPU_USAGE_11 = {
   uuid: "uuid-1",
@@ -216,8 +215,6 @@ describe("Test flattenTS to flatten timestamp", () => {
     );
   });
 });
-
-
 
 describe("fetchUtilization", () => {
   let mockQuery: jest.Mock;
