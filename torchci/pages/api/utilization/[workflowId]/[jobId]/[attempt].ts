@@ -17,14 +17,16 @@ export default async function handler(
     job_id: jobId as string,
   };
 
-  try{
+  try {
     const utilData = await fetchUtilization(params);
     if (utilData == null) {
-      return res.status(404).json({error: `No data found for params ${JSON.stringify(params)}`});
+      return res
+        .status(404)
+        .json({ error: `No data found for params ${JSON.stringify(params)}` });
     }
-    return res.status(200).json({data: utilData});
+    return res.status(200).json(utilData);
   } catch (error) {
     const err_msg = getErrorMessage(error);
-    return res.status(500).json({error: err_msg});
+    return res.status(500).json({ error: err_msg });
   }
 }

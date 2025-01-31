@@ -1,4 +1,4 @@
-import { fetcher } from "lib/GeneralUtils";
+import { fetcherHandleError } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 
@@ -8,11 +8,19 @@ const ApiData = () => {
 
   let { data, error } = useSWR(
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
-    fetcher,
+    fetcherHandleError,
     {
       refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hours
     }
   );
+
+  if (error) {
+    return (
+      <div>
+        error: {error.message}, StatusCode: {error.status}, info: {error.info}
+      </div>
+    );
+  }
 
   if (!data) {
     return <div>loading...</div>;
@@ -23,7 +31,7 @@ const ApiData = () => {
       <h1>API Data</h1>
       <div>
         workflowId:{workflowId}, JobId: {jobId}, attempt: {attempt}, job_name:{" "}
-        {data.metadata.job_name}, workflow_name: {data.metadata.workflow_name}
+        {data.metadata?.job_name}, workflow_name: {data.metadata?.workflow_name}
       </div>
       <div
         style={{ maxWidth: "800px", whiteSpace: "pre-wrap", overflowX: "auto" }}
