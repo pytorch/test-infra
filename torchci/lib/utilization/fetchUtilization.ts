@@ -15,15 +15,16 @@ const UTILIZATION_TYPE = "utilization";
 export default async function fetchUtilization(
   params: UtilizationParams
 ): Promise<UtilizationAPIResponse | null> {
-  const meta_resp = await getUtilizationMetadata(
+  const meta_resp: UtilizationMetadata[] = await getUtilizationMetadata(
     params.workflow_id,
     params.job_id,
     params.run_attempt
   );
+
   const metadata = getLatestMetadata(meta_resp);
   if (!metadata) {
     console.log(
-      "No util metadata found for workflow_id: " +
+      "No utilization metadata found for workflow_id: " +
         params.workflow_id +
         " job_id: " +
         params.job_id +
@@ -35,18 +36,21 @@ export default async function fetchUtilization(
     return null;
   }
 
+  const test: UtilizationMetadata = metadata;
+
   const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
     params.run_attempt,
     UTILIZATION_TYPE
   );
-
   const tsMap = flattenTS(resp);
-  const tsList = Array.from(tsMap).map(([key, value]) => ({
-    name: key,
-    value: value,
-  }));
+
+  let tsList = [];
+  for (const [key, value] of tsMap) {
+    tsList.push({ name: key, value: value });
+  }
+
   return {
     metadata: metadata,
     ts_list: tsList,
@@ -81,6 +85,7 @@ async function getUtilizationMetadata(
     workflowId: workflow_id,
     jobId: job_id,
     runAttempt: run_attempt,
+    type: UTILIZATION_TYPE,
     repo: DEFAULT_REPO,
   });
   return response;
@@ -90,6 +95,7 @@ function getLatestMetadata(
   items: UtilizationMetadata[]
 ): UtilizationMetadata | null {
   if (!items.length) return null;
+
   return items.reduce((latest, current) => {
     return new Date(latest.created_at) > new Date(current.created_at)
       ? latest
@@ -105,7 +111,7 @@ function getLatestMetadata(
 export function flattenTS(resp: TimeSeriesDbData[]) {
   let tsData = new Map<string, TimeSeriesDataPoint[]>();
   for (const re of resp) {
-    if (!re.ts || !re.tags || !re.data) {
+    if (!re.ts || !re.data) {
       continue;
     }
     const timestamp = re.ts;
@@ -119,6 +125,7 @@ export function flattenTS(resp: TimeSeriesDbData[]) {
     // for each timestamp, flatten the json data input multiple time series point by category
     let dp: { name: string; value: number }[] = [];
     getDataPath(data, "", dp);
+
     dp.forEach((d) => {
       const li = tsData.get(d.name) || [];
       li.push({
