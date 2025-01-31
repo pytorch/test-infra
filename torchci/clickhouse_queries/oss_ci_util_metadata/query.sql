@@ -11,6 +11,7 @@ SELECT
     start_at,
     end_at,
     segments,
+    segments,
     tags
 FROM
     fortesting.oss_ci_utilization_metadata
