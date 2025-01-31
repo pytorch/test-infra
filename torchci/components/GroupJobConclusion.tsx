@@ -45,7 +45,7 @@ function isJobViableStrictBlocking(jobName: string | undefined): boolean {
     /pull/i,
     /linux-binary/i,
     /lint/i,
-  ]
+  ];
 
   for (const regex of viablestrict_blocking_jobs_patterns) {
     if (jobName.match(regex)) {
@@ -139,7 +139,11 @@ export default function HudGroupedCell({
             />
           }
         >
-          <span className={`${styles.conclusion} ${viableStrictBlocking ? styles.viablestrict_blocking : ''}`}>
+          <span
+            className={`${styles.conclusion} ${
+              viableStrictBlocking ? styles.viablestrict_blocking : ""
+            }`}
+          >
             <span
               className={
                 isClassified
