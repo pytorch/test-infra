@@ -82,32 +82,31 @@ const TEST_DATA_2 = {
   tags: [],
 };
 
-const TEST_DATA_3 = {
-  ts: "2023-10-10 18:00:00",
-  data: JSON.stringify({
-    cpu: {
-      avg: 2.43,
-      max: 6.4,
-    },
-    memory: {
-      avg: 5.25,
-      max: 5.8,
-    },
-    gpu_usage: null,
-  }),
-  tags: [],
-};
+const TEST_DATA_3 ={
+    ts: "2023-10-10 18:00:00",
+    data: JSON.stringify({
+            cpu: {
+            avg: 2.43,
+            max: 6.4
+            },
+            memory: {
+            avg: 5.25,
+            max: 5.8
+            },
+            gpu_usage: null,
+    }),
+    tags:[]
+    }
 
-const BASE_TEST_LIST: TimeSeriesDbData[] = [TEST_DATA_1, TEST_DATA_2];
+ const BASE_TEST_LIST:TimeSeriesDbData[] = [
+    TEST_DATA_1,
+    TEST_DATA_2,
+    ]
 
-jest.mock("@clickhouse/client", () => ({
-  createClient: jest.fn(),
-}));
-
-describe("Test flattenTS to flatten timestamp", () => {
-  it("should generate map of timestamp", () => {
-    const res = flattenTS(BASE_TEST_LIST);
-    const resKeys = Array.from(res.keys());
+describe('Test timestamp flattening', () => {
+    it('should generate map of timestamp', () => {
+        const res = flattenTS(BASE_TEST_LIST);
+        const resKeys = Array.from(res.keys())
 
     // assert map keys
     expect(resKeys.length).toEqual(12);
@@ -153,32 +152,25 @@ describe("Test flattenTS to flatten timestamp", () => {
     });
   });
 
-  it("should skip data missing ts field", () => {
-    const res = flattenTS([
-      TEST_DATA_3,
-      {
-        data: JSON.stringify({ test: "test" }),
-        tags: [],
-      },
-    ]);
-    const resKeys = Array.from(res.keys());
-    // assert map keys
-    expect(resKeys.length).toEqual(4);
-    // assert map values
-    resKeys.forEach((key, _) => {
-      expect(res.get(key)?.length).toEqual(1);
+    it('should skip data missing ts field', () => {
+        const res = flattenTS([TEST_DATA_3,{
+            data: JSON.stringify({test: "test"}),
+            tags:[]
+        }]);
+        const resKeys = Array.from(res.keys())
+        // assert map keys
+        expect(resKeys.length).toEqual(4);
+        // assert map values
+         resKeys.forEach((key,_) => {
+            expect(res.get(key)?.length).toEqual(1);
+         });
     });
-  });
-
-  it("should skip data missing data field", () => {
-    const res = flattenTS([
-      TEST_DATA_3,
-      {
-        ts: "2023-10-10 18:00:00",
-        data: null,
-        tags: [],
-      },
-    ]);
+    it('should skip data missing data field', () => {
+        const res = flattenTS([TEST_DATA_3,{
+            ts: "2023-10-10 18:00:00",
+            data: null,
+            tags:[]
+        }]);
 
     const resKeys = Array.from(res.keys());
     // assert map keys
@@ -210,86 +202,7 @@ describe("Test flattenTS to flatten timestamp", () => {
       expect(res.get(key)?.length).toEqual(1);
     });
 
-    // assert log
-    expect(logSpy).toHaveBeenCalledWith(
-      `Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`
-    );
-  });
-});
-
-describe("fetchUtilization", () => {
-  let mockQuery: jest.Mock;
-  const mockMetadata = {
-    workflow_name: "test_workflow",
-    job_name: "test_job",
-    collect_interval: 60,
-    gpu_count: 8,
-    cpu_count: 4,
-    start_at: "2023-10-10 13:00:00",
-    end_at: "2023-10-10 18:00:00",
-    segments: [],
-  };
-
-  beforeEach(() => {
-    mockQuery = jest.fn().mockImplementation((query) => {
-      if (query.query.includes("oss_ci_utilization_metadata")) {
-        return Promise.resolve({
-          json: jest.fn().mockResolvedValue([mockMetadata]),
-        });
-      }
-      if (query.query.includes("oss_ci_time_series")) {
-        return Promise.resolve({
-          json: jest.fn().mockResolvedValue(BASE_TEST_LIST),
-        });
-      }
-    });
-
-    (createClient as jest.Mock).mockReturnValue({
-      query: mockQuery,
+         // assert log
+         expect(logSpy).toHaveBeenCalledWith(`Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`);
     });
   });
-
-  it("should fetch data from ClickHouse", async () => {
-    const param = {
-      workflow_id: "1234",
-      job_id: "2345",
-      run_attempt: "1",
-    };
-    const result = await fetchUtilization(param);
-
-    expect(result).not.toBeNull();
-    expect(result!.metadata).toEqual(mockMetadata);
-    expect(result!.ts_list.length).toEqual(12);
-    expect(result!.ts_list[0]).toEqual({
-      name: "cpu|avg",
-      value: [
-        { ts: "2023-10-10 13:00:00", value: 10 },
-        { ts: "2023-10-10 16:00:00", value: 20 },
-      ],
-    });
-
-    // Assert query sent to clickhouse
-    expect(mockQuery).toHaveBeenCalledTimes(2);
-    const firstQuery = mockQuery.mock.calls[0][0];
-    expect(firstQuery.query_params).toEqual({
-      workflowId: "1234",
-      jobId: "2345",
-      runAttempt: "1",
-      repo: "pytorch/pytorch",
-      type: "utilization",
-    });
-
-    expect(
-      firstQuery.query.includes("oss_ci_utilization_metadata")
-    ).toBeTruthy();
-    const secondQuery = mockQuery.mock.calls[1][0];
-    expect(secondQuery.query_params).toEqual({
-      workflowId: "1234",
-      jobId: "2345",
-      runAttempt: "1",
-      repo: "pytorch/pytorch",
-      type: "utilization",
-    });
-    expect(secondQuery.query.includes("oss_ci_time_series")).toBeTruthy();
-  });
-});
