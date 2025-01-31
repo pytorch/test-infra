@@ -43,6 +43,8 @@ export async function queryClickhouse(
    * @param params: Record<string, unknown>, the parameters to the query ex { sha: "abcd" }
    */
   const clickhouseClient = getClickhouseClient();
+
+  console.log("queryClickhouse", query_id, query, params)
   const res = await clickhouseClient.query({
     query,
     format: "JSONEachRow",
