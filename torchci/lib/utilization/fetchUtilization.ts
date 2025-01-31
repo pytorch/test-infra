@@ -40,7 +40,6 @@ export default async function fetchUtilization(
     params.workflow_id,
     params.job_id,
     params.run_attempt,
-    UTILIZATION_TYPE
   );
   const tsMap = flattenTS(resp);
 
