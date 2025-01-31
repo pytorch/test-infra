@@ -39,7 +39,7 @@ export default async function fetchUtilization(
   const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
-    params.run_attempt,
+    params.run_attempt
   );
   const tsMap = flattenTS(resp);
 
@@ -58,7 +58,7 @@ export default async function fetchUtilization(
 async function getUtilTimesSeries(
   workflow_id: string,
   job_id: string,
-  run_attempt: string,
+  run_attempt: string
 ) {
   const response = await queryClickhouseSaved(UTIL_TS_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,

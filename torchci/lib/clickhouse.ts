@@ -44,7 +44,7 @@ export async function queryClickhouse(
    */
   const clickhouseClient = getClickhouseClient();
 
-  console.log("queryClickhouse", query_id, query, params)
+  console.log("queryClickhouse", query_id, query, params);
   const res = await clickhouseClient.query({
     query,
     format: "JSONEachRow",
