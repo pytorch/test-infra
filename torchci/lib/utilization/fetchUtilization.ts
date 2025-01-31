@@ -35,7 +35,7 @@ export default async function fetchUtilization(
     );
     return null;
   }
-  
+
   const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
@@ -60,9 +60,6 @@ async function getUtilTimesSeries(
   workflow_id: string,
   job_id: string,
   run_attempt: string,
-  type: string = "",
-  from: string = "",
-  to: string = ""
 ) {
   const response = await queryClickhouseSaved(UTIL_TS_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,
