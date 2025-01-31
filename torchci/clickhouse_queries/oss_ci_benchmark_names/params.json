@@ -1,6 +1,7 @@
 {
   "params": {
-    "deviceArch": "String",
+    "arch": "String",
+    "device": "String",
     "dtypes": "Array(String)",
     "excludedMetrics": "Array(String)",
     "benchmarks": "Array(String)",

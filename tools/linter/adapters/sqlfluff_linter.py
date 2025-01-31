@@ -78,6 +78,8 @@ def check_file(
             [
                 "sqlfluff",
                 "format",
+                "--config",
+                os.path.join(os.getcwd(), ".sqlfluff"),
                 "--dialect",
                 "clickhouse",
                 tmp.name,

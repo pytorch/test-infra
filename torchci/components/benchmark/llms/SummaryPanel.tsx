@@ -23,6 +23,7 @@ export function SummaryPanel({
   modelName,
   backendName,
   metricNames,
+  archName,
   lPerfData,
   rPerfData,
 }: {
@@ -33,6 +34,7 @@ export function SummaryPanel({
   modelName: string;
   backendName: string;
   metricNames: string[];
+  archName: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
 }) {
@@ -75,13 +77,15 @@ export function SummaryPanel({
           params.value.backend !== undefined
             ? `&backendName=${encodeURIComponent(params.value.backend)}`
             : "";
-        const deviceArch = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${params.value.device} (${params.value.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}${dtype}&deviceName=${encodeURIComponent(deviceArch)}`;
+        )}${backend}${dtype}&deviceName=${encodeURIComponent(
+          deviceName
+        )}&archName=${encodeURIComponent(archName)}`;
 
         return (
           <a href={url}>
@@ -215,17 +219,23 @@ export function SummaryPanel({
     ]
   );
 
+  // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
     <Grid2 container spacing={2} style={{ height: "100%" }}>
       <Grid2
         size={{ xs: 12, lg: 12 }}
-        height={data.length * ROW_HEIGHT + ROW_GAP}
+        height={
+          data.length > 99
+            ? 99 * ROW_HEIGHT
+            : data.length * ROW_HEIGHT + ROW_GAP
+        }
       >
         <TablePanelWithData
           title={"Models"}
           data={data}
           columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
+          showFooter={true}
         />
       </Grid2>
     </Grid2>
