@@ -82,8 +82,9 @@ and HUD sends the entire query text to ClickHouse in the same way Rockset did
 for queries not defined using a query lambda.
 
 Each query should have a folder in `clickhouse_queries/` with two files: one
-containing the query and the other containing a json dictionary mapping
-parameters to their types.
+containing the query and the other containing a json dictionary with a
+dictionary `params`, mapping parameters to their types, and a list `tests` of
+sample values for the query.
 
 To edit the query, only these files need to be changed. The change will be
 reflected immediately in your local development and in the Vercel preview when
@@ -95,6 +96,28 @@ query back into the file.
 
 To get access to ClickHouse Cloud's console, please see
 [here](https://github.com/pytorch/test-infra/wiki/Querying-ClickHouse-database-for-fun-and-profit#prerequisites).
+
+### `params.json`
+
+An example `params.json` file with params and tests:
+
+```
+{
+  "params": {
+    "A": "DateTime64(3)"
+  },
+  "tests": [
+    {"A": "2024-01-01 00:00:00.000"},
+    {"A": "2024-01-07 00:00:00.000"},
+    {"A": "2025-01-01 00:00:00.000"},
+    {"A": {"from_now": 0}}
+  ]
+}
+```
+
+A test can set a parameter to be a dictionary with the field `from_now` to get a
+dynamic timestamp where the entry is the difference from now in days. For
+example `from_now: 0` is now and `from_now: -7` would be 7 days in the past.
 
 ## Alerts
 

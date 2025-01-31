@@ -1,3 +1,6 @@
 {
-  "state": "String"
+  "params": {
+    "state": "String"
+  },
+  "tests": []
 }

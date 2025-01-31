@@ -1,5 +1,8 @@
 {
-  "repo": "String",
-  "head": "String",
-  "owner": "String"
+  "params": {
+    "repo": "String",
+    "head": "String",
+    "owner": "String"
+  },
+  "tests": []
 }

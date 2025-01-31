@@ -1,7 +1,10 @@
 {
-  "one_bucket": "Bool",
-  "percentile_to_get": "Float64",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "workflow": "String"
+  "params": {
+    "one_bucket": "Bool",
+    "percentile_to_get": "Float64",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "workflow": "String"
+  },
+  "tests": []
 }

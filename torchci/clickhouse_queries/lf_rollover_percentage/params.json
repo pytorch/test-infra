@@ -1,3 +1,6 @@
 {
-  "days_ago": "Int64"
+  "params": {
+    "days_ago": "Int64"
+  },
+  "tests": []
 }

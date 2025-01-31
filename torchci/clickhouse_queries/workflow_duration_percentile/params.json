@@ -1,6 +1,9 @@
 {
-  "percentile": "Float64",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "workflowNames": "String"
+  "params": {
+    "percentile": "Float64",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "workflowNames": "String"
+  },
+  "tests": []
 }

@@ -1,4 +1,7 @@
 {
-  "repo": "String",
-  "states": "Array(String)"
+  "params": {
+    "repo": "String",
+    "states": "Array(String)"
+  },
+  "tests": []
 }

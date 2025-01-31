@@ -1,3 +1,6 @@
 {
-  "repo": "String"
+  "params": {
+    "repo": "String"
+  },
+  "tests": []
 }

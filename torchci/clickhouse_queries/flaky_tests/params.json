@@ -1,6 +1,9 @@
 {
-  "file": "String",
-  "name": "String",
-  "numHours": "Int64",
-  "suite": "String"
+  "params": {
+    "file": "String",
+    "name": "String",
+    "numHours": "Int64",
+    "suite": "String"
+  },
+  "tests": []
 }
