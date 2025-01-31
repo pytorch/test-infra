@@ -318,7 +318,9 @@ export default function Page() {
               backendName
             )}&dtypeName=${encodeURIComponent(
               dtypeName
-            )}&deviceName=${encodeURIComponent(deviceName)}`}
+            )}&deviceName=${encodeURIComponent(
+              deviceName
+            )}&archName=${encodeURIComponent(archName)}`}
           />
         </Stack>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -337,7 +339,10 @@ export default function Page() {
           />
         </Stack>
         <Stack>
-          <>Loading {REPO_TO_BENCHMARKS[repoName].join(", ")}...</>
+          <>
+            Found no records for {REPO_TO_BENCHMARKS[repoName].join(", ")},
+            please wait a min or select different time range
+          </>
         </Stack>
       </div>
     );

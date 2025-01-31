@@ -225,8 +225,8 @@ export function SummaryPanel({
       <Grid2
         size={{ xs: 12, lg: 12 }}
         height={
-          data.length > 99
-            ? 99 * ROW_HEIGHT
+          data.length > 98
+            ? 98 * ROW_HEIGHT
             : data.length * ROW_HEIGHT + ROW_GAP
         }
       >
