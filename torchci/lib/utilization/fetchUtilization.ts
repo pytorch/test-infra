@@ -35,7 +35,7 @@ export default async function fetchUtilization(
     );
     return null;
   }
-  
+
   const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
