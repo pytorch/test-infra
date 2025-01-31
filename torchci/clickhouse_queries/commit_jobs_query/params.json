@@ -1,4 +1,7 @@
 {
+  "params": {
     "repo": "String",
     "sha": "String"
+  },
+  "tests": []
 }

@@ -1,8 +1,11 @@
 {
-  "dtypes": "Array(String)",
-  "device": "String",
-  "mode": "String",
-  "repo": "String",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)"
+  "params": {
+    "dtypes": "Array(String)",
+    "device": "String",
+    "mode": "String",
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": []
 }

@@ -1,3 +1,6 @@
 {
+  "params": {
     "branch": "String"
+  },
+  "tests": []
 }

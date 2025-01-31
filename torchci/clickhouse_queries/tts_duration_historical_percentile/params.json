@@ -1,9 +1,12 @@
 {
-  "branch": "String",
-  "granularity": "String",
-  "percentile": "Float32",
-  "repo": "String",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "workflowNames": "Array(String)"
+  "params": {
+    "branch": "String",
+    "granularity": "String",
+    "percentile": "Float32",
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "workflowNames": "Array(String)"
+  },
+  "tests": []
 }

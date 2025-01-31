@@ -1,3 +1,6 @@
 {
-  "jobNames": "String"
+  "params": {
+    "jobNames": "String"
+  },
+  "tests": []
 }

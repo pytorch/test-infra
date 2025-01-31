@@ -1,5 +1,8 @@
 {
-  "pr_nums": "Array(String)",
-  "owner": "String",
-  "project": "String"
+  "params": {
+    "pr_nums": "Array(String)",
+    "owner": "String",
+    "project": "String"
+  },
+  "tests": []
 }

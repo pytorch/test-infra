@@ -1,5 +1,8 @@
 {
-  "numMinutes": "Int64",
-  "prNumbers": "Array(Int64)",
-  "repo": "String"
+  "params": {
+    "numMinutes": "Int64",
+    "prNumbers": "Array(Int64)",
+    "repo": "String"
+  },
+  "tests": []
 }

@@ -1,4 +1,7 @@
 {
-  "jobName": "String",
-  "workflowId": "Int64"
+  "params": {
+    "jobName": "String",
+    "workflowId": "Int64"
+  },
+  "tests": []
 }
