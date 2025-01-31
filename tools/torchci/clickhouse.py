@@ -31,7 +31,7 @@ def query_clickhouse_saved(queryName: str, inputParams: Dict[str, Any]) -> Any:
     with open(path / "query.sql") as f:
         queryText = f.read()
     with open(path / "params.json") as f:
-        paramsText = json.load(f)
+        paramsText = json.load(f).get("params", {})
 
     queryParams = {name: inputParams[name] for name in paramsText}
     return query_clickhouse(queryText, queryParams)

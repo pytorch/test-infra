@@ -1,13 +1,16 @@
 {
-  "branches": "Array(String)",
-  "commits": "Array(String)",
-  "device": "String",
-  "dtypes": "Array(String)",
-  "granularity": "String",
-  "mode": "String",
-  "repo": "String",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "suites": "Array(String)",
-  "workflowId": "Int64"
+  "params": {
+    "branches": "Array(String)",
+    "commits": "Array(String)",
+    "device": "String",
+    "dtypes": "Array(String)",
+    "granularity": "String",
+    "mode": "String",
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "suites": "Array(String)",
+    "workflowId": "Int64"
+  },
+  "tests": []
 }

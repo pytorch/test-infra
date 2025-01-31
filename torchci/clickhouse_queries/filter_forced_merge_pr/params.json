@@ -1,5 +1,8 @@
 {
+  "params": {
     "owner": "String",
     "project": "String",
     "shas": "Array(String)"
+  },
+  "tests": []
 }

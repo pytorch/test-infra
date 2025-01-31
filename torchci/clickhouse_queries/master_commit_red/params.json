@@ -1,5 +1,33 @@
 {
+  "params": {
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
     "timezone": "String"
+  },
+  "tests": [
+    {
+      "startTime": "2024-01-01 00:00:00.000",
+      "stopTime": "2024-01-08 00:00:00.000",
+      "timezone": "UTC"
+    },
+    {
+      "startTime": "2024-01-01 00:00:00.000",
+      "stopTime": "2024-02-01 00:00:00.000",
+      "timezone": "UTC"
+    },
+    {
+      "startTime": "2024-01-01 00:00:00.000",
+      "stopTime": "2025-01-01 00:00:00.000",
+      "timezone": "UTC"
+    },
+    {
+      "startTime": {
+        "from_now": -7
+      },
+      "stopTime": {
+        "from_now": 0
+      },
+      "timezone": "UTC"
+    }
+  ]
 }

@@ -1,9 +1,12 @@
 {
-  "branches": "Array(String)",
-  "maxAttempt": "Int64",
-  "nextWorkflowId": "Int64",
-  "numHours": "Int64",
-  "repo": "String",
-  "workflowId": "Int64",
-  "workflowNames": "Array(String)"
+  "params": {
+    "branches": "Array(String)",
+    "maxAttempt": "Int64",
+    "nextWorkflowId": "Int64",
+    "numHours": "Int64",
+    "repo": "String",
+    "workflowId": "Int64",
+    "workflowNames": "Array(String)"
+  },
+  "tests": []
 }
