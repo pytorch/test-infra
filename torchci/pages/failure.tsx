@@ -18,7 +18,7 @@ dayjs.extend(utc);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export function formatFailureCaptures(failureCaptures: string) {
+function formatFailureCaptures(failureCaptures: string) {
   // Format the failure captures to be string[] for the API
   try {
     let captures = JSON.parse(failureCaptures);
@@ -314,7 +314,9 @@ export default function Page() {
       ? `/api/failure?${encodeParams({
           name,
           jobName,
-          failureCaptures,
+          failureCaptures: JSON.stringify(
+            formatFailureCaptures(failureCaptures)
+          ),
           useFuzzySearch: useFuzzySearch.toString(),
         })}`
       : null;

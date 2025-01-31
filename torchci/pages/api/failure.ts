@@ -2,7 +2,6 @@ import dayjs from "dayjs";
 import { NEWEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import _, { isEqual } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { formatFailureCaptures } from "pages/failure";
 
 interface Data {}
 
@@ -16,9 +15,9 @@ export default async function handler(
 ) {
   const name = req.query.name as string;
   const jobName = req.query.jobName as string;
-  const failureCaptures = formatFailureCaptures(
+  const failureCaptures = JSON.parse(
     req.query.failureCaptures as string
-  );
+  ) as string[];
   const useFuzzySearch = req.query.useFuzzySearch as string;
 
   // The current HUD page shows the last 14 days. Newer results are preferred
