@@ -5,7 +5,7 @@ import useSWR from "swr";
 const ApiData = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
-  
+
   let { data, error } = useSWR(
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
     fetcher,
