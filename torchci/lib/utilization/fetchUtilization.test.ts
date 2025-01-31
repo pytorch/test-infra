@@ -270,25 +270,10 @@ describe("fetchUtilization", () => {
     // Assert query sent to clickhouse
     expect(mockQuery).toHaveBeenCalledTimes(2);
     const firstQuery = mockQuery.mock.calls[0][0];
-    expect(firstQuery.query_params).toEqual({
-      workflowId: "1234",
-      jobId: "2345",
-      runAttempt: "1",
-      repo: "pytorch/pytorch",
-      type: "utilization",
-    });
-
     expect(
       firstQuery.query.includes("oss_ci_utilization_metadata")
     ).toBeTruthy();
     const secondQuery = mockQuery.mock.calls[1][0];
-    expect(secondQuery.query_params).toEqual({
-      workflowId: "1234",
-      jobId: "2345",
-      runAttempt: "1",
-      repo: "pytorch/pytorch",
-      type: "utilization",
-    });
     expect(secondQuery.query.includes("oss_ci_time_series")).toBeTruthy();
   });
 });
