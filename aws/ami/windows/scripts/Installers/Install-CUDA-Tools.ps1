@@ -39,6 +39,12 @@ Switch ($cudaVersion) {
     $cudnn_subfolder = "cudnn-windows-x86_64-9.5.1.17_cuda12-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
+  "12.8" {
+    $toolkitInstaller = "cuda_12.8.0_571.96_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-9.7.0.66_cuda12-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
+  }
+  aws/ami/windows/scripts/Installers/Install-CUDA-Tools.ps1
 }
 
 
