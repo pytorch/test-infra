@@ -1,3 +1,4 @@
+import { UtilizationPage } from "components/utilization/page";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWRImmutable from "swr";
@@ -30,10 +31,11 @@ const Utilization = () => {
         workflowId:{workflowId}, JobId: {jobId}, attempt: {attempt}, job_name:{" "}
         {data.metadata?.job_name}, workflow_name: {data.metadata?.workflow_name}
       </div>
-      <div
-        style={{ maxWidth: "800px", whiteSpace: "pre-wrap", overflowX: "auto" }}
-      >
-        <pre>{JSON.stringify(data.metadata, null, 2)}</pre>
+      <div>
+        <UtilizationPage
+          lines={data?.ts_list}
+          metadata={data?.metadata}
+        ></UtilizationPage>
       </div>
     </div>
   );

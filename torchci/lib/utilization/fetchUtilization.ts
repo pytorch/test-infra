@@ -45,7 +45,7 @@ export default async function fetchUtilization(
 
   let tsList = [];
   for (const [key, value] of tsMap) {
-    tsList.push({ name: key, value: value });
+    tsList.push({ name: key, records: value });
   }
 
   return {
