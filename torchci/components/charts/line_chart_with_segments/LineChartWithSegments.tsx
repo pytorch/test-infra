@@ -1,18 +1,23 @@
 import * as d3 from "d3";
-import { useEffect, useRef, useState } from "react";
-import styles from "./LineChart.module.css";
-import { getRandomColor } from "./d3_chart_utils/color";
-import { D3LineRecord, RectangleData } from "./d3_chart_utils/types";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { TooltipElement } from "./component/helpers/Tooltip";
+import RenderLinePickerOptions from "./component/RenderLinePickerOptions";
 import {
-  formatDate,
+  RenderIndicatorLine,
+  RenderLineTooltipContent,
+  RenderSegmentTooltipContent,
+  RenderTooltipCircles,
+} from "./component/RenderTooltips";
+import { getRandomColor } from "./d3_chart_utils/color";
+import { D3LineRecord, Line, RectangleData } from "./d3_chart_utils/types";
+import {
   getRecordyDate,
+  PickerConfig,
   processLineData,
   processRectData,
   setDimensions,
-  xAccessor,
-  yAccessor,
 } from "./d3_chart_utils/utils";
-import { TooltipElement } from "./component/tooltip";
+import styles from "./LineChart.module.css";
 
 type Props = {
   onDataChange?: (data: any) => void;
@@ -23,22 +28,16 @@ type Props = {
   }[];
   segments: {
     name: string;
-     start_at: string;
-     end_at: string
-     color?: string
-    }[];
+    start_at: string;
+    end_at: string;
+    color?: string;
+  }[];
   chartWidth?: number;
-  selectedSegmentId?: string;
   disableSegment?: boolean;
-  disableLine?: boolean;
+  disableLineTooltip?: boolean;
   selectedLineId?: string;
+  linePickerConfig?: Map<string, PickerConfig>;
 };
-
-interface Line {
-  name: string;
-  records: D3LineRecord[];
-  color?: string;
-}
 
 const LineChartWithSegments = ({
   onDataChange = (data: any) => void {},
@@ -46,9 +45,8 @@ const LineChartWithSegments = ({
   segments = [],
   chartWidth = 2000,
   disableSegment = false,
-  disableLine = false,
-  selectedSegmentId,
-  selectedLineId,
+  disableLineTooltip = false,
+  linePickerConfig = new Map<string, PickerConfig>(),
 }: Props) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dimensions = setDimensions(chartWidth);
@@ -64,10 +62,12 @@ const LineChartWithSegments = ({
     content: any;
     position: { x: number; y: number };
   }>({ visible: false, content: null, position: { x: 0, y: 0 } });
+
   const [scales, setScales] = useState<{ xScale: any; yScale: any }>({
     xScale: null,
     yScale: null,
   });
+  const [lineCategory, setLineCategory] = useState<string>("");
 
   const lineGenerator = d3
     .line<D3LineRecord>()
@@ -81,10 +81,6 @@ const LineChartWithSegments = ({
     }
     const lineData = processLineData(inputLines);
     let recs = processRectData(segments);
-
-    if (selectedSegmentId){
-      recs = recs.filter((rec) => rec.name === selectedSegmentId);
-    }
     setLines(lineData);
     setRectangles(recs);
     // set x axis
@@ -107,7 +103,7 @@ const LineChartWithSegments = ({
     setScales({ xScale, yScale });
 
     return () => {};
-  }, [inputLines, segments, selectedSegmentId]);
+  }, [inputLines, segments]);
 
   useEffect(() => {
     // only render svg axis when dom is ready.
@@ -118,36 +114,9 @@ const LineChartWithSegments = ({
     }
   }, [scales.xScale, scales.yScale]);
 
-
-  // handle segment events
-  const handleSegmentMouseOver = (
-    event: React.MouseEvent,
-    rectData: RectangleData
-  ) => {
-    if (disableSegment) return;
-    setSegTooltip({
-      visible: true,
-      content: getSegmentTooltipContent(rectData),
-      position: { x: event.pageX, y: event.pageY },
-    });
-  };
-
-  const handleSegmentMouseLeave = (event: React.MouseEvent) => {
-    if (disableSegment) return;
-    setSegTooltip({ visible: false, content: null, position: { x: 0, y: 0 } });
-  };
-
-  const handleSegmentOnClick = (
-    event: React.MouseEvent,
-    rectData: RectangleData
-  ) => {
-    if (disableSegment) return;
-    //onDataChange()
-  };
-
   // handle line events
   const handleLineMouseMove = (event: React.MouseEvent) => {
-    if (disableLine) {
+    if (disableLineTooltip) {
       return;
     }
     d3HandleMouseMovement(
@@ -196,200 +165,202 @@ const LineChartWithSegments = ({
 
     let lineDataMap = new Map<string, D3LineRecord>();
     for (const line of lineList) {
+      if (line.hidden) {
+        continue;
+      }
       const res = getRecordyDate(line.records, date);
       lineDataMap.set(line.name, res);
+    }
+    if (lineDataMap.size == 0) {
+      return;
     }
 
     // update tooltip, indicator line and circles based on mouse movement in chart.
     const container = d3.select(svgRef.current).select(".container");
-    renderIndicatorLine(container, xScale, hoveredData, dimensions.ctrHeight);
-    renderTooltipCircles(container, xScale, yScale, lineDataMap);
+    RenderIndicatorLine(container, xScale, hoveredData, dimensions.ctrHeight);
+    RenderTooltipCircles(container, xScale, yScale, lineDataMap);
     setLineTooltip({
       visible: true,
-      content: getLineTooltipContent(hoveredData.date, lineList, lineDataMap),
+      content: RenderLineTooltipContent(
+        hoveredData.date,
+        lineList,
+        lineDataMap
+      ),
       position: { x: event.pageX, y: event.pageY },
     });
   }
 
-  function getRectWidth(rec: RectangleData) {
-    const width = scales.xScale(rec.end) - scales.xScale(rec.start)
-    console.log("width", width)
-    if (width <=0){
-      return 2
-    }
-    return width
-  }
 
   return (
-    <div>
-      <svg ref={svgRef} width={dimensions.width} height={dimensions.height}>
-        <g
-          className="container"
-          transform={`translate(${dimensions.margins}, ${dimensions.margins})`}
-        >
+    <div className={styles.chartContainer}>
+      <div>
+        <svg ref={svgRef} width={dimensions.width} height={dimensions.height}>
           <g
-            className="xAxis"
-            transform={`translate(0,${dimensions.ctrHeight})`}
-          />
-          <g className="yAxis" />
-          <g className="lines-group">
+            className="container"
+            transform={`translate(${dimensions.margins}, ${dimensions.margins})`}
+          >
+            <g
+              className="xAxis"
+              transform={`translate(0,${dimensions.ctrHeight})`}
+            />
+            <g className="yAxis" />
+            <g className="lines-group">
+              {lines.map((line, i) => {
+                return (
+                  <path
+                    key={i}
+                    d={lineGenerator(line.records)}
+                    id={line.name + "-line"}
+                    className={"line"}
+                    fill="none"
+                    opacity={line.hidden ? 0.1 : 1}
+                    stroke={line.color ? line.color : getRandomColor(i)}
+                    strokeWidth={2}
+                  />
+                );
+              })}
+            </g>
+            <line
+              className="indicator-line"
+              stroke="steelblue"
+              strokeWidth={2}
+              strokeDasharray={5.5}
+            />
             {lines.map((line, i) => {
               return (
-                <path
+                <circle
                   key={i}
-                  d={lineGenerator(line.records)}
-                  id={line.name + "-line"}
-                  className={"line"}
-                  fill="none"
-                  stroke={line.color ? line.color : getRandomColor(i)}
-                  strokeWidth={2}
+                  r={5}
+                  id={line.name}
+                  className="tooltip-circle"
+                  fill="#fc8781"
+                  stroke="black"
+                  strokeWidth={1.5}
+                  strokeOpacity={0.4}
+                  opacity={0}
+                  style={{ pointerEvents: "none" }}
                 />
               );
             })}
-          </g>
-          <line
-            className="indicator-line"
-            stroke="steelblue"
-            strokeWidth={2}
-            strokeDasharray={5.5}
-          />
-          {lines.map((line, i) => {
-            return (
-              <circle
-                key={i}
-                r={5}
-                id={line.name}
-                className="tooltip-circle"
-                fill="#fc8781"
-                stroke="black"
-                strokeWidth={1.5}
-                strokeOpacity={0.4}
-                opacity={0}
-                style={{ pointerEvents: "none" }}
+            <rect
+              className="overlay"
+              width={dimensions.ctrWidth}
+              height={dimensions.ctrHeight}
+              fillOpacity={0}
+              onMouseMove={handleLineMouseMove}
+              onMouseLeave={handleLineMouseLeave}
+            />
+            <RenderSvgSegment
+              setSegTooltip={setSegTooltip}
+              rectangles={rectangles}
+              disableSegment={disableSegment}
+              dimensions={dimensions}
+              scales={scales}
               />
-            );
-          })}
-          <rect
-            className="overlay"
-            width={dimensions.ctrWidth}
-            height={dimensions.ctrHeight}
-            fillOpacity={0}
-            onMouseMove={handleLineMouseMove}
-            onMouseLeave={handleLineMouseLeave}
-          />
-          <g className="rect-group">
-            {rectangles.map((rec, i) => {
-              return (
-                <rect
-                  key={i}
-                  className={`${styles.rect} rect`}
-                  fill={rec.color ? rec.color : getRandomColor(i)}
-                  id={rec.name}
-                  display={disableSegment ? "none" : "block"}
-                  x={scales.xScale(rec.start)}
-                  y={0}
-                  width={getRectWidth(rec)}
-                  height={dimensions.ctrHeight}
-                  onMouseOver={(event) => handleSegmentMouseOver(event, rec)}
-                  onMouseLeave={handleSegmentMouseLeave}
-                  onClick={(event) => handleSegmentOnClick(event, rec)}
-                />
-              );
-            })}
           </g>
-        </g>
-      </svg>
-      <TooltipElement
-        isVisible={lineTooltip.visible}
-        content={lineTooltip.content}
-        position={lineTooltip.position}
-      />
-      <TooltipElement
-        isVisible={segTooltip.visible}
-        content={segTooltip.content}
-        position={segTooltip.position}
+        </svg>
+        <TooltipElement
+          isVisible={lineTooltip.visible}
+          content={lineTooltip.content}
+          position={lineTooltip.position}
+        />
+        <TooltipElement
+          isVisible={segTooltip.visible}
+          content={segTooltip.content}
+          position={segTooltip.position}
+        />
+      </div>
+      <RenderLinePickerOptions
+        lines={lines}
+        setLines={setLines}
+        lineCategory={lineCategory}
+        setLineCategory={setLineCategory}
+        linePickerConfig={linePickerConfig}
       />
     </div>
   );
 };
 
-
-// helper functions
-function getLineTooltipContent(
-  date: Date,
-  lineList: any[],
-  maps: Map<string, D3LineRecord>
-) {
-  const formattedDate = formatDate(date);
-  return (
-    <div className={styles.tooltipline}>
-      <div>{formattedDate}</div>
-      <div>
-        {lineList.map((item) => {
-          const val = maps.get(item.name);
-          return (
-            <div key={item.name}>
-              <div>
-                {item.name}: {val?.value}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function getSegmentTooltipContent(rec: RectangleData) {
-  return (
-    <div className={styles.tooltipline}>
-      <div>
-        <div>{rec.name}</div>
-        <div>Start: {formatDate(rec.start)}</div>
-        <div>End: {formatDate(rec.end)}</div>
-      </div>
-    </div>
-  );
-}
-
-function renderIndicatorLine(
-  container: any,
-  xScale: any,
-  record: D3LineRecord,
-  height: number
-) {
-  container
-    .select(".indicator-line")
-    .attr("x1", xScale(xAccessor(record)))
-    .attr("y1", 0)
-    .attr("x2", xScale(xAccessor(record)))
-    .attr("y2", height);
-}
-function renderTooltipCircles(
-  container: any,
-  xScale: any,
-  yScale: any,
-  lineDataMap: Map<string, D3LineRecord>
-) {
-  container
-    .selectAll(".tooltip-circle")
-    .style("opacity", 1)
-    .attr("cx", function (this: any) {
-      var id = d3.select(this).attr("id");
-      if (lineDataMap.has(id)) {
-        const rec = lineDataMap.get(id);
-        return xScale(xAccessor(rec!));
-      }
-      return 0;
-    })
-    .attr("cy", function (this: any) {
-      var id = d3.select(this).attr("id");
-      if (lineDataMap.has(id)) {
-        const rec = lineDataMap.get(id);
-        return yScale(yAccessor(rec!));
-      }
-      return 0;
-    });
-}
-
 export default LineChartWithSegments;
+
+
+const RenderSvgSegment = (
+  {
+    setSegTooltip,
+    rectangles,
+    disableSegment,
+    dimensions,
+    scales,
+  }:{
+  setSegTooltip:Dispatch<SetStateAction<{
+    visible: boolean;
+    content: any;
+    position: {
+        x: number;
+        y: number;
+    };
+  }>>,
+  rectangles: RectangleData[],
+  disableSegment?: boolean,
+  dimensions: any,
+  scales: any,
+ })=>{
+   // helper function to get the width of a rectangle, reset width if it's too small to view.
+   const getRectWidth = (rec: RectangleData) => {
+    const width = scales.xScale(rec.end) - scales.xScale(rec.start);
+    if (width <= 0) {
+      return 2;
+    }
+    return width;
+  }
+
+  const handleSegmentMouseLeave = (event: React.MouseEvent) => {
+    if (disableSegment) return;
+    setSegTooltip({ visible: false, content: null, position: { x: 0, y: 0 } });
+  };
+
+  const handleSegmentOnClick = (
+    event: React.MouseEvent,
+    rectData: RectangleData
+  ) => {
+    if (disableSegment) return;
+    //onDataChange()
+  };
+
+   // handle segment events
+   const handleSegmentMouseOver = (
+    event: React.MouseEvent,
+    rectData: RectangleData
+  ) => {
+    if (disableSegment) return;
+    setSegTooltip({
+      visible: true,
+      content: RenderSegmentTooltipContent(rectData),
+      position: { x: event.pageX, y: event.pageY },
+    });
+  };
+
+
+  return(
+      <g className="rect-group">
+              {rectangles.map((rec, i) => {
+                return (
+                  <rect
+                    key={i}
+                    className={`${styles.rect} rect`}
+                    fill={rec.color ? rec.color : getRandomColor(i)}
+                    id={rec.name}
+                    display={disableSegment ? "none" : "block"}
+                    x={scales.xScale(rec.start)}
+                    y={0}
+                    width={getRectWidth(rec)}
+                    height={dimensions.ctrHeight}
+                    onMouseOver={(event) => handleSegmentMouseOver(event, rec)}
+                    onMouseLeave={handleSegmentMouseLeave}
+                    onClick={(event) => handleSegmentOnClick(event, rec)}
+                  />
+                );
+              })}
+            </g>
+  )
+}

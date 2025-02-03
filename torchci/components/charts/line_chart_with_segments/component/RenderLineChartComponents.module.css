@@ -1,0 +1,13 @@
+.rowFlexCenter {
+  display: flex; /* or inline-flex */
+  align-items: center;
+}
+
+.tooltipline {
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1;
+  padding: 12px;
+  background-color: white;
+  border-radius: 5px;
+  border: 1px solid grey;
+}

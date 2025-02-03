@@ -1,4 +1,4 @@
-import { UtilizationPage } from "components/utilization/page";
+import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWRImmutable from "swr";

@@ -15,3 +15,10 @@ export interface D3LineRecord {
   date: Date;
   value: number;
 }
+
+export interface Line {
+  name: string;
+  records: D3LineRecord[];
+  color?: string;
+  hidden?: boolean;
+}

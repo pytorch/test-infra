@@ -1,6 +1,10 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
-import { color } from "echarts";
+
+export interface PickerConfig {
+  category: string;
+  types: string[];
+}
 
 export function setDimensions(chartWidth: number) {
   let dimensions = {
@@ -39,7 +43,12 @@ export function processLineData(
 }
 
 export function processRectData(
-  rectangles: { name: string; start_at: string; end_at: string, color?:string}[]
+  rectangles: {
+    name: string;
+    start_at: string;
+    end_at: string;
+    color?: string;
+  }[]
 ) {
   if (!rectangles || rectangles.length == 0) {
     return [];
