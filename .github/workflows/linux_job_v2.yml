@@ -104,9 +104,9 @@ on:
         required: false
         default: false
         type: boolean
+
 permissions:
   id-token: write
-  contents: read
 
 jobs:
   job:
