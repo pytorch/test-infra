@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
+import { KMS } from '@aws-sdk/client-kms';
 import { Config } from '../config';
 import { expBackOff } from '../utils';
-import { KMS } from 'aws-sdk';
 import { Metrics } from '../metrics';
 
 let kms: KMS | undefined = undefined;
@@ -14,11 +14,9 @@ export async function decrypt(
 ): Promise<string | undefined> {
   /* istanbul ignore next */
   if (!kms) {
-    AWS.config.update({
+    kms = new KMS({
       region: Config.Instance.awsRegion,
     });
-
-    kms = new KMS();
   }
 
   // this is so the linter understands that KMS is not undefined at this point :(
@@ -26,15 +24,16 @@ export async function decrypt(
 
   const decripted = await expBackOff(() => {
     return metrics.trackRequest(metrics.kmsDecryptAWSCallSuccess, metrics.kmsDecryptAWSCallFailure, () => {
-      return kmsD
-        .decrypt({
-          CiphertextBlob: Buffer.from(encrypted, 'base64'),
-          KeyId: key,
-          EncryptionContext: {
-            ['Environment']: environmentName,
-          },
-        })
-        .promise();
+      return (
+        kmsD
+          .decrypt({
+            CiphertextBlob: Buffer.from(encrypted, 'base64'),
+            KeyId: key,
+            EncryptionContext: {
+              ['Environment']: environmentName,
+            },
+          })
+      );
     });
   });
 

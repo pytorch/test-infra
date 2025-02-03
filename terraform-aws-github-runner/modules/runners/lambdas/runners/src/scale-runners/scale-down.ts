@@ -15,7 +15,7 @@ import {
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
-import { SSM } from 'aws-sdk';
+import { ParameterMetadata } from '@aws-sdk/client-ssm';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -448,7 +448,7 @@ export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {
   });
 }
 
-export function sortSSMParametersByUpdateTime(ssmParams: Array<SSM.ParameterMetadata>): Array<SSM.ParameterMetadata> {
+export function sortSSMParametersByUpdateTime(ssmParams: Array<ParameterMetadata>): Array<ParameterMetadata> {
   return ssmParams.sort((a, b): number => {
     if (a.LastModifiedDate === undefined && b.LastModifiedDate === undefined) return 0;
     if (a.LastModifiedDate === undefined) return 1;
