@@ -12,6 +12,8 @@ on:
 jobs:
   test-cpu:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       job-name: "linux-py3.9-cpu"
       runner: linux.2xlarge
@@ -28,6 +30,8 @@ jobs:
         python3 -c 'import torch'
   test-gpu:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     strategy:
       matrix:
         runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
@@ -52,6 +56,8 @@ jobs:
         python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
   test-gpu-containers:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     strategy:
       matrix:
         runner_type: ["linux.aws.a100"]
@@ -76,6 +82,8 @@ jobs:
         python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
   test-docker-image:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -85,6 +93,8 @@ jobs:
         source /etc/os-release && [[ "${ID}" = "fedora" ]] || exit 1
   test-upload-artifact:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -94,6 +104,8 @@ jobs:
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
   test-upload-artifact-s3:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -105,6 +117,8 @@ jobs:
   test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -114,6 +128,8 @@ jobs:
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
   upload-docs:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -123,6 +139,8 @@ jobs:
   verify-upload-docs:
     needs: upload-docs
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -134,6 +152,8 @@ jobs:
         curl -fsSL "https://docs-preview.pytorch.org/pytorch/${REPO_NAME}/${PR_NUMBER}/index.html" | grep "hello"
   test-with-matrix:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     strategy:
       matrix:
         python_version: ["3.9", "3.10", "3.11", "3.12"]
@@ -150,6 +170,8 @@ jobs:
         python --version | grep "${PYTHON_VERSION}"
   test-no-docker:
     uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
     with:
       job-name: "no-docker-test"
       runner: linux.2xlarge
