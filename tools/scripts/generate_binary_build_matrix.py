@@ -27,21 +27,14 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.4", "12.6"],
-    "test": ["11.8", "12.4", "12.6"],
-    "release": ["11.8", "12.4", "12.6"],
+    "nightly": ["11.8", "12.4", "12.6", "12.8"],
+    "test": ["11.8", "12.4", "12.6", "12.8"],
+    "release": ["11.8", "12.4", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.2.4", "6.3"],
     "test": ["6.1", "6.2.4"],
     "release": ["6.1", "6.2.4"],
-}
-
-CUDA_CUDDN_VERSIONS = {
-    "11.8": {"cuda": "11.8.0", "cudnn": "9"},
-    "12.1": {"cuda": "12.1.1", "cudnn": "9"},
-    "12.4": {"cuda": "12.4.1", "cudnn": "9"},
-    "12.6": {"cuda": "12.6.2", "cudnn": "9"},
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -456,6 +449,9 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
+            # todo: remove once windows cuda 12.8 binaries are available
+            if channel == NIGHTLY and os != LINUX:
+                arches.remove("12.8")
 
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
