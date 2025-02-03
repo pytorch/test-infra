@@ -169,7 +169,7 @@ describe("Test flattenTS to flatten timestamp", () => {
       expect(res.get(key)?.length).toEqual(1);
     });
   });
-  
+
   it("should skip data missing data field", () => {
     const res = flattenTS([
       TEST_DATA_3,
