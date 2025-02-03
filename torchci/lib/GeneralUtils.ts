@@ -2,6 +2,16 @@ import { Octokit } from "octokit";
 import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
 
+class ErrorWithStatusCode extends Error {
+  status: number;
+  info: any;
+  constructor(message: string, status: number, info: any) {
+    super(message);
+    this.status = status;
+    this.info = info;
+  }
+}
+
 export function includesCaseInsensitive(
   value: string,
   pattern: string
@@ -10,6 +20,20 @@ export function includesCaseInsensitive(
 }
 
 export const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+export const fetcherHandleError = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const info = await res.json();
+    const error = new ErrorWithStatusCode(
+      `An error occurred while fetching the data`,
+      res.status,
+      info?.error
+    );
+    throw error;
+  }
+  return res.json();
+};
 
 export const getMessage = (
   message: string,

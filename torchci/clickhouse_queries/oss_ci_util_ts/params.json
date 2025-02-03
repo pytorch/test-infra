@@ -1,0 +1,10 @@
+{
+  "params": {
+    "workflowId": "UInt64",
+    "jobId": "UInt64",
+    "runAttempt": "UInt32",
+    "repo": "String",
+    "type": "String"
+  },
+  "tests":[]
+}

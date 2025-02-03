@@ -365,6 +365,9 @@ include_patterns = [
     'torchci/clickhouse_queries/oss_ci_benchmark_branches/query.sql',
     'torchci/clickhouse_queries/oss_ci_benchmark_llms/query.sql',
     'torchci/clickhouse_queries/oss_ci_benchmark_names/query.sql',
+    'torchci/clickhouse_queries/oss_ci_util_metadata/query.sql',
+    'torchci/clickhouse_queries/oss_ci_util_ts/query.sql'
+
 ]
 exclude_patterns = [
 ]
