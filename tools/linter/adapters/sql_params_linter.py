@@ -5,15 +5,12 @@ import logging
 import os
 import re
 import subprocess
-import tempfile
 import time
 from enum import Enum
 from typing import List, NamedTuple, Optional, Pattern
 
-from isort.api import _tmp_file
 
-
-LINTER_CODE = "SQLFLUFF"
+LINTER_CODE = "SQL_PARAMS"
 
 
 class LintSeverity(str, Enum):
@@ -66,64 +63,38 @@ def run_command(
 def check_file(
     filename: str,
 ) -> List[LintMessage]:
-    with open(filename, "r") as f:
-        original = f.read()
-        original_edited = original.replace("{", "'{").replace("}", "}'")
+    with open(filename, "rb") as f:
+        data = json.load(f)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".sql")
-    with open(tmp.name, "w") as f:
-        f.write(original_edited)
-    try:
-        proc = run_command(
-            [
-                "sqlfluff",
-                "format",
-                "--config",
-                os.path.join(os.getcwd(), ".sqlfluff"),
-                "--dialect",
-                "clickhouse",
-                tmp.name,
-            ]
-        )
-    except OSError as err:
+    message = []
+    if "params" not in data:
+        message.append("The file does not contain a 'params' key.")
+    elif not isinstance(data["params"], dict):
+        message.append("The 'params' key is not a dictionary.")
+    if "tests" not in data:
+        message.append("The file does not contain a 'tests' key.")
+    elif not isinstance(data["tests"], list):
+        message.append("The 'tests' key is not a list.")
+    if len(message) > 0:
         return [
             LintMessage(
-                path=None,
+                path=filename,
                 line=None,
                 char=None,
                 code=LINTER_CODE,
-                severity=LintSeverity.ERROR,
-                name="command-failed",
-                original=None,
+                severity=LintSeverity.WARNING,
+                name="lint",
                 replacement=None,
-                description=(f"Failed due to {err.__class__.__name__}:\n{err}"),
+                original=None,
+                description="; ".join(message),
             )
         ]
-
-    with open(tmp.name, "r") as f:
-        replacement = f.read().replace("'{", "{").replace("}'", "}")
-    if original == replacement:
-        return []
-    lint_message = proc.stdout
-
-    return [
-        LintMessage(
-            path=filename,
-            line=None,
-            char=None,
-            code=LINTER_CODE,
-            severity=LintSeverity.WARNING,
-            name="format",
-            original=original,
-            replacement=replacement,
-            description=lint_message.decode("utf-8"),
-        )
-    ]
+    return []
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description=f"sqlfluff format linter for sql queries.",
+        description=f"A simple linter for params.json files for sql queries",
         fromfile_prefix_chars="@",
     )
     parser.add_argument(

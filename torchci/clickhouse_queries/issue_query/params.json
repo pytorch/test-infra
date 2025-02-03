@@ -1,3 +1,6 @@
 {
-  "label": "String"
+  "params": {
+    "label": "String"
+  },
+  "tests": []
 }

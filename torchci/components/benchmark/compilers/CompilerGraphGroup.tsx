@@ -16,14 +16,18 @@ export default function CompilerGraphGroup({
   suiteConfig,
   queryParams,
   granularity,
+  lDeviceName,
   lBranchAndCommit,
+  rDeviceName,
   rBranchAndCommit,
 }: {
   dashboard: string;
   suiteConfig: SuiteConfig;
   queryParams: { [key: string]: any };
   granularity: Granularity;
+  lDeviceName: string;
   lBranchAndCommit: BranchAndCommit;
+  rDeviceName: string;
   rBranchAndCommit: BranchAndCommit;
 }) {
   // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
@@ -44,6 +48,7 @@ export default function CompilerGraphGroup({
             granularity={granularity}
             suite={suiteConfig.id}
             branch={lBranchAndCommit.branch}
+            deviceName={lDeviceName}
             lCommit={lBranchAndCommit.commit}
             rCommit={rBranchAndCommit.commit}
           />

@@ -1,3 +1,6 @@
 {
-  "userbenchmark": "String"
+  "params": {
+    "userbenchmark": "String"
+  },
+  "tests": []
 }

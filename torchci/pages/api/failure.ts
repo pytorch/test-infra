@@ -15,7 +15,9 @@ export default async function handler(
 ) {
   const name = req.query.name as string;
   const jobName = req.query.jobName as string;
-  const failureCaptures = JSON.parse(req.query.failureCaptures as string);
+  const failureCaptures = JSON.parse(
+    req.query.failureCaptures as string
+  ) as string[];
   const useFuzzySearch = req.query.useFuzzySearch as string;
 
   // The current HUD page shows the last 14 days. Newer results are preferred

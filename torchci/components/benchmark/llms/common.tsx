@@ -35,8 +35,14 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "compilation_time(s)": "CompTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
+export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";
 export const DEFAULT_BACKEND_NAME = "All Backends";
+
+// Only used by ExecuTorch for now
+export const ARCH_NAMES: { [k: string]: string[] } = {
+  "pytorch/executorch": ["Android", "iOS"],
+};
 
 // Relative thresholds
 export const RELATIVE_THRESHOLD = 0.05;

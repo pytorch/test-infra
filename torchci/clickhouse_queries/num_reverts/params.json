@@ -1,4 +1,7 @@
 {
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)"
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": []
 }

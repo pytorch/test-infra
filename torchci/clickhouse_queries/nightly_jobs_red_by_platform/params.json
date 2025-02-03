@@ -1,5 +1,8 @@
 {
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "repo": "String"
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "repo": "String"
+  },
+  "tests": []
 }

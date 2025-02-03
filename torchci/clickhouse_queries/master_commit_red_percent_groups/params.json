@@ -1,6 +1,9 @@
 {
-  "granularity": "String",
-  "startTime": "DateTime64(3)",
-  "stopTime": "DateTime64(3)",
-  "workflowNames": "Array(String)"
+  "params": {
+    "granularity": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "workflowNames": "Array(String)"
+  },
+  "tests": []
 }

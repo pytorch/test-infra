@@ -49,7 +49,9 @@ export default function JobLinks({
         )}&jobName=${encodeURIComponent(
           job.jobName as string
         )}&failureCaptures=${encodeURIComponent(
-          JSON.stringify(job.failureCaptures)
+          job.failureCaptures.length == 1
+            ? (job.failureCaptures[0] as string)
+            : JSON.stringify(job.failureCaptures)
         )}`}
       >
         more like this

@@ -1,3 +1,6 @@
 {
-  "workflowName": "String"
+  "params": {
+    "workflowName": "String"
+  },
+  "tests": []
 }

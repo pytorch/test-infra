@@ -1,3 +1,6 @@
 {
-  "shas": "Array(String)"
+  "params": {
+    "shas": "Array(String)"
+  },
+  "tests": []
 }

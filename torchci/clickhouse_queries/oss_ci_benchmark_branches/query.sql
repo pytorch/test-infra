@@ -1,7 +1,7 @@
 -- This query is used to get the list of branches and commits used by different
 -- OSS CI benchmark experiments. This powers HUD benchmarks dashboards
-SELECT
-    DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
+SELECT DISTINCT
+    replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
     head_sha,
     workflow_id AS id,
     toStartOfDay(fromUnixTimestamp(timestamp)) AS event_time
@@ -32,17 +32,15 @@ WHERE
         OR empty({excludedMetrics: Array(String) })
     )
     AND notEmpty(metric_name)
-    -- NB: DEVICE (ARCH) is the display format used by HUD when grouping together these two fields
     AND (
-        CONCAT(
-            device,
-            ' (',
-            IF(empty(arch), 'NVIDIA A100-SXM4-40GB', arch),
-            ')'
-        ) = {deviceArch: String }
-        OR {deviceArch: String } = ''
+        startsWith({device: String }, device)
+        OR {device: String } = ''
     )
     AND notEmpty(device)
+    AND (
+        arch LIKE concat('%', {arch: String }, '%')
+        OR {arch: String } = ''
+    )
 ORDER BY
     head_branch,
     timestamp DESC
