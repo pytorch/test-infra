@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from warnings import warn
 import clickhouse_connect
 import urllib
+import argparse
 
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
@@ -444,12 +445,58 @@ def oss_ci_benchmark_v3_adapter(table, bucket, key) -> None:
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 
+def oss_ci_util_metadata_adapter(table, bucket, key):
+    schema = """
+        `created_at` DateTime64(0),
+        `repo` String,
+        `workflow_id` UInt64,
+        `run_attempt` UInt32,
+        `job_id` UInt64,
+        `workflow_name` String,
+        `job_name` String,
+        `usage_collect_interval` Float32,
+        `data_model_version` String,
+        `gpu_count` UInt32,
+        `cpu_count` UInt32,
+        `gpu_type` String,
+        `start_at` DateTime64(0),
+        `end_at` DateTime64(0),
+        `segments` Array(Tuple(
+                `level` String,
+                `name` String,
+                `start_at` DateTime64(0),
+                `end_at` DateTime64(0),
+                `extra_info` Map(String, String)
+                )),
+        `tags` Array(String)
+    """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
+
+def oss_ci_util_time_series_adapter(table, bucket, key):
+    schema = """
+        `created_at` DateTime64(0),
+        `type` String,
+        `tags` Array(String),
+        `time_stamp` DateTime64(0),
+        `repo` String,
+        `workflow_id` UInt64,
+        `run_attempt` UInt32,
+        `job_id` UInt64,
+        `workflow_name` String,
+        `job_name` String,
+        `json_data` String
+     """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
+
 def torchbench_userbenchmark_adapter(table, bucket, key):
     schema = """
     `environ` String,
     `metrics` String,
     `name` String
     """
+
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
@@ -500,6 +547,8 @@ SUPPORTED_PATHS = {
     "ossci_uploaded_metrics": "misc.ossci_uploaded_metrics",
     "stable_pushes": "misc.stable_pushes",
     "v3": "benchmark.oss_ci_benchmark_v3",
+    "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
+    "debug_util_timeseries": "fortesting.oss_ci_time_series",
 }
 
 OBJECT_CONVERTER = {
@@ -517,12 +566,14 @@ OBJECT_CONVERTER = {
     "misc.ossci_uploaded_metrics": ossci_uploaded_metrics_adapter,
     "misc.stable_pushes": stable_pushes_adapter,
     "benchmark.oss_ci_benchmark_v3": oss_ci_benchmark_v3_adapter,
+    "fortesting.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
+    "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
 }
 
 
 def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
     """
-    Extract the DynamoDB table name from the source ARN. This will be used later as
+    Extract the clickhouse table name from the source ARN. This will be used later as
     the index name
     """
     if key is None:
