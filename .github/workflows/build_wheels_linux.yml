@@ -302,7 +302,6 @@ jobs:
           trigger-event: ${{ inputs.trigger-event }}
 
       - name: Upload wheel to GitHub
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
