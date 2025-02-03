@@ -26,17 +26,13 @@ const Utilization = () => {
 
   return (
     <div>
-      <h1>API Data</h1>
-      <div>
-        workflowId:{workflowId}, JobId: {jobId}, attempt: {attempt}, job_name:{" "}
-        {data.metadata?.job_name}, workflow_name: {data.metadata?.workflow_name}
-      </div>
-      <div>
-        <UtilizationPage
-          lines={data?.ts_list}
-          metadata={data?.metadata}
-        ></UtilizationPage>
-      </div>
+      <UtilizationPage
+        workflowId={workflowId ? (workflowId as string) : ""}
+        jobId={jobId ? (jobId as string) : ""}
+        attempt={attempt ? (attempt as string) : ""}
+        lines={data?.ts_list}
+        metadata={data?.metadata}
+      ></UtilizationPage>
     </div>
   );
 };

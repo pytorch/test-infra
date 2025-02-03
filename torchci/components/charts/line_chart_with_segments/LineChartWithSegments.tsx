@@ -190,7 +190,6 @@ const LineChartWithSegments = ({
     });
   }
 
-
   return (
     <div className={styles.chartContainer}>
       <div>
@@ -256,7 +255,7 @@ const LineChartWithSegments = ({
               disableSegment={disableSegment}
               dimensions={dimensions}
               scales={scales}
-              />
+            />
           </g>
         </svg>
         <TooltipElement
@@ -283,36 +282,36 @@ const LineChartWithSegments = ({
 
 export default LineChartWithSegments;
 
-
-const RenderSvgSegment = (
-  {
-    setSegTooltip,
-    rectangles,
-    disableSegment,
-    dimensions,
-    scales,
-  }:{
-  setSegTooltip:Dispatch<SetStateAction<{
-    visible: boolean;
-    content: any;
-    position: {
+const RenderSvgSegment = ({
+  setSegTooltip,
+  rectangles,
+  disableSegment,
+  dimensions,
+  scales,
+}: {
+  setSegTooltip: Dispatch<
+    SetStateAction<{
+      visible: boolean;
+      content: any;
+      position: {
         x: number;
         y: number;
-    };
-  }>>,
-  rectangles: RectangleData[],
-  disableSegment?: boolean,
-  dimensions: any,
-  scales: any,
- })=>{
-   // helper function to get the width of a rectangle, reset width if it's too small to view.
-   const getRectWidth = (rec: RectangleData) => {
+      };
+    }>
+  >;
+  rectangles: RectangleData[];
+  disableSegment?: boolean;
+  dimensions: any;
+  scales: any;
+}) => {
+  // helper function to get the width of a rectangle, reset width if it's too small to view.
+  const getRectWidth = (rec: RectangleData) => {
     const width = scales.xScale(rec.end) - scales.xScale(rec.start);
     if (width <= 0) {
       return 2;
     }
     return width;
-  }
+  };
 
   const handleSegmentMouseLeave = (event: React.MouseEvent) => {
     if (disableSegment) return;
@@ -327,8 +326,8 @@ const RenderSvgSegment = (
     //onDataChange()
   };
 
-   // handle segment events
-   const handleSegmentMouseOver = (
+  // handle segment events
+  const handleSegmentMouseOver = (
     event: React.MouseEvent,
     rectData: RectangleData
   ) => {
@@ -340,27 +339,26 @@ const RenderSvgSegment = (
     });
   };
 
-
-  return(
-      <g className="rect-group">
-              {rectangles.map((rec, i) => {
-                return (
-                  <rect
-                    key={i}
-                    className={`${styles.rect} rect`}
-                    fill={rec.color ? rec.color : getRandomColor(i)}
-                    id={rec.name}
-                    display={disableSegment ? "none" : "block"}
-                    x={scales.xScale(rec.start)}
-                    y={0}
-                    width={getRectWidth(rec)}
-                    height={dimensions.ctrHeight}
-                    onMouseOver={(event) => handleSegmentMouseOver(event, rec)}
-                    onMouseLeave={handleSegmentMouseLeave}
-                    onClick={(event) => handleSegmentOnClick(event, rec)}
-                  />
-                );
-              })}
-            </g>
-  )
-}
+  return (
+    <g className="rect-group">
+      {rectangles.map((rec, i) => {
+        return (
+          <rect
+            key={i}
+            className={`${styles.rect} rect`}
+            fill={rec.color ? rec.color : getRandomColor(i)}
+            id={rec.name}
+            display={disableSegment ? "none" : "block"}
+            x={scales.xScale(rec.start)}
+            y={0}
+            width={getRectWidth(rec)}
+            height={dimensions.ctrHeight}
+            onMouseOver={(event) => handleSegmentMouseOver(event, rec)}
+            onMouseLeave={handleSegmentMouseLeave}
+            onClick={(event) => handleSegmentOnClick(event, rec)}
+          />
+        );
+      })}
+    </g>
+  );
+};
