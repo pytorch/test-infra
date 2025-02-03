@@ -164,11 +164,23 @@ export async function listRunners(
                     .describeInstances({ Filters: ec2Filters })
                     .promise()
                     .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                      const listOfRunnersIdType: string[] = (
+                        describeInstanceResult?.Reservations?.flatMap((reservation) => {
+                          return (
+                            reservation.Instances?.map((instance) => {
+                              return `${instance.InstanceId} - ${
+                                instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value
+                              }`;
+                            }) ?? []
+                          );
+                        }) ?? []
+                      ).filter((desc): desc is string => desc !== undefined);
                       console.debug(
                         `[listRunners]: Result for EC2({ region: ${awsRegion} })` +
-                          `.describeInstances({ Filters: ${ec2Filters} }) = ` +
+                          `.describeInstances({ Filters: ${JSON.stringify(ec2Filters)} }) = ` +
                           `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
                       );
+                      console.debug(`[listRunners]: ${listOfRunnersIdType.join('\n ')}`);
                       return { describeInstanceResult, awsRegion };
                     });
                 },
