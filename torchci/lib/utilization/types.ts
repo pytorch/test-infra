@@ -21,10 +21,10 @@ export interface UtilizationMetadata {
   created_at: string;
   workflow_name: string;
   job_name: string;
-  segments: any[];
+  segments: Segment[];
 }
 
-export interface Segments {
+export interface Segment {
   level: string;
   name: string;
   start_at: string;

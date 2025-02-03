@@ -162,7 +162,7 @@ function getDataPath(
   if (checkType(obj) == "array") {
     for (let idx = 0; idx < obj.length; idx++) {
       const nextObj = obj[idx];
-      let next_path = formPath(path, `{idx}`);
+      let next_path = formPath(path, `${idx}`);
       if (checkType(nextObj) == "object") {
         if (nextObj.uuid) {
           next_path = formPath(path, nextObj.uuid);
