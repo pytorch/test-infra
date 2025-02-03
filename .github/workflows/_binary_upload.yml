@@ -117,7 +117,9 @@ jobs:
           fi
 
           for pkg in dist/*; do
-            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
+            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read \
+              --metadata "checksum-sha256=${shm_id}"
           done
 
       - name: Upload package to pypi
