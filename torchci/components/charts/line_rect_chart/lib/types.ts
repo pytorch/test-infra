@@ -22,3 +22,8 @@ export interface Line {
   color?: string;
   hidden?: boolean;
 }
+
+export interface PickerConfig {
+  category: string;
+  types: string[];
+}

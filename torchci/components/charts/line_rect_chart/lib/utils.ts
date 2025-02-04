@@ -1,11 +1,6 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
 
-export interface PickerConfig {
-  category: string;
-  types: string[];
-}
-
 export function setDimensions(chartWidth: number) {
   let dimensions = {
     width: chartWidth ? chartWidth : 500,

@@ -1,37 +1,47 @@
-import { Dispatch, SetStateAction } from "react";
-import { Line } from "../d3_chart_utils/types";
-import { PickerConfig } from "../d3_chart_utils/utils";
-import ChartPicker from "./helpers/ChartPicker";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Line, PickerConfig } from "../lib/types";
 import { CheckboxItem } from "./helpers/CheckboxGroup";
 import DropList from "./helpers/DropList";
 import styles from "./RenderLineChartComponents.module.css";
+import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
+import { use } from "echarts";
+import { set } from "lodash";
 
 const RenderLinePickerOptions = ({
   lines,
   setLines,
   lineCategory,
   setLineCategory,
-  linePickerConfig,
+  lineFilterConfig,
 }: {
   lines: Line[];
-  setLines: Dispatch<SetStateAction<Line[]>>;
+  setLines: (line:Line[]) => void;
   lineCategory: string;
-  setLineCategory: Dispatch<SetStateAction<string>>;
-  linePickerConfig: Map<string, PickerConfig>;
+  setLineCategory: (category:string)=>void;
+  lineFilterConfig: PickerConfig[];
 }) => {
-  // handle the checkbox group for selecting lines
-  const getLineCategoryGroup = (type: string) => {
-    if (!linePickerConfig.has(type)) {
-      return [];
+
+  const [options, setOptions] = useState<any>([]);
+  const [groups, setGroups] = useState<any>([]);
+
+  useEffect(() => {
+    let options = lineFilterConfig.map((config) => {
+      return { value: config.category, name: config.category }
+    })
+    setOptions(options);
+
+    const config = lineFilterConfig.find((item)=> item.category==lineCategory)
+    if (!config) {
+        return;
     }
-    const config = linePickerConfig.get(type);
-    return config!.types.map((type) => {
+    const res = config.types.map((type) => {
       return {
         parentName: type,
         childGroup: getChildGroup("line", type),
       };
     });
-  };
+    setGroups(res);
+  },[lines,lineCategory,lineFilterConfig])
 
   const getChildGroup = (type: string, parentName: string) => {
     if (type === "line") {
@@ -62,32 +72,24 @@ const RenderLinePickerOptions = ({
     });
     setLines(newLines);
   };
-
-  const getLineCategoryOptions = () => {
-    const res = Array.from(linePickerConfig.keys()).map((key: any) => {
-      return { value: key, name: key };
-    });
-    return res;
-  };
   return (
     <div>
-      <div className={styles.rowFlexCenter}>
-        <div>Group by:</div>
-        <DropList
-          onChange={changeLineCateory}
-          options={getLineCategoryOptions()}
-        ></DropList>
-      </div>
-      <div>
-        {lineCategory &&
-        linePickerConfig &&
-        linePickerConfig.has(lineCategory) ? (
-          <ChartPicker
-            nestCheckboxes={getLineCategoryGroup(lineCategory)}
+      {options && (
+        <div className={styles.rowFlexCenter}>
+          <div>Group by:</div>
+          <DropList
+            onChange={changeLineCateory}
+            options={options}
+          ></DropList>
+        </div>
+      )}
+      <div className={styles.linePickerGroup}>
+        {groups &&
+        (
+          <ChartCheckboxGroups
+            groups={groups}
             onChange={changeLineVisilibity}
           />
-        ) : (
-          <div></div>
         )}
       </div>
     </div>

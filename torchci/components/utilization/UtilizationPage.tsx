@@ -1,9 +1,15 @@
-import { PickerConfig } from "components/charts/line_chart_with_segments/d3_chart_utils/utils";
-import LineChartWithSegments from "components/charts/line_chart_with_segments/LineChartWithSegments";
+import { Paper } from "@mui/material";
+import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
+import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import { UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import { getIgnoredSegmentName } from "./helper";
 import styles from "./UtilizationPage.module.css";
+
+const lineFilters: PickerConfig[] = [
+    { category: "hardware", types: ["gpu", "cpu", "memory"] },
+    { category: "stats", types: ["max", "avg"] },
+]
 
 export const UtilizationPage = ({
   workflowId,
@@ -22,7 +28,7 @@ export const UtilizationPage = ({
   metadata: UtilizationMetadata;
 }) => {
   const [testSegments, setTestSegments] = useState<any[]>([]);
-  const [clickedTest, setClickedTest] = useState<string>("");
+  const [timeSeriesList, setTimeSeriesList] = useState<any[]>([]);
 
   useEffect(() => {
     const segments = metadata.segments;
@@ -34,54 +40,72 @@ export const UtilizationPage = ({
       }
       return true;
     });
-
+    setTimeSeriesList(lines)
     setTestSegments(filteredSeg);
+
   }, [lines, metadata]);
-
-  function clickTest(testName: string) {
-    setClickedTest(testName);
-  }
-
-  function getLineCategoryConfig(): Map<string, PickerConfig> {
-    return new Map([
-      ["hardware", { category: "hardware", types: ["gpu", "cpu", "memory"] }],
-      ["stats", { category: "stats", types: ["max", "avg"] }],
-    ]);
-  }
 
   return (
     <div className={styles.page}>
-      <div className={styles.section}>
-        <h1> Test Job Infomation</h1>
-        <div className={styles.divider}></div>
-        <div>
-          <span>Workflow(run)Id:{workflowId}</span>
-          <span>Job Id: {jobId} </span>
-          <span>Attempt: {attempt}</span>
-          <span>Job Name: {metadata?.job_name}</span>
-          <span>workflow_name: {metadata?.workflow_name}</span>
-        </div>
-      </div>
-      <div className={styles.section}>
+      <Paper className={styles.section}>
+        <TestInformationSection
+          workflowId={workflowId}
+          jobId={jobId}
+          attempt={attempt}
+          jobName={metadata.job_name}
+          workflowName={metadata.workflow_name}
+        />
+      </Paper>
+      {timeSeriesList.length>0 && <Paper className={styles.section}>
         <h1>Utilization Time Series</h1>
         <div className={styles.divider}></div>
-        <LineChartWithSegments
-          inputLines={lines}
-          segments={testSegments}
+        <LineRectChart
+          inputLines={timeSeriesList}
           disableLineTooltip={false}
-          disableSegment={true}
-          linePickerConfig={getLineCategoryConfig()}
-        ></LineChartWithSegments>
-      </div>
-      <div className={styles.section}>
+          disableRect={true}
+          lineFilterConfig={lineFilters}
+        ></LineRectChart>
+      </Paper>}
+      {testSegments.length>0 && <Paper className={styles.section}>
         <h1>Detected Python test details</h1>
         <div className={styles.divider}></div>
-        <LineChartWithSegments
-          inputLines={lines}
-          segments={testSegments}
+        <LineRectChart
+          inputLines={timeSeriesList}
+          rects={testSegments}
           disableLineTooltip={true}
-          disableSegment={false}
-        ></LineChartWithSegments>
+          disableRect={false}
+        ></LineRectChart>
+      </Paper>}
+    </div>
+  );
+};
+
+const TestInformationSection = ({
+  workflowId,
+  jobId,
+  attempt,
+  jobName,
+  workflowName,
+}: {
+  workflowId: string;
+  jobId: string;
+  attempt: string;
+  jobName: string;
+  workflowName: string;
+}) => {
+  return (
+    <div className={styles.section}>
+      <h1> Test Job Infomation</h1>
+      <div className={styles.divider}></div>
+      <div>
+        <div>
+          <span>Workflow(run)Id:</span>
+          {workflowId}
+        </div>
+        <div>Job Id: {jobId} </div>
+        <div>Attempt: {attempt}</div>
+        <div>Job Name: {jobName}</div>
+        <div>Workflow Name: {workflowName}</div>
       </div>
     </div>
   );

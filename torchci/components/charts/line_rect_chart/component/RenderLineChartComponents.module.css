@@ -11,3 +11,25 @@
   border-radius: 5px;
   border: 1px solid grey;
 }
+
+.selected-rect {
+  fill: brown;
+  opacity: 0.7;
+}
+
+.rect {
+  opacity: 0.2;
+}
+
+.rect:hover {
+  fill: blue;
+  opacity: 0.5;
+}
+.rect:active {
+  fill: red;
+}
+
+.linePickerGroup {
+  height: 450px; /* fixed height */
+  overflow-y: auto;
+}

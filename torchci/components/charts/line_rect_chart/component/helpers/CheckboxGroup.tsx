@@ -38,7 +38,6 @@ export default function CheckboxGroup({
       child.checked = event.target.checked;
     });
     setCheckedChild(newCheckedChild);
-    console.log("handle parent change", newCheckedChild);
     onChange(newCheckedChild);
   };
 
@@ -48,13 +47,11 @@ export default function CheckboxGroup({
 
   const isAllChildChecked = () => {
     const res = checkedChild.every((child) => child.checked);
-    console.log("isallchecked", res);
     return res;
   };
 
   const isSomeChildChecked = () => {
     const res = checkedChild.some((child) => child.checked);
-    console.log("is some checked", res);
     return res;
   };
 
