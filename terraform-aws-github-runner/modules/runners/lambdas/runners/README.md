@@ -81,7 +81,7 @@ So, it is not really recommended to do so, unless troubleshooting something that
 
 #### Setup the test environment
 
-Names of roles and details of the secrets are dependent if you are testing scaleDown or scaleUp lambdas. Please update commands bellow accordingly.
+Names of roles and details of the secrets are dependent if you are testing scaleDown or scaleUp lambdas. Please update commands below accordingly.
 
 * Add the `AmazonSSMManagedEC2IntanceDefaultPolicy` and `AmazonSSMManagedInstanceCore` policy to `gh-ci-action-scale-down-lambda-role`:
 
