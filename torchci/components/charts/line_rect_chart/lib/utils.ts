@@ -77,13 +77,7 @@ export function getRecordyDate(
 }
 
 export function formatDate(date: Date): string {
-  const year = date.getFullYear().toString().slice(-2); // Get last two digits of the year
-  const month = (date.getMonth() + 1).toString().padStart(2, "0"); // Get month (0-based, so add 1)
-  const day = date.getDate().toString().padStart(2, "0"); // Get day of the month
-  const hours = date.getHours().toString().padStart(2, "0"); // Get hours
-  const minutes = date.getMinutes().toString().padStart(2, "0"); // Get minutes
-  const seconds = date.getSeconds().toString().padStart(2, "0"); // Get seconds
-  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+  return date.toISOString().replace("T"," ")
 }
 
 // custom bisect to find the closest data point to the mouse position
