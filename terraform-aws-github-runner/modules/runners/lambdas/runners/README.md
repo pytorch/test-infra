@@ -161,4 +161,4 @@ remote$ bash run-lambda.sh
 **IMPORTANT WARNINGS**
 
 * Those environment variables are SECRETS, be very careful not to expose them;
-* The environment variables **MUST BE UP TO DATE**, some variables changes during each deployment, and mistmatching them can potentially cause runner disrruptions!
+* The environment variables **MUST BE UP TO DATE**, some variables changes during each deployment, and mistmatching them can potentially cause runner disruptions!
