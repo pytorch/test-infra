@@ -77,7 +77,7 @@ export function getRecordyDate(
 }
 
 export function formatDate(date: Date): string {
-  return date.toISOString().replace("T"," ")
+  return date.toISOString().replace("T", " ");
 }
 
 // custom bisect to find the closest data point to the mouse position
