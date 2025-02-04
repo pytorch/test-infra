@@ -77,7 +77,7 @@ So, it is not really recommended to do so, unless troubleshooting something that
 
 * Admin access to the exact environment where lambdas run;
 * Access to all relevant secrets for production;
-* Create an EC2 instance (more details bellow);
+* Create an EC2 instance (more details below);
 
 #### Setup the test environment
 
