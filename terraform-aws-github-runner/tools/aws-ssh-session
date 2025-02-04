@@ -1,0 +1,72 @@
+#!/bin/bash
+
+INSTANCE=$1
+LOGIN_USR=$2
+REGION=$3
+
+SSM_SESSION_PID=""
+TEMP_FILE=$(mktemp)
+
+trap on_exit EXIT
+
+function on_exit {
+  if [ ! -z "$SSM_SESSION_PID" ] ; then
+    echo "Terminating session PID $SSM_SESSION_PID"
+    kill -s SIGINT $SSM_SESSION_PID
+    sleep 3
+    kill -s SIGKILL $SSM_SESSION_PID
+  fi
+  SESSION_ID=$(cat $TEMP_FILE | grep 'Starting session with SessionId: ' | cut -d ':' -f 2 | xargs)
+  if [ ! -z "$SESSION_ID" ] ; then
+    echo "Terminating session $SESSION_ID"
+    aws ssm terminate-session --session-id $SESSION_ID
+  fi
+  rm -rf "$TEMP_FILE"
+}
+
+if [ -z "$REGION" ] ; then
+  REGION="$AWS_DEFAULT_REGION"
+fi
+
+if [ -z "$REGION" ] ; then
+  echo "AWS_DEFAULT_REGION is not defined, you need to provide region argument"
+  exit 1
+fi
+
+if [ -z "$LOGIN_USR" ] ; then
+  LOGIN_USR=ec2-user
+fi
+
+if [ -z "$INSTANCE" ] ; then
+  echo "usage $0 <instance-id> [login] [region]"
+  exit 1
+fi
+
+SESSION_MANAGER_PLUGIN_PID=$(ps | grep -v grep | grep session-manager-plugin | xargs | cut -d ' ' -f 1)
+
+if [ ! -z "$SESSION_MANAGER_PLUGIN_PID" ] ; then
+  kill $SESSION_MANAGER_PLUGIN_PID
+fi
+
+aws ssm start-session \
+    --target $INSTANCE \
+    --region $REGION \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["22"], "localPortNumber":["5113"]}' >$TEMP_FILE &
+
+SSM_SESSION_PID=$!
+
+if ps -p $SSM_SESSION_PID > /dev/null ; then
+  while true ; do
+    if grep -Fxq "Waiting for connections..." "$TEMP_FILE" >/dev/null ; then
+      break
+    fi
+    sleep 1
+  done
+  sleep 1
+  echo "scp -C -P 5113 ./local-file $LOGIN_USR@127.0.0.1:/remote/location"
+  ssh -i ~/.ssh/pet-instances-skeleton-key-v2 -p 5113 $LOGIN_USR@127.0.0.1
+else
+  echo "humm, seems that aws ssm start-session failed :("
+  exit 1
+fi
