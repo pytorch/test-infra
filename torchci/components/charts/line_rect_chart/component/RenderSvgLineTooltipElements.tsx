@@ -5,7 +5,7 @@ import { formatDate, getRecordyDate, xAccessor, yAccessor } from "../lib/utils";
 import styles from "./RenderLineChartComponents.module.css";
 
 /**
- * svg element to handle line chart tooltips and evebts.
+ * svg element to handle line chart tooltips and evenßts.
  * this includes the indicator line, circles and tooltip.
  */
 const RenderSvgLineTooltipElements = ({
