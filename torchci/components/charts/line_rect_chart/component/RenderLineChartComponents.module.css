@@ -30,6 +30,6 @@
 }
 
 .linePickerGroup {
-  height: 450px; /* fixed height */
+  height: 300px; /* fixed height */
   overflow-y: auto;
 }

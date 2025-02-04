@@ -70,6 +70,7 @@
   },
   "devDependencies": {
     "@types/argparse": "^2.0.10",
+    "@types/d3": "^7.4.3",
     "@types/echarts": "^4.9.14",
     "@types/jest": "^29.5.14",
     "@types/jsdom": "^16.2.14",

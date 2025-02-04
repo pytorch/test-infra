@@ -33,7 +33,7 @@ const LineRectChart = ({
   onDataChange = (data: any) => void {},
   inputLines,
   rects,
-  chartWidth = 2000,
+  chartWidth,
   disableRect = false,
   disableLineTooltip = false,
   lineFilterConfig,
@@ -104,8 +104,11 @@ const LineRectChart = ({
     // only render svg axis when dom is ready.
     if (svgRef.current && scales.xScale && scales.yScale) {
       const container = d3.select(svgRef.current).select(".container");
-      container.select(".xAxis").call(d3.axisBottom(scales.xScale));
-      container.select(".yAxis").call(d3.axisLeft(scales.yScale));
+      const xAxis = d3.axisBottom(scales.xScale);
+      const yAxis = d3.axisLeft(scales.yScale);
+
+      container.select(".xAxis").call(xAxis as any);
+      container.select(".yAxis").call(yAxis as any);
     }
   }, [scales]);
 

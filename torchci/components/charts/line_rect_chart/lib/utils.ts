@@ -1,10 +1,10 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
 
-export function setDimensions(chartWidth: number) {
+export function setDimensions(chartWidth?: number) {
   let dimensions = {
-    width: chartWidth ? chartWidth : 500,
-    height: 500,
+    width: chartWidth ? chartWidth : 1000,
+    height: 400,
     margins: 50,
     ctrWidth: 0,
     ctrHeight: 0,

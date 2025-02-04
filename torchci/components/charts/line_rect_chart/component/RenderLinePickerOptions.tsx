@@ -31,8 +31,10 @@ const RenderLinePickerOptions = ({
       (item) => item.category == lineCategory
     );
     if (!config) {
+      setGroups([]);
       return;
     }
+
     const res = config.types.map((type) => {
       return {
         parentName: type,
@@ -73,20 +75,20 @@ const RenderLinePickerOptions = ({
   };
   return (
     <div>
-      {options && (
+      {options.length > 0 && (
         <div className={styles.rowFlexCenter}>
           <div>Group by:</div>
           <DropList onChange={changeLineCateory} options={options}></DropList>
         </div>
       )}
-      <div className={styles.linePickerGroup}>
-        {groups && (
+      {groups.length > 0 && (
+        <div className={styles.linePickerGroup}>
           <ChartCheckboxGroups
             groups={groups}
             onChange={changeLineVisilibity}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

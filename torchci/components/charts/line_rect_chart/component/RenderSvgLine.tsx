@@ -17,7 +17,7 @@ const RenderSvgLines = ({ scales, lines }: { scales: any; lines: Line[] }) => {
         return (
           <path
             key={i}
-            d={lineGenerator(line.records)}
+            d={lineGenerator(line.records)?.toString()}
             id={line.name + "-line"}
             className={"line"}
             fill="none"

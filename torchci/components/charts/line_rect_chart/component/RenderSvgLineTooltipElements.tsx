@@ -61,7 +61,7 @@ const RenderSvgLineTooltipElements = ({
     }
 
     // Get the mouse position relative to the Xscale date range.
-    const mousePos = d3.pointer(event, d3.this);
+    const mousePos = d3.pointer(event, container.select(".overlay").node());
     const date = xScale.invert(mousePos[0]);
 
     // Get the closest data point to the mouse position

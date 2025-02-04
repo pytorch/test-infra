@@ -1,4 +1,5 @@
-import { flattenTS } from "./fetchUtilization";
+import { createClient } from "@clickhouse/client";
+import fetchUtilization, { flattenTS } from "./fetchUtilization";
 import { TimeSeriesDbData } from "./types";
 
 // run test using yarn test test-infra/torchci/lib/utilization_api/fetchUtilization.test.ts
@@ -99,7 +100,11 @@ const TEST_DATA_3 = {
 
 const BASE_TEST_LIST: TimeSeriesDbData[] = [TEST_DATA_1, TEST_DATA_2];
 
-describe("Test timestamp flattening", () => {
+jest.mock("@clickhouse/client", () => ({
+  createClient: jest.fn(),
+}));
+
+describe("Test flattenTS to flatten timestamp", () => {
   it("should generate map of timestamp", () => {
     const res = flattenTS(BASE_TEST_LIST);
     const resKeys = Array.from(res.keys());
@@ -164,6 +169,7 @@ describe("Test timestamp flattening", () => {
       expect(res.get(key)?.length).toEqual(1);
     });
   });
+
   it("should skip data missing data field", () => {
     const res = flattenTS([
       TEST_DATA_3,
@@ -208,5 +214,82 @@ describe("Test timestamp flattening", () => {
     expect(logSpy).toHaveBeenCalledWith(
       `Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`
     );
+  });
+});
+
+describe("fetchUtilization", () => {
+  let mockQuery: jest.Mock;
+  const mockMetadata = {
+    workflow_name: "test_workflow",
+    job_name: "test_job",
+    collect_interval: 60,
+    gpu_count: 8,
+    cpu_count: 4,
+    start_at: "2023-10-10 13:00:00",
+    end_at: "2023-10-10 18:00:00",
+    segments: [],
+  };
+
+  beforeEach(() => {
+    mockQuery = jest.fn().mockImplementation((query) => {
+      if (query.query.includes("oss_ci_utilization_metadata")) {
+        return Promise.resolve({
+          json: jest.fn().mockResolvedValue([mockMetadata]),
+        });
+      }
+      if (query.query.includes("oss_ci_time_series")) {
+        return Promise.resolve({
+          json: jest.fn().mockResolvedValue(BASE_TEST_LIST),
+        });
+      }
+    });
+
+    (createClient as jest.Mock).mockReturnValue({
+      query: mockQuery,
+    });
+  });
+
+  it("should fetch data from ClickHouse", async () => {
+    const param = {
+      workflow_id: "1234",
+      job_id: "2345",
+      run_attempt: "1",
+    };
+    const result = await fetchUtilization(param);
+
+    expect(result).not.toBeNull();
+    expect(result!.metadata).toEqual(mockMetadata);
+    expect(result!.ts_list.length).toEqual(12);
+    expect(result!.ts_list[0]).toEqual({
+      name: "cpu|avg",
+      records: [
+        { ts: "2023-10-10 13:00:00", value: 10 },
+        { ts: "2023-10-10 16:00:00", value: 20 },
+      ],
+    });
+
+    // Assert query sent to clickhouse
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const firstQuery = mockQuery.mock.calls[0][0];
+    expect(firstQuery.query_params).toEqual({
+      workflowId: "1234",
+      jobId: "2345",
+      runAttempt: "1",
+      repo: "pytorch/pytorch",
+      type: "utilization",
+    });
+
+    expect(
+      firstQuery.query.includes("oss_ci_utilization_metadata")
+    ).toBeTruthy();
+    const secondQuery = mockQuery.mock.calls[1][0];
+    expect(secondQuery.query_params).toEqual({
+      workflowId: "1234",
+      jobId: "2345",
+      runAttempt: "1",
+      repo: "pytorch/pytorch",
+      type: "utilization",
+    });
+    expect(secondQuery.query.includes("oss_ci_time_series")).toBeTruthy();
   });
 });

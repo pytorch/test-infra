@@ -1,4 +1,3 @@
-import { Paper } from "@mui/material";
 import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import { UtilizationMetadata } from "lib/utilization/types";
@@ -46,7 +45,7 @@ export const UtilizationPage = ({
 
   return (
     <div className={styles.page}>
-      <Paper className={styles.section}>
+      <div className={styles.section}>
         <TestInformationSection
           workflowId={workflowId}
           jobId={jobId}
@@ -54,31 +53,33 @@ export const UtilizationPage = ({
           jobName={metadata.job_name}
           workflowName={metadata.workflow_name}
         />
-      </Paper>
+      </div>
       {timeSeriesList.length > 0 && (
-        <Paper className={styles.section}>
-          <h1>Utilization Time Series</h1>
+        <div className={styles.section}>
+          <h3>Utilization Time Series</h3>
           <div className={styles.divider}></div>
           <LineRectChart
             inputLines={timeSeriesList}
+            chartWidth={1200}
             disableLineTooltip={false}
             disableRect={true}
             lineFilterConfig={lineFilters}
           ></LineRectChart>
-        </Paper>
+        </div>
       )}
       {testSegments.length > 0 && (
-        <Paper className={styles.section}>
-          <h1>Detected Python test details</h1>
+        <div className={styles.section}>
+          <h3>Detected Python test details</h3>
           <div className={styles.divider}></div>
           <LineRectChart
             inputLines={timeSeriesList}
+            chartWidth={1200}
             rects={testSegments}
             disableLineTooltip={true}
             disableRect={false}
           ></LineRectChart>
           <div>
-            <h3>Tests </h3>
+            <h4>Tests </h4>
             {testSegments.map((segment) => {
               return (
                 <div key={segment.name}>
@@ -87,7 +88,7 @@ export const UtilizationPage = ({
               );
             })}
           </div>
-        </Paper>
+        </div>
       )}
     </div>
   );
