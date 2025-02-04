@@ -14,5 +14,21 @@
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)"
   },
-  "tests": []
+  "tests": [
+    {
+      "arch": "",
+      "branches": ["main"],
+      "commits": ["bb4bd5f00b35eaaecb47d17caddfbd69e1f733df"],
+      "device": "",
+      "dtypes": [],
+      "excludedMetrics": [],
+      "benchmarks": ["PyTorch gpt-fast benchmark"],
+      "granularity": "day",
+      "models": [],
+      "backends": [],
+      "repo": "pytorch/pytorch",
+      "startTime": "2025-01-28T22:46:18.214",
+      "stopTime": "2025-02-04T22:46:18.214"
+    }
+  ]
 }
