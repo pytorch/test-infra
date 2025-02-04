@@ -146,10 +146,11 @@ export async function listRunners(
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
-    console.debug(`[listRunners]: REGIONS ${Config.Instance.shuffledAwsRegionInstances}`);
+    const awsRegionsInstances = Config.Instance.shuffledAwsRegionInstances;
+    console.debug(`[listRunners]: REGIONS ${awsRegionsInstances}`);
     const runningInstances = (
       await Promise.all(
-        Config.Instance.shuffledAwsRegionInstances
+        awsRegionsInstances
           .filter((r) => regions?.has(r) ?? true)
           .map((awsRegion) => {
             console.debug(`[listRunners]: Running for region ${awsRegion}`);
@@ -163,11 +164,23 @@ export async function listRunners(
                     .describeInstances({ Filters: ec2Filters })
                     .promise()
                     .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                      const listOfRunnersIdType: string[] = (
+                        describeInstanceResult?.Reservations?.flatMap((reservation) => {
+                          return (
+                            reservation.Instances?.map((instance) => {
+                              return `${instance.InstanceId} - ${
+                                instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value
+                              }`;
+                            }) ?? []
+                          );
+                        }) ?? []
+                      ).filter((desc): desc is string => desc !== undefined);
                       console.debug(
                         `[listRunners]: Result for EC2({ region: ${awsRegion} })` +
-                          `.describeInstances({ Filters: ${ec2Filters} }) = ` +
+                          `.describeInstances({ Filters: ${JSON.stringify(ec2Filters)} }) = ` +
                           `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
                       );
+                      console.debug(`[listRunners]: ${listOfRunnersIdType.join('\n ')}`);
                       return { describeInstanceResult, awsRegion };
                     });
                 },
@@ -482,8 +495,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       runnerParameters.runnerType.labels ? ' [' + runnerParameters.runnerType.labels.join(',') + ']' : ''
     }`;
 
-    const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
-    for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
+    const awsRegionsInstances = Config.Instance.shuffledAwsRegionInstances;
+    for (const [awsRegionIdx, awsRegion] of awsRegionsInstances.entries()) {
       const runnerSubnetSequence = await getCreateRunnerSubnetSequence(runnerParameters, awsRegion, metrics);
 
       const ec2 = new EC2({ region: awsRegion });
@@ -582,7 +595,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           const msg =
             `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
             `[${vpcId}] ` +
-            `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
+            `[${awsRegionIdx}/${awsRegionsInstances.length} - ${awsRegion}] Issue creating instance ` +
             `${runnerParameters.runnerType.instance_type}${labelsStrLog}: ${e}`;
           errors.push([msg, e, awsRegion]);
           console.warn(msg);

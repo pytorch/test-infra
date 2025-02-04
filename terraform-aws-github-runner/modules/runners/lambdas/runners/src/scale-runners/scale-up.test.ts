@@ -1083,9 +1083,6 @@ describe('_calculateScaleUpAmount', () => {
           availableCount,
         );
 
-        const availAfterHandinglingRequest = availableCount - requestedCount;
-        const amtBelowMin = minRunners - availAfterHandinglingRequest;
-
         // We were above min runners before, and we should scale up enough to not dip below min runners
         expect(scaleUpAmount).toEqual(3);
       }

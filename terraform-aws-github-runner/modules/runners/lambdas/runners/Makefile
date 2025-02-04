@@ -2,7 +2,7 @@ SHELL=/bin/bash -o pipefail
 
 .PHONY: clean
 clean:
-	rm -rf dist node_modules
+	rm -rf dist node_modules coverage
 	rm runners.zip
 
 .PHONY: build
