@@ -28,11 +28,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - repository: pytorch/audio
-          env-script: packaging/vc_env_helper.bat
-          wheel-build-params: "--plat-name win_amd64"
-          smoke-test-script: test/smoke_test/smoke_test.py
-          package-name: torchaudio
+        #- repository: pytorch/audio
+        #  env-script: packaging/vc_env_helper.bat
+        #  wheel-build-params: "--plat-name win_amd64"
+        #  smoke-test-script: test/smoke_test/smoke_test.py
+        #  package-name: torchaudio
         - repository: pytorch/vision
           pre-script: packaging/pre_build_script.sh
           env-script: packaging/windows/internal/vc_env_helper.bat
@@ -45,7 +45,7 @@ jobs:
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: test_python313t
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
