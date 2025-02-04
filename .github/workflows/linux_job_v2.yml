@@ -105,9 +105,6 @@ on:
         default: false
         type: boolean
 
-permissions:
-  id-token: write
-
 jobs:
   job:
     strategy:
