@@ -44,7 +44,9 @@ CUDA_CUDNN_VERSIONS = {
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
 }
 
-PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64"]
+
+PACKAGE_TYPES = ["wheel", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
@@ -104,7 +106,7 @@ def arch_type(arch_version: str) -> str:
         return ROCM
     elif arch_version == CPU_AARCH64:
         return CPU_AARCH64
-    elif arch_version == CUDA_AARCH64:
+    elif arch_version in CUDA_AARCH64_ARCHES:
         return CUDA_AARCH64
     elif arch_version == XPU:
         return XPU
@@ -155,6 +157,10 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
             for gpu_arch in CUDA_ARCHES
         },
         **{
+            gpu_arch: f"pytorch/manylinuxaarch64-builder:cuda{gpu_arch.replace('-aarch64', '')}"
+            for gpu_arch in CUDA_AARCH64_ARCHES
+        },
+        **{
             gpu_arch: f"pytorch/manylinux2_28-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
@@ -190,7 +196,7 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         CPU: "cpu",
         CPU_AARCH64: CPU,
-        CUDA_AARCH64: "cu126",
+        CUDA_AARCH64: f"cu{gpu_arch_version.replace('-aarch64', '').replace('.', '')}",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
         XPU: "xpu",
@@ -300,23 +306,6 @@ def get_wheel_install_command(
             else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         )
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
-
-
-def generate_conda_matrix(
-    os: str,
-    channel: str,
-    with_cuda: str,
-    with_rocm: str,
-    with_cpu: str,
-    with_xpu: str,
-    limit_pr_builds: bool,
-    use_only_dl_pytorch_org: bool,
-    use_split_build: bool = False,
-    python_versions: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    ret: List[Dict[str, str]] = []
-    # return empty list. Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
-    return ret
 
 
 def generate_libtorch_matrix(
@@ -450,14 +439,14 @@ def generate_wheels_matrix(
         if os == LINUX_AARCH64:
             # Only want the one arch as the CPU type is different and
             # uses different build/test scripts
-            arches = [CPU_AARCH64, CUDA_AARCH64]
+            arches = [CPU_AARCH64] + CUDA_AARCH64_ARCHES
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
             # todo: remove once windows cuda 12.8 binaries are available
-            if channel == NIGHTLY and os != LINUX:
+            if channel == NIGHTLY and os == WINDOWS:
                 arches.remove("12.8")
 
         if with_rocm == ENABLE and os == LINUX:
@@ -526,7 +515,6 @@ def generate_wheels_matrix(
 
 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE: Dict[str, Callable[..., List[Dict[str, str]]]] = {
     "wheel": generate_wheels_matrix,
-    "conda": generate_conda_matrix,
     "libtorch": generate_libtorch_matrix,
 }
 
