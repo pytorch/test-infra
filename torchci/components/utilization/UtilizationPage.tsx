@@ -75,6 +75,16 @@ export const UtilizationPage = ({
           disableLineTooltip={true}
           disableRect={false}
         ></LineRectChart>
+        <div>
+          <h3>Tests </h3>
+          {testSegments.map((segment) => {
+            return (
+              <div key={segment.name}>
+                <div>{segment.name}</div>
+              </div>)
+          })}
+        </div>
+
       </Paper>}
     </div>
   );
