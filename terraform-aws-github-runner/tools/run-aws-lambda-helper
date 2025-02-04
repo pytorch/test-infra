@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
 
-# Usage:
-#   get-aws-lambda-envs <LAMBDA_FUNCTION_NAME>
-#
-# Description:
-#   Given the name of an AWS Lambda function, this script will list its
-#   environment variables and output them in a form suitable for "export".
-#
-# Requirements:
-#   - AWS CLI
-#   - jq
-
 FUNCTION_NAME="$1"
 AWS_REGION="$2"
 
