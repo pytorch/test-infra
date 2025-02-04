@@ -1,5 +1,4 @@
-import { createClient } from "@clickhouse/client";
-import fetchUtilization, { flattenTS } from "./fetchUtilization";
+import { flattenTS } from "./fetchUtilization";
 import { TimeSeriesDbData } from "./types";
 
 // run test using yarn test test-infra/torchci/lib/utilization_api/fetchUtilization.test.ts
@@ -82,31 +81,28 @@ const TEST_DATA_2 = {
   tags: [],
 };
 
-const TEST_DATA_3 ={
-    ts: "2023-10-10 18:00:00",
-    data: JSON.stringify({
-            cpu: {
-            avg: 2.43,
-            max: 6.4
-            },
-            memory: {
-            avg: 5.25,
-            max: 5.8
-            },
-            gpu_usage: null,
-    }),
-    tags:[]
-    }
+const TEST_DATA_3 = {
+  ts: "2023-10-10 18:00:00",
+  data: JSON.stringify({
+    cpu: {
+      avg: 2.43,
+      max: 6.4,
+    },
+    memory: {
+      avg: 5.25,
+      max: 5.8,
+    },
+    gpu_usage: null,
+  }),
+  tags: [],
+};
 
- const BASE_TEST_LIST:TimeSeriesDbData[] = [
-    TEST_DATA_1,
-    TEST_DATA_2,
-    ]
+const BASE_TEST_LIST: TimeSeriesDbData[] = [TEST_DATA_1, TEST_DATA_2];
 
-describe('Test timestamp flattening', () => {
-    it('should generate map of timestamp', () => {
-        const res = flattenTS(BASE_TEST_LIST);
-        const resKeys = Array.from(res.keys())
+describe("Test timestamp flattening", () => {
+  it("should generate map of timestamp", () => {
+    const res = flattenTS(BASE_TEST_LIST);
+    const resKeys = Array.from(res.keys());
 
     // assert map keys
     expect(resKeys.length).toEqual(12);
@@ -152,25 +148,31 @@ describe('Test timestamp flattening', () => {
     });
   });
 
-    it('should skip data missing ts field', () => {
-        const res = flattenTS([TEST_DATA_3,{
-            data: JSON.stringify({test: "test"}),
-            tags:[]
-        }]);
-        const resKeys = Array.from(res.keys())
-        // assert map keys
-        expect(resKeys.length).toEqual(4);
-        // assert map values
-         resKeys.forEach((key,_) => {
-            expect(res.get(key)?.length).toEqual(1);
-         });
+  it("should skip data missing ts field", () => {
+    const res = flattenTS([
+      TEST_DATA_3,
+      {
+        data: JSON.stringify({ test: "test" }),
+        tags: [],
+      },
+    ]);
+    const resKeys = Array.from(res.keys());
+    // assert map keys
+    expect(resKeys.length).toEqual(4);
+    // assert map values
+    resKeys.forEach((key, _) => {
+      expect(res.get(key)?.length).toEqual(1);
     });
-    it('should skip data missing data field', () => {
-        const res = flattenTS([TEST_DATA_3,{
-            ts: "2023-10-10 18:00:00",
-            data: null,
-            tags:[]
-        }]);
+  });
+  it("should skip data missing data field", () => {
+    const res = flattenTS([
+      TEST_DATA_3,
+      {
+        ts: "2023-10-10 18:00:00",
+        data: null,
+        tags: [],
+      },
+    ]);
 
     const resKeys = Array.from(res.keys());
     // assert map keys
@@ -202,7 +204,9 @@ describe('Test timestamp flattening', () => {
       expect(res.get(key)?.length).toEqual(1);
     });
 
-         // assert log
-         expect(logSpy).toHaveBeenCalledWith(`Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`);
-    });
+    // assert log
+    expect(logSpy).toHaveBeenCalledWith(
+      `Warning: Error parsing JSON:SyntaxError: Unexpected token { in JSON at position 1 for data string '${invalidData}'`
+    );
   });
+});

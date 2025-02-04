@@ -26,12 +26,12 @@ type Props = {
   disableRect?: boolean;
   disableLineTooltip?: boolean;
   selectedLineId?: string;
-  lineFilterConfig?:PickerConfig[];
+  lineFilterConfig?: PickerConfig[];
 };
 
 const LineRectChart = ({
   onDataChange = (data: any) => void {},
-  inputLines ,
+  inputLines,
   rects,
   chartWidth = 2000,
   disableRect = false,
@@ -72,31 +72,30 @@ const LineRectChart = ({
       setLines(lineData);
     }
 
-    if (rects){
+    if (rects) {
       let recs = processRectData(rects);
       setRectangles(recs);
     }
 
-    if (lineData.length>0) {
-       // set x axis for svg
+    if (lineData.length > 0) {
+      // set x axis for svg
       const xScale = d3
-      .scaleTime()
-      .domain(
-        d3.extent(lineData[0].records, (d: D3LineRecord) => d.date) as [
-          Date,
-          Date
-        ]
-      )
-      .range([0, dimensions.ctrWidth]);
+        .scaleTime()
+        .domain(
+          d3.extent(lineData[0].records, (d: D3LineRecord) => d.date) as [
+            Date,
+            Date
+          ]
+        )
+        .range([0, dimensions.ctrWidth]);
 
-    // Set y axis scale for svg
-    const yScale = d3
-      .scaleLinear()
-      .domain([0, 100])
-      .range([dimensions.ctrHeight, 0])
-      .nice();
-    setScales({ xScale, yScale });
-
+      // Set y axis scale for svg
+      const yScale = d3
+        .scaleLinear()
+        .domain([0, 100])
+        .range([dimensions.ctrHeight, 0])
+        .nice();
+      setScales({ xScale, yScale });
     }
     return () => {};
   }, [inputLines, rects]);
@@ -153,13 +152,15 @@ const LineRectChart = ({
           position={rectTooltip.position}
         />
       </div>
-      {lineFilterConfig &&<RenderLinePickerOptions
-        lines={lines}
-        setLines={setLines}
-        lineCategory={lineCategory}
-        setLineCategory={setLineCategory}
-        lineFilterConfig={lineFilterConfig}
-      />}
+      {lineFilterConfig && (
+        <RenderLinePickerOptions
+          lines={lines}
+          setLines={setLines}
+          lineCategory={lineCategory}
+          setLineCategory={setLineCategory}
+          lineFilterConfig={lineFilterConfig}
+        />
+      )}
     </div>
   );
 };

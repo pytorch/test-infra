@@ -1,11 +1,9 @@
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Line, PickerConfig } from "../lib/types";
+import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
 import { CheckboxItem } from "./helpers/CheckboxGroup";
 import DropList from "./helpers/DropList";
 import styles from "./RenderLineChartComponents.module.css";
-import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
-import { use } from "echarts";
-import { set } from "lodash";
 
 const RenderLinePickerOptions = ({
   lines,
@@ -15,24 +13,25 @@ const RenderLinePickerOptions = ({
   lineFilterConfig,
 }: {
   lines: Line[];
-  setLines: (line:Line[]) => void;
+  setLines: (line: Line[]) => void;
   lineCategory: string;
-  setLineCategory: (category:string)=>void;
+  setLineCategory: (category: string) => void;
   lineFilterConfig: PickerConfig[];
 }) => {
-
   const [options, setOptions] = useState<any>([]);
   const [groups, setGroups] = useState<any>([]);
 
   useEffect(() => {
     let options = lineFilterConfig.map((config) => {
-      return { value: config.category, name: config.category }
-    })
+      return { value: config.category, name: config.category };
+    });
     setOptions(options);
 
-    const config = lineFilterConfig.find((item)=> item.category==lineCategory)
+    const config = lineFilterConfig.find(
+      (item) => item.category == lineCategory
+    );
     if (!config) {
-        return;
+      return;
     }
     const res = config.types.map((type) => {
       return {
@@ -41,7 +40,7 @@ const RenderLinePickerOptions = ({
       };
     });
     setGroups(res);
-  },[lines,lineCategory,lineFilterConfig])
+  }, [lines, lineCategory, lineFilterConfig]);
 
   const getChildGroup = (type: string, parentName: string) => {
     if (type === "line") {
@@ -77,15 +76,11 @@ const RenderLinePickerOptions = ({
       {options && (
         <div className={styles.rowFlexCenter}>
           <div>Group by:</div>
-          <DropList
-            onChange={changeLineCateory}
-            options={options}
-          ></DropList>
+          <DropList onChange={changeLineCateory} options={options}></DropList>
         </div>
       )}
       <div className={styles.linePickerGroup}>
-        {groups &&
-        (
+        {groups && (
           <ChartCheckboxGroups
             groups={groups}
             onChange={changeLineVisilibity}

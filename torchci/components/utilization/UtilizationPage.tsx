@@ -7,9 +7,9 @@ import { getIgnoredSegmentName } from "./helper";
 import styles from "./UtilizationPage.module.css";
 
 const lineFilters: PickerConfig[] = [
-    { category: "hardware", types: ["gpu", "cpu", "memory"] },
-    { category: "stats", types: ["max", "avg"] },
-]
+  { category: "hardware", types: ["gpu", "cpu", "memory"] },
+  { category: "stats", types: ["max", "avg"] },
+];
 
 export const UtilizationPage = ({
   workflowId,
@@ -40,9 +40,8 @@ export const UtilizationPage = ({
       }
       return true;
     });
-    setTimeSeriesList(lines)
+    setTimeSeriesList(lines);
     setTestSegments(filteredSeg);
-
   }, [lines, metadata]);
 
   return (
@@ -56,36 +55,40 @@ export const UtilizationPage = ({
           workflowName={metadata.workflow_name}
         />
       </Paper>
-      {timeSeriesList.length>0 && <Paper className={styles.section}>
-        <h1>Utilization Time Series</h1>
-        <div className={styles.divider}></div>
-        <LineRectChart
-          inputLines={timeSeriesList}
-          disableLineTooltip={false}
-          disableRect={true}
-          lineFilterConfig={lineFilters}
-        ></LineRectChart>
-      </Paper>}
-      {testSegments.length>0 && <Paper className={styles.section}>
-        <h1>Detected Python test details</h1>
-        <div className={styles.divider}></div>
-        <LineRectChart
-          inputLines={timeSeriesList}
-          rects={testSegments}
-          disableLineTooltip={true}
-          disableRect={false}
-        ></LineRectChart>
-        <div>
-          <h3>Tests </h3>
-          {testSegments.map((segment) => {
-            return (
-              <div key={segment.name}>
-                <div>{segment.name}</div>
-              </div>)
-          })}
-        </div>
-
-      </Paper>}
+      {timeSeriesList.length > 0 && (
+        <Paper className={styles.section}>
+          <h1>Utilization Time Series</h1>
+          <div className={styles.divider}></div>
+          <LineRectChart
+            inputLines={timeSeriesList}
+            disableLineTooltip={false}
+            disableRect={true}
+            lineFilterConfig={lineFilters}
+          ></LineRectChart>
+        </Paper>
+      )}
+      {testSegments.length > 0 && (
+        <Paper className={styles.section}>
+          <h1>Detected Python test details</h1>
+          <div className={styles.divider}></div>
+          <LineRectChart
+            inputLines={timeSeriesList}
+            rects={testSegments}
+            disableLineTooltip={true}
+            disableRect={false}
+          ></LineRectChart>
+          <div>
+            <h3>Tests </h3>
+            {testSegments.map((segment) => {
+              return (
+                <div key={segment.name}>
+                  <div>{segment.name}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Paper>
+      )}
     </div>
   );
 };
