@@ -71,7 +71,7 @@ Most of the code, to run properly, expects to connect to external services and h
 
 **WARNING: In practice, even with canary, we only have production environment, be aware that you can break things when running tests!**
 
-So, it is not really recommended to do so, unles troubleshooting something that you have limited understanding and can't replicate locally.
+So, it is not really recommended to do so, unless troubleshooting something that you have limited understanding and can't replicate locally.
 
 #### Requirements needed:
 
