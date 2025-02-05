@@ -87,6 +87,10 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Build deployment.zip
         working-directory: aws/lambda/ci-queue-pct
         run: make deployment.zip
