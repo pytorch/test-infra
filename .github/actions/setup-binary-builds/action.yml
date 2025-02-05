@@ -155,7 +155,9 @@ runs:
             ninja=1.10 \
             pkg-config=0.29 \
             ${CONDA_BUILD_EXTRA} \
-            wheel=0.37
+            wheel=0.37 \
+            pip=2.4.2 \
+            setuptools=75.1.0
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
