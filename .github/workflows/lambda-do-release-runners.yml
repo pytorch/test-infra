@@ -23,7 +23,6 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
-      # Runner Binaries Syncer
       - name: Install dependencies - Runner Binaries Syncer
         run: yarn install
         working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer
@@ -39,7 +38,6 @@ jobs:
         with:
           args: zip runner-binaries-syncer.zip index.js
 
-      # ALI scaleUp scaleDown
       - name: Install dependencies - Runners
         run: yarn install
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
@@ -55,7 +53,6 @@ jobs:
         with:
           args: zip runners.zip index.js
 
-      # Webhook
       - name: Install dependencies - Webhook
         run: yarn install
         working-directory: terraform-aws-github-runner/modules/webhook/lambdas/webhook
@@ -71,18 +68,38 @@ jobs:
         with:
           args: zip webhook.zip index.js
 
-      # ci-queue-pct for hud.pytorch.org/sli
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "runner-binaries-syncer.zip,runners.zip,webhook.zip"
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+
+  release-ci-queue-pct:
+    name: Upload Release for ci-queue-pct lambda
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Build deployment.zip
         working-directory: aws/lambda/ci-queue-pct
         run: make deployment.zip
+
       - name: Copy deployment.zip to root
         run: cp aws/lambda/ci-queue-pct/deployment.zip ci-queue-pct.zip
 
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "runner-binaries-syncer.zip,runners.zip,webhook.zip,ci-queue-pct.zip"
+          artifacts: "ci-queue-pct.zip"
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
