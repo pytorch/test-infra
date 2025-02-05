@@ -144,6 +144,8 @@ runs:
             # For conda package host python version is irrelevant
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
+            # Pin conda-solver for 3.13t build
+            conda install conda-libmamba-solver=24.1.0
           fi
 
           conda create \
