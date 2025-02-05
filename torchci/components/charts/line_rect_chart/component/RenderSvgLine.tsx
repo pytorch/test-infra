@@ -9,7 +9,7 @@ const RenderSvgLines = ({ scales, lines }: { scales: any; lines: Line[] }) => {
   const lineGenerator = d3
     .line<D3LineRecord>()
     .x((d: D3LineRecord) => scales.xScale(d.date))
-    .y((d: D3LineRecord) => scales.yScale(d.value))
+    .y((d: D3LineRecord) => scales.yScale(d.value));
 
   return (
     <g className="lines-group">

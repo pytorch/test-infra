@@ -1,40 +1,27 @@
-import { Paper, styled } from "@mui/material";
+import { Divider, Paper, styled } from "@mui/material";
 import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import { Metrics, UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import JobUtilizationSummary from "./components/JobSummary/JobUtilizationSummary";
+import JobUtilizationSummary from "./components/UtilizationJobSummary/UtilizationJobSummary";
 import { getIgnoredSegmentName } from "./helper";
 const lineFilters: PickerConfig[] = [
   { category: "hardware", types: ["gpu", "cpu", "memory"] },
   { category: "stats", types: ["max", "avg"] },
 ];
 
-const Divider = styled("div")({
-  borderBottom: "1px solid #ccc",
-  margin: "20px 0",
-});
+
 
 const MainPage = styled("div")({
   fontFamily: "Verdana, sans-serif",
 });
-
 
 const Section = styled("div")({
   margin: "10px",
   padding: "10px",
 });
 
-const PaperCard = styled(Paper)({
-  width: "300px",
-  padding: "10px",
-});
 
-const JobInfoTitle = styled('span')({
-  marginRight: "5px",
-  fontSize: "16px",
-  fontWeight: "bold",
-});
 
 export const UtilizationPage = ({
   workflowId,
@@ -43,7 +30,6 @@ export const UtilizationPage = ({
   lines = [],
   metadata,
   hardwareMetrics,
-  otherMetrics,
 }: {
   workflowId: string;
   jobId: string;
@@ -55,7 +41,6 @@ export const UtilizationPage = ({
   }[];
   metadata: UtilizationMetadata;
   hardwareMetrics: Metrics[];
-  otherMetrics: Metrics[];
 }) => {
   const [testSegments, setTestSegments] = useState<any[]>([]);
   const [timeSeriesList, setTimeSeriesList] = useState<any[]>([]);
@@ -77,17 +62,14 @@ export const UtilizationPage = ({
   return (
     <MainPage>
       <Section>
-        <TestInformationSection
-          workflowId={workflowId}
-          jobId={jobId}
-          attempt={attempt}
-          jobName={metadata.job_name}
-          workflowName={metadata.workflow_name}
-        />
-      </Section>
-      <Section>
         <div>
-          <JobUtilizationSummary hardwareMetrics={hardwareMetrics} otherMetrics={otherMetrics} />
+          <JobUtilizationSummary
+            hardwareMetrics={hardwareMetrics}
+            metadata={metadata}
+            workflowId={workflowId}
+            jobId={jobId}
+            attempt={attempt}
+          />
         </div>
       </Section>
       {timeSeriesList.length > 0 && (
@@ -127,50 +109,5 @@ export const UtilizationPage = ({
         </Section>
       )}
     </MainPage>
-  );
-};
-
-const TestInformationSection = ({
-  workflowId,
-  jobId,
-  attempt,
-  jobName,
-  workflowName,
-}: {
-  workflowId: string;
-  jobId: string;
-  attempt: string;
-  jobName: string;
-  workflowName: string;
-}) => {
-  return (
-    <Section>
-      <h1> Test Job Infomation</h1>
-      <Divider />
-      <PaperCard>
-        <div>
-          <div>
-            <JobInfoTitle>Job Name:</JobInfoTitle>
-            <span>{jobName}</span>
-          </div>
-          <div>
-            <JobInfoTitle>Workflow Name:</JobInfoTitle>
-            <span>{workflowName}</span>
-          </div>
-          <div>
-            <JobInfoTitle>Workflow(run)Id:</JobInfoTitle>
-            <span>{workflowId}</span>
-          </div>
-          <div>
-            <JobInfoTitle>Job Id:</JobInfoTitle>
-            <span>{jobId}</span>
-          </div>
-          <div>
-            <JobInfoTitle>Attempt:</JobInfoTitle>
-            <span>{attempt}</span>
-          </div>
-        </div>
-      </PaperCard>
-    </Section>
   );
 };

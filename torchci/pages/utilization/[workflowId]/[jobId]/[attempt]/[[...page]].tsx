@@ -24,7 +24,7 @@ const Utilization = () => {
     return <div>loading...</div>;
   }
 
-  console.log(data?.ts_list)
+  console.log(data?.ts_list);
 
   return (
     <div>
@@ -35,7 +35,6 @@ const Utilization = () => {
         lines={data?.ts_list}
         metadata={data?.metadata}
         hardwareMetrics={data?.hardware_metrics}
-        otherMetrics= {data?.other_metrics}
       ></UtilizationPage>
     </div>
   );

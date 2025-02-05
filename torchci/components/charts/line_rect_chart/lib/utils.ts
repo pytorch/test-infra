@@ -1,6 +1,5 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
-import { display } from "@mui/system";
 
 export function setDimensions(chartWidth?: number) {
   let dimensions = {

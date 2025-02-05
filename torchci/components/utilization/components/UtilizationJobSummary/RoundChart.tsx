@@ -12,7 +12,8 @@ const RoundChart = ({ data }: { data: Metrics }) => {
     }
 
     let offset = -10;
-    const renderData = [{
+    const renderData = [
+      {
         value: data.value,
         name: data.displayname,
         title: {
@@ -22,7 +23,8 @@ const RoundChart = ({ data }: { data: Metrics }) => {
           valueAnimation: true,
           offsetCenter: ["0%", `${offset + 30}%`],
         },
-      }];
+      },
+    ];
     const chartInstance = echarts.init(chartRef.current);
     let option: EChartOption = getOptions(renderData, data.unit);
     chartInstance.setOption(option);
@@ -40,53 +42,51 @@ const RoundChart = ({ data }: { data: Metrics }) => {
 };
 export default RoundChart;
 
-function getOptions(data: any[],unit:string) {
+function getOptions(data: any[], unit: string) {
   return {
     series: [
       {
-        type: 'gauge',
-        radius: '80%',
+        type: "gauge",
+        radius: "80%",
         startAngle: 0,
         endAngle: 360,
         splitLine: {
-            show: false,
-            distance: 0,
-            length: 10,
-          },
+          show: false,
+          distance: 0,
+          length: 10,
+        },
         axisLine: {
           lineStyle: {
             width: 5,
-            color: [
-              [1, '#409eff']
-            ]
-          }
+            color: [[1, "#409eff"]],
+          },
         },
         axisTick: {
-          show: false
+          show: false,
         },
         axisLabel: {
-          show: false
+          show: false,
         },
         pointer: {
-          show: false
+          show: false,
         },
         title: {
           show: true,
-          offsetCenter: [0, '50%'],
+          offsetCenter: [0, "50%"],
           textStyle: {
             fontSize: 18,
-          }
+          },
         },
         detail: {
           show: true,
-          offsetCenter: [0, '-20%'],
+          offsetCenter: [0, "-20%"],
           textStyle: {
             fontSize: 20,
           },
           formatter: `{value} ${unit}`,
         },
         data: data,
-      }
-    ]
+      },
+    ],
   };
 }

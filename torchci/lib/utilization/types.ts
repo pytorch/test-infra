@@ -1,4 +1,3 @@
-
 export interface UtilizationParams {
   workflow_id: string;
   job_id: string;
@@ -10,7 +9,6 @@ export interface TimeSeriesDbData {
   data?: string | null;
   tags?: string[] | null;
 }
-
 
 export interface UtilizationMetadata {
   collect_interval: number;
@@ -38,8 +36,6 @@ export interface UtilizationAPIResponse {
   metadata: UtilizationMetadata;
   ts_list: TimeSeriesObject[];
   hardware_metrics: Metrics[];
-  other_metrics: Metrics[];
-
 }
 
 export interface TimeSeriesObject {
@@ -60,4 +56,10 @@ export interface Metrics {
   metric: string;
   unit: string;
   description?: string;
+}
+
+export enum MetricType {
+  AVERAGE = 'average',
+  PERCENTILE_90TH = 'percentile_90th',
+  PERCENTILE_50TH = 'percentile_50th',
 }

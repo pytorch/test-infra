@@ -1,7 +1,8 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
-import { truncate } from "lodash";
+import { truncate, map, sortBy } from "lodash";
 import {
   Metrics,
+  MetricType,
   TimeSeriesDataPoint,
   TimeSeriesDbData,
   TimeSeriesObject,
@@ -58,21 +59,10 @@ export default async function fetchUtilization(
     hardware_metrics = [...hardware_metrics, ...new_metrics];
   }
 
-  let other_metrics : Metrics[] = [];
-
-  const duration = getDurationMetrics(
-    new Date(metadata.start_at),
-    new Date(metadata.end_at),
-    "Job Duration",
-    "job|duration"
-  );
-  const numeric_metrics = getNumericMetrics(metadata);
-  other_metrics = [duration, ...numeric_metrics];
   return {
     metadata: metadata,
     ts_list: tsList,
     hardware_metrics: hardware_metrics,
-    other_metrics: other_metrics,
   };
 }
 
@@ -107,24 +97,6 @@ async function getUtilizationMetadata(
   return response;
 }
 
-function getNumericMetrics(metadata:UtilizationMetadata){
-  let list: Metrics[] = [];
-  const keys = Object.keys(metadata);
-  for (const key of keys) {
-    const value = metadata[key as keyof UtilizationMetadata];
-    if (typeof value === "number") {
-      list.push({
-        displayname: key.split("_").join(" "),
-        name: key,
-        value: value,
-        metric: "numeric",
-        unit: key.includes("interval") ? "secs" : "",
-      });
-    }
-  }
-  return list;
-}
-
 
 function getLatestMetadata(
   items: UtilizationMetadata[]
@@ -138,37 +110,61 @@ function getLatestMetadata(
   }, items[0]);
 }
 
-function getDurationMetrics(
-  start: Date,
-  end: Date,
-  displayname: string,
-  id?: string
-): Metrics {
-  const duration = (end.getTime() - start.getTime()) / 1000 / 60;
-  let metricId = id || displayname;
-  const metrics: Metrics = {
-    displayname: displayname,
-    name: metricId,
-    value: Number(duration.toFixed(2)),
-    metric: "total",
-    unit: "mins",
-  };
-  return metrics;
-}
-
 function getTimeSeriesMetrics(tso: TimeSeriesObject): Metrics[] {
   if (tso.records.length == 0) return [];
+  const res: Metrics[] = [];
   const mean =
     tso.records.reduce((acc, current) => acc + current.value, 0) /
     tso.records.length;
-  const metrics: Metrics = {
+  const mm: Metrics = {
     displayname: tso.displayname,
     name: tso.name,
     value: Number(mean.toFixed(2)),
-    metric: "mean",
+    metric: MetricType.AVERAGE,
     unit: "%",
   };
-  return [metrics];
+
+  res.push(mm);
+
+  const p90m = calculatePercentile(tso.records,90)
+  if (p90m != -1){
+    const mdat90: Metrics = {
+    displayname: tso.displayname,
+    name: tso.name,
+    value: Number(p90m.toFixed(2)),
+    metric: MetricType.PERCENTILE_90TH,
+    unit: "%",
+  };
+  res.push(mdat90);
+  }
+
+  const p50m = calculatePercentile(tso.records,50)
+  if (p50m != -1){
+    const mdat50: Metrics = {
+    displayname: tso.displayname,
+    name: tso.name,
+    value: Number(p50m.toFixed(2)),
+    metric: MetricType.PERCENTILE_50TH,
+    unit: "%",
+  };
+  res.push(mdat50);
+  }
+
+  return res;
+}
+
+function calculatePercentile(data: TimeSeriesDataPoint[], threshold: number) {
+  if (data.length == 0) return -1; // No data
+  const values = map(data, 'value');
+  const sortedValues = sortBy(values);
+  let index = Math.floor(sortedValues.length * (threshold / 100));
+  if (index < 0){
+    index = 0;
+  }
+  if(index >= sortedValues.length) {
+    index = sortedValues.length - 1;
+  }
+  return sortedValues[index];
 }
 
 function getTimeSeriesDisplayName(name: string) {
