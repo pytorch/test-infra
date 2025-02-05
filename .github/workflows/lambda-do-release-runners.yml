@@ -6,7 +6,7 @@ on:
         description: tag to create release
         required: true
 
-name: Upload Release for runners lambdas
+name: Upload Release for lambdas
 
 jobs:
   release-lambdas:
@@ -71,5 +71,31 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "runner-binaries-syncer.zip,runners.zip,webhook.zip"
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+
+  release-ci-queue-pct:
+    name: Upload Release for ci-queue-pct lambda
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Build deployment.zip
+        working-directory: aws/lambda/ci-queue-pct
+        run: make deployment.zip
+
+      - name: Copy deployment.zip to root
+        run: cp aws/lambda/ci-queue-pct/deployment.zip ci-queue-pct.zip
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "ci-queue-pct.zip"
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
