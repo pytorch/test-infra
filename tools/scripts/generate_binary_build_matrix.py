@@ -46,7 +46,7 @@ CUDA_CUDNN_VERSIONS = {
 
 CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64"]
 
-PACKAGE_TYPES = ["wheel", "libtorch"]
+PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
@@ -308,6 +308,23 @@ def get_wheel_install_command(
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
+def generate_conda_matrix(
+    os: str,
+    channel: str,
+    with_cuda: str,
+    with_rocm: str,
+    with_cpu: str,
+    with_xpu: str,
+    limit_pr_builds: bool,
+    use_only_dl_pytorch_org: bool,
+    use_split_build: bool = False,
+    python_versions: Optional[List[str]] = None,
+) -> List[Dict[str, str]]:
+    ret: List[Dict[str, str]] = []
+    # return empty list. Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
+    return ret
+
+
 def generate_libtorch_matrix(
     os: str,
     channel: str,
@@ -515,6 +532,7 @@ def generate_wheels_matrix(
 
 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE: Dict[str, Callable[..., List[Dict[str, str]]]] = {
     "wheel": generate_wheels_matrix,
+    "conda": generate_conda_matrix,
     "libtorch": generate_libtorch_matrix,
 }
 
