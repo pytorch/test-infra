@@ -145,7 +145,7 @@ runs:
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
             # Pin conda-solver for 3.13t build
-            conda install conda-libmamba-solver=24.1.0
+            conda install conda==24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           conda create \
@@ -158,6 +158,6 @@ runs:
               wheel=0.37  \
               ${CONDA_EXTRA_PARAM}
 
-          conda run -p ${CONDA_ENV} conda install -v libwebp
+          conda run -p ${CONDA_ENV} conda install -vv libwebp
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
