@@ -156,5 +156,7 @@ runs:
             wheel=0.37 \
             ${CONDA_EXTRA_PARAM}
 
+          conda run -p ${CONDA_ENV} conda install -v libwebp
+
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
