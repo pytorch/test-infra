@@ -147,16 +147,15 @@ runs:
           fi
 
           conda create \
-            --yes --quiet \
-            --prefix "${CONDA_ENV}" \
-            "python=${PYTHON_VERSION}" \
-            cmake=3.26 \
-            ninja=1.10 \
-            pkg-config=0.29 \
-            wheel=0.37 \
-            ${CONDA_EXTRA_PARAM}
+              --yes --quiet \
+              --prefix "${CONDA_ENV}" \
+              "python=${PYTHON_VERSION}" \
+              cmake=3.26 \
+              ninja=1.12.1 \
+              pkg-config=0.29 \
+              wheel=0.37  \
+              ${CONDA_EXTRA_PARAM}
 
           conda run -p ${CONDA_ENV} conda install -v libwebp
-
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
