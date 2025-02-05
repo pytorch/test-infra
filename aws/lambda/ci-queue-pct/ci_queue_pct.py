@@ -19,7 +19,7 @@ from github import Github
 class LazyFileHistory:
     '''
     Reads the content of a file from a GitHub repository on the version that it was on a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
-    All public methos are thread-safe.
+    All public methods are thread-safe.
     '''
     def __init__(self, repo: any, path: str) -> None:
         self.repo = repo
