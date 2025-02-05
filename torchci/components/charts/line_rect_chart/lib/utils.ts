@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
+import { display } from "@mui/system";
 
 export function setDimensions(chartWidth?: number) {
   let dimensions = {
@@ -19,6 +20,7 @@ export function setDimensions(chartWidth?: number) {
 export function processLineData(
   lines: {
     name: string;
+    displayname: string;
     records: { ts: string; value: number }[];
     color?: string;
   }[]
@@ -26,6 +28,7 @@ export function processLineData(
   return lines.map((el) => {
     return {
       name: el.name,
+      displayname: el.displayname,
       records: el.records.map((el) => {
         const record: D3LineRecord = {
           date: convertDate(el.ts),
@@ -77,7 +80,7 @@ export function getRecordyDate(
 }
 
 export function formatDate(date: Date): string {
-  return date.toISOString().replace("T", " ");
+  return date.toLocaleString();
 }
 
 // custom bisect to find the closest data point to the mouse position

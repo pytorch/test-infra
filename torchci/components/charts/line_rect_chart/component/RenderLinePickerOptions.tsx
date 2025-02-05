@@ -51,7 +51,7 @@ const RenderLinePickerOptions = ({
         .map((line) => {
           return {
             id: line.name,
-            name: line.name,
+            name: line.displayname,
             checked: !line.hidden,
           };
         });

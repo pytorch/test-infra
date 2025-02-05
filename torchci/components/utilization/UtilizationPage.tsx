@@ -50,6 +50,7 @@ export const UtilizationPage = ({
   attempt: string;
   lines: {
     name: string;
+    displayname: string;
     records: { ts: string; value: number }[];
   }[];
   metadata: UtilizationMetadata;

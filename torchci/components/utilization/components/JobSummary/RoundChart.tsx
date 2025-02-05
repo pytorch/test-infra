@@ -14,7 +14,7 @@ const RoundChart = ({ data }: { data: Metrics }) => {
     let offset = -10;
     const renderData = [{
         value: data.value,
-        name: data.display_name,
+        name: data.displayname,
         title: {
           offsetCenter: ["0%", `${offset}%`],
         },

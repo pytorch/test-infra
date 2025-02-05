@@ -24,6 +24,8 @@ const Utilization = () => {
     return <div>loading...</div>;
   }
 
+  console.log(data?.ts_list)
+
   return (
     <div>
       <UtilizationPage

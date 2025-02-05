@@ -44,7 +44,7 @@ export interface UtilizationAPIResponse {
 
 export interface TimeSeriesObject {
   name: string;
-  display_name: string;
+  displayname: string;
   records: TimeSeriesDataPoint[];
 }
 
@@ -54,7 +54,7 @@ export interface TimeSeriesDataPoint {
 }
 
 export interface Metrics {
-  display_name: string;
+  displayname: string;
   name: string;
   value: number;
   metric: string;

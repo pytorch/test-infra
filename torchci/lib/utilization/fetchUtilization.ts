@@ -48,8 +48,8 @@ export default async function fetchUtilization(
 
   let tsList: TimeSeriesObject[] = [];
   for (const [key, value] of tsMap) {
-    const display_name = getTimeSeriesDisplayName(key);
-    tsList.push({ name: key, display_name: display_name, records: value });
+    const displayname = getTimeSeriesDisplayName(key);
+    tsList.push({ name: key, displayname: displayname, records: value });
   }
 
   let hardware_metrics : Metrics[] = [];
@@ -114,7 +114,7 @@ function getNumericMetrics(metadata:UtilizationMetadata){
     const value = metadata[key as keyof UtilizationMetadata];
     if (typeof value === "number") {
       list.push({
-        display_name: key.split("_").join(" "),
+        displayname: key.split("_").join(" "),
         name: key,
         value: value,
         metric: "numeric",
@@ -141,13 +141,13 @@ function getLatestMetadata(
 function getDurationMetrics(
   start: Date,
   end: Date,
-  display_name: string,
+  displayname: string,
   id?: string
 ): Metrics {
   const duration = (end.getTime() - start.getTime()) / 1000 / 60;
-  let metricId = id || display_name;
+  let metricId = id || displayname;
   const metrics: Metrics = {
-    display_name: display_name,
+    displayname: displayname,
     name: metricId,
     value: Number(duration.toFixed(2)),
     metric: "total",
@@ -162,7 +162,7 @@ function getTimeSeriesMetrics(tso: TimeSeriesObject): Metrics[] {
     tso.records.reduce((acc, current) => acc + current.value, 0) /
     tso.records.length;
   const metrics: Metrics = {
-    display_name: tso.display_name,
+    displayname: tso.displayname,
     name: tso.name,
     value: Number(mean.toFixed(2)),
     metric: "mean",

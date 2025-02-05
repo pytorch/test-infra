@@ -3,6 +3,7 @@ import { EChartOption } from "echarts";
 import { Metrics } from "lib/utilization/types";
 import { useEffect, useRef } from "react";
 
+
 const DoubleRingChart = ({ data }: { data: Metrics[] }) => {
   const chartRef = useRef(null); // Create a ref for the chart container
 
@@ -21,7 +22,7 @@ const DoubleRingChart = ({ data }: { data: Metrics[] }) => {
     const renderData = data.map((d, idx) => {
       return {
         value: d.value,
-        name: d.display_name,
+        name: d.displayname,
         title: {
           offsetCenter: ["0%", `${offset + 40 * idx}%`],
         },
@@ -43,7 +44,7 @@ const DoubleRingChart = ({ data }: { data: Metrics[] }) => {
   return (
     <div
       ref={chartRef}
-      style={{ width: `300px`, minHeight: `300px` }} // Set dimensions
+      style={{ width: `350px`, minHeight: `350px` }} // Set dimensions
     ></div>
   );
 };
@@ -51,7 +52,6 @@ export default DoubleRingChart;
 
 function getOptions(data: any[]) {
   return {
-    width: "20%",
     series: [
       {
         type: "gauge",
@@ -72,7 +72,7 @@ function getOptions(data: any[]) {
         },
         axisLine: {
           lineStyle: {
-            width: 40,
+            width: 25,
           },
         },
         splitLine: {
@@ -92,12 +92,12 @@ function getOptions(data: any[]) {
         },
         data: data,
         detail: {
-          width: 50,
+          width: 80,
           height: 14,
           fontSize: 14,
           color: "inherit",
           borderColor: "inherit",
-          borderRadius: 20,
+          borderRadius: 10,
           borderWidth: 1,
           formatter: "{value}%",
         },

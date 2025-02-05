@@ -16,9 +16,16 @@ const NumericGroupSection = styled("div")({
     marginRight: "20px",
 });
 
+const DoubleMetricsGroupSection = styled("div")({
+    display: "flex",
+    flexWrap: "wrap",
+    width: "1200px",
+    margin: "10px",
+});
+
 const RingChart = styled("div")({
   display: "flex",
-  width: "350px",
+  width: "450px",
 })
 
 const NumericRingChart = styled("div")({
@@ -50,7 +57,7 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
       return {
         name: name,
         metrics: filteredGroup,
-        metircType: "mean",
+        metircType: "average",
       };
     });
     setGroups(groups);
@@ -84,9 +91,13 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
             );
           })}
           </NumericGroupSection>
+        <div>
+        <div> C.B (Calculated By): Utilization metrics is generated every 0.5 seconds, then averaged and maximized over 5-second intervals to collect time series data point.</div>
+        <DoubleMetricsGroupSection>
         {groups.map((group) => {
             return (
             group.metrics.length > 0 && (
+                <>
                 <div>
                 <h4> {group.name}</h4>
                 <div> {group.metircType} of totoal {group.name} utilization.</div>
@@ -94,10 +105,12 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
                     <DoubleRingChart data={group.metrics} key={group.name} />
                 </RingChart>
                 </div>
-
+                </>
             )
             );
         })}
+        </DoubleMetricsGroupSection>
+        </div>
         </RingGroupSection>
       </div>
     </div>

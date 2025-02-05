@@ -13,6 +13,7 @@ type Props = {
   onDataChange?: (data: any) => void;
   inputLines?: {
     name: string;
+    displayname: string;
     records: { ts: string; value: number }[];
     color?: string;
   }[];

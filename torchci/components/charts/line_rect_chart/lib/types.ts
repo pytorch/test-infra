@@ -18,6 +18,7 @@ export interface D3LineRecord {
 
 export interface Line {
   name: string;
+  displayname: string;
   records: D3LineRecord[];
   color?: string;
   hidden?: boolean;
