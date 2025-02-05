@@ -34,18 +34,28 @@ export enum GroupedJobStatus {
   Pending = "pending",
 }
 
-function isJobViableStrictBlocking(jobName: string | undefined): boolean {
+type RepoViableStrictBlockingJobsMap = {
+  [key: string]: RegExp[];
+};
+
+// TODO: Move this to a config file
+const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
+  // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
+  "pytorch/pytorch": [/trunk/i, /pull/i, /linux-binary/i, /lint/i],
+};
+
+function isJobViableStrictBlocking(
+  jobName: string | undefined,
+  repoOwner: string,
+  repoName: string
+): boolean {
   if (!jobName) {
     return false;
   }
 
-  // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
-  const viablestrict_blocking_jobs_patterns = [
-    /trunk/i,
-    /pull/i,
-    /linux-binary/i,
-    /lint/i,
-  ];
+  const repo = `${repoOwner}/${repoName}`;
+  let viablestrict_blocking_jobs_patterns =
+    VIABLE_STRICT_BLOCKING_JOBS[repo] ?? [];
 
   for (const regex of viablestrict_blocking_jobs_patterns) {
     if (jobName.match(regex)) {
@@ -63,6 +73,8 @@ export default function HudGroupedCell({
   toggleExpanded,
   isClassified,
   unstableIssues,
+  repoOwner,
+  repoName,
 }: {
   sha: string;
   groupName: string;
@@ -71,6 +83,8 @@ export default function HudGroupedCell({
   toggleExpanded: () => void;
   isClassified: boolean;
   unstableIssues: IssueData[];
+  repoOwner: string;
+  repoName: string;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const style = pinnedId.name == groupName ? hudStyles.highlight : "";
@@ -89,7 +103,7 @@ export default function HudGroupedCell({
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);
-        if (isJobViableStrictBlocking(job.name)) {
+        if (isJobViableStrictBlocking(job.name, repoOwner, repoName)) {
           viableStrictBlocking = true;
         }
       }
@@ -151,7 +165,10 @@ export default function HudGroupedCell({
                   : styles[conclusion ?? "none"]
               }
               onDoubleClick={toggleExpanded}
-              style={{ border: "1px solid gainsboro", padding: "0 1px" }}
+              style={{
+                border: "1px solid gainsboro",
+                padding: "0 1px",
+              }}
             >
               {getGroupConclusionChar(conclusion)}
             </span>

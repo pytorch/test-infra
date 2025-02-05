@@ -176,6 +176,7 @@ function HudRow({
         rowData={rowData}
         names={names}
         unstableIssues={unstableIssues}
+        params={params}
       />
     </tr>
   );
@@ -185,10 +186,12 @@ function HudJobCells({
   rowData,
   names,
   unstableIssues,
+  params,
 }: {
   rowData: RowData;
   names: string[];
   unstableIssues: IssueData[];
+  params: HudParams;
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
   const { expandedGroups, setExpandedGroups, groupNameMapping } =
@@ -214,6 +217,8 @@ function HudJobCells({
               sha={rowData.sha}
               key={name}
               groupName={name}
+              repoOwner={params.repoOwner}
+              repoName={params.repoName}
               jobs={
                 groupNameMapping
                   .get(name)
