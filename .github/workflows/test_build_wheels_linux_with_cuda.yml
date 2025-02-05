@@ -30,9 +30,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #- repository: pytorch/audio
-          #  smoke-test-script: test/smoke_test/smoke_test.py
-          #  package-name: torchaudio
+          - repository: pytorch/audio
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
           - repository: pytorch/vision
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
@@ -47,7 +47,7 @@ jobs:
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: test_python313t
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
