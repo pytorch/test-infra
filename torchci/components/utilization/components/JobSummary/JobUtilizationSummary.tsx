@@ -76,6 +76,7 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
   return (
     <div>
       <h1> Utilization Summary</h1>
+      <TypingText input="C.B (Calculated By): Utilization metrics is generated every 0.5 seconds, then averaged and maximized over 5-second intervals to collect time series data point."/>
       <Paper></Paper>
       <Divider></Divider>
       <div>
@@ -92,7 +93,6 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
           })}
           </NumericGroupSection>
         <div>
-        <div> C.B (Calculated By): Utilization metrics is generated every 0.5 seconds, then averaged and maximized over 5-second intervals to collect time series data point.</div>
         <DoubleMetricsGroupSection>
         {groups.map((group) => {
             return (
@@ -117,3 +117,35 @@ const JobUtilizationSummary = ({ hardwareMetrics,otherMetrics }: { hardwareMetri
   );
 };
 export default JobUtilizationSummary;
+
+const TypingText = ({input}:{input:string}) => {
+  const [text, setText] = useState('');
+  const [fullText, setFullText] = useState("");
+  const [speed, setSpeed] = useState(50); // speed in milliseconds
+
+  useEffect(() => {
+    setFullText(input);
+  }, [input]);
+
+  useEffect(() => {
+    if (!fullText) return;
+    let i = 0;
+    const intervalId = setInterval(() => {
+      if (i < fullText.length) {
+        setText(fullText.substring(0, i + 1));
+        i++;
+      } else {
+        clearInterval(intervalId);
+      }
+    }, speed);
+    return () => clearInterval(intervalId);
+  }, [fullText, speed]);
+
+  return (
+    <div>
+      <p>
+        {text}
+      </p>
+    </div>
+  );
+};

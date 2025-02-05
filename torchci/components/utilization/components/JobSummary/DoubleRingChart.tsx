@@ -1,3 +1,4 @@
+import { Opacity } from "@mui/icons-material";
 import * as echarts from "echarts";
 import { EChartOption } from "echarts";
 import { Metrics } from "lib/utilization/types";
@@ -19,6 +20,7 @@ const DoubleRingChart = ({ data }: { data: Metrics[] }) => {
     }
 
     let offset = -40;
+    let color = ["blue", "red"]
     const renderData = data.map((d, idx) => {
       return {
         value: d.value,
@@ -73,6 +75,11 @@ function getOptions(data: any[]) {
         axisLine: {
           lineStyle: {
             width: 25,
+            opacity: 0.4,
+            color: [
+                [0.7, '#FDDD60'], // 30-70% yellow
+                [1, '#8BC34A'] // 70-100% green
+            ]
           },
         },
         splitLine: {
