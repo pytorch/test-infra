@@ -10,8 +10,6 @@ const lineFilters: PickerConfig[] = [
   { category: "stats", types: ["max", "avg"] },
 ];
 
-
-
 const MainPage = styled("div")({
   fontFamily: "Verdana, sans-serif",
 });
@@ -20,7 +18,6 @@ const Section = styled("div")({
   margin: "10px",
   padding: "10px",
 });
-
 
 
 export const UtilizationPage = ({
@@ -58,6 +55,8 @@ export const UtilizationPage = ({
     setTimeSeriesList(lines);
     setTestSegments(filteredSeg);
   }, [lines, metadata]);
+
+   console.log(lines)
 
   return (
     <MainPage>

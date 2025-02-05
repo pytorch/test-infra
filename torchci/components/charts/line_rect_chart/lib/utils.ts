@@ -75,6 +75,9 @@ export function getRecordyDate(
   if (idx <= 0) {
     return records[0];
   }
+  if (idx >= records.length) {
+    return records[records.length - 1];
+  }
   return records[idx];
 }
 
@@ -84,5 +87,5 @@ export function formatDate(date: Date): string {
 
 // custom bisect to find the closest data point to the mouse position
 export const dateBisector = d3.bisector((d: D3LineRecord) => d.date).left;
-export const xAccessor = (d: D3LineRecord) => d.date;
+export const xAccessor = (d: D3LineRecord) => {d.date};
 export const yAccessor = (d: D3LineRecord) => d.value;

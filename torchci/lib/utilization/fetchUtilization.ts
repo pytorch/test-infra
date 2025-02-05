@@ -173,7 +173,11 @@ function getTimeSeriesDisplayName(name: string) {
     return name;
   }
   if (splited[0].includes("gpu_usage")) {
-    return `gpu_${truncate(splited[1], { length: 3 })}(C.B by ${splited[-1]})`;
+    if (name.includes("mem_util_percent")){
+      return `gpu mem ${truncate(splited[1], {length: 10})}(C.B by ${splited[splited.length-1]})`;
+    } else{
+      return `gpu ${truncate(splited[1], {length: 10})}(C.B by ${splited[splited.length-1]})`;
+    }
   }
   return `${splited[0]}(C.B ${splited[1]})`;
 }
@@ -246,7 +250,7 @@ function getDataPath(
       let next_path = formPath(path, `${idx}`);
       if (checkType(nextObj) == "object") {
         if (nextObj.uuid) {
-          next_path = formPath(path, nextObj.uuid);
+          next_path = formPath(path, `${idx}|uuid:${nextObj.uuid}`);
         }
       }
       getDataPath(nextObj, next_path, res);

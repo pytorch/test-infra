@@ -69,6 +69,14 @@ const JobUtilizationSummary = ({
   useEffect(() => {
     if (!hardwareMetrics || !metadata) return;
 
+    let uniqueNames = new Set<string>();
+    hardwareMetrics.forEach((metric) => {
+      uniqueNames.add(metric.name);
+    });
+
+    const hn = Array.from(uniqueNames);
+    console.log(hn);
+
     const duration = getDurationMetrics(
       new Date(metadata.start_at),
       new Date(metadata.end_at),
@@ -174,36 +182,6 @@ const JobUtilizationSummary = ({
   );
 };
 export default JobUtilizationSummary;
-
-const TypingText = ({ input }: { input: string }) => {
-  const [text, setText] = useState("");
-  const [fullText, setFullText] = useState("");
-  const [speed, setSpeed] = useState(50); // speed in milliseconds
-
-  useEffect(() => {
-    setFullText(input);
-  }, [input]);
-
-  useEffect(() => {
-    if (!fullText) return;
-    let i = 0;
-    const intervalId = setInterval(() => {
-      if (i < fullText.length) {
-        setText(fullText.substring(0, i + 1));
-        i++;
-      } else {
-        clearInterval(intervalId);
-      }
-    }, speed);
-    return () => clearInterval(intervalId);
-  }, [fullText, speed]);
-
-  return (
-    <div>
-      <p>{text}</p>
-    </div>
-  );
-};
 
 function getDurationMetrics(
   start: Date,

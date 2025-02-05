@@ -128,7 +128,7 @@ describe("Test flattenTS to flatten timestamp", () => {
       { ts: "2023-10-10 16:00:00", value: 20 },
     ]);
 
-    const gpu_1_max = res.get("gpu_usage|uuid-1|mem_util_percent|max");
+    const gpu_1_max = res.get("gpu_usage|0|uuid:uuid-1|mem_util_percent|max");
     expect(gpu_1_max).toEqual([
       { ts: "2023-10-10 13:00:00", value: 10 },
       { ts: "2023-10-10 16:00:00", value: 30 },

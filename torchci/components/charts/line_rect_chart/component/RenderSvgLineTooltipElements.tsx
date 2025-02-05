@@ -66,6 +66,7 @@ const RenderSvgLineTooltipElements = ({
 
     // Get the closest data point to the mouse position
     const hoveredData = getRecordyDate(lineList[0].records, date);
+    console.log("hoveredData", hoveredData);
     if (hoveredData == undefined) {
       console.log("No data from records found for date", date);
       return;
@@ -184,8 +185,10 @@ function RenderTooltipCircles(
     .style("opacity", 1)
     .attr("cx", function (this: any) {
       var id = d3.select(this).attr("id");
+      console.log("id", id);
       if (lineDataMap.has(id)) {
         const rec = lineDataMap.get(id);
+        console.log("rec", rec);
         return xScale(xAccessor(rec!));
       }
       return 0;
