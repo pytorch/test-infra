@@ -44,6 +44,8 @@ CUDA_CUDNN_VERSIONS = {
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
 }
 
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64"]
+
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
@@ -104,7 +106,7 @@ def arch_type(arch_version: str) -> str:
         return ROCM
     elif arch_version == CPU_AARCH64:
         return CPU_AARCH64
-    elif arch_version == CUDA_AARCH64:
+    elif arch_version in CUDA_AARCH64_ARCHES:
         return CUDA_AARCH64
     elif arch_version == XPU:
         return XPU
@@ -155,6 +157,10 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
             for gpu_arch in CUDA_ARCHES
         },
         **{
+            gpu_arch: f"pytorch/manylinuxaarch64-builder:cuda{gpu_arch.replace('-aarch64', '')}"
+            for gpu_arch in CUDA_AARCH64_ARCHES
+        },
+        **{
             gpu_arch: f"pytorch/manylinux2_28-builder:rocm{gpu_arch}"
             for gpu_arch in ROCM_ARCHES
         },
@@ -190,7 +196,7 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         CPU: "cpu",
         CPU_AARCH64: CPU,
-        CUDA_AARCH64: "cu126",
+        CUDA_AARCH64: f"cu{gpu_arch_version.replace('-aarch64', '').replace('.', '')}",
         CUDA: f"cu{gpu_arch_version.replace('.', '')}",
         ROCM: f"rocm{gpu_arch_version}",
         XPU: "xpu",
@@ -450,7 +456,7 @@ def generate_wheels_matrix(
         if os == LINUX_AARCH64:
             # Only want the one arch as the CPU type is different and
             # uses different build/test scripts
-            arches = [CPU_AARCH64, CUDA_AARCH64]
+            arches = [CPU_AARCH64] + CUDA_AARCH64_ARCHES
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
