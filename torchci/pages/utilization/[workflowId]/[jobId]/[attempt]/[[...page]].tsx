@@ -32,6 +32,8 @@ const Utilization = () => {
         attempt={attempt ? (attempt as string) : ""}
         lines={data?.ts_list}
         metadata={data?.metadata}
+        hardwareMetrics={data?.hardware_metrics}
+        otherMetrics= {data?.other_metrics}
       ></UtilizationPage>
     </div>
   );

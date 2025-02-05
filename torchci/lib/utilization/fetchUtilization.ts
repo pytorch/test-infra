@@ -1,7 +1,10 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
+import { truncate } from "lodash";
 import {
+  Metrics,
   TimeSeriesDataPoint,
   TimeSeriesDbData,
+  TimeSeriesObject,
   UtilizationAPIResponse,
   UtilizationMetadata,
   UtilizationParams,
@@ -43,18 +46,37 @@ export default async function fetchUtilization(
   );
   const tsMap = flattenTS(resp);
 
-  let tsList = [];
+  let tsList: TimeSeriesObject[] = [];
   for (const [key, value] of tsMap) {
-    tsList.push({ name: key, records: value });
+    const display_name = getTimeSeriesDisplayName(key);
+    tsList.push({ name: key, display_name: display_name, records: value });
   }
 
+  let hardware_metrics : Metrics[] = [];
+  for (const tso of tsList) {
+    const new_metrics = getTimeSeriesMetrics(tso);
+    hardware_metrics = [...hardware_metrics, ...new_metrics];
+  }
+
+  let other_metrics : Metrics[] = [];
+
+  const duration = getDurationMetrics(
+    new Date(metadata.start_at),
+    new Date(metadata.end_at),
+    "Job Duration",
+    "job|duration"
+  );
+  const numeric_metrics = getNumericMetrics(metadata);
+  other_metrics = [duration, ...numeric_metrics];
   return {
     metadata: metadata,
     ts_list: tsList,
+    hardware_metrics: hardware_metrics,
+    other_metrics: other_metrics,
   };
 }
 
-// API methods
+
 async function getUtilTimesSeries(
   workflow_id: string,
   job_id: string,
@@ -85,6 +107,25 @@ async function getUtilizationMetadata(
   return response;
 }
 
+function getNumericMetrics(metadata:UtilizationMetadata){
+  let list: Metrics[] = [];
+  const keys = Object.keys(metadata);
+  for (const key of keys) {
+    const value = metadata[key as keyof UtilizationMetadata];
+    if (typeof value === "number") {
+      list.push({
+        display_name: key.split("_").join(" "),
+        name: key,
+        value: value,
+        metric: "numeric",
+        unit: key.includes("interval") ? "secs" : "",
+      });
+    }
+  }
+  return list;
+}
+
+
 function getLatestMetadata(
   items: UtilizationMetadata[]
 ): UtilizationMetadata | null {
@@ -95,6 +136,50 @@ function getLatestMetadata(
       ? latest
       : current;
   }, items[0]);
+}
+
+function getDurationMetrics(
+  start: Date,
+  end: Date,
+  display_name: string,
+  id?: string
+): Metrics {
+  const duration = (end.getTime() - start.getTime()) / 1000 / 60;
+  let metricId = id || display_name;
+  const metrics: Metrics = {
+    display_name: display_name,
+    name: metricId,
+    value: Number(duration.toFixed(2)),
+    metric: "total",
+    unit: "mins",
+  };
+  return metrics;
+}
+
+function getTimeSeriesMetrics(tso: TimeSeriesObject): Metrics[] {
+  if (tso.records.length == 0) return [];
+  const mean =
+    tso.records.reduce((acc, current) => acc + current.value, 0) /
+    tso.records.length;
+  const metrics: Metrics = {
+    display_name: tso.display_name,
+    name: tso.name,
+    value: Number(mean.toFixed(2)),
+    metric: "mean",
+    unit: "%",
+  };
+  return [metrics];
+}
+
+function getTimeSeriesDisplayName(name: string) {
+  const splited = name.split("|");
+  if (splited.length <= 1) {
+    return name;
+  }
+  if (splited[0].includes("gpu_usage")) {
+    return `gpu_${truncate(splited[1], { length: 3 })}(C.B by ${splited[-1]})`;
+  }
+  return `${splited[0]}(C.B ${splited[1]})`;
 }
 
 // Helper functions

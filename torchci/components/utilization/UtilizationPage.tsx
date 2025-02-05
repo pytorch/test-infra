@@ -1,14 +1,40 @@
+import { Paper, styled } from "@mui/material";
 import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
-import { UtilizationMetadata } from "lib/utilization/types";
+import { Metrics, UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
+import JobUtilizationSummary from "./components/JobSummary/JobUtilizationSummary";
 import { getIgnoredSegmentName } from "./helper";
-import styles from "./UtilizationPage.module.css";
-
 const lineFilters: PickerConfig[] = [
   { category: "hardware", types: ["gpu", "cpu", "memory"] },
   { category: "stats", types: ["max", "avg"] },
 ];
+
+const Divider = styled("div")({
+  borderBottom: "1px solid #ccc",
+  margin: "20px 0",
+});
+
+const MainPage = styled("div")({
+  fontFamily: "Verdana, sans-serif",
+});
+
+
+const Section = styled("div")({
+  margin: "10px",
+  padding: "10px",
+});
+
+const PaperCard = styled(Paper)({
+  width: "300px",
+  padding: "10px",
+});
+
+const JobInfoTitle = styled('span')({
+  marginRight: "5px",
+  fontSize: "16px",
+  fontWeight: "bold",
+});
 
 export const UtilizationPage = ({
   workflowId,
@@ -16,6 +42,8 @@ export const UtilizationPage = ({
   attempt,
   lines = [],
   metadata,
+  hardwareMetrics,
+  otherMetrics,
 }: {
   workflowId: string;
   jobId: string;
@@ -25,6 +53,8 @@ export const UtilizationPage = ({
     records: { ts: string; value: number }[];
   }[];
   metadata: UtilizationMetadata;
+  hardwareMetrics: Metrics[];
+  otherMetrics: Metrics[];
 }) => {
   const [testSegments, setTestSegments] = useState<any[]>([]);
   const [timeSeriesList, setTimeSeriesList] = useState<any[]>([]);
@@ -44,8 +74,8 @@ export const UtilizationPage = ({
   }, [lines, metadata]);
 
   return (
-    <div className={styles.page}>
-      <div className={styles.section}>
+    <MainPage>
+      <Section>
         <TestInformationSection
           workflowId={workflowId}
           jobId={jobId}
@@ -53,11 +83,16 @@ export const UtilizationPage = ({
           jobName={metadata.job_name}
           workflowName={metadata.workflow_name}
         />
-      </div>
+      </Section>
+      <Section>
+        <div>
+          <JobUtilizationSummary hardwareMetrics={hardwareMetrics} otherMetrics={otherMetrics} />
+        </div>
+      </Section>
       {timeSeriesList.length > 0 && (
-        <div className={styles.section}>
+        <Section>
           <h3>Utilization Time Series</h3>
-          <div className={styles.divider}></div>
+          <Divider />
           <LineRectChart
             inputLines={timeSeriesList}
             chartWidth={1200}
@@ -65,12 +100,12 @@ export const UtilizationPage = ({
             disableRect={true}
             lineFilterConfig={lineFilters}
           ></LineRectChart>
-        </div>
+        </Section>
       )}
       {testSegments.length > 0 && (
-        <div className={styles.section}>
+        <Section>
           <h3>Detected Python test details</h3>
-          <div className={styles.divider}></div>
+          <Divider />
           <LineRectChart
             inputLines={timeSeriesList}
             chartWidth={1200}
@@ -88,9 +123,9 @@ export const UtilizationPage = ({
               );
             })}
           </div>
-        </div>
+        </Section>
       )}
-    </div>
+    </MainPage>
   );
 };
 
@@ -108,19 +143,33 @@ const TestInformationSection = ({
   workflowName: string;
 }) => {
   return (
-    <div className={styles.section}>
+    <Section>
       <h1> Test Job Infomation</h1>
-      <div className={styles.divider}></div>
-      <div>
+      <Divider />
+      <PaperCard>
         <div>
-          <span>Workflow(run)Id:</span>
-          {workflowId}
+          <div>
+            <JobInfoTitle>Job Name:</JobInfoTitle>
+            <span>{jobName}</span>
+          </div>
+          <div>
+            <JobInfoTitle>Workflow Name:</JobInfoTitle>
+            <span>{workflowName}</span>
+          </div>
+          <div>
+            <JobInfoTitle>Workflow(run)Id:</JobInfoTitle>
+            <span>{workflowId}</span>
+          </div>
+          <div>
+            <JobInfoTitle>Job Id:</JobInfoTitle>
+            <span>{jobId}</span>
+          </div>
+          <div>
+            <JobInfoTitle>Attempt:</JobInfoTitle>
+            <span>{attempt}</span>
+          </div>
         </div>
-        <div>Job Id: {jobId} </div>
-        <div>Attempt: {attempt}</div>
-        <div>Job Name: {jobName}</div>
-        <div>Workflow Name: {workflowName}</div>
-      </div>
-    </div>
+      </PaperCard>
+    </Section>
   );
 };

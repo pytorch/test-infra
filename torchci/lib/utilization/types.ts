@@ -1,3 +1,4 @@
+
 export interface UtilizationParams {
   workflow_id: string;
   job_id: string;
@@ -9,6 +10,7 @@ export interface TimeSeriesDbData {
   data?: string | null;
   tags?: string[] | null;
 }
+
 
 export interface UtilizationMetadata {
   collect_interval: number;
@@ -34,10 +36,28 @@ export interface Segment {
 
 export interface UtilizationAPIResponse {
   metadata: UtilizationMetadata;
-  ts_list: { name: string; records: TimeSeriesDataPoint[] }[];
+  ts_list: TimeSeriesObject[];
+  hardware_metrics: Metrics[];
+  other_metrics: Metrics[];
+
+}
+
+export interface TimeSeriesObject {
+  name: string;
+  display_name: string;
+  records: TimeSeriesDataPoint[];
 }
 
 export interface TimeSeriesDataPoint {
   ts: string;
   value: number;
+}
+
+export interface Metrics {
+  display_name: string;
+  name: string;
+  value: number;
+  metric: string;
+  unit: string;
+  description?: string;
 }
