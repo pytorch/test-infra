@@ -173,6 +173,9 @@ def results_compare(args: argparse.Namespace) -> None:
         return
     query, tests = get_query(args.query, args.head)
     base_query, _ = get_query(args.query, args.base)
+    results_folder = REPO_ROOT / "_logs" / "query_results"
+    if not results_folder.exists():
+        results_folder.mkdir(parents=True)
     print(
         f"Comparing results for query: {args.query}\nNum tests: {len(tests)}\nHead: {args.head} Base: {args.base}"
     )
@@ -189,8 +192,11 @@ def results_compare(args: argparse.Namespace) -> None:
         if new_results != base_results:
             print(f"Results for test {i} differ")
             print(f"Test: {json.dumps(test, indent=2)}")
-            print(f"New: {new_results}")
-            print(f"Base: {base_results}")
+            with open(results_folder / f"{args.query}_{i}_new.json", "w") as f:
+                json.dump(new_results, f, indent=2)
+            with open(results_folder / f"{args.query}_{i}_base.json", "w") as f:
+                json.dump(base_results, f, indent=2)
+            print("Results can be found in the _logs/query_results folder")
             print()
         else:
             print(f"Results for test {i} match")

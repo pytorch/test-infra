@@ -6,13 +6,13 @@ WITH benchmarks AS (
         replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
         o.workflow_id AS workflow_id,
         o.job_id AS job_id,
-        o.model.name AS model,
-        o.model.backend AS backend,
-        o.model.origins AS origins,
-        o.metric.name AS metric,
-        floor(arrayAvg(o.metric.benchmark_values), 2) AS actual,
-        floor(toFloat64(o.metric.target_value), 2) AS target,
-        o.benchmark.dtype AS dtype,
+        o.model.'name' AS model,
+        o.model.'backend' AS backend,
+        o.model.'origins' AS origins,
+        o.metric.'name' AS metric,
+        floor(arrayAvg(o.metric.'benchmark_values'), 2) AS actual,
+        floor(toFloat64(o.metric.'target_value'), 2) AS target,
+        o.benchmark.'dtype' AS dtype,
         IF(
             empty(o.runners),
             tupleElement(o.benchmark, 'extra_info')['device'],
@@ -43,26 +43,26 @@ WITH benchmarks AS (
             OR empty({commits: Array(String) })
         )
         AND (
-            has({benchmarks: Array(String) }, o.benchmark.name)
+            o.benchmark.'name' in {benchmarks: Array(String) }
             OR empty({benchmarks: Array(String) })
         )
         AND (
-            has({models: Array(String) }, o.model.name)
+            has({models: Array(String) }, o.model.'name')
             OR empty({models: Array(String) })
         )
         AND (
-            has({backends: Array(String) }, o.model.backend)
+            has({backends: Array(String) }, o.model.'backend')
             OR empty({backends: Array(String) })
         )
         AND (
-            has({dtypes: Array(String) }, o.benchmark.dtype)
+            has({dtypes: Array(String) }, o.benchmark.'dtype')
             OR empty({dtypes: Array(String) })
         )
         AND (
-            NOT has({excludedMetrics: Array(String) }, o.metric.name)
+            NOT has({excludedMetrics: Array(String) }, o.metric.'name')
             OR empty({excludedMetrics: Array(String) })
         )
-        AND notEmpty(o.metric.name)
+        AND notEmpty(o.metric.'name')
 )
 
 SELECT DISTINCT
