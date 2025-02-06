@@ -1,4 +1,6 @@
+import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { UtilizationAPIResponse } from "lib/utilization/types";
 import { useRouter } from "next/router";
 import useSWRImmutable from "swr";
 
@@ -25,16 +27,12 @@ const Utilization = () => {
 
   return (
     <div>
-      <h1>API Data</h1>
-      <div>
-        workflowId:{workflowId}, JobId: {jobId}, attempt: {attempt}, job_name:{" "}
-        {data.metadata?.job_name}, workflow_name: {data.metadata?.workflow_name}
-      </div>
-      <div
-        style={{ maxWidth: "800px", whiteSpace: "pre-wrap", overflowX: "auto" }}
-      >
-        <pre>{JSON.stringify(data.metadata, null, 2)}</pre>
-      </div>
+      <UtilizationPage
+        workflowId={workflowId ? (workflowId as string) : ""}
+        jobId={jobId ? (jobId as string) : ""}
+        attempt={attempt ? (attempt as string) : ""}
+        data={data as UtilizationAPIResponse}
+      ></UtilizationPage>
     </div>
   );
 };

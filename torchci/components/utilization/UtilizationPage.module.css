@@ -1,0 +1,13 @@
+.page {
+  font-family: Verdana, sans-serif;
+}
+
+.divider {
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 20px;
+}
+
+.section {
+  margin: 10px;
+  padding: 10px;
+}
