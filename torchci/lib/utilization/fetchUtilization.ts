@@ -2,6 +2,7 @@ import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   TimeSeriesDataPoint,
   TimeSeriesDbData,
+  TimeSeriesWrapper,
   UtilizationAPIResponse,
   UtilizationMetadata,
   UtilizationParams,
@@ -43,9 +44,10 @@ export default async function fetchUtilization(
   );
   const tsMap = flattenTS(resp);
 
-  let tsList = [];
+  let tsList: TimeSeriesWrapper[] = [];
   for (const [key, value] of tsMap) {
-    tsList.push({ name: key, records: value });
+    const name = getDisplayName(key);
+    tsList.push({ id: key, name: name, records: value });
   }
 
   return {
@@ -83,6 +85,20 @@ async function getUtilizationMetadata(
     repo: DEFAULT_REPO,
   });
   return response;
+}
+
+function getDisplayName(name:string){
+  const tags = name.split("|");
+  if (tags.length <= 1) {
+    return name
+  }
+  if (tags[0].toLowerCase().includes("gpu")) {
+    if (name.includes("mem_util")) {
+      return `gpu_mem_${tags[1]}(${tags[tags.length - 1]})`;
+    }
+    return `gpu_${tags[1]}(${tags[tags.length - 1]})`;
+  }
+  return `${tags[0]}(${tags[tags.length - 1]})`
 }
 
 function getLatestMetadata(
@@ -165,7 +181,7 @@ function getDataPath(
       let next_path = formPath(path, `${idx}`);
       if (checkType(nextObj) == "object") {
         if (nextObj.uuid) {
-          next_path = formPath(path, nextObj.uuid);
+          next_path = formPath(path,`${idx}|uuid:${nextObj.uuid}`);
         }
       }
       getDataPath(nextObj, next_path, res);

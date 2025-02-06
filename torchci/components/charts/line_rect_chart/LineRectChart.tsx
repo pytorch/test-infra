@@ -8,14 +8,11 @@ import RenderSvgRects from "./component/RenderSvgRect";
 import { D3LineRecord, Line, PickerConfig, RectangleData } from "./lib/types";
 import { processLineData, processRectData, setDimensions } from "./lib/utils";
 import styles from "./LineChart.module.css";
+import { TimeSeriesWrapper } from "lib/utilization/types";
 
 type Props = {
   onDataChange?: (data: any) => void;
-  inputLines?: {
-    name: string;
-    records: { ts: string; value: number }[];
-    color?: string;
-  }[];
+  inputLines?:TimeSeriesWrapper[];
   rects?: {
     name: string;
     start_at: string;
@@ -49,6 +46,7 @@ const LineRectChart = ({
   });
   // line and rect states
   const [lines, setLines] = useState<Line[]>([]);
+  const [lineConfigs, setLineConfigs] = useState<{name:string, id:string, hidden:boolean}[]>([]);
   const [rectangles, setRectangles] = useState<RectangleData[]>([]);
 
   // tooltip state
@@ -63,13 +61,14 @@ const LineRectChart = ({
     position: { x: number; y: number };
   }>({ visible: false, content: null, position: { x: 0, y: 0 } });
 
-  const [lineCategory, setLineCategory] = useState<string>("");
-
   useEffect(() => {
     let lineData: Line[] = [];
     if (inputLines) {
       lineData = processLineData(inputLines);
       setLines(lineData);
+      setLineConfigs(lineData.map((line) => {
+        return {name:line.name, id:line.id, hidden:false}
+      }));
     }
 
     if (rects) {
@@ -126,9 +125,10 @@ const LineRectChart = ({
               transform={`translate(0,${dimensions.ctrHeight})`}
             />
             <g className="yAxis" />
-            <RenderSvgLines scales={scales} lines={lines} />
+            <RenderSvgLines scales={scales} lines={lines} lineConfigs={lineConfigs} />
             <RenderSvgLineTooltipElements
               lines={lines}
+              lineConfigs={lineConfigs}
               dimensions={dimensions}
               scales={scales}
               container={d3.select(svgRef.current).select(".container")}
@@ -157,10 +157,8 @@ const LineRectChart = ({
       </div>
       {lineFilterConfig && (
         <RenderLinePickerOptions
-          lines={lines}
-          setLines={setLines}
-          lineCategory={lineCategory}
-          setLineCategory={setLineCategory}
+          lines={lineConfigs}
+          setLines={setLineConfigs}
           lineFilterConfig={lineFilterConfig}
         />
       )}

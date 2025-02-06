@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Line, PickerConfig } from "../lib/types";
+import { containsAllSubstrings, Line, PickerConfig, PickerConfigType } from "../lib/types";
 import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
 import { CheckboxItem } from "./helpers/CheckboxGroup";
 import DropList from "./helpers/DropList";
@@ -8,64 +8,76 @@ import styles from "./RenderLineChartComponents.module.css";
 const RenderLinePickerOptions = ({
   lines,
   setLines,
-  lineCategory,
-  setLineCategory,
   lineFilterConfig,
 }: {
-  lines: Line[];
-  setLines: (line: Line[]) => void;
-  lineCategory: string;
-  setLineCategory: (category: string) => void;
+  lines: {name:string, id:string, hidden:boolean}[]
+  setLines: (line: any[]) => void;
   lineFilterConfig: PickerConfig[];
 }) => {
+  const [category, setCategory] = useState<string>("");
   const [options, setOptions] = useState<any>([]);
   const [groups, setGroups] = useState<any>([]);
 
   useEffect(() => {
+    render();
+  }, [lines, lineFilterConfig]);
+
+  function render(){
     let options = lineFilterConfig.map((config) => {
       return { value: config.category, name: config.category };
     });
     setOptions(options);
 
     const config = lineFilterConfig.find(
-      (item) => item.category == lineCategory
+      (item) => item.category == category
     );
     if (!config) {
       setGroups([]);
       return;
     }
-
     const res = config.types.map((type) => {
       return {
-        parentName: type,
-        childGroup: getChildGroup("line", type),
+        parentName: type.name,
+        childGroup: getChildGroup(type,lines),
       };
     });
     setGroups(res);
-  }, [lines, lineCategory, lineFilterConfig]);
+  }
 
-  const getChildGroup = (type: string, parentName: string) => {
-    if (type === "line") {
-      return lines
-        .filter((line) => line.name.includes(parentName))
+  function resetLines(){
+    const newLines = lines.map((line) => {
+      line.hidden = true;
+      return line;
+    });
+    setLines(newLines);
+  }
+
+  useEffect(() => {
+    resetLines();
+    render();
+
+  }, [category]);
+
+  const getChildGroup = (p:PickerConfigType, lines:{name:string, id:string, hidden:boolean}[]) => {
+      const res = lines
+        .filter((line) => containsAllSubstrings(line.id,p.tags))
         .map((line) => {
           return {
-            id: line.name,
+            id: line.id,
             name: line.name,
             checked: !line.hidden,
           };
         });
-    }
-    return [];
+      return res;
   };
 
   const changeLineCateory = (category: string) => {
-    setLineCategory(category);
+    setCategory(category);
   };
 
   const changeLineVisilibity = (checked: CheckboxItem[]) => {
     const newLines = lines.map((line) => {
-      const checkedItem = checked.find((item) => item.id === line.name);
+      const checkedItem = checked.find((item) => item.id === line.id);
       if (checkedItem) {
         line.hidden = !checkedItem.checked;
       }
@@ -73,6 +85,7 @@ const RenderLinePickerOptions = ({
     });
     setLines(newLines);
   };
+
   return (
     <div>
       {options.length > 0 && (

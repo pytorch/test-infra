@@ -21,9 +21,19 @@ export interface Line {
   records: D3LineRecord[];
   color?: string;
   hidden?: boolean;
+  id: string;
 }
 
 export interface PickerConfig {
   category: string;
-  types: string[];
+  types: PickerConfigType[];
+}
+
+export interface PickerConfigType{
+  name: string;
+  tags: string[];
+}
+
+export function containsAllSubstrings(mainString:string, substrings:string[]) {
+  return substrings.every(substring => mainString.includes(substring));
 }

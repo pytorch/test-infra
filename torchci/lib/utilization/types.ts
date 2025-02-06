@@ -34,7 +34,13 @@ export interface Segment {
 
 export interface UtilizationAPIResponse {
   metadata: UtilizationMetadata;
-  ts_list: { name: string; records: TimeSeriesDataPoint[] }[];
+  ts_list: TimeSeriesWrapper[];
+}
+
+export interface TimeSeriesWrapper {
+  id: string;
+  name: string;
+  records: TimeSeriesDataPoint[];
 }
 
 export interface TimeSeriesDataPoint {

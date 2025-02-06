@@ -1,5 +1,6 @@
 import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { UtilizationAPIResponse } from "lib/utilization/types";
 import { useRouter } from "next/router";
 import useSWRImmutable from "swr";
 
@@ -30,8 +31,7 @@ const Utilization = () => {
         workflowId={workflowId ? (workflowId as string) : ""}
         jobId={jobId ? (jobId as string) : ""}
         attempt={attempt ? (attempt as string) : ""}
-        lines={data?.ts_list}
-        metadata={data?.metadata}
+        data = {data as UtilizationAPIResponse}
       ></UtilizationPage>
     </div>
   );

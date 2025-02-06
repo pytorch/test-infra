@@ -10,6 +10,7 @@ import styles from "./RenderLineChartComponents.module.css";
  */
 const RenderSvgLineTooltipElements = ({
   lines,
+  lineConfigs,
   dimensions,
   scales,
   container,
@@ -17,18 +18,22 @@ const RenderSvgLineTooltipElements = ({
   setLineTooltip,
 }: {
   lines: Line[];
+  lineConfigs: any[];
   dimensions: any;
   scales: any;
   container: any;
   disableLineTooltip?: boolean;
   setLineTooltip: Dispatch<SetStateAction<any>>;
 }) => {
+
   const handleLineMouseMove = (event: React.MouseEvent) => {
     if (disableLineTooltip) {
       return;
     }
+
     d3HandleMouseMovement(
       lines,
+      lineConfigs,
       dimensions,
       scales.xScale,
       scales.yScale,
@@ -50,6 +55,7 @@ const RenderSvgLineTooltipElements = ({
   // then update the indicator line, circles and tooltip based on the data point.
   function d3HandleMouseMovement(
     lineList: Line[],
+    lineConfigs: any[],
     dimensions: any,
     xScale: any,
     yScale: any,
@@ -73,7 +79,8 @@ const RenderSvgLineTooltipElements = ({
 
     let lineDataMap = new Map<string, D3LineRecord>();
     for (const line of lineList) {
-      if (line.hidden) {
+      const config = lineConfigs.find((c) => c.id === line.id);
+      if (config == null || config.hidden) {
         continue;
       }
       const res = getRecordyDate(line.records, date);
@@ -143,7 +150,7 @@ export function RenderLineTooltipContent(
       <div>{formattedDate}</div>
       <div>
         {lineList.map((item) => {
-          if (item.hidden) {
+          if (!maps.has(item.name)) {
             return null;
           }
           const val = maps.get(item.name);

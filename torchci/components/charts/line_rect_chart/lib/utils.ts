@@ -1,5 +1,7 @@
 import * as d3 from "d3";
 import { D3LineRecord } from "./types";
+import { TimeSeriesWrapper } from "lib/utilization/types";
+import { getRandomColor } from "./color";
 
 export function setDimensions(chartWidth?: number) {
   let dimensions = {
@@ -17,13 +19,9 @@ export function setDimensions(chartWidth?: number) {
 }
 
 export function processLineData(
-  lines: {
-    name: string;
-    records: { ts: string; value: number }[];
-    color?: string;
-  }[]
+  lines: TimeSeriesWrapper[]
 ) {
-  return lines.map((el) => {
+  return lines.map((el,idx) => {
     return {
       name: el.name,
       records: el.records.map((el) => {
@@ -33,6 +31,9 @@ export function processLineData(
         };
         return record;
       }),
+      color: getRandomColor(idx),
+      hidden: false,
+      id: el.id,
     };
   });
 }
@@ -72,6 +73,9 @@ export function getRecordyDate(
   const idx = dateBisector(records, date);
   if (idx <= 0) {
     return records[0];
+  }
+  if (idx >= records.length) {
+    return records[records.length - 1];
   }
   return records[idx];
 }

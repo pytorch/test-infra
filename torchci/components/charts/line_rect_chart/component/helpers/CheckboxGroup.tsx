@@ -72,7 +72,7 @@ export default function CheckboxGroup({
         }
       />
       <Box sx={{ display: "flex", flexDirection: "column", ml: 3 }}>
-        {childGroup.map((child, idx) => {
+        {checkedChild.length>0 && checkedChild.map((child, idx) => {
           return (
             <FormControlLabel
               key={child.id}

@@ -32,4 +32,5 @@
 .linePickerGroup {
   height: 300px; /* fixed height */
   overflow-y: auto;
+  scrollbar-width: thin;
 }
