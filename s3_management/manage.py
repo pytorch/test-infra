@@ -382,7 +382,14 @@ class S3Index:
         out.append('  <body>')
         out.append('    <h1>Links for {}</h1>'.format(package_name.lower().replace("_", "-")))
         for obj in sorted(self.gen_file_list(subdir, package_name)):
+
             maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
+
+            # Temporary skip assigning sha256 to nightly index
+            # to be reverted on Jan 24, 2025.
+            if subdir is not None and "nightly" in subdir:
+                maybe_fragment = ""
+
             pep658_attribute = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
@@ -521,7 +528,6 @@ class S3Index:
 
     def fetch_metadata(self: S3IndexType) -> None:
         # Add PEP 503-compatible hashes to URLs to allow clients to avoid spurious downloads, if possible.
-        regex_multipart_upload = r"^[A-Za-z0-9+/=]+=-[0-9]+$"
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             for idx, future in {
                 idx: executor.submit(
@@ -534,17 +540,10 @@ class S3Index:
                 if obj.size is None
             }.items():
                 response = future.result()
-                raw = response.get("ChecksumSHA256")
-                if raw and match(regex_multipart_upload, raw):
-                    # Possibly part of a multipart upload, making the checksum incorrect
-                    print(f"WARNING: {self.objects[idx].orig_key} has bad checksum: {raw}")
-                    raw = None
-                sha256 = raw and base64.b64decode(raw).hex()
+                sha256 = (_b64 := response.get("ChecksumSHA256")) and base64.b64decode(_b64).hex()
                 # For older files, rely on checksum-sha256 metadata that can be added to the file later
                 if sha256 is None:
                     sha256 = response.get("Metadata", {}).get("checksum-sha256")
-                if sha256 is None:
-                    sha256 = response.get("Metadata", {}).get("x-amz-meta-checksum-sha256")
                 self.objects[idx].checksum = sha256
                 if size := response.get("ContentLength"):
                     self.objects[idx].size = int(size)
