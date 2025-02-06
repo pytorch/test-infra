@@ -141,7 +141,6 @@ runs:
           export CONDA_EXTRA_PARAM=""
 
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-            # For conda package host python version is irrelevant
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
             if [[ "$(uname)" != Darwin ]]; then
