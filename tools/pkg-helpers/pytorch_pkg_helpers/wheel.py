@@ -3,7 +3,7 @@ from typing import List
 
 def get_python_path_variables(python_version: str) -> List[str]:
     t = ""
-    if python_version.endswith('t'):
+    if python_version.endswith("t"):
         python_nodot = python_version[:-1].replace(".", "")
         t = "t"
     else:
