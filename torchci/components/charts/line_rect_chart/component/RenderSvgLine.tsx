@@ -5,7 +5,15 @@ import { D3LineRecord, Line } from "../lib/types";
 /**
  * handle svg line rendering for LineRectChart
  */
-const RenderSvgLines = ({ scales, lines, lineConfigs }: { scales: any; lines: Line[], lineConfigs:{name:string, id:string, hidden:boolean}[]}) => {
+const RenderSvgLines = ({
+  scales,
+  lines,
+  lineConfigs,
+}: {
+  scales: any;
+  lines: Line[];
+  lineConfigs: { name: string; id: string; hidden: boolean }[];
+}) => {
   const lineGenerator = d3
     .line<D3LineRecord>()
     .x((d: D3LineRecord) => scales.xScale(d.date))
@@ -15,7 +23,8 @@ const RenderSvgLines = ({ scales, lines, lineConfigs }: { scales: any; lines: Li
   return (
     <g className="lines-group">
       {lines.map((line, i) => {
-        const hidden = lineConfigs.find((config) => config.id === line.id)?.hidden??false;
+        const hidden =
+          lineConfigs.find((config) => config.id === line.id)?.hidden ?? false;
         return (
           <path
             key={i}

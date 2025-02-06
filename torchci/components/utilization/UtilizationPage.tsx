@@ -1,24 +1,33 @@
 import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
-import { UtilizationAPIResponse, UtilizationMetadata } from "lib/utilization/types";
+import {
+  UtilizationAPIResponse,
+  UtilizationMetadata,
+} from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import { getIgnoredSegmentName } from "./helper";
 import styles from "./UtilizationPage.module.css";
 
 const lineFilters: PickerConfig[] = [
-  { category: "all", types: [{name:"all",tags:["|"]}]},
-  { category: "all max", types: [{name:"max",tags:["max"]}]},
-  { category: "all average", types: [{name:"avg",tags:["avg"]}]},
-  { category: "gpu max", types: [{name:"gpu util",tags:["gpu","max","|util_percent"]}, {name:"gpu mem",tags:["gpu","max","|mem_util_percent"]}] },
-  { category: "cpu", types:[{name:"cpu",tags:["cpu"]}] },
-  { category: "memory", types:[{name:"memory",tags:["memory"]}] },
+  { category: "all", types: [{ name: "all", tags: ["|"] }] },
+  { category: "all max", types: [{ name: "max", tags: ["max"] }] },
+  { category: "all average", types: [{ name: "avg", tags: ["avg"] }] },
+  {
+    category: "gpu max",
+    types: [
+      { name: "gpu util", tags: ["gpu", "max", "|util_percent"] },
+      { name: "gpu mem", tags: ["gpu", "max", "|mem_util_percent"] },
+    ],
+  },
+  { category: "cpu", types: [{ name: "cpu", tags: ["cpu"] }] },
+  { category: "memory", types: [{ name: "memory", tags: ["memory"] }] },
 ];
 
 export const UtilizationPage = ({
   workflowId,
   jobId,
   attempt,
-  data
+  data,
 }: {
   workflowId: string;
   jobId: string;
@@ -45,23 +54,24 @@ export const UtilizationPage = ({
       }
       return true;
     });
-      setMetadata(util_metadata);
+    setMetadata(util_metadata);
     setTimeSeriesList(lines);
     setTestSegments(filteredSeg);
-
   }, [data]);
 
   return (
     <div className={styles.page}>
-      {metadata &&<div className={styles.section}>
-        <TestInformationSection
-          workflowId={workflowId}
-          jobId={jobId}
-          attempt={attempt}
-          jobName={metadata.job_name}
-          workflowName={metadata.workflow_name}
-        />
-      </div>}
+      {metadata && (
+        <div className={styles.section}>
+          <TestInformationSection
+            workflowId={workflowId}
+            jobId={jobId}
+            attempt={attempt}
+            jobName={metadata.job_name}
+            workflowName={metadata.workflow_name}
+          />
+        </div>
+      )}
       {timeSeriesList.length > 0 && (
         <div className={styles.section}>
           <h3>Utilization Time Series</h3>

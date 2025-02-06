@@ -25,7 +25,6 @@ const RenderSvgLineTooltipElements = ({
   disableLineTooltip?: boolean;
   setLineTooltip: Dispatch<SetStateAction<any>>;
 }) => {
-
   const handleLineMouseMove = (event: React.MouseEvent) => {
     if (disableLineTooltip) {
       return;
@@ -84,6 +83,10 @@ const RenderSvgLineTooltipElements = ({
         continue;
       }
       const res = getRecordyDate(line.records, date);
+      const diff = (res.date.getTime() - date.getTime()) / 1000;
+      if (diff > 10) {
+        continue;
+      }
       lineDataMap.set(line.name, res);
     }
     if (lineDataMap.size == 0) {
@@ -144,6 +147,7 @@ export function RenderLineTooltipContent(
   lineList: Line[],
   maps: Map<string, D3LineRecord>
 ) {
+  lineList.sort((a, b) => a.name.localeCompare(b.name));
   const formattedDate = formatDate(date);
   return (
     <div className={styles.tooltipline}>

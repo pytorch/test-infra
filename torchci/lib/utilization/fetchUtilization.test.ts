@@ -6,8 +6,8 @@ import { TimeSeriesDbData } from "./types";
 const TEST_GPU_USAGE_11 = {
   uuid: "uuid-1",
   util_percent: {
-    avg: 10,
-    max: 10,
+    avg: 0.0,
+    max: 0.0,
   },
   mem_util_percent: {
     avg: 10,
@@ -128,7 +128,7 @@ describe("Test flattenTS to flatten timestamp", () => {
       { ts: "2023-10-10 16:00:00", value: 20 },
     ]);
 
-    const gpu_1_max = res.get("gpu_usage|uuid-1|mem_util_percent|max");
+    const gpu_1_max = res.get("gpu_usage|0|uuid:uuid-1|mem_util_percent|max");
     expect(gpu_1_max).toEqual([
       { ts: "2023-10-10 13:00:00", value: 10 },
       { ts: "2023-10-10 16:00:00", value: 30 },
@@ -261,7 +261,8 @@ describe("fetchUtilization", () => {
     expect(result!.metadata).toEqual(mockMetadata);
     expect(result!.ts_list.length).toEqual(12);
     expect(result!.ts_list[0]).toEqual({
-      name: "cpu|avg",
+      name: "cpu(avg)",
+      id: "cpu|avg",
       records: [
         { ts: "2023-10-10 13:00:00", value: 10 },
         { ts: "2023-10-10 16:00:00", value: 20 },

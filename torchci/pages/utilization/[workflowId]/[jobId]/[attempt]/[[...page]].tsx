@@ -31,7 +31,7 @@ const Utilization = () => {
         workflowId={workflowId ? (workflowId as string) : ""}
         jobId={jobId ? (jobId as string) : ""}
         attempt={attempt ? (attempt as string) : ""}
-        data = {data as UtilizationAPIResponse}
+        data={data as UtilizationAPIResponse}
       ></UtilizationPage>
     </div>
   );

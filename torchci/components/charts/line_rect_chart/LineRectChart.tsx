@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { TimeSeriesWrapper } from "lib/utilization/types";
 import { useEffect, useRef, useState } from "react";
 import { TooltipElement } from "./component/helpers/Tooltip";
 import RenderLinePickerOptions from "./component/RenderLinePickerOptions";
@@ -8,11 +9,10 @@ import RenderSvgRects from "./component/RenderSvgRect";
 import { D3LineRecord, Line, PickerConfig, RectangleData } from "./lib/types";
 import { processLineData, processRectData, setDimensions } from "./lib/utils";
 import styles from "./LineChart.module.css";
-import { TimeSeriesWrapper } from "lib/utilization/types";
 
 type Props = {
   onDataChange?: (data: any) => void;
-  inputLines?:TimeSeriesWrapper[];
+  inputLines?: TimeSeriesWrapper[];
   rects?: {
     name: string;
     start_at: string;
@@ -46,7 +46,9 @@ const LineRectChart = ({
   });
   // line and rect states
   const [lines, setLines] = useState<Line[]>([]);
-  const [lineConfigs, setLineConfigs] = useState<{name:string, id:string, hidden:boolean}[]>([]);
+  const [lineConfigs, setLineConfigs] = useState<
+    { name: string; id: string; hidden: boolean }[]
+  >([]);
   const [rectangles, setRectangles] = useState<RectangleData[]>([]);
 
   // tooltip state
@@ -66,9 +68,11 @@ const LineRectChart = ({
     if (inputLines) {
       lineData = processLineData(inputLines);
       setLines(lineData);
-      setLineConfigs(lineData.map((line) => {
-        return {name:line.name, id:line.id, hidden:false}
-      }));
+      setLineConfigs(
+        lineData.map((line) => {
+          return { name: line.name, id: line.id, hidden: false };
+        })
+      );
     }
 
     if (rects) {
@@ -125,7 +129,11 @@ const LineRectChart = ({
               transform={`translate(0,${dimensions.ctrHeight})`}
             />
             <g className="yAxis" />
-            <RenderSvgLines scales={scales} lines={lines} lineConfigs={lineConfigs} />
+            <RenderSvgLines
+              scales={scales}
+              lines={lines}
+              lineConfigs={lineConfigs}
+            />
             <RenderSvgLineTooltipElements
               lines={lines}
               lineConfigs={lineConfigs}

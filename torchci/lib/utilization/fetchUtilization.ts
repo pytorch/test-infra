@@ -53,6 +53,7 @@ export default async function fetchUtilization(
   return {
     metadata: metadata,
     ts_list: tsList,
+    raw: resp,
   };
 }
 
@@ -87,10 +88,10 @@ async function getUtilizationMetadata(
   return response;
 }
 
-function getDisplayName(name:string){
+function getDisplayName(name: string) {
   const tags = name.split("|");
   if (tags.length <= 1) {
-    return name
+    return name;
   }
   if (tags[0].toLowerCase().includes("gpu")) {
     if (name.includes("mem_util")) {
@@ -98,7 +99,7 @@ function getDisplayName(name:string){
     }
     return `gpu_${tags[1]}(${tags[tags.length - 1]})`;
   }
-  return `${tags[0]}(${tags[tags.length - 1]})`
+  return `${tags[0]}(${tags[tags.length - 1]})`;
 }
 
 function getLatestMetadata(
@@ -166,11 +167,11 @@ function getDataPath(
     value: number;
   }[]
 ) {
-  if (!obj) {
+  if (obj == undefined || obj == null) {
     return;
   }
 
-  if (checkType(obj) === "number") {
+  if (checkType(obj) === "number" || obj === 0.0) {
     res.push({ name: path, value: obj });
     return;
   }
@@ -181,7 +182,7 @@ function getDataPath(
       let next_path = formPath(path, `${idx}`);
       if (checkType(nextObj) == "object") {
         if (nextObj.uuid) {
-          next_path = formPath(path,`${idx}|uuid:${nextObj.uuid}`);
+          next_path = formPath(path, `${idx}|uuid:${nextObj.uuid}`);
         }
       }
       getDataPath(nextObj, next_path, res);

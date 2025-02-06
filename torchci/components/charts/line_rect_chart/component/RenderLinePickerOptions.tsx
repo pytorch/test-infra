@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { containsAllSubstrings, Line, PickerConfig, PickerConfigType } from "../lib/types";
+import {
+  containsAllSubstrings,
+  PickerConfig,
+  PickerConfigType,
+} from "../lib/types";
 import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
 import { CheckboxItem } from "./helpers/CheckboxGroup";
 import DropList from "./helpers/DropList";
@@ -10,7 +14,7 @@ const RenderLinePickerOptions = ({
   setLines,
   lineFilterConfig,
 }: {
-  lines: {name:string, id:string, hidden:boolean}[]
+  lines: { name: string; id: string; hidden: boolean }[];
   setLines: (line: any[]) => void;
   lineFilterConfig: PickerConfig[];
 }) => {
@@ -22,15 +26,13 @@ const RenderLinePickerOptions = ({
     render();
   }, [lines, lineFilterConfig]);
 
-  function render(){
+  function render() {
     let options = lineFilterConfig.map((config) => {
       return { value: config.category, name: config.category };
     });
     setOptions(options);
 
-    const config = lineFilterConfig.find(
-      (item) => item.category == category
-    );
+    const config = lineFilterConfig.find((item) => item.category == category);
     if (!config) {
       setGroups([]);
       return;
@@ -38,13 +40,13 @@ const RenderLinePickerOptions = ({
     const res = config.types.map((type) => {
       return {
         parentName: type.name,
-        childGroup: getChildGroup(type,lines),
+        childGroup: getChildGroup(type, lines),
       };
     });
     setGroups(res);
   }
 
-  function resetLines(){
+  function resetLines() {
     const newLines = lines.map((line) => {
       line.hidden = true;
       return line;
@@ -55,20 +57,22 @@ const RenderLinePickerOptions = ({
   useEffect(() => {
     resetLines();
     render();
-
   }, [category]);
 
-  const getChildGroup = (p:PickerConfigType, lines:{name:string, id:string, hidden:boolean}[]) => {
-      const res = lines
-        .filter((line) => containsAllSubstrings(line.id,p.tags))
-        .map((line) => {
-          return {
-            id: line.id,
-            name: line.name,
-            checked: !line.hidden,
-          };
-        });
-      return res;
+  const getChildGroup = (
+    p: PickerConfigType,
+    lines: { name: string; id: string; hidden: boolean }[]
+  ) => {
+    const res = lines
+      .filter((line) => containsAllSubstrings(line.id, p.tags))
+      .map((line) => {
+        return {
+          id: line.id,
+          name: line.name,
+          checked: !line.hidden,
+        };
+      });
+    return res;
   };
 
   const changeLineCateory = (category: string) => {

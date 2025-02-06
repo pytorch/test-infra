@@ -29,11 +29,14 @@ export interface PickerConfig {
   types: PickerConfigType[];
 }
 
-export interface PickerConfigType{
+export interface PickerConfigType {
   name: string;
   tags: string[];
 }
 
-export function containsAllSubstrings(mainString:string, substrings:string[]) {
-  return substrings.every(substring => mainString.includes(substring));
+export function containsAllSubstrings(
+  mainString: string,
+  substrings: string[]
+) {
+  return substrings.every((substring) => mainString.includes(substring));
 }

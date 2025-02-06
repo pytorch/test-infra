@@ -35,6 +35,7 @@ export interface Segment {
 export interface UtilizationAPIResponse {
   metadata: UtilizationMetadata;
   ts_list: TimeSeriesWrapper[];
+  raw: any;
 }
 
 export interface TimeSeriesWrapper {

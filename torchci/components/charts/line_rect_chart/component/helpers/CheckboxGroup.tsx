@@ -72,20 +72,21 @@ export default function CheckboxGroup({
         }
       />
       <Box sx={{ display: "flex", flexDirection: "column", ml: 3 }}>
-        {checkedChild.length>0 && checkedChild.map((child, idx) => {
-          return (
-            <FormControlLabel
-              key={child.id}
-              label={child.name}
-              control={
-                <Checkbox
-                  checked={checkedChild[idx].checked}
-                  onChange={(evt) => handleChildChange(evt, idx)}
-                />
-              }
-            />
-          );
-        })}
+        {checkedChild.length > 0 &&
+          checkedChild.map((child, idx) => {
+            return (
+              <FormControlLabel
+                key={child.id}
+                label={child.name}
+                control={
+                  <Checkbox
+                    checked={checkedChild[idx].checked}
+                    onChange={(evt) => handleChildChange(evt, idx)}
+                  />
+                }
+              />
+            );
+          })}
       </Box>
     </Box>
   );

@@ -1,7 +1,7 @@
 import * as d3 from "d3";
-import { D3LineRecord } from "./types";
 import { TimeSeriesWrapper } from "lib/utilization/types";
 import { getRandomColor } from "./color";
+import { D3LineRecord } from "./types";
 
 export function setDimensions(chartWidth?: number) {
   let dimensions = {
@@ -18,10 +18,8 @@ export function setDimensions(chartWidth?: number) {
   return dimensions;
 }
 
-export function processLineData(
-  lines: TimeSeriesWrapper[]
-) {
-  return lines.map((el,idx) => {
+export function processLineData(lines: TimeSeriesWrapper[]) {
+  return lines.map((el, idx) => {
     return {
       name: el.name,
       records: el.records.map((el) => {
