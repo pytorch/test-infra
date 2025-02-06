@@ -145,7 +145,9 @@ runs:
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
             # Pin conda and conda-libmamba-solver for 3.13t build
-            conda install conda==24.7.1 conda-libmamba-solver=24.1.0
+            if [[ "$(uname)" != Darwin ]]; then
+              conda install conda==24.7.1 conda-libmamba-solver=24.1.0
+            fi
           fi
 
           conda create \
