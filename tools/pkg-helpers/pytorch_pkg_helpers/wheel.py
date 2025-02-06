@@ -3,8 +3,6 @@ from typing import List
 
 def get_python_path_variables(python_version: str) -> List[str]:
     t = ""
-    # For some reason python versions <= 3.7 require an m
-    # probably better not to ask why
     if python_version.endswith('t'):
         python_nodot = python_version[:-1].replace(".", "")
         t = "t"

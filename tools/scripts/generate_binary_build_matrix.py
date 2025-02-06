@@ -473,8 +473,7 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        # todo: remove before merging
-        python_versions = [python_versions[-1]]
+        python_versions = [python_versions[0]]
 
     global WHEEL_CONTAINER_IMAGES
 
@@ -486,8 +485,8 @@ def generate_wheels_matrix(
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
 
-            # TODO: Enable python 3.13t on xpu and cpu-s390x or MacOS or Windows
-            if (gpu_arch_type in ["xpu", "cpu-s390x"]) and python_version == "3.13t":
+            # TODO: Enable python 3.13t on xpu and cpu-s390x or Windows
+            if ((gpu_arch_type in ["xpu", "cpu-s390x"]) or os == WINDOWS ) and python_version == "3.13t":
                 continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
