@@ -497,6 +497,21 @@
     },
     {
       "python_version": "3.13t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.8",
+      "desired_cuda": "cu128",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.8",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13t-cuda12_8",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.6.0",
+      "use_split_build": false
+    },
+    {
+      "python_version": "3.13t",
       "gpu_arch_type": "rocm",
       "gpu_arch_version": "6.2.4",
       "desired_cuda": "rocm6.2.4",
