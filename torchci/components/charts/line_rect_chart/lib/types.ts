@@ -3,6 +3,7 @@ export interface RectangleData {
   start: Date;
   end: Date;
   color?: string;
+  opacity?: number;
 }
 
 export interface TimeData {

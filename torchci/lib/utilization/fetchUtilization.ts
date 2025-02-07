@@ -95,11 +95,11 @@ function getDisplayName(name: string) {
   }
   if (tags[0].toLowerCase().includes("gpu")) {
     if (name.includes("mem_util")) {
-      return `gpu_mem_${tags[1]}(${tags[tags.length - 1]})`;
+      return `gpu_${tags[1]}_mem`;
     }
-    return `gpu_${tags[1]}(${tags[tags.length - 1]})`;
+    return `gpu_${tags[1]}_util`;
   }
-  return `${tags[0]}(${tags[tags.length - 1]})`;
+  return `${tags[0]}`;
 }
 
 function getLatestMetadata(

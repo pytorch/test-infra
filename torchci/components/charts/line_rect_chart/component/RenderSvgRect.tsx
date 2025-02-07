@@ -5,6 +5,7 @@ import { formatDate } from "../lib/utils";
 import styles from "./RenderLineChartComponents.module.css";
 
 const RenderSvgRects = ({
+  onClickedRect,
   setRectTooltip,
   rectangles,
   disableRect,
@@ -21,6 +22,7 @@ const RenderSvgRects = ({
       };
     }>
   >;
+  onClickedRect: (id: any) => void;
   rectangles: RectangleData[];
   disableRect?: boolean;
   dimensions: any;
@@ -45,7 +47,9 @@ const RenderSvgRects = ({
     rectData: RectangleData
   ) => {
     if (disableRect) return;
-    //onDataChange(): todo handle the onclick event
+
+    console.log("RenderSvgRects", rectData);
+    onClickedRect(rectData.name);
   };
 
   // handle rect svg events
@@ -68,6 +72,7 @@ const RenderSvgRects = ({
           <rect
             key={i}
             className={`${styles.rect} rect`}
+            opacity={rec.opacity ? rec.opacity : 0.5}
             fill={rec.color ? rec.color : getRandomColor(i)}
             id={rec.name}
             display={disableRect ? "none" : "block"}

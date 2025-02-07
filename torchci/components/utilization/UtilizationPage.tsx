@@ -1,22 +1,24 @@
 import { PickerConfig } from "components/charts/line_rect_chart/lib/types";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import {
+  Segment,
   UtilizationAPIResponse,
   UtilizationMetadata,
 } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import { getIgnoredSegmentName } from "./helper";
-import styles from "./UtilizationPage.module.css";
+import { TestSectionView } from "./components/TestSectionView/TestSectionView";
+import JobUtilizationSummary from "./components/UtilizationJobSummary/UtilizationJobSummary";
+import { getIgnoredSegmentName, processStatsData } from "./helper";
+import { Divider, MainPage, Section } from "./styles";
+import { StatsInfo } from "./types";
 
 const lineFilters: PickerConfig[] = [
   { category: "all", types: [{ name: "all", tags: ["|"] }] },
-  { category: "all max", types: [{ name: "max", tags: ["max"] }] },
-  { category: "all average", types: [{ name: "avg", tags: ["avg"] }] },
   {
-    category: "gpu max",
+    category: "gpu",
     types: [
-      { name: "gpu util", tags: ["gpu", "max", "|util_percent"] },
-      { name: "gpu mem", tags: ["gpu", "max", "|mem_util_percent"] },
+      { name: "gpu util", tags: ["gpu", "|util_percent"] },
+      { name: "gpu mem", tags: ["gpu", "|mem_util_percent"] },
     ],
   },
   { category: "cpu", types: [{ name: "cpu", tags: ["cpu"] }] },
@@ -34,9 +36,15 @@ export const UtilizationPage = ({
   attempt: string;
   data: UtilizationAPIResponse;
 }) => {
-  const [testSegments, setTestSegments] = useState<any[]>([]);
+  const [testSegments, setTestSegments] = useState<Segment[]>([]);
   const [timeSeriesList, setTimeSeriesList] = useState<any[]>([]);
   const [metadata, setMetadata] = useState<any>();
+  const [summaryData, setSummaryData] = useState<any[]>([]);
+
+  // currently we only show data that is aggregated by max value during the data collection time interval.
+  // this makes sense for utilization to detect potential effieciency issues, later our ui
+  // can support other aggregation methods for analysis, it's very disruptive to add both in UI right now.
+  const aggregateType = "max";
 
   useEffect(() => {
     if (!data) {
@@ -45,6 +53,14 @@ export const UtilizationPage = ({
 
     const util_metadata = data.metadata as UtilizationMetadata;
     const lines = data.ts_list;
+
+    // currently we only show data that is aggregated by max value during the time interval
+    const filteredLines = lines.filter((line) =>
+      line.id.includes(aggregateType)
+    );
+
+    const jobStats: StatsInfo[] = processStatsData(filteredLines);
+
     const segments = util_metadata.segments;
     const filteredSeg = segments.filter((segment) => {
       for (const ignoreName of getIgnoredSegmentName()) {
@@ -55,27 +71,29 @@ export const UtilizationPage = ({
       return true;
     });
     setMetadata(util_metadata);
-    setTimeSeriesList(lines);
+    setTimeSeriesList(filteredLines);
     setTestSegments(filteredSeg);
+    setSummaryData(jobStats);
   }, [data]);
 
   return (
-    <div className={styles.page}>
-      {metadata && (
-        <div className={styles.section}>
-          <TestInformationSection
+    <MainPage>
+      <Section>
+        <div>
+          <JobUtilizationSummary
+            aggregateType={aggregateType}
+            metadata={metadata}
+            tableData={summaryData}
             workflowId={workflowId}
             jobId={jobId}
             attempt={attempt}
-            jobName={metadata.job_name}
-            workflowName={metadata.workflow_name}
           />
         </div>
-      )}
+      </Section>
       {timeSeriesList.length > 0 && (
-        <div className={styles.section}>
+        <Section>
           <h3>Utilization Time Series</h3>
-          <div className={styles.divider}></div>
+          <Divider />
           <LineRectChart
             inputLines={timeSeriesList}
             chartWidth={1200}
@@ -83,62 +101,16 @@ export const UtilizationPage = ({
             disableRect={true}
             lineFilterConfig={lineFilters}
           ></LineRectChart>
-        </div>
+        </Section>
       )}
-      {testSegments.length > 0 && (
-        <div className={styles.section}>
-          <h3>Detected Python test details</h3>
-          <div className={styles.divider}></div>
-          <LineRectChart
-            inputLines={timeSeriesList}
-            chartWidth={1200}
-            rects={testSegments}
-            disableLineTooltip={true}
-            disableRect={false}
-          ></LineRectChart>
-          <div>
-            <h4>Tests </h4>
-            {testSegments.map((segment) => {
-              return (
-                <div key={segment.name}>
-                  <div>{segment.name}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {testSegments.length > 0 && timeSeriesList.length > 0 && (
+        <Section>
+          <TestSectionView
+            testSegments={testSegments}
+            timeSeriesList={timeSeriesList}
+          />
+        </Section>
       )}
-    </div>
-  );
-};
-
-const TestInformationSection = ({
-  workflowId,
-  jobId,
-  attempt,
-  jobName,
-  workflowName,
-}: {
-  workflowId: string;
-  jobId: string;
-  attempt: string;
-  jobName: string;
-  workflowName: string;
-}) => {
-  return (
-    <div className={styles.section}>
-      <h1> Test Job Infomation</h1>
-      <div className={styles.divider}></div>
-      <div>
-        <div>
-          <span>Workflow(run)Id:</span>
-          {workflowId}
-        </div>
-        <div>Job Id: {jobId} </div>
-        <div>Attempt: {attempt}</div>
-        <div>Job Name: {jobName}</div>
-        <div>Workflow Name: {workflowName}</div>
-      </div>
-    </div>
+    </MainPage>
   );
 };
