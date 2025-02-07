@@ -165,7 +165,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions,
   // To avoid overlapping long legends and the chart
   legendPadding = 200,
-  onEvents
+  onEvents,
 }: {
   data: any;
   series: any;
@@ -176,7 +176,7 @@ export function TimeSeriesPanelWithData({
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
   legendPadding?: number;
-  onEvents?:{ [key: string]: any };
+  onEvents?: { [key: string]: any };
 }) {
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? legendPadding : 48;
