@@ -53,14 +53,14 @@ export const TestSectionView = ({
   function clickTest(id: string) {
     const segment = renderSegments.find((segment) => segment.name === id);
     if (segment) {
-      setPickedSegment({ opacity: 0.9, color: "grey", ...segment });
+      setPickedSegment({ opacity: 0.9, color: "red", ...segment });
     }
   }
 
   function handleListItemClick(name: string) {
     const seg = renderSegments.find((segment) => segment.name === name);
     if (!seg) return;
-    setShowSegmentLocation({ opacity: 0.9, color: "grey", ...seg });
+    setShowSegmentLocation({ opacity: 0.9, color: "red", ...seg });
     setSelectedListItem(name);
   }
 

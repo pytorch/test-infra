@@ -180,6 +180,7 @@ describe("Test flattenTS to flatten timestamp", () => {
       },
     ]);
 
+    // assert
     const resKeys = Array.from(res.keys());
     // assert map keys
     expect(resKeys.length).toEqual(4);
@@ -261,7 +262,7 @@ describe("fetchUtilization", () => {
     expect(result!.metadata).toEqual(mockMetadata);
     expect(result!.ts_list.length).toEqual(12);
     expect(result!.ts_list[0]).toEqual({
-      name: "cpu(avg)",
+      name: "cpu",
       id: "cpu|avg",
       records: [
         { ts: "2023-10-10 13:00:00", value: 10 },
