@@ -11,6 +11,17 @@ import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import { Divider, InfoTitle } from "../../styles";
 import { SingleTestView } from "./SingleTestView";
+import { ToggleGroup } from "components/common/ToggleGroup";
+
+const toggleItems = [
+  {
+    name: "list view", value: "list"
+  },
+  {
+    name: "chart view", value: "chart"
+  }
+]
+const defaultTestViewValue = 'list'
 
 export const TestList = styled(Paper)({
   margin: "10px",
@@ -42,6 +53,7 @@ export const TestSectionView = ({
   const [renderSegments, setRenderSegments] = useState<Segment[]>([]);
   const [showSegmentLocation, setShowSegmentLocation] = useState<any | null>();
   const [selectedListItem, setSelectedListItem] = useState<string | null>();
+  const [toggleTestView, setTestView] = useState<string>(defaultTestViewValue);
 
   useEffect(() => {
     const sorted = testSegments.sort((a, b) => {
@@ -50,18 +62,29 @@ export const TestSectionView = ({
     setRenderSegments(sorted);
   }, [testSegments, timeSeriesList]);
 
-  function clickTest(id: string) {
-    const segment = renderSegments.find((segment) => segment.name === id);
-    if (segment) {
-      setPickedSegment({ opacity: 0.9, color: "red", ...segment });
-    }
+  function clickChartTest(id: string) {
+    renderView(id)
   }
 
   function handleListItemClick(name: string) {
-    const seg = renderSegments.find((segment) => segment.name === name);
-    if (!seg) return;
-    setShowSegmentLocation({ opacity: 0.9, color: "red", ...seg });
-    setSelectedListItem(name);
+    renderView(name)
+  }
+
+  function renderView(id:string){
+    const segment = renderSegments.find((segment) => segment.name === id);
+    if (!segment) return;
+    setPickedSegment({ opacity: 0.9, color: "red", ...segment });
+    setSelectedListItem(segment.name);
+    setShowSegmentLocation({ opacity: 0.9, color: "red", ...segment });
+  }
+
+
+  function handleToggleTestView(value: string) {
+    const item = toggleItems.find((item) => item.value === value)
+    if (!item){
+      setTestView("list")
+    }
+    setTestView(value);
   }
 
   if (renderSegments.length === 0) return <div></div>;
@@ -76,7 +99,8 @@ export const TestSectionView = ({
           {`We detected (${renderSegments.length}) tests on python_CMD level,
           click on the test name to see the location of the test:`}
         </Description>
-        <FlexSection>
+        <ToggleGroup defaultValue={"list"} items={toggleItems} onChange={handleToggleTestView}/>
+        {toggleTestView=="list" &&(<FlexSection>
           <div>
             <TestList>
               <List>
@@ -113,10 +137,9 @@ export const TestSectionView = ({
               </div>
             )}
           </div>
-        </FlexSection>
+        </FlexSection>)}
       </div>
-      <div>
-        <InfoTitle> Single Test Details </InfoTitle>
+      {toggleTestView=="chart"&&<div>
         <Description>
           Click on the graph chart to see the test details.
         </Description>
@@ -126,9 +149,10 @@ export const TestSectionView = ({
           rects={renderSegments}
           disableLineTooltip={true}
           disableRect={false}
-          onClickedRect={clickTest}
+          onClickedRect={clickChartTest}
         ></LineRectChart>
-        <div>
+      </div>}
+      <div>
           {pickedSegment && (
             <div>
               <SingleTestView
@@ -138,7 +162,6 @@ export const TestSectionView = ({
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };
