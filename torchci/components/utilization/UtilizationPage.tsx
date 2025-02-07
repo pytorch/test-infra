@@ -8,8 +8,9 @@ import {
 import { useEffect, useState } from "react";
 import { TestSectionView } from "./components/TestSectionView/TestSectionView";
 import JobUtilizationSummary from "./components/UtilizationJobSummary/UtilizationJobSummary";
-import { getIgnoredSegmentName, processStatsData, StatsInfo } from "./helper";
+import { getIgnoredSegmentName, processStatsData } from "./helper";
 import { Divider, MainPage, Section } from "./styles";
+import { StatsInfo } from "./types";
 
 const lineFilters: PickerConfig[] = [
   { category: "all", types: [{ name: "all", tags: ["|"] }] },
