@@ -8,8 +8,11 @@ WINDOWS_PATH_PREFIX = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v"
 
 
 def get_cuda_arch_list(sanitized_version: str) -> str:
+    base_arch_list = "5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0"
     if float(sanitized_version) >= 12.0:
-        return "5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0;10.0;12.0"
+        if sanitized_version == "12.8":
+            return base_arch_list + ";10.0;12.0"
+        return base_arch_list
     if float(sanitized_version) > 11.3:
         return "3.5;5.0+PTX;6.0;7.0;7.5;8.0;8.6"
     # mainly for cuda 10.2
