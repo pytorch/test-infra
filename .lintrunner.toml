@@ -173,6 +173,8 @@ exclude_patterns = [
     '.lintrunner.toml',
     '**/fixtures/**',
     '**/snapshots/**',
+    '.github/actions/download-artifact-s3/dist/index.js',
+    '.github/actions/upload-artifact-s3/dist/index.js',
     '.github/actions/setup-ssh/index.js',
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
