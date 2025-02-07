@@ -73,8 +73,8 @@ export const TestSectionView = ({
       <div>
         <InfoTitle>Tests ({renderSegments.length}) </InfoTitle>
         <Description>
-          We've detected ({renderSegments.length}) tests on python_CMD level,
-          click on the test name to see the location of the test:
+          {`We detected (${renderSegments.length}) tests on python_CMD level,
+          click on the test name to see the location of the test:`}
         </Description>
         <FlexSection>
           <div>
