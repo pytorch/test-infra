@@ -21,7 +21,7 @@ export default function DropDownList({
     if (defaultValue) {
       setValue(defaultValue);
     } else {
-      setValue("unkown");
+      setValue("none");
     }
   }, [defaultValue]);
 
@@ -34,7 +34,7 @@ export default function DropDownList({
       <FormControl sx={{ m: 1, minWidth: 80 }}>
         <Select value={value} onChange={handleChange} autoWidth>
           {defaultValue == undefined ? (
-            <MenuItem value="unkown"></MenuItem>
+            <MenuItem value="none">None</MenuItem>
           ) : null}
           {options.map((option, idx) => {
             return (
