@@ -15,7 +15,7 @@ import { SingleTestView } from "./SingleTestView";
 export const TestList = styled(Paper)({
   margin: "10px",
   padding: "10px",
-  maxHeight: 500,
+  maxHeight: 300,
   maxWidth: 800,
   overflow: "auto",
   backgroundColor: "#f5f5f5",
@@ -65,9 +65,10 @@ export const TestSectionView = ({
   }
 
   if (renderSegments.length === 0) return <div></div>;
+
   return (
     <div>
-      <h3>Detected Python test details</h3>
+      <h3>Detected python test details</h3>
       <Divider />
       <div>
         <InfoTitle>Tests ({renderSegments.length}) </InfoTitle>
@@ -77,10 +78,11 @@ export const TestSectionView = ({
         </Description>
         <FlexSection>
           <div>
-            <TestList style={{ maxHeight: 500, overflow: "auto" }}>
+            <TestList>
               <List>
                 {renderSegments.map((segment) => (
                   <ListItemButton
+                    dense
                     key={segment.name}
                     disableGutters
                     onClick={() => handleListItemClick(segment.name)}
