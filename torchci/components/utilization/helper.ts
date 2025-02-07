@@ -77,6 +77,9 @@ export function getTimeSeriesStats(dps: TimeSeriesDataPoint[]) {
   const p10Metric = getPercentile(records, 10);
   results.push(p10Metric);
 
+  const p50Metric = getPercentile(records, 50);
+  results.push(p50Metric);
+
   const p90Metric = getPercentile(records, 90);
   results.push(p90Metric);
 

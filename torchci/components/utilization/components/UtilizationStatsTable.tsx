@@ -8,6 +8,7 @@ export default function UtilizationStatsTable({ data }: { data: any[] }) {
       id: row.name,
       avg: row.columns.find((col: any) => col.type == StatType.Average)?.value,
       p10: row.columns.find((col: any) => col.type == StatType.P10)?.value,
+      p50: row.columns.find((col: any) => col.type == StatType.P50)?.value,
       p90: row.columns.find((col: any) => col.type == StatType.P90)?.value,
       spike_frequency: row.columns.find(
         (col: any) => col.type == StatType.SpikeFrequency
@@ -55,6 +56,12 @@ const columns: GridColDef[] = [
   {
     field: "p10",
     headerName: "10th percentile",
+    valueFormatter: valueFormatter,
+    minWidth: 150,
+  },
+  {
+    field: "p50",
+    headerName: "50th percentile (median)",
     valueFormatter: valueFormatter,
     minWidth: 150,
   },

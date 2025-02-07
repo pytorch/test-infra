@@ -1,6 +1,7 @@
 export enum StatType {
   Average = "average",
   Max = "max",
+  P50 = "p50",
   P10 = "p10",
   P90 = "p90",
   SpikeFrequency = "spike_frequency",
