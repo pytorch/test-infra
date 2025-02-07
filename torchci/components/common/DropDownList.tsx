@@ -6,7 +6,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
-export default function SimpleDropList({
+export default function DropDownList({
   onChange,
   defaultValue,
   options,
