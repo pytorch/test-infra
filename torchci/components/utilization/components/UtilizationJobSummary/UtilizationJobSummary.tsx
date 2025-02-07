@@ -1,5 +1,6 @@
-import { styled } from "@mui/material";
+import { Paper, styled } from "@mui/material";
 import { getDurationMetrics } from "components/utilization/helper";
+import { InfoTitle } from "components/utilization/styles";
 import { UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import SingleValueGauge from "../SingleValueGauge";
@@ -13,6 +14,17 @@ const ContainerSection = styled("div")({
 const SectionTitle = styled("div")({
   fontSize: "20px",
   margin: "10px",
+});
+
+const AggregationTypeText = styled("div")({
+  margin: "20px",
+});
+
+const AggregationModeInfo = styled(Paper)({
+  margin: "5px",
+  padding: "10px",
+  fontSize: "16px",
+  maxWidth: "1000px",
 });
 
 const StatsTable = styled("div")({
@@ -39,12 +51,14 @@ const Divider = styled("div")({
 });
 
 const JobUtilizationSummary = ({
+  aggregateType,
   metadata,
   tableData,
   workflowId,
   jobId,
   attempt,
 }: {
+  aggregateType: string;
   metadata: UtilizationMetadata;
   tableData: any[];
   workflowId: string;
@@ -96,6 +110,20 @@ const JobUtilizationSummary = ({
           })}
         </MetadataGroupSection>
       </ContainerSection>
+      <AggregationModeInfo>
+        <InfoTitle>Data Aggregation Mode: {aggregateType}</InfoTitle>
+        <AggregationTypeText>
+          <p>All resource name has ({aggregateType}) label in this page.</p>
+          {aggregateType === "max" && (
+            <p>
+              {`
+              During data collection (every ${metadata.collect_interval} seconds),
+              we aggregate utilization data by selecting the maximum value.
+              We have two aggregation modes: max and avg. Currently we only support max aggregation view.`}
+            </p>
+          )}
+        </AggregationTypeText>
+      </AggregationModeInfo>
       <StatsTable>
         <SectionTitle> Job Metrics Summary Table</SectionTitle>
         <UtilizationStatsTable data={tableData} />

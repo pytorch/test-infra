@@ -41,6 +41,11 @@ export const UtilizationPage = ({
   const [metadata, setMetadata] = useState<any>();
   const [summaryData, setSummaryData] = useState<any[]>([]);
 
+  // currently we only show data that is aggregated by max value during the data collection time interval.
+  // this makes sense for utilization to detect potential effieciency issues, later our ui
+  // can support other aggregation methods for analysis, it's very disruptive to add both in UI right now.
+  const aggregateType = "max";
+
   useEffect(() => {
     if (!data) {
       return;
@@ -49,9 +54,10 @@ export const UtilizationPage = ({
     const util_metadata = data.metadata as UtilizationMetadata;
     const lines = data.ts_list;
 
-    // currently we only show data that is aggregated by max of the time interval
-    // this makes sense for utilization to detect potential effieciency issues.
-    const filteredLines = lines.filter((line) => line.id.includes("max"));
+    // currently we only show data that is aggregated by max value during the time interval
+    const filteredLines = lines.filter((line) =>
+      line.id.includes(aggregateType)
+    );
 
     const jobStats: StatsInfo[] = processStatsData(filteredLines);
 
@@ -75,6 +81,7 @@ export const UtilizationPage = ({
       <Section>
         <div>
           <JobUtilizationSummary
+            aggregateType={aggregateType}
             metadata={metadata}
             tableData={summaryData}
             workflowId={workflowId}
