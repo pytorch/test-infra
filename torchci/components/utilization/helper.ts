@@ -4,7 +4,7 @@ import {
   TimeSeriesWrapper,
 } from "lib/utilization/types";
 import { sortBy } from "lodash";
-import { DefaultCollectIntervalSeconds, StatsInfo, StatType } from "./types";
+import { DefaultOneSecond, StatsInfo, StatType } from "./types";
 
 export function findClosestDate(targetDate: Date, dates: Date[]): number {
   if (dates.length === 0) {
@@ -217,20 +217,21 @@ export function getDuration(segment: Segment) {
   let res =
     (toDate(segment.end_at).getTime() - toDate(segment.start_at).getTime()) /
     1000;
-  if (res == 0) {
-    return DefaultCollectIntervalSeconds;
-  }
   return res;
 }
 
 export function formatSeconds(seconds: number) {
+  // this normally means the test is detected during the aggregation proccess for a test interval, so we show <5s
+  if (seconds == 0) {
+    return "< 5s";
+  }
   if (seconds < 60) {
     return seconds + "s";
   }
 
   if (seconds < 60 * 60) {
-    return (seconds / 60).toFixed(2) + "m";
+    return (seconds / 60).toFixed(2) + "mins";
   }
 
-  return (seconds / 3600).toFixed(2) + "h";
+  return (seconds / 3600).toFixed(2) + "hs";
 }

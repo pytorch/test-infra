@@ -1,9 +1,9 @@
 import { styled } from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import {
-  getDurationMetrics,
+  formatSeconds,
+  getDuration,
   getSegmentStatsAndTimeSeries,
-  toDate,
 } from "components/utilization/helper";
 import {
   InfoCard,
@@ -12,7 +12,7 @@ import {
 } from "components/utilization/styles";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import UtilizationJobMetricsTable from "../UtilizationJobMetricsTable";
+import UtilizationJobMetricsTable from "../UtilizationStatsTable";
 
 const StatsTable = styled("div")({
   width: "1200px",
@@ -86,17 +86,7 @@ export const SingleTestView = ({
         </InfoSection>
         <InfoSection>
           <InfoTitle>Test Duration:</InfoTitle>
-          <span>
-            {
-              getDurationMetrics(
-                toDate(testSegment.start_at),
-                toDate(testSegment.end_at),
-                "duration",
-                "sec"
-              ).metrics.value
-            }{" "}
-            secs
-          </span>
+          <span>{formatSeconds(getDuration(testSegment))}</span>
         </InfoSection>
         <InfoSection>
           <InfoTitle>Test Start:</InfoTitle>

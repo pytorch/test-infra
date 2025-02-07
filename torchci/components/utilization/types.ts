@@ -1,4 +1,4 @@
-export const DefaultCollectIntervalSeconds = 5;
+export const DefaultOneSecond = 1;
 
 export enum StatType {
   Average = "average",

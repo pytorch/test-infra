@@ -2,7 +2,7 @@ import { Paper } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { StatType } from "../types";
 
-export default function UtilizationJobMetricsTable({ data }: { data: any[] }) {
+export default function UtilizationStatsTable({ data }: { data: any[] }) {
   const rows = data.map((row) => {
     return {
       id: row.name,

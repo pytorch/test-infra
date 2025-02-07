@@ -3,30 +3,8 @@ import { getDurationMetrics } from "components/utilization/helper";
 import { UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import SingleValueGauge from "../SingleValueGauge";
-import UtilizationJobMetricsTable from "../UtilizationJobMetricsTable";
+import UtilizationStatsTable from "../UtilizationStatsTable";
 import { UtilizationJobInformation } from "./UtilizationJobInformation";
-
-function getNumericMetrics(metadata: UtilizationMetadata) {
-  let list = [];
-  const keys = Object.keys(metadata);
-  for (const key of keys) {
-    const name = key.split("_").join(" ");
-    const value = metadata[key as keyof UtilizationMetadata];
-    if (typeof value === "number") {
-      list.push({
-        name: name,
-        metrics: {
-          name: name,
-          id: key,
-          value: value,
-          metric: "numeric",
-          unit: key.includes("interval") ? "secs" : "",
-        },
-      });
-    }
-  }
-  return list;
-}
 
 const ContainerSection = styled("div")({
   display: "flex",
@@ -37,7 +15,7 @@ const SectionTitle = styled("div")({
   margin: "10px",
 });
 
-const MetricsTable = styled("div")({
+const StatsTable = styled("div")({
   width: "1200px",
   margin: "10px",
 });
@@ -85,7 +63,7 @@ const JobUtilizationSummary = ({
       "Job Duration",
       "job|duration"
     );
-    const numeric_metrics = getNumericMetrics(metadata);
+    const numeric_metrics = getMetadataStats(metadata);
     const mdm = [duration, ...numeric_metrics];
     setMetadataGroup(mdm);
   }, [metadata]);
@@ -118,11 +96,33 @@ const JobUtilizationSummary = ({
           })}
         </MetadataGroupSection>
       </ContainerSection>
-      <MetricsTable>
+      <StatsTable>
         <SectionTitle> Job Metrics Summary Table</SectionTitle>
-        <UtilizationJobMetricsTable data={tableData} />
-      </MetricsTable>
+        <UtilizationStatsTable data={tableData} />
+      </StatsTable>
     </div>
   );
 };
 export default JobUtilizationSummary;
+
+function getMetadataStats(metadata: UtilizationMetadata) {
+  let list = [];
+  const keys = Object.keys(metadata);
+  for (const key of keys) {
+    const name = key.split("_").join(" ");
+    const value = metadata[key as keyof UtilizationMetadata];
+    if (typeof value === "number") {
+      list.push({
+        name: name,
+        metrics: {
+          name: name,
+          id: key,
+          value: value,
+          metric: "numeric",
+          unit: key.includes("interval") ? "secs" : "",
+        },
+      });
+    }
+  }
+  return list;
+}
