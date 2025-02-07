@@ -80,7 +80,9 @@ export const SingleTestView = ({
         </InfoSection>
         <InfoSection>
           <InfoTitle>Github search :</InfoTitle>
-          <span><a href={getGithubSearchLink(testSegment.name)}>link</a></span>
+          <span>
+            <a href={getGithubSearchLink(testSegment.name)}>link</a>
+          </span>
         </InfoSection>
         <InfoSection>
           <InfoTitle>Test Duration:</InfoTitle>
@@ -138,12 +140,11 @@ export const SingleTestView = ({
   );
 };
 
-
-function getGithubSearchLink(testName:string){
-    const head = "https://github.com/search?q=repo%3Apytorch%2Fpytorch%20%20"
-    const repo = `${testName}`;
-    const encodedString = encodeURIComponent(repo);
-    const url = head+`"`+encodedString+`"&type=code`;
-    console.log(url);
-    return url;
-  }
+function getGithubSearchLink(testName: string) {
+  const head = "https://github.com/search?q=repo%3Apytorch%2Fpytorch%20%20";
+  const repo = `${testName}`;
+  const encodedString = encodeURIComponent(repo);
+  const url = head + `"` + encodedString + `"&type=code`;
+  console.log(url);
+  return url;
+}

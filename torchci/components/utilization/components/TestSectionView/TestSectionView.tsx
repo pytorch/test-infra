@@ -1,5 +1,12 @@
-import { List, ListItem, ListItemButton, ListItemText, Paper, styled } from "@mui/material";
+import {
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  styled,
+} from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
+import { formatSeconds, getDuration } from "components/utilization/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import { Divider, InfoTitle } from "../../styles";
@@ -14,14 +21,14 @@ export const TestList = styled(Paper)({
   backgroundColor: "#f5f5f5",
 });
 export const FlexSection = styled("div")({
-    margin: "5px",
-    display: "flex",
+  margin: "5px",
+  display: "flex",
 });
 
-export const Description = styled('div')({
-    margin: "10px",
-    padding: "10px",
-    fontSize: "20px",
+export const Description = styled("div")({
+  margin: "10px",
+  padding: "10px",
+  fontSize: "20px",
 });
 
 export const TestSectionView = ({
@@ -33,12 +40,15 @@ export const TestSectionView = ({
 }) => {
   const [pickedSegment, setPickedSegment] = useState<Segment | null>();
   const [renderSegments, setRenderSegments] = useState<Segment[]>([]);
-  const [showSegmentLocation, setShowSegmentLocation] = useState<Segment | null>();
-  const [selectedListItem, setSelectedListItem] = useState(null)
-
+  const [showSegmentLocation, setShowSegmentLocation] =
+    useState<Segment | null>();
+  const [selectedListItem, setSelectedListItem] = useState<string | null>();
 
   useEffect(() => {
-    setRenderSegments(testSegments);
+    const sorted = testSegments.sort((a, b) => {
+      return getDuration(b) - getDuration(a);
+    });
+    setRenderSegments(sorted);
   }, [testSegments, timeSeriesList]);
 
   function clickTest(id: string) {
@@ -48,8 +58,10 @@ export const TestSectionView = ({
     }
   }
 
-  function handleListItemClick(name:string) {
-    setShowSegmentLocation(renderSegments.find((segment) => segment.name === name));
+  function handleListItemClick(name: string) {
+    setShowSegmentLocation(
+      renderSegments.find((segment) => segment.name === name)
+    );
     setSelectedListItem(name);
   }
 
@@ -61,59 +73,71 @@ export const TestSectionView = ({
       <div>
         <InfoTitle>Tests ({renderSegments.length}) </InfoTitle>
         <Description>
-          We've detected ({renderSegments.length}) tests on python_CMD level, click on the test name to see the location of the test:
+          We've detected ({renderSegments.length}) tests on python_CMD level,
+          click on the test name to see the location of the test:
         </Description>
         <FlexSection>
-        <div>
-          <TestList style={{ maxHeight: 500, overflow: "auto" }}>
-            <List>
-              {renderSegments.map((segment) => (
-                <ListItemButton key={segment.name} disableGutters onClick={() => handleListItemClick(segment.name)} selected={segment.name == selectedListItem}>
-                  <ListItemText primary={`${segment.name}`} />
-                </ListItemButton>
-              ))}
-            </List>
-          </TestList>
-        </div>
-        <div>
-        {showSegmentLocation && (
-        <div>
-           <div> Location of the test: </div>
-          <LineRectChart
-            inputLines={timeSeriesList}
-            chartWidth={800}
-            rects={[showSegmentLocation]}
-            disableLineTooltip={true}
-            disableRect={false}
-          ></LineRectChart>
-          </div>)}
-        </div>
+          <div>
+            <TestList style={{ maxHeight: 500, overflow: "auto" }}>
+              <List>
+                {renderSegments.map((segment) => (
+                  <ListItemButton
+                    key={segment.name}
+                    disableGutters
+                    onClick={() => handleListItemClick(segment.name)}
+                    selected={segment.name == selectedListItem}
+                  >
+                    <ListItemText
+                      primary={`${segment.name}`}
+                      secondary={`Duration ${formatSeconds(
+                        getDuration(segment)
+                      )}`}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            </TestList>
+          </div>
+          <div>
+            {showSegmentLocation && (
+              <div>
+                <div> Location of the test: </div>
+                <LineRectChart
+                  inputLines={timeSeriesList}
+                  chartWidth={800}
+                  rects={[showSegmentLocation]}
+                  disableLineTooltip={true}
+                  disableRect={false}
+                ></LineRectChart>
+              </div>
+            )}
+          </div>
         </FlexSection>
       </div>
       <div>
-      <InfoTitle> Single Test Details </InfoTitle>
-      <Description>
-        Click on the graph chart to see the test details.
-      </Description>
-      <LineRectChart
-        inputLines={timeSeriesList}
-        chartWidth={1200}
-        rects={renderSegments}
-        disableLineTooltip={true}
-        disableRect={false}
-        onClickedRect={clickTest}
-      ></LineRectChart>
-      <div>
-        {pickedSegment && (
-          <div>
-            <SingleTestView
-              testSegment={pickedSegment}
-              timeSeriesList={timeSeriesList}
-            />
-          </div>
-        )}
+        <InfoTitle> Single Test Details </InfoTitle>
+        <Description>
+          Click on the graph chart to see the test details.
+        </Description>
+        <LineRectChart
+          inputLines={timeSeriesList}
+          chartWidth={1200}
+          rects={renderSegments}
+          disableLineTooltip={true}
+          disableRect={false}
+          onClickedRect={clickTest}
+        ></LineRectChart>
+        <div>
+          {pickedSegment && (
+            <div>
+              <SingleTestView
+                testSegment={pickedSegment}
+                timeSeriesList={timeSeriesList}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </div>
   );
 };

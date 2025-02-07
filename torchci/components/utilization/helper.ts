@@ -157,15 +157,6 @@ function getPercentile(records: number[], p: number) {
   };
 }
 
-export enum StatType {
-  Average = "average",
-  Max = "max",
-  P10 = "p10",
-  P90 = "p90",
-  SpikeFrequency = "spike_frequency",
-  SpikeAvgInterval = "spike_avg_interval",
-}
-
 export function toDate(timestamp: string): Date {
   return new Date(timestamp);
 }
@@ -221,14 +212,24 @@ export function getSegmentStatsAndTimeSeries(
   return { stats, timeSeries: testTsList };
 }
 
-export interface StatsItem {
-  type: string;
-  value: number;
-  unit: string;
+export function getDuration(segment: Segment) {
+  let res =
+    (toDate(segment.end_at).getTime() - toDate(segment.start_at).getTime()) /
+    1000;
+  if (res == 0) {
+    return DefaultCollectIntervalSeconds;
+  }
+  return res;
 }
 
-export interface StatsInfo {
-  name: string;
-  id: string;
-  columns: StatsItem[];
+export function formatSeconds(seconds: number) {
+  if (seconds < 60) {
+    return seconds + "s";
+  }
+
+  if (seconds < 60 * 60) {
+    return (seconds / 60).toFixed(2) + "m";
+  }
+
+  return (seconds / 3600).toFixed(2) + "h";
 }
