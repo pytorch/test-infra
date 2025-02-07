@@ -8,6 +8,7 @@ import {
   Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
+import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -172,7 +173,7 @@ function GraphPanel({
       trigger: "item",
       formatter: (params: any) =>
         `${params.seriesName}` +
-        `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
+        `<br/>${formatTimeForCharts(params.value[0])}<br/>` +
         `${getTooltipMarker(params.color)}` +
         `<b>${params.value[1]}</b>`,
     },

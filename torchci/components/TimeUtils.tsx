@@ -67,3 +67,12 @@ export function durationDisplay(seconds: number): string {
   const days = hours / 24.0;
   return days.toFixed(1) + "d";
 }
+
+export const TIME_DISPLAY_FORMAT = "M/D h:mm:ss A";
+
+export function formatTimeForCharts(
+  time: string,
+  format = TIME_DISPLAY_FORMAT
+) {
+  return dayjs.utc(time).local().format(format);
+}
