@@ -9,7 +9,7 @@ on:
         type: string
       timeout:
         description: 'Timeout for the job (in minutes)'
-        default: 90
+        default: 120
         type: number
       runner:
         description: 'Runner type to utilize'
