@@ -6,22 +6,24 @@ import {
   styled,
 } from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
+import { ToggleGroup } from "components/common/ToggleGroup";
 import { formatSeconds, getDuration } from "components/utilization/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import { Divider, InfoTitle } from "../../styles";
 import { SingleTestView } from "./SingleTestView";
-import { ToggleGroup } from "components/common/ToggleGroup";
 
 const toggleItems = [
   {
-    name: "list view", value: "list"
+    name: "list view",
+    value: "list",
   },
   {
-    name: "chart view", value: "chart"
-  }
-]
-const defaultTestViewValue = 'list'
+    name: "chart view",
+    value: "chart",
+  },
+];
+const defaultTestViewValue = "list";
 
 export const TestList = styled(Paper)({
   margin: "10px",
@@ -63,14 +65,14 @@ export const TestSectionView = ({
   }, [testSegments, timeSeriesList]);
 
   function clickChartTest(id: string) {
-    renderView(id)
+    renderView(id);
   }
 
   function handleListItemClick(name: string) {
-    renderView(name)
+    renderView(name);
   }
 
-  function renderView(id:string){
+  function renderView(id: string) {
     const segment = renderSegments.find((segment) => segment.name === id);
     if (!segment) return;
     setPickedSegment({ opacity: 0.9, color: "red", ...segment });
@@ -78,11 +80,10 @@ export const TestSectionView = ({
     setShowSegmentLocation({ opacity: 0.9, color: "red", ...segment });
   }
 
-
   function handleToggleTestView(value: string) {
-    const item = toggleItems.find((item) => item.value === value)
-    if (!item){
-      setTestView("list")
+    const item = toggleItems.find((item) => item.value === value);
+    if (!item) {
+      setTestView("list");
     }
     setTestView(value);
   }
@@ -96,72 +97,80 @@ export const TestSectionView = ({
       <div>
         <InfoTitle>Tests ({renderSegments.length}) </InfoTitle>
         <Description>
-          {`We detected (${renderSegments.length}) tests on python_CMD level,
-          click on the test name to see the location of the test:`}
+          {`We detected (${renderSegments.length}) tests on python_CMD level,`}
         </Description>
-        <ToggleGroup defaultValue={"list"} items={toggleItems} onChange={handleToggleTestView}/>
-        {toggleTestView=="list" &&(<FlexSection>
-          <div>
-            <TestList>
-              <List>
-                {renderSegments.map((segment) => (
-                  <ListItemButton
-                    dense
-                    key={segment.name}
-                    disableGutters
-                    onClick={() => handleListItemClick(segment.name)}
-                    selected={segment.name == selectedListItem}
-                  >
-                    <ListItemText
-                      primary={`${segment.name}`}
-                      secondary={`Duration ${formatSeconds(
-                        getDuration(segment)
-                      )}`}
-                    />
-                  </ListItemButton>
-                ))}
-              </List>
-            </TestList>
-          </div>
-          <div>
-            {showSegmentLocation && (
-              <div>
-                <div> Location of the test: </div>
-                <LineRectChart
-                  inputLines={timeSeriesList}
-                  chartWidth={800}
-                  rects={[showSegmentLocation]}
-                  disableLineTooltip={true}
-                  disableRect={false}
-                ></LineRectChart>
-              </div>
-            )}
-          </div>
-        </FlexSection>)}
-      </div>
-      {toggleTestView=="chart"&&<div>
-        <Description>
-          Click on the graph chart to see the test details.
-        </Description>
-        <LineRectChart
-          inputLines={timeSeriesList}
-          chartWidth={1200}
-          rects={renderSegments}
-          disableLineTooltip={true}
-          disableRect={false}
-          onClickedRect={clickChartTest}
-        ></LineRectChart>
-      </div>}
-      <div>
-          {pickedSegment && (
+        <ToggleGroup
+          defaultValue={"list"}
+          items={toggleItems}
+          onChange={handleToggleTestView}
+        />
+        {toggleTestView == "list" && (
+          <FlexSection>
             <div>
-              <SingleTestView
-                testSegment={pickedSegment}
-                timeSeriesList={timeSeriesList}
-              />
+              <div> click on the test name to see the single test details:</div>
+              <TestList>
+                <List>
+                  {renderSegments.map((segment) => (
+                    <ListItemButton
+                      dense
+                      key={segment.name}
+                      disableGutters
+                      onClick={() => handleListItemClick(segment.name)}
+                      selected={segment.name == selectedListItem}
+                    >
+                      <ListItemText
+                        primary={`${segment.name}`}
+                        secondary={`Duration ${formatSeconds(
+                          getDuration(segment)
+                        )}`}
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </TestList>
             </div>
-          )}
+            <div>
+              {showSegmentLocation && (
+                <div>
+                  <div> Location of the test: </div>
+                  <LineRectChart
+                    inputLines={timeSeriesList}
+                    chartWidth={800}
+                    rects={[showSegmentLocation]}
+                    disableLineTooltip={true}
+                    disableRect={false}
+                  ></LineRectChart>
+                </div>
+              )}
+            </div>
+          </FlexSection>
+        )}
+      </div>
+      {toggleTestView == "chart" && (
+        <div>
+          <Description>
+            Click on the test segment on the graph to see the test details.
+          </Description>
+          <LineRectChart
+            inputLines={timeSeriesList}
+            chartWidth={1200}
+            rects={renderSegments}
+            disableLineTooltip={true}
+            disableRect={false}
+            onClickedRect={clickChartTest}
+          ></LineRectChart>
         </div>
+      )}
+      <div>
+        {pickedSegment && (
+          <div>
+            <SingleTestView
+              testSegment={pickedSegment}
+              timeSeriesList={timeSeriesList}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
