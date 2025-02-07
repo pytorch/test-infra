@@ -17,11 +17,11 @@ source "amazon-ebs" "windows_ebs_builder" {
   ami_name                    = "Windows 2019 GHA CI - ${local.timestamp}"
   associate_public_ip_address = true
   communicator                = "winrm"
-  instance_type               = "p3.2xlarge"
+  instance_type               = "g5.4xlarge"
   launch_block_device_mappings {
     delete_on_termination = true
     device_name           = "/dev/sda1"
-    volume_size           = 64
+    volume_size           = 128
   }
   source_ami      = "${data.amazon-ami.windows_root_ami.id}"
   region          = "us-east-1"
