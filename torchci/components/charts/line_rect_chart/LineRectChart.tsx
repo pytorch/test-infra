@@ -18,6 +18,7 @@ type Props = {
     start_at: string;
     end_at: string;
     color?: string;
+    opacity?: number;
   }[];
   chartWidth?: number;
   disableRect?: boolean;

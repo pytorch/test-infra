@@ -42,6 +42,7 @@ export function processRectData(
     start_at: string;
     end_at: string;
     color?: string;
+    opacity?: number;
   }[]
 ) {
   if (!rectangles || rectangles.length == 0) {
@@ -54,6 +55,7 @@ export function processRectData(
       start: convertDate(el.start_at),
       end: convertDate(el.end_at),
       color: el.color,
+      opacity: el.opacity,
     };
   });
 }

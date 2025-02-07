@@ -47,6 +47,8 @@ const RenderSvgRects = ({
     rectData: RectangleData
   ) => {
     if (disableRect) return;
+
+    console.log("RenderSvgRects", rectData);
     onClickedRect(rectData.name);
   };
 
@@ -70,6 +72,7 @@ const RenderSvgRects = ({
           <rect
             key={i}
             className={`${styles.rect} rect`}
+            opacity={rec.opacity ? rec.opacity : 0.5}
             fill={rec.color ? rec.color : getRandomColor(i)}
             id={rec.name}
             display={disableRect ? "none" : "block"}

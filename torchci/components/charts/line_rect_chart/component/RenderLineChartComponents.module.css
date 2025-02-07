@@ -17,13 +17,9 @@
   opacity: 0.7;
 }
 
-.rect {
-  opacity: 0.2;
-}
-
 .rect:hover {
   fill: blue;
-  opacity: 0.5;
+  opacity: 0.7;
 }
 .rect:active {
   fill: red;

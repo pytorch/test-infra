@@ -38,10 +38,9 @@ export const TestSectionView = ({
   testSegments: Segment[];
   timeSeriesList: any[];
 }) => {
-  const [pickedSegment, setPickedSegment] = useState<Segment | null>();
+  const [pickedSegment, setPickedSegment] = useState<any | null>();
   const [renderSegments, setRenderSegments] = useState<Segment[]>([]);
-  const [showSegmentLocation, setShowSegmentLocation] =
-    useState<Segment | null>();
+  const [showSegmentLocation, setShowSegmentLocation] = useState<any | null>();
   const [selectedListItem, setSelectedListItem] = useState<string | null>();
 
   useEffect(() => {
@@ -54,14 +53,14 @@ export const TestSectionView = ({
   function clickTest(id: string) {
     const segment = renderSegments.find((segment) => segment.name === id);
     if (segment) {
-      setPickedSegment(segment);
+      setPickedSegment({ opacity: 0.9, color: "grey", ...segment });
     }
   }
 
   function handleListItemClick(name: string) {
-    setShowSegmentLocation(
-      renderSegments.find((segment) => segment.name === name)
-    );
+    const seg = renderSegments.find((segment) => segment.name === name);
+    if (!seg) return;
+    setShowSegmentLocation({ opacity: 0.9, color: "grey", ...seg });
     setSelectedListItem(name);
   }
 
