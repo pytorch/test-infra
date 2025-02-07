@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@v4.0.3
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_log-classifier-lambda
           aws-region: us-east-1
