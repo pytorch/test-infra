@@ -11,7 +11,7 @@ import { processLineData, processRectData, setDimensions } from "./lib/utils";
 import styles from "./LineChart.module.css";
 
 type Props = {
-  onDataChange?: (data: any) => void;
+  onClickedRect?: (id: string) => void;
   inputLines?: TimeSeriesWrapper[];
   rects?: {
     name: string;
@@ -27,7 +27,7 @@ type Props = {
 };
 
 const LineRectChart = ({
-  onDataChange = (data: any) => void {},
+  onClickedRect = (id: string) => void {},
   inputLines,
   rects,
   chartWidth,
@@ -144,6 +144,7 @@ const LineRectChart = ({
               setLineTooltip={setLineTooltip}
             />
             <RenderSvgRects
+              onClickedRect={onClickedRect}
               setRectTooltip={setRectTooltip}
               rectangles={rectangles}
               disableRect={disableRect}

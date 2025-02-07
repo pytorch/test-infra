@@ -17,9 +17,7 @@ const RenderSvgLines = ({
   const lineGenerator = d3
     .line<D3LineRecord>()
     .x((d: D3LineRecord) => scales.xScale(d.date))
-    .y((d: D3LineRecord) => scales.yScale(d.value))
-    .curve(d3.curveBasis);
-
+    .y((d: D3LineRecord) => scales.yScale(d.value));
   return (
     <g className="lines-group">
       {lines.map((line, i) => {
