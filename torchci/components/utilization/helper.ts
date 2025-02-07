@@ -4,7 +4,7 @@ import {
   TimeSeriesWrapper,
 } from "lib/utilization/types";
 import { sortBy } from "lodash";
-import { DefaultOneSecond, StatsInfo, StatType } from "./types";
+import { StatsInfo, StatType } from "./types";
 
 export function findClosestDate(targetDate: Date, dates: Date[]): number {
   if (dates.length === 0) {

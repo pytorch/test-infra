@@ -1,5 +1,3 @@
-export const DefaultOneSecond = 1;
-
 export enum StatType {
   Average = "average",
   Max = "max",
