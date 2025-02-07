@@ -30,7 +30,8 @@ normalized_jobs AS (
     AND j.status = 'completed'
     AND l != 'self-hosted'
     AND l NOT LIKE 'lf.c.%'
-    AND l NOT LIKE '%canary%'
+    AND l NOT LIKE '%.canary'
+    AND l NOT LIKE 'c.%'
 ),
 lf_jobs AS (
   SELECT DISTINCT
