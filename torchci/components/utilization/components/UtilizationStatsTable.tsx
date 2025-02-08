@@ -10,6 +10,7 @@ export default function UtilizationStatsTable({ data }: { data: any[] }) {
       p10: row.columns.find((col: any) => col.type == StatType.P10)?.value,
       p50: row.columns.find((col: any) => col.type == StatType.P50)?.value,
       p90: row.columns.find((col: any) => col.type == StatType.P90)?.value,
+      max: row.columns.find((col: any) => col.type == StatType.Max)?.value,
       spike_frequency: row.columns.find(
         (col: any) => col.type == StatType.SpikeFrequency
       )?.value,
@@ -34,14 +35,23 @@ export default function UtilizationStatsTable({ data }: { data: any[] }) {
   );
 }
 
-const valueFormatter = (value: number) => {
+const valueFormatter = (value?: number) => {
+  if (value == null || value == undefined) {
+    return "N/A";
+  }
   return `${value.toFixed(2)}%`;
 };
-const valueFormatterSpike = (value: number) => {
+const valueFormatterSpike = (value?: number) => {
+  if (value == null || value == undefined) {
+    return "N/A";
+  }
   return `${value.toFixed(2)}%`;
 };
 
 const valueFormatterSeconds = (value: number) => {
+  if (value == null || value == undefined) {
+    return "N/A";
+  }
   return `${value.toFixed(2)}s`;
 };
 
@@ -68,6 +78,12 @@ const columns: GridColDef[] = [
   {
     field: "p90",
     headerName: "90th percentile",
+    valueFormatter: valueFormatter,
+    minWidth: 150,
+  },
+  {
+    field: "max",
+    headerName: "max",
     valueFormatter: valueFormatter,
     minWidth: 150,
   },
