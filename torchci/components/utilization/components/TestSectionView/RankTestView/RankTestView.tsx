@@ -66,6 +66,11 @@ export const RankTestView = ({
 
     setRankData(rankData);
     setResourceNames(names);
+
+    if (names.length === 0 || statsNames.length == 0) {
+      return;
+    }
+
     setSelectResource(names[0].value);
     setSelectStat(statsNames[0].value);
   }, [segments, timeSeriesList]);
