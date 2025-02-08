@@ -1,13 +1,16 @@
 import * as echarts from "echarts";
+import { set } from "lodash";
 import { useEffect, useRef, useState } from "react";
 
 export function RankBar({
   onRankClick = () => {},
+  selectedId,
   data,
   resourceName,
   statType,
 }: {
   onRankClick?: (rank: string) => void;
+  selectedId?: string|null;
   data: { name: string; resourceName: string; [key: string]: any }[];
   resourceName: string;
   statType: string;
@@ -18,6 +21,7 @@ export function RankBar({
   const maxHeight = 600; // Maximum height for very large datasets
 
   const [chartInstance, setChartInstance] = useState<any>(null);
+  const [selectedName, setSelectedName] = useState<any>(null);
 
   useEffect(() => {
     let instance = chartInstance;
@@ -39,21 +43,13 @@ export function RankBar({
       echartData.push([item[statType], item[statType], item.name]);
     });
 
-    const options: echarts.EChartOption = getOptions(echartData);
+    setSelectedName(selectedId);
+
+    const options: echarts.EChartOption = getOptions(echartData, selectedId);
     const handleClick = (params: any) => {
       if (params.componentType === "yAxis") {
         onRankClick(params.value);
-        console.log(params);
-        const selectedIndex = params.dataIndex;
-        instance.setOption({
-          yAxis: {
-            axisLabel: {
-              color: function (value: any, index: any) {
-                return index === selectedIndex ? "red" : "#333"; // Highlight only clicked item
-              },
-            },
-          },
-        });
+        setSelectedName(params.value);
       }
     };
 
@@ -62,7 +58,7 @@ export function RankBar({
     return () => {
       instance.dispose();
     };
-  }, [resourceName, statType, data]);
+  }, [resourceName, statType, data,selectedId]);
 
   return (
     <div
@@ -77,7 +73,7 @@ export function RankBar({
   );
 }
 
-const getOptions = (data: any[]): any => {
+const getOptions = (data: any[],selectedId:any): any => {
   return {
     dataset: {
       source: [["score", "percent", "test"], ...data],
@@ -89,7 +85,12 @@ const getOptions = (data: any[]): any => {
       triggerEvent: true,
       axisLabel: {
         interval: 0,
-        color: "#333",
+        color: function (value: any, index: any) {
+          if (value === selectedId) {
+            return "red"; // Highlight only clicked item
+          }
+          return "#333"; // Default color for other items
+        },
       },
     },
     visualMap: {

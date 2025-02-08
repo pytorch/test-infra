@@ -277,6 +277,10 @@ function getAllGpusStats(stats: StatsInfo[]) {
   const gpuUtils = stats.filter((item) => item.id.includes("|util_percent"));
   const gpuMems = stats.filter((item) => item.id.includes("|mem_util_percent"));
 
+  if (gpuUtils.length == 0) {
+    return [];
+  }
+
   // calculate stats for all gpus
   const allGpus: StatsInfo[] = [
     {

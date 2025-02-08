@@ -38,10 +38,12 @@ const reousrceNames = [
 
 export const RankTestView = ({
   onRankClick = (id: string) => {},
+  selectedId = "",
   timeSeriesList,
   segments,
 }: {
   onRankClick?: (id: string) => void;
+  selectedId?: string|null;
   timeSeriesList: TimeSeriesWrapper[];
   segments: Segment[];
 }) => {
@@ -85,6 +87,7 @@ export const RankTestView = ({
           resourceName={selectResource}
           statType={selectStat}
           onRankClick={onRankClick}
+          selectedId={selectedId}
         />
       </div>
     </div>
