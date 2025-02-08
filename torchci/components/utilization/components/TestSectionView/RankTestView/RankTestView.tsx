@@ -3,6 +3,7 @@ import { getSegmentStatsAndTimeSeries } from "components/utilization/helper";
 import { FlexSection } from "components/utilization/styles";
 import { StatType } from "components/utilization/types";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
+import { cloneDeep } from "lodash";
 import { useEffect, useState } from "react";
 import { RankBar } from "./RankBar";
 
@@ -17,7 +18,7 @@ const statsNames = [
   },
 ];
 
-const reousrceNames = [
+const DefaultResourceNames = [
   {
     name: "cpu",
     value: "cpu",
@@ -26,6 +27,9 @@ const reousrceNames = [
     name: "memory",
     value: "memory",
   },
+];
+
+const DefaultGpuResourceValue = [
   {
     name: "all gpus utils",
     value: "gpus_util_all",
@@ -50,14 +54,19 @@ export const RankTestView = ({
   const [rankData, setRankData] = useState<any[]>([]);
   const [selectResource, setSelectResource] = useState<string>("");
   const [selectStat, setSelectStat] = useState<string>("");
+  const [resourceNames, setResourceNames] = useState<any[]>([]);
 
   useEffect(() => {
     const rankData = processRankData(segments, timeSeriesList);
-    const reousrceNames = timeSeriesList.map((ts) => {
-      return { name: ts.name, value: ts.name };
-    });
+    let names = cloneDeep(DefaultResourceNames);
+
+    if (rankData.find((d) => d.resourceName.includes("gpu"))) {
+      names = [...names, ...DefaultGpuResourceValue];
+    }
+
     setRankData(rankData);
-    setSelectResource(reousrceNames[0].value);
+    setResourceNames(names);
+    setSelectResource(names[0].value);
     setSelectStat(statsNames[0].value);
   }, [segments, timeSeriesList]);
 
@@ -70,14 +79,14 @@ export const RankTestView = ({
           onChange={function (value: string): void {
             setSelectResource(value);
           }}
-          defaultValue={reousrceNames[0].value}
-          options={reousrceNames}
+          defaultValue={"cpu"}
+          options={resourceNames}
         />
         <DropDownList
           onChange={function (value: string): void {
             setSelectStat(value);
           }}
-          defaultValue={statsNames[0].value}
+          defaultValue={StatType.Average}
           options={statsNames}
         />
       </FlexSection>

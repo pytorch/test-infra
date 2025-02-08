@@ -27,7 +27,6 @@ const toggleItems = [
     value: "rank",
   },
 ];
-
 export const TestList = styled(Paper)({
   margin: "10px",
   padding: "10px",
@@ -100,6 +99,10 @@ export const ToggleTestsGroup = ({
                     dense
                     key={segment.name}
                     disableGutters
+                    sx={{
+                      color:
+                        selectedListItem === segment.name ? "blue" : "inherit",
+                    }}
                     onClick={() => handleListItemClick(segment.name)}
                     selected={segment.name == selectedListItem}
                   >

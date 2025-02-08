@@ -40,3 +40,9 @@ export const Description = styled("div")({
   padding: "10px",
   fontSize: "20px",
 });
+
+export const Blank = styled(Paper)({
+  margin: "10px",
+  padding: "10px",
+  height: "400px",
+});

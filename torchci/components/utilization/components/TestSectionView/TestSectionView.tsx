@@ -1,7 +1,8 @@
+import { Paper } from "@mui/material";
 import { getDuration } from "components/utilization/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import { Description, Divider, InfoTitle } from "../../styles";
+import { Blank, Description, Divider, InfoTitle } from "../../styles";
 import { SingleTestView } from "./SingleTestView";
 import ToggleTestsGroup from "./ToggleTestsGroup";
 
@@ -45,13 +46,15 @@ export const TestSectionView = ({
           />
         )}
         <div>
-          {pickedSegment && (
-            <div>
+          {pickedSegment ? (
+            <Paper>
               <SingleTestView
                 testSegment={pickedSegment}
                 timeSeriesList={timeSeriesList}
               />
-            </div>
+            </Paper>
+          ) : (
+            <Blank></Blank>
           )}
         </div>
       </div>

@@ -82,7 +82,7 @@ const getOptions = (data: any[], selectedId: any): any => {
         interval: 0,
         color: function (value: any, index: any) {
           if (value === selectedId) {
-            return "red"; // Highlight only clicked item
+            return "blue"; // Highlight only clicked item
           }
           return "#333"; // Default color for other items
         },
