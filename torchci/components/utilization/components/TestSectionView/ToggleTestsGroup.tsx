@@ -150,7 +150,7 @@ export const ToggleTestsGroup = ({
           timeSeriesList={timeSeriesList}
           segments={segments}
           onRankClick={handleRankViewClick}
-          selectedId = {selectedListItem}
+          selectedId={selectedListItem}
         />
       )}
     </div>

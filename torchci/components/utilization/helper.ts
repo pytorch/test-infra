@@ -289,8 +289,16 @@ function getAllGpusStats(stats: StatsInfo[]) {
       columns: [
         aggregateStats(gpuUtils, StatType.Average, AgggregateMethod.Average),
         aggregateStats(gpuUtils, StatType.Max, AgggregateMethod.Max),
-        aggregateStats(gpuUtils, StatType.SpikeFrequency,AgggregateMethod.Average),
-        aggregateStats(gpuUtils, StatType.SpikeAvgInterval,AgggregateMethod.Average),
+        aggregateStats(
+          gpuUtils,
+          StatType.SpikeFrequency,
+          AgggregateMethod.Average
+        ),
+        aggregateStats(
+          gpuUtils,
+          StatType.SpikeAvgInterval,
+          AgggregateMethod.Average
+        ),
       ],
     },
     {

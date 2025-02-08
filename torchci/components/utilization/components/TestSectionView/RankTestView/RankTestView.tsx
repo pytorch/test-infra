@@ -43,7 +43,7 @@ export const RankTestView = ({
   segments,
 }: {
   onRankClick?: (id: string) => void;
-  selectedId?: string|null;
+  selectedId?: string | null;
   timeSeriesList: TimeSeriesWrapper[];
   segments: Segment[];
 }) => {

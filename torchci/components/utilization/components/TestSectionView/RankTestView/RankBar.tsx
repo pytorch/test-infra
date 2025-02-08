@@ -1,5 +1,4 @@
 import * as echarts from "echarts";
-import { set } from "lodash";
 import { useEffect, useRef, useState } from "react";
 
 export function RankBar({
@@ -10,7 +9,7 @@ export function RankBar({
   statType,
 }: {
   onRankClick?: (rank: string) => void;
-  selectedId?: string|null;
+  selectedId?: string | null;
   data: { name: string; resourceName: string; [key: string]: any }[];
   resourceName: string;
   statType: string;
@@ -21,7 +20,6 @@ export function RankBar({
   const maxHeight = 600; // Maximum height for very large datasets
 
   const [chartInstance, setChartInstance] = useState<any>(null);
-  const [selectedName, setSelectedName] = useState<any>(null);
 
   useEffect(() => {
     let instance = chartInstance;
@@ -43,13 +41,10 @@ export function RankBar({
       echartData.push([item[statType], item[statType], item.name]);
     });
 
-    setSelectedName(selectedId);
-
     const options: echarts.EChartOption = getOptions(echartData, selectedId);
     const handleClick = (params: any) => {
       if (params.componentType === "yAxis") {
         onRankClick(params.value);
-        setSelectedName(params.value);
       }
     };
 
@@ -58,7 +53,7 @@ export function RankBar({
     return () => {
       instance.dispose();
     };
-  }, [resourceName, statType, data,selectedId]);
+  }, [resourceName, statType, data, selectedId]);
 
   return (
     <div
@@ -73,7 +68,7 @@ export function RankBar({
   );
 }
 
-const getOptions = (data: any[],selectedId:any): any => {
+const getOptions = (data: any[], selectedId: any): any => {
   return {
     dataset: {
       source: [["score", "percent", "test"], ...data],
