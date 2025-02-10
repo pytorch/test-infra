@@ -1,4 +1,5 @@
 import * as echarts from "echarts";
+import { truncate } from "lodash";
 import { useEffect, useRef, useState } from "react";
 
 export function RankBar({
@@ -41,6 +42,11 @@ export function RankBar({
       echartData.push([item[statType], item[statType], item.name]);
     });
 
+    if (echartData.length === 0) {
+      console.log("No data for " + resourceName + " " + statType);
+      return;
+    }
+
     const options: echarts.EChartOption = getOptions(echartData, selectedId);
     const handleClick = (params: any) => {
       if (params.componentType === "yAxis") {
@@ -74,6 +80,13 @@ const getOptions = (data: any[], selectedId: any): any => {
       source: [["score", "percent", "test"], ...data],
     },
     grid: { containLabel: true },
+    tooltip: {
+      trigger: "axis", // Show tooltip when hovering on the axis
+      formatter: function (params: any) {
+        let yValue = params[0].value; // Get full Y-axis value
+        return `${yValue[2]}:<br> ${yValue[0]}%`; // Show full value in tooltip
+      },
+    },
     xAxis: { name: "percent" },
     yAxis: {
       type: "category",
@@ -85,6 +98,12 @@ const getOptions = (data: any[], selectedId: any): any => {
             return "blue"; // Highlight only clicked item
           }
           return "#333"; // Default color for other items
+        },
+        formatter: function (value: any, index: any) {
+          if (value.length > 100) {
+            return truncate(value, { length: 100 }) + "..."; // Truncate long strings
+          }
+          return value;
         },
       },
     },
@@ -103,6 +122,14 @@ const getOptions = (data: any[], selectedId: any): any => {
     },
     series: [
       {
+        label: {
+          show: true,
+          position: "inside",
+          color: "black",
+          formatter: function (params: any) {
+            return params.value[0] + "%";
+          },
+        },
         type: "bar",
         encode: {
           x: "percent",
