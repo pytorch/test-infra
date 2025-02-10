@@ -91,6 +91,7 @@ export function RankBar({
 
 const getOptions = (data: any[], selectedId: any): any => {
   return {
+    animation: false,
     dataset: {
       source: [["score", "percent", "test"], ...data],
     },
