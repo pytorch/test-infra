@@ -50,7 +50,7 @@ export function RankBar({
     });
 
     setChartData(echartData);
-  }, [data]);
+  }, [data, statType, resourceName]);
 
   useEffect(() => {
     if (chartData.length == 0) {
@@ -75,7 +75,6 @@ export function RankBar({
   if (chartData.length == 0) {
     return <div></div>;
   }
-
 
   return (
     <div
@@ -143,6 +142,9 @@ const getOptions = (data: any[], selectedId: any): any => {
           position: "inside",
           color: "black",
           formatter: function (params: any) {
+            if (params.value[0] <= 1) {
+              return ""; // Hide labels for small values
+            }
             return params.value[0] + "%";
           },
         },

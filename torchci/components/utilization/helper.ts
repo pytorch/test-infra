@@ -341,7 +341,7 @@ function aggregateStats(
   }
   return {
     type: statType,
-    value: value,
+    value: Number(value.toFixed(2)),
     unit: "%",
   };
 }
