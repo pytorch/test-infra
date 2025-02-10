@@ -1,0 +1,58 @@
+---
+- name: Restart all relevant services
+  hosts: all
+  become: yes
+  vars:
+    user_names:
+      - alice
+      - bob
+      - charlie
+      - david
+      - eve
+      - frank
+      - grace
+      - henry
+      - isaac
+      - julia
+      - kevin
+      - lisa
+    runner_version: "2.315.0"
+    ansible_host_key_checking: false
+  module_defaults:
+    shell:
+      executable: /bin/bash
+
+  tasks:
+    - name: Get number of NVIDIA GPUs
+      ansible.builtin.shell: nvidia-smi --list-gpus | wc -l
+      register: gpu_count
+      changed_when: false
+
+    - name: Set num_users based on GPU count
+      ansible.builtin.set_fact:
+        num_users: "{{ gpu_count.stdout | int }}"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - getent:
+        database: passwd
+
+    - name: restart cgroup slices
+      ansible.builtin.systemd:
+        name: user-{{ getent_passwd[item].1 }}.slice  # getent_passwd[item].1 returns UID
+        state: restarted
+      loop: "{{ user_names[:num_users | int] }}"
+
+    - name: restart user docker services
+      become: true
+      ansible.builtin.shell: |
+        machinectl shell {{ item }}@ /bin/bash -c 'systemctl --user restart docker'
+      loop: "{{ user_names[:num_users | int] }}"
+
+    - name: Restart the runner manager service
+      ansible.builtin.systemd:
+        name: ghad-manager
+        state: restarted
+        enabled: yes

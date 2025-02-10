@@ -1,0 +1,321 @@
+---
+- name: Create users and assign cgroup slices based on GPU count and setup ghad-manager service
+  hosts: all
+  become: yes
+  vars:
+    user_names:
+      - alice
+      - bob
+      - charlie
+      - david
+      - eve
+      - frank
+      - grace
+      - henry
+      - isaac
+      - julia
+      - kevin
+      - lisa
+    runner_version: "2.315.0"
+    ansible_host_key_checking: false
+  module_defaults:
+    shell:
+      executable: /bin/bash
+
+  tasks:
+    - name: remediate the broken dpkg
+      ansible.builtin.shell: |
+        sudo dpkg --configure -a
+
+    - name: remediate correto GPG key changes
+      ansible.builtin.shell: |
+        wget -O - https://apt.corretto.aws/corretto.key  | gpg --dearmor -o /usr/share/keyrings/corretto-keyring.gpg --yes
+
+    - name: Ensure apt is up to date
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Ensure required packages are installed for rootless docker
+      ansible.builtin.apt:
+        name:
+          - uidmap
+          - systemd-container
+          - acl
+          - cgroup-tools
+          - amazon-cloudwatch-agent
+        state: present
+
+    - name: Copy the cloudwatch config
+      ansible.builtin.copy:
+        src: ../configs/cloudwatch_config.json
+        dest: /tmp/cloudwatch_config.json
+        mode: '0644'
+
+    - name: configure cloudwatch agent
+      ansible.builtin.shell: |
+        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/tmp/cloudwatch_config.json -s
+
+    - name: Ensure nvidia is installed
+      register: install_nvidia_dependencies
+      changed_when: install_nvidia_dependencies.stdout != 'NVIDIA_DRIVER INSTALLED'
+      ansible.builtin.shell: |
+        if [ -x "$(command -v nvidia-smi)" ]; then
+          echo "NVIDIA_DRIVER INSTALLED"
+          exit 0
+        else
+          exit 1
+        fi
+
+    - name: Get number of NVIDIA GPUs
+      ansible.builtin.shell: nvidia-smi --list-gpus | wc -l
+      register: gpu_count
+      changed_when: false
+
+    - name: Set num_users based on GPU count
+      ansible.builtin.set_fact:
+        num_users: "{{ gpu_count.stdout | int }}"
+
+    - name: Get available memory per user
+      become: true
+      ansible.builtin.shell: |
+        # TOTAL_MEMORY=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+        echo "$(($(grep MemTotal /proc/meminfo | awk '{print $2}') * 1024 / {{ num_users }}))"
+      register: available_memory
+      changed_when: false
+
+    - name: Set available memory
+      ansible.builtin.set_fact:
+        memory_per_user: "{{ available_memory.stdout | int }}"
+
+    - name: Gather number of CPU cores
+      command: nproc
+      register: cpu_cores
+
+    - name: Create users with randomized names
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: present
+        create_home: yes
+        shell: /bin/bash
+      loop: "{{ user_names[:num_users | int] }}"
+      register: created_users
+
+    - name: append DOCKER_HOST export to bashrc for users
+      ansible.builtin.lineinfile:
+        path: "{{ item.home }}/.bashrc"
+        line: |
+          export DOCKER_HOST=unix:///run/user/{{ item.uid }}/docker.sock
+        create: yes
+        search_string: "export DOCKER_HOST=unix:///run/user/{{ item.uid }}/docker.sock"
+      loop: "{{ created_users.results }}"
+
+    - name: append PATH export to bashrc for users
+      ansible.builtin.lineinfile:
+        path: "{{ item.home }}/.bashrc"
+        line: |
+          export PATH=/home/{{ item.name }}/bin:$PATH
+        create: yes
+        search_string: "export PATH=/home/{{ item.name }}/bin:$PATH"
+      loop: "{{ created_users.results }}"
+
+    - name: append DBUS_SESSION_BUS_ADDRESS export to bashrc for users
+      ansible.builtin.lineinfile:
+        path: "{{ item.home }}/.bashrc"
+        line: |
+          export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{{ item.uid }}/bus
+        create: yes
+        search_string: "export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{{ item.uid }}/bus"
+      loop: "{{ created_users.results }}"
+
+    - name: append XDG_RUNTIME_DIR export to bashrc for users
+      ansible.builtin.lineinfile:
+        path: "{{ item.home }}/.bashrc"
+        line: |
+          export XDG_RUNTIME_DIR=/run/user/{{ item.uid }}
+        create: yes
+        search_string: "export XDG_RUNTIME_DIR=/run/user/{{ item.uid }}"
+      loop: "{{ created_users.results }}"
+
+    - name: make sure users can linger processes
+      ansible.builtin.shell: sudo loginctl enable-linger {{ item.name }}
+      loop: "{{ created_users.results }}"
+
+    - name: create cgroup slices
+      copy:
+        dest: /etc/systemd/system/user-{{ item.uid }}.slice
+        content: |
+          [Unit]
+          Description=User Slice of {{ item.name }}
+          Before=slices.target
+
+          [Slice]
+          AllowedCPUs={{ (cpu_cores.stdout | int // ansible_loop.length | int) * ansible_loop.index0 }}-{{ ((cpu_cores.stdout | int // ansible_loop.length | int) * ansible_loop.index) - 1 }}
+          MemoryMax={{ memory_per_user }}
+          TasksMax=10000
+          DevicePolicy=closed
+          DeviceAllow=/dev/nvidia{{ ansible_loop.index0 }}
+      loop: "{{ created_users.results }}"
+      loop_control:
+        extended: true
+
+    - name: Add permision to all devices except nvidia gpus to all users cgroup slices
+      ansible.builtin.shell: |
+        find /dev/ -type b -o -type c 2>/dev/null | sed 's|^|DeviceAllow=|' | sort | grep -v -E 'nvidia[0-9]+' >> /etc/systemd/system/user-{{ item.uid }}.slice
+      loop: "{{ created_users.results }}"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    # Hard to see, but docker daemon depends on cgroup slices
+    # so restarting them will restart docker, which is not what we want
+    # - name: restart cgroup slices
+    #   ansible.builtin.systemd:
+    #     name: user-{{ item.uid }}.slice
+    #     state: restarted
+    #   loop: "{{ created_users.results }}"
+
+    - name: (gpu) Assign gpu numbers to users
+      ansible.builtin.copy:
+        dest: /home/{{ item.name }}/.assigned_gpu
+        content: "{{ gpu_num }}"
+      loop: "{{ created_users.results }}"
+      loop_control:
+        index_var: gpu_num
+
+    - name: (gpu) Add GPU assignment to /etc/profile
+      ansible.builtin.lineinfile:
+        path: "/etc/profile"
+        line: "if [[ -e $HOME/.assigned_gpu ]];then export CUDA_VISIBLE_DEVICES=$(cat $HOME/.assigned_gpu);fi"
+
+    - name: Create directory /opt/runner with permissions 0644
+      ansible.builtin.file:
+        path: /opt/runner
+        state: directory
+        mode: '0644'
+
+    - name: Create directory /opt/runner with permissions 0644
+      ansible.builtin.file:
+        path: /opt/docker/
+        state: directory
+        mode: '0644'
+
+    - name: Download rootless docker install script
+      ansible.builtin.get_url:
+        url: "https://get.docker.com/rootless"
+        dest: /opt/docker/get-rootless-docker.sh
+        mode: '0755'
+
+    - name: Copy file to user's home directory
+      ansible.builtin.copy:
+        src: /opt/docker/get-rootless-docker.sh
+        dest: "/home/{{ item.name }}/get-rootless-docker.sh"
+        remote_src: yes
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+        mode: '0644'
+      become: yes
+      loop: "{{ created_users.results }}"
+
+    - name: run nvidia-ctk config to disable cgroups
+      ansible.builtin.shell: |
+        # /etc/nvidia-container-runtime/config.toml
+        sudo nvidia-ctk config --set nvidia-container-cli.no-cgroups --in-place
+
+    - name: Install and run rootless docker in the background (also does nvidia-ctk setup)
+      become: true
+      ansible.builtin.shell: |
+        if (! sudo su -l {{ item.name }} /bin/bash -c 'docker stats --no-stream' ); then
+          sudo chown -R {{ item.name }}:{{ item.name }} /home/{{ item.name }}
+          machinectl shell {{ item.name }}@ /bin/bash -c 'systemctl --user stop docker'
+          sudo rm -f /home/{{ item.name }}/bin/dockerd
+          machinectl shell {{ item.name }}@ /bin/bash '/home/{{ item.name }}/get-rootless-docker.sh'
+          nvidia-ctk runtime configure --runtime=docker --config=/home/{{ item.name }}/.config/docker/daemon.json
+          machinectl shell {{ item.name }}@ /bin/bash -c 'systemctl --user enable docker ; systemctl --user start docker'
+        fi
+      loop: "{{ created_users.results }}"
+
+    - name: Login all users to ecr
+      become: true
+      ansible.builtin.shell: |
+        machinectl shell {{ item.name }}@ /bin/bash -c 'aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 308535385114.dkr.ecr.us-east-1.amazonaws.com/multi-tenant-gpu'
+      loop: "{{ created_users.results }}"
+
+    - name: create the runner config directory
+      ansible.builtin.file:
+        path: /etc/gha-runner-config
+        state: directory
+
+    - name: Create file with instance label
+      ansible.builtin.copy:
+        dest: /etc/gha-runner-config/instance-label
+        content: "{{ lookup('ansible.builtin.env', 'INSTANCE_LABELS') }}"
+        mode: '0644'
+
+    - name: Create file with repository/org url for client registration
+      ansible.builtin.copy:
+        dest: /etc/gha-runner-config/runner-url
+        content: "https://github.com/pytorch"
+        mode: '0644'
+
+    - name: Create file with private key for ghapp authentication registration
+      ansible.builtin.copy:
+        dest: /etc/gha-runner-config/private-key
+        content: "{{ lookup('ansible.builtin.env', 'A100_GH_APP_PK') }}"
+        mode: '0400'
+
+    - name: Create file with app id for ghapp authentication registration
+      ansible.builtin.copy:
+        dest: /etc/gha-runner-config/app-id
+        content: "1007062"
+        mode: '0400'
+
+    - name: Create file with installation id for ghapp authentication registration
+      ansible.builtin.copy:
+        dest: /etc/gha-runner-config/installation-id
+        content: "55231883"
+        mode: '0400'
+
+    - name: Copy the tag version file
+      ansible.builtin.copy:
+        src: ../temp/multi-tenant-gpu-tag
+        dest: /etc/gha-runner-config/image-tag-version
+        mode: '0644'
+
+    - name: Copy the runner manager service file
+      ansible.builtin.copy:
+        src: ../services/ghad-manager/ghad-manager.service
+        dest: /etc/systemd/system/ghad-manager.service
+        mode: '0644'
+
+    - name: Copy the manager service script
+      ansible.builtin.copy:
+        src: ../services/ghad-manager/ghad-manager.py
+        dest: /root/ghad-manager.py
+        mode: '0644'
+
+    - name: Copy the requirements.txt file
+      ansible.builtin.copy:
+        src: ../services/ghad-manager/requirements.txt
+        dest: /root/requirements.txt
+        mode: '0644'
+
+    - name: Copy multi-tenant-gpu-main.sh
+      ansible.builtin.copy:
+        src: ../scripts/multi-tenant-gpu-main.sh
+        dest: /etc/gha-runner-config/multi-tenant-gpu-main.sh
+        mode: '0755'
+
+    - name: Install the required python packages
+      ansible.builtin.pip:
+        requirements: /root/requirements.txt
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Restart the runner manager service
+      ansible.builtin.systemd:
+        name: ghad-manager
+        state: restarted
+        enabled: yes

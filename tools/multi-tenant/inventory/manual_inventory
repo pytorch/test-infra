@@ -1,0 +1,6 @@
+i-03028b1668c838483-us-east-1-p4d.24xlarge ansible_host=35.175.230.89
+i-01a21955dc3821a00-us-east-2-p4d.24xlarge ansible_host=18.218.212.92
+i-04318a58cd30ea7bb-us-east-2-p4d.24xlarge ansible_host=18.227.140.233
+i-04bedcebd1f4c5e73-us-west-2-p4d.24xlarge ansible_host=54.188.247.175
+i-0e4172a00b41fa6c6-us-east-2-p5.48xlarge ansible_host=3.145.186.79
+i-0d3ed1ff3ccbeec77-us-east-1-p5.48xlarge ansible_host=172.31.59.55

@@ -1,0 +1,3 @@
+docker
+PyGithub
+requests
