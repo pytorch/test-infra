@@ -21,12 +21,14 @@ MAX_AVAILABLE_MINIMUM = 50
 
 # Paths relative to their respective repositories
 META_SCALE_CONFIG_PATH = ".github/scale-config.yml"
+META_CANARY_SCALE_CONFIG_PATH = ".github/canary-scale-config.yml"
 LF_SCALE_CONFIG_PATH = ".github/lf-scale-config.yml"
 LF_CANARY_SCALE_CONFIG_PATH = ".github/lf-canary-scale-config.yml"
 
 RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
 PREFIX_META = ""
+PREFIX_META_CANARY = "c."
 PREFIX_LF = "lf."
 PREFIX_LF_CANARY = "lf.c."
 
@@ -294,6 +296,10 @@ def main() -> None:
 
     # Contains scale configs that are generated from the source scale config
     generated_scale_config_infos: List[ScaleConfigInfo] = [
+        ScaleConfigInfo(
+            path=repo_root / META_CANARY_SCALE_CONFIG_PATH,
+            prefix=PREFIX_META_CANARY,
+        ),
         ScaleConfigInfo(
             path=repo_root / LF_SCALE_CONFIG_PATH,
             prefix=PREFIX_LF,
