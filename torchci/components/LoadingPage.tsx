@@ -13,9 +13,10 @@ const LoadingItem = styled("div")(({}) => ({
 }));
 
 function LoadingPage({ height }: { height?: number }) {
+  const style = height !== undefined ? { height: height } : {};
   return (
     <>
-      <LoadingContainer style={{ height: height }}>
+      <LoadingContainer style={style}>
         <div>
           <em> Loading...</em>
         </div>
