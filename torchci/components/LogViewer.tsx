@@ -213,9 +213,11 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
 function Log({
   url,
   currentLine,
+  isDarkMode,
 }: {
   url: string;
   currentLine: number | undefined;
+  isDarkMode: boolean;
 }) {
   // Only download the log and generate the log viewer if the log is open.  This
   // is only used in one component but needs to be separate due to hooks rules,
@@ -229,7 +231,7 @@ function Log({
       EditorState.readOnly.of(true), // make the editor read-only
       EditorView.theme({ "&": { height: "90vh" } }), // set height
       EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }), // set height
-      oneDark, // set theme
+      isDarkMode ? oneDark : [], // set theme based on dark mode
       ansiColors, // properly render ansi colors in the logs
       foldUninteresting, // Fold the uninteresting parts of the log to clean up the view.
       codeFolding({
@@ -284,6 +286,19 @@ function LogWithLineSelector({
       document.removeEventListener("copy", handleKeyDown);
     };
   });
+
+  const [isDarkMode, setIsDarkMode] = useState(
+    window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    darkModeMediaQuery.addEventListener("change", handleChange);
+    return () => darkModeMediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
   // undefined means that no line is selected, so the log viewer is closed
   const [currentLine, setCurrentLine] = useState<number | undefined>(undefined);
   // TODO: Remove this. This is a hack to make sure that that the log viewer
@@ -294,6 +309,9 @@ function LogWithLineSelector({
   }
   return (
     <>
+      <button onClick={() => setIsDarkMode(!isDarkMode)}>
+        Toggle Dark Mode
+      </button>
       {lineNumbers.map((line, index) => (
         <JumpToLineButton
           lineText={lineTexts[index]}
@@ -303,7 +321,9 @@ function LogWithLineSelector({
           key={`line-${line}`}
         />
       ))}
-      {currentLine !== undefined && <Log url={url} currentLine={currentLine} />}
+      {currentLine !== undefined && (
+        <Log url={url} currentLine={currentLine} isDarkMode={isDarkMode} />
+      )}
     </>
   );
 }

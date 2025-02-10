@@ -54,3 +54,21 @@ button {
 .animate-on-click:active {
   background-color: green;
 }
+
+/* Dark mode styles */
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+pre.dark-mode {
+  background-color: #1e1e1e;
+}
+
+code.dark-mode {
+  background-color: #1e1e1e;
+}
+
+a.dark-mode {
+  color: #bb86fc;
+}
