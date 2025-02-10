@@ -38,4 +38,3 @@ journalctl -u ghad-manager.service
 docker ps --all --no-trunc
 docker logs ghad-main-shared-instance-container -f
 ```
-

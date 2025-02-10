@@ -1,4 +1,7 @@
 ---
+# Should safely restart only ghad service
+# does not require draining the instance as 
+# it does not interrupt running jobs
 - name: Restart ghad service
   hosts: all
   become: yes

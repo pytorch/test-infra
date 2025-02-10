@@ -1,4 +1,7 @@
 ---
+# Restart all services, including docker in each user space,
+# is not safe to run in healthy or working nodes as it will 
+# cause current running jobs to be canceled;
 - name: Restart all relevant services
   hosts: all
   become: yes
