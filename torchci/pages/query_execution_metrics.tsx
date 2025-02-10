@@ -12,6 +12,7 @@ import {
   Granularity,
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
+import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
@@ -129,10 +130,7 @@ export default function Page() {
                       : `${field.headerName}: ${data[field.field]}`
                   )
                   .join("<br>");
-                return `${dayjs
-                  .utc(data.time)
-                  .local()
-                  .format("M/D h:mm:ss A")}<br>${fieldInfo}`;
+                return `${formatTimeForCharts(data.time)}<br>${fieldInfo}`;
               },
             },
             yAxis: [

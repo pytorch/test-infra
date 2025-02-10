@@ -12,10 +12,11 @@ const LoadingItem = styled("div")(({}) => ({
   margin: "10px",
 }));
 
-function LoadingPage() {
+function LoadingPage({ height }: { height?: number }) {
+  const style = height !== undefined ? { height: height } : {};
   return (
     <>
-      <LoadingContainer>
+      <LoadingContainer style={style}>
         <div>
           <em> Loading...</em>
         </div>

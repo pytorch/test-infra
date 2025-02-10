@@ -3,6 +3,7 @@
  */
 
 import { Paper, Skeleton } from "@mui/material";
+import { formatTimeForCharts, TIME_DISPLAY_FORMAT } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
@@ -155,7 +156,7 @@ export function TimeSeriesPanelWithData({
   // as its own line.
   groupByFieldName,
   // Display format for the time field (ex "M/D h:mm:ss A")
-  timeFieldDisplayFormat = "M/D h:mm:ss A",
+  timeFieldDisplayFormat = TIME_DISPLAY_FORMAT,
   // Callback to render the y axis value in some nice way.
   yAxisRenderer,
   // What label to put on the y axis.
@@ -164,6 +165,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions,
   // To avoid overlapping long legends and the chart
   legendPadding = 200,
+  onEvents,
 }: {
   data: any;
   series: any;
@@ -174,6 +176,7 @@ export function TimeSeriesPanelWithData({
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
   legendPadding?: number;
+  onEvents?: { [key: string]: any };
 }) {
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? legendPadding : 48;
@@ -226,10 +229,10 @@ export function TimeSeriesPanelWithData({
         trigger: "item",
         formatter: (params: any) =>
           `${params.seriesName}` +
-          `<br/>${dayjs
-            .utc(params.value[0])
-            .local()
-            .format(timeFieldDisplayFormat)}<br/>` +
+          `<br/>${formatTimeForCharts(
+            params.value[0],
+            timeFieldDisplayFormat
+          )}<br/>` +
           `${getTooltipMarker(params.color)}` +
           `<b>${yAxisRenderer(params.value[1])}</b>` +
           // add total value to tooltip,
@@ -250,6 +253,7 @@ export function TimeSeriesPanelWithData({
         style={{ height: "100%", width: "100%" }}
         option={options}
         notMerge={true}
+        onEvents={onEvents}
       />
     </Paper>
   );
@@ -270,7 +274,7 @@ export default function TimeSeriesPanel({
   // What field name to treat as the time value.
   timeFieldName,
   // Display format for the time field (ex "M/D h:mm:ss A")
-  timeFieldDisplayFormat = "M/D h:mm:ss A",
+  timeFieldDisplayFormat = TIME_DISPLAY_FORMAT,
   // What field name to put on the y axis.
   yAxisFieldName,
   // Callback to render the y axis value in some nice way.
