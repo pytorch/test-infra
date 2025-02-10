@@ -16,17 +16,24 @@ export function RankBar({
   statType: string;
 }) {
   const chartRef = useRef(null); // Create a ref for the chart container
-  const baseHeight = 10; // Height per item
+  const baseHeight = 20; // Height per item
   const minHeight = 300; // Minimum height for small datasets
   const maxHeight = 600; // Maximum height for very large datasets
 
   const [chartInstance, setChartInstance] = useState<any>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  const handleClick = (params: any) => {
+    if (params.componentType === "yAxis") {
+      onRankClick(params.value);
+    } else if (params.componentType == "series") {
+      onRankClick(params.value[2]);
+    }
+  };
 
   useEffect(() => {
-    let instance = chartInstance;
-    if (!instance) {
-      instance = echarts.init(chartRef.current);
-      setChartInstance(chartInstance);
+    if (data.length == 0) {
+      return;
     }
 
     let echartData: any[][] = [];
@@ -42,24 +49,33 @@ export function RankBar({
       echartData.push([item[statType], item[statType], item.name]);
     });
 
-    if (echartData.length === 0) {
-      console.log("No data for " + resourceName + " " + statType);
+    setChartData(echartData);
+  }, [data]);
+
+  useEffect(() => {
+    if (chartData.length == 0) {
       return;
     }
 
-    const options: echarts.EChartOption = getOptions(echartData, selectedId);
-    const handleClick = (params: any) => {
-      if (params.componentType === "yAxis") {
-        onRankClick(params.value);
-      }
-    };
+    let instance = chartInstance;
+    if (!instance) {
+      instance = echarts.init(chartRef.current);
+      setChartInstance(chartInstance);
+    }
+
+    const options: echarts.EChartOption = getOptions(chartData, selectedId);
 
     instance.setOption(options, { notMerge: true });
     instance.on("click", handleClick);
     return () => {
       instance.dispose();
     };
-  }, [resourceName, statType, data, selectedId]);
+  }, [chartData, selectedId]);
+
+  if (chartData.length == 0) {
+    return <div></div>;
+  }
+
 
   return (
     <div
@@ -67,7 +83,7 @@ export function RankBar({
       style={{
         height: Math.min(
           maxHeight,
-          Math.max(minHeight, data.length * baseHeight)
+          Math.max(minHeight, chartData.length * baseHeight)
         ),
       }}
     />
