@@ -206,12 +206,11 @@ export function SummaryPanel({
                 : "";
             const showTarget =
               target && target != 0 ? `[target = ${target}]` : "";
-            const isNewModel = l === 0 ? "(NEW!)" : "";
 
             if (lCommit === rCommit || l === r) {
               return `${r} ${rPercent} ${showTarget}`;
             } else {
-              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
+              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
             }
           },
         };
@@ -225,8 +224,8 @@ export function SummaryPanel({
       <Grid2
         size={{ xs: 12, lg: 12 }}
         height={
-          data.length > 98
-            ? 98 * ROW_HEIGHT
+          data.length > 90
+            ? 90 * ROW_HEIGHT
             : data.length * ROW_HEIGHT + ROW_GAP
         }
       >

@@ -88,6 +88,13 @@ export function combineLeftAndRight(
     });
   }
 
+  // NB: This is a hack to keep track of valid devices. The problem is that the records
+  // in the benchmark database alone don't have the information to differentiate between
+  // benchmarks that are failed to run and benchmarks that are not run. Both show up as
+  // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
+  // information, but it's a rather slow and expensive route
+  const validDevice = new Set<string>();
+
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
   Object.keys(dataGroupedByModel).forEach((key: string) => {
@@ -101,6 +108,12 @@ export function combineLeftAndRight(
       const record = dataGroupedByModel[key][metric];
       const hasL = "l" in record;
       const hasR = "r" in record;
+
+      // Skip devices that weren't run in this commit
+      if (!hasR && !validDevice.has(device)) {
+        continue;
+      }
+      validDevice.add(device);
 
       if (!("metadata" in row)) {
         row["metadata"] = {
@@ -154,7 +167,9 @@ export function combineLeftAndRight(
       };
     }
 
-    data.push(row);
+    if ("metadata" in row) {
+      data.push(row);
+    }
   });
 
   return data;
