@@ -129,7 +129,7 @@ const getOptions = (data: any[], selectedId: any): any => {
       left: "center",
       min: 0,
       max: 100,
-      text: ["High Score", "Low Score"],
+      text: ["High Usage", "Low Usage"],
       // Map the score column to color
       dimension: 0,
       inRange: {
