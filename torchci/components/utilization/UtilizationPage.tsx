@@ -12,7 +12,7 @@ import { getIgnoredSegmentName, processStatsData } from "./helper";
 import { Divider, MainPage, Section } from "./styles";
 import { StatsInfo } from "./types";
 
-const lineFilters: PickerConfig[] = [
+export const lineFilters: PickerConfig[] = [
   { category: "all", types: [{ name: "all", tags: ["|"] }] },
   {
     category: "gpu",

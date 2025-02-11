@@ -23,7 +23,7 @@ const AggregationModeInfo = styled(Paper)({
 });
 
 const StatsTable = styled("div")({
-  width: "1200px",
+  width: "1400px",
   margin: "10px",
 });
 
