@@ -4,7 +4,7 @@ SELECT
     workflow_name,
     job_name,
     run_attempt,
-    repo,
+    repo
 FROM
     misc.oss_ci_utilization_metadata
 WHERE
