@@ -13,7 +13,7 @@ SELECT
     segments,
     tags
 FROM
-    fortesting.oss_ci_utilization_metadata
+    misc.oss_ci_utilization_metadata
 WHERE
     workflow_id = { workflowId: UInt64}
     AND run_attempt = {runAttempt: UInt32}
