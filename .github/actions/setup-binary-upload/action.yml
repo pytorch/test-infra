@@ -50,8 +50,9 @@ runs:
         set -ex
 
         # Set artifact name here since github actions doesn't have string manipulation tools
-        # and "/" is not allowed in artifact names
-        echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+        # and "/" is not allowed in artifact names. //\//_ is to replace all forward slashes,
+        # not just the first one
+        echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
 
     # Need to checkout the target repository to run pkg-helpers
     - uses: actions/checkout@v4

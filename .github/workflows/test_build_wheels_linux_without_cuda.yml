@@ -44,4 +44,7 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
-      build-platform: 'python-build-package'
+      build-platform: python-build-package
+      pip-install-torch-extra-args:
+        torchvision
+        torchao
