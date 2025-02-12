@@ -98,7 +98,7 @@ export default async function handler(
   }
 
   const { prNumber } = req.query;
-  const repo = "pytorch"
+  const { repo }: UpdateCommentBody = req.body;
   const octokit = await getOctokit(OWNER, repo);
 
   const failures = await updateDrciComments(
