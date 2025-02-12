@@ -310,8 +310,6 @@ function fetchMetadata(workflowId: string | undefined): {
     return { utilMetadataList: [], metaError: "No metadata list found" };
   }
 
-
-
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
