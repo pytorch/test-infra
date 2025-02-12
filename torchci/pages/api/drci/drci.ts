@@ -628,7 +628,7 @@ export function constructResultsComment(
     .concat(brokenTrunkJobs)
     .concat(unstableJobs)
     .filter((job) => !isPending(job))
-    .toLength();
+    .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
     (job) =>
       job.conclusion !== "cancelled" &&
@@ -796,9 +796,9 @@ export function constructResultsComment(
     prNumber,
     "UNSTABLE",
     `The following ${pluralize("job", unstableJobs.length)} ${pluralize(
-      "was",
+      "is",
       unstableJobs.length,
-      "were"
+      "are"
     )} marked as unstable, possibly due to flakiness on trunk`,
     unstableJobs,
     "",
