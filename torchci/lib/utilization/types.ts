@@ -54,7 +54,6 @@ export interface TimeSeriesDataPoint {
   value: number;
 }
 
-
 export interface UtilizationMetadataInfo {
   workflow_id: string;
   job_id: string;
@@ -64,11 +63,11 @@ export interface UtilizationMetadataInfo {
   repo: string;
 }
 
-export interface UtilizationMetadataInfoParams {
+export interface ListUtilizationMetadataInfoParams {
   workflow_id: string;
   repo?: string;
 }
 
-export interface UtilizationMetadataInfoAPIResponse{
+export interface ListUtilizationMetadataInfoAPIResponse {
   metadata_list: UtilizationMetadataInfo[];
 }

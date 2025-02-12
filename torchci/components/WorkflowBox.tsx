@@ -1,9 +1,15 @@
+import { Button, styled } from "@mui/material";
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
+import {
+  ListUtilizationMetadataInfoAPIResponse,
+  UtilizationMetadataInfo,
+} from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
+import { IoMdArrowDropdown } from "react-icons/io";
 import useSWR from "swr";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import { TestInfo } from "./additionalTestInfo/TestInfo";
@@ -11,7 +17,6 @@ import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { durationDisplay } from "./TimeUtils";
-import { UtilizationMetadataInfo, UtilizationMetadataInfoAPIResponse } from "lib/utilization/types";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -25,7 +30,14 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Jobs with the same conclusion are sorted alphabetically
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
-
+const CustomIoMdArrowDropdownShow = styled(IoMdArrowDropdown)({
+  fontSize: "20px",
+});
+const JobButton = styled(Button)({
+  fontSize: "10px",
+  color: "green",
+  margin: "5px",
+});
 function WorkflowJobSummary({
   job,
   utilMetadata,
@@ -42,20 +54,6 @@ function WorkflowJobSummary({
   unstableIssues: IssueData[];
 }) {
   const subInfo = [];
-  if (utilMetadata && utilMetadata.length > 0) {
-    if(utilMetadata.length > 1) {
-      console.log(`Multiple util metadata found for job ${job.id}, currently only showing the first one`)
-    }
-    const m = utilMetadata[0];
-    subInfo.push(
-      <>
-        <i>Utilization:</i>
-          <a target="_blank" rel="noreferrer" href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}>
-        Utilization Report
-      </a>
-      </>
-    );
-  }
   if (job.queueTimeS != null) {
     subInfo.push(
       <>
@@ -88,19 +86,36 @@ function WorkflowJobSummary({
     }
   }
 
-  // show utilization
-
   if (hasArtifacts) {
     subInfo.push(
-      <a onClick={() => setArtifactsToShowHelper()}>Show artifacts</a>
+      <JobButton variant="outlined" onClick={() => setArtifactsToShowHelper()}>
+        <CustomIoMdArrowDropdownShow /> artifacts
+      </JobButton>
     );
   }
-
   if (job.logUrl) {
     subInfo.push(
-      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+      <JobButton variant="outlined" href={job.logUrl}>
         Raw logs
-      </a>
+      </JobButton>
+    );
+  }
+  if (utilMetadata && utilMetadata.length > 0) {
+    if (utilMetadata.length > 1) {
+      console.log(
+        `Multiple util metadata found for job ${job.id}, currently only showing the first one`
+      );
+    }
+    const m = utilMetadata[0];
+    subInfo.push(
+      <>
+        <JobButton
+          variant="outlined"
+          href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}
+        >
+          Utilization Report{" "}
+        </JobButton>
+      </>
     );
   }
 
@@ -114,7 +129,7 @@ function WorkflowJobSummary({
           return (
             <span key={ind}>
               {info}
-              {ind < subInfo.length - 1 && ", "}
+              {ind < subInfo.length - 1}
             </span>
           );
         })}
@@ -143,7 +158,6 @@ export default function WorkflowBox({
   setWide: any;
   repoFullName: string;
 }) {
-
   const workflowId = jobs[0].workflowId;
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
@@ -151,8 +165,9 @@ export default function WorkflowBox({
     : styles.workflowBoxSuccess;
 
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
-  const { utilMetadataList, metaError} = fetchMetadata(workflowId);
+  const { utilMetadataList, metaError } = fetchMetadata(workflowId);
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
+
   const { artifacts, error } = useArtifacts(workflowId);
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
@@ -164,6 +179,7 @@ export default function WorkflowBox({
     results: new Map(),
     info: undefined,
   });
+
   useEffect(() => {
     getSearchRes(jobs, searchString, setSearchRes);
   }, [jobs, searchString]);
@@ -236,7 +252,11 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
-              utilMetadata={job.id?groupUtilMetadataList.get(job.id.toString()):undefined}
+              utilMetadata={
+                job.id
+                  ? groupUtilMetadataList.get(job.id.toString())
+                  : undefined
+              }
               artifacts={groupedArtifacts?.get(job.id?.toString())}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
@@ -257,17 +277,17 @@ export default function WorkflowBox({
   );
 }
 
-function fetchMetadata(workflowId: string|undefined):{
+function fetchMetadata(workflowId: string | undefined): {
   utilMetadataList: UtilizationMetadataInfo[];
   metaError: any;
-}{
+} {
   if (workflowId === undefined) {
     return { utilMetadataList: [], metaError: "No workflow ID" };
   }
 
   // add api fetch
-  const { data, error } = useSWR<UtilizationMetadataInfoAPIResponse>(
-    `/api/utilization_metadata_info/${workflowId}`,
+  const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
+    `/api/list_utilization_metadata_info/${workflowId}`,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -281,13 +301,19 @@ function fetchMetadata(workflowId: string|undefined):{
     return { utilMetadataList: [], metaError: "Loading..." };
   }
 
+  if (data.metadata_list == null) {
+    return { utilMetadataList: [], metaError: "No metadata list found" };
+  }
+
   if (error != null) {
-    return { utilMetadataList: [], metaError: "Error occured while fetching util metadata" };
+    return {
+      utilMetadataList: [],
+      metaError: "Error occured while fetching util metadata",
+    };
   }
 
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
-
 
 function useArtifacts(workflowId: string | undefined): {
   artifacts: Artifact[];
@@ -313,16 +339,20 @@ function useArtifacts(workflowId: string | undefined): {
   return { artifacts: data, error };
 }
 
-function groupMetadataByJobId(utilMetadataList: UtilizationMetadataInfo[]): Map<string, UtilizationMetadataInfo[]> {
+function groupMetadataByJobId(
+  utilMetadataList: UtilizationMetadataInfo[]
+): Map<string, UtilizationMetadataInfo[]> {
   const grouping = new Map<string, UtilizationMetadataInfo[]>();
-  for (const utilMetadata of utilMetadataList){
-    if (utilMetadata.job_id === undefined || "") {
+  for (const utilMetadata of utilMetadataList) {
+    if (!utilMetadata.job_id) {
       continue;
     }
-    if (grouping.has(utilMetadata.job_id)){
-      grouping.get(utilMetadata.job_id)!.push(utilMetadata);
+
+    const jobId = utilMetadata.job_id.toString();
+    if (grouping.has(jobId)) {
+      grouping.get(jobId)!.push(utilMetadata);
     } else {
-      grouping.set(utilMetadata.job_id, [utilMetadata]);
+      grouping.set(jobId, [utilMetadata]);
     }
   }
   return grouping;
