@@ -112,7 +112,6 @@ export function combineLeftAndRight(
       }
     }
   });
-  console.log(validDevices);
 
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
