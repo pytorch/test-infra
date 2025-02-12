@@ -3,7 +3,6 @@ import {
   TimeSeriesDataPoint,
   TimeSeriesDbData,
   TimeSeriesWrapper,
-  UTIL_METADATA_QUERY_FOLDER_NAME,
   UTILIZATION_DEFAULT_REPO,
   UtilizationAPIResponse,
   UtilizationMetadata,
@@ -12,6 +11,7 @@ import {
 
 const UTIL_TS_QUERY_FOLDER_NAME = "oss_ci_util_ts";
 const UTILIZATION_TYPE = "utilization";
+const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata";
 
 export default async function fetchUtilization(
   params: UtilizationParams

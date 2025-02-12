@@ -5,6 +5,8 @@ import {
   UTILIZATION_DEFAULT_REPO,
   UtilizationMetadataInfo,
 } from "./types";
+const LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME =
+  "oss_ci_list_util_metadata_info";
 
 export default async function fetchListUtilizationMetadataInfo(
   params: ListUtilizationMetadataInfoParams
@@ -23,9 +25,12 @@ async function getUtilizationMetadataInfo(
   workflow_id: string,
   repo: string = UTILIZATION_DEFAULT_REPO
 ) {
-  const response = await queryClickhouseSaved("oss_ci_util_metadata_info", {
-    workflowId: workflow_id,
-    repo: repo,
-  });
+  const response = await queryClickhouseSaved(
+    LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME,
+    {
+      workflowId: workflow_id,
+      repo: repo,
+    }
+  );
   return response;
 }
