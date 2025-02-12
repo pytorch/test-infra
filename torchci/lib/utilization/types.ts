@@ -1,7 +1,12 @@
+export const UTILIZATION_DEFAULT_REPO = "pytorch/pytorch";
+
+export const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata";
+
 export interface UtilizationParams {
   workflow_id: string;
   job_id: string;
   run_attempt: string;
+  repo?: string;
 }
 
 export interface TimeSeriesDbData {
@@ -47,4 +52,23 @@ export interface TimeSeriesWrapper {
 export interface TimeSeriesDataPoint {
   ts: string;
   value: number;
+}
+
+
+export interface UtilizationMetadataInfo {
+  workflow_id: string;
+  job_id: string;
+  run_attempt: string;
+  workflow_name: string;
+  job_name: string;
+  repo: string;
+}
+
+export interface UtilizationMetadataInfoParams {
+  workflow_id: string;
+  repo?: string;
+}
+
+export interface UtilizationMetadataInfoAPIResponse{
+  metadata_list: UtilizationMetadataInfo[];
 }

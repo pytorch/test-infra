@@ -44,6 +44,7 @@ export function CommitInfo({
   }
 
   const { commit, jobs } = commitData;
+  
 
   return (
     <div>
