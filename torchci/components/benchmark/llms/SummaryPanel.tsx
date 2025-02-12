@@ -142,7 +142,7 @@ export function SummaryPanel({
           flex: 1,
           cellClassName: (params: GridCellParams<any, any>) => {
             const v = params.value;
-            if (v === undefined || v.l.actual === 0) {
+            if (v === undefined) {
               return "";
             }
 
@@ -161,6 +161,11 @@ export function SummaryPanel({
               // It didn't error in the past, but now it does error
               if (r === 0) {
                 return styles.error;
+              }
+
+              // If it didn't run and now it runs, mark it as green
+              if (l === 0) {
+                return styles.ok;
               }
 
               if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {

@@ -93,7 +93,26 @@ export function combineLeftAndRight(
   // benchmarks that are failed to run and benchmarks that are not run. Both show up as
   // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
   // information, but it's a rather slow and expensive route
-  const validDevice = new Set<string>();
+  const validDevices = new Set<string>();
+  // First round to get all the valid devices
+  Object.keys(dataGroupedByModel).forEach((key: string) => {
+    const [model, backend, dtype, device, arch] = key.split(";");
+    const row: { [k: string]: any } = {
+      // Keep the name as as the row ID as DataGrid requires it
+      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
+    };
+
+    for (const metric in dataGroupedByModel[key]) {
+      const record = dataGroupedByModel[key][metric];
+      const hasL = "l" in record;
+      const hasR = "r" in record;
+
+      if (hasL && hasR) {
+        validDevices.add(device);
+      }
+    }
+  });
+  console.log(validDevices);
 
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
@@ -110,10 +129,9 @@ export function combineLeftAndRight(
       const hasR = "r" in record;
 
       // Skip devices that weren't run in this commit
-      if (!hasR && !validDevice.has(device)) {
+      if (!validDevices.has(device)) {
         continue;
       }
-      validDevice.add(device);
 
       if (!("metadata" in row)) {
         row["metadata"] = {
