@@ -8,9 +8,10 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const { workflowId } = req.query;
-  if (workflowId === undefined) {
+  if (!workflowId) {
     return res.status(400).json({ error: "workflowId is required" });
   }
+
   const params: ListUtilizationMetadataInfoParams = {
     workflow_id: workflowId as string,
   };

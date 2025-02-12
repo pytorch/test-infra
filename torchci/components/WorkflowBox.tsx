@@ -1,6 +1,6 @@
 import { Button, styled } from "@mui/material";
 import styles from "components/commit.module.css";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcher, fetcherHandleError } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
@@ -281,14 +281,12 @@ function fetchMetadata(workflowId: string | undefined): {
   utilMetadataList: UtilizationMetadataInfo[];
   metaError: any;
 } {
-  if (workflowId === undefined) {
+  if (!workflowId) {
     return { utilMetadataList: [], metaError: "No workflow ID" };
   }
-
-  // add api fetch
   const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
     `/api/list_utilization_metadata_info/${workflowId}`,
-    fetcher,
+    fetcherHandleError,
     {
       refreshInterval: 60 * 1000, // refresh every minute
       // Refresh even when the user isn't looking, so that switching to the tab
@@ -296,6 +294,10 @@ function fetchMetadata(workflowId: string | undefined): {
       refreshWhenHidden: true,
     }
   );
+
+  if (error != null) {
+    console.log(`Error occured when list_utilization_metadata_info for ${workflowId}`,error, error.status);
+  }
 
   if (data == null) {
     return { utilMetadataList: [], metaError: "Loading..." };
