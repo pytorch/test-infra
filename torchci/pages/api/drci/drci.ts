@@ -795,10 +795,7 @@ export function constructResultsComment(
     repo,
     prNumber,
     "UNSTABLE",
-    `The following ${pluralize(
-      "job",
-      unstableJobs.length
-    )} ${pluralize(
+    `The following ${pluralize("job", unstableJobs.length)} ${pluralize(
       "was",
       unstableJobs.length,
       "were"
