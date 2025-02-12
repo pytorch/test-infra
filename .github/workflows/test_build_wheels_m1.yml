@@ -60,7 +60,7 @@ jobs:
   test-artifact-name:
     needs: generate-matrix
     uses: ./.github/workflows/build_wheels_macos.yml
-    name: ${{ matrix.repository }}
+    name: pytorch/ao
     with:
       repository: pytorch/ao
       ref: drisspg/stack/31
