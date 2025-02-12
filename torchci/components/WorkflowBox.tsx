@@ -296,7 +296,10 @@ function fetchMetadata(workflowId: string | undefined): {
   );
 
   if (error != null) {
-    console.log(`Error occured when list_utilization_metadata_info for ${workflowId}`,error, error.status);
+    return {
+      utilMetadataList: [],
+      metaError: "Error occured while fetching util metadata",
+    };
   }
 
   if (data == null) {
@@ -307,12 +310,7 @@ function fetchMetadata(workflowId: string | undefined): {
     return { utilMetadataList: [], metaError: "No metadata list found" };
   }
 
-  if (error != null) {
-    return {
-      utilMetadataList: [],
-      metaError: "Error occured while fetching util metadata",
-    };
-  }
+
 
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
