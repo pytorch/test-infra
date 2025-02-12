@@ -382,7 +382,7 @@ export default function Page() {
             <Grid2 size={{ xs: 12 }} key={group.name}>
               <Typography variant="h6">{group.name}</Typography>
               <Grid2 container spacing={2}>
-                {groupedFields[group.name].map((field: string) => (
+                {groupedFields[group.name]?.map((field: string) => (
                   <Panel field={field} key={field} />
                 ))}
               </Grid2>
