@@ -22,7 +22,6 @@ jobs:
       os: macos-arm64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-
   test:
     needs: generate-matrix
     strategy:
@@ -56,18 +55,3 @@ jobs:
       trigger-event: "${{ github.event_name }}"
       cache-path: ${{ matrix.cache-path }}
       cache-key: ${{ matrix.cache-key }}
-
-  test-artifact-name:
-    needs: generate-matrix
-    uses: ./.github/workflows/build_wheels_macos.yml
-    name: pytorch/ao
-    with:
-      repository: pytorch/ao
-      ref: drisspg/stack/31
-      test-infra-repository: pytorch/test-infra
-      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
-      pre-script: packaging/pre_build_script.sh
-      smoke-test-script: test/smoke_test.py
-      runner-type: macos-m1-stable
-      package-name: torchao
-      trigger-event: "${{ github.event_name }}"
