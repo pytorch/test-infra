@@ -55,7 +55,7 @@ export const ARCH_NAMES: { [k: string]: string[] } = {
 };
 
 // Relative thresholds
-export const RELATIVE_THRESHOLD = 0.15;
+export const RELATIVE_THRESHOLD = 0.10;
 
 export interface LLMsBenchmarkData {
   granularity_bucket: string;
