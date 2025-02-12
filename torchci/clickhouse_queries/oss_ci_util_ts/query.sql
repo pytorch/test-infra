@@ -5,7 +5,7 @@ SELECT
     tags,
     json_data AS data
 FROM
-    fortesting.oss_ci_time_series
+    misc.oss_ci_time_series
 WHERE
     workflow_id = {workflowId: UInt64}
     AND run_attempt = {runAttempt: UInt32}
