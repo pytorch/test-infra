@@ -128,7 +128,13 @@ export function combineLeftAndRight(
       const hasR = "r" in record;
 
       // Skip devices that weren't run in this commit
-      if (!validDevices.has(device)) {
+      if (validDevices.size !== 0 && !validDevices.has(device)) {
+        continue;
+      }
+
+      // No overlapping between left and right commits, just show what it's on the
+      // right commit instead of showing a blank page
+      if (validDevices.size === 0 && !hasR) {
         continue;
       }
 
@@ -181,6 +187,7 @@ export function combineLeftAndRight(
               actual: 0,
               target: 0,
             },
+        highlight: validDevices.size !== 0
       };
     }
 

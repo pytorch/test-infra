@@ -150,6 +150,10 @@ export function SummaryPanel({
             const l = v.l.actual;
             const r = v.r.actual;
 
+            if (!v.highlight) {
+              return "";
+            }
+
             if (lCommit === rCommit) {
               return "";
             } else {
@@ -212,7 +216,7 @@ export function SummaryPanel({
             const showTarget =
               target && target != 0 ? `[target = ${target}]` : "";
 
-            if (lCommit === rCommit || l === r) {
+            if (lCommit === rCommit || l === r || !v.highlight) {
               return `${r} ${rPercent} ${showTarget}`;
             } else {
               return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
