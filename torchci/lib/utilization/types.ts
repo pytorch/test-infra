@@ -1,6 +1,6 @@
 export const UTILIZATION_DEFAULT_REPO = "pytorch/pytorch";
 
-export const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata";
+export const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_list_util_metadata_info";
 
 export interface UtilizationParams {
   workflow_id: string;
