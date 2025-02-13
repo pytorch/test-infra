@@ -307,6 +307,7 @@ jobs:
               mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
           fi
+
           upload_docs=0
           # Check if there are files in the documentation folder to upload, note that
           # empty folders do not count
