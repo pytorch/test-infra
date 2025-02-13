@@ -306,13 +306,8 @@ jobs:
             if [[ -d "artifacts-to-be-uploaded" ]]; then
               mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
-
-            # check if there is any files or folders in {RUNNER_ARTIFACT_DIR}, if not,set output if-no-files-found to true.
-            if ! find "${RUNNER_ARTIFACT_DIR}" -mindepth 1 -print -quit | grep -q .; then
-              echo 'if-no-files-found=true' >> "${GITHUB_OUTPUT}"
-            fi
           fi
-
+          
           upload_docs=0
           # Check if there are files in the documentation folder to upload, note that
           # empty folders do not count
@@ -323,16 +318,11 @@ jobs:
           fi
           echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
 
-      - name: Echo check artifact result
-        shell: bash
-        run: |
-          echo "steps.check-artifacts.outputs ${{steps.check-artifacts.outputs.if-no-files-found}}"
-
       # NB: Keep this for compatibility with existing jobs and also keep in mind that only
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v4
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='true'}}
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3}}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
@@ -340,7 +330,7 @@ jobs:
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='true'}}
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3}}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
