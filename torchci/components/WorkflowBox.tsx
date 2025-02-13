@@ -31,13 +31,16 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 const CustomIoMdArrowDropdownShow = styled(IoMdArrowDropdown)({
-  fontSize: "20px",
-});
-const JobButton = styled(Button)({
   fontSize: "10px",
-  color: "green",
-  margin: "5px",
 });
+
+const JobButton = styled(Button)({
+  fontSize: "8px",
+  padding: "0 1px 0 1px",
+  color: "green",
+  margin: "2px",
+});
+
 function WorkflowJobSummary({
   job,
   utilMetadata,
