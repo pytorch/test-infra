@@ -10,12 +10,13 @@ import {
   InfoSection,
   InfoTitle,
 } from "components/utilization/styles";
+import { lineFilters } from "components/utilization/UtilizationPage";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import UtilizationJobMetricsTable from "../UtilizationStatsTable";
 
 const StatsTable = styled("div")({
-  width: "1200px",
+  maxWidth: "1400px",
   margin: "10px",
 });
 
@@ -26,6 +27,8 @@ const GraphGroupSection = styled("div")({
 
 const SingleGraphSection = styled("div")({
   margin: "5px",
+  padding: "10px",
+  border: "1px solid #ccc",
 });
 
 export const SingleTestView = ({
@@ -105,6 +108,7 @@ export const SingleTestView = ({
               chartWidth={1200}
               disableLineTooltip={false}
               disableRect={true}
+              lineFilterConfig={lineFilters}
             ></LineRectChart>
           )}
         </SingleGraphSection>
@@ -135,6 +139,5 @@ function getGithubSearchLink(testName: string) {
   const repo = `${testName}`;
   const encodedString = encodeURIComponent(repo);
   const url = head + `"` + encodedString + `"&type=code`;
-  console.log(url);
   return url;
 }

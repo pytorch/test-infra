@@ -29,3 +29,20 @@ export const InfoTitle = styled("span")({
   fontSize: "16px",
   fontWeight: "bold",
 });
+
+export const FlexSection = styled("div")({
+  margin: "5px",
+  display: "flex",
+});
+
+export const Description = styled("div")({
+  margin: "10px",
+  padding: "10px",
+  fontSize: "20px",
+});
+
+export const Blank = styled(Paper)({
+  margin: "10px",
+  padding: "10px",
+  height: "400px",
+});

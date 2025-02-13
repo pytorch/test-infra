@@ -45,7 +45,7 @@ def gen_update_comment(original_issue: Any, new_queues: List[QueueInfo]) -> str:
         for q in started_queueing:
             s += gen_queue_info_str(q)
         s += "\n"
-    return s
+    return s.rstrip()
 
 
 def gen_issue(queues: List[QueueInfo]) -> Any:

@@ -544,7 +544,8 @@ function constructResultsJobsSections(
   const hudPrUrl = `${hudBaseUrl}/pr/${owner}/${repo}/${prNumber}`;
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
-    output += `* [${job.name}](${hudPrUrl}#${job.id}) ([gh](${job.html_url}))`;
+    const isPendingIcon = isPending(job) ? ":hourglass_flowing_sand: " : "";
+    output += `* ${isPendingIcon}[${job.name}](${hudPrUrl}#${job.id}) ([gh](${job.html_url}))`;
 
     const relatedJob = relatedJobs.get(job.id);
     // Show the related trunk failure for broken trunk or the similar failure for flaky
@@ -622,8 +623,12 @@ export function constructResultsComment(
   prNumber: number
 ): string {
   let output = `\n`;
-  const unrelatedFailureCount =
-    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  // Filter out unstable pending jobs
+  const unrelatedFailureCount = _(flakyJobs)
+    .concat(brokenTrunkJobs)
+    .concat(unstableJobs)
+    .filter((job) => !isPending(job))
+    .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
     (job) =>
       job.conclusion !== "cancelled" &&
@@ -634,11 +639,7 @@ export function constructResultsComment(
       job.conclusion === "cancelled" ||
       job.failure_captures.includes(CANCELLED_STEP_ERROR)
   );
-  const failing =
-    failedJobs.length +
-    flakyJobs.length +
-    brokenTrunkJobs.length +
-    unstableJobs.length;
+  const failing = failedJobs.length + unrelatedFailureCount;
   const headerPrefix = `## `;
   const pendingIcon = `:hourglass_flowing_sand:`;
   const successIcon = `:white_check_mark:`;
@@ -662,8 +663,7 @@ export function constructResultsComment(
   const hasSignificantFailures = newFailedJobs.length > 0;
   const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
-  const hasUnrelatedFailures =
-    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const hasUnrelatedFailures = unrelatedFailureCount > 0;
 
   let icon = "";
   if (hasSignificantFailures || hasCancelledFailures) {
@@ -795,14 +795,11 @@ export function constructResultsComment(
     repo,
     prNumber,
     "UNSTABLE",
-    `The following ${pluralize(
-      "job",
-      unstableJobs.length
-    )} failed but ${pluralize(
-      "was",
+    `The following ${pluralize("job", unstableJobs.length)} ${pluralize(
+      "is",
       unstableJobs.length,
-      "were"
-    )} likely due to flakiness present on trunk and has been marked as unstable`,
+      "are"
+    )} marked as unstable, possibly due to flakiness on trunk`,
     unstableJobs,
     "",
     true,
@@ -855,6 +852,10 @@ function getTrunkFailure(
     .find((baseJob) => isSameFailure(baseJob, job));
 }
 
+function isPending(job: RecentWorkflowsData): boolean {
+  return job.conclusion === "" && isTime0(job.completed_at);
+}
+
 export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
@@ -889,8 +890,15 @@ export async function getWorkflowJobsStatuses(
   const relatedInfo: Map<number, string> = new Map();
 
   for (const job of prInfo.jobs) {
-    if (job.conclusion === "" && isTime0(job.completed_at)) {
+    if (isPending(job)) {
       pending++;
+      if (isUnstableJob(job as any, unstableIssues)) {
+        unstableJobs.push(job);
+        relatedIssues.set(
+          job.id,
+          getOpenUnstableIssues(job.name, unstableIssues)
+        );
+      }
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
       const suppressedLabels = await getSuppressedLabels(job, labels);
       if (prInfo.repo === "pytorch" && suppressedLabels.length !== 0) {

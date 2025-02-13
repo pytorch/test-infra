@@ -636,14 +636,41 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       "The following job has failed",
       "The following job failed but was likely due to flakiness present on trunk",
       "The following job failed but was present on the merge base",
-      "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
+      "The following job is marked as unstable",
       failedA.name,
       failedB.name,
       failedC.name,
       unstableA.name,
     ];
     expect(
-      expectToContain.every((s) => failureInfoComment.includes(s!))
+      expectToContain.every((s) => failureInfoComment.includes(s))
+    ).toBeTruthy();
+  });
+
+  test("test pending unstable job", async () => {
+    // Test that a pending unstable job gets included in the comment as
+    // unstable, but doesn't count as failed in the overall count
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      failedJobs: [failedA],
+      flakyJobs: [failedB],
+      brokenTrunkJobs: [failedC],
+      unstableJobs: [{ ...unstableA, conclusion: "", completed_at: TIME_0 }],
+      merge_base: "random base sha",
+    });
+    const expectToContain = [
+      "1 New Failure, 1 Pending, 2 Unrelated Failures",
+      "The following job has failed",
+      "The following job failed but was likely due to flakiness present on trunk",
+      "The following job failed but was present on the merge base",
+      "The following job is marked as unstable",
+      failedA.name,
+      failedB.name,
+      failedC.name,
+      unstableA.name,
+    ];
+    expect(
+      expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
   });
 

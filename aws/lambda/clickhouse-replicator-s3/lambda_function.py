@@ -549,6 +549,8 @@ SUPPORTED_PATHS = {
     "v3": "benchmark.oss_ci_benchmark_v3",
     "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
     "debug_util_timeseries": "fortesting.oss_ci_time_series",
+    "util_metadata":"misc.oss_ci_utilization_metadata",
+    "util_timeseries":"misc.oss_ci_time_series",
 }
 
 OBJECT_CONVERTER = {
@@ -568,6 +570,8 @@ OBJECT_CONVERTER = {
     "benchmark.oss_ci_benchmark_v3": oss_ci_benchmark_v3_adapter,
     "fortesting.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
+    "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
+    "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
 }
 
 
