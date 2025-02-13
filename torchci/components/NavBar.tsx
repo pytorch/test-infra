@@ -101,6 +101,24 @@ function NavBar() {
       href: "/query_execution_metrics",
     },
   ];
+  const toolsDropdownItems = [
+    {
+      name: "MiniHUD",
+      href: "/minihud",
+    },
+    {
+      name: "ExecuTorch",
+      href: "/hud/pytorch/executorch/main",
+    },
+    {
+      name: "TorchVision",
+      href: "/hud/pytorch/vision/main",
+    },
+    {
+      name: "TorchAudio",
+      href: "/hud/pytorch/audio/main",
+    },
+  ];
 
   return (
     <div className={styles.navbar}>
@@ -111,26 +129,7 @@ function NavBar() {
               PyTorch CI HUD
             </Link>
           </li>
-          <li>
-            <Link prefetch={false} href="/minihud">
-              MiniHUD
-            </Link>
-          </li>
-          <li>
-            <Link prefetch={false} href="/hud/pytorch/executorch/main">
-              ExecuTorch
-            </Link>
-          </li>
-          <li>
-            <Link prefetch={false} href="/hud/pytorch/vision/main">
-              TorchVision
-            </Link>
-          </li>
-          <li>
-            <Link prefetch={false} href="/hud/pytorch/audio/main">
-              TorchAudio
-            </Link>
-          </li>
+          <NavBarDropdown title="Tools" items={toolsDropdownItems} />
         </ul>
       </div>
       <div
