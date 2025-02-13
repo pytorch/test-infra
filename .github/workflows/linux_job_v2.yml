@@ -332,7 +332,7 @@ jobs:
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v4
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3}}
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='true'}}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
@@ -340,7 +340,7 @@ jobs:
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3}}
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='true'}}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
