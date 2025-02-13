@@ -1,0 +1,7 @@
+Job Name: linux-focal-cpu-py3.10-gcc9-bazel-test / build-and-test (default, 1, 1, linux.4xlarge)
+
+2023-10-04T23:04:42.7835840Z ##[error]Process completed with exit code 1. isthe error
+
+Error found in chunk 4 / 46
+
+Chunks above seem to contain docker information and may be created due to the docker image recreating itself.
