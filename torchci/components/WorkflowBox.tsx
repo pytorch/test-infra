@@ -9,7 +9,6 @@ import {
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
-import { IoMdArrowDropdown } from "react-icons/io";
 import useSWR from "swr";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import { TestInfo } from "./additionalTestInfo/TestInfo";
