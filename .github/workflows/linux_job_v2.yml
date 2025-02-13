@@ -304,12 +304,12 @@ jobs:
               mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
             fi
             if [[ -d "artifacts-to-be-uploaded" ]]; then
-                mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
 
-            # check if there is any files in RUNNER_ARTIFACT_DIR, if not output no results.
+            # check if there is any files or folders in {RUNNER_ARTIFACT_DIR}, if not,set output if-no-files-found to true.
             if ! find "${RUNNER_ARTIFACT_DIR}" -mindepth 1 -print -quit | grep -q .; then
-                echo 'if-no-files-found=true' >> "${GITHUB_OUTPUT}"
+              echo 'if-no-files-found=true' >> "${GITHUB_OUTPUT}"
             fi
           fi
 
