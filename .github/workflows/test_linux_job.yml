@@ -146,6 +146,7 @@ jobs:
       upload-artifact-to-s3: true
       script: |
         echo "hello"
+  test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/linux_job.yml
     with:
