@@ -324,22 +324,20 @@ jobs:
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v4
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='error'}}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
-          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
 
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='error'}}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
           s3-prefix: |
             ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
-          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
           path: ${{ runner.temp }}/artifacts/
 
       - name: Upload documentation to S3 (if any)
