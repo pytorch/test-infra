@@ -304,12 +304,9 @@ jobs:
               mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
             fi
             if [[ -d "artifacts-to-be-uploaded" ]]; then
-              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+                mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
-            # Set to fail upload step if there are no files for upload and expected files for upload
-            echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
           fi
-
           upload_docs=0
           # Check if there are files in the documentation folder to upload, note that
           # empty folders do not count
@@ -319,12 +316,17 @@ jobs:
             upload_docs=1
           fi
           echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
+      - name: Echo check artifact result
+        shell: bash
+        run: |
+          echo "steps.check-artifacts.outputs ${{steps.check-artifacts.outputs.if-no-files-found}}"
+
 
       # NB: Keep this for compatibility with existing jobs and also keep in mind that only
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v4
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='error'}}
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3}}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
@@ -332,7 +334,7 @@ jobs:
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 && steps.check-artifacts.outputs.if-no-files-found!='error'}}
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3}}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
