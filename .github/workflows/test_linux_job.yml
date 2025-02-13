@@ -117,6 +117,15 @@ jobs:
       upload-artifact: my-cool-artifact
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-no-artifact:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      script: |
+        echo "hello"
   test-upload-artifact-s3:
     uses: ./.github/workflows/linux_job.yml
     with:
@@ -127,6 +136,16 @@ jobs:
       upload-artifact-to-s3: true
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3-no-artifact:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello"
   test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/linux_job.yml
