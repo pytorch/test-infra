@@ -114,7 +114,19 @@ jobs:
       upload-artifact-to-s3: true
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
-  test-upload-artifact-s3-no-file:
+  test-upload-artifact-s3-no-artifact:
+    uses: ./.github/workflows/linux_job_v2.yml
+    permissions:
+      id-token: write
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello"
+  test-upload-artifact-s3-no-artifact:
     uses: ./.github/workflows/linux_job_v2.yml
     permissions:
       id-token: write
