@@ -307,6 +307,10 @@ jobs:
                 mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
           fi
+          
+          if [[ ! find ${RUNNER_ARTIFACT_DIR} -mindepth 1 -print -quit | read -r ]]; then
+              echo 'if-no-files-found=true' >> "${GITHUB_OUTPUT}"
+          fi
           upload_docs=0
           # Check if there are files in the documentation folder to upload, note that
           # empty folders do not count
