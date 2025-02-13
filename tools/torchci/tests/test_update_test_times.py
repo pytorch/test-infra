@@ -80,6 +80,12 @@ class TestUpdateTestTimesFile(unittest.TestCase):
         }
         self.assertDictEqual(res, expected)
 
+        data = []
+        res = gen_test_file_times(data, {"default": {"config": {"a": 57}}})
+        # When having no data, the old default should be kept
+        expected = {"default": {"config": {"a": 57}}}
+        self.assertDictEqual(res, expected)
+
     def test_gen_test_file_times_old_values_still_present(self) -> None:
         data = [
             self.make_db_row("env", "config", "a", 5),
