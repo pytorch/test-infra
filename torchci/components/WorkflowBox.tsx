@@ -30,9 +30,6 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Jobs with the same conclusion are sorted alphabetically
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
-const CustomIoMdArrowDropdownShow = styled(IoMdArrowDropdown)({
-  fontSize: "10px",
-});
 
 const JobButton = styled(Button)({
   fontSize: "8px",
@@ -91,7 +88,7 @@ function WorkflowJobSummary({
   if (hasArtifacts) {
     subInfo.push(
       <JobButton variant="outlined" onClick={() => setArtifactsToShowHelper()}>
-        <CustomIoMdArrowDropdownShow /> artifacts
+        artifacts
       </JobButton>
     );
   }
@@ -131,7 +128,7 @@ function WorkflowJobSummary({
           return (
             <span key={ind}>
               {info}
-              {ind < subInfo.length - 1}
+              {ind < subInfo.length - 1 && " "}
             </span>
           );
         })}
