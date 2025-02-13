@@ -40,7 +40,6 @@ const JobButton = styled(Button)({
   color: "green",
   margin: "2px",
 });
-
 function WorkflowJobSummary({
   job,
   utilMetadata,

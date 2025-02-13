@@ -1,6 +1,9 @@
 import { getErrorMessage } from "lib/error_utils";
 import fetchListUtilizationMetadataInfo from "lib/utilization/fetchListUtilizationMetadataInfo";
-import { ListUtilizationMetadataInfoParams } from "lib/utilization/types";
+import {
+  ListUtilizationMetadataInfoAPIResponse,
+  ListUtilizationMetadataInfoParams,
+} from "lib/utilization/types";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -8,8 +11,14 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const { workflowId } = req.query;
+
+  // swr hook will call this api with empty query, return empty object
+
   if (!workflowId) {
-    return res.status(400).json({ error: "workflowId is required" });
+    const emptyResp: ListUtilizationMetadataInfoAPIResponse = {
+      metadata_list: [],
+    };
+    return res.status(200).json(emptyResp);
   }
 
   const params: ListUtilizationMetadataInfoParams = {
@@ -18,10 +27,12 @@ export default async function handler(
 
   try {
     const resp = await fetchListUtilizationMetadataInfo(params);
-    if (resp == null) {
-      return res
-        .status(404)
-        .json({ error: `No data found for params ${JSON.stringify(params)}` });
+
+    if (!resp) {
+      const emptyResp: ListUtilizationMetadataInfoAPIResponse = {
+        metadata_list: [],
+      };
+      return res.status(200).json(emptyResp);
     }
     return res.status(200).json(resp);
   } catch (error) {

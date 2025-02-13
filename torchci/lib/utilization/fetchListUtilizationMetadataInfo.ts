@@ -10,7 +10,7 @@ const LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME =
 
 export default async function fetchListUtilizationMetadataInfo(
   params: ListUtilizationMetadataInfoParams
-): Promise<ListUtilizationMetadataInfoAPIResponse | null> {
+): Promise<ListUtilizationMetadataInfoAPIResponse> {
   const meta_resp = await getUtilizationMetadataInfo(
     params.workflow_id,
     params.repo
