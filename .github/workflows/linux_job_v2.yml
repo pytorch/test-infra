@@ -307,7 +307,6 @@ jobs:
               mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
           fi
-          
           upload_docs=0
           # Check if there are files in the documentation folder to upload, note that
           # empty folders do not count
@@ -322,7 +321,7 @@ jobs:
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v4
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3}}
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
@@ -330,7 +329,7 @@ jobs:
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3}}
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
