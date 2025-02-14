@@ -1,3 +1,4 @@
+import LoadingPage from "components/LoadingPage";
 import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { UtilizationAPIResponse } from "lib/utilization/types";
@@ -22,7 +23,7 @@ const Utilization = () => {
   }
 
   if (!data) {
-    return <div>loading...</div>;
+    return <LoadingPage />;
   }
 
   return (
