@@ -15,12 +15,12 @@ import { RankTestView } from "./RankTestView/RankTestView";
 
 const toggleItems = [
   {
-    name: "list view",
-    value: "list",
-  },
-  {
     name: "chart view",
     value: "chart",
+  },
+  {
+    name: "list view",
+    value: "list",
   },
   {
     name: "rank view",
@@ -35,7 +35,7 @@ export const TestList = styled(Paper)({
   overflow: "auto",
   backgroundColor: "#f5f5f5",
 });
-const defaultTestViewValue = "list";
+const defaultTestViewValue = "chart";
 
 export const ToggleTestsGroup = ({
   pickSegment,
@@ -81,7 +81,7 @@ export const ToggleTestsGroup = ({
   return (
     <div>
       <ToggleGroup
-        defaultValue={"list"}
+        defaultValue={defaultTestViewValue}
         items={toggleItems}
         onChange={handleToggleTestView}
       />
@@ -118,18 +118,16 @@ export const ToggleTestsGroup = ({
             </TestList>
           </div>
           <div>
-            {showSegmentLocation && (
-              <div>
-                <div> Location of the test: </div>
-                <LineRectChart
-                  inputLines={timeSeriesList}
-                  chartWidth={800}
-                  rects={[showSegmentLocation]}
-                  disableLineTooltip={true}
-                  disableRect={false}
-                ></LineRectChart>
-              </div>
-            )}
+            <div>
+              <div> Location of the test: </div>
+              <LineRectChart
+                inputLines={timeSeriesList}
+                chartWidth={800}
+                rects={showSegmentLocation ? [showSegmentLocation] : []}
+                disableLineTooltip={true}
+                disableRect={false}
+              ></LineRectChart>
+            </div>
           </div>
         </FlexSection>
       )}
