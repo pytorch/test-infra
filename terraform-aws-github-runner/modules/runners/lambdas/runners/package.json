@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@octokit/auth-app": "^3.0.0",
-    "@octokit/request-error": "^2.1.0",
+    "@octokit/request-error": "^5.1.1",
     "@octokit/rest": "^18.3.5",
     "@octokit/types": "^6.12.2",
     "@types/aws-lambda": "^8.10.72",
