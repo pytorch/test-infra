@@ -69,8 +69,8 @@ const JobUtilizationSummary = ({
     const duration = getDurationMetrics(
       new Date(metadata.start_at),
       new Date(metadata.end_at),
-      "Job Duration",
-      "job|duration"
+      "Test Duration",
+      "duration"
     );
     const numeric_metrics = getMetadataStats(metadata);
     const mdm = [duration, ...numeric_metrics];
@@ -106,7 +106,7 @@ const JobUtilizationSummary = ({
         </MetadataGroupSection>
       </ContainerSection>
       <StatsTable>
-        <SectionTitle> Job Metrics Summary Table</SectionTitle>
+        <SectionTitle> Test Job Metrics Summary Table</SectionTitle>
         <UtilizationStatsTable data={tableData} />
       </StatsTable>
     </div>

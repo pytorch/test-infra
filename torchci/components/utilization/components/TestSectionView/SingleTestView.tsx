@@ -71,7 +71,7 @@ export const SingleTestView = ({
 
   return (
     <div>
-      <h1>Selected Test Details</h1>
+      <h1>Selected Test Segment Details</h1>
       <InfoCard>
         <InfoSection>
           <InfoTitle>Test Name:</InfoTitle>
@@ -105,7 +105,7 @@ export const SingleTestView = ({
           {testTimeSeries && (
             <LineRectChart
               inputLines={testTimeSeries}
-              chartWidth={1200}
+              chartWidth={1000}
               disableLineTooltip={false}
               disableRect={true}
               lineFilterConfig={lineFilters}
@@ -116,7 +116,7 @@ export const SingleTestView = ({
           <div> Location of the test: </div>
           <LineRectChart
             inputLines={timeSeriesList}
-            chartWidth={800}
+            chartWidth={700}
             rects={[testSegment]}
             disableLineTooltip={true}
             disableRect={false}
