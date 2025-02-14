@@ -1,4 +1,4 @@
-import { styled } from "@mui/material";
+import { Divider, styled } from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import {
   formatSeconds,
@@ -28,7 +28,6 @@ const GraphGroupSection = styled("div")({
 const SingleGraphSection = styled("div")({
   margin: "5px",
   padding: "10px",
-  border: "1px solid #ccc",
 });
 
 export const SingleTestView = ({
@@ -71,7 +70,8 @@ export const SingleTestView = ({
 
   return (
     <div>
-      <h1>Selected Test Details</h1>
+      <h1>Selected Test Segment Details</h1>
+      <Divider />
       <InfoCard>
         <InfoSection>
           <InfoTitle>Test Name:</InfoTitle>
@@ -105,7 +105,7 @@ export const SingleTestView = ({
           {testTimeSeries && (
             <LineRectChart
               inputLines={testTimeSeries}
-              chartWidth={1200}
+              chartWidth={1000}
               disableLineTooltip={false}
               disableRect={true}
               lineFilterConfig={lineFilters}
@@ -116,7 +116,7 @@ export const SingleTestView = ({
           <div> Location of the test: </div>
           <LineRectChart
             inputLines={timeSeriesList}
-            chartWidth={800}
+            chartWidth={700}
             rects={[testSegment]}
             disableLineTooltip={true}
             disableRect={false}

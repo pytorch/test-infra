@@ -1,4 +1,3 @@
-import { Paper } from "@mui/material";
 import { getDuration } from "components/utilization/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
@@ -34,9 +33,9 @@ export const TestSectionView = ({
       <h3>Detected python test details</h3>
       <Divider />
       <div>
-        <InfoTitle>Tests ({renderSegments.length}) </InfoTitle>
+        <InfoTitle>Potential Python Tests ({renderSegments.length}) </InfoTitle>
         <Description>
-          {`We detected (${renderSegments.length}) tests on PYTHON_CMD level`}
+          {`We detected (${renderSegments.length}) segments that are potentially tests on PYTHON_CMD level`}
         </Description>
         {renderSegments.length > 0 && timeSeriesList.length > 0 && (
           <ToggleTestsGroup
@@ -47,12 +46,12 @@ export const TestSectionView = ({
         )}
         <div>
           {pickedSegment ? (
-            <Paper>
+            <div>
               <SingleTestView
                 testSegment={pickedSegment}
                 timeSeriesList={timeSeriesList}
               />
-            </Paper>
+            </div>
           ) : (
             <Blank></Blank>
           )}
