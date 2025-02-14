@@ -94,6 +94,7 @@ export function combineLeftAndRight(
   // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
   // information, but it's a rather slow and expensive route
   const validDevices = new Set<string>();
+  const validModels = new Set<string>();
   const validModelBackends = new Set<string>();
   // First round to get all the valid devices
   Object.keys(dataGroupedByModel).forEach((key: string) => {
@@ -110,6 +111,7 @@ export function combineLeftAndRight(
 
       if (hasL && hasR) {
         validDevices.add(device);
+        validModels.add(model);
       }
 
       if (hasR) {
@@ -135,6 +137,7 @@ export function combineLeftAndRight(
       // Skip devices and models that weren't run in this commit
       if (
         (validDevices.size !== 0 && !validDevices.has(device)) ||
+        (validModels.size !== 0 && !validModels.has(model)) ||
         (validModelBackends.size !== 0 &&
           !validModelBackends.has(`${model} ${backend}`))
       ) {
@@ -196,7 +199,7 @@ export function combineLeftAndRight(
               actual: 0,
               target: 0,
             },
-        highlight: validDevices.size !== 0,
+        highlight: validDevices.size !== 0 && validModels.has(model),
       };
     }
 
