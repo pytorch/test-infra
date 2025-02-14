@@ -3,15 +3,15 @@ import {
   TimeSeriesDataPoint,
   TimeSeriesDbData,
   TimeSeriesWrapper,
+  UTILIZATION_DEFAULT_REPO,
   UtilizationAPIResponse,
   UtilizationMetadata,
   UtilizationParams,
 } from "./types";
 
-const DEFAULT_REPO = "pytorch/pytorch";
 const UTIL_TS_QUERY_FOLDER_NAME = "oss_ci_util_ts";
-const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata";
 const UTILIZATION_TYPE = "utilization";
+const UTIL_METADATA_QUERY_FOLDER_NAME = "oss_ci_util_metadata";
 
 export default async function fetchUtilization(
   params: UtilizationParams
@@ -19,7 +19,8 @@ export default async function fetchUtilization(
   const meta_resp: UtilizationMetadata[] = await getUtilizationMetadata(
     params.workflow_id,
     params.job_id,
-    params.run_attempt
+    params.run_attempt,
+    params.repo
   );
 
   const metadata = getLatestMetadata(meta_resp);
@@ -40,7 +41,8 @@ export default async function fetchUtilization(
   const resp: TimeSeriesDbData[] = await getUtilTimesSeries(
     params.workflow_id,
     params.job_id,
-    params.run_attempt
+    params.run_attempt,
+    params.repo
   );
   const tsMap = flattenTS(resp);
 
@@ -61,14 +63,15 @@ export default async function fetchUtilization(
 async function getUtilTimesSeries(
   workflow_id: string,
   job_id: string,
-  run_attempt: string
+  run_attempt: string,
+  repo: string = UTILIZATION_DEFAULT_REPO
 ) {
   const response = await queryClickhouseSaved(UTIL_TS_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,
     jobId: job_id,
     runAttempt: run_attempt,
     type: UTILIZATION_TYPE,
-    repo: DEFAULT_REPO,
+    repo: repo,
   });
   return response;
 }
@@ -76,14 +79,15 @@ async function getUtilTimesSeries(
 async function getUtilizationMetadata(
   workflow_id: string,
   job_id: string,
-  run_attempt: string
+  run_attempt: string,
+  repo: string = UTILIZATION_DEFAULT_REPO
 ) {
   const response = await queryClickhouseSaved(UTIL_METADATA_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,
     jobId: job_id,
     runAttempt: run_attempt,
     type: UTILIZATION_TYPE,
-    repo: DEFAULT_REPO,
+    repo: repo,
   });
   return response;
 }

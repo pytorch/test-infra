@@ -1,8 +1,13 @@
+import { Button, styled } from "@mui/material";
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
+import {
+  ListUtilizationMetadataInfoAPIResponse,
+  UtilizationMetadataInfo,
+} from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
 import useSWR from "swr";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
@@ -25,14 +30,22 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 
+const JobButton = styled(Button)({
+  fontSize: "8px",
+  padding: "0 1px 0 1px",
+  color: "green",
+  margin: "2px",
+});
 function WorkflowJobSummary({
   job,
+  utilMetadata,
   artifacts,
   artifactsToShow,
   setArtifactsToShow,
   unstableIssues,
 }: {
   job: JobData;
+  utilMetadata?: UtilizationMetadataInfo[];
   artifacts?: Artifact[];
   artifactsToShow: Set<string>;
   setArtifactsToShow: any;
@@ -73,15 +86,34 @@ function WorkflowJobSummary({
 
   if (hasArtifacts) {
     subInfo.push(
-      <a onClick={() => setArtifactsToShowHelper()}>Show artifacts</a>
+      <JobButton variant="outlined" onClick={() => setArtifactsToShowHelper()}>
+        artifacts
+      </JobButton>
     );
   }
-
   if (job.logUrl) {
     subInfo.push(
-      <a target="_blank" rel="noreferrer" href={job.logUrl}>
+      <JobButton variant="outlined" href={job.logUrl}>
         Raw logs
-      </a>
+      </JobButton>
+    );
+  }
+  if (utilMetadata && utilMetadata.length > 0) {
+    if (utilMetadata.length > 1) {
+      console.log(
+        `Multiple util metadata found for job ${job.id}, currently only showing the first one`
+      );
+    }
+    const m = utilMetadata[0];
+    subInfo.push(
+      <>
+        <JobButton
+          variant="outlined"
+          href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}
+        >
+          Utilization Report{" "}
+        </JobButton>
+      </>
     );
   }
 
@@ -95,7 +127,7 @@ function WorkflowJobSummary({
           return (
             <span key={ind}>
               {info}
-              {ind < subInfo.length - 1 && ", "}
+              {ind < subInfo.length - 1 && " "}
             </span>
           );
         })}
@@ -124,18 +156,20 @@ export default function WorkflowBox({
   setWide: any;
   repoFullName: string;
 }) {
+  const workflowId = jobs[0].workflowId;
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
     ? styles.workflowBoxFail
     : styles.workflowBoxSuccess;
 
-  const workflowId = jobs[0].workflowId;
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
+
+  const { utilMetadataList } = useUtilMetadata(workflowId);
+  const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
   const { artifacts, error } = useArtifacts(workflowId);
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
-
   const [searchString, setSearchString] = useState("");
   const [searchRes, setSearchRes] = useState<{
     results: Map<string, LogSearchResult>;
@@ -144,6 +178,7 @@ export default function WorkflowBox({
     results: new Map(),
     info: undefined,
   });
+
   useEffect(() => {
     getSearchRes(jobs, searchString, setSearchRes);
   }, [jobs, searchString]);
@@ -216,6 +251,11 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
+              utilMetadata={
+                job.id
+                  ? groupUtilMetadataList.get(job.id.toString())
+                  : undefined
+              }
               artifacts={groupedArtifacts?.get(job.id?.toString())}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
@@ -234,6 +274,43 @@ export default function WorkflowBox({
       <>{workflowId && <Artifacts artifacts={artifacts} error={error} />}</>
     </div>
   );
+}
+
+function useUtilMetadata(workflowId: string | undefined): {
+  utilMetadataList: UtilizationMetadataInfo[];
+  metaError: any;
+} {
+  const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
+    `/api/list_utilization_metadata_info/${workflowId}`,
+    fetcher,
+    {
+      refreshInterval: 60 * 1000, // refresh every minute
+      // Refresh even when the user isn't looking, so that switching to the tab
+      // will always have fresh info.
+      refreshWhenHidden: true,
+    }
+  );
+
+  if (!workflowId) {
+    return { utilMetadataList: [], metaError: "No workflow ID" };
+  }
+
+  if (error != null) {
+    return {
+      utilMetadataList: [],
+      metaError: "Error occured while fetching util metadata",
+    };
+  }
+
+  if (data == null) {
+    return { utilMetadataList: [], metaError: "Loading..." };
+  }
+
+  if (data.metadata_list == null) {
+    return { utilMetadataList: [], metaError: "No metadata list found" };
+  }
+
+  return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
 function useArtifacts(workflowId: string | undefined): {
@@ -258,6 +335,25 @@ function useArtifacts(workflowId: string | undefined): {
     return { artifacts: [], error: "Error occured while fetching artifacts" };
   }
   return { artifacts: data, error };
+}
+
+function groupMetadataByJobId(
+  utilMetadataList: UtilizationMetadataInfo[]
+): Map<string, UtilizationMetadataInfo[]> {
+  const grouping = new Map<string, UtilizationMetadataInfo[]>();
+  for (const utilMetadata of utilMetadataList) {
+    if (!utilMetadata.job_id) {
+      continue;
+    }
+
+    const jobId = utilMetadata.job_id.toString();
+    if (grouping.has(jobId)) {
+      grouping.get(jobId)!.push(utilMetadata);
+    } else {
+      grouping.set(jobId, [utilMetadata]);
+    }
+  }
+  return grouping;
 }
 
 function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
