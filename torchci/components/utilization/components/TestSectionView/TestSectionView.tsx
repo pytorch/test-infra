@@ -1,4 +1,3 @@
-import { Paper } from "@mui/material";
 import { getDuration } from "components/utilization/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
