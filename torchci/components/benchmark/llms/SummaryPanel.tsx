@@ -216,7 +216,7 @@ export function SummaryPanel({
             const showTarget =
               target && target != 0 ? `[target = ${target}]` : "";
 
-            if (lCommit === rCommit || l === r || !v.highlight) {
+            if (lCommit === rCommit || !v.highlight) {
               return `${r} ${rPercent} ${showTarget}`;
             } else {
               return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;

@@ -196,7 +196,7 @@ export function combineLeftAndRight(
               actual: 0,
               target: 0,
             },
-        highlight: validDevices.size !== 0 && hasL,
+        highlight: validDevices.size !== 0,
       };
     }
 
