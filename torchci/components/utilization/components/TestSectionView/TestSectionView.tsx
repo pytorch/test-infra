@@ -47,12 +47,12 @@ export const TestSectionView = ({
         )}
         <div>
           {pickedSegment ? (
-            <Paper>
+            <div>
               <SingleTestView
                 testSegment={pickedSegment}
                 timeSeriesList={timeSeriesList}
               />
-            </Paper>
+            </div>
           ) : (
             <Blank></Blank>
           )}
