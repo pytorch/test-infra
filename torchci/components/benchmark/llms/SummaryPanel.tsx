@@ -235,7 +235,7 @@ export function SummaryPanel({
         height={
           data.length > 90
             ? 90 * ROW_HEIGHT
-            : data.length * ROW_HEIGHT + ROW_GAP
+            : (data.length + 1) * ROW_HEIGHT + ROW_GAP
         }
       >
         <TablePanelWithData
