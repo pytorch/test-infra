@@ -100,7 +100,7 @@ runs:
           echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Setup miniconda (for pytorch_pkg_helpers)
         if: ${{ inputs.setup-miniconda == 'true' }}
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: ./test-infra/.github/actions/setup-miniconda
         with:
           miniconda-version: "py39_4.12.0"
           python-version: 3.9
