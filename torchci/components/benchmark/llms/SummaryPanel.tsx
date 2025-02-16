@@ -142,13 +142,17 @@ export function SummaryPanel({
           flex: 1,
           cellClassName: (params: GridCellParams<any, any>) => {
             const v = params.value;
-            if (v === undefined || v.l.actual === 0) {
+            if (v === undefined) {
               return "";
             }
 
             // l is the old (base) value, r is the new value
             const l = v.l.actual;
             const r = v.r.actual;
+
+            if (!v.highlight) {
+              return "";
+            }
 
             if (lCommit === rCommit) {
               return "";
@@ -161,6 +165,11 @@ export function SummaryPanel({
               // It didn't error in the past, but now it does error
               if (r === 0) {
                 return styles.error;
+              }
+
+              // If it didn't run and now it runs, mark it as green
+              if (l === 0) {
+                return styles.ok;
               }
 
               if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
@@ -206,12 +215,11 @@ export function SummaryPanel({
                 : "";
             const showTarget =
               target && target != 0 ? `[target = ${target}]` : "";
-            const isNewModel = l === 0 ? "(NEW!)" : "";
 
-            if (lCommit === rCommit || l === r) {
+            if (lCommit === rCommit || !v.highlight) {
               return `${r} ${rPercent} ${showTarget}`;
             } else {
-              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
+              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
             }
           },
         };
@@ -225,9 +233,9 @@ export function SummaryPanel({
       <Grid2
         size={{ xs: 12, lg: 12 }}
         height={
-          data.length > 98
-            ? 98 * ROW_HEIGHT
-            : data.length * ROW_HEIGHT + ROW_GAP
+          data.length > 90
+            ? 90 * ROW_HEIGHT
+            : (data.length + 1) * ROW_HEIGHT + ROW_GAP
         }
       >
         <TablePanelWithData

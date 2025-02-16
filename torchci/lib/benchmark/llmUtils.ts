@@ -88,6 +88,38 @@ export function combineLeftAndRight(
     });
   }
 
+  // NB: This is a hack to keep track of valid devices. The problem is that the records
+  // in the benchmark database alone don't have the information to differentiate between
+  // benchmarks that are failed to run and benchmarks that are not run. Both show up as
+  // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
+  // information, but it's a rather slow and expensive route
+  const validDevices = new Set<string>();
+  const validModels = new Set<string>();
+  const validModelBackends = new Set<string>();
+  // First round to get all the valid devices
+  Object.keys(dataGroupedByModel).forEach((key: string) => {
+    const [model, backend, dtype, device, arch] = key.split(";");
+    const row: { [k: string]: any } = {
+      // Keep the name as as the row ID as DataGrid requires it
+      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
+    };
+
+    for (const metric in dataGroupedByModel[key]) {
+      const record = dataGroupedByModel[key][metric];
+      const hasL = "l" in record;
+      const hasR = "r" in record;
+
+      if (hasL && hasR) {
+        validDevices.add(device);
+        validModels.add(model);
+      }
+
+      if (hasR) {
+        validModelBackends.add(`${model} ${backend}`);
+      }
+    }
+  });
+
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
   Object.keys(dataGroupedByModel).forEach((key: string) => {
@@ -101,6 +133,22 @@ export function combineLeftAndRight(
       const record = dataGroupedByModel[key][metric];
       const hasL = "l" in record;
       const hasR = "r" in record;
+
+      // Skip devices and models that weren't run in this commit
+      if (
+        (validDevices.size !== 0 && !validDevices.has(device)) ||
+        (validModels.size !== 0 && !validModels.has(model)) ||
+        (validModelBackends.size !== 0 &&
+          !validModelBackends.has(`${model} ${backend}`))
+      ) {
+        continue;
+      }
+
+      // No overlapping between left and right commits, just show what it's on the
+      // right commit instead of showing a blank page
+      if (validDevices.size === 0 && !hasR) {
+        continue;
+      }
 
       if (!("metadata" in row)) {
         row["metadata"] = {
@@ -151,10 +199,13 @@ export function combineLeftAndRight(
               actual: 0,
               target: 0,
             },
+        highlight: validDevices.size !== 0 && validModels.has(model),
       };
     }
 
-    data.push(row);
+    if ("metadata" in row) {
+      data.push(row);
+    }
   });
 
   return data;

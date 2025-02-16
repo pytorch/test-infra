@@ -27,12 +27,22 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   flops_utilization: true,
   "compilation_time(s)": false,
   speedup: true,
+  "avg_inference_latency(ms)": false,
+  "model_load_time(ms)": false,
+  "peak_inference_mem_usage(mb)": false,
+  "peak_load_mem_usuage(mb)": false,
+  "generate_time(ms)": false,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
   token_per_sec: "TPS",
   flops_utilization: "FLOPs",
   "compilation_time(s)": "CompTime",
+  "avg_inference_latency(ms)": "InferenceTime",
+  "model_load_time(ms)": "LoadTime",
+  "peak_inference_mem_usage(mb)": "InferenceMem",
+  "peak_load_mem_usuage(mb)": "LoadMem",
+  "generate_time(ms)": "GenerateTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
@@ -45,7 +55,7 @@ export const ARCH_NAMES: { [k: string]: string[] } = {
 };
 
 // Relative thresholds
-export const RELATIVE_THRESHOLD = 0.05;
+export const RELATIVE_THRESHOLD = 0.1;
 
 export interface LLMsBenchmarkData {
   granularity_bucket: string;
