@@ -2,15 +2,11 @@ import {
   Button as _Button,
   Stack as _Stack,
   Box,
-  Checkbox,
-  FormControlLabel,
   Grid2,
-  List,
-  ListItem,
-  TextField,
   Typography,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts";
+import CheckBoxList from "components/common/CheckBoxList";
 import LoadingPage from "components/LoadingPage";
 import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
@@ -198,68 +194,6 @@ export default function Page() {
     );
   }, [buildData, selectedJobs]);
 
-  function JobSelector() {
-    // Panel to the right that lets you toggle which jobs to show
-    const [filteredSelectedJobs, setFilteredSelectedJobs] = useState(jobNames);
-
-    function toggleAllFilteredSelectedJobs(checked: boolean) {
-      setSelectedJobs({
-        ...selectedJobs,
-        ...filteredSelectedJobs.reduce((acc, jobName) => {
-          acc[jobName] = checked;
-          return acc;
-        }, {} as any),
-      });
-    }
-
-    return (
-      <Stack style={{ overflowY: "auto", maxHeight: 800 }}>
-        <TextField
-          label="Filter Jobs"
-          onChange={(e) => {
-            setFilteredSelectedJobs(
-              jobNames.filter((jobName) => jobName.includes(e.target.value))
-            );
-          }}
-        />
-        <Stack direction="row">
-          <Button
-            onClick={() => {
-              toggleAllFilteredSelectedJobs(true);
-            }}
-          >
-            Select All
-          </Button>
-          <Button
-            onClick={() => {
-              toggleAllFilteredSelectedJobs(false);
-            }}
-          >
-            Unselect All
-          </Button>
-        </Stack>
-        <List dense>
-          {filteredSelectedJobs.map((jobName) => (
-            <ListItem key={jobName}>
-              <FormControlLabel
-                control={<Checkbox checked={selectedJobs[jobName]} />}
-                label={jobName}
-                onChange={(e) => {
-                  setSelectedBuild(jobName);
-                  setSelectedJobs({
-                    ...selectedJobs,
-                    // @ts-ignore
-                    [jobName]: e.target.checked,
-                  });
-                }}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Stack>
-    );
-  }
-
   const SccacheStats = useMemo(() => {
     if (selectedBuild == null) {
       return <Typography>Select a build to view sccache stats</Typography>;
@@ -428,8 +362,12 @@ export default function Page() {
             )}
           </Box>
         </Grid2>
-        <Grid2 size={{ xs: 2 }}>
-          <JobSelector />
+        <Grid2 size={{ xs: 2 }} style={{ overflowY: "scroll", maxHeight: 800 }}>
+          <CheckBoxList
+            items={selectedJobs}
+            onChange={setSelectedJobs}
+            onClick={setSelectedBuild}
+          />
         </Grid2>
         <Grid2 size={{ xs: 12 }}>
           <Stack>
