@@ -100,6 +100,10 @@ function NavBar() {
       name: "Query Execution Metrics",
       href: "/query_execution_metrics",
     },
+    {
+      name: "Build Time Metrics",
+      href: "/build_time_metrics",
+    },
   ];
 
   return (
