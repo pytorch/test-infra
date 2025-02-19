@@ -14,8 +14,37 @@ export interface StatsItem {
   unit: string;
 }
 
+/**
+ * StatsInfo is a struct that contains information about a stat.
+ *
+ * It contains the following fields:
+ * @name the name of hardware reource
+ * @id the id of hardware resource
+ * @columns the stats of the hardware resource.
+ * e.g data:
+ *  {
+ *   name: "cpu",
+ *   id: "cpu",
+ *   columns: [
+ *     {
+ *       type: "average",
+ *      value: 0.5,
+ *      unit: "%",
+ *      },
+ *    {
+ *      type: "max",
+ *      value: 0.8,
+ *      unit: "%",
+ *     }],
+ * }
+ */
 export interface StatsInfo {
   name: string;
   id: string;
   columns: StatsItem[];
+}
+
+export enum AgggregateMethod {
+  Average = "average",
+  Max = "max",
 }

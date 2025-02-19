@@ -4,7 +4,7 @@ import {
   TimeSeriesWrapper,
 } from "lib/utilization/types";
 import { sortBy } from "lodash";
-import { StatsInfo, StatType } from "./types";
+import { AgggregateMethod, StatsInfo, StatsItem, StatType } from "./types";
 
 export function findClosestDate(targetDate: Date, dates: Date[]): number {
   if (dates.length === 0) {
@@ -48,14 +48,19 @@ export function getIgnoredSegmentName(): string[] {
   return ["tools.stats.monitor", "pip install", "filter_test_configs.py"];
 }
 
-export function processStatsData(ts: TimeSeriesWrapper[]): StatsInfo[] {
+export function processStatsData(
+  resourceTimeSeries: TimeSeriesWrapper[]
+): StatsInfo[] {
   let results: any[] = [];
-  ts.forEach((ts) => {
+  resourceTimeSeries.forEach((ts) => {
     results = [
       ...results,
       { name: ts.name, id: ts.id, columns: getTimeSeriesStats(ts.records) },
     ];
   });
+
+  const allGpus = getAllGpusStats(results);
+  results = [...results, ...allGpus];
   results.sort((a, b) => a.name.localeCompare(b.name));
   return results;
 }
@@ -93,6 +98,13 @@ export function getTimeSeriesStats(dps: TimeSeriesDataPoint[]) {
   };
   results.push(spikeMetric);
 
+  const max = findMaxValue(records);
+  const maxStat = {
+    type: StatType.Max,
+    value: max,
+    unit: "%",
+  };
+  results.push(maxStat);
   const avgSpikeInterval = findAvgSpikeIntervals(dps, p90Metric.value);
   const spikeAvgInterval = {
     type: StatType.SpikeAvgInterval,
@@ -102,6 +114,12 @@ export function getTimeSeriesStats(dps: TimeSeriesDataPoint[]) {
   results.push(spikeAvgInterval);
   return results;
 }
+
+export const findMaxValue = (data: number[]) => {
+  if (data.length == 0) return 0; // No data
+  const max = data.reduce((a, b) => Math.max(a, b), 0);
+  return max;
+};
 
 const findAvgSpikeIntervals = (
   timestamps: TimeSeriesDataPoint[],
@@ -237,4 +255,93 @@ export function formatSeconds(seconds: number) {
   }
 
   return (seconds / 3600).toFixed(2) + "hs";
+}
+
+export function toNumberList(data: StatsInfo[], statType: StatType) {
+  return data.map((item) => {
+    const val = item.columns.find((col) => col.type === statType);
+    if (val == undefined) {
+      return 0;
+    }
+    return val.value;
+  });
+}
+export function calculateAverage(data: number[]) {
+  if (data.length == 0) return 0; // No data
+  const sum = data.reduce((a, b) => a + b, 0);
+  return sum / data.length;
+}
+
+function getAllGpusStats(stats: StatsInfo[]) {
+  // get all gpus stats for the test
+  const gpuUtils = stats.filter((item) => item.id.includes("|util_percent"));
+  const gpuMems = stats.filter((item) => item.id.includes("|mem_util_percent"));
+
+  if (gpuUtils.length == 0) {
+    return [];
+  }
+
+  // calculate stats for all gpus
+  const allGpus: StatsInfo[] = [
+    {
+      name: "gpus_util_all",
+      id: "gpus_util_all",
+      columns: [
+        aggregateStats(gpuUtils, StatType.Average, AgggregateMethod.Average),
+        aggregateStats(gpuUtils, StatType.Max, AgggregateMethod.Max),
+        aggregateStats(
+          gpuUtils,
+          StatType.SpikeFrequency,
+          AgggregateMethod.Average
+        ),
+        aggregateStats(
+          gpuUtils,
+          StatType.SpikeAvgInterval,
+          AgggregateMethod.Average
+        ),
+      ],
+    },
+    {
+      name: "gpu_mem_all",
+      id: "gpu_mem_all",
+      columns: [
+        aggregateStats(gpuMems, StatType.Average, AgggregateMethod.Average),
+        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Average),
+        aggregateStats(
+          gpuMems,
+          StatType.SpikeFrequency,
+          AgggregateMethod.Average
+        ),
+        aggregateStats(
+          gpuMems,
+          StatType.SpikeAvgInterval,
+          AgggregateMethod.Max
+        ),
+      ],
+    },
+  ];
+  return allGpus;
+}
+
+function aggregateStats(
+  stats: StatsInfo[],
+  statType: StatType,
+  method: AgggregateMethod
+): StatsItem {
+  let value = 0;
+  switch (method) {
+    case AgggregateMethod.Average:
+      value = calculateAverage(toNumberList(stats, statType));
+      break;
+    case AgggregateMethod.Max:
+      value = findMaxValue(toNumberList(stats, statType));
+      break;
+    default:
+      value = 0;
+  }
+  return {
+    type: statType,
+    value: Number(value.toFixed(2)),
+    unit: "%",
+  };
 }

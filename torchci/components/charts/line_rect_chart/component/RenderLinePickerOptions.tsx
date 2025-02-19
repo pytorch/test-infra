@@ -8,6 +8,7 @@ import ChartCheckboxGroups from "./helpers/ChartCheckboxGroups";
 import { CheckboxItem } from "./helpers/CheckboxGroup";
 import DropList from "./helpers/DropList";
 import styles from "./RenderLineChartComponents.module.css";
+const defaultCategory = "all";
 
 const RenderLinePickerOptions = ({
   lines,
@@ -18,25 +19,30 @@ const RenderLinePickerOptions = ({
   setLines: (line: any[]) => void;
   lineFilterConfig: PickerConfig[];
 }) => {
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState<string>(defaultCategory);
   const [options, setOptions] = useState<any>([]);
   const [groups, setGroups] = useState<any>([]);
 
   useEffect(() => {
+    renderOptions();
     render();
   }, [lines, lineFilterConfig]);
 
-  function render() {
+  function renderOptions() {
     let options = lineFilterConfig.map((config) => {
       return { value: config.category, name: config.category };
     });
     setOptions(options);
+  }
 
+  function render() {
     const config = lineFilterConfig.find((item) => item.category == category);
     if (!config) {
       setGroups([]);
       return;
     }
+
+    // render checkboxes
     const res = config.types.map((type) => {
       return {
         parentName: type.name,
@@ -46,16 +52,28 @@ const RenderLinePickerOptions = ({
     setGroups(res);
   }
 
-  function resetLines() {
+  function resetLines(category: string) {
+    // clear all lines
     const newLines = lines.map((line) => {
       line.hidden = true;
       return line;
     });
+    // show all lines in the selected category
+    const config = lineFilterConfig.find((item) => item.category == category);
+    if (config) {
+      config.types.forEach((type) => {
+        newLines.forEach((line) => {
+          if (containsAllSubstrings(line.id, type.tags)) {
+            line.hidden = false;
+          }
+        });
+      });
+    }
     setLines(newLines);
   }
 
   useEffect(() => {
-    resetLines();
+    resetLines(category);
     render();
   }, [category]);
 
@@ -95,7 +113,11 @@ const RenderLinePickerOptions = ({
       {options.length > 0 && (
         <div className={styles.rowFlexCenter}>
           <div>Group by:</div>
-          <DropList onChange={changeLineCateory} options={options}></DropList>
+          <DropList
+            onChange={changeLineCateory}
+            options={options}
+            defaultValue={defaultCategory}
+          ></DropList>
         </div>
       )}
       {groups.length > 0 && (

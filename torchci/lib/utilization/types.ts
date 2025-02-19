@@ -1,7 +1,10 @@
+export const UTILIZATION_DEFAULT_REPO = "pytorch/pytorch";
+
 export interface UtilizationParams {
   workflow_id: string;
   job_id: string;
   run_attempt: string;
+  repo?: string;
 }
 
 export interface TimeSeriesDbData {
@@ -47,4 +50,22 @@ export interface TimeSeriesWrapper {
 export interface TimeSeriesDataPoint {
   ts: string;
   value: number;
+}
+
+export interface UtilizationMetadataInfo {
+  workflow_id: string;
+  job_id: string;
+  run_attempt: string;
+  workflow_name: string;
+  job_name: string;
+  repo: string;
+}
+
+export interface ListUtilizationMetadataInfoParams {
+  workflow_id: string;
+  repo?: string;
+}
+
+export interface ListUtilizationMetadataInfoAPIResponse {
+  metadata_list: UtilizationMetadataInfo[];
 }

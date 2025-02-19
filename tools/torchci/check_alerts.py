@@ -322,7 +322,7 @@ def gen_update_comment(original_issue: Dict[str, Any], jobs: List[JobStatus]) ->
         s += "These jobs started failing:\n"
         for job in started_failing_jobs:
             s += f"* {job}\n"
-    return s
+    return s.rstrip()
 
 
 def generate_no_flaky_tests_issue() -> Any:

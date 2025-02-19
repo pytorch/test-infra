@@ -103,6 +103,11 @@ runner_types:
     instance_type: g4dn.12xlarge
     is_ephemeral: false
     os: linux
+  linux.g4dn.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.4xlarge
+    is_ephemeral: false
+    os: linux
   linux.g4dn.metal.nvidia.gpu:
     disk_size: 150
     instance_type: g4dn.metal

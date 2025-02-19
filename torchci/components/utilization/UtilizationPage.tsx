@@ -12,7 +12,7 @@ import { getIgnoredSegmentName, processStatsData } from "./helper";
 import { Divider, MainPage, Section } from "./styles";
 import { StatsInfo } from "./types";
 
-const lineFilters: PickerConfig[] = [
+export const lineFilters: PickerConfig[] = [
   { category: "all", types: [{ name: "all", tags: ["|"] }] },
   {
     category: "gpu",
@@ -96,7 +96,7 @@ export const UtilizationPage = ({
           <Divider />
           <LineRectChart
             inputLines={timeSeriesList}
-            chartWidth={1200}
+            chartWidth={1400}
             disableLineTooltip={false}
             disableRect={true}
             lineFilterConfig={lineFilters}

@@ -68,6 +68,15 @@ build {
     ]
   }
 
+  # Install the Visual Studio 2019
+  provisioner "powershell" {
+    environment_vars = ["INSTALL_WINDOWS_SDK=1", "VS_YEAR=2019", "VS_VERSION=16.11.21", "VS_UNINSTALL_PREVIOUS=1"]
+    execution_policy = "unrestricted"
+    scripts = [
+      "${path.root}/scripts/Installers/Install-VS.ps1",
+    ]
+  }
+
   # Install the Visual Studio 2022
   provisioner "powershell" {
     environment_vars = ["INSTALL_WINDOWS_SDK=1", "VS_YEAR=2022", "VS_VERSION=17.4.1", "VS_UNINSTALL_PREVIOUS=0"]

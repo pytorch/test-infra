@@ -1,4 +1,4 @@
-import { styled } from "@mui/material";
+import { Divider, styled } from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import {
   formatSeconds,
@@ -10,12 +10,13 @@ import {
   InfoSection,
   InfoTitle,
 } from "components/utilization/styles";
+import { lineFilters } from "components/utilization/UtilizationPage";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import UtilizationJobMetricsTable from "../UtilizationStatsTable";
 
 const StatsTable = styled("div")({
-  width: "1200px",
+  maxWidth: "1400px",
   margin: "10px",
 });
 
@@ -26,6 +27,7 @@ const GraphGroupSection = styled("div")({
 
 const SingleGraphSection = styled("div")({
   margin: "5px",
+  padding: "10px",
 });
 
 export const SingleTestView = ({
@@ -68,7 +70,8 @@ export const SingleTestView = ({
 
   return (
     <div>
-      <h1>Selected Test Details</h1>
+      <h1>Selected Test Segment Details</h1>
+      <Divider />
       <InfoCard>
         <InfoSection>
           <InfoTitle>Test Name:</InfoTitle>
@@ -102,9 +105,10 @@ export const SingleTestView = ({
           {testTimeSeries && (
             <LineRectChart
               inputLines={testTimeSeries}
-              chartWidth={1200}
+              chartWidth={1000}
               disableLineTooltip={false}
               disableRect={true}
+              lineFilterConfig={lineFilters}
             ></LineRectChart>
           )}
         </SingleGraphSection>
@@ -112,7 +116,7 @@ export const SingleTestView = ({
           <div> Location of the test: </div>
           <LineRectChart
             inputLines={timeSeriesList}
-            chartWidth={800}
+            chartWidth={700}
             rects={[testSegment]}
             disableLineTooltip={true}
             disableRect={false}
@@ -135,6 +139,5 @@ function getGithubSearchLink(testName: string) {
   const repo = `${testName}`;
   const encodedString = encodeURIComponent(repo);
   const url = head + `"` + encodedString + `"&type=code`;
-  console.log(url);
   return url;
 }
