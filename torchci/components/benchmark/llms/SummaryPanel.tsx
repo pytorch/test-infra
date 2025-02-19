@@ -11,9 +11,15 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { combineLeftAndRight } from "lib/benchmark/llmUtils";
+import { get } from "lodash";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
+
+const getDeviceArch = (device: string|undefined, arch: string|undefined) => {
+  device = device ? device : "";
+  arch = arch ? arch : "";
+  return `${device} (${arch})`;
 
 export function SummaryPanel({
   startTime,
@@ -67,6 +73,10 @@ export function SummaryPanel({
         const v1model = v1.model ? v1.model : "";
         const v2model = v2.model ? v2.model : "";
         return v1model.localeCompare(v2model);
+      },
+      filterValueFormatter: (params:GridRenderCellParams<any>) => {
+        // return the original value
+        return params.value.model;
       },
       renderCell: (params: GridRenderCellParams<any>) => {
         const model = params.value.model;
@@ -132,20 +142,16 @@ export function SummaryPanel({
         headerName: "Device",
         flex: 1,
         sortComparator: (v1: any, v2: any) => {
-          const v1Device = v1.device ? v1.device : "";
-          const v2Device = v2.device ? v2.device : "";
-          const v1Arch = v1.arch ? v1.arch : "";
-          const v2Arch = v2.arch ? v2.arch : "";
-
-          const v1da = `${v1Device}${v1Arch}`;
-          const v2da = `${v2Device}${v2Arch}`;
+          const v1da = getDeviceArch(v1.device, v1.arch);
+          const v2da = getDeviceArch(v2.device, v2.arch);
 
           return v1da.localeCompare(v2da);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
-          const device = params.value.device;
-          const arch = params.value.arch;
-          return `${device} (${arch})`;
+        return getDeviceArch(params.value.device, params.value.arch);
+        },
+        filterValueFormatter: (params:GridRenderCellParams<any>) => {
+          return getDeviceArch(params.value.device, params.value.arch);
         },
       },
       ...metricNames.map((metric: string) => {
