@@ -336,7 +336,7 @@ jobs:
 
       - name: Upload iOS artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ inputs.device-type == 'ios' }}
+        if: always()
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
@@ -387,7 +387,7 @@ jobs:
 
       - name: Upload Android artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
-        if: ${{ inputs.device-type == 'android' }}
+        if: always()
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
