@@ -11,16 +11,18 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { combineLeftAndRight } from "lib/benchmark/llmUtils";
-import { get } from "lodash";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 
-const getDeviceArch = (device: string|undefined, arch: string|undefined) => {
+const getDeviceArch = (
+  device: string | undefined,
+  arch: string | undefined
+) => {
   device = device ? device : "";
   arch = arch ? arch : "";
   return `${device} (${arch})`;
-}
+};
 
 export function SummaryPanel({
   startTime,
@@ -141,11 +143,10 @@ export function SummaryPanel({
         sortComparator: (v1: any, v2: any) => {
           const v1da = getDeviceArch(v1.device, v1.arch);
           const v2da = getDeviceArch(v2.device, v2.arch);
-
           return v1da.localeCompare(v2da);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
-        return getDeviceArch(params?.value?.device, params?.value?.arch);
+          return getDeviceArch(params?.value?.device, params?.value?.arch);
         },
       },
       ...metricNames.map((metric: string) => {
