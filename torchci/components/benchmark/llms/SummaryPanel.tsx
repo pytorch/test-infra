@@ -75,10 +75,6 @@ export function SummaryPanel({
         const v2model = v2.model ? v2.model : "";
         return v1model.localeCompare(v2model);
       },
-      filterValueFormatter: (params:GridRenderCellParams<any>) => {
-        // return the original value
-        return params.value.model;
-      },
       renderCell: (params: GridRenderCellParams<any>) => {
         const model = params.value.model;
         if (model === undefined) {
@@ -149,10 +145,7 @@ export function SummaryPanel({
           return v1da.localeCompare(v2da);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
-        return getDeviceArch(params.value.device, params.value.arch);
-        },
-        filterValueFormatter: (params:GridRenderCellParams<any>) => {
-          return getDeviceArch(params.value.device, params.value.arch);
+        return getDeviceArch(params?.value?.device, params?.value?.arch);
         },
       },
       ...metricNames.map((metric: string) => {
