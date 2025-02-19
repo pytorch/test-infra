@@ -60,6 +60,10 @@ function NavBar() {
       name: "TorchAO LLMs",
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
+    {
+      name: "vLLM",
+      href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
+    },
   ];
 
   const devInfraDropdown = [
