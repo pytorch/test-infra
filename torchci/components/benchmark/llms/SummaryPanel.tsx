@@ -132,9 +132,15 @@ export function SummaryPanel({
         headerName: "Device",
         flex: 1,
         sortComparator: (v1: any, v2: any) => {
-          const v1Device = `${v1.device}${v1.arch}`;
-          const v2Device = `${v2.device}${v2.arch}`;
-          return v1Device.localeCompare(v2Device);
+          const v1Device = v1.device ? v1.device : "";
+          const v2Device = v2.device ? v2.device : "";
+          const v1Arch = v1.arch ? v1.arch : "";
+          const v2Arch = v2.arch ? v2.arch : "";
+
+          const v1da = `${v1Device}${v1Arch}`;
+          const v2da = `${v2Device}${v2Arch}`;
+
+          return v1da.localeCompare(v2da);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
           const device = params.value.device;
