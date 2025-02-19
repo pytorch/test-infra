@@ -20,6 +20,7 @@ const getDeviceArch = (device: string|undefined, arch: string|undefined) => {
   device = device ? device : "";
   arch = arch ? arch : "";
   return `${device} (${arch})`;
+}
 
 export function SummaryPanel({
   startTime,
