@@ -1,5 +1,5 @@
 import { Grid2 } from "@mui/material";
-import { GridCellParams, GridComparatorFn, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   BranchAndCommitPerfData,
   IS_INCREASING_METRIC_VALUE_GOOD,
@@ -47,7 +47,6 @@ export function SummaryPanel({
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
-
   const data = combineLeftAndRight(lPerfData, rPerfData);
   const columns: any[] = [
     {
@@ -64,9 +63,9 @@ export function SummaryPanel({
           ? styles.selectedRow
           : "";
       },
-      sortComparator: (v1:any, v2:any) => {
-        const v1model = v1.model?v1.model:"";
-        const v2model = v2.model?v2.model:"";
+      sortComparator: (v1: any, v2: any) => {
+        const v1model = v1.model ? v1.model : "";
+        const v2model = v2.model ? v2.model : "";
         return v1model.localeCompare(v2model);
       },
       renderCell: (params: GridRenderCellParams<any>) => {
@@ -132,10 +131,10 @@ export function SummaryPanel({
         field: "device_arch",
         headerName: "Device",
         flex: 1,
-        sortComparator: (v1:any, v2:any) => {
-          const v1Device = `${v1.device}${v1.arch}`
+        sortComparator: (v1: any, v2: any) => {
+          const v1Device = `${v1.device}${v1.arch}`;
           const v2Device = `${v2.device}${v2.arch}`;
-          return v1Device.localeCompare(v2Device)
+          return v1Device.localeCompare(v2Device);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
           const device = params.value.device;
