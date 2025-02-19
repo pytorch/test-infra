@@ -77,9 +77,6 @@ export function TablePanelWithData({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  console.log(columns)
-  console.log(data)
-
   function helpLinkOnClick() {
     window.open(helpLink, "_blank");
   }
