@@ -94,8 +94,7 @@ export function combineLeftAndRight(
   // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
   // information, but it's a rather slow and expensive route
   const validDevices = new Set<string>();
-  const validModels = new Set<string>();
-  const validModelBackends = new Set<string>();
+  const validBackends = new Set<string>();
   // First round to get all the valid devices
   Object.keys(dataGroupedByModel).forEach((key: string) => {
     const [model, backend, dtype, device, arch] = key.split(";");
@@ -111,11 +110,7 @@ export function combineLeftAndRight(
 
       if (hasL && hasR) {
         validDevices.add(device);
-        validModels.add(model);
-      }
-
-      if (hasR) {
-        validModelBackends.add(`${model} ${backend}`);
+        validBackends.add(`${model} ${backend}`);
       }
     }
   });
@@ -137,16 +132,14 @@ export function combineLeftAndRight(
       // Skip devices and models that weren't run in this commit
       if (
         (validDevices.size !== 0 && !validDevices.has(device)) ||
-        (validModels.size !== 0 && !validModels.has(model)) ||
-        (validModelBackends.size !== 0 &&
-          !validModelBackends.has(`${model} ${backend}`))
+        (validBackends.size !== 0 && !validBackends.has(`${model} ${backend}`))
       ) {
         continue;
       }
 
       // No overlapping between left and right commits, just show what it's on the
       // right commit instead of showing a blank page
-      if (validDevices.size === 0 && !hasR) {
+      if (!hasR) {
         continue;
       }
 
@@ -199,7 +192,11 @@ export function combineLeftAndRight(
               actual: 0,
               target: 0,
             },
-        highlight: validDevices.size !== 0 && validModels.has(model),
+        highlight:
+          validDevices.size !== 0 &&
+          validBackends.has(`${model} ${backend}`) &&
+          hasL &&
+          hasR,
       };
     }
 
