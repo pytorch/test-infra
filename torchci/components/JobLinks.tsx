@@ -24,7 +24,7 @@ export default function JobLinks({
       <a
         target="_blank"
         rel="noreferrer"
-        href={`/pytorch/pytorch/commit/${job.sha}#${job.id}-box`}
+        href={`/${job.repo}/commit/${job.sha}#${job.id}-box`}
       >
         Commit
       </a>
