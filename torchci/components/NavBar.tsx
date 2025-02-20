@@ -61,7 +61,7 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
     {
-      name: "vLLM",
+      name: "vLLM v1",
       href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
     },
   ];
