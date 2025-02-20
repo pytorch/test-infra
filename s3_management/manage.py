@@ -382,7 +382,8 @@ class S3Index:
         out.append('  <body>')
         out.append('    <h1>Links for {}</h1>'.format(package_name.lower().replace("_", "-")))
         for obj in sorted(self.gen_file_list(subdir, package_name)):
-            maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
+            # maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
+            maybe_fragment = ""
             pep658_attribute = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
