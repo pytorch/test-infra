@@ -44,7 +44,7 @@ CUDA_CUDNN_VERSIONS = {
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
 }
 
-CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
