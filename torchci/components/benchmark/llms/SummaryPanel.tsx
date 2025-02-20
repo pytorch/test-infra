@@ -15,6 +15,15 @@ import { combineLeftAndRight } from "lib/benchmark/llmUtils";
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 
+const getDeviceArch = (
+  device: string | undefined,
+  arch: string | undefined
+) => {
+  const d = device ? device : "";
+  const a = arch ? arch : "";
+  return `${d} (${a})`;
+};
+
 export function SummaryPanel({
   startTime,
   stopTime,
@@ -63,21 +72,30 @@ export function SummaryPanel({
           ? styles.selectedRow
           : "";
       },
-      renderCell: (params: GridRenderCellParams<any>) => {
-        const model = params.value.model;
+      valueGetter: (params: any) => {
+        return params.model ? params.model : "";
+      },
+      renderCell: (params: any) => {
+        // access the row infomation, the params.value is the value pased by valueGetter, mainly used for sorting, and filtering.
+        const metadata = params.row.metadata;
+
+        if (metadata === undefined) {
+          return "Invalid model name";
+        }
+        const model = metadata.model;
         if (model === undefined) {
           return `Invalid model name`;
         }
 
         const dtype =
-          params.value.dtype !== undefined
-            ? `&dtypeName=${encodeURIComponent(params.value.dtype)}`
+          metadata.dtype !== undefined
+            ? `&dtypeName=${encodeURIComponent(metadata.dtype)}`
             : "";
         const backend =
-          params.value.backend !== undefined
-            ? `&backendName=${encodeURIComponent(params.value.backend)}`
+          metadata.backend !== undefined
+            ? `&backendName=${encodeURIComponent(metadata.backend)}`
             : "";
-        const deviceName = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${metadata.device} (${metadata.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
@@ -126,10 +144,11 @@ export function SummaryPanel({
         field: "device_arch",
         headerName: "Device",
         flex: 1,
+        valueGetter: (params: any) => {
+          return getDeviceArch(params?.device, params?.arch);
+        },
         renderCell: (params: GridRenderCellParams<any>) => {
-          const device = params.value.device;
-          const arch = params.value.arch;
-          return `${device} (${arch})`;
+          return params.value;
         },
       },
       ...metricNames.map((metric: string) => {
