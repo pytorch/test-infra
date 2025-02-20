@@ -11,10 +11,10 @@ from contextlib import suppress
 from datetime import datetime
 from os import makedirs, path
 from re import match, search, sub
-from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar 
-from packaging.version import InvalidVersion, parse as _parse_version, Version
+from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar
 
 import boto3
+from packaging.version import InvalidVersion, parse as _parse_version, Version
 
 PREFIXES = [
     "whl",
@@ -24,11 +24,11 @@ PREFIXES = [
     "libtorch/nightly",
 ]
 
-S3 = boto3.resource('s3')
-CLIENT = boto3.client('s3')
+S3 = boto3.resource("s3")
+CLIENT = boto3.client("s3")
 
 # bucket for download.pytorch.org
-BUCKET = S3.Bucket('pytorch')
+BUCKET = S3.Bucket("pytorch")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -42,7 +42,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--previous",
         help="should be the previous package and version we're trying to replace to: ie rocm6.2)",
     )
-    
+
     return parser
 
 
@@ -55,25 +55,24 @@ def main() -> None:
         old_pkg = args.previous
         new_pkg = args.package
         print(f"INFO: {action} for '{prefix}/{new_pkg}'")
-        stime = time.time()  
+        stime = time.time()
         if args.package and args.previous:
-            new_dir = f"{prefix}/{new_pkg}"
-            old_dir = f"{prefix}/{old_pkg}"
-            BUCKET.Object(key=new_dir).put(
-                ACL="public-read", ContentType="binary/octet-stream"
 
+            new_dir = f"{prefix}/{new_pkg}"
+            new_dir = f"{prefix}/camyllhtest"
+
+            old_dir = f"{prefix}/{old_pkg}"
+            response = S3.meta.client.put_object(
+                Body="", Bucket=BUCKET.name, Key=new_dir
             )
-            copy_source = {
-                'Bucket': BUCKET.name,
-                'Key': old_dir
-            }
+            print(f"DEBUG: Created {new_dir} with response {response}")
+            copy_source = {"Bucket": BUCKET.name, "Key": old_dir}
             S3.meta.client.copy(CopySource=copy_source, Bucket=BUCKET, key=new_dir)
-            S3.meta.client.delete_object(Bucket=BUCKET, Key=old_dir)
+            # S3.meta.client.delete_object(Bucket=BUCKET, Key=old_dir)
         etime = time.time()
         print(
             f"DEBUG: Copying dependencies from {prefix}/{old_pkg} to {prefix}/{new_pkg} in {etime-stime:.2f} seconds"
         )
-        
 
 
 if __name__ == "__main__":
