@@ -141,14 +141,44 @@ export function GraphPanel({
               const model = record.model;
               const dtype = record.dtype;
               const device = record.device;
+              const metric = record.metric;
 
-              record.display = model.includes(dtype)
-                ? model.includes(device)
-                  ? model
-                  : `${model} (${device})`
-                : model.includes(device)
-                ? `${model} (${dtype})`
-                : `${model} (${dtype} / ${device})`;
+              if (repoName === "vllm-project/vllm") {
+                let requestRate = record.extra!["request_rate"];
+                // TODO (huydhn): Fix the invalid JSON on vLLM side
+                if (
+                  metric.includes("itl") ||
+                  metric.includes("tpot") ||
+                  metric.includes("ttft")
+                ) {
+                  requestRate = requestRate !== "" ? requestRate : "Inf";
+                }
+
+                let tensorParallel = record.extra!["tensor_parallel_size"];
+                // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
+                // script on vLLM side
+                if (model.includes("8B")) {
+                  tensorParallel = tensorParallel !== "" ? tensorParallel : "1";
+                } else if (model.includes("70B")) {
+                  tensorParallel = tensorParallel !== "" ? tensorParallel : "4";
+                } else if (model.includes("8x7B")) {
+                  tensorParallel = tensorParallel !== "" ? tensorParallel : "2";
+                }
+
+                if (requestRate !== "") {
+                  record.display = `${model} / tp${tensorParallel} / qps_${requestRate}`;
+                } else {
+                  record.display = `${model} / tp${tensorParallel}`;
+                }
+              } else {
+                record.display = model.includes(dtype)
+                  ? model.includes(device)
+                    ? model
+                    : `${model} (${device})`
+                  : model.includes(device)
+                  ? `${model} (${dtype})`
+                  : `${model} (${dtype} / ${device})`;
+              }
 
               return record;
             });
@@ -177,7 +207,7 @@ export function GraphPanel({
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
               <Grid2
-                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 4 }}
+                size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 6 }}
                 height={GRAPH_ROW_HEIGHT}
                 key={metric}
               >
@@ -203,7 +233,7 @@ export function GraphPanel({
                       },
                     },
                   }}
-                  legendPadding={modelName === DEFAULT_MODEL_NAME ? 320 : 200}
+                  legendPadding={320}
                 />
               </Grid2>
             ))}

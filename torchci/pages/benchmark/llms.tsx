@@ -126,7 +126,7 @@ function Report({
               ? lDataWithSpeedup[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-micro-benchmark"}
+        workflowName={""}
       >
         <></>
       </CommitPanel>

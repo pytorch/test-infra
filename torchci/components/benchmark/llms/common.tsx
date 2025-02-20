@@ -7,7 +7,15 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/ao": ["TorchAO benchmark"],
   "vllm-project/vllm": ["vLLM benchmark"],
 };
-export const EXCLUDED_METRICS: string[] = ["load_status"];
+export const EXCLUDED_METRICS: string[] = [
+  "load_status",
+  "mean_itl_ms",
+  "mean_tpot_ms",
+  "mean_ttft_ms",
+  "std_itl_ms",
+  "std_tpot_ms",
+  "std_ttft_ms",
+];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
 export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
@@ -18,6 +26,15 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   compile_vs_eager_speedup: "Compile vs eager speedup",
   autoquant_vs_compile_speedup: "Autoquant vs compile speedup",
   eager_speedup: "Eager speedup",
+  latency: "Latency (s)",
+  median_itl_ms: "Median ITL (ms)",
+  median_tpot_ms: "Median TPOT (ms)",
+  median_ttft_ms: "Median TTFT (ms)",
+  p99_itl_ms: "p99 ITL (ms)",
+  p99_tpot_ms: "p99 TPOT (ms)",
+  p99_ttft_ms: "p99 TTFT (ms)",
+  requests_per_second: "Requests/s",
+  tokens_per_second: "Tokens/s",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -33,6 +50,15 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   "peak_inference_mem_usage(mb)": false,
   "peak_load_mem_usuage(mb)": false,
   "generate_time(ms)": false,
+  latency: false,
+  median_itl_ms: false,
+  median_tpot_ms: false,
+  median_ttft_ms: false,
+  p99_itl_ms: false,
+  p99_tpot_ms: false,
+  p99_ttft_ms: false,
+  requests_per_second: true,
+  tokens_per_second: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -72,7 +98,7 @@ export interface LLMsBenchmarkData {
   device: string;
   arch: string;
   display?: string;
-  use_torch_compile?: boolean;
+  extra?: { [key: string]: string };
 }
 
 export interface BranchAndCommitPerfData extends BranchAndCommit {

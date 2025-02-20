@@ -47,7 +47,7 @@ export function SummaryPanel({
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
-  const data = combineLeftAndRight(lPerfData, rPerfData);
+  const data = combineLeftAndRight(repoName, lPerfData, rPerfData);
   const columns: any[] = [
     {
       field: "metadata",
@@ -113,6 +113,26 @@ export function SummaryPanel({
     columns.push({
       field: "backend",
       headerName: "Backend",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (repoName === "vllm-project/vllm") {
+    columns.push({
+      field: "tensor_parallel_size",
+      headerName: "Tensor parallel",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+
+    columns.push({
+      field: "request_rate",
+      headerName: "Request rate",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
         return `${params.value}`;

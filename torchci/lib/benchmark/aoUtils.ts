@@ -84,10 +84,8 @@ export function computeSpeedup(
   const currentCommitBaseline: { [key: string]: LLMsBenchmarkData } = {};
 
   data.forEach((r: LLMsBenchmarkData) => {
-    if (
-      r.dtype !== TORCHAO_BASELINE ||
-      r.use_torch_compile !== useTorchCompile
-    ) {
+    const compile = r.extra?.use_torch_compile === "true" ? true : false;
+    if (r.dtype !== TORCHAO_BASELINE || compile !== useTorchCompile) {
       return;
     }
 
@@ -112,8 +110,9 @@ export function computeSpeedup(
   data.forEach((r: LLMsBenchmarkData) => {
     withSpeedup.push(r);
 
+    const compile = r.extra?.use_torch_compile === "true" ? true : false;
     // Compute eager speedup vs the base commit baseline
-    if (r.dtype === TORCHAO_BASELINE && r.use_torch_compile === false) {
+    if (r.dtype === TORCHAO_BASELINE && compile === false) {
       if (SPEEDUP_METRICS.includes(r.metric)) {
         const k = `${r.model} ${r.metric} ${r.device} ${r.arch}`;
         if (

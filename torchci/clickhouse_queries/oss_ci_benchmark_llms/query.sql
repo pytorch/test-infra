@@ -23,15 +23,32 @@ WITH benchmarks AS (
             tupleElement(o.benchmark, 'extra_info')['arch'],
             tupleElement(o.runners[1], 'type')
         ) AS arch,
-        IF(
-            tupleElement(o.benchmark, 'extra_info')['compile'] = '',
-            'true',  -- Default to true
-            tupleElement(o.benchmark, 'extra_info')['compile']
-        ) AS use_torch_compile,
         DATE_TRUNC(
             {granularity: String },
             fromUnixTimestamp(o.timestamp)
-        ) AS granularity_bucket
+        ) AS granularity_bucket,
+        -- Repo-specific fields
+        map(
+            -- Used by torchao
+            'use_torch_compile',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['compile'] = '',
+                'true',
+                -- Default to true
+                tupleElement(o.benchmark, 'extra_info')['compile']
+            ),
+            -- Used by vLLM
+            'request_rate',
+            JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'request_rate'
+            ),
+            'tensor_parallel_size',
+            JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'tensor_parallel_size'
+            )
+        ) AS extra
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
@@ -77,8 +94,8 @@ SELECT DISTINCT
     dtype,
     device,
     arch,
-    toBool(use_torch_compile) AS use_torch_compile,
-    granularity_bucket
+    granularity_bucket,
+    extra
 FROM
     benchmarks
 WHERE
@@ -101,4 +118,5 @@ ORDER BY
     backend,
     model,
     dtype,
-    device
+    device,
+    metric

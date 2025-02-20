@@ -11,8 +11,7 @@ export function useBenchmark(
   queryParams: { [key: string]: any },
   branchAndCommit: BranchAndCommit
 ) {
-  const queryCollection = "benchmarks";
-  const queryName = "oss_ci_benchmark_llms";
+  const queryName: string = "oss_ci_benchmark_llms";
 
   const queryParamsWithBranchAndCommit: { [key: string]: any } = queryParams;
   (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
@@ -30,6 +29,7 @@ export function useBenchmark(
 }
 
 export function combineLeftAndRight(
+  repoName: string,
   lPerfData: BranchAndCommitPerfData,
   rPerfData: BranchAndCommitPerfData
 ): { [k: string]: any }[] {
@@ -49,9 +49,10 @@ export function combineLeftAndRight(
     const dtype = record.dtype;
     const device = record.device;
     const arch = record.arch;
+    const extra = JSON.stringify(record.extra);
     const metric = record.metric;
 
-    const key = `${model};${backend};${dtype};${device};${arch}`;
+    const key = `${model};${backend};${dtype};${device};${arch};${extra}`;
     if (!(key in dataGroupedByModel)) {
       dataGroupedByModel[key] = {};
     }
@@ -73,9 +74,10 @@ export function combineLeftAndRight(
       const dtype = record.dtype;
       const device = record.device;
       const arch = record.arch;
+      const extra = JSON.stringify(record.extra);
       const metric = record.metric;
 
-      const key = `${model};${backend};${dtype};${device};${arch}`;
+      const key = `${model};${backend};${dtype};${device};${arch};${extra}`;
       if (!(key in dataGroupedByModel)) {
         dataGroupedByModel[key] = {};
       }
@@ -97,7 +99,7 @@ export function combineLeftAndRight(
   const validBackends = new Set<string>();
   // First round to get all the valid devices
   Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, dtype, device, arch] = key.split(";");
+    const [model, backend, dtype, device, arch, extra] = key.split(";");
     const row: { [k: string]: any } = {
       // Keep the name as as the row ID as DataGrid requires it
       name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
@@ -118,10 +120,10 @@ export function combineLeftAndRight(
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
   Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, dtype, device, arch] = key.split(";");
+    const [model, backend, dtype, device, arch, extra] = key.split(";");
     const row: { [k: string]: any } = {
       // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
+      name: `${model} ${backend} (${dtype} / ${device} / ${arch} / ${extra})`,
     };
 
     for (const metric in dataGroupedByModel[key]) {
@@ -172,6 +174,44 @@ export function combineLeftAndRight(
         device: device,
         arch: arch,
       };
+
+      if (repoName === "vllm-project/vllm") {
+        // These fields are only available on vLLM benchmark
+        const extraInfo = JSON.parse(extra);
+        // TODO (huydhn): Fix the invalid JSON on vLLM side
+        if (
+          metric.includes("itl") ||
+          metric.includes("tpot") ||
+          metric.includes("ttft")
+        ) {
+          extraInfo["request_rate"] =
+            extraInfo["request_rate"] !== ""
+              ? extraInfo["request_rate"]
+              : "Inf";
+        }
+        // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
+        // script on vLLM side
+        if (model.includes("8B")) {
+          extraInfo["tensor_parallel_size"] =
+            extraInfo["tensor_parallel_size"] !== ""
+              ? extraInfo["tensor_parallel_size"]
+              : 1;
+        } else if (model.includes("70B")) {
+          extraInfo["tensor_parallel_size"] =
+            extraInfo["tensor_parallel_size"] !== ""
+              ? extraInfo["tensor_parallel_size"]
+              : 4;
+        } else if (model.includes("8x7B")) {
+          extraInfo["tensor_parallel_size"] =
+            extraInfo["tensor_parallel_size"] !== ""
+              ? extraInfo["tensor_parallel_size"]
+              : 2;
+        }
+
+        row["extra"] = extraInfo;
+        row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
+        row["request_rate"] = extraInfo["request_rate"];
+      }
 
       row[metric] = {
         l: hasL
