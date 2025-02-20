@@ -104,9 +104,15 @@ on:
         required: false
         default: false
         type: boolean
+      enabled:
+        description: Enable this workflow call to run
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   job:
+    if: ${{ inputs.enabled }}
     strategy:
       fail-fast: false
     name: ${{ inputs.job-name }}
