@@ -19,9 +19,9 @@ const getDeviceArch = (
   device: string | undefined,
   arch: string | undefined
 ) => {
-  device = device ? device : "";
-  arch = arch ? arch : "";
-  return `${device} (${arch})`;
+  const d = device ? device : "";
+  const a = arch ? arch : "";
+  return `${d} (${a})`;
 };
 
 export function SummaryPanel({
@@ -72,26 +72,30 @@ export function SummaryPanel({
           ? styles.selectedRow
           : "";
       },
-      sortComparator: (v1: any, v2: any) => {
-        const v1model = v1.model ? v1.model : "";
-        const v2model = v2.model ? v2.model : "";
-        return v1model.localeCompare(v2model);
+      valueGetter: (params: any) => {
+        return params.model ? params.model : "";
       },
-      renderCell: (params: GridRenderCellParams<any>) => {
-        const model = params.value.model;
+      renderCell: (params: any) => {
+        // access the row infomation, the params.value is the value pased by valueGetter, mainly used for sorting, and filtering.
+        const metadata = params.row.metadata;
+
+        if (metadata === undefined) {
+          return "Invalid model name";
+        }
+        const model = metadata.model;
         if (model === undefined) {
           return `Invalid model name`;
         }
 
         const dtype =
-          params.value.dtype !== undefined
-            ? `&dtypeName=${encodeURIComponent(params.value.dtype)}`
+          metadata.dtype !== undefined
+            ? `&dtypeName=${encodeURIComponent(metadata.dtype)}`
             : "";
         const backend =
-          params.value.backend !== undefined
-            ? `&backendName=${encodeURIComponent(params.value.backend)}`
+          metadata.backend !== undefined
+            ? `&backendName=${encodeURIComponent(metadata.backend)}`
             : "";
-        const deviceName = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${metadata.device} (${metadata.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
@@ -140,13 +144,11 @@ export function SummaryPanel({
         field: "device_arch",
         headerName: "Device",
         flex: 1,
-        sortComparator: (v1: any, v2: any) => {
-          const v1da = getDeviceArch(v1.device, v1.arch);
-          const v2da = getDeviceArch(v2.device, v2.arch);
-          return v1da.localeCompare(v2da);
+        valueGetter: (params: any) => {
+          return getDeviceArch(params?.device, params?.arch);
         },
         renderCell: (params: GridRenderCellParams<any>) => {
-          return getDeviceArch(params?.value?.device, params?.value?.arch);
+          return params.value;
         },
       },
       ...metricNames.map((metric: string) => {
