@@ -306,7 +306,7 @@ function getAllGpusStats(stats: StatsInfo[]) {
       id: "gpu_mem_all",
       columns: [
         aggregateStats(gpuMems, StatType.Average, AgggregateMethod.Average),
-        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Average),
+        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Max),
         aggregateStats(
           gpuMems,
           StatType.SpikeFrequency,
