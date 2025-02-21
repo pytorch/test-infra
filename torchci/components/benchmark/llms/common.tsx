@@ -6,7 +6,9 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/executorch": ["ExecuTorch"],
   "pytorch/ao": ["TorchAO benchmark"],
 };
-export const EXCLUDED_METRICS: string[] = ["load_status"];
+// TODO (huydhn): Hide generate_time(ms) metric temporarily because of
+// https://github.com/pytorch/executorch/issues/8576#issuecomment-2669706120
+export const EXCLUDED_METRICS: string[] = ["load_status", "generate_time(ms)"];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
 export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
