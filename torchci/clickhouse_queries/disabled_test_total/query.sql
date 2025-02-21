@@ -1,7 +1,6 @@
-SELECT
-    COUNT(issues.title) as number_of_open_disabled_tests
+SELECT COUNT(issues.title) AS number_of_open_disabled_tests
 FROM
-    default.issues final
+    default.issues FINAL
 WHERE
     issues.title LIKE '%DISABLED%'
     AND issues.state = {state: String}

@@ -4,7 +4,7 @@ SELECT
         q.time
     ) AS granularity_bucket,
     /* misnomer, this is the max queue time, not the avg queue time */
-    AVG(q.avg_queue_s) as avg_queue_s,
+    AVG(q.avg_queue_s) AS avg_queue_s,
     q.machine_type
 FROM
     default.queue_times_historical q
