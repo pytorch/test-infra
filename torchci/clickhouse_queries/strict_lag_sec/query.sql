@@ -1,6 +1,5 @@
-WITH master as (
-    SELECT
-        push.head_commit.timestamp as master
+WITH master AS (
+    SELECT push.head_commit.timestamp AS master
     FROM
         push
     WHERE
@@ -9,12 +8,13 @@ WITH master as (
         AND push.repository.name = {repo: String }
         AND push.head_commit.id != ''
     ORDER BY
-        push.head_commit.timestamp desc
+        push.head_commit.timestamp DESC
     LIMIT
         1
-), strict as (
-    SELECT
-        push.head_commit.timestamp as strict
+),
+
+strict AS (
+    SELECT push.head_commit.timestamp AS strict
     FROM
         push
     WHERE
@@ -23,12 +23,12 @@ WITH master as (
         AND push.repository.name = {repo: String }
         AND push.head_commit.id != ''
     ORDER BY
-        push.head_commit.timestamp desc
+        push.head_commit.timestamp DESC
     LIMIT
         1
 )
-SELECT
-    DATE_DIFF('second', strict, master) as strict_lag_sec
+
+SELECT DATE_DIFF('second', strict, master) AS strict_lag_sec
 FROM
     master,
     strict
