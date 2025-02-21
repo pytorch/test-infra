@@ -30,6 +30,7 @@ export function GraphPanel({
   queryParams,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   dtypeName,
@@ -41,6 +42,7 @@ export function GraphPanel({
   queryParams: { [key: string]: any };
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   dtypeName: string;

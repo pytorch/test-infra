@@ -29,6 +29,7 @@ export function SummaryPanel({
   stopTime,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   metricNames,
@@ -40,6 +41,7 @@ export function SummaryPanel({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   metricNames: string[];
@@ -99,6 +101,8 @@ export function SummaryPanel({
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
+        )}&benchmarkName=${encodeURIComponent(
+          benchmarkName
         )}&modelName=${encodeURIComponent(
           model
         )}${backend}${dtype}&deviceName=${encodeURIComponent(

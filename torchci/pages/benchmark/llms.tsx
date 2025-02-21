@@ -43,6 +43,7 @@ function Report({
   stopTime,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   dtypeName,
@@ -57,6 +58,7 @@ function Report({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   dtypeName: string;
@@ -134,6 +136,7 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
         dtypeName={dtypeName}
@@ -147,6 +150,7 @@ function Report({
         stopTime={stopTime}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
         metricNames={metricNames}
@@ -179,6 +183,7 @@ export default function Page() {
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
+  const [benchmarkName, setBenchmarkName] = useState<string>("");
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
@@ -214,6 +219,12 @@ export default function Page() {
     const repoName: string = (router.query.repoName as string) ?? undefined;
     if (repoName !== undefined) {
       setRepoName(repoName);
+    }
+
+    const benchmarkName: string =
+      (router.query.benchmarkName as string) ?? undefined;
+    if (benchmarkName != undefined) {
+      setBenchmarkName(benchmarkName);
     }
 
     const modelName: string = (router.query.modelName as string) ?? undefined;
@@ -270,6 +281,8 @@ export default function Page() {
     );
   }, [router.query]);
 
+  console.log(benchmarkName);
+
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
     arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
@@ -281,7 +294,7 @@ export default function Page() {
         ? [dtypeName]
         : [dtypeName, TORCHAO_BASELINE],
     excludedMetrics: EXCLUDED_METRICS,
-    benchmarks: REPO_TO_BENCHMARKS[repoName],
+    benchmarks: benchmarkName ? [benchmarkName] : REPO_TO_BENCHMARKS[repoName],
     granularity: granularity,
     models: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
     backends: backendName === DEFAULT_BACKEND_NAME ? [] : [backendName],
@@ -303,7 +316,8 @@ export default function Page() {
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            {REPO_TO_BENCHMARKS[repoName]} dashboard
+            {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
+            dashboard
           </Typography>
           <CopyLink
             textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -312,6 +326,8 @@ export default function Page() {
               stopTime.toString()
             )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
               repoName
+            )}&benchmarkName=${encodeURIComponent(
+              benchmarkName
             )}&modelName=${encodeURIComponent(
               modelName
             )}&backendName=${encodeURIComponent(
@@ -340,8 +356,12 @@ export default function Page() {
         </Stack>
         <Stack>
           <>
-            Found no records for {REPO_TO_BENCHMARKS[repoName].join(", ")},
-            please wait a min or select different time range
+            Found no records for{" "}
+            {(benchmarkName
+              ? [benchmarkName]
+              : REPO_TO_BENCHMARKS[repoName]
+            ).join(", ")}
+            , please wait a min or select different time range
           </>
         </Stack>
       </div>
@@ -370,7 +390,8 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          {REPO_TO_BENCHMARKS[repoName]} dashboard
+          {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
+          dashboard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -379,6 +400,8 @@ export default function Page() {
             stopTime.toString()
           )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
             repoName
+          )}&benchmarkName=${encodeURIComponent(
+            benchmarkName
           )}&modelName=${encodeURIComponent(
             modelName
           )}&backendName=${encodeURIComponent(
@@ -472,6 +495,7 @@ export default function Page() {
         stopTime={stopTime}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
         dtypeName={dtypeName}
