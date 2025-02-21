@@ -59,9 +59,9 @@ SELECT DISTINCT
     j.name AS job_name,
     j.html_url AS job_url,
     j.started_at AS job_started_at,
-    j.line,
-    j.line_num,
-    j.captures,
+    j.line AS line,
+    j.line_num AS line_num,
+    j.captures AS captures,
     w.head_branch AS head_branch,
     j.head_sha AS head_sha
 FROM failed_jobs AS j
