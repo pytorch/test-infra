@@ -10,6 +10,7 @@ import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
 import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
+const DEFAULT_REPO = "pytorch/pytorch";
 export default function JobLinks({
   job,
   showCommitLink = false,
@@ -24,7 +25,9 @@ export default function JobLinks({
       <a
         target="_blank"
         rel="noreferrer"
-        href={`/${job.repo}/commit/${job.sha}#${job.id}-box`}
+        href={`/${job.repo || DEFAULT_REPO}/commit/${job.sha}#${
+          job.id
+        }-box`}
       >
         Commit
       </a>
