@@ -12,6 +12,7 @@ import {
   DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
+  DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
   EXCLUDED_METRICS,
   REPO_TO_BENCHMARKS,
@@ -46,6 +47,7 @@ function Report({
   benchmarkName,
   modelName,
   backendName,
+  modeName,
   dtypeName,
   deviceName,
   archName,
@@ -61,6 +63,7 @@ function Report({
   benchmarkName: string;
   modelName: string;
   backendName: string;
+  modeName: string;
   dtypeName: string;
   deviceName: string;
   archName: string;
@@ -186,6 +189,7 @@ export default function Page() {
   const [benchmarkName, setBenchmarkName] = useState<string>("");
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
+  const [modeName, setModeName] = useState<string>(DEFAULT_MODE_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
   const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
@@ -238,6 +242,11 @@ export default function Page() {
       setBackendName(backendName);
     }
 
+    const modeName: string = (router.query.modeName as string) ?? undefined;
+    if (modeName !== undefined) {
+      setModeName(modeName);
+    }
+
     const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
     if (dtypeName !== undefined) {
       setDTypeName(dtypeName);
@@ -281,12 +290,11 @@ export default function Page() {
     );
   }, [router.query]);
 
-  console.log(benchmarkName);
-
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
     arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
     device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    mode: modeName === DEFAULT_MODE_NAME ? "" : modeName,
     dtypes:
       dtypeName === DEFAULT_DTYPE_NAME
         ? []
@@ -332,6 +340,8 @@ export default function Page() {
               modelName
             )}&backendName=${encodeURIComponent(
               backendName
+            )}&modeName=${encodeURIComponent(
+              modeName
             )}&dtypeName=${encodeURIComponent(
               dtypeName
             )}&deviceName=${encodeURIComponent(
@@ -380,6 +390,10 @@ export default function Page() {
     DEFAULT_DEVICE_NAME,
     ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
   ];
+  const modeNames: string[] = _.compact([
+    DEFAULT_MODE_NAME,
+    ...(_.uniq(data.map((r: any) => r.mode)) as string[]),
+  ]);
   const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
     ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
@@ -406,6 +420,8 @@ export default function Page() {
             modelName
           )}&backendName=${encodeURIComponent(
             backendName
+          )}&modeName=${encodeURIComponent(
+            modeName
           )}&dtypeName=${encodeURIComponent(
             dtypeName
           )}&deviceName=${encodeURIComponent(
@@ -439,6 +455,14 @@ export default function Page() {
             setDType={setBackendName}
             dtypes={backendNames}
             label={"Backend"}
+          />
+        )}
+        {modeNames.length > 1 && (
+          <DTypePicker
+            dtype={modeName}
+            setDType={setModeName}
+            dtypes={modeNames}
+            label={"Mode"}
           />
         )}
         {dtypeNames.length > 1 && (
@@ -498,6 +522,7 @@ export default function Page() {
         benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
+        modeName={modeName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         archName={archName}

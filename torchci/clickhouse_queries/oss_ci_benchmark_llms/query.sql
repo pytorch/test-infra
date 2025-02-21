@@ -12,6 +12,7 @@ WITH benchmarks AS (
         o.metric.'name' AS metric,
         floor(arrayAvg(o.metric.'benchmark_values'), 2) AS actual,
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
+        o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
         IF(
             empty(o.runners),
@@ -47,6 +48,14 @@ WITH benchmarks AS (
             JSONExtractString(
                 tupleElement(o.benchmark, 'extra_info')['args'],
                 'tensor_parallel_size'
+            ),
+            -- Used by Cachebench
+            'is_dynamic',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['is_dynamic'] = '',
+                'false',
+                -- Default to false
+                tupleElement(o.benchmark, 'extra_info')['is_dynamic']
             )
         ) AS extra
     FROM
@@ -72,6 +81,10 @@ WITH benchmarks AS (
             OR empty({backends: Array(String) })
         )
         AND (
+            o.benchmark.'mode' = {mode: String }
+            OR {mode: String } = ''
+        )
+        AND (
             has({dtypes: Array(String) }, o.benchmark.'dtype')
             OR empty({dtypes: Array(String) })
         )
@@ -91,6 +104,7 @@ SELECT DISTINCT
     metric,
     actual,
     target,
+    mode,
     dtype,
     device,
     arch,
@@ -117,6 +131,7 @@ ORDER BY
     workflow_id DESC,
     backend,
     model,
+    mode,
     dtype,
     device,
     metric

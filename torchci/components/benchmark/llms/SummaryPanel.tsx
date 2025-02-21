@@ -21,7 +21,7 @@ const getDeviceArch = (
 ) => {
   const d = device ? device : "";
   const a = arch ? arch : "";
-  return `${d} (${a})`;
+  return a === "" ? d : `${d} (${a})`;
 };
 
 export function SummaryPanel({
@@ -58,7 +58,13 @@ export function SummaryPanel({
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
-  const data = combineLeftAndRight(repoName, lPerfData, rPerfData);
+  const data = combineLeftAndRight(
+    repoName,
+    benchmarkName,
+    lPerfData,
+    rPerfData
+  );
+  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",
@@ -89,6 +95,10 @@ export function SummaryPanel({
           return `Invalid model name`;
         }
 
+        const mode =
+          metadata.mode !== undefined
+            ? `&modeName=${encodeURIComponent(metadata.mode)}`
+            : "";
         const dtype =
           metadata.dtype !== undefined
             ? `&dtypeName=${encodeURIComponent(metadata.dtype)}`
@@ -105,36 +115,28 @@ export function SummaryPanel({
           benchmarkName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}${dtype}&deviceName=${encodeURIComponent(
+        )}${backend}${mode}${dtype}&deviceName=${encodeURIComponent(
           deviceName
         )}&archName=${encodeURIComponent(archName)}`;
 
+        const displayName =
+          metadata.origins.length !== 0
+            ? `${model} (${metadata.origins.join(",")})`
+            : model;
         return (
           <a href={url}>
-            <b>{model}</b>
+            <b>{displayName}</b>
           </a>
         );
       },
     },
   ];
 
-  const hasDtype = data.length > 0 && "dtype" in data[0] ? true : false;
-  if (hasDtype) {
+  const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
+  if (hasMode) {
     columns.push({
-      field: "dtype",
-      headerName: "Quantization",
-      flex: 1,
-      renderCell: (params: GridRenderCellParams<any>) => {
-        return `${params.value}`;
-      },
-    });
-  }
-
-  const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
-  if (hasBackend) {
-    columns.push({
-      field: "backend",
-      headerName: "Backend",
+      field: "mode",
+      headerName: "Mode",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
         return `${params.value}`;
@@ -155,6 +157,41 @@ export function SummaryPanel({
     columns.push({
       field: "request_rate",
       headerName: "Request rate",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (repoName === "pytorch/pytorch" && benchmarkName === "cache_benchmarks") {
+    columns.push({
+      field: "is_dynamic",
+      headerName: "Is dynamic?",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  const hasDtype = data.length > 0 && "dtype" in data[0] ? true : false;
+  if (hasDtype) {
+    columns.push({
+      field: "dtype",
+      headerName: "Quantization",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
+  if (hasBackend && benchmarkName !== "cache_benchmarks") {
+    columns.push({
+      field: "backend",
+      headerName: "Backend",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
         return `${params.value}`;

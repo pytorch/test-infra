@@ -30,6 +30,7 @@ export function useBenchmark(
 
 export function combineLeftAndRight(
   repoName: string,
+  benchmarkName: string,
   lPerfData: BranchAndCommitPerfData,
   rPerfData: BranchAndCommitPerfData
 ): { [k: string]: any }[] {
@@ -46,13 +47,14 @@ export function combineLeftAndRight(
   rData.forEach((record: LLMsBenchmarkData) => {
     const model = record.model;
     const backend = record.backend;
+    const mode = record.mode;
     const dtype = record.dtype;
     const device = record.device;
     const arch = record.arch;
     const extra = JSON.stringify(record.extra);
     const metric = record.metric;
 
-    const key = `${model};${backend};${dtype};${device};${arch};${extra}`;
+    const key = `${model};${backend};${mode};${dtype};${device};${arch};${extra}`;
     if (!(key in dataGroupedByModel)) {
       dataGroupedByModel[key] = {};
     }
@@ -71,13 +73,14 @@ export function combineLeftAndRight(
     lData.forEach((record: LLMsBenchmarkData) => {
       const model = record.model;
       const backend = record.backend;
+      const mode = record.mode;
       const dtype = record.dtype;
       const device = record.device;
       const arch = record.arch;
       const extra = JSON.stringify(record.extra);
       const metric = record.metric;
 
-      const key = `${model};${backend};${dtype};${device};${arch};${extra}`;
+      const key = `${model};${backend};${mode};${dtype};${device};${arch};${extra}`;
       if (!(key in dataGroupedByModel)) {
         dataGroupedByModel[key] = {};
       }
@@ -99,10 +102,10 @@ export function combineLeftAndRight(
   const validBackends = new Set<string>();
   // First round to get all the valid devices
   Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, dtype, device, arch, extra] = key.split(";");
+    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
     const row: { [k: string]: any } = {
       // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${dtype} / ${device} / ${arch})`,
+      name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch})`,
     };
 
     for (const metric in dataGroupedByModel[key]) {
@@ -120,10 +123,10 @@ export function combineLeftAndRight(
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
   Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, dtype, device, arch, extra] = key.split(";");
+    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
     const row: { [k: string]: any } = {
       // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${dtype} / ${device} / ${arch} / ${extra})`,
+      name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch} / ${extra})`,
     };
 
     for (const metric in dataGroupedByModel[key]) {
@@ -148,7 +151,9 @@ export function combineLeftAndRight(
       if (!("metadata" in row)) {
         row["metadata"] = {
           model: model,
+          origins: record["r"].origins,
           backend: backend,
+          mode: mode,
           dtype: dtype,
           device: device,
           arch: arch,
@@ -160,6 +165,10 @@ export function combineLeftAndRight(
           row["metadata"]["l"] ?? (hasL ? record["l"]["job_id"] : undefined);
         row["metadata"]["r"] =
           row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
+      }
+
+      if (mode !== "") {
+        row["mode"] = mode;
       }
 
       if (dtype !== "") {
@@ -211,6 +220,14 @@ export function combineLeftAndRight(
         row["extra"] = extraInfo;
         row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
         row["request_rate"] = extraInfo["request_rate"];
+      }
+
+      if (
+        repoName === "pytorch/pytorch" &&
+        benchmarkName === "cache_benchmarks"
+      ) {
+        const extraInfo = JSON.parse(extra);
+        row["is_dynamic"] = extraInfo["is_dynamic"];
       }
 
       row[metric] = {

@@ -61,7 +61,7 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
     {
-      name: "PT Cachebench",
+      name: "PT CacheBench",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=cache_benchmarks",
     },
     {
