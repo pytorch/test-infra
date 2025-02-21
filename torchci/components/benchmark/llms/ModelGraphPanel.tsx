@@ -172,6 +172,12 @@ export function GraphPanel({
                 } else {
                   record.display = `${model} / tp${tensorParallel}`;
                 }
+              } else if (
+                repoName === "pytorch/pytorch" &&
+                benchmarkName === "cache_benchmarks"
+              ) {
+                const isDynamic = record.extra!["is_dynamic"];
+                record.display = `${model} / ${isDynamic}`;
               } else {
                 record.display = model.includes(dtype)
                   ? model.includes(device)
