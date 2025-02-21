@@ -25,9 +25,7 @@ export default function JobLinks({
       <a
         target="_blank"
         rel="noreferrer"
-        href={`/${job.repo || DEFAULT_REPO}/commit/${job.sha}#${
-          job.id
-        }-box`}
+        href={`/${job.repo || DEFAULT_REPO}/commit/${job.sha}#${job.id}-box`}
       >
         Commit
       </a>
