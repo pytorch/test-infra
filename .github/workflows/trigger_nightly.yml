@@ -22,6 +22,7 @@ on:
           - executorch
           - torchtune
           - torchcodec
+          - torchvision-extra-decoders
           - all
 jobs:
   trigger:
