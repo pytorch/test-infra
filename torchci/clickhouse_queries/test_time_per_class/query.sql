@@ -1,8 +1,7 @@
 WITH most_recent_strict_commits AS (
-    SELECT
-        push.head_commit.id as sha
+    SELECT push.head_commit.id AS sha
     FROM
-        default.push final
+        default.push FINAL
     WHERE
         push.ref = 'refs/heads/viable/strict'
         AND push.repository.full_name = 'pytorch/pytorch'
@@ -10,41 +9,44 @@ WITH most_recent_strict_commits AS (
         push.head_commit.timestamp DESC
     LIMIT
         3
-), workflow AS (
-    SELECT
-        id
+),
+
+workflow AS (
+    SELECT id
     FROM
         materialized_views.workflow_run_by_head_sha w
-    where head_sha in (select sha from most_recent_strict_commits)
+    WHERE head_sha IN (SELECT sha FROM most_recent_strict_commits)
 ),
+
 job AS (
     SELECT
         j.name,
         j.id,
         j.run_id
     FROM
-        default.workflow_job j final
-    where j.id in (
-        select id from materialized_views.workflow_job_by_head_sha
-        where head_sha in (select sha from most_recent_strict_commits)
+        default.workflow_job j FINAL
+    WHERE j.id IN (
+        SELECT id FROM materialized_views.workflow_job_by_head_sha
+        WHERE head_sha IN (SELECT sha FROM most_recent_strict_commits)
     )
-    and j.run_id in (select id from workflow)
+    AND j.run_id IN (SELECT id FROM workflow)
 ),
+
 class_duration_per_job AS (
     SELECT
-        test_run.invoking_file as file,
-        test_run.classname as classname,
-        SUM(time) as time,
-        REGEXP_EXTRACT(job.name, '^(.*) /', 1) as base_name,
-        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) as test_config
+        test_run.invoking_file AS file,
+        test_run.classname AS classname,
+        SUM(time) AS time,
+        REGEXP_EXTRACT(job.name, '^(.*) /', 1) AS base_name,
+        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) AS test_config
     FROM
         default.test_run_summary test_run
-        INNER JOIN job ON test_run.job_id = job.id
+    INNER JOIN job ON test_run.job_id = job.id
     WHERE
         /* cpp tests do not populate `file` for some reason. */
         /* Exclude them as we don't include them in our slow test infra */
         test_run.file != ''
-        and test_run.workflow_id in (select id from workflow)
+        AND test_run.workflow_id IN (SELECT id FROM workflow)
     GROUP BY
         test_run.invoking_file,
         test_run.classname,
@@ -52,12 +54,13 @@ class_duration_per_job AS (
         test_config,
         job.run_id
 )
+
 SELECT
     REPLACE(file, '.', '/') AS file,
     classname,
     base_name,
     test_config,
-    AVG(time) as time
+    AVG(time) AS time
 FROM
     class_duration_per_job
 GROUP BY
