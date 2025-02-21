@@ -49,7 +49,7 @@ failed_jobs AS (
     WHERE
         j.id IN (SELECT t.job_id from failed_test_runs t)
 )
-SELECT
+SELECT DISTINCT
     t.name AS name,
     t.classname AS classname,
     t.file AS file,
@@ -67,21 +67,6 @@ SELECT
 FROM failed_jobs AS j
     INNER JOIN failed_test_runs AS t ON j.id = t.job_id
     INNER JOIN default.workflow_run AS w ON w.id = j.run_id
-GROUP BY
-    t.name,
-    t.classname,
-    t.file,
-    t.invoking_file,
-    j.conclusion,
-    j.id,
-    j.name,
-    j.html_url,
-    j.started_at,
-    j.line,
-    j.line_num,
-    j.captures,
-    w.head_branch AS head_branch,
-    j.head_sha
 ORDER BY j.started_at DESC
 limit
   {limit: Int32}
