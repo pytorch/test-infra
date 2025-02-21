@@ -1,6 +1,6 @@
 -- File location is misleading, this is actually just any failed test, not
 -- necessarily flaky.
-WITH failed_test_runs as (
+WITH failed_test_runs AS (
     SELECT
         t.name AS name,
         t.classname AS classname,
@@ -9,9 +9,11 @@ WITH failed_test_runs as (
         t.job_id
     FROM default.failed_test_runs AS t
     WHERE
-      t.name = {name: String}
-      and t.classname = {suite: String}
-      and t.file = {file: String}),
+        t.name = {name: String}
+        AND t.classname = {suite: String}
+        AND t.file = {file: String}
+),
+
 failed_jobs AS (
     SELECT
         j.conclusion AS conclusion,
@@ -26,8 +28,9 @@ failed_jobs AS (
         j.head_sha AS head_sha
     FROM default.workflow_job AS j
     WHERE
-        j.id IN (SELECT t.job_id from failed_test_runs t)
+        j.id IN (SELECT t.job_id FROM failed_test_runs t)
 )
+
 SELECT DISTINCT
     t.name AS name,
     t.classname AS classname,
@@ -44,8 +47,8 @@ SELECT DISTINCT
     w.head_branch AS head_branch,
     j.head_sha AS head_sha
 FROM failed_jobs AS j
-    INNER JOIN failed_test_runs AS t ON j.id = t.job_id
-    INNER JOIN default.workflow_run AS w ON w.id = j.run_id
+INNER JOIN failed_test_runs AS t ON j.id = t.job_id
+INNER JOIN default.workflow_run AS w ON w.id = j.run_id
 ORDER BY j.started_at DESC
-limit
-  {limit: Int32}
+LIMIT
+    {limit: Int32}
