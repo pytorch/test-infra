@@ -7,7 +7,7 @@ export default async function fetchFlakyTests(
   testSuite: string = "%",
   testFile: string = "%"
 ): Promise<FlakyTestData[]> {
-  return queryClickhouseSaved("flaky_tests/flaky_tests", {
+  return queryClickhouseSaved("flaky_tests/in_subprocess", {
     numHours,
     name: testName,
     suite: testSuite,
