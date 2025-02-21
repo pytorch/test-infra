@@ -35,6 +35,10 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   p99_ttft_ms: "p99 TTFT (ms)",
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
+  "cold_compile_time(s)": "Cold compile time (s)",
+  "warm_compile_time(s)": "Warm compile time (s)",
+  speedup: "Speedup",
+  speedup_pct: "Speedup (%)",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -59,6 +63,9 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   p99_ttft_ms: false,
   requests_per_second: true,
   tokens_per_second: true,
+  "cold_compile_time(s)": false,
+  "warm_compile_time(s)": false,
+  speedup_pct: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -70,6 +77,10 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "peak_inference_mem_usage(mb)": "InferenceMem",
   "peak_load_mem_usuage(mb)": "LoadMem",
   "generate_time(ms)": "GenerateTime",
+  "cold_compile_time(s)": "ColdCompTime",
+  "warm_compile_time(s)": "WarmCompTime",
+  speedup: "Speedup",
+  speedup_pct: "SpeedupPct",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
