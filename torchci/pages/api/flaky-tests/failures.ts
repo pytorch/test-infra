@@ -20,15 +20,12 @@ async function getFlakyTestInfo(
   file: string,
   limit: number
 ): Promise<JobData[]> {
-  const flakyTestQuery = await queryClickhouseSaved(
-    "flaky_tests/ind_info",
-    {
-      name,
-      suite,
-      file,
-      limit,
-    }
-  );
+  const flakyTestQuery = await queryClickhouseSaved("flaky_tests/ind_info", {
+    name,
+    suite,
+    file,
+    limit,
+  });
 
   const res = [];
   for (const test of Object.values(flakyTestQuery ?? [])) {
