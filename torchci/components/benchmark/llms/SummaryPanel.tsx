@@ -133,7 +133,7 @@ export function SummaryPanel({
   ];
 
   const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
-  if (hasMode) {
+  if (hasMode && benchmarkName === "TorchCache Benchmark") {
     columns.push({
       field: "mode",
       headerName: "Mode",
