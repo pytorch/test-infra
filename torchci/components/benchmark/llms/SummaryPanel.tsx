@@ -164,7 +164,10 @@ export function SummaryPanel({
     });
   }
 
-  if (repoName === "pytorch/pytorch" && benchmarkName === "TorchCache Benchmark") {
+  if (
+    repoName === "pytorch/pytorch" &&
+    benchmarkName === "TorchCache Benchmark"
+  ) {
     columns.push({
       field: "is_dynamic",
       headerName: "Is dynamic?",
