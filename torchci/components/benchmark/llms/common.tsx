@@ -35,10 +35,6 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   p99_ttft_ms: "p99 TTFT (ms)",
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
-  "cold_compile_time(s)": "Cold compile time (s)",
-  "warm_compile_time(s)": "Warm compile time (s)",
-  speedup: "Speedup",
-  speedup_pct: "Speedup (%)",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
