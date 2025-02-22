@@ -10,6 +10,20 @@ import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
 import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
+const DEFAULT_REPO = "pytorch/pytorch";
+function getRepoFromHtmlURL(htmlUrl?: string) {
+  if (htmlUrl === undefined) {
+    return DEFAULT_REPO;
+  }
+  const repoMatch = htmlUrl.match(
+    /https:\/\/github.com\/([^\/]+\/[^\/]+)\/actions/
+  );
+  if (repoMatch === null) {
+    return DEFAULT_REPO;
+  }
+  return repoMatch[1];
+}
+
 export default function JobLinks({
   job,
   showCommitLink = false,
@@ -18,13 +32,16 @@ export default function JobLinks({
   showCommitLink?: boolean;
 }) {
   const subInfo = [];
+  if (job.repo === undefined) {
+    job.repo = getRepoFromHtmlURL(job.htmlUrl);
+  }
 
   if (showCommitLink) {
     subInfo.push(
       <a
         target="_blank"
         rel="noreferrer"
-        href={`/pytorch/pytorch/commit/${job.sha}`}
+        href={`/${job.repo}/commit/${job.sha}#${job.id}-box`}
       >
         Commit
       </a>

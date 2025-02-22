@@ -15,11 +15,21 @@ import { combineLeftAndRight } from "lib/benchmark/llmUtils";
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 
+const getDeviceArch = (
+  device: string | undefined,
+  arch: string | undefined
+) => {
+  const d = device ? device : "";
+  const a = arch ? arch : "";
+  return a === "" ? d : `${d} (${a})`;
+};
+
 export function SummaryPanel({
   startTime,
   stopTime,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   metricNames,
@@ -31,6 +41,7 @@ export function SummaryPanel({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   metricNames: string[];
@@ -47,7 +58,13 @@ export function SummaryPanel({
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
-  const data = combineLeftAndRight(lPerfData, rPerfData);
+  const data = combineLeftAndRight(
+    repoName,
+    benchmarkName,
+    lPerfData,
+    rPerfData
+  );
+  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",
@@ -63,38 +80,103 @@ export function SummaryPanel({
           ? styles.selectedRow
           : "";
       },
-      renderCell: (params: GridRenderCellParams<any>) => {
-        const model = params.value.model;
+      valueGetter: (params: any) => {
+        return params.model ? params.model : "";
+      },
+      renderCell: (params: any) => {
+        // access the row infomation, the params.value is the value pased by valueGetter, mainly used for sorting, and filtering.
+        const metadata = params.row.metadata;
+
+        if (metadata === undefined) {
+          return "Invalid model name";
+        }
+        const model = metadata.model;
         if (model === undefined) {
           return `Invalid model name`;
         }
 
+        const mode =
+          metadata.mode !== undefined
+            ? `&modeName=${encodeURIComponent(metadata.mode)}`
+            : "";
         const dtype =
-          params.value.dtype !== undefined
-            ? `&dtypeName=${encodeURIComponent(params.value.dtype)}`
+          metadata.dtype !== undefined
+            ? `&dtypeName=${encodeURIComponent(metadata.dtype)}`
             : "";
         const backend =
-          params.value.backend !== undefined
-            ? `&backendName=${encodeURIComponent(params.value.backend)}`
+          metadata.backend !== undefined
+            ? `&backendName=${encodeURIComponent(metadata.backend)}`
             : "";
-        const deviceName = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${metadata.device} (${metadata.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
+        )}&benchmarkName=${encodeURIComponent(
+          benchmarkName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}${dtype}&deviceName=${encodeURIComponent(
+        )}${backend}${mode}${dtype}&deviceName=${encodeURIComponent(
           deviceName
         )}&archName=${encodeURIComponent(archName)}`;
 
+        const displayName =
+          metadata.origins.length !== 0
+            ? `${model} (${metadata.origins.join(",")})`
+            : model;
         return (
           <a href={url}>
-            <b>{model}</b>
+            <b>{displayName}</b>
           </a>
         );
       },
     },
   ];
+
+  const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
+  if (hasMode) {
+    columns.push({
+      field: "mode",
+      headerName: "Mode",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (repoName === "vllm-project/vllm") {
+    columns.push({
+      field: "tensor_parallel_size",
+      headerName: "Tensor parallel",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+
+    columns.push({
+      field: "request_rate",
+      headerName: "Request rate",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (
+    repoName === "pytorch/pytorch" &&
+    benchmarkName === "TorchCache Benchmark"
+  ) {
+    columns.push({
+      field: "is_dynamic",
+      headerName: "Is dynamic?",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
 
   const hasDtype = data.length > 0 && "dtype" in data[0] ? true : false;
   if (hasDtype) {
@@ -109,7 +191,7 @@ export function SummaryPanel({
   }
 
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
-  if (hasBackend) {
+  if (hasBackend && benchmarkName !== "TorchCache Benchmark") {
     columns.push({
       field: "backend",
       headerName: "Backend",
@@ -126,10 +208,11 @@ export function SummaryPanel({
         field: "device_arch",
         headerName: "Device",
         flex: 1,
+        valueGetter: (params: any) => {
+          return getDeviceArch(params?.device, params?.arch);
+        },
         renderCell: (params: GridRenderCellParams<any>) => {
-          const device = params.value.device;
-          const arch = params.value.arch;
-          return `${device} (${arch})`;
+          return params.value;
         },
       },
       ...metricNames.map((metric: string) => {

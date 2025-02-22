@@ -12,6 +12,7 @@ import {
   DEFAULT_BACKEND_NAME,
   DEFAULT_DEVICE_NAME,
   DEFAULT_DTYPE_NAME,
+  DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
   EXCLUDED_METRICS,
   REPO_TO_BENCHMARKS,
@@ -43,8 +44,10 @@ function Report({
   stopTime,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
+  modeName,
   dtypeName,
   deviceName,
   archName,
@@ -57,8 +60,10 @@ function Report({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
+  modeName: string;
   dtypeName: string;
   deviceName: string;
   archName: string;
@@ -126,7 +131,7 @@ function Report({
               ? lDataWithSpeedup[0].granularity_bucket
               : undefined,
         }}
-        workflowName={"inductor-micro-benchmark"}
+        workflowName={""}
       >
         <></>
       </CommitPanel>
@@ -134,6 +139,7 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
         dtypeName={dtypeName}
@@ -147,6 +153,7 @@ function Report({
         stopTime={stopTime}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
         metricNames={metricNames}
@@ -179,8 +186,10 @@ export default function Page() {
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
+  const [benchmarkName, setBenchmarkName] = useState<string>("");
   const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
   const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
+  const [modeName, setModeName] = useState<string>(DEFAULT_MODE_NAME);
   const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
   const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
@@ -216,6 +225,12 @@ export default function Page() {
       setRepoName(repoName);
     }
 
+    const benchmarkName: string =
+      (router.query.benchmarkName as string) ?? undefined;
+    if (benchmarkName != undefined) {
+      setBenchmarkName(benchmarkName);
+    }
+
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
       setModelName(modelName);
@@ -225,6 +240,11 @@ export default function Page() {
       (router.query.backendName as string) ?? undefined;
     if (backendName !== undefined) {
       setBackendName(backendName);
+    }
+
+    const modeName: string = (router.query.modeName as string) ?? undefined;
+    if (modeName !== undefined) {
+      setModeName(modeName);
     }
 
     const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
@@ -274,6 +294,7 @@ export default function Page() {
   const queryParams = {
     arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
     device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
+    mode: modeName === DEFAULT_MODE_NAME ? "" : modeName,
     dtypes:
       dtypeName === DEFAULT_DTYPE_NAME
         ? []
@@ -281,7 +302,7 @@ export default function Page() {
         ? [dtypeName]
         : [dtypeName, TORCHAO_BASELINE],
     excludedMetrics: EXCLUDED_METRICS,
-    benchmarks: REPO_TO_BENCHMARKS[repoName],
+    benchmarks: benchmarkName ? [benchmarkName] : REPO_TO_BENCHMARKS[repoName],
     granularity: granularity,
     models: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
     backends: backendName === DEFAULT_BACKEND_NAME ? [] : [backendName],
@@ -303,7 +324,8 @@ export default function Page() {
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            {REPO_TO_BENCHMARKS[repoName]} dashboard
+            {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
+            dashboard
           </Typography>
           <CopyLink
             textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -312,10 +334,14 @@ export default function Page() {
               stopTime.toString()
             )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
               repoName
+            )}&benchmarkName=${encodeURIComponent(
+              benchmarkName
             )}&modelName=${encodeURIComponent(
               modelName
             )}&backendName=${encodeURIComponent(
               backendName
+            )}&modeName=${encodeURIComponent(
+              modeName
             )}&dtypeName=${encodeURIComponent(
               dtypeName
             )}&deviceName=${encodeURIComponent(
@@ -340,8 +366,12 @@ export default function Page() {
         </Stack>
         <Stack>
           <>
-            Found no records for {REPO_TO_BENCHMARKS[repoName].join(", ")},
-            please wait a min or select different time range
+            Found no records for{" "}
+            {(benchmarkName
+              ? [benchmarkName]
+              : REPO_TO_BENCHMARKS[repoName]
+            ).join(", ")}
+            , please wait a min or select different time range
           </>
         </Stack>
       </div>
@@ -360,6 +390,10 @@ export default function Page() {
     DEFAULT_DEVICE_NAME,
     ...(_.uniq(data.map((r: any) => `${r.device} (${r.arch})`)) as string[]),
   ];
+  const modeNames: string[] = _.compact([
+    DEFAULT_MODE_NAME,
+    ...(_.uniq(data.map((r: any) => r.mode)) as string[]),
+  ]);
   const dtypeNames: string[] = _.compact([
     DEFAULT_DTYPE_NAME,
     ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
@@ -370,7 +404,8 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          {REPO_TO_BENCHMARKS[repoName]} dashboard
+          {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
+          dashboard
         </Typography>
         <CopyLink
           textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
@@ -379,10 +414,14 @@ export default function Page() {
             stopTime.toString()
           )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
             repoName
+          )}&benchmarkName=${encodeURIComponent(
+            benchmarkName
           )}&modelName=${encodeURIComponent(
             modelName
           )}&backendName=${encodeURIComponent(
             backendName
+          )}&modeName=${encodeURIComponent(
+            modeName
           )}&dtypeName=${encodeURIComponent(
             dtypeName
           )}&deviceName=${encodeURIComponent(
@@ -416,6 +455,14 @@ export default function Page() {
             setDType={setBackendName}
             dtypes={backendNames}
             label={"Backend"}
+          />
+        )}
+        {modeNames.length > 1 && (
+          <DTypePicker
+            dtype={modeName}
+            setDType={setModeName}
+            dtypes={modeNames}
+            label={"Mode"}
           />
         )}
         {dtypeNames.length > 1 && (
@@ -472,8 +519,10 @@ export default function Page() {
         stopTime={stopTime}
         granularity={granularity}
         repoName={repoName}
+        benchmarkName={benchmarkName}
         modelName={modelName}
         backendName={backendName}
+        modeName={modeName}
         dtypeName={dtypeName}
         deviceName={deviceName}
         archName={archName}

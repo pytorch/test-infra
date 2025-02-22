@@ -184,6 +184,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "torchtext",
     "torchtune",
     "torchvision",
+    "torchvision-extra-decoders",
     "triton",
     "tqdm",
     "typing_extensions",
@@ -382,7 +383,9 @@ class S3Index:
         out.append('  <body>')
         out.append('    <h1>Links for {}</h1>'.format(package_name.lower().replace("_", "-")))
         for obj in sorted(self.gen_file_list(subdir, package_name)):
-            maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum else ""
+            # Do not include checksum for nightly packages, see
+            # https://github.com/pytorch/test-infra/pull/6307
+            maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum and not obj.orig_key.startswith("whl/nightly") else ""
             pep658_attribute = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
