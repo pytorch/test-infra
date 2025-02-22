@@ -15,6 +15,9 @@ export const EXCLUDED_METRICS: string[] = [
   "std_itl_ms",
   "std_tpot_ms",
   "std_ttft_ms",
+  "cold_compile_time(s)",
+  "warm_compile_time(s)",
+  "speedup_pct",
 ];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
