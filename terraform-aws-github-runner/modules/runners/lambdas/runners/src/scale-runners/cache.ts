@@ -49,7 +49,7 @@ async function onSigterm() {
   process.exit(0);
 }
 
-async function startupRedisPool() {
+export async function startupRedisPool() {
   if (redisPool === undefined) {
     console.info('Starting up redis pool');
     redisPool = createPool(
@@ -216,6 +216,54 @@ export async function redisClearCacheKeyPattern(namespace: string, key: string) 
   }
 }
 
+export async function redisLocked<T>(
+  nameSpace: string,
+  key: string,
+  callback: () => Promise<T>,
+  tryRead: (() => Promise<T>) | undefined,
+  lockTimeoutS = 20,
+): Promise<T> {
+  await startupRedisPool();
+  if (!redisPool) throw Error('Redis should be initialized!');
+
+  const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
+
+  while (true) {
+    try {
+      if (tryRead !== undefined) {
+        return await tryRead();
+      }
+    } catch (e) {
+      console.error(`Error trying to read ${nameSpace}-${key} ${e}`);
+    }
+
+    console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
+    const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
+    if (lockUUID !== undefined) {
+      try {
+        return await callback();
+      } finally {
+        await redisReleaseLock(lockKey, lockUUID);
+      }
+    } else {
+      console.debug('Failed to acquire redis lock...');
+      for (let i = 0; i < lockTimeoutS; i++) {
+        const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+          return await client.get(lockKey);
+        });
+
+        if (lockStatus !== undefined && lockStatus !== null) {
+          console.debug(`redis lock is now available... ${lockStatus}`);
+          break;
+        } else {
+          console.debug('redis lock is still in use...');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+}
+
 export async function redisCached<T>(
   nameSpace: string,
   key: string,
@@ -224,17 +272,30 @@ export async function redisCached<T>(
   callback: () => Promise<T>,
   lockTimeoutS = 20,
 ): Promise<T> {
-  await startupRedisPool();
-
   return await locallyCached(nameSpace, key, ttlSec * 0.3, async (): Promise<T> => {
-    const queryKey = `${Config.Instance.environment}.CACHE.${nameSpace}-${key}`;
-    const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
-
-    if (!redisPool) throw Error('Redis should be initialized!');
+    const queryKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.CACHE.${nameSpace}-${key}`;
 
     let cached: T | undefined = undefined;
-    /* eslint-disable-next-line no-constant-condition */
-    while (true) {
+
+    return await redisLocked(nameSpace, key, async () => {
+      if (!redisPool) throw Error('Redis should be initialized!');
+
+      console.debug(`Calling callback for ${queryKey}`);
+      cached = await callback();
+      const newDt: RedisStore = {
+        data: cached,
+        ttl: Date.now() / 1000 + ttlSec,
+        version: Config.Instance.datetimeDeploy,
+      };
+      await redisPool.use(async (client: RedisClientType) => {
+        return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
+      });
+
+      console.debug(`Registered query response in Redis for ${queryKey}`);
+      return cached;
+    }, async () => {
+      if (!redisPool) throw Error('Redis should be initialized!');
+
       console.debug(`Trying to get a redis client ${queryKey}`);
       const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
         console.debug(`Redis client obtained, running get ${queryKey}`);
@@ -255,48 +316,7 @@ export async function redisCached<T>(
         console.debug(`Could not find ${queryKey} in redis`);
       }
 
-      console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
-      const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
-      if (lockUUID !== undefined) {
-        try {
-          console.debug(`Calling callback for ${queryKey}`);
-          cached = await callback();
-          const newDt: RedisStore = {
-            data: cached,
-            ttl: Date.now() / 1000 + ttlSec,
-            version: Config.Instance.datetimeDeploy,
-          };
-          await redisPool.use(async (client: RedisClientType) => {
-            return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
-          });
-
-          console.debug(`Registered query response in Redis for ${queryKey}`);
-          break;
-        } finally {
-          await redisReleaseLock(lockKey, lockUUID);
-        }
-      } else {
-        console.debug('Failed to acquire redis lock...');
-        for (let i = 0; i < lockTimeoutS; i++) {
-          const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-            return await client.get(lockKey);
-          });
-
-          if (lockStatus !== undefined && lockStatus !== null) {
-            console.debug(`redis lock is now available... ${lockStatus}`);
-            break;
-          } else {
-            console.debug('redis lock is still in use...');
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-    }
-
-    // YES this is a horrible way to write this return statement
-    // but typescript is dbumb and it can't identify that the while will only break if
-    // cache is set, returning inside the while then triggers errors related to possible undefined
-    // return of the function (also dumb)
-    return cached as T;
+      throw new Error('Cache not found');
+    }, lockTimeoutS);
   });
 }
