@@ -367,7 +367,7 @@ To find relevant log snippets:
   }
 
   if (test.numRed === undefined) {
-    // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
+    // numRed === undefined indicates that is from the 'flaky_tests/across_jobs' query
     numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
     examplesURL = `https://hud.pytorch.org/failure/${test.name}`;
     debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
