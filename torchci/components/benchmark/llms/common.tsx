@@ -63,9 +63,10 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   p99_ttft_ms: false,
   requests_per_second: true,
   tokens_per_second: true,
-  "cold_compile_time(s)": false,
-  "warm_compile_time(s)": false,
-  speedup_pct: true,
+  "Cold compile time (s)": false,
+  "Warm compile time (s)": false,
+  Speedup: true,
+  "Speedup (%)": true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -77,10 +78,8 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "peak_inference_mem_usage(mb)": "InferenceMem",
   "peak_load_mem_usuage(mb)": "LoadMem",
   "generate_time(ms)": "GenerateTime",
-  "cold_compile_time(s)": "ColdCompTime",
-  "warm_compile_time(s)": "WarmCompTime",
-  speedup: "Speedup",
-  speedup_pct: "SpeedupPct",
+  "Cold compile time (s)": "ColdCompTime",
+  "Warm compile time (s)": "WarmCompTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
