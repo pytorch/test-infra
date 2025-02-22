@@ -20,7 +20,7 @@ export const EXCLUDED_METRICS: string[] = [
   "speedup_pct",
   // TODO (huydhn): Hide generate_time(ms) metric temporarily because of
   // https://github.com/pytorch/executorch/issues/8576#issuecomment-2669706120
-  "generate_time(ms)"]
+  "generate_time(ms)",
 ];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
