@@ -62,7 +62,7 @@ function NavBar() {
     },
     {
       name: "PT CacheBench",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=cache_benchmarks",
+      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
     },
     {
       name: "vLLM v1",

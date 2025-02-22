@@ -174,7 +174,7 @@ export function GraphPanel({
                 }
               } else if (
                 repoName === "pytorch/pytorch" &&
-                benchmarkName === "cache_benchmarks"
+                benchmarkName === "TorchCache Benchmark"
               ) {
                 const isDynamic = record.extra!["is_dynamic"];
                 record.display = `${model} / ${isDynamic}`;

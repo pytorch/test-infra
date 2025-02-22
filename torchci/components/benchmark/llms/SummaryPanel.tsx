@@ -164,7 +164,7 @@ export function SummaryPanel({
     });
   }
 
-  if (repoName === "pytorch/pytorch" && benchmarkName === "cache_benchmarks") {
+  if (repoName === "pytorch/pytorch" && benchmarkName === "TorchCache Benchmark") {
     columns.push({
       field: "is_dynamic",
       headerName: "Is dynamic?",
@@ -188,7 +188,7 @@ export function SummaryPanel({
   }
 
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
-  if (hasBackend && benchmarkName !== "cache_benchmarks") {
+  if (hasBackend && benchmarkName !== "TorchCache Benchmark") {
     columns.push({
       field: "backend",
       headerName: "Backend",

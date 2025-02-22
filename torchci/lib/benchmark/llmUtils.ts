@@ -224,7 +224,7 @@ export function combineLeftAndRight(
 
       if (
         repoName === "pytorch/pytorch" &&
-        benchmarkName === "cache_benchmarks"
+        benchmarkName === "TorchCache Benchmark"
       ) {
         const extraInfo = JSON.parse(extra);
         row["is_dynamic"] = extraInfo["is_dynamic"];
