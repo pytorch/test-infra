@@ -30,6 +30,7 @@ export function GraphPanel({
   queryParams,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   dtypeName,
@@ -41,6 +42,7 @@ export function GraphPanel({
   queryParams: { [key: string]: any };
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   dtypeName: string;
@@ -170,6 +172,12 @@ export function GraphPanel({
                 } else {
                   record.display = `${model} / tp${tensorParallel}`;
                 }
+              } else if (
+                repoName === "pytorch/pytorch" &&
+                benchmarkName === "TorchCache Benchmark"
+              ) {
+                const isDynamic = record.extra!["is_dynamic"];
+                record.display = `${model} / ${isDynamic}`;
               } else {
                 record.display = model.includes(dtype)
                   ? model.includes(device)

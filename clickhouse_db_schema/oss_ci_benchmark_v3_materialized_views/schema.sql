@@ -4,6 +4,7 @@ CREATE TABLE benchmark.oss_ci_benchmark_metadata (
     `repo` String,
     `benchmark_name` String,
     `benchmark_dtype` String,
+    `benchmark_mode` String,
     `model_name` String,
     `model_backend` String,
     `device` String,
@@ -19,6 +20,7 @@ ORDER BY
         repo,
         benchmark_name,
         benchmark_dtype,
+        benchmark_mode,
         model_name,
         model_backend,
         device,
@@ -34,6 +36,7 @@ SELECT
     repo AS repo,
     tupleElement(benchmark, 'name') AS benchmark_name,
     tupleElement(benchmark, 'dtype') AS benchmark_dtype,
+    tupleElement(benchmark, 'mode') AS benchmark_mode,
     tupleElement(model, 'name') AS model_name,
     tupleElement(model, 'backend') AS model_backend,
     IF(
@@ -54,7 +57,8 @@ SELECT
 FROM
     benchmark.oss_ci_benchmark_v3
 WHERE
-    timestamp >= toUnixTimestamp(toDateTime('2025-01-20 22:45:00'));
+    timestamp >= toUnixTimestamp(toDateTime('2025-02-19 00:00:00'))
+    AND tupleElement(benchmark, 'name') != 'sccache_stats';
 
 -- Below is the SQL query to backfill the view with all data from 2024 onward
 INSERT INTO
@@ -63,6 +67,7 @@ SELECT
     repo AS repo,
     tupleElement(benchmark, 'name') AS benchmark_name,
     tupleElement(benchmark, 'dtype') AS benchmark_dtype,
+    tupleElement(benchmark, 'mode') AS benchmark_mode,
     tupleElement(model, 'name') AS model_name,
     tupleElement(model, 'backend') AS model_backend,
     IF(
@@ -82,3 +87,5 @@ SELECT
     timestamp AS timestamp
 FROM
     benchmark.oss_ci_benchmark_v3
+WHERE
+    tupleElement(benchmark, 'name') != 'sccache_stats';

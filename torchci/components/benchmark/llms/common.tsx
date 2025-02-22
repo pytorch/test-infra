@@ -15,6 +15,9 @@ export const EXCLUDED_METRICS: string[] = [
   "std_itl_ms",
   "std_tpot_ms",
   "std_ttft_ms",
+  "cold_compile_time(s)",
+  "warm_compile_time(s)",
+  "speedup_pct",
 ];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
@@ -59,6 +62,10 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   p99_ttft_ms: false,
   requests_per_second: true,
   tokens_per_second: true,
+  "Cold compile time (s)": false,
+  "Warm compile time (s)": false,
+  Speedup: true,
+  "Speedup (%)": true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -70,10 +77,13 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "peak_inference_mem_usage(mb)": "InferenceMem",
   "peak_load_mem_usuage(mb)": "LoadMem",
   "generate_time(ms)": "GenerateTime",
+  "Cold compile time (s)": "ColdCompTime",
+  "Warm compile time (s)": "WarmCompTime",
 };
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";
+export const DEFAULT_MODE_NAME = "All Modes";
 export const DEFAULT_BACKEND_NAME = "All Backends";
 
 // Only used by ExecuTorch for now
@@ -94,6 +104,7 @@ export interface LLMsBenchmarkData {
   metric: string;
   actual: number;
   target: number;
+  mode?: string;
   dtype: string;
   device: string;
   arch: string;

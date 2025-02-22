@@ -5,6 +5,7 @@ SELECT DISTINCT
     model_backend AS backend,
     metric_name AS metric,
     benchmark_dtype AS dtype,
+    benchmark_mode AS mode,
     device,
     arch
 FROM
@@ -49,4 +50,5 @@ ORDER BY
     model,
     metric,
     dtype,
+    mode,
     device
