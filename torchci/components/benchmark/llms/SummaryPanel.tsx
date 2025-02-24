@@ -215,98 +215,107 @@ export function SummaryPanel({
           return params.value;
         },
       },
-      ...metricNames.map((metric: string) => {
-        return {
-          field: metric,
-          headerName:
-            metric in METRIC_DISPLAY_HEADERS
-              ? METRIC_DISPLAY_HEADERS[metric]
-              : metric,
-          flex: 1,
-          cellClassName: (params: GridCellParams<any, any>) => {
-            const v = params.value;
-            if (v === undefined) {
-              return "";
-            }
-
-            // l is the old (base) value, r is the new value
-            const l = v.l.actual;
-            const r = v.r.actual;
-
-            if (!v.highlight) {
-              return "";
-            }
-
-            if (lCommit === rCommit) {
-              return "";
-            } else {
-              if (l === r) {
-                // 0 means the model isn't run at all
+      ...metricNames
+        .filter((metric: string) => {
+          // TODO (huydhn): Just a temp fix, remove this after a few weeks
+          return (
+            repoName !== "pytorch/pytorch" ||
+            benchmarkName !== "TorchCache Benchmark" ||
+            metric !== "speedup"
+          );
+        })
+        .map((metric: string) => {
+          return {
+            field: metric,
+            headerName:
+              metric in METRIC_DISPLAY_HEADERS
+                ? METRIC_DISPLAY_HEADERS[metric]
+                : metric,
+            flex: 1,
+            cellClassName: (params: GridCellParams<any, any>) => {
+              const v = params.value;
+              if (v === undefined) {
                 return "";
               }
 
-              // It didn't error in the past, but now it does error
-              if (r === 0) {
-                return styles.error;
+              // l is the old (base) value, r is the new value
+              const l = v.l.actual;
+              const r = v.r.actual;
+
+              if (!v.highlight) {
+                return "";
               }
 
-              // If it didn't run and now it runs, mark it as green
-              if (l === 0) {
-                return styles.ok;
-              }
-
-              if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
-                // Higher value
-                if (r - l > RELATIVE_THRESHOLD * l) {
-                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                    ? styles.ok
-                    : styles.error;
-                }
-
-                // Lower value
-                if (l - r > RELATIVE_THRESHOLD * r) {
-                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                    ? styles.error
-                    : styles.ok;
-                }
+              if (lCommit === rCommit) {
+                return "";
               } else {
-                // No data
+                if (l === r) {
+                  // 0 means the model isn't run at all
+                  return "";
+                }
+
+                // It didn't error in the past, but now it does error
+                if (r === 0) {
+                  return styles.error;
+                }
+
+                // If it didn't run and now it runs, mark it as green
+                if (l === 0) {
+                  return styles.ok;
+                }
+
+                if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
+                  // Higher value
+                  if (r - l > RELATIVE_THRESHOLD * l) {
+                    return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                      ? styles.ok
+                      : styles.error;
+                  }
+
+                  // Lower value
+                  if (l - r > RELATIVE_THRESHOLD * r) {
+                    return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                      ? styles.error
+                      : styles.ok;
+                  }
+                } else {
+                  // No data
+                  return "";
+                }
+              }
+
+              return "";
+            },
+            renderCell: (params: GridRenderCellParams<any>) => {
+              const v = params.value;
+              if (v === undefined) {
                 return "";
               }
-            }
 
-            return "";
-          },
-          renderCell: (params: GridRenderCellParams<any>) => {
-            const v = params.value;
-            if (v === undefined) {
-              return "";
-            }
+              const l = v.l.actual;
+              const r = v.r.actual;
 
-            const l = v.l.actual;
-            const r = v.r.actual;
+              // Compute the percentage
+              const target = v.r.target;
+              const lPercent =
+                target && target != 0
+                  ? `(${Number((l * 100) / target).toFixed(0)}%)`
+                  : "";
+              const rPercent =
+                target && target != 0
+                  ? `(${Number((r * 100) / target).toFixed(0)}%)`
+                  : "";
+              const showTarget =
+                target && target != 0 ? `[target = ${target}]` : "";
 
-            // Compute the percentage
-            const target = v.r.target;
-            const lPercent =
-              target && target != 0
-                ? `(${Number((l * 100) / target).toFixed(0)}%)`
-                : "";
-            const rPercent =
-              target && target != 0
-                ? `(${Number((r * 100) / target).toFixed(0)}%)`
-                : "";
-            const showTarget =
-              target && target != 0 ? `[target = ${target}]` : "";
-
-            if (lCommit === rCommit || !v.highlight) {
-              return `${r} ${rPercent} ${showTarget}`;
-            } else {
-              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
-            }
-          },
-        };
-      }),
+              if (lCommit === rCommit || !v.highlight) {
+                return `${r} ${rPercent} ${showTarget}`;
+              } else {
+                return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
+              }
+            },
+          };
+        }),
     ]
   );
 
