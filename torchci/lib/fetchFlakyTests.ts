@@ -1,4 +1,4 @@
-import { queryClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { queryClickhouseSaved } from "./clickhouse";
 import { FlakyTestData } from "./types";
 
 export default async function fetchFlakyTests(
@@ -7,7 +7,7 @@ export default async function fetchFlakyTests(
   testSuite: string = "%",
   testFile: string = "%"
 ): Promise<FlakyTestData[]> {
-  return queryClickhouseSaved("flaky_tests", {
+  return queryClickhouseSaved("flaky_tests/in_subprocess", {
     numHours,
     name: testName,
     suite: testSuite,
@@ -25,86 +25,13 @@ export async function fetchFlakyTestsAcrossJobs(): Promise<FlakyTestData[]> {
 export async function fetchFlakyTestsAcrossFileReruns(
   numHours: string = "3"
 ): Promise<FlakyTestData[]> {
-  const failedTestsQuery = `
-select
-    DISTINCT name,
-    file,
-    invoking_file,
-    classname
-from
-    default .test_run_s3
-where
-    (
-        LENGTH(failure) != 0
-        or LENGTH(error) != 0
-    )
-    and file != ''
-    and time_inserted > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
-`;
-
-  const checkEveryTestQuery = `
-select
-    name,
-    classname as suite,
-    file,
-    invoking_file,
-    job_id,
-    1 as numGreen,
-    SUM(LENGTH(rerun)) as numRed,
-    any(rerun[1].'text') as sampleTraceback
-FROM
-    default.test_run_s3
-where
-    name = {name: String}
-    and classname = {classname: String}
-    and invoking_file = {invoking_file: String}
-    and file = {file: String}
-    and LENGTH(skipped) = 0
-    and time_inserted > (CURRENT_TIMESTAMP() - interval {numHours: Int64} hour)
-GROUP BY
-    name,
-    suite,
-    file,
-    invoking_file,
-    job_id
-HAVING
-    -- succeded at least once
-    MIN(LENGTH(failure) + LENGTH(error)) = 0
-    -- failed completely at least once
-    and MAX(LENGTH(failure) + LENGTH(error)) != 0
-`;
-
-  const workflowJobInfoQuery = `
-with jobs as (
-  select
-    name,
-    id,
-    run_id,
-    run_attempt,
-    html_url
-  from default.workflow_job final
-  where
-    id in {job_ids: Array(Int64)}
-    and name not like '%rerun_disabled_tests%'
-)
-select
-  j.name as name,
-  w.name as workflow_name,
-  j.id as id,
-  w.id as workflow_id,
-  w.head_branch as head_branch,
-  j.run_attempt as run_attempt,
-  j.html_url as html_url
-from
-  default.workflow_run w final join jobs j on w.id = j.run_id
-where
-  w.id in (select run_id from jobs)
-`;
-
   // Get every distinct failed test on master in the past numHours (usually not a lot)
-  const failedTestsResults = await queryClickhouse(failedTestsQuery, {
-    numHours,
-  });
+  const failedTestsResults = await queryClickhouseSaved(
+    "flaky_tests/across_file_reruns/failed_tests",
+    {
+      numHours,
+    }
+  );
 
   // For every failed test, query the database for jobs that had file level reruns of
   // the test in the past numHours.  Do this separately because a join on
@@ -117,13 +44,16 @@ where
     rerunTestsUnflattened.push(
       await Promise.all(
         failedTestsResults.slice(i, i + 25).map(async (e) => {
-          return await queryClickhouse(checkEveryTestQuery, {
-            name: e.name,
-            classname: e.classname,
-            invoking_file: e.invoking_file,
-            file: e.file,
-            numHours,
-          });
+          return await queryClickhouseSaved(
+            "flaky_tests/across_file_reruns/check_every_test",
+            {
+              name: e.name,
+              classname: e.classname,
+              invoking_file: e.invoking_file,
+              file: e.file,
+              numHours,
+            }
+          );
         })
       )
     );
@@ -132,9 +62,12 @@ where
 
   // Query for info about the workflow job.  This could be done with the
   // previous query but I think this is less resource intense?
-  const workflowJobInfo = await queryClickhouse(workflowJobInfoQuery, {
-    job_ids: rerunTests.map((e) => e.job_id),
-  });
+  const workflowJobInfo = await queryClickhouseSaved(
+    "flaky_tests/across_file_reruns/workflow_job_info",
+    {
+      job_ids: rerunTests.map((e) => e.job_id),
+    }
+  );
 
   const workflowJobMap = new Map(workflowJobInfo.map((e) => [e.id, e]));
   const rerunTestsMap: Map<string, FlakyTestData> = rerunTests.reduce(
