@@ -63,13 +63,6 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 60
         type: number
-    secrets:
-      CONDA_PYTORCHBOT_TOKEN:
-        description: "Access Token needed to upload binaries to anaconda nightly channel"
-        required: false
-      CONDA_PYTORCHBOT_TOKEN_TEST:
-        description: "Access Token needed to upload binaries to anaconda test channel"
-        required: false
 
 jobs:
   build:
