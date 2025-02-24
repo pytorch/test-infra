@@ -474,7 +474,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     ) {
       return await this.addComment(
         "Only people with write access to the repo can add these labels: " +
-          write_required_labels.join(", ") + ciflowLabels.join(", ") +
+          write_required_labels.join(", ") +
+          ciflowLabels.join(", ") +
           ". Please ping one of the reviewers for help."
       );
     }
