@@ -105,13 +105,6 @@ export function getTimeSeriesStats(dps: TimeSeriesDataPoint[]) {
     unit: "%",
   };
   results.push(maxStat);
-  const avgSpikeInterval = findAvgSpikeIntervals(dps, p90Metric.value);
-  const spikeAvgInterval = {
-    type: StatType.SpikeAvgInterval,
-    value: Number((avgSpikeInterval / 1000).toFixed(2)),
-    unit: "%",
-  };
-  results.push(spikeAvgInterval);
   return results;
 }
 
@@ -119,17 +112,6 @@ export const findMaxValue = (data: number[]) => {
   if (data.length == 0) return 0; // No data
   const max = data.reduce((a, b) => Math.max(a, b), 0);
   return max;
-};
-
-const findAvgSpikeIntervals = (
-  timestamps: TimeSeriesDataPoint[],
-  threshold: number
-) => {
-  const spikeIntervals = findSpikeIntervals(timestamps, threshold);
-  if (spikeIntervals.length == 0) return -1; // No spikes
-  const avgSpike =
-    spikeIntervals.reduce((a, b) => a + b, 0) / spikeIntervals.length;
-  return avgSpike;
 };
 
 const findSpikeIntervals = (
@@ -306,7 +288,7 @@ function getAllGpusStats(stats: StatsInfo[]) {
       id: "gpu_mem_all",
       columns: [
         aggregateStats(gpuMems, StatType.Average, AgggregateMethod.Average),
-        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Average),
+        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Max),
         aggregateStats(
           gpuMems,
           StatType.SpikeFrequency,
