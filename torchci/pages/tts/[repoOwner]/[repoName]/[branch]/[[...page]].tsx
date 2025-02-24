@@ -216,7 +216,7 @@ export default function Page() {
               results with your choice of time range and granularity?
             </Typography>
           ) : data === undefined ? (
-            <LoadingPage height={GRAPHS_HEIGHT}/>
+            <LoadingPage height={GRAPHS_HEIGHT} />
           ) : (
             <Stack spacing={2} height={GRAPHS_HEIGHT}>
               <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
