@@ -463,32 +463,22 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       )
     );
 
+    // Punt all requests for applying labels that we've blocklisted or ciflow labels
+    // > Why block ciflow labels?
+    // > Giving unprivileged users the ability to apply ciflow labels gives them the ability to
+    // > bypass our protections for workflow approvals potentially allowing them to run workflows
+    // > when they shouldn't be allowed to run workflows.
     if (
-      write_required_labels.length > 0 &&
+      (write_required_labels.length > 0 || ciflowLabels.length > 0) &&
       !(await this.hasWritePermissions(ctx.payload?.comment?.user?.login))
     ) {
       return await this.addComment(
         "Only people with write access to the repo can add these labels: " +
-          write_required_labels.join(", ") +
+          write_required_labels.join(", ") + ciflowLabels.join(", ") +
           ". Please ping one of the reviewers for help."
       );
     }
 
-    if (
-      ciflowLabels.length > 0 &&
-      !(await this.hasWorkflowRunningPermissions(
-        ctx.payload?.comment?.user?.login
-      ))
-    ) {
-      return await this.addComment(
-        "To add these label(s) (" +
-          ciflowLabels.join(", ") +
-          ") to the PR, please first approve the " +
-          "workflows that are awaiting approval (scroll to the bottom of this page).\n\n" +
-          "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
-          "Please ping one of the reviewers if you do not have access to approve and run workflows."
-      );
-    }
     if (invalidLabels.length > 0) {
       await this.addComment(
         "Didn't find following labels among repository labels: " +
