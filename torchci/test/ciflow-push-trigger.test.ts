@@ -1,7 +1,11 @@
 import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
-import { mockApprovedWorkflowRuns, mockHasApprovedWorkflowRun, mockPermissions } from "./utils";
+import {
+  mockApprovedWorkflowRuns,
+  mockHasApprovedWorkflowRun,
+  mockPermissions,
+} from "./utils";
 
 nock.disableNetConnect();
 
