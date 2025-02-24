@@ -270,7 +270,13 @@ export async function hasApprovedPullRuns(
   if (pr_runs == null || pr_runs?.length == 0) {
     return false;
   }
-  return pr_runs.every((run) => run.conclusion != "action_required");
+  return !(
+    pr_runs.some((run) => run.conclusion === "action_required") ||
+    // Everything being a start up failure could be hiding a need for approval
+    pr_runs.every(
+      (run) => run.conclusion === "failure" && run.created_at == run.updated_at
+    )
+  );
 }
 
 export async function isFirstTimeContributor(
