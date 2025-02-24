@@ -272,7 +272,8 @@ export async function hasApprovedPullRuns(
   }
   return !(
     pr_runs.some((run) => run.conclusion === "action_required") ||
-    // Everything being a start up failure could be hiding a need for approval
+    // Everything being a start up failure could hide the need for workflow
+    // approval
     pr_runs.every(
       (run) => run.conclusion === "failure" && run.created_at == run.updated_at
     )
