@@ -11,7 +11,7 @@ WITH tts_duration AS (
     WHERE
         job.created_at >= {startTime: DateTime64(3) }
         AND job.created_at < {stopTime: DateTime64(3) }
-        AND has({workflowNames: Array(String) }, workflow.name)
+        AND not has({ignoredWorkflows: Array(String) }, workflow.name)
         AND workflow.head_branch LIKE {branch: String }
         AND workflow.run_attempt = 1
         AND workflow.repository. 'full_name' = {repo: String }

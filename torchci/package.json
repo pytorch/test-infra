@@ -46,6 +46,7 @@
     "eslint-plugin-unused-imports": "^3.2.0",
     "jaro-winkler-typescript": "^1.0.1",
     "lodash": "^4.17.21",
+    "lz-string": "^1.5.0",
     "minimatch": "^9.0.3",
     "minimist": "^1.2.6",
     "next": "14.2.21",
