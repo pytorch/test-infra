@@ -20,8 +20,8 @@ PREFIXES = [
     "whl",
     "whl/nightly",
     "whl/test",
-    "libtorch",
-    "libtorch/nightly",
+    # "libtorch",
+    # "libtorch/nightly",
 ]
 
 S3 = boto3.resource("s3")
@@ -29,6 +29,7 @@ CLIENT = boto3.client("s3")
 
 # bucket for download.pytorch.org
 BUCKET = S3.Bucket("pytorch")
+test_bucket = S3.Bucket("camyllhtest")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -51,28 +52,52 @@ def main() -> None:
     args = parser.parse_args()
     action = "copying package dependencies to new version subdir"
     prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
-    for prefix in prefixes:
-        old_pkg = args.previous
-        new_pkg = args.package
-        print(f"INFO: {action} for '{prefix}/{new_pkg}'")
-        stime = time.time()
-        if args.package and args.previous:
+    old_pkg = args.previous
+    new_pkg = args.package
 
-            new_dir = f"{prefix}/{new_pkg}"
-            new_dir = f"{prefix}/camyllhtest"
+    # response = CLIENT.list_objects_v2(Bucket=BUCKET.name, Prefix="whl/nightly/rocm6.2")
+    # for prefix in response["Contents"]:
+    #     print("-----")
+    #     print(prefix["Key"][:-1])
 
-            old_dir = f"{prefix}/{old_pkg}"
-            response = S3.meta.client.put_object(
-                Body="", Bucket=BUCKET.name, Key=new_dir
-            )
-            print(f"DEBUG: Created {new_dir} with response {response}")
-            copy_source = {"Bucket": BUCKET.name, "Key": old_dir}
-            S3.meta.client.copy(CopySource=copy_source, Bucket=BUCKET, key=new_dir)
-            # S3.meta.client.delete_object(Bucket=BUCKET, Key=old_dir)
-        etime = time.time()
-        print(
-            f"DEBUG: Copying dependencies from {prefix}/{old_pkg} to {prefix}/{new_pkg} in {etime-stime:.2f} seconds"
-        )
+    # for prefix in prefixes:
+    old_prefix = f"whl/nightly/rocm6.2/"
+    new_prefix = f"whl/nightly/test_rocm6.3/"
+    # print(f"INFO: {action} for whl/nightly/rocm6.2")
+    for obj in BUCKET.objects.filter(Prefix=old_prefix):
+        print("-----1")
+        old_source = {"Bucket": BUCKET.name, "Key": obj.key}  # replace the prefix
+        print("old_source: ", old_source)
+        print("-----2")
+        new_key = obj.key.replace(old_prefix, new_prefix, 1)
+        print("new_key: ", new_key)
+        print("-----3")
+        new_obj = test_bucket.Object(new_key)
+        print("new_obj: ", new_obj.key)
+        print("-----4")
+        new_obj.copy(old_source)
+
+    # stime = time.time()
+    # prefix = "whl/nightly"
+
+    # if args.package and args.previous:
+    #     prefix = "whl/nightly"
+    #     new_dir = f"{prefix}/{new_pkg}/"
+    #     old_dir = f"{prefix}/{old_pkg}/"
+    #     # response = S3.meta.client.put_object(
+    #     #     Body="", Bucket=test_bucket.name, Key=new_dir
+    #     # )
+    #     # print(f"DEBUG: Created {new_dir} with response {response}")
+    #     copy_source = {"Bucket": BUCKET.name, "Key": "whl/nightly/rocm6.2"}
+    #     print("HERE2")
+    #     S3.meta.client.copy(
+    #         CopySource=copy_source, Bucket=test_bucket.name, Key=new_dir
+    #     )
+    #     # S3.meta.client.delete_object(Bucket=BUCKET, Key=old_dir)
+    # etime = time.time()
+    # print(
+    #     f"DEBUG: Copying dependencies from {prefix}/{old_pkg} to {prefix}/{new_pkg} in {etime-stime:.2f} seconds"
+    # )
 
 
 if __name__ == "__main__":
