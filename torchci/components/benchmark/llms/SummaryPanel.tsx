@@ -202,7 +202,7 @@ export function SummaryPanel({
     });
   }
 
-  if (benchmarkName !== "TorchCache Benchmark") {
+  if (benchmarkName === "TorchCache Benchmark") {
     // We want to set a custom order for cache benchmark
     const priorityOrder = [
       "Cold compile time (s)",
