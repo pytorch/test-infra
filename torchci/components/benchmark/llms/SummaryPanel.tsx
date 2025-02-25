@@ -221,7 +221,7 @@ export function SummaryPanel({
           return (
             repoName !== "pytorch/pytorch" ||
             benchmarkName !== "TorchCache Benchmark" ||
-            metric !== "speedup"
+            (metric !== "speedup" && metric !== "Speedup")
           );
         })
         .map((metric: string) => {
