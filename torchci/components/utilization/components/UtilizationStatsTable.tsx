@@ -14,9 +14,6 @@ export default function UtilizationStatsTable({ data }: { data: any[] }) {
       spike_frequency: row.columns.find(
         (col: any) => col.type == StatType.SpikeFrequency
       )?.value,
-      spike_avg_interval: row.columns.find(
-        (col: any) => col.type == StatType.SpikeAvgInterval
-      )?.value,
     };
   });
   return (
@@ -91,12 +88,6 @@ const columns: GridColDef[] = [
     field: "spike_frequency",
     headerName: "spike freq(above 90%)",
     valueFormatter: valueFormatterSpike,
-    minWidth: 200,
-  },
-  {
-    field: "spike_avg_interval",
-    headerName: "avg spike interval (above 90%)",
-    valueFormatter: valueFormatterSeconds,
     minWidth: 200,
   },
 ];
