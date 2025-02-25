@@ -202,6 +202,23 @@ export function SummaryPanel({
     });
   }
 
+  if (benchmarkName !== "TorchCache Benchmark") {
+    // We want to set a custom order for cache benchmark
+    const priorityOrder = ["Cold compile time (s)", "Warm compile time (s)", "Speedup (%)"];
+    metricNames.sort((x, y) => {
+      const indexX = priorityOrder.indexOf(x);
+      const indexY = priorityOrder.indexOf(y);
+
+      if (indexX !== -1 && indexY !== -1) {
+          return indexX - indexY; // Keep the priority order
+      }
+      if (indexX !== -1) return -1; // Move priority items to the front
+      if (indexY !== -1) return 1;
+
+      return 0; // Keep original order for non-priority items
+    });
+  }
+
   columns.push(
     ...[
       {
