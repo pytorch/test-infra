@@ -185,9 +185,8 @@ jobs:
         set -ex
         cd .ci/pytorch/
         python3 -m ensurepip --upgrade
-        export MATRIX_GPU_ARCH_VERSION=$(python3 .../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
-        export MATRIX_GPU_ARCH_TYPE="cuda"
-        export CUDA_VERSION_NODOT=$(echo $MATRIX_GPU_ARCH_VERSION | tr -d '.')
+        CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
+        CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
 
         DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu${CUDA_VERSION_NODOT}"
         if [[ ${{ inputs.channel }} == 'test' ]]; then
