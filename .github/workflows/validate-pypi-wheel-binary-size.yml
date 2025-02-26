@@ -33,6 +33,11 @@ jobs:
       - name: Run validation
         run: |
           # shellcheck disable=SC2086
+          CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${CHANNEL})
+          # shellcheck disable=SC2086
+          CUDA_VERSION_NODOT=$(echo ${CUDA_VERSION} | tr -d '.')
+
+          # shellcheck disable=SC2086
           python tools/binary_size_validation/binary_size_validation.py \
-              --url https://download.pytorch.org/whl/${CHANNEL}/cu124/torch/ \
-              --include "linux" --only-latest-version --threshold 750
+              --url https://download.pytorch.org/whl/${CHANNEL}/cu${CUDA_VERSION_NODOT}/torch/ \
+              --include "manylinux" --only-latest-version --threshold 750
