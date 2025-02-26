@@ -83,7 +83,7 @@ else
     pushd ${PWD}/.ci/pytorch/
 
     # TODO: enable torch-compile on ROCM and on 3.13t
-    if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm" || ${MATRIX_PYTHON_VERSION} == "3.13t"]]; then
+    if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm" || ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
         TEST_SUFFIX=${TEST_SUFFIX}" --torch-compile-check disabled"
     fi
 
