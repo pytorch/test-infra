@@ -317,7 +317,8 @@ export function SummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
-              const unit = UNIT_FOR_METRIC[metric];
+              const unit =
+                metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
 
               // Compute the percentage
               const target = v.r.target;
