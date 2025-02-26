@@ -5,6 +5,7 @@ import {
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
+  UNIT_FOR_METRIC,
 } from "components/benchmark/llms/common";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
