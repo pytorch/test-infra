@@ -79,7 +79,7 @@ describe("utils: hasApprovedPullRuns", () => {
     await checkhasApprovedPullRunsReturns(false);
   });
 
-  test("one startup failure and one success = good", async () => {
+  test("one startup failure and one success = bad", async () => {
     mockRuns([
       {
         conclusion: "failure",
@@ -88,6 +88,6 @@ describe("utils: hasApprovedPullRuns", () => {
       },
       { conclusion: "success" },
     ]);
-    await checkhasApprovedPullRunsReturns(true);
+    await checkhasApprovedPullRunsReturns(false);
   });
 });
