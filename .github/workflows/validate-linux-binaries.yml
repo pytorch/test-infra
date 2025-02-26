@@ -158,9 +158,10 @@ jobs:
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
+        CUDA_VERSION_STABLE=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${MATRIX_CHANNEL})
         # Special case PyPi installation package. And Install of PyPi package via poetry
         if [[ ${MATRIX_PACKAGE_TYPE} == "manywheel" && \
-              ${MATRIX_GPU_ARCH_VERSION} == "12.4" && \
+              ${MATRIX_GPU_ARCH_VERSION} == "${CUDA_VERSION_STABLE}" && \
               ${MATRIX_CHANNEL} == "release" && \
               ${USE_ONLY_DL_PYTORCH_ORG} == "false" ]]; then
           source ../../test-infra/.github/scripts/validate_pipy.sh
@@ -183,9 +184,8 @@ jobs:
       timeout: 180
       script: |
         set -ex
-        cd .ci/pytorch/
         python3 -m ensurepip --upgrade
-        CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
+        CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
 
         DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu${CUDA_VERSION_NODOT}"
@@ -196,4 +196,4 @@ jobs:
         fi
 
         python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
-        python3 -c "import torch"
+        python3 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
