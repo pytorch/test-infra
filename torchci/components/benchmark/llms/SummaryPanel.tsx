@@ -316,6 +316,8 @@ export function SummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
+              const unit = UNIT_FOR_METRIC[metric];
+
               // Compute the percentage
               const target = v.r.target;
               const lPercent =
@@ -330,9 +332,9 @@ export function SummaryPanel({
                 target && target != 0 ? `[target = ${target}]` : "";
 
               if (lCommit === rCommit || !v.highlight) {
-                return `${r} ${rPercent} ${showTarget}`;
+                return `${r}${unit} ${rPercent} ${showTarget}`;
               } else {
-                return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
+                return `${l}${unit} ${lPercent} → ${r}${unit} ${rPercent} ${showTarget}`;
               }
             },
           };
