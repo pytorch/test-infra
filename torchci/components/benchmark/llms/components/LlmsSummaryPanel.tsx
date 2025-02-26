@@ -7,11 +7,12 @@ import {
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
 } from "components/benchmark/llms/common";
+} from "components/benchmark/llms/components/common";
+import { combineLeftAndRight } from "components/benchmark/llms/lib/llmUtils";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { combineLeftAndRight } from "lib/benchmark/llmUtils";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -25,7 +26,7 @@ const getDeviceArch = (
   return a === "" ? d : `${d} (${a})`;
 };
 
-export function SummaryPanel({
+export function LlmsSummaryPanel({
   startTime,
   stopTime,
   granularity,

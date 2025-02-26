@@ -1,4 +1,4 @@
-import { LLMsBenchmarkData } from "components/benchmark/llms/common";
+import { LLMsBenchmarkData } from "components/benchmark/llms/components/common";
 import { BenchmarkData, CompilerPerformanceData } from "lib/types";
 
 export const TORCHAO_REPO = "pytorch/ao";
