@@ -2,7 +2,6 @@ import { Grid2, Skeleton } from "@mui/material";
 import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
-import { convertToCompilerPerformanceData } from "components/benchmark/llms/lib/aoUtils";
 import {
   Granularity,
   seriesWithInterpolatedTimes,
@@ -16,6 +15,7 @@ import {
   computeMemoryCompressionRatio,
   computePassrate,
   computePeakMemoryUsage,
+  convertToCompilerPerformanceData,
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";

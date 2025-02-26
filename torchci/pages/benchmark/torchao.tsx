@@ -5,7 +5,6 @@ import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { BenchmarkLogs } from "components/benchmark/compilers/BenchmarkLogs";
 import CompilerGraphGroup from "components/benchmark/compilers/CompilerGraphGroup";
 import { SummaryPanel } from "components/benchmark/compilers/SummaryPanel";
-import { convertToCompilerPerformanceData } from "components/benchmark/llms/lib/aoUtils";
 import { DTypePicker, MODES } from "components/benchmark/ModeAndDTypePicker";
 import {
   DEFAULT_DEVICE_NAME,
@@ -19,6 +18,7 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { convertToCompilerPerformanceData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";

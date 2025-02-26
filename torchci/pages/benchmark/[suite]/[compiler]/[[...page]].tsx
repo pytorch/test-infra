@@ -18,7 +18,6 @@ import {
 } from "components/benchmark/compilers/common";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
 import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
-import { convertToCompilerPerformanceData } from "components/benchmark/llms/lib/aoUtils";
 import {
   DEFAULT_MODE,
   DTypePicker,
@@ -30,7 +29,10 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import {
+  augmentData,
+  convertToCompilerPerformanceData,
+} from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 import { useRouter } from "next/router";

@@ -4,14 +4,16 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import { convertToCompilerPerformanceData } from "components/benchmark/llms/lib/aoUtils";
 import {
   Granularity,
   seriesWithInterpolatedTimes,
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import {
+  augmentData,
+  convertToCompilerPerformanceData,
+} from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { CompilerPerformanceData } from "lib/types";
 import useSWR from "swr";
