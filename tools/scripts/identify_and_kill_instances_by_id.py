@@ -3,38 +3,22 @@ import argparse
 import os
 
 import boto3
-from dotenv import load_dotenv
 from tqdm import tqdm
 
 
 """
-This script expects a file named instances.txt with one AWS instance id per line.
+This script expects a file txt with one AWS instance id per line, passed as --filename.
 It will go through those instances, and kill them if they are running
 To be used in case of runner issues or security concerns to quickly kill a subset of runners.
 Note this will stop and fail tests that are currently running.
+Use --dryrun to just list the instances without killing them
+
+Make sure credentials are set in ~/.aws/credentials or as env variables
 """
-
-# Load credentials from .env file if available
-load_dotenv()
-
-
-def get_ec2_client(region):
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not all([access_key, secret_key]):
-        # trying with default .aws/credentials
-        return boto3.client("ec2", region_name=region)
-
-    return boto3.client(
-        "ec2",
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
-        region_name=region,
-    )
 
 
 def main(filename, region="us-east-1", dryrun=False):
-    ec2 = get_ec2_client(region=region)
+    ec2 = boto3.client("ec2", region_name=region)
 
     with open(filename, "r") as f:
         instance_ids = [line.strip() for line in f.readlines()]
