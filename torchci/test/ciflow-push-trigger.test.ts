@@ -11,7 +11,11 @@ nock.disableNetConnect();
 
 function mockDeleteLabel(repoFullName: string, number: number, label: string) {
   return nock("https://api.github.com")
-    .delete(`/repos/${repoFullName}/issues/${number}/labels/${encodeURIComponent(label)}`)
+    .delete(
+      `/repos/${repoFullName}/issues/${number}/labels/${encodeURIComponent(
+        label
+      )}`
+    )
     .reply(200);
 }
 
@@ -253,7 +257,7 @@ describe("Push trigger integration tests", () => {
       payload.repository.full_name,
       payload.pull_request.number,
       "ciflow/1"
-    )
+    );
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
