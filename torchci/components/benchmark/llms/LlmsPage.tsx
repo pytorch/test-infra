@@ -32,7 +32,7 @@ import LlmsReport from "./components/LlmsReport";
 
 /**
  * @returns Main page for the LLMs dashboard
- * the page is routed in api/bencmark/llms.tsx
+ * the page is routed in pages/bencmark/llms.tsx
  */
 export default function LlmsPage() {
   const router = useRouter();
