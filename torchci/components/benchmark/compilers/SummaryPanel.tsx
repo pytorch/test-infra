@@ -65,8 +65,10 @@ function processSummaryData(
 
 function combineLeftAndRight(
   lCommit: string,
+  lDeviceName: string,
   lData: { [k: string]: any },
   rCommit: string,
+  rDeviceName: string,
   rData: { [k: string]: any },
   suites: string[]
 ) {
@@ -84,7 +86,7 @@ function combineLeftAndRight(
   });
 
   // Combine with right data
-  if (lCommit !== rCommit) {
+  if (lCommit !== rCommit || lDeviceName !== rDeviceName) {
     Object.keys(rData).forEach((compiler: string) => {
       if (!(compiler in data)) {
         data[compiler] = {
@@ -179,29 +181,37 @@ export function SummaryPanel({
   // Combine both sides
   const passrate = combineLeftAndRight(
     lCommit,
+    lDeviceName,
     lPassrate,
     rCommit,
+    rDeviceName,
     rPassrate,
     suites
   );
   const geomean = combineLeftAndRight(
     lCommit,
+    lDeviceName,
     lGeomean,
     rCommit,
+    rDeviceName,
     rGeomean,
     suites
   );
   const compTime = combineLeftAndRight(
     lCommit,
+    lDeviceName,
     lCompTime,
     rCommit,
+    rDeviceName,
     rCompTime,
     suites
   );
   const memory = combineLeftAndRight(
     lCommit,
+    lDeviceName,
     lMemory,
     rCommit,
+    rDeviceName,
     rMemory,
     suites
   );
@@ -259,7 +269,11 @@ export function SummaryPanel({
                       return "";
                     }
 
-                    if (lCommit === rCommit || l === r || r == undefined) {
+                    if (
+                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
+                      l === r ||
+                      r == undefined
+                    ) {
                       return <a href={url}>{v.l}</a>;
                     } else {
                       return (
@@ -282,7 +296,10 @@ export function SummaryPanel({
                       return "";
                     }
 
-                    if (lCommit === rCommit || r === undefined) {
+                    if (
+                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
+                      r === undefined
+                    ) {
                       return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
                     } else {
                       if (l === r) {
@@ -348,7 +365,7 @@ export function SummaryPanel({
                     const r = Number(v.r).toFixed(SCALE);
 
                     if (
-                      lCommit === rCommit ||
+                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -377,7 +394,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lCommit === rCommit) {
+                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
                       return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                     } else {
                       if (l === r) {
@@ -443,7 +460,7 @@ export function SummaryPanel({
                     const r = Number(v.r).toFixed(0);
 
                     if (
-                      lCommit === rCommit ||
+                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -472,7 +489,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lCommit === rCommit) {
+                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
                       return "";
                     } else {
                       if (l === r) {
@@ -534,7 +551,7 @@ export function SummaryPanel({
                     const r = Number(v.r).toFixed(SCALE);
 
                     if (
-                      lCommit === rCommit ||
+                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -563,7 +580,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lCommit === rCommit) {
+                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
                       return l >= COMPRESSION_RATIO_THRESHOLD
                         ? ""
                         : styles.warning;
