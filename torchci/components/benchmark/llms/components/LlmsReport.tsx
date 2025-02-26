@@ -6,7 +6,7 @@ import { BranchAndCommit } from "lib/types";
 import { computeSpeedup, TORCHAO_SPEEDUP_METRIC_NAMES } from "../lib/aoUtils";
 import { useBenchmark } from "../lib/llmUtils";
 import { LlmsSummaryPanel } from "./LlmsSummaryPanel";
-import { GraphPanel } from "./ModelGraphPanel";
+import { LlmsGraphPanel } from "./LlmsGraphPanel";
 
 export default function LlmsReport({
   queryParams,
@@ -105,7 +105,7 @@ export default function LlmsReport({
       >
         <></>
       </CommitPanel>
-      <GraphPanel
+      <LlmsGraphPanel
         queryParams={queryParams}
         granularity={granularity}
         repoName={repoName}
