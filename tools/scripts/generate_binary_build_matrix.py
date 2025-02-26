@@ -104,8 +104,6 @@ DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 ENABLE = "enable"
 DISABLE = "disable"
 
-def get_stable_cuda_version() -> str:
-    return STABLE_CUDA_VERSION["nightly"]
 
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
