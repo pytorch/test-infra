@@ -1,4 +1,5 @@
 import { Context, Probot } from "probot";
+import { canRunWorkflows } from "./autoLabelBot";
 import {
   CachedConfigTracker,
   hasApprovedPullRuns,
@@ -88,6 +89,11 @@ async function handleSyncEvent(
   payload: Context<"pull_request">["payload"]
 ) {
   context.log.debug("START Processing sync event");
+
+  if (!(await canRunWorkflows(context as any))) {
+    context.log.info("PR does not have permissions to run workflows");
+    return;
+  }
 
   const headSha = payload.pull_request.head.sha;
   const tags = getAllPRTags(context, payload);

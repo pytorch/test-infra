@@ -97,11 +97,17 @@ def gen_test_file_times(db_results, old_test_times):
     for test, times in test_times_no_test_config.items():
         test_times_no_test_config[test] = sum(times) / len(times)
 
-    # Default should never be a build env
-    test_times["default"] = test_times_no_build_env
-    # Replace default's default with our own to account for tests that aren't
-    # usually in the default test config like distributed
-    test_times["default"]["default"] = test_times_no_test_config
+    # Avoid overwriting the default if the new default is empty
+    if test_times_no_build_env:
+        # Default should never be a build env
+        test_times["default"] = test_times_no_build_env
+
+    # Avoid overwriting the default if the new default is empty
+    if test_times_no_test_config:
+        # Replace default's default with our own to account for tests that aren't
+        # usually in the default test config like distributed
+        test_times["default"]["default"] = test_times_no_test_config
+
     return test_times
 
 
@@ -136,11 +142,17 @@ def gen_test_class_times(db_results, old_test_times):
         for testclass, times in test_times_no_test_config[file].items():
             test_times_no_test_config[file][testclass] = sum(times) / len(times)
 
-    # Default should never be a build env
-    test_times["default"] = test_times_no_build_env
-    # Replace default's default with our own to account for tests that aren't
-    # usually in the default test config like distributed
-    test_times["default"]["default"] = test_times_no_test_config
+    # Avoid overwriting the default if the new default is empty
+    if test_times_no_build_env:
+        # Default should never be a build env
+        test_times["default"] = test_times_no_build_env
+
+    # Avoid overwriting the default if the new default is empty
+    if test_times_no_test_config:
+        # Replace default's default with our own to account for tests that aren't
+        # usually in the default test config like distributed
+        test_times["default"]["default"] = test_times_no_test_config
+
     return test_times
 
 

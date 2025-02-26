@@ -60,6 +60,14 @@ function NavBar() {
       name: "TorchAO LLMs",
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
+    {
+      name: "PT CacheBench",
+      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
+    },
+    {
+      name: "vLLM v1",
+      href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
+    },
   ];
 
   const devInfraDropdown = [
@@ -99,6 +107,10 @@ function NavBar() {
     {
       name: "Query Execution Metrics",
       href: "/query_execution_metrics",
+    },
+    {
+      name: "Build Time Metrics",
+      href: "/build_time_metrics",
     },
   ];
 

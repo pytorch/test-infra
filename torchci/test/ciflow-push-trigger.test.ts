@@ -1,6 +1,11 @@
 import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
+import {
+  mockApprovedWorkflowRuns,
+  mockHasApprovedWorkflowRun,
+  mockPermissions,
+} from "./utils";
 
 nock.disableNetConnect();
 
@@ -179,6 +184,8 @@ describe("Push trigger integration tests", () => {
       "ciflow/1",
     ];
 
+    mockHasApprovedWorkflowRun(payload.repository.full_name);
+
     for (const label of labels) {
       nock("https://api.github.com")
         .get(
@@ -216,6 +223,21 @@ describe("Push trigger integration tests", () => {
         })
         .reply(200);
     }
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("synchronization of PR requires permissions", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.synchronize");
+    mockApprovedWorkflowRuns(
+      payload.repository.full_name,
+      payload.pull_request.head.sha,
+      false
+    );
+    mockPermissions(
+      payload.repository.full_name,
+      payload.pull_request.user.login,
+      "read"
+    );
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 

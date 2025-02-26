@@ -15,11 +15,21 @@ import { combineLeftAndRight } from "lib/benchmark/llmUtils";
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 
+const getDeviceArch = (
+  device: string | undefined,
+  arch: string | undefined
+) => {
+  const d = device ? device : "";
+  const a = arch ? arch : "";
+  return a === "" ? d : `${d} (${a})`;
+};
+
 export function SummaryPanel({
   startTime,
   stopTime,
   granularity,
   repoName,
+  benchmarkName,
   modelName,
   backendName,
   metricNames,
@@ -31,6 +41,7 @@ export function SummaryPanel({
   stopTime: dayjs.Dayjs;
   granularity: Granularity;
   repoName: string;
+  benchmarkName: string;
   modelName: string;
   backendName: string;
   metricNames: string[];
@@ -47,7 +58,13 @@ export function SummaryPanel({
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
-  const data = combineLeftAndRight(lPerfData, rPerfData);
+  const data = combineLeftAndRight(
+    repoName,
+    benchmarkName,
+    lPerfData,
+    rPerfData
+  );
+  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",
@@ -63,38 +80,103 @@ export function SummaryPanel({
           ? styles.selectedRow
           : "";
       },
-      renderCell: (params: GridRenderCellParams<any>) => {
-        const model = params.value.model;
+      valueGetter: (params: any) => {
+        return params.model ? params.model : "";
+      },
+      renderCell: (params: any) => {
+        // access the row infomation, the params.value is the value pased by valueGetter, mainly used for sorting, and filtering.
+        const metadata = params.row.metadata;
+
+        if (metadata === undefined) {
+          return "Invalid model name";
+        }
+        const model = metadata.model;
         if (model === undefined) {
           return `Invalid model name`;
         }
 
+        const mode =
+          metadata.mode !== undefined
+            ? `&modeName=${encodeURIComponent(metadata.mode)}`
+            : "";
         const dtype =
-          params.value.dtype !== undefined
-            ? `&dtypeName=${encodeURIComponent(params.value.dtype)}`
+          metadata.dtype !== undefined
+            ? `&dtypeName=${encodeURIComponent(metadata.dtype)}`
             : "";
         const backend =
-          params.value.backend !== undefined
-            ? `&backendName=${encodeURIComponent(params.value.backend)}`
+          metadata.backend !== undefined
+            ? `&backendName=${encodeURIComponent(metadata.backend)}`
             : "";
-        const deviceName = `${params.value.device} (${params.value.arch})`;
+        const deviceName = `${metadata.device} (${metadata.arch})`;
 
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           repoName
+        )}&benchmarkName=${encodeURIComponent(
+          benchmarkName
         )}&modelName=${encodeURIComponent(
           model
-        )}${backend}${dtype}&deviceName=${encodeURIComponent(
+        )}${backend}${mode}${dtype}&deviceName=${encodeURIComponent(
           deviceName
         )}&archName=${encodeURIComponent(archName)}`;
 
+        const displayName =
+          metadata.origins.length !== 0
+            ? `${model} (${metadata.origins.join(",")})`
+            : model;
         return (
           <a href={url}>
-            <b>{model}</b>
+            <b>{displayName}</b>
           </a>
         );
       },
     },
   ];
+
+  const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
+  if (hasMode && benchmarkName === "TorchCache Benchmark") {
+    columns.push({
+      field: "mode",
+      headerName: "Mode",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (repoName === "vllm-project/vllm") {
+    columns.push({
+      field: "tensor_parallel_size",
+      headerName: "Tensor parallel",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+
+    columns.push({
+      field: "request_rate",
+      headerName: "Request rate",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
+
+  if (
+    repoName === "pytorch/pytorch" &&
+    benchmarkName === "TorchCache Benchmark"
+  ) {
+    columns.push({
+      field: "is_dynamic",
+      headerName: "Is dynamic?",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+  }
 
   const hasDtype = data.length > 0 && "dtype" in data[0] ? true : false;
   if (hasDtype) {
@@ -109,7 +191,7 @@ export function SummaryPanel({
   }
 
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
-  if (hasBackend) {
+  if (hasBackend && benchmarkName !== "TorchCache Benchmark") {
     columns.push({
       field: "backend",
       headerName: "Backend",
@@ -120,102 +202,141 @@ export function SummaryPanel({
     });
   }
 
+  if (benchmarkName === "TorchCache Benchmark") {
+    // We want to set a custom order for cache benchmark
+    const priorityOrder = [
+      "Cold compile time (s)",
+      "Warm compile time (s)",
+      "Speedup (%)",
+    ];
+    metricNames.sort((x, y) => {
+      const indexX = priorityOrder.indexOf(x);
+      const indexY = priorityOrder.indexOf(y);
+
+      if (indexX !== -1 && indexY !== -1) {
+        return indexX - indexY; // Keep the priority order
+      }
+      if (indexX !== -1) return -1; // Move priority items to the front
+      if (indexY !== -1) return 1;
+
+      return 0; // Keep original order for non-priority items
+    });
+  }
+
   columns.push(
     ...[
       {
         field: "device_arch",
         headerName: "Device",
         flex: 1,
+        valueGetter: (params: any) => {
+          return getDeviceArch(params?.device, params?.arch);
+        },
         renderCell: (params: GridRenderCellParams<any>) => {
-          const device = params.value.device;
-          const arch = params.value.arch;
-          return `${device} (${arch})`;
+          return params.value;
         },
       },
-      ...metricNames.map((metric: string) => {
-        return {
-          field: metric,
-          headerName:
-            metric in METRIC_DISPLAY_HEADERS
-              ? METRIC_DISPLAY_HEADERS[metric]
-              : metric,
-          flex: 1,
-          cellClassName: (params: GridCellParams<any, any>) => {
-            const v = params.value;
-            if (v === undefined || v.l.actual === 0) {
-              return "";
-            }
-
-            // l is the old (base) value, r is the new value
-            const l = v.l.actual;
-            const r = v.r.actual;
-
-            if (lCommit === rCommit) {
-              return "";
-            } else {
-              if (l === r) {
-                // 0 means the model isn't run at all
+      ...metricNames
+        .filter((metric: string) => {
+          // TODO (huydhn): Just a temp fix, remove this after a few weeks
+          return (
+            repoName !== "pytorch/pytorch" ||
+            benchmarkName !== "TorchCache Benchmark" ||
+            (metric !== "speedup" && metric !== "Speedup")
+          );
+        })
+        .map((metric: string) => {
+          return {
+            field: metric,
+            headerName:
+              metric in METRIC_DISPLAY_HEADERS
+                ? METRIC_DISPLAY_HEADERS[metric]
+                : metric,
+            flex: 1,
+            cellClassName: (params: GridCellParams<any, any>) => {
+              const v = params.value;
+              if (v === undefined) {
                 return "";
               }
 
-              // It didn't error in the past, but now it does error
-              if (r === 0) {
-                return styles.error;
+              // l is the old (base) value, r is the new value
+              const l = v.l.actual;
+              const r = v.r.actual;
+
+              if (!v.highlight) {
+                return "";
               }
 
-              if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
-                // Higher value
-                if (r - l > RELATIVE_THRESHOLD * l) {
-                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                    ? styles.ok
-                    : styles.error;
-                }
-
-                // Lower value
-                if (l - r > RELATIVE_THRESHOLD * r) {
-                  return IS_INCREASING_METRIC_VALUE_GOOD[metric]
-                    ? styles.error
-                    : styles.ok;
-                }
+              if (lCommit === rCommit) {
+                return "";
               } else {
-                // No data
+                if (l === r) {
+                  // 0 means the model isn't run at all
+                  return "";
+                }
+
+                // It didn't error in the past, but now it does error
+                if (r === 0) {
+                  return styles.error;
+                }
+
+                // If it didn't run and now it runs, mark it as green
+                if (l === 0) {
+                  return styles.ok;
+                }
+
+                if (metric in IS_INCREASING_METRIC_VALUE_GOOD) {
+                  // Higher value
+                  if (r - l > RELATIVE_THRESHOLD * l) {
+                    return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                      ? styles.ok
+                      : styles.error;
+                  }
+
+                  // Lower value
+                  if (l - r > RELATIVE_THRESHOLD * r) {
+                    return IS_INCREASING_METRIC_VALUE_GOOD[metric]
+                      ? styles.error
+                      : styles.ok;
+                  }
+                } else {
+                  // No data
+                  return "";
+                }
+              }
+
+              return "";
+            },
+            renderCell: (params: GridRenderCellParams<any>) => {
+              const v = params.value;
+              if (v === undefined) {
                 return "";
               }
-            }
 
-            return "";
-          },
-          renderCell: (params: GridRenderCellParams<any>) => {
-            const v = params.value;
-            if (v === undefined) {
-              return "";
-            }
+              const l = v.l.actual;
+              const r = v.r.actual;
 
-            const l = v.l.actual;
-            const r = v.r.actual;
+              // Compute the percentage
+              const target = v.r.target;
+              const lPercent =
+                target && target != 0
+                  ? `(${Number((l * 100) / target).toFixed(0)}%)`
+                  : "";
+              const rPercent =
+                target && target != 0
+                  ? `(${Number((r * 100) / target).toFixed(0)}%)`
+                  : "";
+              const showTarget =
+                target && target != 0 ? `[target = ${target}]` : "";
 
-            // Compute the percentage
-            const target = v.r.target;
-            const lPercent =
-              target && target != 0
-                ? `(${Number((l * 100) / target).toFixed(0)}%)`
-                : "";
-            const rPercent =
-              target && target != 0
-                ? `(${Number((r * 100) / target).toFixed(0)}%)`
-                : "";
-            const showTarget =
-              target && target != 0 ? `[target = ${target}]` : "";
-            const isNewModel = l === 0 ? "(NEW!)" : "";
-
-            if (lCommit === rCommit || l === r) {
-              return `${r} ${rPercent} ${showTarget}`;
-            } else {
-              return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget} ${isNewModel} `;
-            }
-          },
-        };
-      }),
+              if (lCommit === rCommit || !v.highlight) {
+                return `${r} ${rPercent} ${showTarget}`;
+              } else {
+                return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
+              }
+            },
+          };
+        }),
     ]
   );
 
@@ -225,9 +346,9 @@ export function SummaryPanel({
       <Grid2
         size={{ xs: 12, lg: 12 }}
         height={
-          data.length > 98
-            ? 98 * ROW_HEIGHT
-            : data.length * ROW_HEIGHT + ROW_GAP
+          data.length > 90
+            ? 90 * ROW_HEIGHT
+            : (data.length + 1) * ROW_HEIGHT + ROW_GAP
         }
       >
         <TablePanelWithData

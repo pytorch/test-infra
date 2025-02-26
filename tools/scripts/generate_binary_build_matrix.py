@@ -462,9 +462,6 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
-            # todo: remove once windows cuda 12.8 binaries are available
-            if channel == NIGHTLY and os == WINDOWS:
-                arches.remove("12.8")
 
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
@@ -486,9 +483,7 @@ def generate_wheels_matrix(
             )
 
             # TODO: Enable python 3.13t on xpu and cpu-s390x or Windows
-            if (
-                (gpu_arch_type in ["xpu", "cpu-s390x"]) or os == WINDOWS
-            ) and python_version == "3.13t":
+            if (gpu_arch_type in ["xpu", "cpu-s390x"]) and python_version == "3.13t":
                 continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)

@@ -1,4 +1,4 @@
-import { queryClickhouse } from "lib/clickhouse";
+import { queryClickhouseSaved } from "lib/clickhouse";
 import { JobData } from "lib/types";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -20,51 +20,7 @@ async function getFlakyTestInfo(
   file: string,
   limit: number
 ): Promise<JobData[]> {
-  const query = `
-select
-  t.name as name,
-  t.classname as classname,
-  t.file as file,
-  t.invoking_file as invoking_file,
-  j.conclusion as conclusion,
-  j.id as job_id,
-  j.name as job_name,
-  j.html_url as job_url,
-  j.started_at as job_started_at,
-  j.torchci_classification.'line' as line,
-  j.torchci_classification.'line_num' as line_num,
-  j.torchci_classification.'captures' as captures,
-  w.head_branch as head_branch,
-  j.head_sha as head_sha
-from
-  default.workflow_job j
-  join default.failed_test_runs t on j.id = t.job_id
-  join default.workflow_run w on w.id = j.run_id
-where
-  t.name = {name: String}
-  and t.classname = {suite: String}
-  and t.file = {file: String}
-group by
-  t.name,
-  t.classname,
-  t.file,
-  t.invoking_file,
-  j.conclusion,
-  j.id,
-  j.name,
-  j.html_url,
-  j.started_at,
-  j.torchci_classification.'line',
-  j.torchci_classification.'line_num',
-  j.torchci_classification.'captures',
-  w.head_branch,
-  j.head_sha
-order by
-  j.started_at desc
-limit
-  {limit: Int32}
-`;
-  const flakyTestQuery = await queryClickhouse(query, {
+  const flakyTestQuery = await queryClickhouseSaved("flaky_tests/ind_info", {
     name,
     suite,
     file,

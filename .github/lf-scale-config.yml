@@ -97,6 +97,11 @@ runner_types:
     instance_type: g3.4xlarge
     is_ephemeral: false
     os: linux
+  lf.linux.g4dn.4xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.4xlarge
+    is_ephemeral: false
+    os: linux
   lf.linux.8xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.8xlarge
@@ -216,4 +221,9 @@ runner_types:
     disk_size: 600
     instance_type: r5.12xlarge
     is_ephemeral: false
+    os: linux
+  lf.linux.12xlarge.memory.ephemeral:
+    disk_size: 400
+    instance_type: r5.12xlarge
+    is_ephemeral: true
     os: linux

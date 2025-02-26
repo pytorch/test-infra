@@ -96,7 +96,7 @@ export const UtilizationPage = ({
           <Divider />
           <LineRectChart
             inputLines={timeSeriesList}
-            chartWidth={1200}
+            chartWidth={1400}
             disableLineTooltip={false}
             disableRect={true}
             lineFilterConfig={lineFilters}

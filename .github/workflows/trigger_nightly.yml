@@ -22,6 +22,7 @@ on:
           - executorch
           - torchtune
           - torchcodec
+          - torchvision-extra-decoders
           - all
 jobs:
   trigger:
@@ -110,3 +111,11 @@ jobs:
           repository: pytorch/torchcodec
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchcodec
+      - name: Trigger nightly torchvision-extra-decoders build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchvision-extra-decoders' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch-labs/torchvision-extra-decoders
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchvision-extra-decoders
