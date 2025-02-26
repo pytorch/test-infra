@@ -5,6 +5,7 @@ import {
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
+  UNIT_FOR_METRIC,
 } from "components/benchmark/llms/common";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -316,6 +317,9 @@ export function SummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
+              const unit =
+                metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
+
               // Compute the percentage
               const target = v.r.target;
               const lPercent =
@@ -330,9 +334,9 @@ export function SummaryPanel({
                 target && target != 0 ? `[target = ${target}]` : "";
 
               if (lCommit === rCommit || !v.highlight) {
-                return `${r} ${rPercent} ${showTarget}`;
+                return `${r}${unit} ${rPercent} ${showTarget}`;
               } else {
-                return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
+                return `${l}${unit} ${lPercent} → ${r}${unit} ${rPercent} ${showTarget}`;
               }
             },
           };
