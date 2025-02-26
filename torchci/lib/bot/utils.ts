@@ -270,7 +270,14 @@ export async function hasApprovedPullRuns(
   if (pr_runs == null || pr_runs?.length == 0) {
     return false;
   }
-  return pr_runs.every((run) => run.conclusion != "action_required");
+  return !pr_runs.some(
+    (run) =>
+      run.conclusion === "action_required" ||
+      // See https://github.com/pytorch/test-infra/pull/6329 about difference
+      // between these two
+      run.conclusion === "startup_failure" ||
+      (run.conclusion === "failure" && run.created_at == run.updated_at)
+  );
 }
 
 export async function isFirstTimeContributor(
