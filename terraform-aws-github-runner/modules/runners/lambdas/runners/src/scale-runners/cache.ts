@@ -234,7 +234,7 @@ export async function redisLocked<T>(
         return await tryRead();
       }
     } catch (e) {
-      console.error(`Error trying to read ${nameSpace}-${key} ${e}`);
+      console.warn(`Error trying to read ${nameSpace}-${key} ${e}`);
     }
 
     console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
