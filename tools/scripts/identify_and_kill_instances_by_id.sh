@@ -26,7 +26,7 @@ TOTAL_INSTANCES=${#INSTANCE_IDS[@]}
 for ((i=0; i<TOTAL_INSTANCES; i++)); do
   INSTANCE_ID="${INSTANCE_IDS[i]}"
   echo -ne "\rWorking on instance: $INSTANCE_ID ($((i+1))/$TOTAL_INSTANCES) | Non-existent: $NON_EXISTENT_COUNT | Running: $RUNNING_COUNT | Not running: $NOT_RUNNING_COUNT"
-  
+
   # Check if instance exists
   if aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --region "$REGION" &> /dev/null; then
     # Check if instance is running
