@@ -28,7 +28,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../pages/metrics";
-import LLMsReport from "./components/LLMsReport";
+import LLMsReport from "./components/LlmsReport";
 
 /**
  * @returns Main page for the LLMs dashboard
