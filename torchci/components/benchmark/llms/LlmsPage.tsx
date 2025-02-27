@@ -16,7 +16,7 @@ import {
   EXCLUDED_METRICS,
   REPO_TO_BENCHMARKS,
 } from "components/benchmark/llms/components/common";
-import { TORCHAO_BASELINE } from "components/benchmark/llms/lib/aoUtils";
+import { TORCHAO_BASELINE } from "lib/benchmark/llms/aoUtils";
 import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
