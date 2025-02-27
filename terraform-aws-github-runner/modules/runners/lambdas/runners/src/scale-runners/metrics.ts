@@ -1424,6 +1424,11 @@ export class ScaleDownMetrics extends Metrics {
   }
 }
 
+export class QueuedQueryMetrics extends Metrics {
+  constructor() {super('queuedQuery');}
+}
+
+
 export interface sendMetricsTimeoutVars {
   metrics?: Metrics;
   setTimeout?: ReturnType<typeof setTimeout>;

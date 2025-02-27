@@ -1,11 +1,23 @@
 import { ActionRequestMessage, RetryableScalingError, scaleUp as scaleUpR } from './scale-runners/scale-up';
-import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
+import { Context, SQSEvent, SQSRecord, ScheduledEvent, Handler } from 'aws-lambda';
 
 import { Config } from './scale-runners/config';
-import { ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './scale-runners/metrics';
+import { ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars, Metrics, QueuedQueryMetrics } from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
+import { queryClickhouse } from "../../../../../../torchci/lib/clickhouse";
+import { checkQueuedQueries, QueuedRunner } from './scale-runners/queued-queries';
+
+
+// META_SCALE_CONFIG_PATH = ".github/scale-config.yml"
+
+// source_scale_config_info = ScaleConfigInfo(
+//   path=repo_root / META_SCALE_CONFIG_PATH,
+//   prefix=PREFIX_META,
+// )
+// RUNNER_TYPE_CONFIG_KEY = "runner_types"
+
 
 async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean, number]>, metrics: ScaleUpMetrics) {
   console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
@@ -155,3 +167,36 @@ export async function scaleDown(event: ScheduledEvent, context: Context, callbac
     return callback('Failed');
   }
 }
+
+
+export const queuedQueries: Handler = async () => {
+  try {
+    const query = `
+      SELECT *
+      FROM queued_jobs_aggregate
+      WHERE status = 'queued'
+    `;
+    // should i be using the clickhouse.ts methods. Havne't seen anything else in this dir using it.
+    const queuedJobRunners = await queryClickhouse(query,{});
+        // console.log(`Runner: ${runner.runner_label} - ${runner.org} - ${runner.full_repo} - ${runner.num_queued_jobs} jobs queued`);
+
+    const metrics = new QueuedQueryMetrics();
+    if (queuedJobRunners.length > 0) {
+
+      console.log(`Found ${queuedJobRunners.length} queued jobs`);
+      await Promise.all(queuedJobRunners.map((runner) =>
+        checkQueuedQueries(new QueuedRunner(
+          runner.runner_label,
+          runner.org,
+          runner.full_repo,
+          runner.num_queued_jobs,
+          runner.min_queue_time_min,
+          runner.max_queue_time_min),
+        metrics)));
+    } else {
+      console.log('No queued jobs found');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
