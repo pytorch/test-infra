@@ -11,5 +11,8 @@ module.exports = {
       lines: 80,
       statements: 80
     }
-  }
+  },
+  moduleNameMapper: {
+    axios: 'axios/dist/node/axios.cjs', // Allow axios to work in tests
+  },
 };
