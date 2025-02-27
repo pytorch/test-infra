@@ -28,6 +28,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           <AnnouncementBanner />
           <SevReport />
           <div style={{ margin: "20px" }}>
+            <p>Hello there</p>
             <Component {...pageProps} />
             <Analytics />
           </div>
