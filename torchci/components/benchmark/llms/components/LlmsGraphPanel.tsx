@@ -24,7 +24,7 @@ import { computeGeomean, useBenchmark } from "../lib/llmUtils";
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export function LlmsGraphPanel({
+export function LLMsGraphPanel({
   queryParams,
   granularity,
   repoName,

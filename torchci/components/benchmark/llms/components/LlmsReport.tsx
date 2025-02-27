@@ -5,10 +5,10 @@ import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
 import { computeSpeedup, TORCHAO_SPEEDUP_METRIC_NAMES } from "../lib/aoUtils";
 import { useBenchmark } from "../lib/llmUtils";
-import { LlmsGraphPanel } from "./LlmsGraphPanel";
-import { LlmsSummaryPanel } from "./LlmsSummaryPanel";
+import { LLMsGraphPanel } from "./LlmsGraphPanel";
+import { LLMsSummaryPanel } from "./LlmsSummaryPanel";
 
-export default function LlmsReport({
+export default function LLMsReport({
   queryParams,
   startTime,
   stopTime,
@@ -105,7 +105,7 @@ export default function LlmsReport({
       >
         <></>
       </CommitPanel>
-      <LlmsGraphPanel
+      <LLMsGraphPanel
         queryParams={queryParams}
         granularity={granularity}
         repoName={repoName}
@@ -118,7 +118,7 @@ export default function LlmsReport({
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
       />
-      <LlmsSummaryPanel
+      <LLMsSummaryPanel
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}

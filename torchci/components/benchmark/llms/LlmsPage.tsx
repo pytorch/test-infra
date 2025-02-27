@@ -28,11 +28,11 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../pages/metrics";
-import LlmsReport from "./components/LlmsReport";
+import LLMsReport from "./components/LlmsReport";
 
 /**
  * @returns Main page for the LLMs dashboard
- * the page is routed in pages/bencmark/llms.tsx
+ * the page is routed in pagesM/bencmark/llms.tsx
  */
 export default function LlmsPage() {
   const router = useRouter();
@@ -376,7 +376,7 @@ export default function LlmsPage() {
           timeRange={timeRange}
         />
       </Stack>
-      <LlmsReport
+      <LLMsReport
         queryParams={queryParams}
         startTime={startTime}
         stopTime={stopTime}
