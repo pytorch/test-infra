@@ -334,6 +334,9 @@ jobs:
               --output "ios-artifacts-${JOB_ID}.json"
             popd
 
+            # TESTING
+            exit 1
+
       - name: Upload iOS artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
         if: always()
@@ -384,6 +387,9 @@ jobs:
               --workflow-attempt "${RUN_ATTEMPT}" \
               --output "android-artifacts-${JOB_ID}.json"
             popd
+
+            # TESTING
+            exit 1
 
       - name: Upload Android artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
