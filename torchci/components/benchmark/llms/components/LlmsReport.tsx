@@ -8,8 +8,8 @@ import {
   TORCHAO_SPEEDUP_METRIC_NAMES,
 } from "../../../../lib/benchmark/llms/aoUtils";
 import { useBenchmark } from "../../../../lib/benchmark/llms/llmUtils";
-import { LLMsGraphPanel } from "./LLMsGraphPanel";
-import { LLMsSummaryPanel } from "./LLMsSummaryPanel";
+import { LLMsGraphPanel } from "./LlmsGraphPanel";
+import { LLMsSummaryPanel } from "./LlmsSummaryPanel";
 
 export default function LLMsReport({
   queryParams,

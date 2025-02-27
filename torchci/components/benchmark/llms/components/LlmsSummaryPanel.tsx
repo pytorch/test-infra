@@ -1,18 +1,17 @@
 import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import styles from "components/metrics.module.css";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import { combineLeftAndRight } from "lib/benchmark/llms/llmUtils";
 import {
   BranchAndCommitPerfData,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
-} from "components/benchmark/llms/common";
-} from "components/benchmark/llms/components/common";
-import styles from "components/metrics.module.css";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
-import { combineLeftAndRight } from "lib/benchmark/llms/llmUtils";
+} from "./common";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
