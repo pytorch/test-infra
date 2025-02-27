@@ -65,10 +65,8 @@ function processSummaryData(
 
 function combineLeftAndRight(
   lCommit: string,
-  lDeviceName: string,
   lData: { [k: string]: any },
   rCommit: string,
-  rDeviceName: string,
   rData: { [k: string]: any },
   suites: string[]
 ) {
@@ -86,7 +84,7 @@ function combineLeftAndRight(
   });
 
   // Combine with right data
-  if (lCommit !== rCommit || lDeviceName !== rDeviceName) {
+  if (lCommit !== rCommit) {
     Object.keys(rData).forEach((compiler: string) => {
       if (!(compiler in data)) {
         data[compiler] = {
@@ -136,9 +134,8 @@ export function SummaryPanel({
   granularity,
   mode,
   dtype,
-  lDeviceName,
+  deviceName,
   lPerfData,
-  rDeviceName,
   rPerfData,
   all_suites,
 }: {
@@ -148,9 +145,8 @@ export function SummaryPanel({
   granularity: Granularity;
   mode: string;
   dtype: string;
-  lDeviceName: string;
+  deviceName: string;
   lPerfData: BranchAndCommitPerfData;
-  rDeviceName: string;
   rPerfData: BranchAndCommitPerfData;
   all_suites: { [key: string]: string };
 }) {
@@ -181,37 +177,29 @@ export function SummaryPanel({
   // Combine both sides
   const passrate = combineLeftAndRight(
     lCommit,
-    lDeviceName,
     lPassrate,
     rCommit,
-    rDeviceName,
     rPassrate,
     suites
   );
   const geomean = combineLeftAndRight(
     lCommit,
-    lDeviceName,
     lGeomean,
     rCommit,
-    rDeviceName,
     rGeomean,
     suites
   );
   const compTime = combineLeftAndRight(
     lCommit,
-    lDeviceName,
     lCompTime,
     rCommit,
-    rDeviceName,
     rCompTime,
     suites
   );
   const memory = combineLeftAndRight(
     lCommit,
-    lDeviceName,
     lMemory,
     rCommit,
-    rDeviceName,
     rMemory,
     suites
   );
@@ -256,10 +244,8 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
@@ -269,11 +255,7 @@ export function SummaryPanel({
                       return "";
                     }
 
-                    if (
-                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                      l === r ||
-                      r == undefined
-                    ) {
+                    if (lCommit === rCommit || l === r || r == undefined) {
                       return <a href={url}>{v.l}</a>;
                     } else {
                       return (
@@ -296,10 +278,7 @@ export function SummaryPanel({
                       return "";
                     }
 
-                    if (
-                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                      r === undefined
-                    ) {
+                    if (lCommit === rCommit || r === undefined) {
                       return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
                     } else {
                       if (l === r) {
@@ -355,17 +334,15 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);
                     const r = Number(v.r).toFixed(SCALE);
 
                     if (
-                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
+                      lCommit === rCommit ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -394,7 +371,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                    if (lCommit === rCommit) {
                       return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                     } else {
                       if (l === r) {
@@ -450,17 +427,15 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
 
                     if (
-                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
+                      lCommit === rCommit ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -489,7 +464,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                    if (lCommit === rCommit) {
                       return "";
                     } else {
                       if (l === r) {
@@ -541,17 +516,15 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);
                     const r = Number(v.r).toFixed(SCALE);
 
                     if (
-                      (lDeviceName === rDeviceName && lCommit === rCommit) ||
+                      lCommit === rCommit ||
                       l === r ||
                       v.r === undefined ||
                       v.r === ""
@@ -580,7 +553,7 @@ export function SummaryPanel({
                     const l = Number(v.l);
                     const r = Number(v.r);
 
-                    if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                    if (lCommit === rCommit) {
                       return l >= COMPRESSION_RATIO_THRESHOLD
                         ? ""
                         : styles.warning;

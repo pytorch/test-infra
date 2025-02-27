@@ -39,11 +39,10 @@ export function ModelPanel({
   suite,
   mode,
   dtype,
+  deviceName,
   compiler,
   model,
-  lDeviceName,
   lPerfData,
-  rDeviceName,
   rPerfData,
 }: {
   dashboard: string;
@@ -53,11 +52,10 @@ export function ModelPanel({
   suite: string;
   mode: string;
   dtype: string;
+  deviceName: string;
   compiler: string;
   model: string;
-  lDeviceName: string;
   lPerfData: BranchAndCommitPerfData;
-  rDeviceName: string;
   rPerfData: BranchAndCommitPerfData;
 }) {
   const lBranch = lPerfData.branch;
@@ -75,10 +73,7 @@ export function ModelPanel({
   });
 
   // Combine with right data
-  if (
-    (lDeviceName !== rDeviceName || lCommit !== rCommit) &&
-    rData !== undefined
-  ) {
+  if (lCommit !== rCommit && rData !== undefined) {
     rData.forEach((record: CompilerPerformanceData) => {
       if (record.name in dataGroupedByModel) {
         dataGroupedByModel[record.name]["r"] = record;
@@ -186,10 +181,8 @@ export function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                  lDeviceName
-                )}&rDeviceName=${encodeURIComponent(
-                  rDeviceName
+                const url = `/benchmark/${suite}/${compiler}?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                  deviceName
                 )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
@@ -244,7 +237,7 @@ export function ModelPanel({
                   return "";
                 }
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return PASSING_ACCURACY.includes(v.l) ? "" : styles.warning;
                 } else {
                   if (
@@ -280,10 +273,7 @@ export function ModelPanel({
                       {v.l} (<strong>NEW!</strong>)
                     </>
                   );
-                } else if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  v.l === v.r
-                ) {
+                } else if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
                 } else {
                   return `${v.r} → ${v.l}`;
@@ -303,7 +293,7 @@ export function ModelPanel({
                 const l = Number(v.l);
                 const r = Number(v.r);
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
                   // l is the new value, r is the old value
@@ -340,11 +330,7 @@ export function ModelPanel({
                 const l = Number(v.l).toFixed(SCALE);
                 const r = Number(v.r).toFixed(SCALE);
 
-                if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  l === r ||
-                  v.r === 0
-                ) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l}`;
@@ -364,7 +350,7 @@ export function ModelPanel({
                 const l = Number(v.l);
                 const r = Number(v.r);
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return "";
                 } else {
                   if (l === 0 || l === r) {
@@ -394,11 +380,7 @@ export function ModelPanel({
                 const l = Number(v.l).toFixed(0);
                 const r = Number(v.r).toFixed(0);
 
-                if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  l === r ||
-                  v.r === 0
-                ) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l}`;
@@ -418,7 +400,7 @@ export function ModelPanel({
                 const l = Number(v.l);
                 const r = Number(v.r);
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 } else {
                   if (l === 0 || l === r) {
@@ -452,11 +434,7 @@ export function ModelPanel({
                 const l = Number(v.l).toFixed(SCALE);
                 const r = Number(v.r).toFixed(SCALE);
 
-                if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  l === r ||
-                  v.r === 0
-                ) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l}`;
@@ -476,7 +454,7 @@ export function ModelPanel({
                 const l = Number(v.l);
                 const r = Number(v.r);
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return "";
                 } else {
                   if (l === 0 || l === r) {
@@ -506,11 +484,7 @@ export function ModelPanel({
                 const l = Number(v.l).toFixed(SCALE);
                 const r = Number(v.r).toFixed(SCALE);
 
-                if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  l === r ||
-                  v.r === 0
-                ) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l}`;
@@ -530,7 +504,7 @@ export function ModelPanel({
                 const l = Number(v.l);
                 const r = Number(v.r);
 
-                if (lDeviceName === rDeviceName && lCommit === rCommit) {
+                if (lCommit === rCommit) {
                   return "";
                 } else {
                   if (l === 0 || l === r) {
@@ -560,11 +534,7 @@ export function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (
-                  (lDeviceName === rDeviceName && lCommit === rCommit) ||
-                  l === r ||
-                  v.r === 0
-                ) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l}`;
