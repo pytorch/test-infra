@@ -92,6 +92,16 @@ async function handleSyncEvent(
 
   if (!(await canRunWorkflows(context as any))) {
     context.log.info("PR does not have permissions to run workflows");
+    for (const label of payload.pull_request.labels) {
+      if (isCIFlowLabel(label.name)) {
+        await context.octokit.issues.removeLabel(
+          context.repo({
+            issue_number: payload.pull_request.number,
+            name: label.name,
+          })
+        );
+      }
+    }
     return;
   }
 
