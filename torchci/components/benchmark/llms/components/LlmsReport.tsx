@@ -3,10 +3,13 @@ import { CommitPanel } from "components/benchmark/CommitPanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
-import { computeSpeedup, TORCHAO_SPEEDUP_METRIC_NAMES } from "../../../../lib/benchmark/llms/aoUtils";
+import {
+  computeSpeedup,
+  TORCHAO_SPEEDUP_METRIC_NAMES,
+} from "../../../../lib/benchmark/llms/aoUtils";
 import { useBenchmark } from "../../../../lib/benchmark/llms/llmUtils";
-import { LLMsGraphPanel } from "./LlmsGraphPanel";
-import { LLMsSummaryPanel } from "./LlmsSummaryPanel";
+import { LLMsGraphPanel } from "./LLMsGraphPanel";
+import { LLMsSummaryPanel } from "./LLMsSummaryPanel";
 
 export default function LLMsReport({
   queryParams,

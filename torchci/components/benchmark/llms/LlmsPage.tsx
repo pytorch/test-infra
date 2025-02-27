@@ -16,19 +16,19 @@ import {
   EXCLUDED_METRICS,
   REPO_TO_BENCHMARKS,
 } from "components/benchmark/llms/components/common";
-import { TORCHAO_BASELINE } from "lib/benchmark/llms/aoUtils";
 import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { TORCHAO_BASELINE } from "lib/benchmark/llms/aoUtils";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../pages/metrics";
-import LLMsReport from "./components/LlmsReport";
+import LLMsReport from "./components/LLMsReport";
 
 /**
  * @returns Main page for the LLMs dashboard

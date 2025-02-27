@@ -19,8 +19,14 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
-import { computeSpeedup, TORCHAO_SPEEDUP_METRIC_NAMES } from "../../../../lib/benchmark/llms/aoUtils";
-import { computeGeomean, useBenchmark } from "../../../../lib/benchmark/llms/llmUtils";
+import {
+  computeSpeedup,
+  TORCHAO_SPEEDUP_METRIC_NAMES,
+} from "../../../../lib/benchmark/llms/aoUtils";
+import {
+  computeGeomean,
+  useBenchmark,
+} from "../../../../lib/benchmark/llms/llmUtils";
 
 const GRAPH_ROW_HEIGHT = 245;
 
