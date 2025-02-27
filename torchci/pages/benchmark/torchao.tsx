@@ -18,7 +18,7 @@ import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
+import { convertToCompilerPerformanceData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import { useRouter } from "next/router";

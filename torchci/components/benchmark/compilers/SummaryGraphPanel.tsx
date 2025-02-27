@@ -8,7 +8,6 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
 import {
   computeCompilationTime,
   computeExecutionTime,
@@ -16,6 +15,7 @@ import {
   computeMemoryCompressionRatio,
   computePassrate,
   computePeakMemoryUsage,
+  convertToCompilerPerformanceData,
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";

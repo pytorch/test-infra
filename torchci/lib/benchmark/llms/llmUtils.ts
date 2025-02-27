@@ -1,7 +1,7 @@
 import {
   BranchAndCommitPerfData,
   LLMsBenchmarkData,
-} from "components/benchmark/llms/common";
+} from "components/benchmark/llms/components/common";
 import { geomean } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
