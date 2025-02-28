@@ -458,7 +458,10 @@ async function getCreateRunnerSubnetSequence(
     .flat();
 }
 
-export async function tryReuseRunner(runnerParameters: RunnerInputParameters, metrics: ScaleUpMetrics): Promise<RunnerInfo> {
+export async function tryReuseRunner(
+  runnerParameters: RunnerInputParameters,
+  metrics: ScaleUpMetrics,
+): Promise<RunnerInfo> {
   const filters: ListRunnerFilters = {
     applicationDeployDatetime: Config.Instance.datetimeDeploy,
     containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
@@ -482,7 +485,11 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
   if (runnerParameters.orgName !== undefined) {
     metrics.runnersReuseFoundOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
   } else if (runnerParameters.repoName !== undefined) {
-    metrics.runnersReuseFoundRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+    metrics.runnersReuseFoundRepo(
+      runners.length,
+      getRepo(runnerParameters.repoName),
+      runnerParameters.runnerType.runnerTypeName,
+    );
   }
 
   shuffleArrayInPlace(runners);
@@ -504,9 +511,17 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
     }
     try {
       if (runnerParameters.orgName !== undefined) {
-        metrics.runnersReuseTryOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseTryOrg(
+          runners.length,
+          runnerParameters.orgName,
+          runnerParameters.runnerType.runnerTypeName,
+        );
       } else if (runnerParameters.repoName !== undefined) {
-        metrics.runnersReuseTryRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseTryRepo(
+          runners.length,
+          getRepo(runnerParameters.repoName),
+          runnerParameters.runnerType.runnerTypeName,
+        );
       }
 
       await redisLocked(
@@ -551,11 +566,11 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
               metrics.ec2DeleteTagsAWSCallFailure,
               () => {
                 return ec2
-                .deleteTags({
-                  Resources: [runner.instanceId],
-                  Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
-                })
-                .promise();
+                  .deleteTags({
+                    Resources: [runner.instanceId],
+                    Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
+                  })
+                  .promise();
               },
             );
           });
@@ -594,9 +609,17 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
       );
 
       if (runnerParameters.orgName !== undefined) {
-        metrics.runnersReuseSuccessOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseSuccessOrg(
+          runners.length,
+          runnerParameters.orgName,
+          runnerParameters.runnerType.runnerTypeName,
+        );
       } else if (runnerParameters.repoName !== undefined) {
-        metrics.runnersReuseSuccessRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseSuccessRepo(
+          runners.length,
+          getRepo(runnerParameters.repoName),
+          runnerParameters.runnerType.runnerTypeName,
+        );
       }
 
       return runner;
@@ -607,9 +630,17 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
       );
 
       if (runnerParameters.orgName !== undefined) {
-        metrics.runnersReuseFailureOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseFailureOrg(
+          runners.length,
+          runnerParameters.orgName,
+          runnerParameters.runnerType.runnerTypeName,
+        );
       } else if (runnerParameters.repoName !== undefined) {
-        metrics.runnersReuseFailureRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+        metrics.runnersReuseFailureRepo(
+          runners.length,
+          getRepo(runnerParameters.repoName),
+          runnerParameters.runnerType.runnerTypeName,
+        );
       }
     }
   }
@@ -617,7 +648,11 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
   if (runnerParameters.orgName !== undefined) {
     metrics.runnersReuseGiveUpOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
   } else if (runnerParameters.repoName !== undefined) {
-    metrics.runnersReuseGiveUpRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+    metrics.runnersReuseGiveUpRepo(
+      runners.length,
+      getRepo(runnerParameters.repoName),
+      runnerParameters.runnerType.runnerTypeName,
+    );
   }
 
   throw new Error('No runners available');

@@ -434,11 +434,9 @@ export function isRunnerRemovable(
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   const baseTime = runner.ebsVolumeReplacementRequestTm
     ? moment.unix(runner.ebsVolumeReplacementRequestTm)
-    : (
-      runner.ephemeralRunnerFinished
-      ? moment.unix(runner.ephemeralRunnerFinished)
-      : moment(runner.launchTime || new Date()).utc()
-    );
+    : runner.ephemeralRunnerFinished
+    ? moment.unix(runner.ephemeralRunnerFinished)
+    : moment(runner.launchTime || new Date()).utc();
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
   return baseTime < maxTime;
 }
