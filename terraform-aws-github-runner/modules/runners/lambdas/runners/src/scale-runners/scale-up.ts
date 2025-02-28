@@ -1,6 +1,6 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey } from './utils';
-import { RunnerType, RunnerInputParameters, createRunner } from './runners';
+import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -112,6 +112,16 @@ export async function scaleUp(
         } else {
           createRunnerParams.repoName = getRepoKey(repo);
         }
+
+        if (runnerType.is_ephemeral) {
+          try {
+            await tryReuseRunner(createRunnerParams, metrics);
+            continue; // Runner successfuly reused, no need to create a new one, continue to next runner
+          } catch (e) {
+            console.error(`Error reusing runner: ${e}`);
+          }
+        }
+
         const awsRegion = await createRunner(createRunnerParams, metrics);
         if (Config.Instance.enableOrganizationRunners) {
           metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName, awsRegion);

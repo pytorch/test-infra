@@ -150,7 +150,7 @@ describe('redisCached', () => {
     await expect(redisCached('namespace', 'key', 0.5, 1.0, fn)).rejects.toThrow(rejectMsg);
 
     expect(mockedRedisClient.get).toBeCalledTimes(1);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
     expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
       'SET',
@@ -184,7 +184,7 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisClient.get).toBeCalledTimes(1);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
     expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
       'SET',
@@ -201,7 +201,7 @@ describe('redisCached', () => {
     );
     expect(mockedRedisClient.set).toBeCalledTimes(1);
     expect(mockedRedisClient.set).toBeCalledWith(
-      'gh-ci.CACHE.namespace-key',
+      'gh-ci.20230310191716.CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806118.635,"version":"20230310191716"}`,
       { EX: 1 },
     );
@@ -220,7 +220,7 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisClient.get).toBeCalledTimes(1);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.set).toBeCalledTimes(0);
     expect(mockedRedisClient.sendCommand).toBeCalledTimes(0);
     expect(mockedRedisClient.eval).toBeCalledTimes(0);
@@ -240,7 +240,7 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisClient.get).toBeCalledTimes(1);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.set).toBeCalledTimes(0);
     expect(mockedRedisClient.sendCommand).toBeCalledTimes(0);
     expect(mockedRedisClient.eval).toBeCalledTimes(0);
@@ -265,7 +265,7 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisClient.get).toBeCalledTimes(1);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
     expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
       'SET',
@@ -305,7 +305,7 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisClient.get).toBeCalledTimes(5);
-    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.LOCK.namespace-key');
     expect(fn).toBeCalledTimes(0);
   });
