@@ -25,7 +25,8 @@ pkgs_to_promote=$(\
     curl -fsSL "https://download.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
         | grep "${PACKAGE_NAME}-${PACKAGE_VERSION}${VERSION_SUFFIX}-" \
         | grep "${PLATFORM}" \
-        | cut -d '"' -f2
+        | cut -d '"' -f2 \
+        | cut -d "#" -f1
 )
 
 tmp_dir="$(mktemp -d)"
