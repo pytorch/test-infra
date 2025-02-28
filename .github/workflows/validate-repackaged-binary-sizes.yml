@@ -46,7 +46,7 @@ jobs:
         set -ex
 
         # shellcheck disable=SC2086
-        CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${CHANNEL})
+        CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${MATRIX_CHANNEL})
         # shellcheck disable=SC2086
         CUDA_VERSION_NODOT=$(echo ${CUDA_VERSION} | tr -d '.')
 
