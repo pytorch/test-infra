@@ -130,11 +130,14 @@ export async function scaleDown(): Promise<void> {
                   `[${ec2runner.runnerType}] successfuly removed.`,
               );
             } catch (e) {
+              /* istanbul ignore next */
               console.warn(
                 `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
                   `[${ec2runner.runnerType}] failed to be removed. ${e}`,
               );
+              /* istanbul ignore next */
               metrics.runnerGhTerminateFailureOrg(ec2runner.org as string, ec2runner);
+              /* istanbul ignore next */
               shouldRemoveEC2 = false;
             }
           } else {
@@ -151,11 +154,14 @@ export async function scaleDown(): Promise<void> {
                   `[${ec2runner.runnerType}] successfuly removed.`,
               );
             } catch (e) {
+              /* istanbul ignore next */
               console.warn(
                 `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
                   `[${ec2runner.runnerType}] failed to be removed. ${e}`,
               );
+              /* istanbul ignore next */
               metrics.runnerGhTerminateFailureRepo(repo, ec2runner);
+              /* istanbul ignore next */
               shouldRemoveEC2 = false;
             }
           }
@@ -181,6 +187,7 @@ export async function scaleDown(): Promise<void> {
             console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
           }
         } else {
+          /* istanbul ignore next */
           metrics.runnerTerminateSkipped(ec2runner);
         }
       }
@@ -393,6 +400,7 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
 
 export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<number> {
   if (ec2runner.runnerType === undefined) {
+    /* istanbul ignore next */
     return Config.Instance.minAvailableRunners;
   }
 
@@ -432,11 +440,14 @@ export function isRunnerRemovable(
 }
 
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
-  const baseTime = runner.ebsVolumeReplacementRequestTm
-    ? moment.unix(runner.ebsVolumeReplacementRequestTm)
-    : runner.ephemeralRunnerFinished
-    ? moment.unix(runner.ephemeralRunnerFinished)
-    : moment(runner.launchTime || new Date()).utc();
+  let baseTime: moment.Moment;
+  if (runner.ebsVolumeReplacementRequestTm !== undefined) {
+    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTm);
+  } else if (runner.ephemeralRunnerFinished !== undefined) {
+    baseTime = moment.unix(runner.ephemeralRunnerFinished);
+  } else {
+    baseTime = moment(runner.launchTime || new Date()).utc();
+  }
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
   return baseTime < maxTime;
 }

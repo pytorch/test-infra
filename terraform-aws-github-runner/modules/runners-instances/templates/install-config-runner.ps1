@@ -51,9 +51,9 @@ Write-Host "Disabled User Access Control (UAC)"
 # this is useful to hint the scale up lambda that this instance might be reused
 if ($config -match '--ephemeral') {
     Add-Content -Path .\.env -Value "ACTIONS_RUNNER_HOOK_JOB_COMPLETED=jobcompleted.ps1"
-    $DateTime = (Get-Date).ToUniversalTime()
-    $UnixTimeStamp = [System.Math]::Truncate((Get-Date -Date $DateTime -UFormat %s))
-    Add-Content -Path .\jobcompleted.ps1 -Value "aws ec2 create-tags --region $Region --resource $InstanceId --tags `"Key=EphemeralRunnerFinished,Value=$UnixTimeStamp`""
+    Add-Content -Path .\jobcompleted.ps1 -Value "`$DateTime = (Get-Date).ToUniversalTime()"
+    Add-Content -Path .\jobcompleted.ps1 -Value "`$UnixTimeStamp = [System.Math]::Truncate((Get-Date -Date `$DateTime -UFormat %s))"
+    Add-Content -Path .\jobcompleted.ps1 -Value "aws ec2 create-tags --region $Region --resource $InstanceId --tags `"Key=EphemeralRunnerFinished,Value=`$UnixTimeStamp`""
 }
 
 $configCmd = ".\config.cmd --unattended --name $InstanceId --work `"_work`" $config"
