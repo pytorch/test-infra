@@ -1,5 +1,5 @@
 import { Box, Button, TextField } from "@mui/material";
-import { encodeParams } from "pages/tests/search";
+import { encodeParams } from "lib/GeneralUtils";
 
 function setURL(name: string, suite: string, file: string) {
   window.location.href = `/tests/search?${encodeParams({
@@ -24,8 +24,15 @@ export default function TestSearchForm({
       noValidate
       autoComplete="off"
       sx={{
-        "& .MuiTextField-root": { m: 1, width: "25ch" },
-        "& .MuiButton-root": { m: 2 },
+        "& .MuiTextField-root": {
+          marginRight: 1,
+          width: "25ch",
+        },
+        "& .MuiButton-root": {
+          marginTop: 1,
+          marginBottom: 1,
+          marginLeft: 2,
+        },
       }}
       onSubmit={(e) => {
         e.preventDefault();

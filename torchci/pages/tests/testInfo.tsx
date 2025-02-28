@@ -1,17 +1,17 @@
-import { Box, Button, Stack, TextField } from "@mui/material";
+import { Stack } from "@mui/material";
 import { BarChart } from "@mui/x-charts";
+import { TextFieldSubmit } from "components/common/TextFieldSubmit";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
 import LoadingPage from "components/LoadingPage";
 import LogViewer from "components/LogViewer";
 import TestSearchForm from "components/tests/TestSearchForm";
 import dayjs from "dayjs";
-import { fetcher } from "lib/GeneralUtils";
+import { encodeParams, fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { TestInfoAPIResponse } from "pages/api/flaky-tests/3dStats";
-import { encodeParams } from "pages/tests/search";
 import { useState } from "react";
 import useSWRImmutable from "swr/immutable";
 
@@ -90,30 +90,15 @@ export default function Page() {
     convertToSeries(last3dStats ?? []);
 
   return (
-    <Stack spacing={{ xs: 1 }}>
+    <Stack spacing={2}>
       <h1>Test Info</h1>
       <TestSearchForm name={name} suite={suite} file={file} />
       <h2>Last 3 Days on main Branch</h2>
-      <Box
-        component="form"
-        noValidate
-        autoComplete="off"
-        sx={{
-          "& .MuiTextField-root": { m: 1, width: "25ch" },
-          "& .MuiButton-root": { m: 2 },
-        }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          // @ts-ignore
-          setJobFilter(e.target[0].value);
-        }}
-      >
-        <TextField label="Chart Job Filter" defaultValue={jobFilter} />
-        <Button variant="contained" color="primary" type="submit">
-          Filter
-        </Button>
-      </Box>
-
+      <TextFieldSubmit
+        jobFilter={jobFilter}
+        onSubmit={setJobFilter}
+        info={"Chart Job Filter"}
+      />
       {isLoading ? (
         <LoadingPage />
       ) : (
