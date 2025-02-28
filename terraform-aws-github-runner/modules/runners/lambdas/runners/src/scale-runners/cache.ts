@@ -222,19 +222,21 @@ export async function redisLocked<T>(
   callback: () => Promise<T>,
   tryRead: (() => Promise<T>) | undefined,
   lockTimeoutS = 20,
+  acquireTimeoutS: undefined | number = undefined,
 ): Promise<T> {
   await startupRedisPool();
   if (!redisPool) throw Error('Redis should be initialized!');
 
   const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
+  const acquireTimeout = +new Date() / 1000 + (acquireTimeoutS || lockTimeoutS);
 
-  while (true) {
+  while (+new Date() / 1000 < acquireTimeout) {
     try {
       if (tryRead !== undefined) {
         return await tryRead();
       }
     } catch (e) {
-      console.warn(`Error trying to read ${nameSpace}-${key} ${e}`);
+      console.debug(`Error trying to read ${nameSpace}-${key} ${e}`);
     }
 
     console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
@@ -247,7 +249,7 @@ export async function redisLocked<T>(
       }
     } else {
       console.debug('Failed to acquire redis lock...');
-      for (let i = 0; i < lockTimeoutS; i++) {
+      for (let i = 0; i < Math.floor(acquireTimeoutS || lockTimeoutS); i++) {
         const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
           return await client.get(lockKey);
         });
@@ -262,6 +264,8 @@ export async function redisLocked<T>(
       }
     }
   }
+
+  throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 
 export async function redisCached<T>(
@@ -277,46 +281,53 @@ export async function redisCached<T>(
 
     let cached: T | undefined = undefined;
 
-    return await redisLocked(nameSpace, key, async () => {
-      if (!redisPool) throw Error('Redis should be initialized!');
+    return await redisLocked(
+      nameSpace,
+      key,
+      async () => {
+        if (!redisPool) throw Error('Redis should be initialized!');
 
-      console.debug(`Calling callback for ${queryKey}`);
-      cached = await callback();
-      const newDt: RedisStore = {
-        data: cached,
-        ttl: Date.now() / 1000 + ttlSec,
-        version: Config.Instance.datetimeDeploy,
-      };
-      await redisPool.use(async (client: RedisClientType) => {
-        return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
-      });
+        console.debug(`Calling callback for ${queryKey}`);
+        cached = await callback();
+        const newDt: RedisStore = {
+          data: cached,
+          ttl: Date.now() / 1000 + ttlSec,
+          version: Config.Instance.datetimeDeploy,
+        };
+        await redisPool.use(async (client: RedisClientType) => {
+          return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
+        });
 
-      console.debug(`Registered query response in Redis for ${queryKey}`);
-      return cached;
-    }, async () => {
-      if (!redisPool) throw Error('Redis should be initialized!');
+        console.debug(`Registered query response in Redis for ${queryKey}`);
+        return cached;
+      },
+      async () => {
+        if (!redisPool) throw Error('Redis should be initialized!');
 
-      console.debug(`Trying to get a redis client ${queryKey}`);
-      const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-        console.debug(`Redis client obtained, running get ${queryKey}`);
-        return await client.get(queryKey);
-      });
+        console.debug(`Trying to get a redis client ${queryKey}`);
+        const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+          console.debug(`Redis client obtained, running get ${queryKey}`);
+          return await client.get(queryKey);
+        });
 
-      if (redisResponse !== undefined && redisResponse !== null) {
-        const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
+        if (redisResponse !== undefined && redisResponse !== null) {
+          const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
 
-        const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
-        if (Math.random() > jitterDiff && redisData.version === Config.Instance.datetimeDeploy) {
-          console.debug(`Using redis cache for ${queryKey}...`);
-          return redisData.data as T;
+          const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
+          if (Math.random() > jitterDiff && redisData.version === Config.Instance.datetimeDeploy) {
+            console.debug(`Using redis cache for ${queryKey}...`);
+            return redisData.data as T;
+          }
+
+          console.log(`Cache expired with ${jitterDiff} for ${queryKey}...`);
+        } else {
+          console.debug(`Could not find ${queryKey} in redis`);
         }
 
-        console.log(`Cache expired with ${jitterDiff} for ${queryKey}...`);
-      } else {
-        console.debug(`Could not find ${queryKey} in redis`);
-      }
-
-      throw new Error('Cache not found');
-    }, lockTimeoutS);
+        throw new Error('Cache not found');
+      },
+      lockTimeoutS,
+      lockTimeoutS,
+    );
   });
 }

@@ -5,13 +5,16 @@ import { RunnerInfo, expBackOff, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics } from './metrics';
-import { redisCached } from './cache';
+import { locallyCached, redisCached, redisLocked } from './cache';
 
 export interface ListRunnerFilters {
-  repoName?: string;
-  orgName?: string;
+  applicationDeployDatetime?: string;
+  containsTags?: Array<string>;
   environment?: string;
   instanceType?: string;
+  orgName?: string;
+  repoName?: string;
+  runnerType?: string;
 }
 
 export interface RunnerInputParameters {
@@ -135,9 +138,11 @@ export async function listRunners(
       }
 
       const tags = {
+        applicationDeployDatetime: 'tag:ApplicationDeployDatetime',
         environment: 'tag:Environment',
-        repoName: 'tag:Repo',
         orgName: 'tag:Org',
+        repoName: 'tag:Repo',
+        runnerType: 'tag:RunnerType',
       };
       (Object.keys(tags) as Array<keyof typeof filters>)
         .filter((attr) => filters[attr] !== undefined)
@@ -145,6 +150,9 @@ export async function listRunners(
         .forEach((attr) =>
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
+      (filters.containsTags ?? []).forEach((tag) => {
+        ec2Filters.push({ Name: `tag:${tag}`, Values: ['*'] });
+      });
     }
     const awsRegionsInstances = Config.Instance.shuffledAwsRegionInstances;
     console.debug(`[listRunners]: REGIONS ${awsRegionsInstances}`);
@@ -196,19 +204,29 @@ export async function listRunners(
         itm.describeInstanceResult?.Reservations?.flatMap((reservation) => {
           /* istanbul ignore next */
           return (
-            reservation.Instances?.map((instance) => ({
-              applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
-              awsRegion: itm.awsRegion,
-              environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
-              ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
-              instanceId: instance.InstanceId as string,
-              launchTime: instance.LaunchTime,
-              org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
-              repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
-              runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
-              instanceManagement: instance.Tags?.find((e) => e.Key == 'InstanceManagement')?.Value,
-              az: instance.Placement?.AvailabilityZone?.toLocaleLowerCase(),
-            })) ?? []
+            reservation.Instances?.map((instance) => {
+              const ebsVolumeReplacementRequestTm = instance.Tags?.find(
+                (e) => e.Key === 'EBSVolumeReplacementRequestTm',
+              )?.Value;
+              const ephemeralRunnerFinished = instance.Tags?.find((e) => e.Key === 'EphemeralRunnerFinished')?.Value;
+              return {
+                applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
+                awsRegion: itm.awsRegion,
+                az: instance.Placement?.AvailabilityZone?.toLocaleLowerCase(),
+                ebsVolumeReplacementRequestTm: ebsVolumeReplacementRequestTm
+                  ? parseInt(ebsVolumeReplacementRequestTm)
+                  : undefined,
+                environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
+                ephemeralRunnerFinished: ephemeralRunnerFinished ? parseInt(ephemeralRunnerFinished) : undefined,
+                ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
+                instanceId: instance.InstanceId as string,
+                instanceManagement: instance.Tags?.find((e) => e.Key == 'InstanceManagement')?.Value,
+                launchTime: instance.LaunchTime,
+                org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
+                repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
+                runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
+              };
+            }) ?? []
           );
         }) ?? []
       );
@@ -340,7 +358,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
 }
 
 async function addSSMParameterRunnerConfig(
-  instances: EC2.InstanceList,
+  instancesId: string[],
   runnerParameters: RunnerInputParameters,
   customAmiExperiment: boolean,
   ssm: SSM,
@@ -348,7 +366,7 @@ async function addSSMParameterRunnerConfig(
   awsRegion: string,
 ): Promise<void> {
   /* istanbul ignore next */
-  if (instances.length == 0) {
+  if (instancesId.length == 0) {
     console.debug(`[${awsRegion}] No SSM parameter to be created, empty list of instances`);
     return;
   }
@@ -360,8 +378,8 @@ async function addSSMParameterRunnerConfig(
 
   const createdSSMParams = await Promise.all(
     /* istanbul ignore next */
-    instances.map(async (i: EC2.Instance) => {
-      const parameterName = getParameterNameForRunner(runnerParameters.environment, i.InstanceId as string);
+    instancesId.map(async (instanceId) => {
+      const parameterName = getParameterNameForRunner(runnerParameters.environment, instanceId);
       return await expBackOff(() => {
         return metrics.trackRequestRegion(
           awsRegion,
@@ -438,6 +456,107 @@ async function getCreateRunnerSubnetSequence(
       return shuffleArrayInPlace(vpcGroupedByCounts.get(count) ?? []);
     })
     .flat();
+}
+
+export async function tryReuseRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<RunnerInfo> {
+  const filters: ListRunnerFilters = {
+    applicationDeployDatetime: Config.Instance.datetimeDeploy,
+    containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
+    environment: runnerParameters.environment,
+    instanceType: runnerParameters.runnerType.instance_type,
+    orgName: runnerParameters.orgName,
+    repoName: runnerParameters.repoName,
+    runnerType: runnerParameters.runnerType.runnerTypeName,
+  };
+  const runners = await locallyCached(
+    'tryReuseRunner-listRunners',
+    `${runnerParameters.environment}-${runnerParameters.runnerType.instance_type}` +
+      `-${runnerParameters.orgName}-${runnerParameters.repoName}`,
+    10,
+    async () => {
+      return listRunners(metrics, filters);
+    },
+  );
+
+  shuffleArrayInPlace(runners);
+  const ec2M: Map<string, EC2> = new Map();
+  const ssmM: Map<string, SSM> = new Map();
+
+  for (const runner of runners) {
+    if (runner.ghRunnerId === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a GithubRunnerID tag`);
+      continue;
+    }
+    if (runner.awsRegion === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
+      continue;
+    }
+    if (runner.org === undefined && runner.repo === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
+      continue;
+    }
+    try {
+      await redisLocked(
+        `tryReuseRunner`,
+        runner.instanceId,
+        async () => {
+          // I suspect it will be too many requests against GH API to check if runner is really offline
+
+          if (ssmM.has(runner.awsRegion) === false) {
+            ssmM.set(runner.awsRegion, new SSM({ region: runner.awsRegion }));
+          }
+          const ssm = ssmM.get(runner.awsRegion) as SSM;
+          if (ec2M.has(runner.awsRegion) === false) {
+            ec2M.set(runner.awsRegion, new EC2({ region: runner.awsRegion }));
+          }
+          const ec2 = ec2M.get(runner.awsRegion) as EC2;
+
+          await ec2
+            .deleteTags({
+              Resources: [runner.instanceId],
+              Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
+            })
+            .promise();
+          console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Tags deleted`);
+
+          await ec2
+            .createTags({
+              Resources: [runner.instanceId],
+              Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(+new Date() / 1000)}` }],
+            })
+            .promise();
+
+          await ec2
+            .createReplaceRootVolumeTask({
+              InstanceId: runner.instanceId,
+              DeleteReplacedRootVolume: true,
+            })
+            .promise();
+          console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
+
+          await addSSMParameterRunnerConfig(
+            [runner.instanceId],
+            runnerParameters,
+            false,
+            ssm,
+            metrics,
+            runner.awsRegion,
+          );
+          console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Ssm parameter created`);
+        },
+        undefined,
+        180,
+        0.1,
+      );
+    } catch (e) {
+      console.debug(
+        `[tryReuseRunner]: something happened preventing to reuse runnerid ` +
+          `${runner.instanceId}, either an error or it is already locked to be reused ${e}`,
+      );
+    }
+  }
+
+  throw new Error('No runners available');
 }
 
 export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<string> {
@@ -573,7 +692,9 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
             addSSMParameterRunnerConfig(
-              runInstancesResponse.Instances,
+              runInstancesResponse.Instances.filter((i) => i.InstanceId !== undefined).map(
+                (i) => i.InstanceId as string,
+              ),
               runnerParameters,
               customAmiExperiment,
               ssm,

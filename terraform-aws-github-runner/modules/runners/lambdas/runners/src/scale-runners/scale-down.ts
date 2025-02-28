@@ -59,7 +59,9 @@ export async function scaleDown(): Promise<void> {
     for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
 
-      const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> = [];
+      const ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]> = [];
+      const ghRunnersRemovableNoGHRunner: Array<[RunnerInfo, GhRunner | undefined]> = [];
+
       for (const ec2runner of runners) {
         // REPO assigned runners
         if (ec2runner.repo !== undefined) {
@@ -70,9 +72,9 @@ export async function scaleDown(): Promise<void> {
             metrics.runnerFound(ec2runner);
             if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
               if (ghRunner === undefined) {
-                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+                ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
               } else {
-                ghRunnersRemovable.push([ec2runner, ghRunner]);
+                ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
               }
             }
           }
@@ -85,9 +87,9 @@ export async function scaleDown(): Promise<void> {
             metrics.runnerFound(ec2runner);
             if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
               if (ghRunner === undefined) {
-                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+                ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
               } else {
-                ghRunnersRemovable.push([ec2runner, ghRunner]);
+                ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
               }
             }
           }
@@ -98,6 +100,9 @@ export async function scaleDown(): Promise<void> {
         }
       }
 
+      const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> =
+        ghRunnersRemovableNoGHRunner.concat(ghRunnersRemovableWGHRunner);
+
       let removedRunners = 0;
       for (const [ec2runner, ghRunner] of ghRunnersRemovable) {
         // We only limit the number of removed instances here for the reason: while sorting and getting info
@@ -105,8 +110,7 @@ export async function scaleDown(): Promise<void> {
         if (
           ghRunnersRemovable.length - removedRunners <= (await minRunners(ec2runner, metrics)) &&
           ghRunner !== undefined &&
-          ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy &&
-          !(await isEphemeralRunner(ec2runner, metrics))
+          ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy
         ) {
           continue;
         }
@@ -432,7 +436,9 @@ export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
     // runner did not start yet, so it does not timeout
     return false;
   }
-  const launchTime = moment(runner.launchTime).utc();
+  const launchTime = runner.ebsVolumeReplacementRequestTm
+    ? moment.unix(runner.ebsVolumeReplacementRequestTm)
+    : moment(runner.launchTime).utc();
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
   return launchTime < maxTime;
 }
