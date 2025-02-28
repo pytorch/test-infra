@@ -12,13 +12,12 @@ import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
-import { fetcher } from "lib/GeneralUtils";
+import { encodeParams, fetcher } from "lib/GeneralUtils";
 import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent,
 } from "lz-string";
 import { useRouter } from "next/router";
-import { encodeParams } from "pages/tests/search";
 import { useEffect, useState } from "react";
 import useSWRImmutable from "swr/immutable";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";

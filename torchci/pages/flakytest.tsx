@@ -1,6 +1,6 @@
+import { encodeParams } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import { encodeParams } from "./tests/search";
 
 export default function Page() {
   const router = useRouter();

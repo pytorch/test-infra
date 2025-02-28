@@ -2,18 +2,13 @@ import { Pagination, Stack, Tooltip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import LoadingPage from "components/LoadingPage";
 import TestSearchForm from "components/tests/TestSearchForm";
+import { encodeParams } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import { ListTestInfoAPIResponse } from "pages/api/flaky-tests/search";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export function encodeParams(params: { [key: string]: string }) {
-  return Object.keys(params)
-    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
-    .join("&");
-}
 
 export default function Page() {
   const router = useRouter();

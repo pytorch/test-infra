@@ -7,13 +7,13 @@ import LoadingPage from "components/LoadingPage";
 import LogViewer from "components/LogViewer";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { encodeParams } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import { usePreference } from "lib/useGroupingPreference";
 import { useRouter } from "next/router";
 import { CSSProperties, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import useSWR from "swr";
-import { encodeParams } from "./tests/search";
 dayjs.extend(utc);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

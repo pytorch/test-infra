@@ -12,12 +12,10 @@ import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPan
 import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { fetcher } from "lib/GeneralUtils";
+import { useClickHouseImmutable } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useEffect, useMemo, useState } from "react";
-import useSWRImmutable from "swr/immutable";
 import { TimeRangePicker } from "./metrics";
-import { encodeParams } from "./tests/search";
 dayjs.extend(utc);
 
 // Some common styles for components
@@ -59,21 +57,6 @@ function convertToSeries(
   return { xAxis, series };
 }
 
-function useClickHouse(
-  queryName: string,
-  parameters: any,
-  condition: boolean = true
-) {
-  // Helper function to format the URL nicely
-  return useSWRImmutable(
-    condition &&
-      `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
-        parameters: JSON.stringify(parameters),
-      })}`,
-    fetcher
-  );
-}
-
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
@@ -88,20 +71,19 @@ export default function Page() {
     startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
-  const { data: stepsData, isLoading: stepsDataIsLoading } = useClickHouse(
-    "build_time_metrics/steps",
-    timeParams
-  );
+  const { data: stepsData, isLoading: stepsDataIsLoading } =
+    useClickHouseImmutable("build_time_metrics/steps", timeParams);
 
-  const { data: buildData, isLoading: buildDataIsLoading } = useClickHouse(
-    "build_time_metrics/overall",
-    { ...timeParams, granularity: "day" }
-  );
+  const { data: buildData, isLoading: buildDataIsLoading } =
+    useClickHouseImmutable("build_time_metrics/overall", {
+      ...timeParams,
+      granularity: "day",
+    });
 
   const {
     data: selectedBuildSccacheStats,
     isLoading: selectedBuildSccacheStatsIsLoading,
-  } = useClickHouse(
+  } = useClickHouseImmutable(
     "build_time_metrics/sccache_stats",
     { jobName: selectedBuild, ...timeParams },
     selectedBuild != null && openSccacheStats

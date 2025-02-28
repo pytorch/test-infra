@@ -1,4 +1,6 @@
 import { Octokit } from "octokit";
+import useSWR from "swr";
+import useSWRImmutable from "swr/immutable";
 import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
 
@@ -82,4 +84,42 @@ export async function hasWritePermissionsUsingOctokit(
   });
   const permissions = res?.data?.permission;
   return permissions === "admin" || permissions === "write";
+}
+
+// Wrapper for useSWR that is useful for ClickHouse queries
+export function useClickHouse<T = any>(
+  queryName: string,
+  parameters: any,
+  condition: boolean = true
+) {
+  // Helper function to format the URL nicely
+  return useSWR<T>(
+    condition &&
+      `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
+        parameters: JSON.stringify(parameters),
+      })}`,
+    fetcher
+  );
+}
+
+// Immutable version of the above
+export function useClickHouseImmutable<T = any>(
+  queryName: string,
+  parameters: any,
+  condition: boolean = true
+) {
+  // Helper function to format the URL nicely
+  return useSWRImmutable<T>(
+    condition &&
+      `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
+        parameters: JSON.stringify(parameters),
+      })}`,
+    fetcher
+  );
+}
+
+export function encodeParams(params: { [key: string]: string }) {
+  return Object.keys(params)
+    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+    .join("&");
 }
