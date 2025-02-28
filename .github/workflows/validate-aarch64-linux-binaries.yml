@@ -104,7 +104,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
