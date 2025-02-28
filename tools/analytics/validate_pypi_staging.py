@@ -107,8 +107,8 @@ def validate_file_metadata(build: str, package: str, version: str):
                 )
 
         elif (
-            line.startswith(PATTERN_RD) 
-            or line.startswith(PATTERN_PYTHON) 
+            line.startswith(PATTERN_RD)
+            or line.startswith(PATTERN_PYTHON)
             or line.startswith(PATTERN_PROGRAMMING)
         ):
             print(f"{line}", end="")
