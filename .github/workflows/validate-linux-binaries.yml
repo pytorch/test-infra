@@ -127,7 +127,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
@@ -172,7 +172,7 @@ jobs:
         source ../../test-infra/.github/scripts/validate_binaries.sh
 
   linux-amazon-2023:
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     name: amazon-linux-2023-test
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"

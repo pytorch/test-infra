@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
@@ -45,8 +45,13 @@ jobs:
       script: |
         set -ex
 
+        # shellcheck disable=SC2086
+        CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${CHANNEL})
+        # shellcheck disable=SC2086
+        CUDA_VERSION_NODOT=$(echo ${CUDA_VERSION} | tr -d '.')
+
         # skip testing on cu126
-        if [[ ${MATRIX_DESIRED_CUDA} == "cu126" ]]; then
+        if [[ ${MATRIX_DESIRED_CUDA} != "cu${CUDA_VERSION_NODOT}" ]]; then
           exit 0
         fi
 

@@ -24,7 +24,7 @@ jobs:
   test-tools:
     name: Test tools
     if: ${{ github.repository == 'pytorch/test-infra' }}
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     with:
       docker-image: python:3.11.0-slim-bullseye
       runner: linux.large
@@ -42,7 +42,7 @@ jobs:
   test-github-scripts:
     name: Test github scripts
     if: ${{ github.repository == 'pytorch/test-infra' }}
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     with:
       docker-image: python:3.11.0-slim-bullseye
       runner: linux.large
