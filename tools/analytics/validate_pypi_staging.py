@@ -22,8 +22,8 @@ PACKAGE_RELEASES = {
     "torch": "2.6.0",
     "torchvision": "0.21.0",
     "torchaudio": "2.6.0",
-    #"torchtext": "0.18.0",
-    #"executorch": "0.2.1",
+    # "torchtext": "0.18.0",
+    # "executorch": "0.2.1",
 }
 
 PATTERN_V = "Version:"
@@ -106,7 +106,11 @@ def validate_file_metadata(build: str, package: str, version: str):
                     f"FAILURE VERSION DOES NOT MATCH expected {version} got {exttracted_version}"
                 )
 
-        elif line.startswith(PATTERN_RD) or line.startswith(PATTERN_PYTHON) or line.startswith(PATTERN_PROGRAMMING):
+        elif (
+            line.startswith(PATTERN_RD) 
+            or line.startswith(PATTERN_PYTHON) 
+            or line.startswith(PATTERN_PROGRAMMING)
+        ):
             print(f"{line}", end="")
 
     shutil.rmtree(temp_dir)
