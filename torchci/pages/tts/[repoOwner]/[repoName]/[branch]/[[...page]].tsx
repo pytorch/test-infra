@@ -27,6 +27,7 @@ const INGORED_WORKFLOWS = [
   "Upload test stats",
   "Upload torch dynamo performance stats",
   "Validate and merge PR",
+  "Revert merged PR",
 ];
 
 function Panel({
