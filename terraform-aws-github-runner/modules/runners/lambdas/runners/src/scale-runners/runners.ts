@@ -1,10 +1,10 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { RunnerInfo, expBackOff, shuffleArrayInPlace } from './utils';
+import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
-import { Metrics } from './metrics';
+import { Metrics, ScaleUpMetrics } from './metrics';
 import { locallyCached, redisCached, redisLocked } from './cache';
 
 export interface ListRunnerFilters {
@@ -458,7 +458,7 @@ async function getCreateRunnerSubnetSequence(
     .flat();
 }
 
-export async function tryReuseRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<RunnerInfo> {
+export async function tryReuseRunner(runnerParameters: RunnerInputParameters, metrics: ScaleUpMetrics): Promise<RunnerInfo> {
   const filters: ListRunnerFilters = {
     applicationDeployDatetime: Config.Instance.datetimeDeploy,
     containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
@@ -478,6 +478,13 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
     },
   );
 
+  /* istanbul ignore next */
+  if (runnerParameters.orgName !== undefined) {
+    metrics.runnersReuseFoundOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+  } else if (runnerParameters.repoName !== undefined) {
+    metrics.runnersReuseFoundRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+  }
+
   shuffleArrayInPlace(runners);
   const ec2M: Map<string, EC2> = new Map();
   const ssmM: Map<string, SSM> = new Map();
@@ -496,6 +503,12 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
       continue;
     }
     try {
+      if (runnerParameters.orgName !== undefined) {
+        metrics.runnersReuseTryOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+      } else if (runnerParameters.repoName !== undefined) {
+        metrics.runnersReuseTryRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+      }
+
       await redisLocked(
         `tryReuseRunner`,
         runner.instanceId,
@@ -511,27 +524,58 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
           }
           const ec2 = ec2M.get(runner.awsRegion) as EC2;
 
-          await ec2
-            .deleteTags({
-              Resources: [runner.instanceId],
-              Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
-            })
-            .promise();
+          // should come before removing other tags, this is useful so
+          // there is always a tag present for scaeDown to know that
+          // it can/will be reused and avoid deleting it
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2CreateTagsAWSCallSuccess,
+              metrics.ec2CreateTagsAWSCallFailure,
+              () => {
+                return ec2
+                  .createTags({
+                    Resources: [runner.instanceId],
+                    Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(+new Date() / 1000)}` }],
+                  })
+                  .promise();
+              },
+            );
+          });
+          console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
+
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2DeleteTagsAWSCallSuccess,
+              metrics.ec2DeleteTagsAWSCallFailure,
+              () => {
+                return ec2
+                .deleteTags({
+                  Resources: [runner.instanceId],
+                  Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
+                })
+                .promise();
+              },
+            );
+          });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Tags deleted`);
 
-          await ec2
-            .createTags({
-              Resources: [runner.instanceId],
-              Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(+new Date() / 1000)}` }],
-            })
-            .promise();
-
-          await ec2
-            .createReplaceRootVolumeTask({
-              InstanceId: runner.instanceId,
-              DeleteReplacedRootVolume: true,
-            })
-            .promise();
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2CreateReplaceRootVolumeTaskSuccess,
+              metrics.ec2CreateReplaceRootVolumeTaskFailure,
+              () => {
+                return ec2
+                  .createReplaceRootVolumeTask({
+                    InstanceId: runner.instanceId,
+                    DeleteReplacedRootVolume: true,
+                  })
+                  .promise();
+              },
+            );
+          });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
 
           await addSSMParameterRunnerConfig(
@@ -546,14 +590,34 @@ export async function tryReuseRunner(runnerParameters: RunnerInputParameters, me
         },
         undefined,
         180,
-        0.1,
+        0.05,
       );
+
+      if (runnerParameters.orgName !== undefined) {
+        metrics.runnersReuseSuccessOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+      } else if (runnerParameters.repoName !== undefined) {
+        metrics.runnersReuseSuccessRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+      }
+
+      return runner;
     } catch (e) {
       console.debug(
         `[tryReuseRunner]: something happened preventing to reuse runnerid ` +
           `${runner.instanceId}, either an error or it is already locked to be reused ${e}`,
       );
+
+      if (runnerParameters.orgName !== undefined) {
+        metrics.runnersReuseFailureOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+      } else if (runnerParameters.repoName !== undefined) {
+        metrics.runnersReuseFailureRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
+      }
     }
+  }
+
+  if (runnerParameters.orgName !== undefined) {
+    metrics.runnersReuseGiveUpOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
+  } else if (runnerParameters.repoName !== undefined) {
+    metrics.runnersReuseGiveUpRepo(runners.length, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
   }
 
   throw new Error('No runners available');

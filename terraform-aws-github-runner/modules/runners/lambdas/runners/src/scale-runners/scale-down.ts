@@ -432,15 +432,15 @@ export function isRunnerRemovable(
 }
 
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
-  if (runner.launchTime === undefined) {
-    // runner did not start yet, so it does not timeout
-    return false;
-  }
-  const launchTime = runner.ebsVolumeReplacementRequestTm
+  const baseTime = runner.ebsVolumeReplacementRequestTm
     ? moment.unix(runner.ebsVolumeReplacementRequestTm)
-    : moment(runner.launchTime).utc();
+    : (
+      runner.ephemeralRunnerFinished
+      ? moment.unix(runner.ephemeralRunnerFinished)
+      : moment(runner.launchTime || new Date()).utc()
+    );
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
-  return launchTime < maxTime;
+  return baseTime < maxTime;
 }
 
 export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {

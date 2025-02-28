@@ -116,11 +116,9 @@ export async function scaleUp(
         if (runnerType.is_ephemeral) {
           try {
             await tryReuseRunner(createRunnerParams, metrics);
-            // TODO send metrics
             continue; // Runner successfuly reused, no need to create a new one, continue to next runner
           } catch (e) {
             console.error(`Error reusing runner: ${e}`);
-            // TODO send metrics
           }
         }
 
