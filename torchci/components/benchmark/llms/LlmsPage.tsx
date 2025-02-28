@@ -23,12 +23,30 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { TORCHAO_BASELINE } from "lib/benchmark/llms/aoUtils";
 import { fetcher } from "lib/GeneralUtils";
-import _ from "lodash";
-import { useRouter } from "next/router";
+import _, { cloneDeep, set } from "lodash";
+import { NextRouter, useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../pages/metrics";
 import LLMsReport from "./components/LlmsReport";
+import LoadingPage from "components/LoadingPage";
+import LlmsDropdowns from "./components/LlmsDropdowns";
+import { LlmsGraphPanelProps } from "./common";
+
+export interface LlmsGraphPanelProps {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
+  timeRange: number;
+  repoName: string;
+  benchmarkName: string;
+  modelName: string;
+  backendName: string;
+  modeName: string;
+  dtypeName: string;
+  deviceName: string;
+  archName: string;
+  granularity: Granularity;
+}
 
 /**
  * @returns Main page for the LLMs dashboard
@@ -36,95 +54,103 @@ import LLMsReport from "./components/LlmsReport";
  */
 export default function LlmsPage() {
   const router = useRouter();
-
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
-  const [startTime, setStartTime] = useState(defaultStartTime);
   const defaultStopTime = dayjs();
-  const [stopTime, setStopTime] = useState(defaultStopTime);
+
+  const [props, setProps] = useState<LlmsGraphPanelProps>({
+    startTime: defaultStartTime,
+    stopTime: defaultStopTime,
+    timeRange: LAST_N_DAYS,
+    repoName: DEFAULT_REPO_NAME,
+    benchmarkName: "",
+    modelName: DEFAULT_MODEL_NAME,
+    backendName: DEFAULT_BACKEND_NAME,
+    modeName: DEFAULT_MODE_NAME,
+    dtypeName: DEFAULT_DTYPE_NAME,
+    deviceName: DEFAULT_DEVICE_NAME,
+    archName: DEFAULT_ARCH_NAME,
+    granularity: "day",
+   });
+
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
-  const [granularity, setGranularity] = useState<Granularity>("day");
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
-  const [repoName, setRepoName] = useState<string>(DEFAULT_REPO_NAME);
-  const [benchmarkName, setBenchmarkName] = useState<string>("");
-  const [modelName, setModelName] = useState<string>(DEFAULT_MODEL_NAME);
-  const [backendName, setBackendName] = useState<string>(DEFAULT_BACKEND_NAME);
-  const [modeName, setModeName] = useState<string>(DEFAULT_MODE_NAME);
-  const [dtypeName, setDTypeName] = useState<string>(DEFAULT_DTYPE_NAME);
-  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
-  const [archName, setArchName] = useState<string>(DEFAULT_ARCH_NAME);
 
-  // Set the dropdown value what is in the param
-  useEffect(() => {
+  function resetProps(router:NextRouter, prevProps: LlmsGraphPanelProps){
+    const newProps: LlmsGraphPanelProps= cloneDeep(prevProps);
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
-      setStartTime(dayjs(startTime));
-
+      newProps.startTime = dayjs(startTime);
       if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
-        setTimeRange(-1);
+        newProps.timeRange = -1;
       }
     }
-
     const stopTime: string = (router.query.stopTime as string) ?? undefined;
     if (stopTime !== undefined) {
-      setStopTime(dayjs(stopTime));
-
+      newProps.stopTime = dayjs(stopTime);
       if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
-        setTimeRange(-1);
+        newProps.timeRange = -1;
       }
     }
 
     const granularity: Granularity =
       (router.query.granularity as Granularity) ?? undefined;
     if (granularity !== undefined) {
-      setGranularity(granularity);
+      newProps.granularity = granularity;
     }
 
     const repoName: string = (router.query.repoName as string) ?? undefined;
     if (repoName !== undefined) {
-      setRepoName(repoName);
+      newProps.repoName = repoName;
     }
 
     const benchmarkName: string =
       (router.query.benchmarkName as string) ?? undefined;
     if (benchmarkName != undefined) {
-      setBenchmarkName(benchmarkName);
+      newProps.benchmarkName = benchmarkName;
     }
 
     const modelName: string = (router.query.modelName as string) ?? undefined;
     if (modelName !== undefined) {
-      setModelName(modelName);
+      newProps.modelName = modelName;
     }
 
     const backendName: string =
       (router.query.backendName as string) ?? undefined;
     if (backendName !== undefined) {
-      setBackendName(backendName);
+      newProps.backendName = backendName;
     }
 
     const modeName: string = (router.query.modeName as string) ?? undefined;
     if (modeName !== undefined) {
-      setModeName(modeName);
+      newProps.modeName = modeName;
     }
 
     const dtypeName: string = (router.query.dtypeName as string) ?? undefined;
     if (dtypeName !== undefined) {
-      setDTypeName(dtypeName);
+      newProps.dtypeName = dtypeName;
     }
 
     const deviceName: string = (router.query.deviceName as string) ?? undefined;
     if (deviceName !== undefined) {
-      setDeviceName(deviceName);
+      newProps.deviceName = deviceName;
     }
 
     // Set the default arch to Android for ExecuTorch as it has only 2 options Android and iOS
     const archName: string = (router.query.archName as string) ?? undefined;
     if (archName !== undefined) {
-      setArchName(archName);
+      newProps.archName = archName;
     }
+    return newProps;
+  }
+
+  // Set the dropdown value what is in the param
+  useEffect(() => {
+    const newProps = resetProps(router, props);
+    setProps(newProps);
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
     if (lBranch !== undefined) {
@@ -155,84 +181,81 @@ export default function LlmsPage() {
 
   const queryName = "oss_ci_benchmark_names";
   const queryParams = {
-    arch: archName === DEFAULT_ARCH_NAME ? "" : archName,
-    device: deviceName === DEFAULT_DEVICE_NAME ? "" : deviceName,
-    mode: modeName === DEFAULT_MODE_NAME ? "" : modeName,
+    arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
+    device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
+    mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
     dtypes:
-      dtypeName === DEFAULT_DTYPE_NAME
+    props.dtypeName === DEFAULT_DTYPE_NAME
         ? []
-        : repoName !== "pytorch/ao"
-        ? [dtypeName]
-        : [dtypeName, TORCHAO_BASELINE],
+        : props.repoName !== "pytorch/ao"
+        ? [props.dtypeName]
+        : [props.dtypeName, TORCHAO_BASELINE],
     excludedMetrics: EXCLUDED_METRICS,
-    benchmarks: benchmarkName ? [benchmarkName] : REPO_TO_BENCHMARKS[repoName],
-    granularity: granularity,
-    models: modelName === DEFAULT_MODEL_NAME ? [] : [modelName],
-    backends: backendName === DEFAULT_BACKEND_NAME ? [] : [backendName],
-    repo: repoName,
-    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    benchmarks: props.benchmarkName ? [props.benchmarkName] : REPO_TO_BENCHMARKS[props.repoName],
+    granularity: props.granularity,
+    models: props.modelName === DEFAULT_MODEL_NAME ? [] : [props.modelName],
+    backends: props.backendName === DEFAULT_BACKEND_NAME ? [] : [props.backendName],
+    repo: props.repoName,
+    startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  const { data,isLoading } = useSWR(url, fetcher, {
+    // no need
+    refreshInterval: 60 * 60 * 1000, // refresh every
   });
+
+  function formLink(props: LlmsGraphPanelProps, baseUrl:string) {
+    return (
+      <CopyLink
+            textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+              props.startTime.toString()
+            )}&stopTime=${encodeURIComponent(
+              props.stopTime.toString()
+            )}&granularity=${props.granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
+              props.repoName
+            )}&benchmarkName=${encodeURIComponent(
+              props.benchmarkName
+            )}&modelName=${encodeURIComponent(
+              props.modelName
+            )}&backendName=${encodeURIComponent(
+              props.backendName
+            )}&modeName=${encodeURIComponent(
+              props.modeName
+            )}&dtypeName=${encodeURIComponent(
+              props.dtypeName
+            )}&deviceName=${encodeURIComponent(
+              props.deviceName
+            )}&archName=${encodeURIComponent(props.archName)}`}
+          />
+    )
+  }
+  if (isLoading){
+    return (
+      <LoadingPage />
+    )
+  }
 
   if (data === undefined || data.length === 0) {
     return (
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
+            {props.benchmarkName ? props.benchmarkName : REPO_TO_BENCHMARKS[props.repoName]}{" "}
             dashboard
           </Typography>
-          <CopyLink
-            textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-              startTime.toString()
-            )}&stopTime=${encodeURIComponent(
-              stopTime.toString()
-            )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
-              repoName
-            )}&benchmarkName=${encodeURIComponent(
-              benchmarkName
-            )}&modelName=${encodeURIComponent(
-              modelName
-            )}&backendName=${encodeURIComponent(
-              backendName
-            )}&modeName=${encodeURIComponent(
-              modeName
-            )}&dtypeName=${encodeURIComponent(
-              dtypeName
-            )}&deviceName=${encodeURIComponent(
-              deviceName
-            )}&archName=${encodeURIComponent(archName)}`}
-          />
-        </Stack>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <TimeRangePicker
-            startTime={startTime}
-            setStartTime={setStartTime}
-            stopTime={stopTime}
-            setStopTime={setStopTime}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
-            setGranularity={setGranularity}
-          />
-          <GranularityPicker
-            granularity={granularity}
-            setGranularity={setGranularity}
-          />
+          {formLink(props,baseUrl)}
         </Stack>
         <Stack>
           <>
             Found no records for{" "}
-            {(benchmarkName
-              ? [benchmarkName]
-              : REPO_TO_BENCHMARKS[repoName]
+            {(props.benchmarkName
+              ? [props.benchmarkName]
+              : REPO_TO_BENCHMARKS[props.repoName]
             ).join(", ")}
             , please wait a min or select different time range
           </>
@@ -263,94 +286,38 @@ export default function LlmsPage() {
   ]);
   const metricNames: string[] = _.uniq(data.map((r: any) => r.metric));
 
+  const config = {
+    modeNames,
+    backendNames,
+    deviceNames,
+    modelNames,
+    dtypeNames,
+  }
+
+
+  function getBenchMarkName(benchmarkName: string | any) {
+    return (
+      <Typography fontSize={"2rem"} fontWeight={"bold"}>
+      {props.benchmarkName ? props.benchmarkName : REPO_TO_BENCHMARKS[props.repoName]}{" "}
+      dashboard
+    </Typography>
+    )
+  }
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]}{" "}
-          dashboard
-        </Typography>
-        <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-            startTime.toString()
-          )}&stopTime=${encodeURIComponent(
-            stopTime.toString()
-          )}&granularity=${granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
-            repoName
-          )}&benchmarkName=${encodeURIComponent(
-            benchmarkName
-          )}&modelName=${encodeURIComponent(
-            modelName
-          )}&backendName=${encodeURIComponent(
-            backendName
-          )}&modeName=${encodeURIComponent(
-            modeName
-          )}&dtypeName=${encodeURIComponent(
-            dtypeName
-          )}&deviceName=${encodeURIComponent(
-            deviceName
-          )}&archName=${encodeURIComponent(archName)}`}
-        />
+        {getBenchMarkName(props.benchmarkName)}
+        {formLink(props,baseUrl)}
       </Stack>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <TimeRangePicker
-          startTime={startTime}
-          setStartTime={setStartTime}
-          stopTime={stopTime}
-          setStopTime={setStopTime}
-          timeRange={timeRange}
-          setTimeRange={setTimeRange}
-          setGranularity={setGranularity}
-        />
-        <GranularityPicker
-          granularity={granularity}
-          setGranularity={setGranularity}
-        />
-        <DTypePicker
-          dtype={modelName}
-          setDType={setModelName}
-          dtypes={modelNames}
-          label={"Model"}
-        />
-        {backendNames.length > 1 && (
-          <DTypePicker
-            dtype={backendName}
-            setDType={setBackendName}
-            dtypes={backendNames}
-            label={"Backend"}
-          />
-        )}
-        {modeNames.length > 1 && (
-          <DTypePicker
-            dtype={modeName}
-            setDType={setModeName}
-            dtypes={modeNames}
-            label={"Mode"}
-          />
-        )}
-        {dtypeNames.length > 1 && (
-          <DTypePicker
-            dtype={dtypeName}
-            setDType={setDTypeName}
-            dtypes={dtypeNames}
-            label={"DType"}
-          />
-        )}
-        {repoName === "pytorch/executorch" && (
-          <DTypePicker
-            dtype={archName}
-            setDType={setArchName}
-            dtypes={[DEFAULT_ARCH_NAME, ...ARCH_NAMES[repoName]]}
-            label={"Platform"}
-          />
-        )}
-        <DTypePicker
-          dtype={deviceName}
-          setDType={setDeviceName}
-          dtypes={deviceNames}
-          label={"Device"}
-        />
-        <BranchAndCommitPicker
+      <LlmsDropdowns
+      setProps={function (props: LlmsGraphPanelProps): void {
+        setProps(props);
+      } }
+      props={props}
+      optionListMap={config} />
+
+      <Stack>
+      <BranchAndCommitPicker
           queryName={"oss_ci_benchmark_branches"}
           queryParams={queryParams}
           branch={lBranch}
@@ -378,17 +345,17 @@ export default function LlmsPage() {
       </Stack>
       <LLMsReport
         queryParams={queryParams}
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
-        repoName={repoName}
-        benchmarkName={benchmarkName}
-        modelName={modelName}
-        backendName={backendName}
-        modeName={modeName}
-        dtypeName={dtypeName}
-        deviceName={deviceName}
-        archName={archName}
+        startTime={props.startTime}
+        stopTime={props.stopTime}
+        granularity={props.granularity}
+        repoName={props.repoName}
+        benchmarkName={props.benchmarkName}
+        modelName={props.modelName}
+        backendName={props.backendName}
+        modeName={props.modeName}
+        dtypeName={props.dtypeName}
+        deviceName={props.deviceName}
+        archName={props.archName}
         metricNames={metricNames}
         lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
         rBranchAndCommit={{ branch: rBranch, commit: rCommit }}

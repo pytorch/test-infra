@@ -1,6 +1,6 @@
-import CopyLink from "components/CopyLink";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
-import { LlmsGraphPanelProps } from "../common";
 
 export const REPOS = ["pytorch/pytorch", "pytorch/executorch", "pytorch/ao"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
@@ -9,6 +9,10 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/ao": ["TorchAO benchmark"],
   "vllm-project/vllm": ["vLLM benchmark"],
 };
+
+
+
+
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
   "mean_itl_ms",
@@ -24,7 +28,6 @@ export const EXCLUDED_METRICS: string[] = [
   // https://github.com/pytorch/executorch/issues/8576#issuecomment-2669706120
   "generate_time(ms)",
 ];
-export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
 export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Memory bandwidth (GB/s)",
@@ -88,11 +91,6 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 export const UNIT_FOR_METRIC: { [k: string]: string } = {
   "Speedup (%)": "%",
 };
-export const DEFAULT_DEVICE_NAME = "All Devices";
-export const DEFAULT_ARCH_NAME = "All Platforms";
-export const DEFAULT_DTYPE_NAME = "All DType";
-export const DEFAULT_MODE_NAME = "All Modes";
-export const DEFAULT_BACKEND_NAME = "All Backends";
 
 // Only used by ExecuTorch for now
 export const ARCH_NAMES: { [k: string]: string[] } = {
@@ -124,28 +122,33 @@ export interface BranchAndCommitPerfData extends BranchAndCommit {
   data: LLMsBenchmarkData[];
 }
 
-function formLink(props: LlmsGraphPanelProps) {
-  return (
-    <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-            props.startTime.toString()
-          )}&stopTime=${encodeURIComponent(
-            props.stopTime.toString()
-          )}&granularity=${props.granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
-            props.repoName
-          )}&benchmarkName=${encodeURIComponent(
-            props.benchmarkName
-          )}&modelName=${encodeURIComponent(
-            props.modelName
-          )}&backendName=${encodeURIComponent(
-            props.backendName
-          )}&modeName=${encodeURIComponent(
-            props.modeName
-          )}&dtypeName=${encodeURIComponent(
-            props.dtypeName
-          )}&deviceName=${encodeURIComponent(
-            props.deviceName
-          )}&archName=${encodeURIComponent(props.archName)}`}
-        />
-  )
+/**
+ * The props for the LLMs graph panel.
+ * @param startTime The start time of the graph.
+ * @param stopTime The stop time of the graph.
+ * @param timeRange The time range of the graph.
+ * @param repoName The name of the repository.
+ * @param benchmarkName The name of the benchmark.
+ * @param modelName The name of the model.
+ * @param backendName The name of the backend.
+ * @param modeName The name of the mode.
+ * @param dtypeName The name of the data type.
+ * @param deviceName The name of the device.
+ * @param archName The name of the architecture.
+ * @param granularity The granularity of the graph.
+ *
+ */
+export interface LlmsGraphPanelProps {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
+  timeRange: number;
+  repoName: string;
+  benchmarkName: string;
+  modelName: string;
+  backendName: string;
+  modeName: string;
+  dtypeName: string;
+  deviceName: string;
+  archName: string;
+  granularity: Granularity;
 }
