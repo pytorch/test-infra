@@ -219,6 +219,7 @@ export function TimeRangePicker({
   }, [timeRange, updateTimeRange]);
 
   function handleChange(e: SelectChangeEvent<number>) {
+    console.log(e.target.value);
     setTimeRange(e.target.value as number);
     // The user wants to set a custom time, don't change the start and stop
     // time.

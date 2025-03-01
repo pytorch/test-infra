@@ -1,5 +1,3 @@
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
 import { BranchAndCommit } from "lib/types";
 
 export const REPOS = ["pytorch/pytorch", "pytorch/executorch", "pytorch/ao"];
@@ -9,9 +7,6 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/ao": ["TorchAO benchmark"],
   "vllm-project/vllm": ["vLLM benchmark"],
 };
-
-
-
 
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
@@ -120,35 +115,4 @@ export interface LLMsBenchmarkData {
 
 export interface BranchAndCommitPerfData extends BranchAndCommit {
   data: LLMsBenchmarkData[];
-}
-
-/**
- * The props for the LLMs graph panel.
- * @param startTime The start time of the graph.
- * @param stopTime The stop time of the graph.
- * @param timeRange The time range of the graph.
- * @param repoName The name of the repository.
- * @param benchmarkName The name of the benchmark.
- * @param modelName The name of the model.
- * @param backendName The name of the backend.
- * @param modeName The name of the mode.
- * @param dtypeName The name of the data type.
- * @param deviceName The name of the device.
- * @param archName The name of the architecture.
- * @param granularity The granularity of the graph.
- *
- */
-export interface LlmsGraphPanelProps {
-  startTime: dayjs.Dayjs;
-  stopTime: dayjs.Dayjs;
-  timeRange: number;
-  repoName: string;
-  benchmarkName: string;
-  modelName: string;
-  backendName: string;
-  modeName: string;
-  dtypeName: string;
-  deviceName: string;
-  archName: string;
-  granularity: Granularity;
 }

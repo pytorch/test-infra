@@ -10,7 +10,7 @@ import {
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
-} from "components/benchmark/llms/components/common";
+} from "lib/benchmark/llms/common";
 
 import {
   Granularity,

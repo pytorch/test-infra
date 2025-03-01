@@ -1,18 +1,16 @@
-import { REPO_TO_BENCHMARKS } from "./common";
-
 interface LLMsPickerQueryParams {
-    stringValueParams: StringItem[];
-    arrayValueParams: ArrayItem[];
+  stringValueParams: StringItem[];
+  arrayValueParams: ArrayItem[];
 }
 
-interface StringItem{
-    label: string;
-    value: string;
+interface StringItem {
+  label: string;
+  value: string;
 }
 
-interface ArrayItem{
-    label: string;
-    value: string[];
+interface ArrayItem {
+  label: string;
+  value: string[];
 }
 
 // Default droplist initial values

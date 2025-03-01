@@ -11,7 +11,7 @@ import {
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
-} from "./common";
+} from "../../../../lib/benchmark/llms/common";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -65,7 +65,6 @@ export function LLMsSummaryPanel({
     lPerfData,
     rPerfData
   );
-  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",

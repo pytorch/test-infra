@@ -1,6 +1,4 @@
-import CopyLink from "components/CopyLink";
 import { BranchAndCommit } from "lib/types";
-import { LlmsGraphPanelProps } from "../common";
 
 export const REPOS = ["pytorch/pytorch", "pytorch/executorch", "pytorch/ao"];
 export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
@@ -122,30 +120,4 @@ export interface LLMsBenchmarkData {
 
 export interface BranchAndCommitPerfData extends BranchAndCommit {
   data: LLMsBenchmarkData[];
-}
-
-function formLink(props: LlmsGraphPanelProps) {
-  return (
-    <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-            props.startTime.toString()
-          )}&stopTime=${encodeURIComponent(
-            props.stopTime.toString()
-          )}&granularity=${props.granularity}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&repoName=${encodeURIComponent(
-            props.repoName
-          )}&benchmarkName=${encodeURIComponent(
-            props.benchmarkName
-          )}&modelName=${encodeURIComponent(
-            props.modelName
-          )}&backendName=${encodeURIComponent(
-            props.backendName
-          )}&modeName=${encodeURIComponent(
-            props.modeName
-          )}&dtypeName=${encodeURIComponent(
-            props.dtypeName
-          )}&deviceName=${encodeURIComponent(
-            props.deviceName
-          )}&archName=${encodeURIComponent(props.archName)}`}
-        />
-  )
 }
