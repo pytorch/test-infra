@@ -1,11 +1,16 @@
+import { geomean } from "lib/benchmark/compilerUtils";
 import {
   BranchAndCommitPerfData,
   LLMsBenchmarkData,
-} from "components/benchmark/llms/components/common";
-import { geomean } from "lib/benchmark/compilerUtils";
+} from "lib/benchmark/llms/common";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
+import { getCustomConfig } from "./utils/configs";
+import {
+  getDefaultLLMsBenchmarkPropsQueryParameter,
+  LLMsBenchmarkProps,
+} from "./utils/types";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
@@ -27,6 +32,26 @@ export function useBenchmark(
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 }
+
+export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
+  let defaultParams = getDefaultLLMsBenchmarkPropsQueryParameter(props);
+  const config = getCustomConfig(props.repoName);
+  if (config) {
+    defaultParams = config.processPropsQueryParam(defaultParams, props);
+  }
+  return defaultParams;
+}
+
+export const useBenchmarkPropsData = (queryParams: any) => {
+  const queryName = "oss_ci_benchmark_names";
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  return useSWR(url, fetcher, {
+    // no need
+    refreshInterval: 60 * 60 * 1000, // refresh every
+  });
+};
 
 export function combineLeftAndRight(
   repoName: string,
