@@ -61,7 +61,7 @@ export default function LLMsBenchmarkPage() {
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
-  // wrap the page in the context provider for benchmark props, pass initial state in runtime for benchmark props
+  // pass initial state in runtime for benchmark props
   return (
     <MainPage
       props={props}
