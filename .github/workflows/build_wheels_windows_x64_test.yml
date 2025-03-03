@@ -88,7 +88,7 @@ jobs:
               throw "Invalid repository name: $repository_name"
           }
           echo "Test Print"
-          dir ${{ env.SRC_DIR }}\dist
+          dir ${{ env.SRC_DIR }}
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
