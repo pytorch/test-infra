@@ -73,7 +73,8 @@ export default function LLMsPage() {
   );
 }
 
-const RenderWhenReady = ({
+// render the page before the data is loaded or when an error occured
+const PrefetchRender = ({
   children,
   props,
   dispatch,
@@ -137,9 +138,9 @@ const MainPage = ({
   // give user choice for time range picker
   if (error) {
     return (
-      <RenderWhenReady props={props} dispatch={dispatch} baseUrl={baseUrl}>
+      <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Error loading data for{" "}
+          Error loading data for {" "}
           {(props.benchmarkName
             ? [props.benchmarkName]
             : REPO_TO_BENCHMARKS[props.repoName]
@@ -147,7 +148,7 @@ const MainPage = ({
           , please select different time range, if this happens again, please
           reach out to the pytorch team.
         </>
-      </RenderWhenReady>
+      </PrefetchRender>
     );
   }
 
@@ -155,16 +156,16 @@ const MainPage = ({
   if (!data && isLoading) {
     return (
       <div>
-        <RenderWhenReady props={props} dispatch={dispatch} baseUrl={baseUrl}>
+        <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
           <>
-            loading data for{" "}
+            Loading data for{" "}
             {(props.benchmarkName
               ? [props.benchmarkName]
               : REPO_TO_BENCHMARKS[props.repoName]
             ).join(", ")}
             , please wait a min
           </>
-        </RenderWhenReady>
+        </PrefetchRender>
         <div>
           <LoadingPage />
         </div>
@@ -175,16 +176,16 @@ const MainPage = ({
   // no prop data found for the given time range
   if (data.length === 0) {
     return (
-      <RenderWhenReady props={props} dispatch={dispatch} baseUrl={baseUrl}>
+      <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
           Found no records for{" "}
           {(props.benchmarkName
             ? [props.benchmarkName]
             : REPO_TO_BENCHMARKS[props.repoName]
           ).join(", ")}
-          , please wait a min or select different time range
+          , please select different time range
         </>
-      </RenderWhenReady>
+      </PrefetchRender>
     );
   }
 
@@ -239,7 +240,7 @@ function resetProps(
       newProps.timeRange = -1;
     }
   }
-  
+
   const granularity: Granularity =
     (urlQuery.granularity as Granularity) ?? undefined;
   if (granularity !== undefined) {
