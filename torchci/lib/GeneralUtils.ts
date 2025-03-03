@@ -86,8 +86,20 @@ export async function hasWritePermissionsUsingOctokit(
   return permissions === "admin" || permissions === "write";
 }
 
-// Wrapper for useSWR that is useful for ClickHouse queries
-export function useClickHouse<T = any>(
+/**
+ * This hook function is a convenience wrapper for useSWR that fetches data from
+ * the ClickHouse API.  Handles things like encoding the query name and
+ * parameters into the URL in the correct format.
+ *
+ * @param queryName Name of query, ex "hud_query"
+ * @param parameters Parameters, in {key: value} format. If the value is not a
+ * string, please stringify (usually with JSON.stringify)
+ * @param condition Condition to fetch data. Used with useSWR for conditional
+ * fetching. See
+ * https://swr.vercel.app/docs/conditional-fetching.en-US#conditional
+ * @returns The same as useSWR, with the type being any[] or T[] if T is provided
+ */
+export function useClickHouseAPI<T = any>(
   queryName: string,
   parameters: { [key: string]: string },
   condition: boolean = true
@@ -102,8 +114,21 @@ export function useClickHouse<T = any>(
   );
 }
 
-// Immutable version of the above
-export function useClickHouseImmutable<T = any>(
+/**
+ * This hook function is a convenience wrapper for useSWRImmutable that fetches
+ * data from the ClickHouse API. This is the same as useClickHouseAPI, but with
+ * the immutable version of useSWR. Handles things like encoding the query name
+ * and parameters into the URL in the correct format.
+ *
+ * @param queryName Name of query, ex "hud_query"
+ * @param parameters Parameters, in {key: value} format. If the value is not a
+ * string, please stringify (usually with JSON.stringify)
+ * @param condition Condition to fetch data. Used with useSWR for conditional
+ * fetching. See
+ * https://swr.vercel.app/docs/conditional-fetching.en-US#conditional
+ * @returns The same as useSWR, with the type being any[] or T[] if T is provided
+ */
+export function useClickHouseAPIImmutable<T = any>(
   queryName: string,
   parameters: { [key: string]: string },
   condition: boolean = true

@@ -12,7 +12,7 @@ import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPan
 import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useClickHouseImmutable } from "lib/GeneralUtils";
+import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { TimeRangePicker } from "./metrics";
@@ -72,10 +72,10 @@ export default function Page() {
     stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
   const { data: stepsData, isLoading: stepsDataIsLoading } =
-    useClickHouseImmutable("build_time_metrics/steps", timeParams);
+    useClickHouseAPIImmutable("build_time_metrics/steps", timeParams);
 
   const { data: buildData, isLoading: buildDataIsLoading } =
-    useClickHouseImmutable("build_time_metrics/overall", {
+    useClickHouseAPIImmutable("build_time_metrics/overall", {
       ...timeParams,
       granularity: "day",
     });
@@ -83,7 +83,7 @@ export default function Page() {
   const {
     data: selectedBuildSccacheStats,
     isLoading: selectedBuildSccacheStatsIsLoading,
-  } = useClickHouseImmutable(
+  } = useClickHouseAPIImmutable(
     "build_time_metrics/sccache_stats",
     { jobName: selectedBuild as string, ...timeParams },
     selectedBuild != null && openSccacheStats
