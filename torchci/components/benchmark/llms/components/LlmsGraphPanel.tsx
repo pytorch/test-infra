@@ -30,7 +30,7 @@ import {
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export function LLMsGraphPanel({
+export default function LLMsGraphPanel({
   queryParams,
   granularity,
   repoName,

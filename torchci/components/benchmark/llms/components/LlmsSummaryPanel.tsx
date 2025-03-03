@@ -25,7 +25,7 @@ const getDeviceArch = (
   return a === "" ? d : `${d} (${a})`;
 };
 
-export function LLMsSummaryPanel({
+export default function LLMsSummaryPanel({
   startTime,
   stopTime,
   granularity,
