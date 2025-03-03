@@ -19,5 +19,5 @@ ORDER BY (
     job_name,
     time_stamp
 )
-TTL toDate(time_stamp) + toIntervalYear(2)
+TTL toDate(time_stamp) + toIntervalYear(5)
 SETTINGS index_granularity = 8192
