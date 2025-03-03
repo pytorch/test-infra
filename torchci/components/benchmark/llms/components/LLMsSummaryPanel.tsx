@@ -4,14 +4,14 @@ import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { combineLeftAndRight } from "lib/benchmark/llms/llmUtils";
 import {
   BranchAndCommitPerfData,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
-} from "./common";
+} from "lib/benchmark/llms/common";
+import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -25,7 +25,7 @@ const getDeviceArch = (
   return a === "" ? d : `${d} (${a})`;
 };
 
-export function LLMsSummaryPanel({
+export default function LLMsSummaryPanel({
   startTime,
   stopTime,
   granularity,
@@ -65,7 +65,6 @@ export function LLMsSummaryPanel({
     lPerfData,
     rPerfData
   );
-  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",
