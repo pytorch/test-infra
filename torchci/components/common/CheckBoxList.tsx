@@ -25,7 +25,7 @@ export default function CheckBoxList({
   // and a list of checkboxes. Good for manual legends for charts
   const [filter, setFilter] = useState("");
   const filteredItems = Object.keys(items).filter((item) =>
-    item.includes(filter)
+    item.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
   );
 
   function toggleAllfilteredItems(checked: boolean) {

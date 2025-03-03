@@ -10,23 +10,27 @@ import {
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
-} from "components/benchmark/llms/common";
+} from "components/benchmark/llms/components/common";
+
 import {
   Granularity,
   seriesWithInterpolatedTimes,
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "lib/benchmark/aoUtils";
-import { computeGeomean, useBenchmark } from "lib/benchmark/llmUtils";
-import { BranchAndCommit } from "lib/types";
+} from "../../../../lib/benchmark/llms/aoUtils";
+import {
+  computeGeomean,
+  useBenchmark,
+} from "../../../../lib/benchmark/llms/llmUtils";
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export function GraphPanel({
+export function LLMsGraphPanel({
   queryParams,
   granularity,
   repoName,

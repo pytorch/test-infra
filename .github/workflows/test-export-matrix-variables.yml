@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-linux:
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     strategy:
       fail-fast: false
       matrix:
