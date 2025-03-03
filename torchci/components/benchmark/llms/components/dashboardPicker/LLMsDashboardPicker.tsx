@@ -1,12 +1,12 @@
 import { Divider } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
-import { DropdownGroupItem } from "lib/benchmark/llms/utils/types";
+import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
 import { Dispatch } from "react";
 import LLMsDropdownGroup from "./LLMsDropdownGroup";
-import { LLMsTimeRangePicker } from "./LLMsTimeRangePickers";
+import { LLMsTimeRangePicker } from "./LLMsTimeRangePicker";
 
-export const LLmsUIPicker = ({
+export const LLMsDashboardPicker = ({
   options,
   props,
   dispatch,

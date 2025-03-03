@@ -12,20 +12,26 @@ import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
 import { useEffect, useReducer, useState } from "react";
 import LLMsReport from "./components/LLMsReport";
-import { propsReducer } from "./context/BencharkProps";
+import { propsReducer } from "./context/BenchmarkProps";
 
 import LoadingPage from "components/LoadingPage";
 import {
+  DEFAULT_ARCH_NAME,
+  DEFAULT_BACKEND_NAME,
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
+  DEFAULT_MODE_NAME,
+  DEFAULT_MODEL_NAME,
+  REPO_TO_BENCHMARKS,
+} from "lib/benchmark/llms/common";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
+import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
+import {
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmarkPropsData,
-} from "lib/benchmark/llms/llmUtils";
-import {
-  getBenchmarkDropdownFeatures,
-  LLMsBenchmarkProps,
-} from "lib/benchmark/llms/utils/types";
-import { LLMsTimeRangePicker } from "./components/dropbowns/LLMsTimeRangePickers";
-import { LLmsUIPicker } from "./components/dropbowns/LLMsUIPickers";
-import { DEFAULT_ARCH_NAME, DEFAULT_BACKEND_NAME, DEFAULT_DEVICE_NAME, DEFAULT_DTYPE_NAME, DEFAULT_MODE_NAME, DEFAULT_MODEL_NAME, REPO_TO_BENCHMARKS } from "lib/benchmark/llms/common";
+} from "lib/benchmark/llms/utils/llmUtils";
+import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
+import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
 
 export default function LLMsPage() {
   const router = useRouter();
@@ -183,7 +189,7 @@ const MainPage = ({
   }
 
   const options = data;
-  const dropdownMapList = getBenchmarkDropdownFeatures(options,props.repoName);
+  const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
   return (
     <div>
@@ -191,7 +197,7 @@ const MainPage = ({
         {getBenchMarkName(props.benchmarkName, props.repoName)}
         {formLink(props, baseUrl)}
       </Stack>
-      <LLmsUIPicker
+      <LLMsDashboardPicker
         options={dropdownMapList}
         props={props}
         dispatch={dispatch}
@@ -233,6 +239,7 @@ function resetProps(
       newProps.timeRange = -1;
     }
   }
+  
   const granularity: Granularity =
     (urlQuery.granularity as Granularity) ?? undefined;
   if (granularity !== undefined) {

@@ -1,13 +1,22 @@
+import dayjs from "dayjs";
 import { geomean } from "lib/benchmark/compilerUtils";
+import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
 import {
-  LLMsBenchmarkProps,
-} from "./utils/types";
+  BranchAndCommitPerfData,
+  DEFAULT_ARCH_NAME,
+  DEFAULT_BACKEND_NAME,
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
+  DEFAULT_MODE_NAME,
+  DEFAULT_MODEL_NAME,
+  EXCLUDED_METRICS,
+  LLMsBenchmarkData,
+  REPO_TO_BENCHMARKS,
+} from "../common";
+import { LLMsBenchmarkProps } from "../types/dashboardProps";
 import { TORCHAO_BASELINE } from "./aoUtils";
-import dayjs from "dayjs";
-import { BranchAndCommitPerfData, DEFAULT_ARCH_NAME, DEFAULT_BACKEND_NAME, DEFAULT_DEVICE_NAME, DEFAULT_DTYPE_NAME, DEFAULT_MODE_NAME, DEFAULT_MODEL_NAME, EXCLUDED_METRICS, LLMsBenchmarkData, REPO_TO_BENCHMARKS } from "./common";
-import { fetcher } from "lib/GeneralUtils";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
@@ -34,9 +43,7 @@ export function useBenchmark(
  * generate query params for benchmark page.
  * @param props LLMsBenchmarkProps
  */
-export function getLLMsBenchmarkPropsQueryParameter(
-  props: LLMsBenchmarkProps
-) {
+export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
   const queryParams = {
     arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
     device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,

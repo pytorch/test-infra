@@ -1,11 +1,11 @@
 import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { useBenchmark } from "lib/benchmark/llms/llmUtils";
+import { useBenchmark } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "../../../../lib/benchmark/llms/aoUtils";
+} from "../../../../lib/benchmark/llms/utils/aoUtils";
 import { LLMsGraphPanel } from "./LLMsGraphPanel";
 import { LLMsSummaryPanel } from "./LLMsSummaryPanel";
 

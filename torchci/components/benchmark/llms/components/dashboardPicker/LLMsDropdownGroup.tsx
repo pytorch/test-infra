@@ -1,9 +1,7 @@
 import { Stack } from "@mui/system";
 import { DTypePicker } from "components/benchmark/ModeAndDTypePicker";
-import {
-  DropdownGroupItem,
-  LLMsBenchmarkProps,
-} from "lib/benchmark/llms/utils/types";
+import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 
 export default function LLMsDropdownGroup({
   onChange,

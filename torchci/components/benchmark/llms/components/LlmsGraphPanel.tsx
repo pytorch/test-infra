@@ -11,17 +11,22 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_MODEL_NAME,
+  LLMsBenchmarkData,
+  METRIC_DISPLAY_HEADERS,
+  METRIC_DISPLAY_SHORT_HEADERS,
+} from "lib/benchmark/llms/common";
 import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "../../../../lib/benchmark/llms/aoUtils";
+} from "../../../../lib/benchmark/llms/utils/aoUtils";
 import {
   computeGeomean,
   useBenchmark,
-} from "../../../../lib/benchmark/llms/llmUtils";
-import { DEFAULT_DEVICE_NAME, DEFAULT_MODEL_NAME } from "../llmsPickerHelper";
-import { LLMsBenchmarkData, METRIC_DISPLAY_HEADERS, METRIC_DISPLAY_SHORT_HEADERS } from "lib/benchmark/llms/common";
+} from "../../../../lib/benchmark/llms/utils/llmUtils";
 
 const GRAPH_ROW_HEIGHT = 245;
 

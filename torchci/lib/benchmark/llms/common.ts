@@ -86,6 +86,7 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 export const UNIT_FOR_METRIC: { [k: string]: string } = {
   "Speedup (%)": "%",
 };
+
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";
