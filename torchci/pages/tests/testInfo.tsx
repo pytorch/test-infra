@@ -90,27 +90,57 @@ const FailuresTimeline = memo(
         stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
       }
     );
-    data = (data || [])
-      .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
-      .map((d) => {
-        d.date = dayjs(d.date).format("YYYY-MM-DD HH:mm");
-        return d;
-      });
-    const xAxis = [
-      {
-        data: data.map((d) => d.date),
-        scaleType: "band",
-      },
-    ];
-    const series = [
-      {
-        label: "Failures",
-        stack: "total",
-        data: data.map((d) => d.count),
-        color: RED,
-      },
-    ];
 
+    data = (data || []).map((d) => {
+      d.date = dayjs(d.date).format("YYYY-MM-DD HH:mm");
+      return d;
+    });
+
+    function getAxisAndSeries(data: FailuresTimelineData[]) {
+      // Get the axis and the series in a format that is accepted by the chart.
+      // Also fill in missing dates with 0s
+
+      // Generate all dates of the granularity between the earliest and latest
+      // dates found in the data
+      const start = _.minBy(data, (d) => dayjs(d.date))?.date;
+      const end = _.maxBy(data, (d) => dayjs(d.date))?.date;
+      const allDates = [];
+      let current = dayjs(start);
+      while (current <= dayjs(end)) {
+        allDates.push(current.format("YYYY-MM-DD HH:mm"));
+        current = current.add(1, granularity as any);
+      }
+
+      // Fill in missing dates with 0s
+      const dataMap = _.keyBy(data, (d) =>
+        dayjs(d.date).format("YYYY-MM-DD HH:mm")
+      );
+      data = allDates.map((date) => {
+        return {
+          date,
+          count: dataMap[date]?.count ?? 0,
+          shas: dataMap[date]?.shas ?? [],
+        };
+      });
+
+      const xAxis = [
+        {
+          data: data.map((d) => d.date),
+          scaleType: "band",
+        },
+      ];
+      const series = [
+        {
+          label: "Failures",
+          stack: "total",
+          data: data.map((d) => d.count),
+          color: RED,
+        },
+      ];
+      return { xAxis, series };
+    }
+
+    const { series, xAxis } = getAxisAndSeries(data);
     return (
       <Stack spacing={2}>
         <h2>Failures Timeline (Beta)</h2>
