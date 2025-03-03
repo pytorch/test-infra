@@ -38,7 +38,9 @@ env:
   BUILD_TYPE: ${{ inputs.build_type }}
   BUILD_VERSION : ${{ inputs.torchaudio_build_version }}
 
-permissions: write-all
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build:
