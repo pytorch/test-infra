@@ -32,7 +32,7 @@ env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
   SCRIPTS_DIR: .github\scripts\winx64test\
-  SRC_DIR: src\
+  SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
   BUILD_TYPE: ${{ inputs.build_type }}
@@ -77,11 +77,13 @@ jobs:
         shell: pwsh
         run: |
           $repository_name = "${{ inputs.repository_name }}".Split("/")[-1]  # Extract 'audio' or 'vision'
+          echo "$repository_name"
           echo "repository_name=$repository_name" | Out-File -FilePath $env:GITHUB_ENV -Append
           if ($repository_name -eq "audio") {
-              cmd //c ${{ env.SCRIPTS_DIR }}\build_audio.bat
+              & "${{ env.SCRIPTS_DIR }}\build_audio.bat"
           } elseif ($repository_name -eq "vision") {
-              cmd //c ${{ env.SCRIPTS_DIR }}\build_vision.bat
+              & "${{ env.SCRIPTS_DIR }}\build_vision.bat"
+              echo "Done Building Vision""
           } else {
               throw "Invalid repository name: $repository_name"
           }
