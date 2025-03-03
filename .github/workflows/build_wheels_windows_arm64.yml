@@ -42,8 +42,8 @@ permissions: write-all
 
 jobs:
   build:
+    runs-on: "windows-11-arm64"
     name: Build wheel
-    runs-on: [TODO WAIT FOR NAME]
     steps:
       - name: Git checkout workflow
         uses: actions/checkout@v4
