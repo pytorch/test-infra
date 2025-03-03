@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repo_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repo_name }}
-  SCRIPTS_DIR: .github\scripts\winxm64test\
+  SCRIPTS_DIR: .github\scripts\winx64test\
   SRC_DIR: src_audio
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
