@@ -7,15 +7,6 @@ import {
 import CopyLink from "components/CopyLink";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import {
-  DEFAULT_ARCH_NAME,
-  DEFAULT_BACKEND_NAME,
-  DEFAULT_DEVICE_NAME,
-  DEFAULT_DTYPE_NAME,
-  DEFAULT_MODE_NAME,
-  DEFAULT_MODEL_NAME,
-  REPO_TO_BENCHMARKS,
-} from "lib/benchmark/llms/common";
 import _, { cloneDeep } from "lodash";
 import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
@@ -28,13 +19,13 @@ import {
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmarkPropsData,
 } from "lib/benchmark/llms/llmUtils";
-import { getCustomConfig } from "lib/benchmark/llms/utils/configs";
 import {
+  getBenchmarkDropdownFeatures,
   LLMsBenchmarkProps,
-  toDefaultDropdownMapItems,
 } from "lib/benchmark/llms/utils/types";
 import { LLMsTimeRangePicker } from "./components/dropbowns/LLMsTimeRangePickers";
 import { LLmsUIPicker } from "./components/dropbowns/LLMsUIPickers";
+import { DEFAULT_ARCH_NAME, DEFAULT_BACKEND_NAME, DEFAULT_DEVICE_NAME, DEFAULT_DTYPE_NAME, DEFAULT_MODE_NAME, DEFAULT_MODEL_NAME, REPO_TO_BENCHMARKS } from "lib/benchmark/llms/common";
 
 export default function LLMsPage() {
   const router = useRouter();
@@ -192,16 +183,8 @@ const MainPage = ({
   }
 
   const options = data;
-  const dropdownMapList = toDefaultDropdownMapItems(options);
-  const config = getCustomConfig(props.repoName);
-
+  const dropdownMapList = getBenchmarkDropdownFeatures(options,props.repoName);
   const metricNames = getMetricNames(data);
-
-  // check if a custom dropdown options is defined for the repo and if so, process it
-  if (config && config.hasCustomizedPickerProcess()) {
-    config.processPickerListMapModifier(dropdownMapList);
-  }
-
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

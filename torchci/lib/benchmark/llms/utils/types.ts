@@ -1,16 +1,9 @@
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import _ from "lodash";
-import {
-  DEFAULT_ARCH_NAME,
-  DEFAULT_BACKEND_NAME,
-  DEFAULT_DEVICE_NAME,
-  DEFAULT_DTYPE_NAME,
-  DEFAULT_MODE_NAME,
-  DEFAULT_MODEL_NAME,
-  EXCLUDED_METRICS,
-  REPO_TO_BENCHMARKS,
-} from "../common";
+
+import { TORCHAO_BASELINE } from "../aoUtils";
+import { DEFAULT_ARCH_NAME, DEFAULT_BACKEND_NAME, DEFAULT_DEVICE_NAME, DEFAULT_DTYPE_NAME, DEFAULT_MODE_NAME, DEFAULT_MODEL_NAME } from "../common";
 
 /**
  * The props for the LLMs Benchmark props. this is used to pass the props to the LLMs Benchmark components.
@@ -75,12 +68,15 @@ export interface DropdownGroupItem {
   labelName: string;
 }
 
+
+// TODO(elainewy): process the data for each feature more dynamically
 /**
  * toDefaultDropdownMapItems converts the optoins to UI-render-friendly dropdownGroupItems
  * @param option
  * @returns
  */
-export function toDefaultDropdownMapItems(data: any): DropdownGroupItem[] {
+export function getBenchmarkDropdownFeatures(data: any, repoName:string): DropdownGroupItem[] {
+
   const modelNameList: string[] = [
     DEFAULT_MODEL_NAME,
     ...(_.uniq(data.map((r: any) => r.model)) as string[]),
@@ -102,7 +98,7 @@ export function toDefaultDropdownMapItems(data: any): DropdownGroupItem[] {
     ...(_.uniq(data.map((r: any) => r.dtype)) as string[]),
   ]);
 
-  return [
+  let items:DropdownGroupItem[] = [
     {
       type: DropdownGroupItemType.ModelName,
       options: modelNameList,
@@ -123,42 +119,26 @@ export function toDefaultDropdownMapItems(data: any): DropdownGroupItem[] {
       options: dtypeNameList,
       labelName: "Dtype",
     },
-    {
-      type: DropdownGroupItemType.ArchName,
-      options: [],
-      labelName: "Platform",
-    },
-    {
+  ];
+
+  // TODO(elainewy): add config to handle repos-specific logics, this is only temporary
+  const deviceFeature: DropdownGroupItem=
+  {
       type: DropdownGroupItemType.DeviceName,
       options: deviceNameList,
       labelName: "Device",
-    },
-  ];
-}
+  }
 
-/**
- * generate default query params for clickhouse using the props of the LLMsBenchmarkpage
- * @param props LLMsBenchmarkProps
- */
-export function getDefaultLLMsBenchmarkPropsQueryParameter(
-  props: LLMsBenchmarkProps
-) {
-  const queryParams = {
-    arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
-    device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
-    mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
-    dtypes: props.dtypeName === DEFAULT_DTYPE_NAME ? [] : [props.dtypeName],
-    excludedMetrics: EXCLUDED_METRICS,
-    benchmarks: props.benchmarkName
-      ? [props.benchmarkName]
-      : REPO_TO_BENCHMARKS[props.repoName],
-    granularity: props.granularity,
-    models: props.modelName === DEFAULT_MODEL_NAME ? [] : [props.modelName],
-    backends:
-      props.backendName === DEFAULT_BACKEND_NAME ? [] : [props.backendName],
-    repo: props.repoName,
-    startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-  };
-  return queryParams;
+  // TODO(elainewy): add config to handle repos-specific logics
+  if (repoName === "pytorch/executorch") {
+    const archFeature = {
+      type: DropdownGroupItemType.ArchName,
+      options: [DEFAULT_ARCH_NAME, "Android", "iOS"],
+      labelName: "Platform",
+    }
+    items = [...items, archFeature, deviceFeature]
+  } else{
+    items = [...items, deviceFeature]
+  }
+  return items;
 }

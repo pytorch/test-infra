@@ -4,13 +4,6 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import {
-  DEFAULT_DEVICE_NAME,
-  DEFAULT_MODEL_NAME,
-  LLMsBenchmarkData,
-  METRIC_DISPLAY_HEADERS,
-  METRIC_DISPLAY_SHORT_HEADERS,
-} from "lib/benchmark/llms/common";
 
 import {
   Granularity,
@@ -27,6 +20,8 @@ import {
   computeGeomean,
   useBenchmark,
 } from "../../../../lib/benchmark/llms/llmUtils";
+import { DEFAULT_DEVICE_NAME, DEFAULT_MODEL_NAME } from "../llmsPickerHelper";
+import { LLMsBenchmarkData, METRIC_DISPLAY_HEADERS, METRIC_DISPLAY_SHORT_HEADERS } from "lib/benchmark/llms/common";
 
 const GRAPH_ROW_HEIGHT = 245;
 

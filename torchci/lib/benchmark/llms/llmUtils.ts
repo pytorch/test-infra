@@ -1,16 +1,13 @@
 import { geomean } from "lib/benchmark/compilerUtils";
-import {
-  BranchAndCommitPerfData,
-  LLMsBenchmarkData,
-} from "lib/benchmark/llms/common";
-import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
-import { getCustomConfig } from "./utils/configs";
 import {
-  getDefaultLLMsBenchmarkPropsQueryParameter,
   LLMsBenchmarkProps,
 } from "./utils/types";
+import { TORCHAO_BASELINE } from "./aoUtils";
+import dayjs from "dayjs";
+import { BranchAndCommitPerfData, DEFAULT_ARCH_NAME, DEFAULT_BACKEND_NAME, DEFAULT_DEVICE_NAME, DEFAULT_DTYPE_NAME, DEFAULT_MODE_NAME, DEFAULT_MODEL_NAME, EXCLUDED_METRICS, LLMsBenchmarkData, REPO_TO_BENCHMARKS } from "./common";
+import { fetcher } from "lib/GeneralUtils";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
@@ -33,13 +30,36 @@ export function useBenchmark(
   });
 }
 
-export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
-  let defaultParams = getDefaultLLMsBenchmarkPropsQueryParameter(props);
-  const config = getCustomConfig(props.repoName);
-  if (config) {
-    defaultParams = config.processPropsQueryParam(defaultParams, props);
-  }
-  return defaultParams;
+/**
+ * generate query params for benchmark page.
+ * @param props LLMsBenchmarkProps
+ */
+export function getLLMsBenchmarkPropsQueryParameter(
+  props: LLMsBenchmarkProps
+) {
+  const queryParams = {
+    arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
+    device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
+    mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
+    dtypes:
+      props.dtypeName === DEFAULT_DTYPE_NAME
+        ? []
+        : props.repoName !== "pytorch/ao" // TODO(elainewy): add config to handle repos-specific logics
+        ? [props.dtypeName]
+        : [props.dtypeName, TORCHAO_BASELINE],
+    excludedMetrics: EXCLUDED_METRICS,
+    benchmarks: props.benchmarkName
+      ? [props.benchmarkName]
+      : REPO_TO_BENCHMARKS[props.repoName],
+    granularity: props.granularity,
+    models: props.modelName === DEFAULT_MODEL_NAME ? [] : [props.modelName],
+    backends:
+      props.backendName === DEFAULT_BACKEND_NAME ? [] : [props.backendName],
+    repo: props.repoName,
+    startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+  return queryParams;
 }
 
 export const useBenchmarkPropsData = (queryParams: any) => {

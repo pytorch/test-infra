@@ -1,4 +1,4 @@
-import { LLMsBenchmarkData } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkData } from "./common";
 
 export const TORCHAO_REPO = "pytorch/ao";
 // TODO (huydhn): Find a better way to abstract this baseline concept, for example,
