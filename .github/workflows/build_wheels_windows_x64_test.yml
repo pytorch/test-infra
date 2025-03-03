@@ -83,7 +83,7 @@ jobs:
               & "${{ env.SCRIPTS_DIR }}\build_audio.bat"
           } elseif ($repository_name -eq "vision") {
               & "${{ env.SCRIPTS_DIR }}\build_vision.bat"
-              echo "Done Building Vision""
+              echo "Done Building Vision"
           } else {
               throw "Invalid repository name: $repository_name"
           }
