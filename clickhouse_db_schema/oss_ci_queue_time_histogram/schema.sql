@@ -5,7 +5,7 @@ CREATE TABLE misc.oss_ci_queue_time_histogram(
     `workflow_name` String,
     `job_name` String,
     `machine_type` String,
-    `data_version` String,
+    `histogram_version` String,
     `histogram` Array(UInt64),
     `max_queue_time` UInt64,
     `total_count` UInt64
