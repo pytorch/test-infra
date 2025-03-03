@@ -1,51 +1,30 @@
-name: torchaudio Build
+name: Arm64 Wheels Build
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      python_version:
-        description: "Python version"
-        required: true
-        type: choice
-        options:
-          - Python312
-          - Python311
-      msvc_version:
-        description: "MSVC Version"
-        required: true
-        type: choice
-        options:
-          - 'latest'
-          - '14.40'
-          - '14.36'
-      pytorch_build_run_id:
-        # TODO: Update this after running the PyTorch build workflow
-        description: "PyTorch build run id for downloading the wheel artifact (number at the end of build run URL)"
-        required: true
-        default: ""
-        type: string
-      pytorch_build_artifact_name:
-        description: "Artifact name of PyTorch build run"
-        required: true
-        default: "pytorch-wheel"
-        type: string
-      build_type:
-        description: "Build type"
-        required: true
-        type: choice
-        options:
-          - Release
-          # - Debug (not supported for wheel)
       repository_name:
-        description: "Repository name (username/repo)"
         required: true
         type: string
       repository_branch:
-        description: "Repository branch"
         required: true
         type: string
+      python_version:
+        required: false
+        default: "Python312"
+        type: string
+      msvc_version:
+        required: false
+        default: "latest"
+        type: string
+      pytorch_build_run_id:
+        required: true
+        type: string
+      build_type:
+        required: false
+        default: "Release"
+        type: string
       build_version:
-        description: "Optional: build version for wheel file name (e.g. 2.6.0); otherwise leave empty for default naming"
         required: false
         type: string
 
