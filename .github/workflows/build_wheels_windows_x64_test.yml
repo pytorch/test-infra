@@ -80,7 +80,7 @@ jobs:
           echo "repository_name=$repository_name" | Out-File -FilePath $env:GITHUB_ENV -Append
           if ($repository_name -eq "audio") {
               cmd //c ${{ env.SCRIPTS_DIR }}\build_audio.bat
-          } else if ($repository_name -eq "vision") {
+          } elseif ($repository_name -eq "vision") {
               cmd //c ${{ env.SCRIPTS_DIR }}\build_vision.bat
           } else {
               throw "Invalid repository name: $repository_name"
