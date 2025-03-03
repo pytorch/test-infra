@@ -2,10 +2,10 @@ import { Divider } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { Dispatch } from "react";
 import LLMsDropdownGroup from "./LLMsDropdownGroup";
 import { LLMsTimeRangePicker } from "./LLMsTimeRangePicker";
-import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 
 export const LLMsDashboardPicker = ({
   options,

@@ -1,5 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { useBenchmark } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import {
@@ -8,7 +9,6 @@ import {
 } from "../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsGraphPanel from "./LLMsGraphPanel";
 import LLMsSummaryPanel from "./LLMsSummaryPanel";
-import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 
 export default function LLMsReport({
   props,
