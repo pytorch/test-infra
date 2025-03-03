@@ -85,7 +85,7 @@ export default function Page() {
     isLoading: selectedBuildSccacheStatsIsLoading,
   } = useClickHouseImmutable(
     "build_time_metrics/sccache_stats",
-    { jobName: selectedBuild, ...timeParams },
+    { jobName: selectedBuild as string, ...timeParams },
     selectedBuild != null && openSccacheStats
   );
 

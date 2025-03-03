@@ -89,11 +89,11 @@ export async function hasWritePermissionsUsingOctokit(
 // Wrapper for useSWR that is useful for ClickHouse queries
 export function useClickHouse<T = any>(
   queryName: string,
-  parameters: any,
+  parameters: { [key: string]: string },
   condition: boolean = true
 ) {
   // Helper function to format the URL nicely
-  return useSWR<T>(
+  return useSWR<T[]>(
     condition &&
       `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
         parameters: JSON.stringify(parameters),
@@ -105,11 +105,11 @@ export function useClickHouse<T = any>(
 // Immutable version of the above
 export function useClickHouseImmutable<T = any>(
   queryName: string,
-  parameters: any,
+  parameters: { [key: string]: string },
   condition: boolean = true
 ) {
   // Helper function to format the URL nicely
-  return useSWRImmutable<T>(
+  return useSWRImmutable<T[]>(
     condition &&
       `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
         parameters: JSON.stringify(parameters),
