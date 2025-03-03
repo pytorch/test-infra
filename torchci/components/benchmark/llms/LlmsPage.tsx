@@ -11,7 +11,6 @@ import _, { cloneDeep } from "lodash";
 import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
 import { useEffect, useReducer, useState } from "react";
-import LLMsReport from "./components/LLMsReport";
 import { propsReducer } from "./context/BenchmarkProps";
 
 import LoadingPage from "components/LoadingPage";
@@ -32,6 +31,7 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
+import LLMsReport from "./components/LLMsReport";
 
 export default function LLMsPage() {
   const router = useRouter();

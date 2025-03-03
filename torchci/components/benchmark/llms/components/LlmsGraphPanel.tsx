@@ -22,11 +22,11 @@ import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "../../../../lib/benchmark/llms/utils/aoUtils";
+} from "lib/benchmark/llms/utils/aoUtils";
 import {
   computeGeomean,
   useBenchmark,
-} from "../../../../lib/benchmark/llms/utils/llmUtils";
+} from "lib/benchmark/llms/utils/llmUtils";
 
 const GRAPH_ROW_HEIGHT = 245;
 
