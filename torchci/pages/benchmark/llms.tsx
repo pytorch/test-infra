@@ -1,9 +1,9 @@
-import LLMsPage from "components/benchmark/llms/LLMsPage";
+import LLMsBenchmarkPage from "components/benchmark/llms/LLMsBenchmarkPage";
 
 /**
  *
- * API routing endpoint for the LLMs pages. Main code is in components/benchmark/llms/LLMsPage.tsx
+ * API routing endpoint for the LLMs pages. Main code is in components/benchmark/llms/LLMsBenchmarkPage.tsx
  */
 export default function Page() {
-  return <LLMsPage />;
+  return <LLMsBenchmarkPage />;
 }

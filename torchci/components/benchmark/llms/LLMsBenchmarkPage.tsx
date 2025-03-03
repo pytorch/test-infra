@@ -33,7 +33,7 @@ import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardP
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
 import LLMsReport from "./components/LLMsReport";
 
-export default function LLMsPage() {
+export default function LLMsBenchmarkPage() {
   const router = useRouter();
 
   // Set the default start and stop time to be the last N days when the page is loaded
