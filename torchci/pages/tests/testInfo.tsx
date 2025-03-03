@@ -95,7 +95,7 @@ export default function Page() {
       <TestSearchForm name={name} suite={suite} file={file} />
       <h2>Last 3 Days on main Branch</h2>
       <TextFieldSubmit
-        jobFilter={jobFilter}
+        textFieldValue={jobFilter}
         onSubmit={setJobFilter}
         info={"Chart Job Filter"}
       />

@@ -4,12 +4,12 @@ import { Box } from "@mui/system";
 // Component that has a text field and a button to submit. Good for submitting a
 // filter
 export function TextFieldSubmit({
-  jobFilter,
+  textFieldValue,
   onSubmit,
   info,
 }: {
-  jobFilter: string;
-  onSubmit: (jobFilter: string) => void;
+  textFieldValue: string;
+  onSubmit: (s: string) => void;
   info: string;
 }) {
   return (
@@ -34,7 +34,7 @@ export function TextFieldSubmit({
         onSubmit(e.target[0].value);
       }}
     >
-      <TextField label={info} defaultValue={jobFilter} />
+      <TextField label={info} defaultValue={textFieldValue} />
       <Button variant="contained" color="primary" type="submit">
         Filter
       </Button>
