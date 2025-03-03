@@ -1,4 +1,4 @@
-name: Arm64 Wheels Build
+name: X64 Wheels Build
 
 on:
   workflow_call:
@@ -17,9 +17,9 @@ on:
         required: false
         default: "latest"
         type: string
-      pytorch_build_run_id:
-        required: true
-        type: string
+      # pytorch_build_run_id:
+      #   required: true
+      #   type: string
       build_type:
         required: false
         default: "Release"
