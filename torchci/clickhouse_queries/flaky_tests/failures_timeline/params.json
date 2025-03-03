@@ -1,0 +1,22 @@
+{
+  "params": {
+    "name": "String",
+    "suite": "String",
+    "file": "String",
+    "jobFilter": "String",
+    "granularity": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "name": "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32",
+      "suite": "TestModuleCUDA",
+      "file": "test_modules.py",
+      "jobFilter": "%",
+      "granularity": "day",
+      "startTime": "2021-01-01 00:00:00",
+      "stopTime": "2021-12-31 23:59:59"
+    }
+  ]
+}

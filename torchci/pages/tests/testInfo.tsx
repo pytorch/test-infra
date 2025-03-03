@@ -1,19 +1,27 @@
-import { Stack } from "@mui/material";
+import { Grid2, List, ListItem, Stack, Typography } from "@mui/material";
 import { BarChart } from "@mui/x-charts";
 import { TextFieldSubmit } from "components/common/TextFieldSubmit";
+import GranularityPicker from "components/GranularityPicker";
 import JobLinks from "components/JobLinks";
 import JobSummary from "components/JobSummary";
 import LoadingPage from "components/LoadingPage";
 import LogViewer from "components/LogViewer";
 import TestSearchForm from "components/tests/TestSearchForm";
 import dayjs from "dayjs";
-import { encodeParams, fetcher } from "lib/GeneralUtils";
+import {
+  encodeParams,
+  fetcher,
+  useClickHouseAPIImmutable,
+} from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { TestInfoAPIResponse } from "pages/api/flaky-tests/3dStats";
-import { useState } from "react";
+import { TimeRangePicker } from "pages/metrics";
+import { memo, useState } from "react";
 import useSWRImmutable from "swr/immutable";
+
+const RED = "#e15759";
 
 function convertToSeries(data: TestInfoAPIResponse) {
   data = data.sort((a, b) => dayjs(a.hour).unix() - dayjs(b.hour).unix());
@@ -30,7 +38,7 @@ function convertToSeries(data: TestInfoAPIResponse) {
   function getColorForConclusion(conclusion: string) {
     switch (conclusion) {
       case "failed":
-        return "#e15759";
+        return RED;
       case "flaky":
         return "#f28e2c";
       case "skipped":
@@ -53,6 +61,125 @@ function convertToSeries(data: TestInfoAPIResponse) {
 
   return { xAxis, series };
 }
+
+const FailuresTimeline = memo(
+  ({ name, suite, file }: { name: string; suite: string; file: string }) => {
+    const [jobFilter, setJobFilter] = useState<string>("");
+    const [granularity, setGranularity] = useState<string>("week");
+    const [startTime, setStartTime] = useState(dayjs().subtract(1, "year"));
+    const [stopTime, setStopTime] = useState(dayjs());
+    const [timeRange, setTimeRange] = useState<number>(365);
+    const [clickedTime, setClickedTime] = useState<string | null>(null);
+    const height = 400;
+
+    interface FailuresTimelineData {
+      date: string;
+      count: number;
+      shas: string[];
+    }
+
+    let { data, isLoading } = useClickHouseAPIImmutable<FailuresTimelineData>(
+      "flaky_tests/failures_timeline",
+      {
+        name,
+        suite,
+        file,
+        jobFilter: `%${jobFilter}%`,
+        granularity,
+        startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+        stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      }
+    );
+    data = (data || [])
+      .sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix())
+      .map((d) => {
+        d.date = dayjs(d.date).format("YYYY-MM-DD HH:mm");
+        return d;
+      });
+    const xAxis = [
+      {
+        data: data.map((d) => d.date),
+        scaleType: "band",
+      },
+    ];
+    const series = [
+      {
+        label: "Failures",
+        stack: "total",
+        data: data.map((d) => d.count),
+        color: RED,
+      },
+    ];
+
+    return (
+      <Stack spacing={2}>
+        <h2>Failures Timeline (Beta)</h2>
+        <Typography>
+          This shows the number of failures for the test on non
+          `rerun_disabled_tests` jobs. If a test failed and succeded on rerun,
+          it will still show up here. Data only exists after around March 2023.
+        </Typography>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={2}>
+            <TimeRangePicker
+              startTime={startTime}
+              setStartTime={setStartTime}
+              stopTime={stopTime}
+              setStopTime={setStopTime}
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+              setGranularity={setGranularity}
+            />
+            <GranularityPicker
+              granularity={granularity}
+              setGranularity={setGranularity}
+            />
+          </Stack>
+          <TextFieldSubmit
+            textFieldValue={jobFilter}
+            onSubmit={setJobFilter}
+            info={"Chart Job Filter"}
+          />
+        </Stack>
+        {isLoading ? (
+          <LoadingPage height={height} />
+        ) : data.length == 500 ? (
+          <Typography height={height}>
+            Too many results, please reduce the time range or granularity
+          </Typography>
+        ) : (
+          <Grid2 container>
+            <Grid2 size={{ xs: 10 }}>
+              <BarChart
+                height={height}
+                series={series}
+                xAxis={xAxis as any}
+                onAxisClick={(_e, d) => {
+                  setClickedTime(d?.axisValue as string);
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 2 }}>
+              <Typography>
+                Showing first 10 commits for {clickedTime}
+              </Typography>
+              <List style={{ maxHeight: height, overflow: "auto" }}>
+                {clickedTime &&
+                  data
+                    .find((d) => d.date == clickedTime)
+                    ?.shas.map((sha) => (
+                      <ListItem>
+                        <a href={`/commit/${sha}`}>{sha}</a>
+                      </ListItem>
+                    ))}
+              </List>
+            </Grid2>
+          </Grid2>
+        )}
+      </Stack>
+    );
+  }
+);
 
 export default function Page() {
   const router = useRouter();
@@ -132,6 +259,7 @@ export default function Page() {
           </ul>
         </>
       )}
+      <FailuresTimeline name={name} suite={suite} file={file} />
     </Stack>
   );
 }
