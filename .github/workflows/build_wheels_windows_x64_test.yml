@@ -91,6 +91,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.repository_name }}-wheel
-          path: ${{ env.SRC_DIR }}\dist\*
+          path: ${{ env.SRC_DIR }}\vision\dist\*
           compression-level: 0
           retention-days: 3
