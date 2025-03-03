@@ -26,8 +26,8 @@ cd vcpkg
 call bootstrap-vcpkg.bat
 
 :: install dependencies
-vcpkg install ffmpeg[ffmpeg]:arm64-windows --x-install-root=%DEPENDENCIES_DIR%
-robocopy /E %DEPENDENCIES_DIR%\arm64-windows %DEPENDENCIES_DIR%\Library
+vcpkg install ffmpeg[ffmpeg]:x64-windows --x-install-root=%DEPENDENCIES_DIR%
+robocopy /E %DEPENDENCIES_DIR%\x64-windows %DEPENDENCIES_DIR%\Library
 robocopy /E %DEPENDENCIES_DIR%\Library\tools\ffmpeg %DEPENDENCIES_DIR%\Library\bin
 robocopy /E %DEPENDENCIES_DIR%\Library\bin %SRC_PATH%\src\torio\lib
 
@@ -48,7 +48,7 @@ call .\.venv\Scripts\activate
 pip install %PYTORCH_PATH%
 
 :: Activate visual studio
-call "%VCVARSALL_PATH%" arm64
+call "%VCVARSALL_PATH%" x64
 
 :: Creates wheel under dist folder
 python setup.py bdist_wheel

@@ -5,8 +5,8 @@ set VCVARSALL_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.
 set CONDA_PREFIX=%DEPENDENCIES_DIR%
 set PATH=%PATH%;%CONDA_PREFIX%\Library\bin
 set DISTUTILS_USE_SDK=1
-:: find toch file name by searching
-for /f "delims=" %%f in ('dir /b "%DOWNLOADS_DIR%" ^| findstr "torch-"') do set "PYTORCH_PATH=%DOWNLOADS_DIR%\%%f"
+@REM :: find toch file name by searching
+@REM for /f "delims=" %%f in ('dir /b "%DOWNLOADS_DIR%" ^| findstr "torch-"') do set "PYTORCH_PATH=%DOWNLOADS_DIR%\%%f"
 
 :: Dependencies
 if not exist "%DOWNLOADS_DIR%" mkdir %DOWNLOADS_DIR%
@@ -21,16 +21,16 @@ cd vcpkg
 call bootstrap-vcpkg.bat
 
 :: install dependencies
-vcpkg install libjpeg-turbo:arm64-windows --x-install-root=%DEPENDENCIES_DIR%
-vcpkg install libwebp:arm64-windows --x-install-root=%DEPENDENCIES_DIR%
-vcpkg install libpng[tools]:arm64-windows --x-install-root=%DEPENDENCIES_DIR%
+vcpkg install libjpeg-turbo:x64-windows --x-install-root=%DEPENDENCIES_DIR%
+vcpkg install libwebp:x64-windows --x-install-root=%DEPENDENCIES_DIR%
+vcpkg install libpng[tools]:x64-windows --x-install-root=%DEPENDENCIES_DIR%
 :: https://pytorch.org/vision/stable/index.html
 :: Building with FFMPEG is disabled by default in the latest main
-:: vcpkg install ffmpeg[ffmpeg]:arm64-windows --x-install-root=%DEPENDENCIES_DIR%
-copy %DEPENDENCIES_DIR%\arm64-windows\lib\libpng16.lib %DEPENDENCIES_DIR%\arm64-windows\lib\libpng.lib
-copy %DEPENDENCIES_DIR%\arm64-windows\bin\libpng16.dll %DEPENDENCIES_DIR%\arm64-windows\bin\libpng.dll
-copy %DEPENDENCIES_DIR%\arm64-windows\bin\libpng16.pdb %DEPENDENCIES_DIR%\arm64-windows\bin\libpng.pdb
-robocopy /E %DEPENDENCIES_DIR%\arm64-windows %DEPENDENCIES_DIR%\Library
+:: vcpkg install ffmpeg[ffmpeg]:x64-windows --x-install-root=%DEPENDENCIES_DIR%
+copy %DEPENDENCIES_DIR%\x64-windows\lib\libpng16.lib %DEPENDENCIES_DIR%\x64-windows\lib\libpng.lib
+copy %DEPENDENCIES_DIR%\x64-windows\bin\libpng16.dll %DEPENDENCIES_DIR%\x64-windows\bin\libpng.dll
+copy %DEPENDENCIES_DIR%\x64-windows\bin\libpng16.pdb %DEPENDENCIES_DIR%\x64-windows\bin\libpng.pdb
+robocopy /E %DEPENDENCIES_DIR%\x64-windows %DEPENDENCIES_DIR%\Library
 robocopy /E %DEPENDENCIES_DIR%\Library\tools\libpng %DEPENDENCIES_DIR%\Library\bin
 robocopy /E %DEPENDENCIES_DIR%\Library\bin %SRC_PATH%\torchvision *.dll
 
@@ -45,10 +45,10 @@ call .\.venv\Scripts\activate
 
 :: Install dependencies
 pip install numpy
-pip install %PYTORCH_PATH%
+pip3 install torch
 
 :: Activate visual studio
-call "%VCVARSALL_PATH%" arm64
+call "%VCVARSALL_PATH%" x64
 
 :: Creates wheel under dist folder
 python setup.py bdist_wheel
