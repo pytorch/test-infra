@@ -198,17 +198,22 @@ const FailuresTimeline = memo(function FailuresTimeline({
             />
           </Grid2>
           <Grid2 size={{ xs: 2 }}>
-            <Typography>Showing first 10 commits for {clickedTime}</Typography>
-            <List style={{ maxHeight: height, overflow: "auto" }}>
-              {clickedTime &&
-                data
-                  .find((d) => d.date == clickedTime)
-                  ?.shas.map((sha) => (
-                    <ListItem key={sha}>
-                      <a href={`/commit/${sha}`}>{sha}</a>
-                    </ListItem>
-                  ))}
-            </List>
+            {clickedTime && (
+              <>
+                <Typography>
+                  Showing first 10 commits for {clickedTime}
+                </Typography>
+                <List style={{ maxHeight: height, overflow: "auto" }}>
+                  {data
+                    .find((d) => d.date == clickedTime)
+                    ?.shas.map((sha) => (
+                      <ListItem key={sha}>
+                        <a href={`/commit/${sha}`}>{sha}</a>
+                      </ListItem>
+                    ))}
+                </List>
+              </>
+            )}
           </Grid2>
         </Grid2>
       )}
