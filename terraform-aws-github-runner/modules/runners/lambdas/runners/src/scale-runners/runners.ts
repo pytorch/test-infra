@@ -471,14 +471,16 @@ export async function tryReuseRunner(
     repoName: runnerParameters.repoName,
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
-  const runners = await locallyCached(
-    'tryReuseRunner-listRunners',
-    `${runnerParameters.environment}-${runnerParameters.runnerType.instance_type}` +
-      `-${runnerParameters.orgName}-${runnerParameters.repoName}`,
-    10,
-    async () => {
-      return listRunners(metrics, filters);
-    },
+  const runners = shuffleArrayInPlace(
+    await locallyCached(
+      'tryReuseRunner-listRunners',
+      `${runnerParameters.environment}-${runnerParameters.runnerType.instance_type}` +
+        `-${runnerParameters.orgName || ''}-${runnerParameters.repoName || ''}`,
+      10,
+      async () => {
+        return listRunners(metrics, filters);
+      },
+    ),
   );
 
   /* istanbul ignore next */
@@ -492,7 +494,6 @@ export async function tryReuseRunner(
     );
   }
 
-  shuffleArrayInPlace(runners);
   const ec2M: Map<string, EC2> = new Map();
   const ssmM: Map<string, SSM> = new Map();
 
@@ -511,17 +512,9 @@ export async function tryReuseRunner(
     }
     try {
       if (runnerParameters.orgName !== undefined) {
-        metrics.runnersReuseTryOrg(
-          runners.length,
-          runnerParameters.orgName,
-          runnerParameters.runnerType.runnerTypeName,
-        );
+        metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
       } else if (runnerParameters.repoName !== undefined) {
-        metrics.runnersReuseTryRepo(
-          runners.length,
-          getRepo(runnerParameters.repoName),
-          runnerParameters.runnerType.runnerTypeName,
-        );
+        metrics.runnersReuseTryRepo(1, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
       }
 
       await redisLocked(
@@ -551,7 +544,7 @@ export async function tryReuseRunner(
                 return ec2
                   .createTags({
                     Resources: [runner.instanceId],
-                    Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(+new Date() / 1000)}` }],
+                    Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` }],
                   })
                   .promise();
               },

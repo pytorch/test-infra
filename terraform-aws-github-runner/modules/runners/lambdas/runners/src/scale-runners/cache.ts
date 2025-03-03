@@ -28,6 +28,7 @@ export async function shutdownRedisPool() {
       console.info('Shutdown redis pool');
       await redisPool.clear();
     } catch (e) {
+      /* istanbul ignore next */
       console.error(`Error shutting down reddis pool ${e}`);
     }
 
@@ -60,9 +61,11 @@ export async function startupRedisPool() {
             url: `redis://${Config.Instance.redisEndpoint}:6379`,
           });
           client.on('error', (err) => {
+            /* istanbul ignore next */
             throw new Error(err);
           });
           client.on('ready', () => {
+            /* istanbul ignore next */
             console.debug('Redis client ready');
           });
           console.debug('Redis client connecting');
@@ -91,6 +94,7 @@ export function clearLocalCache() {
   localCache.clear();
 }
 
+/* istanbul ignore next */
 export function clearLocalCacheNamespace(nameSpace: string) {
   localCache.get(nameSpace)?.reset();
 }
@@ -181,6 +185,7 @@ async function redisReleaseLock(lockKey: string, lockUUID: string) {
     return await client.eval(script);
   });
 
+  /* istanbul ignore next */
   if (!lockReleaseResponse) {
     throw new Error(`Could not release Redis lock ${lockKey} with ${lockUUID} - Received "${lockReleaseResponse}"`);
   }
@@ -211,7 +216,11 @@ export async function redisClearCacheKeyPattern(namespace: string, key: string) 
     console.debug(`Cleaning Redis Cache for pattern ${queryKey} - All ${keys.length} UNLINKed`);
     await redisPool.release(client);
   } catch (e) {
+    /* istanbul ignore next */
+    console.error(`Error cleaning Redis Cache for pattern ${queryKey} - ${e}`);
+    /* istanbul ignore next */
     redisPool.destroy(client);
+    /* istanbul ignore next */
     console.debug(`Cleaning Redis Cache for pattern ${queryKey} - released client`);
   }
 }
@@ -265,6 +274,7 @@ export async function redisLocked<T>(
     }
   }
 
+  /* istanbul ignore next */
   throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 

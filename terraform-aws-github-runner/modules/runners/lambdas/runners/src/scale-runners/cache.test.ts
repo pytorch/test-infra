@@ -1,4 +1,4 @@
-import { locallyCached, redisCached, clearLocalCache, shutdownRedisPool } from './cache';
+import { locallyCached, redisCached, clearLocalCache, shutdownRedisPool, redisClearCacheKeyPattern } from './cache';
 import { mocked } from 'ts-jest/utils';
 import { v4 as uuidv4 } from 'uuid';
 import nock from 'nock';
@@ -16,6 +16,7 @@ const mockedRedisClient = {
   eval: jest.fn(),
   on: jest.fn(),
   connect: jest.fn(),
+  scanIterator: jest.fn(),
 };
 
 function produceMockedRedis(): RedisClientType {
@@ -308,5 +309,24 @@ describe('redisCached', () => {
     expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.CACHE.namespace-key');
     expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.LOCK.namespace-key');
     expect(fn).toBeCalledTimes(0);
+  });
+
+  it('redisClearCacheKeyPattern', async () => {
+    const keys = [
+      'gh-ci.20230310191716.CACHE.namespace-key$agdgaduwg113',
+      'gh-ci.20230310191716.CACHE.namespace-key$xismiton',
+    ];
+    mockedRedisClient.scanIterator.mockImplementation(async function* () {
+      for (const key of keys) {
+        yield key;
+      }
+    });
+
+    expect(await redisClearCacheKeyPattern('namespace', 'key'));
+
+    expect(mockedRedisClient.scanIterator).toBeCalledTimes(1);
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(2);
+    expect(mockedRedisClient.sendCommand).toBeCalledWith(['UNLINK', keys[0]]);
+    expect(mockedRedisClient.sendCommand).toBeCalledWith(['UNLINK', keys[1]]);
   });
 });

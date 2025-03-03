@@ -324,7 +324,10 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-ebs-not-min-time-01',
         org: theOrg,
-        ebsVolumeReplacementRequestTm: dateRef.clone().subtract(minimumRunningTimeInMinutes - 2, 'minutes').unix(),
+        ebsVolumeReplacementRequestTm: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
         launchTime: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
@@ -335,7 +338,10 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-recently-finished-job-01',
         org: theOrg,
-        ephemeralRunnerFinished: dateRef.clone().subtract(minimumRunningTimeInMinutes - 2, 'minutes').unix(),
+        ephemeralRunnerFinished: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
         launchTime: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
@@ -661,7 +667,10 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-ebs-not-min-time-01',
         repo: theRepo,
-        ebsVolumeReplacementRequestTm: dateRef.clone().subtract(minimumRunningTimeInMinutes - 2, 'minutes').unix(),
+        ebsVolumeReplacementRequestTm: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
         launchTime: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
@@ -672,7 +681,10 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-recently-finished-job-01',
         repo: theRepo,
-        ephemeralRunnerFinished: dateRef.clone().subtract(minimumRunningTimeInMinutes - 2, 'minutes').unix(),
+        ephemeralRunnerFinished: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
         launchTime: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
