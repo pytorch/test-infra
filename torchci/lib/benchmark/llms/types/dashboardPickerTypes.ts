@@ -1,7 +1,7 @@
 /**
- * The enum type of a dropdown component
+ * The enum type of benchmark dashboard dropgroup item
  * this is used to render dropdowns dynamically in the LLMs Benchmark page.
- * the fields should match the fields in LLMsBenchmarkProps
+ * the field value must match the fields in LLMsBenchmarkProps
  */
 export enum DropdownGroupItemType {
   ModelName = "modelName",
@@ -13,7 +13,7 @@ export enum DropdownGroupItemType {
 }
 
 /**
- * The item of the dropdown group to render each dropdown
+ * The input item for benchmark dashboard dropdown
  * @property DropdownGroupItemType enum type
  * @property options the list of options in the dropdown
  * @property labelName the label name of the dropdown

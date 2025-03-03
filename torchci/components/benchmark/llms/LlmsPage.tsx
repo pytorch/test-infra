@@ -140,7 +140,7 @@ const MainPage = ({
     return (
       <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Error loading data for {" "}
+          Error loading data for{" "}
           {(props.benchmarkName
             ? [props.benchmarkName]
             : REPO_TO_BENCHMARKS[props.repoName]
