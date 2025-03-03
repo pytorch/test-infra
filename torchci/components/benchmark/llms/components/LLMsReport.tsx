@@ -6,8 +6,8 @@ import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
 } from "../../../../lib/benchmark/llms/utils/aoUtils";
-import LLMsGraphPanel from "./LLMsBGraphPanel";
-import LLMsSummaryPanel from "./LLMsBSummaryPanel";
+import LLMsGraphPanel from "./LLMsGraphPanel";
+import LLMsSummaryPanel from "./LLMsSummaryPanel";
 
 export default function LLMsReport({
   props,
