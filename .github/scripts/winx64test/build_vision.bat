@@ -1,3 +1,4 @@
+echo "Starting build_vision.bat"
 @echo on
 set SRC_PATH=%GITHUB_WORKSPACE%\%SRC_DIR%
 set CMAKE_BUILD_TYPE=%BUILD_TYPE%
@@ -59,3 +60,4 @@ if %errorlevel% neq 0 (
     echo "Failed on build_vision. (exitcode = %errorlevel%)"
     exit /b 1
 )
+echo Finished running build_vision.bat"

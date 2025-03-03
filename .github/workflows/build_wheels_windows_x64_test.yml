@@ -81,9 +81,18 @@ jobs:
           echo "repository_name=$repository_name" | Out-File -FilePath $env:GITHUB_ENV -Append
           if ($repository_name -eq "audio") {
               cmd //c ${{ env.SCRIPTS_DIR }}\build_audio.bat
+              if ($?) {
+                echo "Done Building Torchaudio"
+              } else {
+                echo "Error: build_audio.bat failed"
+              }
           } elseif ($repository_name -eq "vision") {
               cmd //c ${{ env.SCRIPTS_DIR }}\build_vision.bat
-              echo "Done Building Vision"
+              if ($?) {
+                echo "Done Building Audio"
+              } else {
+                echo "Error: build_audio.bat failed"
+              }
           } else {
               throw "Invalid repository name: $repository_name"
           }
@@ -93,6 +102,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.repository_name }}-wheel
-          path: ${{ env.SRC_DIR }}\vision\dist\*
+          path: ${{ env.SRC_DIR }}\dist\*
           compression-level: 0
           retention-days: 3
