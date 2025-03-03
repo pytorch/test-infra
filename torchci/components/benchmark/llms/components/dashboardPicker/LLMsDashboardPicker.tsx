@@ -5,6 +5,7 @@ import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes
 import { Dispatch } from "react";
 import LLMsDropdownGroup from "./LLMsDropdownGroup";
 import { LLMsTimeRangePicker } from "./LLMsTimeRangePicker";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 
 export const LLMsDashboardPicker = ({
   options,
@@ -12,7 +13,7 @@ export const LLMsDashboardPicker = ({
   dispatch,
   queryParams,
 }: {
-  props: any;
+  props: LLMsBenchmarkProps;
   options?: DropdownGroupItem[];
   dispatch: Dispatch<any>;
   queryParams: any;

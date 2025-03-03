@@ -75,7 +75,6 @@ export const useBenchmarkPropsData = (queryParams: any) => {
     JSON.stringify(queryParams)
   )}`;
   return useSWR(url, fetcher, {
-    // no need
     refreshInterval: 60 * 60 * 1000, // refresh every
   });
 };

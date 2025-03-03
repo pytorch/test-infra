@@ -8,13 +8,14 @@ import {
 } from "../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsGraphPanel from "./LLMsGraphPanel";
 import LLMsSummaryPanel from "./LLMsSummaryPanel";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 
 export default function LLMsReport({
   props,
   metricNames,
   benchmarkPropsQueryParams,
 }: {
-  props: any;
+  props: LLMsBenchmarkProps;
   metricNames: string[];
   benchmarkPropsQueryParams: any;
 }) {
