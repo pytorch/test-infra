@@ -87,7 +87,6 @@ jobs:
           } else {
               throw "Invalid repository name: $repository_name"
           }
-          dir ${{ env.SRC_DIR }}\vision\dist
           echo "Test Print"
           dir ${{ env.SRC_DIR }}\dist
       - name: Upload Artifact

@@ -19,6 +19,7 @@ cd %DOWNLOADS_DIR%
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 call bootstrap-vcpkg.bat
+echo "VCPKG Installed"
 
 :: install dependencies
 vcpkg install libjpeg-turbo:x64-windows --x-install-root=%DEPENDENCIES_DIR%
