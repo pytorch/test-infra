@@ -55,7 +55,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"

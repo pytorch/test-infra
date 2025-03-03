@@ -5,7 +5,7 @@
     "repo": "String",
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "workflowNames": "Array(String)"
+    "ignoredWorkflows": "Array(String)"
   },
   "tests": []
 }

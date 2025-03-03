@@ -8,7 +8,6 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
 import {
   computeCompilationTime,
   computeExecutionTime,
@@ -16,6 +15,7 @@ import {
   computeMemoryCompressionRatio,
   computePassrate,
   computePeakMemoryUsage,
+  convertToCompilerPerformanceData,
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
@@ -29,7 +29,6 @@ export function GraphPanel({
   granularity,
   suite,
   branch,
-  deviceName,
   lCommit,
   rCommit,
 }: {
@@ -38,7 +37,6 @@ export function GraphPanel({
   granularity: Granularity;
   suite: string;
   branch: string;
-  deviceName: string;
   lCommit: string;
   rCommit: string;
 }) {
@@ -51,7 +49,6 @@ export function GraphPanel({
       granularity={granularity}
       suite={suite}
       branch={branch}
-      deviceName={deviceName}
       lCommit={lCommit}
       rCommit={rCommit}
     />
@@ -64,7 +61,6 @@ function SuiteGraphPanel({
   granularity,
   suite,
   branch,
-  deviceName,
   lCommit,
   rCommit,
 }: {
@@ -73,7 +69,6 @@ function SuiteGraphPanel({
   granularity: Granularity;
   suite: string;
   branch: string;
-  deviceName: string;
   lCommit: string;
   rCommit: string;
 }) {
