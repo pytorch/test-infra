@@ -18,7 +18,6 @@ import {
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
 } from "lib/benchmark/llms/common";
-import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
@@ -27,6 +26,7 @@ import {
   computeGeomean,
   useBenchmark,
 } from "lib/benchmark/llms/utils/llmUtils";
+import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
 
