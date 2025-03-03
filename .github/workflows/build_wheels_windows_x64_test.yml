@@ -29,10 +29,10 @@ on:
         type: string
 
 env:
-  DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repo_name }}
-  DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repo_name }}
+  DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
+  DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
   SCRIPTS_DIR: .github\scripts\winx64test\
-  SRC_DIR: src\${{ inputs.repo_name }}
+  SRC_DIR: src\
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
   BUILD_TYPE: ${{ inputs.build_type }}
@@ -51,13 +51,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Bootstrap Git
         run: |
-          cmd /c ${{ env.SCRIPTS_DIR }}\bootstrap_git.bat
+          cmd /c ${{ env.SCRIPTS_DIR }}/bootstrap_git.bat
       - name: Bootstrap Python
         run: |
-          cmd /c ${{ env.SCRIPTS_DIR }}\bootstrap_python.bat
+          cmd /c ${{ env.SCRIPTS_DIR }}/bootstrap_python.bat
       - name: Bootstrap Build Tools
         run: |
-         cmd /c ${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.bat
+         cmd /c ${{ env.SCRIPTS_DIR }}/bootstrap_buildtools.bat
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
       #   uses: actions/download-artifact@v4
@@ -66,7 +66,7 @@ jobs:
       #     run-id: ${{ inputs.pytorch_build_run_id }}
       #     name: ${{ inputs.pytorch_build_artifact_name }}
       #     path: ${{ env.DOWNLOADS_DIR }}
-      - name: Git checkout repo ${{ inputs.repo_name }}
+      - name: Git checkout repo ${{ inputs.repository_name }}
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository_name }}
@@ -76,19 +76,19 @@ jobs:
       - name: Call Build Script
         shell: pwsh
         run: |
-          $repo_name = "${{ inputs.repo_name }}".Split("/")[-1]  # Extract 'audio' or 'vision'
-          echo "REPO_NAME=$repo_name" | Out-File -FilePath $env:GITHUB_ENV -Append
-          if ($repo_name -eq "audio") {
-              cmd /c ${{ env.SCRIPTS_DIR }}\build_audio.bat
-          } else if ($repo_name -eq "vision") {
-              cmd /c ${{ env.SCRIPTS_DIR }}\build_vision.bat
+          $repository_name = "${{ inputs.repository_name }}".Split("/")[-1]  # Extract 'audio' or 'vision'
+          echo "repository_name=$repository_name" | Out-File -FilePath $env:GITHUB_ENV -Append
+          if ($repository_name -eq "audio") {
+              cmd /c ${{ env.SCRIPTS_DIR }}/build_audio.bat
+          } else if ($repository_name -eq "vision") {
+              cmd /c ${{ env.SCRIPTS_DIR }}/build_vision.bat
           } else {
-              throw "Invalid repository name: $repo_name"
+              throw "Invalid repository name: $repository_name"
           }
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.REPO_NAME }}-wheel
+          name: ${{ env.repository_name }}-wheel
           path: ${{ env.SRC_DIR }}\dist\*
           compression-level: 0
           retention-days: 3
