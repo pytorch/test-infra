@@ -88,7 +88,7 @@ const PrefetchRender = ({
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchMarkName(props.benchmarkName, props.repoName)}
+        {getBenchmarkName(props.benchmarkName, props.repoName)}
         {formLink(props, baseUrl)}
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -195,7 +195,7 @@ const MainPage = ({
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchMarkName(props.benchmarkName, props.repoName)}
+        {getBenchmarkName(props.benchmarkName, props.repoName)}
         {formLink(props, baseUrl)}
       </Stack>
       <LLMsDashboardPicker
@@ -310,7 +310,7 @@ function resetProps(
   return newProps;
 }
 
-const getBenchMarkName = (benchmarkName: string | any, repoName: string) => {
+const getBenchmarkName = (benchmarkName: string | any, repoName: string) => {
   return (
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
       {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]} dashboard
