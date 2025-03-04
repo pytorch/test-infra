@@ -142,8 +142,8 @@ runs:
           export CONDA_EXTRA_PARAM=""
 
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-            export PYTHON_VERSION=3.13.1
-            export CONDA_EXTRA_PARAM=" python-freethreading==3.13.1 -c conda-forge"
+            export PYTHON_VERSION=3.13.0
+            export CONDA_EXTRA_PARAM=" python-freethreading==3.13.0 -c conda-forge"
             if [[ "$(uname)" != Darwin ]]; then
               # Pin conda and conda-libmamba-solver for 3.13t linux build
               # this solver allows us to install anaconda dependencies on
