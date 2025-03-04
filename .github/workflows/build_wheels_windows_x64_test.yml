@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: test-infra/.github/scripts/winx64test
+  SCRIPTS_DIR: test-infra\.github\scripts\winx64test\
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -50,9 +50,9 @@ jobs:
       - name: Checkout test-infra repository
         uses: actions/checkout@v4
         with:
-          repository: alinpahontu2912/test-infra  # Replace with the actual org/user and repo name
-          ref: x64windows_test  # Use the appropriate branch if needed
-          path: test-infra  # This ensures the repo is cloned into a subfolder
+          repository: alinpahontu2912/test-infra 
+          ref: x64windows_test
+          path: test-infra
       - name: Debug Paths
         shell: bash
         run: |
@@ -65,29 +65,27 @@ jobs:
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
       
-          echo "Checking test-infra/.github/scripts/winx64test directory explicitly:"
-          ls -l test-infra/.github/scripts/winx64test || echo "Explicit path check failed"
+          echo "Checking test-infra\.github\scripts\winx64test\ directory explicitly:"
+          ls -l test-infra\.github\scripts\winx64test\ || echo "Explicit path check failed"
+          
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
         shell: bash
         run: |
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_git.bat  
+          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_git.bat"
       - name: Bootstrap Python
-        shell: bash
         run: |
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_python.bat
-          SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_python.bat"
       - name: Bootstrap Build Tools
-        shell: bash
         run: |
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_buildtools.bat
-          SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.bat"
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
       #   uses: actions/download-artifact@v4
@@ -109,13 +107,12 @@ jobs:
           repository_name=$(basename "${{ inputs.repository_name }}")  # Extract audio or vision
           echo "$repository_name"
           
-          SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
 
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
           if [ "$repository_name" = "audio" ]; then
-              cmd //c "test-infra//.github//scripts//winx64test//build_audio.bat"
+              cmd //c "$SCRIPTS_DIR/build_audio.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchaudio"
               else
@@ -123,7 +120,7 @@ jobs:
                   exit 1
               fi
           elif [ "$repository_name" = "vision" ]; then
-              cmd //c "test-infra//.github//scripts//winx64test//build_vision.bat"
+              cmd //c "$SCRIPTS_DIR/build_vision.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchvision"
               else
