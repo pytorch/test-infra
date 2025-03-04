@@ -61,6 +61,12 @@ jobs:
       
           echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
           ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
+
+          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
+          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_python.bat"
+          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_buildtools.bat"
+          cmd //c "test-infra\\.github\\scripts\\winx64test\\build_vision.bat"
+          
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
