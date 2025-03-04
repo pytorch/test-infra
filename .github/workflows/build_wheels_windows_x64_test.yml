@@ -70,18 +70,21 @@ jobs:
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
+        shell: bash
         run: |
           SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
           cmd //c ${{ env.SCRIPTS_DIR }}\bootstrap_git.bat
       - name: Bootstrap Python
+        shell: bash
         run: |
           SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
           cmd //c ${{ env.SCRIPTS_DIR }}\bootstrap_python.bat
       - name: Bootstrap Build Tools
+        shell: bash
         run: |
           SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
