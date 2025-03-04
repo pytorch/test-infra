@@ -17,9 +17,9 @@ on:
         required: false
         default: "latest"
         type: string
-      # pytorch_build_run_id:
-      #   required: true
-      #   type: string
+      pytorch_build_run_id:
+        required: false
+        type: string
       build_type:
         required: false
         default: "Release"
@@ -32,7 +32,7 @@ env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
   SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-  SRC_DIR: src\${{ inputs.repository_name }}
+  SRC_DIR: src\\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
   BUILD_TYPE: ${{ inputs.build_type }}
@@ -47,28 +47,19 @@ jobs:
     runs-on: windows-latest
     name: Build wheel
     steps:
-      - name: Git checkout workflow
-        uses: actions/checkout@v4
-      - name:  Debug Paths 1
-        shell: bash
-        run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-      
-          echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
-          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-
-          echo "SRC_DIR: $SRC_DIR"
-          ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
-
-          ls -l src\\pytorch\\vision 
-
-      - name: Checkout test-infra repository
+      - name: Checkout test-infra Repository
         uses: actions/checkout@v4
         with:
-          repository: alinpahontu2912/test-infra 
+          repository: alinpahontu2912/test-infra
           ref: x64windows_test
           path: test-infra
+      - name: Checkout Target Repository (${{ inputs.repository_name }})
+        uses: actions/checkout@v4
+        with:
+            repository: ${{ inputs.repository_name }}
+            ref: ${{ inputs.repository_branch }}
+            path: src/${{ inputs.repository_name }}  # Stores it in 'src/{repository_name}/'
+            submodules: recursive
       - name: Debug Paths 2
         shell: bash
         run: |
@@ -80,6 +71,9 @@ jobs:
 
           echo "SRC_DIR: $SRC_DIR"
           ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
+
+          echo "Checking src\\pytorch\\vision directory explicitly:"
+          ls -l src\\pytorch\\vision || echo "Explicit path check failed"
 
       - name: Run Bootstrap Git Script
         shell: cmd
