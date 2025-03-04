@@ -41,7 +41,7 @@ jobs:
           python-version: '3.13'
           cache: pip
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_whl_metadata_upload_pep658
           aws-region: us-east-1
