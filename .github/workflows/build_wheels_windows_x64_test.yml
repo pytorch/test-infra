@@ -49,7 +49,6 @@ jobs:
     steps:
       - name: Git checkout workflow
         uses: actions/checkout@v4
-        uses: actions/checkout@v4
         with:
           repository: alinpahontu2912/test-infra 
           ref: x64windows_test
