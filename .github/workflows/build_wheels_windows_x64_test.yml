@@ -81,14 +81,14 @@ jobs:
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
     
           if [ "$repository_name" = "audio" ]; then
-              "${{ env.SCRIPTS_DIR }}/build_audio.bat"
+              "${{ env.SCRIPTS_DIR }}\build_audio.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchaudio"
               else
                   echo "Error: Build Torchaudio failed"
               fi
           elif [ "$repository_name" = "vision" ]; then
-              "${{ env.SCRIPTS_DIR }}/build_vision.bat"
+              "${{ env.SCRIPTS_DIR }}\build_vision.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchvision"
               else
