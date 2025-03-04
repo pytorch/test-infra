@@ -29,8 +29,8 @@ on:
         type: string
 
 env:
-  DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
-  DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
+  DOWNLOADS_DIR: c:\\temp\\downloads\\${{ inputs.repository_name }}
+  DEPENDENCIES_DIR: c:\\temp\\dependencies\\${{ inputs.repository_name }}
   SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
   SRC_DIR: src\\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
@@ -60,7 +60,7 @@ jobs:
             ref: ${{ inputs.repository_branch }}
             path: src/${{ inputs.repository_name }}  # Stores it in 'src/{repository_name}/'
             submodules: recursive
-      - name: Debug Paths 2
+      - name: Debug Paths
         shell: bash
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
