@@ -10,7 +10,7 @@ CREATE TABLE misc.oss_ci_queue_time_histogram(
     `histogram` Array(UInt64),
     `max_queue_time` UInt64,
     `total_count` UInt64,
-    `extra_info` Map(String,String),
+    `extra_info` Map(String,String)
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(created_at)
