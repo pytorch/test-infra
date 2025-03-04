@@ -63,33 +63,25 @@ jobs:
       
           echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
           ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-      - name: Bootstrap Git
-        shell: bash
+
+          echo "SRC_DIR: $SRC_DIR"
+          ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
+
+      - name: Run Bootstrap Git Script
+        shell: cmd
         run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-      
-          echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
-          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
-      - name: Bootstrap Git 2 test
-        shell: bash
-        run: |
-          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
-        # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          # cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
-          # cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
+          echo Running bootstrap_git.bat...
+          "%SCRIPTS_DIR%\bootstrap_git.bat"
       - name: Bootstrap Python
+        shell: cmd
         run: |
-          # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_python.bat"
+          echo Running bootstrap_python.bat...
+          "%SCRIPTS_DIR%\bootstrap_python.bat"
       - name: Bootstrap Build Tools
+        shell: cmd
         run: |
-          # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_buildtools.bat"
+          echo Running bootstrap_buildtools.bat...
+          "%SCRIPTS_DIR%\bootstrap_buildtools.bat"
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
       #   uses: actions/download-artifact@v4
