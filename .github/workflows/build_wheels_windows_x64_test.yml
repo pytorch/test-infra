@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: .github\scripts\winx64test\
+  SCRIPTS_DIR: test-infra\github\scripts\winx64test\
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -47,6 +47,12 @@ jobs:
     runs-on: windows-latest
     name: Build wheel
     steps:
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v4
+        with:
+          repository: alinpahontu2912/test-infra  # Replace with the actual org/user and repo name
+          ref: x64windows_test  # Use the appropriate branch if needed
+          path: test-infra  # This ensures the repo is cloned into a subfolder
       - name: Debug Paths
         shell: bash
         run: |
@@ -60,7 +66,7 @@ jobs:
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
       
           echo "Checking .test-infra/.github/scripts/winx64test directory explicitly:"
-          ls -l .test-infra/.github/scripts/winx64test || echo "Explicit path check failed"
+          ls -l test-infra/.github/scripts/winx64test || echo "Explicit path check failed"
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
