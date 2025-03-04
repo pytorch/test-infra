@@ -49,11 +49,27 @@ jobs:
     steps:
       - name: Git checkout workflow
         uses: actions/checkout@v4
+      - name:  Debug Paths 1
+        shell: bash
+        run: |
+          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+      
+          echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
+          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
+
+          echo "SRC_DIR: $SRC_DIR"
+          ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
+
+          ls -l src\\pytorch\\vision 
+
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v4
         with:
           repository: alinpahontu2912/test-infra 
           ref: x64windows_test
           path: test-infra
-      - name: Debug Paths
+      - name: Debug Paths 2
         shell: bash
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
