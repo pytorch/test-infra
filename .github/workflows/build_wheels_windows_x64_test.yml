@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: ${{ github.workspace }}/test-infra/.github/scripts/winx64test
+  SCRIPTS_DIR: test-infra/.github/scripts/winx64test
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -72,24 +72,22 @@ jobs:
       - name: Bootstrap Git
         shell: bash
         run: |
-          SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          cmd /c test-infra/.github/scripts/winx64test/bootstrap_git.bat  
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_git.bat
       - name: Bootstrap Python
         shell: bash
         run: |
+          cmd /c test-infra/.github/scripts/winx64test/bootstrap_python.bat
           SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_python.bat
       - name: Bootstrap Build Tools
         shell: bash
         run: |
+          cmd /c test-infra/.github/scripts/winx64test/bootstrap_buildtools.bat
           SCRIPTS_DIR=$(echo "$SCRIPTS_DIR" | sed 's|\\|/|g')
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd /c test-infra/.github/scripts/winx64test/bootstrap_buildtools.bat
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
       #   uses: actions/download-artifact@v4
@@ -117,7 +115,7 @@ jobs:
 
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
           if [ "$repository_name" = "audio" ]; then
-              cmd //c "test-infra/.github/scripts/winx64test/build_audio.bat"
+              cmd //c "test-infra//.github//scripts//winx64test//build_audio.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchaudio"
               else
@@ -125,7 +123,7 @@ jobs:
                   exit 1
               fi
           elif [ "$repository_name" = "vision" ]; then
-              cmd //c "test-infra/.github/scripts/winx64test/build_vision.bat"
+              cmd //c "test-infra//.github//scripts//winx64test//build_vision.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchvision"
               else
