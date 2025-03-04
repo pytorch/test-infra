@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test\\
+  SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -56,18 +56,11 @@ jobs:
       - name: Debug Paths
         shell: bash
         run: |
-          echo "Current Directory:"
-          pwd  # Print current directory
-      
-          echo "Listing contents of current directory:"
-          ls -l 
-      
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
       
           echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
-          ls -l test-infra\\.github\\scripts\winx64test\\ || echo "Explicit path check failed"
-
+          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
@@ -75,18 +68,18 @@ jobs:
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_git.bat"
-          cmd //c "test-infra\\.github\\scripts\winx64test\\bootstrap_git.bat"
+          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
+          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
       - name: Bootstrap Python
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_python.bat"
+          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_python.bat"
       - name: Bootstrap Build Tools
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.bat"
+          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_buildtools.bat"
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
       #   uses: actions/download-artifact@v4
