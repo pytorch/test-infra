@@ -154,7 +154,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
-        PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][-1]]
+        PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     WHEEL_CONTAINER_IMAGES = {
@@ -476,7 +476,7 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        python_versions = [python_versions[-1]]
 
     global WHEEL_CONTAINER_IMAGES
 
