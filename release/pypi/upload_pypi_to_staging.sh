@@ -21,6 +21,8 @@ PLATFORM=${PLATFORM:-}
 # i.e. cpu, cu121, cu124
 ARCH=${ARCH:-cpu}
 
+# This extract links to packages from the index.html
+# We strip all extra characters including final sha256 char
 pkgs_to_promote=$(\
     curl -fsSL "https://download.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
         | grep "${PACKAGE_NAME}-${PACKAGE_VERSION}${VERSION_SUFFIX}-" \
