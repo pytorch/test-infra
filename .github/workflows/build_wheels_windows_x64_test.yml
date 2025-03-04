@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: .test-infra/.github/scripts/winx64test
+  SCRIPTS_DIR: test-infra\.github\scripts\winx64test
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -65,7 +65,7 @@ jobs:
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
       
-          echo "Checking .test-infra/.github/scripts/winx64test directory explicitly:"
+          echo "Checking test-infra/.github/scripts/winx64test directory explicitly:"
           ls -l test-infra/.github/scripts/winx64test || echo "Explicit path check failed"
       - name: Git checkout workflow
         uses: actions/checkout@v4
