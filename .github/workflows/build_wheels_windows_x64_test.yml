@@ -31,7 +31,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repository_name }}
   DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repository_name }}
-  SCRIPTS_DIR: .\test-infra\.github\scripts\winx64test\
+  SCRIPTS_DIR:  .test-infra\.github\scripts\winx64test\
   SRC_DIR: src\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
@@ -78,6 +78,8 @@ jobs:
         run: |
           repository_name=$(basename "${{ inputs.repository_name }}")  # Extract 'audio' or 'vision'
           echo "$repository_name"
+          echo "$SCRIPTS_DIR"
+          ls -l "${{ env.SCRIPTS_DIR }}"
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
     
           if [ "$repository_name" = "audio" ]; then
