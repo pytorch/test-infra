@@ -74,30 +74,32 @@ jobs:
           path: ${{ env.SRC_DIR }}
           submodules: recursive
       - name: Call Build Script
-        shell: pwsh
+        shell: bash
         run: |
-          $repository_name = "${{ inputs.repository_name }}".Split("/")[-1]  # Extract 'audio' or 'vision'
+          repository_name=$(basename "${{ inputs.repository_name }}")  # Extract 'audio' or 'vision'
           echo "$repository_name"
-          echo "repository_name=$repository_name" | Out-File -FilePath $env:GITHUB_ENV -Append
-          if ($repository_name -eq "audio") {
-              cmd //c ${{ env.SCRIPTS_DIR }}\build_audio.bat
-              if ($?) {
-                echo "Done Building Torchaudio"
-              } else {
-                echo "Error: build_audio.bat failed"
-              }
-          } elseif ($repository_name -eq "vision") {
-              cmd //c ${{ env.SCRIPTS_DIR }}\build_vision.bat
-              if ($?) {
-                echo "Done Building Audio"
-              } else {
-                echo "Error: build_audio.bat failed"
-              }
-          } else {
-              throw "Invalid repository name: $repository_name"
-          }
+          echo "repository_name=$repository_name" >> "$GITHUB_ENV"
+    
+          if [ "$repository_name" = "audio" ]; then
+              "${{ env.SCRIPTS_DIR }}/build_audio.bat"
+              if [ $? -eq 0 ]; then
+                  echo "Done Building Torchaudio"
+              else
+                  echo "Error: Build Torchaudio failed"
+              fi
+          elif [ "$repository_name" = "vision" ]; then
+              "${{ env.SCRIPTS_DIR }}/build_vision.bat"
+              if [ $? -eq 0 ]; then
+                  echo "Done Building Torchvision"
+              else
+                  echo "Error: Build Torchvision failed"
+              fi
+          else
+              echo "Invalid repository name: $repository_name"
+              exit 1
+          fi
           echo "Test Print"
-          dir ${{ env.SRC_DIR }}
+          ls -l "${{ env.SRC_DIR }}"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
