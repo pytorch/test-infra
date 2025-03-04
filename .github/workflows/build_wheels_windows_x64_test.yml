@@ -96,12 +96,10 @@ jobs:
       - name: Call Build Script
         shell: bash
         run: |
-          repository_name=$(basename "$INPUT_REPOSITORY_NAME")  # Extract audio or vision
+          repository_name=$(basename "${{ inputs.repository_name }}")  # Extract audio or vision
           echo "$repository_name"
-          echo "$SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR"
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
-
           if [ "$repository_name" = "audio" ]; then
               cmd //c "$SCRIPTS_DIR/build_audio.bat"
               if [ $? -eq 0 ]; then
@@ -122,8 +120,6 @@ jobs:
               echo "Invalid repository name: $repository_name"
               exit 1
           fi
-
-          echo "Test Print"
           ls -l "$SRC_DIR"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
