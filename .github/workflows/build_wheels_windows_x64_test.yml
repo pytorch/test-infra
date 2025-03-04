@@ -53,7 +53,17 @@ jobs:
           repository: alinpahontu2912/test-infra 
           ref: x64windows_test
           path: test-infra
-      - name: Debug Paths
+      # - name: Debug Paths
+      #   shell: bash
+      #   run: |
+      #     echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+      #     ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+      
+      #     echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
+      #     ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
+      - name: Git checkout workflow
+        uses: actions/checkout@v4
+      - name: Bootstrap Git
         shell: bash
         run: |
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
@@ -61,11 +71,6 @@ jobs:
       
           echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
           ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-      - name: Git checkout workflow
-        uses: actions/checkout@v4
-      - name: Bootstrap Git
-        shell: bash
-        run: |
           cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
       - name: Bootstrap Git 2 test
         shell: bash
