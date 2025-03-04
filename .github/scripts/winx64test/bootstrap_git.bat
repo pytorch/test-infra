@@ -28,7 +28,10 @@ if not exist "%INSTALLER_FILE%" (
 
 :: Install Git
 echo Installing Git...
-"%INSTALLER_FILE%" /VERYSILENT /DIR="%DEPENDENCIES_DIR%\git"
+
+echo %INSTALLER_FILE%
+
+%INSTALLER_FILE% /VERYSILENT /NORESTART /DIR="%DEPENDENCIES_DIR%\git"
 
 dir %DEPENDENCIES_DIR%\git
 
