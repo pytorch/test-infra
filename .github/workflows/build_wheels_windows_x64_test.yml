@@ -61,30 +61,29 @@ jobs:
       
           echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
           ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-
-          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
-          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_python.bat"
-          cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_buildtools.bat"
-          cmd //c "test-infra\\.github\\scripts\\winx64test\\build_vision.bat"
-          
       - name: Git checkout workflow
         uses: actions/checkout@v4
       - name: Bootstrap Git
         shell: bash
         run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
           cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
+      - name: Bootstrap Git 2 test
+        shell: bash
+        run: |
+          cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
+        # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          # cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_git.bat"
+          # cmd //c "test-infra\\.github\\scripts\\winx64test\\bootstrap_git.bat"
       - name: Bootstrap Python
         run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
           cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_python.bat"
       - name: Bootstrap Build Tools
         run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+          # echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          # ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
           cmd //c "${{ env.SCRIPTS_DIR }}\\bootstrap_buildtools.bat"
       # TODO This should not be needed, update it when tested
       # - name: Download PyTorch wheel artifact
