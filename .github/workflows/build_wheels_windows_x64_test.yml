@@ -98,36 +98,38 @@ jobs:
       # #     name: ${{ inputs.pytorch_build_artifact_name }}
       # #     path: ${{ env.DOWNLOADS_DIR }}
       - name: Call Build Script
-        shell: bash
+        shell: cmd
         run: |
-          repository_name=$(basename "${{ inputs.repository_name }}")  # Extract audio or vision
-          echo "$repository_name"
+          set repository_name=%~n1  # Extract audio or vision from input repository_name
+          echo %repository_name%
           
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-
-          echo "repository_name=$repository_name" >> "$GITHUB_ENV"
-          if [ "$repository_name" = "audio" ]; then
-              cmd //c "$SCRIPTS_DIR/build_audio.bat"
-              if [ $? -eq 0 ]; then
-                  echo "Done Building Torchaudio"
-              else
-                  echo "Error: Build Torchaudio failed"
-                  exit 1
-              fi
-          elif [ "$repository_name" = "vision" ]; then
-              cmd //c "$SCRIPTS_DIR/build_vision.bat"
-              if [ $? -eq 0 ]; then
-                  echo "Done Building Torchvision"
-              else
-                  echo "Error: Build Torchvision failed"
-                  exit 1
-              fi
-          else
-              echo "Invalid repository name: $repository_name"
-              exit 1
-          fi
-          ls -l "$SRC_DIR"
+          echo SCRIPTS_DIR: %SCRIPTS_DIR%
+          dir "%SCRIPTS_DIR%" || echo SCRIPTS_DIR does not exist
+      
+          echo repository_name=%repository_name% >> %GITHUB_ENV%
+          
+          if "%repository_name%" == "audio" (
+              call "%SCRIPTS_DIR%\build_audio.bat"
+              if %errorlevel% equ 0 (
+                  echo Done Building Torchaudio
+              ) else (
+                  echo Error: Build Torchaudio failed
+                  exit /b 1
+              )
+          ) else if "%repository_name%" == "vision" (
+              call "%SCRIPTS_DIR%\build_vision.bat"
+              if %errorlevel% equ 0 (
+                  echo Done Building Torchvision
+              ) else (
+                  echo Error: Build Torchvision failed
+                  exit /b 1
+              )
+          ) else (
+              echo Invalid repository name: %repository_name%
+              exit /b 1
+          )
+          
+          dir "%SRC_DIR%"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
