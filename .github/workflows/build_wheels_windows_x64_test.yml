@@ -102,13 +102,13 @@ jobs:
         run: |
           repository_name=$(basename "${{ inputs.repository_name }}")  # Extract audio or vision
           echo "$repository_name"
-          
           echo "SCRIPTS_DIR: $SCRIPTS_DIR"
           ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
 
           echo "repository_name=$repository_name" >> "$GITHUB_ENV"
           if [ "$repository_name" = "audio" ]; then
-              cmd //c "$SCRIPTS_DIR/build_audio.bat"
+              echo "Attempting to run: $SCRIPTS_DIR/build_audio.bat"
+              cmd //c "$SCRIPTS_DIR\\build_audio.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchaudio"
               else
@@ -116,7 +116,8 @@ jobs:
                   exit 1
               fi
           elif [ "$repository_name" = "vision" ]; then
-              cmd //c "$SCRIPTS_DIR/build_vision.bat"
+              echo "Attempting to run: $SCRIPTS_DIR/build_vision.bat"
+              cmd //c "$SCRIPTS_DIR\\build_vision.bat"
               if [ $? -eq 0 ]; then
                   echo "Done Building Torchvision"
               else
