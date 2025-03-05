@@ -16,6 +16,7 @@ jobs:
           - linux.4xlarge.nvidia.gpu
           - linux.g5.4xlarge.nvidia.gpu
           - linux.g5.12xlarge.nvidia.gpu  # Choose a test case with multiple GPUs
+          - 4-core-ubuntu-gpu-t4
     name: Install NVIDIA driver on ${{ matrix.runner-type }}
     runs-on: ${{ matrix.runner-type }}
     timeout-minutes: 15
