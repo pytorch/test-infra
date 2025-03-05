@@ -5,7 +5,7 @@ import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { locallyCached, redisCached, redisLocked } from './cache';
+import { redisCached, redisLocked } from './cache';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
