@@ -69,7 +69,7 @@ export const LLMsDashboardPicker = ({
           }}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
-          timeRange={[props.timeRange]}
+          timeRange={props.timeRange}
         />
       </Stack>
     </div>
