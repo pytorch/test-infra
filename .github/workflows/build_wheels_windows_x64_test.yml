@@ -74,21 +74,21 @@ jobs:
 
           echo "Checking src\\pytorch\\vision directory explicitly:"
           ls -l src\\pytorch\\vision || echo "Explicit path check failed"
-      - name: Run Bootstrap Git Script
-        shell: bash
-        run: |
-          echo Running bootstrap_git.bat...
-          cmd //c "$SCRIPTS_DIR\\bootstrap_git.bat"
-      - name: Bootstrap Python
-        shell: bash
-        run: |
-          echo Running bootstrap_python.bat...
-          cmd //c "$SCRIPTS_DIR\\bootstrap_python.bat"
-      - name: Bootstrap Build Tools
-        shell: bash
-        run: |
-          echo Running bootstrap_buildtools.bat...
-          cmd //c "$SCRIPTS_DIR\\bootstrap_buildtools.bat"
+      # - name: Run Bootstrap Git Script
+      #   shell: bash
+      #   run: |
+      #     echo Running bootstrap_git.bat...
+      #     cmd //c "$SCRIPTS_DIR\\bootstrap_git.bat"
+      # - name: Bootstrap Python
+      #   shell: bash
+      #   run: |
+      #     echo Running bootstrap_python.bat...
+      #     cmd //c "$SCRIPTS_DIR\\bootstrap_python.bat"
+      # - name: Bootstrap Build Tools
+      #   shell: bash
+      #   run: |
+      #     echo Running bootstrap_buildtools.bat...
+      #     cmd //c "$SCRIPTS_DIR\\bootstrap_buildtools.bat"
       - name: Call Build Script
         shell: bash
         run: |
