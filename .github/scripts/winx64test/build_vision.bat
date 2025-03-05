@@ -5,6 +5,7 @@ set CMAKE_BUILD_TYPE=%BUILD_TYPE%
 @REM set VCVARSALL_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
 set CONDA_PREFIX=%DEPENDENCIES_DIR%
 set PATH=%PATH%;%CONDA_PREFIX%\Library\bin
+set DISTUTILS_USE_SDK=1
 @REM :: find toch file name by searching
 @REM for /f "delims=" %%f in ('dir /b "%DOWNLOADS_DIR%" ^| findstr "torch-"') do set "PYTORCH_PATH=%DOWNLOADS_DIR%\%%f"
 
@@ -38,11 +39,13 @@ robocopy /E %DEPENDENCIES_DIR%\Library\bin %SRC_PATH%\torchvision *.dll
 :: Source directory
 cd %SRC_PATH%
 
-@REM :: Virtual environment
-@REM python -m pip install --upgrade pip
-@REM python -m venv .venv
-@REM echo * > .venv\.gitignore
-@REM call .\.venv\Scripts\activate
+where python
+:: Virtual environment
+python -m pip install --upgrade pip
+python -m venv .venv  --upgrade-deps
+echo * > .venv\.gitignore
+call .\.venv\Scripts\activate
+where python
 
 :: Install dependencies
 pip install numpy
@@ -63,7 +66,8 @@ for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio
 :vswhere
 call "%VS15VCVARSALL%" x64 || exit /b 1
 
-set DISTUTILS_USE_SDK=1
+:: Source directory
+cd %SRC_PATH%
 
 :: Creates wheel under dist folder
 python setup.py bdist_wheel
