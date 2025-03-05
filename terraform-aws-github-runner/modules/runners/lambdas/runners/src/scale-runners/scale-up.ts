@@ -334,18 +334,19 @@ export function _calculateScaleUpAmount(
     // Replace the runners that the incoming jobs will consume, to keep enough availalbe runners
     extraScaleUp = availableCount - availableAfterAcceptingRequests;
 
-    if (isEphemeral) {
-      // We randomly overprovision ephemeral runners to handle extra incoming requests.
-      // This is to compensate for requests that fail to provision runners for unknown reasons.
-      // We're more aggressive here since these runners are short lived and cannot be reused.
+    // TODO remove comment
+    // if (isEphemeral) {
+    //   // We randomly overprovision ephemeral runners to handle extra incoming requests.
+    //   // This is to compensate for requests that fail to provision runners for unknown reasons.
+    //   // We're more aggressive here since these runners are short lived and cannot be reused.
 
-      const overprovisionFrequency = 0.5; // Overprovision 50% of the time
-      const overprovisionAmount = 2; // Additional runners to add when overprovisioning
+    //   const overprovisionFrequency = 0.5; // Overprovision 50% of the time
+    //   const overprovisionAmount = 2; // Additional runners to add when overprovisioning
 
-      if (Math.random() < overprovisionFrequency) {
-        extraScaleUp += overprovisionAmount;
-      }
-    }
+    //   if (Math.random() < overprovisionFrequency) {
+    //     extraScaleUp += overprovisionAmount;
+    //   }
+    // }
 
     // Never proactively scale up above the minimum limit
     extraScaleUp = Math.min(extraScaleUp, minRunnersUnderprovisionCount);
