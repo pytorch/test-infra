@@ -153,23 +153,37 @@ export default function Page() {
   );
 
   useEffect(() => {
-    if (tts_true_series === undefined) {
-      return;
-    }
-
+    console.log(router.query)
     const jobNamesFromLink = JSON.parse(
       jobNamesCompressed != ""
         ? decompressFromEncodedURIComponent(jobNamesCompressed)
         : "[]"
     );
 
-    setSelectedJobs(
-      tts_true_series.reduce((acc: any, item: any) => {
-        acc[item.name] = jobNamesFromLink.includes(item.name);
-        return acc;
-      }, {} as any)
-    );
-  }, [data, jobNamesCompressed]);
+    if (router.query.jobName) {
+      jobNamesFromLink.push(router.query.jobName as string);
+    }
+
+    if (tts_true_series.length > 0) {
+      setSelectedJobs(
+        tts_true_series.reduce((acc: any, item: any) => {
+          acc[item.name] = jobNamesFromLink.includes(item.name);
+          return acc;
+        }, {} as any)
+      );
+    } else {
+      console.log(jobNamesFromLink)
+      setSelectedJobs(
+        jobNamesFromLink.reduce((acc: any, item: any) => {
+          acc[item] = true;
+          return acc;
+        }, {} as any)
+      );
+      console.log(selectedJobs)
+
+    }
+
+  }, [data, jobNamesCompressed, router.query.jobName]);
 
   const permalink =
     typeof window !== "undefined" &&
