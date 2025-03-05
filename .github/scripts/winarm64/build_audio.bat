@@ -8,9 +8,6 @@ set DISTUTILS_USE_SDK=1
 set USE_FFMPEG=1
 set FFMPEG_ROOT=%DEPENDENCIES_DIR%\Library
 
-:: find torch file name by searching
-for /f "delims=" %%f in ('dir /b "%DOWNLOADS_DIR%" ^| findstr "torch-"') do set "PYTORCH_PATH=%DOWNLOADS_DIR%\%%f"
-
 :: Dependencies
 if not exist "%DOWNLOADS_DIR%" mkdir %DOWNLOADS_DIR%
 if not exist "%DEPENDENCIES_DIR%" mkdir %DEPENDENCIES_DIR%
@@ -40,7 +37,7 @@ cd %SRC_PATH%
 
 :: Virtual environment
 python -m pip install --upgrade pip
-python -m venv .venv
+python -m venv .venv  --upgrade-deps
 echo * > .venv\.gitignore
 call .\.venv\Scripts\activate
 

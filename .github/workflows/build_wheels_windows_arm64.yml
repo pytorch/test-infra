@@ -1,14 +1,8 @@
-name: Arm64 Wheels Build
+name: Build Windows Arm64 Wheels
 
 on:
   workflow_call:
     inputs:
-      repository_name:
-        required: true
-        type: string
-      repository_branch:
-        required: true
-        type: string
       python_version:
         required: false
         default: "Python312"
@@ -17,26 +11,31 @@ on:
         required: false
         default: "latest"
         type: string
-      pytorch_build_run_id:
-        required: true
-        type: string
       build_type:
         required: false
         default: "Release"
         type: string
+      repository_name:
+        required: true
+        type: string
+        default: "pytorch/vision"
+      repository_branch:
+        required: true
+        type: string
+        default: "main"
       build_version:
         required: false
         type: string
 
 env:
-  DOWNLOADS_DIR: c:\temp\downloads\${{ inputs.repo_name }}
-  DEPENDENCIES_DIR: c:\temp\dependencies\${{ inputs.repo_name }}
-  SCRIPTS_DIR: .github\scripts\winarm64\
-  SRC_DIR: src_audio
+  DOWNLOADS_DIR: c:\temp\downloads\
+  DEPENDENCIES_DIR: c:\temp\dependencies\
+  SCRIPTS_DIR: test-infra\\.github\\scripts\\winarm64
+  SRC_DIR: src\\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
   MSVC_VERSION: ${{ inputs.msvc_version }}
   BUILD_TYPE: ${{ inputs.build_type }}
-  BUILD_VERSION : ${{ inputs.torchaudio_build_version }}
+  BUILD_VERSION : ${{ inputs.build_version }}
 
 permissions:
   id-token: write
@@ -44,51 +43,74 @@ permissions:
 
 jobs:
   build:
-    runs-on: "windows-11-arm64"
+    runs-on: windows-11-arm64
     name: Build wheel
     steps:
-      - name: Git checkout workflow
-        uses: actions/checkout@v4
-      - name: Bootstrap Git
-        run: |
-          & ${{ env.SCRIPTS_DIR }}\bootstrap_git.bat
-      - name: Bootstrap Python
-        run: |
-          & ${{ env.SCRIPTS_DIR }}\bootstrap_python.bat
-      - name: Bootstrap Build Tools
-        run: |
-          & ${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.bat
-      # TODO This should not be needed, update it when tested
-      # - name: Download PyTorch wheel artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     run-id: ${{ inputs.pytorch_build_run_id }}
-      #     name: ${{ inputs.pytorch_build_artifact_name }}
-      #     path: ${{ env.DOWNLOADS_DIR }}
-      - name: Git checkout repo ${{ inputs.repo_name }}
+      - name: Checkout test-infra repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repository_name }}
-          ref: ${{ inputs.repository_branch }}
-          path: ${{ env.SRC_DIR }}
-          submodules: recursive
-      - name: Call Build Script
-        shell: pwsh
+          repository: alinpahontu2912/test-infra
+          # TODO update once merged to main
+          ref: winarm64_wheels
+          path: test-infra
+      - name: Checkout Target Repository (${{ inputs.repository_name }})
+        uses: actions/checkout@v4
+        with:
+            repository: ${{ inputs.repository_name }}
+            ref: ${{ inputs.repository_branch }}
+            path: src/${{ inputs.repository_name }}
+            submodules: recursive
+      - name: Run Bootstrap Git Script
+        shell: bash
         run: |
-          $repo_name = "${{ inputs.repo_name }}".Split("/")[-1]  # Extract 'audio' or 'vision'
-          echo "REPO_NAME=$repo_name" | Out-File -FilePath $env:GITHUB_ENV -Append
-          if ($repo_name -eq "audio") {
-              ${{ env.SCRIPTS_DIR }}/build_audio.bat
-          } else if ($repo_name -eq "vision") {
-              ${{ env.SCRIPTS_DIR }}/build_vision.bat
-          } else {
-              throw "Invalid repository name: $repo_name"
-          }
+          echo Running bootstrap_git.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_git.bat"
+      - name: Bootstrap Python
+        shell: bash
+        run: |
+          echo Running bootstrap_python.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_python.bat"
+      - name: Bootstrap Build Tools
+        shell: bash
+        run: |
+          echo Running bootstrap_buildtools.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_buildtools.bat"
+      - name: Call Build Script
+        shell: bash
+        run: |
+          repository_name=$(basename "${{ inputs.repository_name }}")
+          echo "$repository_name"
+          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+
+          echo "repository_name=$repository_name" >> "$GITHUB_ENV"
+          if [ "$repository_name" = "audio" ]; then
+              echo "Attempting to run: $SCRIPTS_DIR/build_audio.bat"
+              cmd //c "$SCRIPTS_DIR\\build_audio.bat"
+              if [ $? -eq 0 ]; then
+                  echo "Done Building Torchaudio"
+              else
+                  echo "Error: Build Torchaudio failed"
+                  exit 1
+              fi
+          elif [ "$repository_name" = "vision" ]; then
+              echo "Attempting to run: $SCRIPTS_DIR/build_vision.bat"
+              cmd //c "$SCRIPTS_DIR\\build_vision.bat"
+              if [ $? -eq 0 ]; then
+                  echo "Done Building Torchvision"
+              else
+                  echo "Error: Build Torchvision failed"
+                  exit 1
+              fi
+          else
+              echo "Invalid repository name: $repository_name"
+              exit 1
+          fi
+          ls -l "$SRC_DIR"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.REPO_NAME }}-wheel
-          path: ${{ env.SRC_DIR }}/dist/*
+          name: ${{ env.repository_name }}-wheel
+          path: ${{ env.SRC_DIR }}\dist\*
           compression-level: 0
           retention-days: 3
