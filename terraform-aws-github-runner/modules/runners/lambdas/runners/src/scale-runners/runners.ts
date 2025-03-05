@@ -471,17 +471,7 @@ export async function tryReuseRunner(
     repoName: runnerParameters.repoName,
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
-  const runners = shuffleArrayInPlace(
-    await locallyCached(
-      'tryReuseRunner-listRunners',
-      `${runnerParameters.environment}-${runnerParameters.runnerType.instance_type}` +
-        `-${runnerParameters.orgName || ''}-${runnerParameters.repoName || ''}`,
-      10,
-      async () => {
-        return listRunners(metrics, filters);
-      },
-    ),
-  );
+  const runners = shuffleArrayInPlace(await listRunners(metrics, filters));
 
   /* istanbul ignore next */
   if (runnerParameters.orgName !== undefined) {
@@ -787,7 +777,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               ` [${runnerParameters.runnerType.runnerTypeName}] [AMI?:${customAmi}] ${labelsStrLog}: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
-            addSSMParameterRunnerConfig(
+            await addSSMParameterRunnerConfig(
               runInstancesResponse.Instances.filter((i) => i.InstanceId !== undefined).map(
                 (i) => i.InstanceId as string,
               ),
