@@ -144,12 +144,10 @@ runs:
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
             export PYTHON_VERSION=3.13.0
             export CONDA_EXTRA_PARAM=" python-freethreading==3.13.0 -c conda-forge"
-            if [[ "$(uname)" != Darwin ]]; then
-              # Pin conda and conda-libmamba-solver for 3.13t linux build
-              # this solver allows us to install anaconda dependencies on
-              # python-freethreading on conda-forge environment
-              conda install conda==24.7.1 conda-libmamba-solver=24.1.0
-            fi
+            # Pin conda and conda-libmamba-solver for 3.13t linux build
+            # this solver allows us to install anaconda dependencies on
+            # python-freethreading on conda-forge environment
+            conda install conda==24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           conda create \
