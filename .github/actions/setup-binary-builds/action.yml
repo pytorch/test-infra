@@ -134,10 +134,6 @@ runs:
           ${CONDA_RUN} python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           cat "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
-
-          if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-            ${CONDA_RUN} conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
-          fi
       - name: Setup conda environment for build
         shell: bash -l {0}
         env:
@@ -148,14 +144,19 @@ runs:
           export CONDA_EXTRA_PARAM=""
 
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-            export PYTHON_VERSION=3.13.0
-            export CONDA_EXTRA_PARAM=" python-freethreading==3.13.0 -c conda-forge"
-            if [[ "$(uname)" != Darwin ]]; then
-              # Pin conda and conda-libmamba-solver for 3.13t linux build
-              # this solver allows us to install anaconda dependencies on
-              # python-freethreading on conda-forge environment
-              conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
+            export PYTHON_VERSION=3.13
+            export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
+
+            # Hack to pin downgrade conda conda-libmamba
+            # Pin conda and conda-libmamba-solver for 3.13t linux build
+            # this solver allows us to install anaconda dependencies on
+            # python-freethreading on conda-forge environment
+            if [[ "$(uname)" == Darwin ]]; then
+              # required to be able to downgrade on MacOS m1 side
+              conda install -y python=3.9
+              conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
             fi
+            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           conda create \
@@ -170,7 +171,3 @@ runs:
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
-
-          # if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-          #  CONDA_RUN conda config --env --add channels conda-forge
-          # fi
