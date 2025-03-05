@@ -39,13 +39,11 @@ robocopy /E %DEPENDENCIES_DIR%\Library\bin %SRC_PATH%\torchvision *.dll
 :: Source directory
 cd %SRC_PATH%
 
-where python
 :: Virtual environment
 python -m pip install --upgrade pip
 python -m venv .venv  --upgrade-deps
 echo * > .venv\.gitignore
 call .\.venv\Scripts\activate
-where python
 
 :: Install dependencies
 pip install numpy
@@ -65,9 +63,6 @@ for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio
 
 :vswhere
 call "%VS15VCVARSALL%" x64 || exit /b 1
-
-:: Source directory
-cd %SRC_PATH%
 
 :: Creates wheel under dist folder
 python setup.py bdist_wheel
