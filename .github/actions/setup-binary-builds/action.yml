@@ -150,6 +150,7 @@ runs:
               # python-freethreading on conda-forge environment
               conda install conda=24.7.1 conda-libmamba-solver=24.1.0
             else
+              conda config --env --add channels conda-forge
               conda install -y conda=24.11.0 conda-libmamba-solver=24.11.1
             fi
           fi
