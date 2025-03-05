@@ -1630,10 +1630,30 @@ export class ScaleDownMetrics extends Metrics {
   }
 }
 
-export class ScaleUpChronMetrics extends Metrics {
+export class ScaleUpChronMetrics extends ScaleUpMetrics {
   constructor() {
-    super('scaleUpChron');
+    super();
   }
+  queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
+    const dimensions = new Map([['Org', org], ['RunnerType', runnerType], ['numQueuedJobs', numQueuedJobs.toString()]]);
+    this.addEntry('run.scaleupchron.queuedRunners', 3, dimensions);
+  }
+  queuedRunnerFailure(error: string) {
+    const dimensions = new Map([['error', error]]);
+    this.countEntry('run.scaleupchron.queuedRunners.failure', 1, dimensions);
+  }
+
+  scaleUpChronSuccess() {
+    this.scaleUpSuccess();
+    this.countEntry('run.scaleupchron.success');
+  }
+  scaleUpChronFailure(error:string) {
+    const dimensions = new Map([['error', error]]);
+
+    // should we add more information about this or do we not care since  it'll be requeued?
+    this.countEntry('run.scaleupchron.failure', 1, dimensions);
+  }
+
 }
 
 export interface sendMetricsTimeoutVars {

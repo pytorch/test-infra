@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 import { Config } from './config';
-import { getRepo } from './utils';
+import { getRepo, shuffleArrayInPlace } from './utils';
 import { ScaleUpChronMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
 import { sqsSendMessages } from './sqs';
-import { ActionRequestMessage } from './scale-up';
+import { ActionRequestMessage, scaleUp} from './scale-up';
 import { randomUUID } from 'crypto';
 
 export async function scaleUpChron(): Promise<void> {
@@ -14,12 +14,13 @@ export async function scaleUpChron(): Promise<void> {
   // 2. Polls scale-config to filter the list to ones that are self-hosted by this fleet and
   //    are ephemeral
   // 3. Sends a SQS request to the scale-up lambda to provision more of those instances
-  let queuedJobs = await getQueuedJobs();
+  const metrics = new ScaleUpChronMetrics();
+
+  let queuedJobs = await getQueuedJobs(metrics);
 
   const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
 
 
-  const metrics = new ScaleUpChronMetrics();
   const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
 
   const minAutoScaleupDelayMinutes = 30;
@@ -51,7 +52,15 @@ export async function scaleUpChron(): Promise<void> {
     throw new Error('scaleUpRecordQueueUrl is not set. Cannot send scale up requests');
   }
 
-  await sqsSendMessages(metrics, scaleUpRequests, Config.Instance.scaleUpRecordQueueUrl);
+  for (const request of shuffleArrayInPlace(scaleUpRequests)) {
+    try{
+      await scaleUp("aws:sqs", request, metrics);
+      metrics.scaleUpChronSuccess();
+
+    } catch (error) {
+      metrics.scaleUpChronFailure((error as Error).message);
+    }
+
 }
 
 class QueuedJobsForRunner {
@@ -72,7 +81,7 @@ class QueuedJobsForRunner {
   }
 }
 
-export async function getQueuedJobs(): Promise<QueuedJobsForRunner[]> {
+export async function getQueuedJobs(metrics: ScaleUpChronMetrics): Promise<QueuedJobsForRunner[]> {
   // This function queries the HUD for queued runners
   // and returns a list of them
 
@@ -83,6 +92,7 @@ export async function getQueuedJobs(): Promise<QueuedJobsForRunner[]> {
 
     // Map the response to the class
     const queued_runners = response.data.map((runner: any) => {
+      metrics.queuedRunnerStats(runner.org, runner.runner_label, runner.num_queued_jobs,);
       return new QueuedJobsForRunner(
         runner.runner_label,
         runner.org,
@@ -93,6 +103,7 @@ export async function getQueuedJobs(): Promise<QueuedJobsForRunner[]> {
     });
     return queued_runners;
   } catch (error) {
+    metrics.queuedRunnerFailure((error as Error).message);
     console.error('Error fetching queued runners:', error);
     return [];
   }
