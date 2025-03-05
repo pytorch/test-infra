@@ -153,7 +153,7 @@ export default function Page() {
   );
 
   useEffect(() => {
-    console.log(router.query)
+    console.log(router.query);
     const jobNamesFromLink = JSON.parse(
       jobNamesCompressed != ""
         ? decompressFromEncodedURIComponent(jobNamesCompressed)
@@ -172,17 +172,13 @@ export default function Page() {
         }, {} as any)
       );
     } else {
-      console.log(jobNamesFromLink)
       setSelectedJobs(
         jobNamesFromLink.reduce((acc: any, item: any) => {
           acc[item] = true;
           return acc;
         }, {} as any)
       );
-      console.log(selectedJobs)
-
     }
-
   }, [data, jobNamesCompressed, router.query.jobName]);
 
   const permalink =
