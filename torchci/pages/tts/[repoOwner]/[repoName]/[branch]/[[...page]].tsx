@@ -153,7 +153,6 @@ export default function Page() {
   );
 
   useEffect(() => {
-    console.log(router.query);
     const jobNamesFromLink = JSON.parse(
       jobNamesCompressed != ""
         ? decompressFromEncodedURIComponent(jobNamesCompressed)
