@@ -39,10 +39,11 @@ robocopy /E %DEPENDENCIES_DIR%\Library\bin %SRC_PATH%\torchvision *.dll
 cd %SRC_PATH%
 
 :: Virtual environment
-python -m pip install --upgrade pip
 python -m venv .venv
-echo * > .venv\.gitignore
 call .\.venv\Scripts\activate
+echo * > .venv\.gitignore
+pip install --upgrade pip setuptools
+where python
 
 :: Install dependencies
 pip install numpy
