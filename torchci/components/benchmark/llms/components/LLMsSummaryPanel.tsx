@@ -1,16 +1,17 @@
 import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import styles from "components/metrics.module.css";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
 import {
   BranchAndCommitPerfData,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
-} from "components/benchmark/llms/common";
-import styles from "components/metrics.module.css";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
-import { combineLeftAndRight } from "lib/benchmark/llmUtils";
+  UNIT_FOR_METRIC,
+} from "lib/benchmark/llms/common";
+import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -24,7 +25,7 @@ const getDeviceArch = (
   return a === "" ? d : `${d} (${a})`;
 };
 
-export function SummaryPanel({
+export default function LLMsSummaryPanel({
   startTime,
   stopTime,
   granularity,
@@ -64,7 +65,6 @@ export function SummaryPanel({
     lPerfData,
     rPerfData
   );
-  console.log(data);
   const columns: any[] = [
     {
       field: "metadata",
@@ -316,6 +316,9 @@ export function SummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
+              const unit =
+                metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
+
               // Compute the percentage
               const target = v.r.target;
               const lPercent =
@@ -330,9 +333,9 @@ export function SummaryPanel({
                 target && target != 0 ? `[target = ${target}]` : "";
 
               if (lCommit === rCommit || !v.highlight) {
-                return `${r} ${rPercent} ${showTarget}`;
+                return `${r}${unit} ${rPercent} ${showTarget}`;
               } else {
-                return `${l} ${lPercent} → ${r} ${rPercent} ${showTarget}`;
+                return `${l}${unit} ${lPercent} → ${r}${unit} ${rPercent} ${showTarget}`;
               }
             },
           };

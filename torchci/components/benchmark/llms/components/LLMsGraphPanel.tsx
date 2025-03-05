@@ -4,13 +4,7 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import {
-  DEFAULT_DEVICE_NAME,
-  DEFAULT_MODEL_NAME,
-  LLMsBenchmarkData,
-  METRIC_DISPLAY_HEADERS,
-  METRIC_DISPLAY_SHORT_HEADERS,
-} from "components/benchmark/llms/common";
+
 import {
   Granularity,
   seriesWithInterpolatedTimes,
@@ -18,15 +12,25 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_MODEL_NAME,
+  LLMsBenchmarkData,
+  METRIC_DISPLAY_HEADERS,
+  METRIC_DISPLAY_SHORT_HEADERS,
+} from "lib/benchmark/llms/common";
+import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "lib/benchmark/aoUtils";
-import { computeGeomean, useBenchmark } from "lib/benchmark/llmUtils";
+} from "lib/benchmark/llms/utils/aoUtils";
+import {
+  computeGeomean,
+  useBenchmark,
+} from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export function GraphPanel({
+export default function LLMsGraphPanel({
   queryParams,
   granularity,
   repoName,

@@ -27,7 +27,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.4", "12.6", "12.8"],
+    "nightly": ["11.8", "12.6", "12.8"],
     "test": ["11.8", "12.4", "12.6"],
     "release": ["11.8", "12.4", "12.6"],
 }
@@ -42,6 +42,12 @@ CUDA_CUDNN_VERSIONS = {
     "12.4": {"cuda": "12.4.1", "cudnn": "9"},
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
+}
+
+STABLE_CUDA_VERSIONS = {
+    "nightly": "12.6",
+    "test": "12.4",
+    "release": "12.4",
 }
 
 CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64"]

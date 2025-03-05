@@ -134,9 +134,8 @@ export function SummaryPanel({
   granularity,
   mode,
   dtype,
-  lDeviceName,
+  deviceName,
   lPerfData,
-  rDeviceName,
   rPerfData,
   all_suites,
 }: {
@@ -146,9 +145,8 @@ export function SummaryPanel({
   granularity: Granularity;
   mode: string;
   dtype: string;
-  lDeviceName: string;
+  deviceName: string;
   lPerfData: BranchAndCommitPerfData;
-  rDeviceName: string;
   rPerfData: BranchAndCommitPerfData;
   all_suites: { [key: string]: string };
 }) {
@@ -246,10 +244,8 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
@@ -338,10 +334,8 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);
@@ -433,10 +427,8 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
@@ -524,10 +516,8 @@ export function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lDeviceName=${encodeURIComponent(
-                      lDeviceName
-                    )}&rDeviceName=${encodeURIComponent(
-                      rDeviceName
+                    }?dashboard=${dashboard}&startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&deviceName=${encodeURIComponent(
+                      deviceName
                     )}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);

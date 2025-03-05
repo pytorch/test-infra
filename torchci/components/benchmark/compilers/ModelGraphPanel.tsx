@@ -10,8 +10,10 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { convertToCompilerPerformanceData } from "lib/benchmark/aoUtils";
-import { augmentData } from "lib/benchmark/compilerUtils";
+import {
+  augmentData,
+  convertToCompilerPerformanceData,
+} from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { CompilerPerformanceData } from "lib/types";
 import useSWR from "swr";
