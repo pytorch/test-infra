@@ -46,6 +46,7 @@ class TestChecks:
             )
         return workflow_checks
 
+
 @mock.patch(
     "tools.scripts.fetch_latest_green_commit.fetch_unstable_issues",
     return_value=[],
@@ -55,7 +56,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_all_successful(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_all_successful(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with workflows are successful"""
         workflow_checks = mock_get_commit_results()
         self.assertTrue(is_green("sha", requires, workflow_checks)[0])
@@ -64,7 +67,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_necessary_successful(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_necessary_successful(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with necessary workflows are successful"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(
@@ -88,7 +93,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_necessary_skipped(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_necessary_skipped(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with necessary job (ex: pull) skipped"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(workflow_checks, "pull", "skipped")
@@ -99,7 +106,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_skippable_skipped(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_skippable_skipped(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with skippable jobs (periodic and docker-release-builds skipped"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(
@@ -114,7 +123,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_necessary_failed(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_necessary_failed(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with necessary job (ex: Lint) failed"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(workflow_checks, "Lint", "failed")
@@ -126,7 +137,9 @@ class TestPrintCommits(TestCase):
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
         return_value=TestChecks().make_test_checks(),
     )
-    def test_skippable_failed(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_skippable_failed(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with failing skippable jobs (ex: docker-release-builds) should pass"""
         workflow_checks = mock_get_commit_results()
         workflow_checks = set_workflow_job_status(
@@ -141,7 +154,9 @@ class TestPrintCommits(TestCase):
     @mock.patch(
         "tools.scripts.fetch_latest_green_commit.get_commit_results", return_value={}
     )
-    def test_no_workflows(self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any) -> None:
+    def test_no_workflows(
+        self, mock_get_commit_results: Any, mock_fetch_unstable_issues: Any
+    ) -> None:
         """Test with missing workflows"""
         workflow_checks = mock_get_commit_results()
         result = is_green("sha", requires, workflow_checks)
