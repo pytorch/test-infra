@@ -14,7 +14,8 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   // 2. Polls scale-config to filter the list to ones that are self-hosted by this fleet and
   //    are ephemeral and nonephemeral
   // 3. Sends a SQS request to the scale-up lambda to provision more of those instances
-  let queuedJobs = await getQueuedJobs();
+
+  let queuedJobs = await getQueuedJobs(metrics);
 
   const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
 
