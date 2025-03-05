@@ -2,10 +2,9 @@ echo "Starting build_vision.bat"
 @echo on
 set SRC_PATH=%GITHUB_WORKSPACE%\%SRC_DIR%
 set CMAKE_BUILD_TYPE=%BUILD_TYPE%
-set VCVARSALL_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+@REM set VCVARSALL_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
 set CONDA_PREFIX=%DEPENDENCIES_DIR%
 set PATH=%PATH%;%CONDA_PREFIX%\Library\bin
-set DISTUTILS_USE_SDK=1
 @REM :: find toch file name by searching
 @REM for /f "delims=" %%f in ('dir /b "%DOWNLOADS_DIR%" ^| findstr "torch-"') do set "PYTORCH_PATH=%DOWNLOADS_DIR%\%%f"
 
@@ -50,7 +49,21 @@ pip install numpy
 pip3 install torch
 
 :: Activate visual studio
-call "%VCVARSALL_PATH%" x64
+set VC_VERSION_LOWER=17
+set VC_VERSION_UPPER=18
+
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -legacy -products * -version [%VC_VERSION_LOWER%^,%VC_VERSION_UPPER%^) -property installationPath`) do (
+    if exist "%%i" if exist "%%i\VC\Auxiliary\Build\vcvarsall.bat" (
+        set "VS15INSTALLDIR=%%i"
+        set "VS15VCVARSALL=%%i\VC\Auxiliary\Build\vcvarsall.bat"
+        goto vswhere
+    )
+)
+
+:vswhere
+call "%VS15VCVARSALL%" x64 || exit /b 1
+
+set DISTUTILS_USE_SDK=1
 
 :: Creates wheel under dist folder
 python setup.py bdist_wheel
