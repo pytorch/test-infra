@@ -11,8 +11,8 @@ if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
 if not exist "%DEPENDENCIES_DIR%" mkdir "%DEPENDENCIES_DIR%"
 
 :: Set download URL for the Git
-set "DOWNLOAD_URL=https://github.com/git-for-windows/git/releases/download/v2.46.0.windows.1/Git-2.46.0-64-bit.exe"
-set "INSTALLER_FILE=%DOWNLOADS_DIR%\Git-2.46.0-64-bit.exe"
+set "DOWNLOAD_URL=https://github.com/git-for-windows/git/releases/download/v2.48.1.windows.1/Git-2.48.1-64-bit.exe"
+set "INSTALLER_FILE=%DOWNLOADS_DIR%\Git-2.48.1-64-bit.exe"
 
 :: Download installer
 echo Downloading Git...
