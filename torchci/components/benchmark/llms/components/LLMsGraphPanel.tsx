@@ -289,7 +289,9 @@ export default function LLMsGraphPanel({
                       .filter((metric) => chartData[metric].length !== 0)
                       .map((metric: string) => (
                         <td key={`${metric}-${index}`}>
-                          {chartData[metric][index] !== undefined
+                          {chartData[metric][index] !== undefined &&
+                          chartData[metric][index].workflow_id ===
+                            entry.workflow_id
                             ? chartData[metric][index].actual
                             : ""}
                         </td>
