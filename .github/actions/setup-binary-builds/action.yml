@@ -150,7 +150,7 @@ runs:
               # python-freethreading on conda-forge environment
               conda install conda=24.7.1 conda-libmamba-solver=24.1.0
             else
-              conda install -y conda=24.9.0 conda-libmamba-solver=24.1.0
+              conda install -y conda=24.9.2
             fi
           fi
 
