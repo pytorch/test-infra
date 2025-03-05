@@ -510,6 +510,10 @@ export async function tryReuseRunner(
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
       continue;
     }
+    if (runner.ephemeralRunnerFinished !== undefined && runner.ephemeralRunnerFinished > (Date.now() / 1000) - 60) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+      continue;
+    }
     try {
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
