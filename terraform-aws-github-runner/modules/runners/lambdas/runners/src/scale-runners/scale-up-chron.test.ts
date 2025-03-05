@@ -15,4 +15,3 @@ describe('scaleUp', () => {
     expect(runners).toBeDefined();
   });
 });
-

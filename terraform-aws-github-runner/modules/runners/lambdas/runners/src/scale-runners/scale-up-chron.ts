@@ -8,13 +8,12 @@ import { sqsSendMessages } from './sqs';
 import { ActionRequestMessage, scaleUp} from './scale-up';
 import { randomUUID } from 'crypto';
 
-export async function scaleUpChron(): Promise<void> {
+export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> {
   // This function does the following:
   // 1. Queries for queued runners via HUD
   // 2. Polls scale-config to filter the list to ones that are self-hosted by this fleet and
   //    are ephemeral
   // 3. Sends a SQS request to the scale-up lambda to provision more of those instances
-  const metrics = new ScaleUpChronMetrics();
 
   let queuedJobs = await getQueuedJobs(metrics);
 
