@@ -1,3 +1,4 @@
+from functools import lru_cache
 import json
 import re
 import sys
@@ -80,6 +81,22 @@ def get_commit_results(
     return workflow_checks
 
 
+@lru_cache
+def fetch_unstable_issues() -> List[str]:
+    issues = query_clickhouse_saved("issue_query", {"label": "unstable"})
+    return [
+        issue["title"][len("UNSTABLE"):].strip()
+        for issue in issues if issue["title"].startswith("UNSTABLE") and issue["state"] == "open"
+    ]
+
+
+def is_unstable(job: dict[str, Any]) -> bool:
+    # Check if the job is an unstable job, either by name or by issue
+    if "unstable" in job["jobName"]:
+        return True
+    return job["name"] in fetch_unstable_issues()
+
+
 def is_green(
     commit: str, requires: List[str], results: List[Dict[str, Any]]
 ) -> Tuple[bool, str]:
@@ -88,9 +105,9 @@ def is_green(
     regex = {check: False for check in requires}
 
     for check in workflow_checks:
-        jobName = check["jobName"]
+        jobName = check["name"]
         # Ignore result from unstable job, be it success or failure
-        if "unstable" in jobName:
+        if "unstable" in jobName or jobName in fetch_unstable_issues():
             continue
 
         workflow_name = check["workflowName"]
