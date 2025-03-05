@@ -60,43 +60,35 @@ jobs:
             ref: ${{ inputs.repository_branch }}
             path: src/${{ inputs.repository_name }}
             submodules: recursive
-      # - name: Debug Paths
-      #   shell: bash
-      #   run: |
-      #     echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-      #     ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
+      - name: Debug Paths
+        shell: bash
+        run: |
+          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
+          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
       
-      #     echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
-      #     ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
+          echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
+          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
 
-      #     echo "SRC_DIR: $SRC_DIR"
-      #     ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
+          echo "SRC_DIR: $SRC_DIR"
+          ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
 
-      #     echo "Checking src\\pytorch\\vision directory explicitly:"
-      #     ls -l src\\pytorch\\vision || echo "Explicit path check failed"
-      # - name: Run Bootstrap Git Script
-      #   shell: cmd
-      #   run: |
-      #     echo Running bootstrap_git.bat...
-      #     "%SCRIPTS_DIR%\bootstrap_git.bat"
-      # - name: Bootstrap Python
-      #   shell: cmd
-      #   run: |
-      #     echo Running bootstrap_python.bat...
-      #     "%SCRIPTS_DIR%\bootstrap_python.bat"
-      # - name: Bootstrap Build Tools
-      #   shell: cmd
-      #   run: |
-      #     echo Running bootstrap_buildtools.bat...
-      #     "%SCRIPTS_DIR%\bootstrap_buildtools.bat"
-      # # TODO This should not be needed, update it when tested
-      # # - name: Download PyTorch wheel artifact
-      # #   uses: actions/download-artifact@v4
-      # #   with:
-      # #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      # #     run-id: ${{ inputs.pytorch_build_run_id }}
-      # #     name: ${{ inputs.pytorch_build_artifact_name }}
-      # #     path: ${{ env.DOWNLOADS_DIR }}
+          echo "Checking src\\pytorch\\vision directory explicitly:"
+          ls -l src\\pytorch\\vision || echo "Explicit path check failed"
+      - name: Run Bootstrap Git Script
+        shell: bash
+        run: |
+          echo Running bootstrap_git.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_git.bat"
+      - name: Bootstrap Python
+        shell: bash
+        run: |
+          echo Running bootstrap_python.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_python.bat"
+      - name: Bootstrap Build Tools
+        shell: bash
+        run: |
+          echo Running bootstrap_buildtools.bat...
+          cmd //c "$SCRIPTS_DIR\\bootstrap_buildtools.bat"
       - name: Call Build Script
         shell: bash
         run: |
