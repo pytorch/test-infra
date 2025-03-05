@@ -164,6 +164,8 @@ jobs:
           cache-key: ${{ inputs.cache-key }}
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
+        env:
+          REF: test_313t_m1
       - name: Build clean
         working-directory: ${{ inputs.repository }}
         run: |
