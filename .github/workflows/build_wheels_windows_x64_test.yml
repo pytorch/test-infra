@@ -3,12 +3,6 @@ name: X64 Wheels Build
 on:
   workflow_call:
     inputs:
-      repository_name:
-        required: true
-        type: string
-      repository_branch:
-        required: true
-        type: string
       python_version:
         required: false
         default: "Python312"
@@ -17,13 +11,18 @@ on:
         required: false
         default: "latest"
         type: string
-      pytorch_build_run_id:
-        required: false
-        type: string
       build_type:
         required: false
         default: "Release"
         type: string
+      repository_name:
+        required: true
+        type: string
+        default: "pytorch/vision"
+      repository_branch:
+        required: true
+        type: string
+        default: "main"
       build_version:
         required: false
         type: string
@@ -47,7 +46,7 @@ jobs:
     runs-on: windows-latest
     name: Build wheel
     steps:
-      - name: Checkout test-infra Repository
+      - name: Checkout test-infra repository
         uses: actions/checkout@v4
         with:
           repository: alinpahontu2912/test-infra
@@ -60,20 +59,6 @@ jobs:
             ref: ${{ inputs.repository_branch }}
             path: src/${{ inputs.repository_name }}
             submodules: recursive
-      - name: Debug Paths
-        shell: bash
-        run: |
-          echo "SCRIPTS_DIR: $SCRIPTS_DIR"
-          ls -l "$SCRIPTS_DIR" || echo "SCRIPTS_DIR does not exist"
-      
-          echo "Checking test-infra\\.github\\scripts\\winx64test\\ directory explicitly:"
-          ls -l test-infra\\.github\\scripts\\winx64test\\ || echo "Explicit path check failed"
-
-          echo "SRC_DIR: $SRC_DIR"
-          ls -l "$SRC_DIR" || echo "SRC_DIR does not exist"
-
-          echo "Checking src\\pytorch\\vision directory explicitly:"
-          ls -l src\\pytorch\\vision || echo "Explicit path check failed"
       # - name: Run Bootstrap Git Script
       #   shell: bash
       #   run: |
