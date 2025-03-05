@@ -1,7 +1,7 @@
-from functools import lru_cache
 import json
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
@@ -85,8 +85,9 @@ def get_commit_results(
 def fetch_unstable_issues() -> List[str]:
     issues = query_clickhouse_saved("issue_query", {"label": "unstable"})
     return [
-        issue["title"][len("UNSTABLE"):].strip()
-        for issue in issues if issue["title"].startswith("UNSTABLE") and issue["state"] == "open"
+        issue["title"][len("UNSTABLE") :].strip()
+        for issue in issues
+        if issue["title"].startswith("UNSTABLE") and issue["state"] == "open"
     ]
 
 
