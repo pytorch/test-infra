@@ -24,102 +24,17 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         tflint_version: v0.54.0
 
-    - name: Install Terraform
-      uses: hashicorp/setup-terraform@v2
+    - name: Install Tofu
+      uses: opentofu/setup-opentofu@v1
       with:
-        terraform_version: 1.5.1
+        terraform_version: 1.5.7
         terraform_wrapper: false
 
     - name: Show version
-      run: tflint --version
+      run:
+        tflint --version
+        tofu --version
 
-    - name: "Init TFLint download-lambda"
-      working-directory: terraform-aws-github-runner/modules/download-lambda
-      run: tflint --init
-    - name: "Init terraform download-lambda"
-      working-directory: terraform-aws-github-runner/modules/download-lambda
-      run: terraform init
-    - name: "Run TFLint download-lambda"
-      working-directory: terraform-aws-github-runner/modules/download-lambda
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate download-lambda"
-      working-directory: terraform-aws-github-runner/modules/download-lambda
-      run: terraform validate
-
-    - name: "Init TFLint runner-binaries-syncer"
-      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
-      run: tflint --init
-    - name: "Init terraform runner-binaries-syncer"
-      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
-      run: terraform init
-    - name: "Run TFLint runner-binaries-syncer"
-      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate runner-binaries-syncer"
-      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
-      run: terraform validate
-
-    - name: "Init TFLint runners-instances"
-      working-directory: terraform-aws-github-runner/modules/runners-instances
-      run: tflint --init
-    - name: "Init terraform runners-instances"
-      working-directory: terraform-aws-github-runner/modules/runners-instances
-      run: terraform init
-    - name: "Run TFLint runners-instances"
-      working-directory: terraform-aws-github-runner/modules/runners-instances
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate runners-instances"
-      working-directory: terraform-aws-github-runner/modules/runners-instances
-      run: terraform validate
-
-    - name: "Init TFLint runners"
-      working-directory: terraform-aws-github-runner/modules/runners
-      run: tflint --init
-    - name: "Init terraform runners"
-      working-directory: terraform-aws-github-runner/modules/runners
-      run: terraform init
-    - name: "Run TFLint runners"
-      working-directory: terraform-aws-github-runner/modules/runners
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate runners"
-      working-directory: terraform-aws-github-runner/modules/runners
-      run: terraform validate
-
-    - name: "Init TFLint setup-iam-permissions"
-      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
-      run: tflint --init
-    - name: "Init terraform setup-iam-permissions"
-      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
-      run: terraform init
-    - name: "Run TFLint setup-iam-permissions"
-      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate setup-iam-permissions"
-      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
-      run: terraform validate
-
-    - name: "Init TFLint webhook"
-      working-directory: terraform-aws-github-runner/modules/webhook
-      run: tflint --init
-    - name: "Init terraform webhook"
-      working-directory: terraform-aws-github-runner/modules/webhook
-      run: terraform init
-    - name: "Run TFLint webhook"
-      working-directory: terraform-aws-github-runner/modules/webhook
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate webhook"
-      working-directory: terraform-aws-github-runner/modules/webhook
-      run: terraform validate
-
-    - name: "Init TFLint main"
+    - name: "tflint"
       working-directory: terraform-aws-github-runner
-      run: tflint --init
-    - name: "Init terraform main"
-      working-directory: terraform-aws-github-runner
-      run: terraform init
-    - name: "Run TFLint main"
-      working-directory: terraform-aws-github-runner
-      run: tflint --call-module-type=all
-    - name: "Run terraform validate terraform-aws-github-runner"
-      working-directory: terraform-aws-github-runner
-      run: terraform validate
+      run: make tflint
