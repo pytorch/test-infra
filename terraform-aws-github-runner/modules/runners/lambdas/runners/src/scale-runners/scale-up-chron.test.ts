@@ -14,6 +14,7 @@ import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import { scaleUpChron, getQueuedJobs } from './scale-up-chron';
+import axios from 'axios';
 
 import * as MetricsModule from './metrics';
 
@@ -23,7 +24,13 @@ jest.mock('./gh-issues');
 
 
 // Import the required modules
-import { getQueuedJobs } from './scale-up-chron';
+import { getRepo } from './utils';
+
+const baseCfg = {
+  scaleConfigOrg: 'test_org1',
+  scaleUpMinQueueTimeMinutes: 30,
+  scaleUpRecordQueueUrl: 'url',
+} as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpChronMetrics();
 
@@ -46,7 +53,7 @@ describe('scaleUpChron', () => {
       ]),
     );
   });
-
+  jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
   if (!Config.Instance.scaleUpRecordQueueUrl) {
@@ -55,14 +62,16 @@ describe('scaleUpChron', () => {
   }
 
   it('invalid scaleUpRecordQueueUrl', async () => {
-    jest.spyOn(Config, 'Instance', 'get').mockReturnValue(null)
-    expect(await scaleUpChron(metrics)).rejects.toThrow('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests');
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+      () =>
+        ({
+          ...baseCfg,
+          scaleUpRecordQueueUrl: null,
+        } as unknown as Config),
+    );    expect(await scaleUpChron(metrics)).rejects.toThrow('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests');
   });
 
   it('queued jobs do not match available runners', async () => {
-    jest.spyOn(Config, 'Instance', 'scaleUpMinQueueTimeMinutes').mockReturnValue('url')
-    jest.spyOn(Config, 'Instance', 'scaleConfigOrg').mockReturnValue('test_org1')
-
     const mockedGetQueuedJobs = mocked(getQueuedJobs).mockResolvedValue([
       {
         runner_label: 'label1-nomatch',
@@ -79,8 +88,6 @@ describe('scaleUpChron', () => {
   });
 
   it('queued jobs do not match scale config org', async () => {
-    jest.spyOn(Config, 'Instance', 'scaleUpMinQueueTimeMinutes').mockReturnValue('url')
-    jest.spyOn(Config, 'Instance', 'scaleConfigOrg').mockReturnValue('test_org1')
     const mockedGetQueuedJobs = mocked(getQueuedJobs).mockResolvedValue([
       {
         runner_label: 'label1',
@@ -94,14 +101,6 @@ describe('scaleUpChron', () => {
     const scaleUpInstanceNoOp = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
     await scaleUpChron(metrics)
     expect(scaleUpInstanceNoOp).toBeCalledTimes(1);
-  });
-
-
-
-  it('getQueuedRunners should fetch queued runners', async () => {
-    const runners = await getQueuedJobs();
-    console.log('Queued Runners:', runners);
-    expect(runners).toBeDefined();
   });
 });
 
@@ -145,13 +144,13 @@ describe('getQueuedJobs', () => {
 
   it('get queue data from url request with invalid response', async () => {
     jest.spyOn(axios, 'get').mockReturnValue(new Map([['noDataHere', 'whoops']]));
-    const runners = await getQueuedJobs();
+    const runners = await getQueuedJobs(metrics, 'url');
     await expect(getQueuedJobs(metrics, 'url')).rejects.toThrow('Error fetching queued runners: {TODO:camyllh test and add error message}');
   });
 
   it('get queue data from url request with invalid response', async () => {
     jest.spyOn(axios, 'get').mockReturnValue(new Map([['noDataHere', 'whoops']]));
-    const runners = await getQueuedJobs();
+    const runners = await getQueuedJobs(metrics, 'url');
     await expect(getQueuedJobs(metrics, 'url')).rejects.toThrow('Error fetching queued runners: {TODO:camyllh test and add error message}');
   });
 
