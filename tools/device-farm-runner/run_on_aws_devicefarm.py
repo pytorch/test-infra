@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass, asdict
+import copy
 import datetime
 import json
 import logging
@@ -10,11 +10,11 @@ import string
 import sys
 import time
 from argparse import Action, ArgumentParser, Namespace
+from dataclasses import asdict, dataclass
 from enum import Enum
 from logging import info
 from typing import Any, Dict, List, Optional
 from warnings import warn
-import copy
 
 import boto3  # type: ignore[import-not-found]
 import requests

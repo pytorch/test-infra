@@ -1,17 +1,18 @@
+import copy
 import json
-from re import M
 import unittest
+from re import M
+from typing import Any, Dict
 from unittest import mock
 from unittest.mock import MagicMock
-from typing import Any, Dict
-from run_on_aws_devicefarm import ReportProcessor, download_artifact
-import copy
+
+from run_on_aws_devicefarm import download_artifact, ReportProcessor
 
 
 class MockS3Client:
     def __init__(self):
         self.mock_aws_client = MagicMock()
-        self.mock_aws_client.upload_file.return_value=None
+        self.mock_aws_client.upload_file.return_value = None
 
     def getMockClient(self) -> MagicMock:
         return self.mock_aws_client
@@ -213,7 +214,7 @@ class Test(unittest.TestCase):
         self.assertEqual(m_s3.getMockClient().upload_file.call_count, 12)
         self.assertEqual(m_s3.getMockClient().upload_file.call_count, 12)
         self.assertEqual(download_artifact_mock.call_count, 12)
-        self.assertEqual(m_s3.getMockClient().upload_file.call_count,12)
+        self.assertEqual(m_s3.getMockClient().upload_file.call_count, 12)
 
         # assert artifacts
         self.assertEqual(len(artifacts), 12)
@@ -223,24 +224,24 @@ class Test(unittest.TestCase):
         ]
         self.assertEqual(len(job1_artifacts), 6)
         a1 = job1_artifacts[0]
-        self.assertEqual(a1["app_type"], 'IOS')
-        self.assertEqual(a1["job_arn"], 'arn-job-1')
-        self.assertEqual(a1["job_conclusion"], 'PASSED')
-        self.assertEqual(a1["job_name"], 'Apple iPhone 15')
-        self.assertEqual(a1["os"], '18.0')
-        self.assertEqual(a1["name"], 'test spec output')
+        self.assertEqual(a1["app_type"], "IOS")
+        self.assertEqual(a1["job_arn"], "arn-job-1")
+        self.assertEqual(a1["job_conclusion"], "PASSED")
+        self.assertEqual(a1["job_name"], "Apple iPhone 15")
+        self.assertEqual(a1["os"], "18.0")
+        self.assertEqual(a1["name"], "test spec output")
 
         job2_artifacts = [
             artifact for artifact in artifacts if artifact["job_arn"] == "arn-job-2"
         ]
         self.assertEqual(len(job2_artifacts), 6)
         a2 = job2_artifacts[0]
-        self.assertEqual(a2["app_type"], 'IOS')
-        self.assertEqual(a2["job_arn"], 'arn-job-2')
-        self.assertEqual(a2["job_conclusion"], 'PASSED')
-        self.assertEqual(a2["job_name"], 'Apple iPhone 17 Pro')
-        self.assertEqual(a2["os"], '11.0')
-        self.assertEqual(a2["name"], 'test spec output')
+        self.assertEqual(a2["app_type"], "IOS")
+        self.assertEqual(a2["job_arn"], "arn-job-2")
+        self.assertEqual(a2["job_conclusion"], "PASSED")
+        self.assertEqual(a2["job_name"], "Apple iPhone 17 Pro")
+        self.assertEqual(a2["os"], "11.0")
+        self.assertEqual(a2["name"], "test spec output")
 
     @mock.patch("run_on_aws_devicefarm.download_artifact")
     def test_reportProcessor_debug(self, download_artifact_mock):
@@ -264,7 +265,7 @@ class Test(unittest.TestCase):
         self.assertEqual(download_artifact_mock.call_count, 12)
         self.assertEqual(len(artifacts), 12)
 
-        self.assertEqual(m_s3.getMockClient().upload_file.call_count,0)
+        self.assertEqual(m_s3.getMockClient().upload_file.call_count, 0)
 
 
 if __name__ == "__main__":
