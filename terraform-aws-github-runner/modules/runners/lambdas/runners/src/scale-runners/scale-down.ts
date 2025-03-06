@@ -441,8 +441,8 @@ export function isRunnerRemovable(
 
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   let baseTime: moment.Moment;
-  if (runner.ebsVolumeReplacementRequestTm !== undefined) {
-    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTm);
+  if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
+    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp);
   } else if (runner.ephemeralRunnerFinished !== undefined) {
     baseTime = moment.unix(runner.ephemeralRunnerFinished);
   } else {

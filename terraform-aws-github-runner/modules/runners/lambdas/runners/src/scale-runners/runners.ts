@@ -205,7 +205,7 @@ export async function listRunners(
           /* istanbul ignore next */
           return (
             reservation.Instances?.map((instance) => {
-              const ebsVolumeReplacementRequestTm = instance.Tags?.find(
+              const ebsVolumeReplacementRequestTimestamp = instance.Tags?.find(
                 (e) => e.Key === 'EBSVolumeReplacementRequestTm',
               )?.Value;
               const ephemeralRunnerFinished = instance.Tags?.find((e) => e.Key === 'EphemeralRunnerFinished')?.Value;
@@ -213,8 +213,8 @@ export async function listRunners(
                 applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
                 awsRegion: itm.awsRegion,
                 az: instance.Placement?.AvailabilityZone?.toLocaleLowerCase(),
-                ebsVolumeReplacementRequestTm: ebsVolumeReplacementRequestTm
-                  ? parseInt(ebsVolumeReplacementRequestTm)
+                ebsVolumeReplacementRequestTimestamp: ebsVolumeReplacementRequestTimestamp
+                  ? parseInt(ebsVolumeReplacementRequestTimestamp)
                   : undefined,
                 environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
                 ephemeralRunnerFinished: ephemeralRunnerFinished ? parseInt(ephemeralRunnerFinished) : undefined,

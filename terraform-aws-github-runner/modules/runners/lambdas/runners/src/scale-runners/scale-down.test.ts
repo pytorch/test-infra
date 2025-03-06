@@ -324,7 +324,7 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-ebs-not-min-time-01',
         org: theOrg,
-        ebsVolumeReplacementRequestTm: dateRef
+        ebsVolumeReplacementRequestTimestamp: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
           .unix(),
@@ -667,7 +667,7 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'keep-this-ebs-not-min-time-01',
         repo: theRepo,
-        ebsVolumeReplacementRequestTm: dateRef
+        ebsVolumeReplacementRequestTimestamp: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
           .unix(),
