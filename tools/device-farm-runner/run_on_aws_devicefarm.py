@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from dataclasses import dataclass, asdict
 import datetime
 import json
 import logging
@@ -13,6 +14,7 @@ from enum import Enum
 from logging import info
 from typing import Any, Dict, List, Optional
 from warnings import warn
+import copy
 
 import boto3  # type: ignore[import-not-found]
 import requests
@@ -35,6 +37,7 @@ class ReportType(Enum):
     JOB = "job"
     SUITE = "suite"
     TEST = "test"
+    UNKNOWN = "unknown"
 
 
 DEVICE_FARM_BUCKET = "gha-artifacts"
@@ -196,6 +199,8 @@ def parse_args() -> Any:
         help="an optional file to write the list of artifacts from AWS in JSON format",
     )
 
+    parser.add_argument("--debug", action="store_true")
+
     return parser.parse_args()
 
 
@@ -262,21 +267,6 @@ def download_artifact(artifact_url: str, local_filename: str) -> str:
     return local_filename
 
 
-def upload_file_to_s3(
-    file_name: str,
-    bucket: str,
-    key: str,
-) -> None:
-    """
-    Upload a local file to S3
-    """
-    boto3.client("s3").upload_file(
-        file_name,
-        bucket,
-        key,
-    )
-
-
 def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
     if os.getenv("GITHUB_OUTPUT"):
         with open(str(os.getenv("GITHUB_OUTPUT")), "a") as env:
@@ -292,134 +282,16 @@ def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
 
 def print_testspec(
     job_name: Optional[str],
+    os: str,
     file_name: str,
-    indent: int = 0,
 ) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
-    print(f"::group::{job_name} test output")
+    print(f"::group::{job_name} {os} test output")
     with open(file_name) as f:
         print(f.read())
     print("::endgroup::")
-
-
-def print_test_artifacts(
-    client: Any,
-    app_type: str,
-    test_arn: str,
-    workflow_id: str,
-    workflow_attempt: int,
-    job_name: Optional[str],
-    indent: int = 0,
-) -> List[Dict[str, str]]:
-    """
-    Return all artifacts from this specific test. There are 3 types of artifacts
-    from Device Farm including FILE, LOG, and SCREENSHOT
-    """
-    gathered_artifacts = []
-
-    for artifact_type in ["FILE", "LOG", "SCREENSHOT"]:
-        r = client.list_artifacts(arn=test_arn, type=artifact_type)
-        for artifact in r.get("artifacts", []):
-            filetype = artifact["type"]
-            filename = artifact["name"].replace(" ", "_")
-            extension = artifact["extension"].replace(" ", "_")
-
-            local_filename = (
-                artifact["arn"].replace(":", "_").replace("/", "_")
-                + f"_{filename}.{extension}"
-            )
-            s3_key = f"device_farm/{workflow_id}/{workflow_attempt}/{local_filename}"
-            # Download the artifact locally
-            upload_file_to_s3(
-                download_artifact(artifact["url"], local_filename),
-                DEVICE_FARM_BUCKET,
-                s3_key,
-            )
-
-            s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
-            artifact["s3_url"] = s3_url
-
-            info(
-                f"{' ' * indent}Saving {artifact_type} {filename}.{extension} ({filetype}) "
-                + f"at {s3_url}"
-            )
-
-            # Some more metadata to identify where the artifact comes from
-            artifact["app_type"] = app_type
-            artifact["job_name"] = job_name
-            gathered_artifacts.append(artifact)
-
-            # Additional step to print the test output
-            if filetype == "TESTSPEC_OUTPUT":
-                print_testspec(job_name, local_filename, indent + 2)
-
-    return gathered_artifacts
-
-
-def print_report(
-    client: Any,
-    app_type: str,
-    report: Dict[str, Any],
-    report_type: ReportType,
-    job_name: Optional[str],
-    workflow_id: str,
-    workflow_attempt: int,
-    indent: int = 0,
-) -> List[Dict[str, str]]:
-    """
-    Print the test report from Device Farm in a friendly way and return the list
-    of any notable artifacts from the test run, i.e. logs and screenshots
-    """
-    if not report:
-        warn("Missing report, returning...")
-        return []
-
-    name = report["name"]
-    # Keep the top-level job name as the name of the whole report, this
-    # is used to connect all artifacts from one job together
-    if report_type == ReportType.JOB:
-        job_name = name
-    result = report["result"]
-
-    extra_msg = ""
-    if report_type == ReportType.SUITE or is_success(result):
-        counters = report["counters"]
-        extra_msg = f"with stats {counters}"
-
-    info(f"{' ' * indent}{name} {result} {extra_msg}")
-
-    arn = report["arn"]
-    if report_type == ReportType.RUN:
-        more_reports = client.list_jobs(arn=arn)
-        next_report_type = ReportType.JOB
-    elif report_type == ReportType.JOB:
-        more_reports = client.list_suites(arn=arn)
-        next_report_type = ReportType.SUITE
-    elif report_type == ReportType.SUITE:
-        more_reports = client.list_tests(arn=arn)
-        next_report_type = ReportType.TEST
-    elif report_type == ReportType.TEST:
-        return print_test_artifacts(
-            client, app_type, arn, workflow_id, workflow_attempt, job_name, indent + 2
-        )
-
-    artifacts = []
-    for more_report in more_reports.get(f"{next_report_type.value}s", []):
-        artifacts.extend(
-            print_report(
-                client,
-                app_type,
-                more_report,
-                next_report_type,
-                job_name,
-                workflow_id,
-                workflow_attempt,
-                indent + 2,
-            )
-        )
-    return artifacts
 
 
 def generate_ios_xctestrun(
@@ -531,6 +403,268 @@ def generate_test_configuration(
     return {"extraDataPackageArn": extra_data_arn}
 
 
+@dataclass
+class DeviceFarmReport:
+    name: str
+    arn: str
+    report_type: str
+    status: str
+    result: str
+    counters: Dict[str, str]
+    infos: Dict[str, str]
+    parent_arn: str
+
+
+@dataclass
+class JobReport(DeviceFarmReport):
+    os: str
+
+class ReportProcessor:
+    def __init__(
+        self,
+        device_farm_client: Any,
+        s3_client,
+        app_type: str,
+        workflow_id: str,
+        workflow_attempt: int,
+        is_debug: bool = False,
+    ):
+        self.aws_client = device_farm_client
+        self.s3_client = s3_client
+        self.app_type = app_type
+        self.workflow_id = workflow_id
+        self.workflow_attempt = workflow_attempt
+        self.run_report = None
+        self.job_reports: list[JobReport] = []
+        self.test_spec_info_list = []
+        self.is_debug = is_debug
+
+    def start(self, report: Dict[str, Any]):
+        if not report:
+            warn("Missing report, returning...")
+            return []
+        run_report = self._add_run_report(report)
+        self.print_run_report()
+        job_reports_resp = self.aws_client.list_jobs(arn=run_report.arn)
+
+        res = []
+        for job_report in job_reports_resp.get(ReportType.JOB.value + "s", []):
+            # info(f"Job Report: {jreport}")
+            metadata = self._add_job_report(job_report, run_report.arn)
+            self.print_job_reports()
+            artifacts = self._fetch_artifacts_and_reports(
+                job_report,
+                ReportType(metadata.report_type),
+                metadata.arn,
+                metadata.name,
+                metadata.os,
+            )
+            res.extend(artifacts)
+        return res
+
+    def _fetch_artifacts_and_reports(
+        self,
+        report: Dict[str, Any],
+        report_type: ReportType,
+        job_arn,
+        job_name: str,
+        os: str,
+        indent: int = 0,
+    ) -> List[Dict[str, str]]:
+        """
+        Print the test report from Device Farm in a friendly way and return the list
+        of any notable artifacts from the test run, i.e. logs and screenshots
+        """
+        if not report:
+            warn("Missing report, returning...")
+            return []
+
+        name = report["name"]
+        result = report["result"]
+
+        extra_msg = ""
+        if report_type == ReportType.SUITE or is_success(result):
+            counters = report["counters"]
+            extra_msg = f"with stats {counters}"
+
+        info(f"{' ' * indent}{name} {result} {extra_msg}")
+
+        arn = report["arn"]
+        more_reports = {}
+        if report_type == ReportType.JOB:
+            more_reports = self.aws_client.list_suites(arn=arn)
+            next_report_type = ReportType.SUITE
+        elif report_type == ReportType.SUITE:
+            more_reports = self.aws_client.list_tests(arn=arn)
+            next_report_type = ReportType.TEST
+        elif report_type == ReportType.TEST:
+            return self._fetch_test_artifacts(arn, job_arn, job_name, os, indent + 2)
+        else:
+            warn(f"Unknown report type {report_type}")
+            return []
+
+        artifacts = []
+        for more_report in more_reports.get(f"{next_report_type.value}s", []):
+            artifacts.extend(
+                self._fetch_artifacts_and_reports(
+                    more_report,
+                    next_report_type,
+                    job_arn,
+                    job_name,
+                    os,
+                    indent + 2,
+                )
+            )
+        return artifacts
+
+    def _add_job_report(
+        self, report: Dict[str, Any], parent_arn: str, infos: Dict[str, str] = dict()
+    ) -> JobReport:
+        arn = report.get("arn", "")
+        status = report.get("status", "")
+        name = report.get("name", "")
+        result = report.get("result", "")
+        counters = report.get("counters", "{}")
+        os = report.get("device", {}).get("os", "")
+        job_report = JobReport(
+            arn=arn,
+            name=name,
+            report_type=ReportType.JOB.value,
+            status=status,
+            result=result,
+            parent_arn=parent_arn,
+            counters=counters,
+            infos=infos,
+            os=os,
+        )
+        self.job_reports.append(job_report)
+        return job_report
+
+    def _add_run_report(self, report: Dict[str, Any], infos: Dict[str, str] = dict()):
+        arn = report.get("arn", "")
+        status = report.get("status", "")
+        name = report.get("name", "")
+        result = report.get("result", "")
+        counters = report.get("counters", "{}")
+        run_report = DeviceFarmReport(
+            name=name,
+            arn=arn,
+            report_type=ReportType.RUN.value,
+            status=status,
+            result=result,
+            counters=counters,
+            infos=infos,
+            parent_arn="",
+        )
+        self.run_report = run_report
+        return run_report
+
+    def _fetch_test_artifacts(
+        self, test_arn: str, job_arn: str, job_name: str, os: str, indent: int = 0
+    ) -> List[Dict[str, str]]:
+        """
+        Return all artifacts from this specific test. There are 3 types of artifacts
+        from Device Farm including FILE, LOG, and SCREENSHOT
+        """
+        gathered_artifacts = []
+        info("{' ' * indent} start gathering artifacts")
+        for artifact_type in ["FILE", "LOG", "SCREENSHOT"]:
+            r = self.aws_client.list_artifacts(arn=test_arn, type=artifact_type)
+            for artifact in r.get("artifacts", []):
+                filetype = artifact["type"]
+                filename = artifact["name"].replace(" ", "_")
+                extension = artifact["extension"].replace(" ", "_")
+
+                local_filename = (
+                    artifact["arn"].replace(":", "_").replace("/", "_")
+                    + f"_{filename}.{extension}"
+                )
+                s3_key = f"device_farm/{self.workflow_id}/{self.workflow_attempt}/{local_filename}"
+
+                # Download the artifact locally
+                artifacts = download_artifact(artifact["url"], local_filename)
+
+                if not self.is_debug:
+                    # upload artifacts to s3 bucket
+                    self._upload_file_to_s3(artifacts, DEVICE_FARM_BUCKET, s3_key)
+                    s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+                    artifact["s3_url"] = s3_url
+
+                # Download the artifact locally
+                artifacts = download_artifact(artifact["url"], local_filename)
+                # upload artifacts to s3 bucket
+                self._upload_file_to_s3(artifacts, DEVICE_FARM_BUCKET, s3_key)
+                s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+                artifact["s3_url"] = s3_url
+
+                info(
+                    f"{' ' * indent} Saving {artifact_type} {filename}.{extension} ({filetype}) "
+                    + f"at {s3_url}"
+                )
+
+                # Some more metadata to identify where the artifact comes from
+                artifact["app_type"] = self.app_type
+                artifact["job_name"] = job_name
+                artifact["os"] = os
+                artifact["job_arn"] = job_arn
+                gathered_artifacts.append(artifact)
+                # Additional step to print the test output
+                if filetype == "TESTSPEC_OUTPUT":
+                    self.test_spec_info_list.append({
+                        "job_name": job_name,
+                        "os": os,
+                        "job_arn": job_arn,
+                        "local_filename": local_filename,
+                    })
+        info(f"{' ' * indent} DONE. gathering artifacts for {job_name} {os}")
+        return gathered_artifacts
+
+    def print_test_spec(self) -> None:
+        info(f"Test Spec Outputs:")
+        for test_spec_info in self.test_spec_info_list:
+            print_testspec(
+                test_spec_info.job_name,
+                test_spec_info.os,
+                test_spec_info.local_filename,
+            )
+
+    def get_run_report(self):
+        if not self.run_report:
+            warn(
+                "cannot print run report, run_report is empty, make sure you call start() first"
+            )
+            return None
+        return copy.deepcopy(self.run_report)
+
+    def get_job_reports(self):
+        return copy.deepcopy(self.job_reports)
+
+    def print_run_report(self) -> None:
+        if not self.run_report:
+            warn(
+                "cannot print run report, run_report is empty, make sure you call start() first"
+            )
+            return
+        d = asdict(self.run_report)
+        info(f"Run Report Output: {d}")
+
+    def print_job_reports(self) -> None:
+        info("Job Report Output:")
+        for r in self.job_reports:
+            d = json.dumps(asdict(r))
+            info(f"{d}")
+
+    def _upload_file_to_s3(self, file_name: str, bucket: str, key: str) -> None:
+        """
+        Upload a local file to S3
+        """
+        self.s3_client.upload_file(
+            file_name,
+            bucket,
+            key,
+        )
+
+
 def main() -> None:
     args = parse_args()
 
@@ -540,7 +674,8 @@ def main() -> None:
     workflow_attempt = args.workflow_attempt
 
     # NB: Device Farm is only available in us-west-2 region atm
-    client = boto3.client("devicefarm", region_name=AWS_REGION)
+    device_farm_client = boto3.client("devicefarm", region_name=AWS_REGION)
+
     unique_prefix = (
         f"{name_prefix}-{workflow_id}-{workflow_attempt}-"
         + f"{datetime.date.today().isoformat()}-{''.join(random.sample(string.ascii_letters, 8))}"
@@ -555,7 +690,7 @@ def main() -> None:
         app_type = "ANDROID_APP" if args.app.endswith(".apk") else "IOS_APP"
         # Upload the test app
         appfile_arn = upload_file(
-            client=client,
+            client=device_farm_client,
             project_arn=project_arn,
             prefix=unique_prefix,
             filename=args.app,
@@ -563,30 +698,42 @@ def main() -> None:
         )
         info(f"Uploaded app: {appfile_arn}")
 
+    test_to_run = {}
+
     if args.ios_xctestrun:
         app_type = "IOS_APP"
         test_to_run = generate_ios_xctestrun(
-            client, project_arn, unique_prefix, args.ios_xctestrun, args.test_spec
+            device_farm_client,
+            project_arn,
+            unique_prefix,
+            args.ios_xctestrun,
+            args.test_spec,
         )
 
     if args.android_instrumentation_test:
         app_type = "ANDROID_APP"
         test_to_run = generate_android_instrumentation_test(
-            client,
+            device_farm_client,
             project_arn,
             unique_prefix,
             args.android_instrumentation_test,
             args.test_spec,
         )
 
+    if test_to_run == {}:
+        warn(
+            "Must specify either iOS or Android test to run: --android_instrumentation_test --ios_xctestrun"
+        )
+        sys.exit(1)
+
     configuration = {}
     if args.extra_data:
         configuration = generate_test_configuration(
-            client, project_arn, unique_prefix, args.extra_data
+            device_farm_client, project_arn, unique_prefix, args.extra_data
         )
 
     # Schedule the test
-    r = client.schedule_run(
+    r = device_farm_client.schedule_run(
         projectArn=project_arn,
         name=unique_prefix,
         appArn=appfile_arn,
@@ -603,13 +750,11 @@ def main() -> None:
     result = ""
     try:
         while True:
-            r = client.get_run(arn=run_arn)
+            r = device_farm_client.get_run(arn=run_arn)
             state = r["run"]["status"]
-
             if state == "COMPLETED":
                 result = r["run"]["result"]
                 break
-
             waiting_time = datetime.datetime.now() - start_time
             info(f"Run {unique_prefix} in state {state} after {waiting_time}")
             time.sleep(30)
@@ -617,17 +762,13 @@ def main() -> None:
         warn(f"Failed to run {unique_prefix}: {error}")
         sys.exit(1)
     finally:
-        artifacts = print_report(
-            client,
-            app_type,
-            r.get("run"),
-            ReportType.RUN,
-            None,
-            workflow_id,
-            workflow_attempt,
+        s3_client = boto3.client("s3")
+        processor = ReportProcessor(
+            device_farm_client, s3_client, app_type, workflow_id, workflow_attempt
         )
+        artifacts = processor.start(r.get("run"))
         set_output(json.dumps(artifacts), "artifacts", args.output)
-
+        processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
 
