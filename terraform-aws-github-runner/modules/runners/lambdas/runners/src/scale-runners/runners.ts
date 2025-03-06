@@ -572,7 +572,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               ` [${runnerParameters.runnerType.runnerTypeName}] [AMI?:${customAmi}] ${labelsStrLog}: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
-            addSSMParameterRunnerConfig(
+            await addSSMParameterRunnerConfig(
               runInstancesResponse.Instances,
               runnerParameters,
               customAmiExperiment,

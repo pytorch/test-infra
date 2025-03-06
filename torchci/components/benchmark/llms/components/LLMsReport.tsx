@@ -1,58 +1,45 @@
 import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
+import { useBenchmark } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "../../../../lib/benchmark/llms/aoUtils";
-import { useBenchmark } from "../../../../lib/benchmark/llms/llmUtils";
-import { LLMsGraphPanel } from "./LlmsGraphPanel";
-import { LLMsSummaryPanel } from "./LlmsSummaryPanel";
+} from "../../../../lib/benchmark/llms/utils/aoUtils";
+import LLMsGraphPanel from "./LLMsGraphPanel";
+import LLMsSummaryPanel from "./LLMsSummaryPanel";
 
 export default function LLMsReport({
-  queryParams,
-  startTime,
-  stopTime,
-  granularity,
-  repoName,
-  benchmarkName,
-  modelName,
-  backendName,
-  modeName,
-  dtypeName,
-  deviceName,
-  archName,
+  props,
   metricNames,
-  lBranchAndCommit,
-  rBranchAndCommit,
+  benchmarkPropsQueryParams,
 }: {
-  queryParams: { [key: string]: any };
-  startTime: dayjs.Dayjs;
-  stopTime: dayjs.Dayjs;
-  granularity: Granularity;
-  repoName: string;
-  benchmarkName: string;
-  modelName: string;
-  backendName: string;
-  modeName: string;
-  dtypeName: string;
-  deviceName: string;
-  archName: string;
+  props: LLMsBenchmarkProps;
   metricNames: string[];
-  lBranchAndCommit: BranchAndCommit;
-  rBranchAndCommit: BranchAndCommit;
+  benchmarkPropsQueryParams: any;
 }) {
   const { data: lData, error: _lError } = useBenchmark(
-    queryParams,
-    lBranchAndCommit
-  );
-  const { data: rData, error: _rError } = useBenchmark(
-    queryParams,
-    rBranchAndCommit
+    benchmarkPropsQueryParams,
+    {
+      branch: props.lBranch,
+      commit: props.lCommit,
+    }
   );
 
+  const lBranchAndCommit: BranchAndCommit = {
+    branch: props.lBranch,
+    commit: props.lCommit,
+  };
+  const rBranchAndCommit: BranchAndCommit = {
+    branch: props.rBranch,
+    commit: props.rCommit,
+  };
+
+  const { data: rData, error: _rError } = useBenchmark(
+    benchmarkPropsQueryParams,
+    rBranchAndCommit
+  );
   if (
     lData === undefined ||
     lData.length === 0 ||
@@ -62,34 +49,34 @@ export default function LLMsReport({
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading records for {modelName}...
+          Loading records for {props.modelName}...
         </Typography>
       </Stack>
     );
   }
 
   const lDataWithSpeedup = computeSpeedup(
-    repoName,
-    computeSpeedup(repoName, lData, false, true),
+    props.repoName,
+    computeSpeedup(props.repoName, lData, false, true),
     true,
     false
   );
 
   const rDataWithSpeedup = computeSpeedup(
-    repoName,
-    computeSpeedup(repoName, rData, false, true),
+    props.repoName,
+    computeSpeedup(props.repoName, rData, false, true),
     true,
     false
   );
 
-  if (repoName === "pytorch/ao") {
+  if (props.repoName === "pytorch/ao") {
     metricNames = [...TORCHAO_SPEEDUP_METRIC_NAMES, ...metricNames];
   }
 
   return (
     <div>
       <CommitPanel
-        repoName={repoName}
+        repoName={props.repoName}
         lBranchAndCommit={{
           ...rBranchAndCommit,
           date:
@@ -109,28 +96,28 @@ export default function LLMsReport({
         <></>
       </CommitPanel>
       <LLMsGraphPanel
-        queryParams={queryParams}
-        granularity={granularity}
-        repoName={repoName}
-        benchmarkName={benchmarkName}
-        modelName={modelName}
-        backendName={backendName}
-        dtypeName={dtypeName}
-        deviceName={deviceName}
+        queryParams={benchmarkPropsQueryParams}
+        granularity={props.granularity}
+        repoName={props.repoName}
+        benchmarkName={props.benchmarkName}
+        modelName={props.modelName}
+        backendName={props.backendName}
+        dtypeName={props.dtypeName}
+        deviceName={props.deviceName}
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
       />
       <LLMsSummaryPanel
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
-        repoName={repoName}
-        benchmarkName={benchmarkName}
-        modelName={modelName}
-        backendName={backendName}
+        startTime={props.startTime}
+        stopTime={props.stopTime}
+        granularity={props.granularity}
+        repoName={props.repoName}
+        benchmarkName={props.benchmarkName}
+        modelName={props.modelName}
+        backendName={props.backendName}
         metricNames={metricNames}
-        archName={archName}
+        archName={props.archName}
         lPerfData={{
           ...lBranchAndCommit,
           data: lDataWithSpeedup,
