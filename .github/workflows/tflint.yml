@@ -30,9 +30,12 @@ jobs:
         terraform_version: 1.5.7
         terraform_wrapper: false
 
-    - name: Show version
+    - name: Show tflint version
       run:
         tflint --version
+
+    - name: Show tofu version
+      run:
         tofu --version
 
     - name: "tflint"
