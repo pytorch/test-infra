@@ -449,10 +449,14 @@ class ReportProcessor:
             info(
                 "[DEBUG MODE] the artifacts won't be uploaded to s3, it should mainly used in local env"
             )
-        run_report = self._add_run_report(report)
-        job_reports_resp = self.aws_client.list_jobs(arn=run_report.arn)
+        run_report = self._to_run_report(report)
+        self.run_report = run_report
 
+        # fetch mobile job report from the run
+        job_reports_resp = self.aws_client.list_jobs(arn=run_report.arn)
         res = []
+
+        # fetch artifacts, and sub-reports for each mobile job
         for job_report in job_reports_resp.get(ReportType.JOB.value + "s", []):
             # info(f"Job Report: {jreport}")
             metadata = self._to_job_report(job_report, run_report.arn)
@@ -473,8 +477,9 @@ class ReportProcessor:
         indent: int = 0,
     ) -> List[Dict[str, str]]:
         """
-        Print the test report from Device Farm in a friendly way and return the list
-        of any notable artifacts from the test run, i.e. logs and screenshots
+        DFS method that tranverse DeviceFarm report from the mobile job level,
+        identifies and uploads significant artifacts (such as logs and screenshots) to AWS S3,
+        and returns a comprehensive list of artifact metadata, including relevant mobile job report information.
         """
         if not report:
             warn("Missing report, returning...")
@@ -537,13 +542,13 @@ class ReportProcessor:
             os=os,
         )
 
-    def _add_run_report(self, report: Dict[str, Any], infos: Dict[str, str] = dict()):
+    def _to_run_report(self, report: Dict[str, Any], infos: Dict[str, str] = dict()):
         arn = report.get("arn", "")
         status = report.get("status", "")
         name = report.get("name", "")
         result = report.get("result", "")
         counters = report.get("counters", "{}")
-        run_report = DeviceFarmReport(
+        return DeviceFarmReport(
             name=name,
             arn=arn,
             report_type=ReportType.RUN.value,
@@ -553,8 +558,6 @@ class ReportProcessor:
             infos=infos,
             parent_arn="",
         )
-        self.run_report = run_report
-        return run_report
 
     def _fetch_test_artifacts(
         self, test_arn: str, job_metadata: JobReport, indent: int = 0
