@@ -311,7 +311,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
-        uses: nick-fields/retry@v3.0.0
+        uses: nick-fields/retry@v3.0.2
         with:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
@@ -362,7 +362,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
-        uses: nick-fields/retry@v3.0.0
+        uses: nick-fields/retry@v3.0.2
         with:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
