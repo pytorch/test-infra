@@ -15,46 +15,10 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   //    are ephemeral and nonephemeral
   // 3. Sends a SQS request to the scale-up lambda to provision more of those instances
 
-  let queuedJobs = await getQueuedJobs(metrics);
-
-  const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
-
   const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
 
   const metrics = new ScaleUpChronMetrics();
   const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
-
-  const minAutoScaleupDelayMinutes = 30;
-  // Only proactively scale up the jobs that have been queued for longer than normal
-  queuedJobs = queuedJobs.filter((runner) => {
-    return runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes &&
-      runner.org === Config.Instance.scaleConfigOrg;
-  });
-
-  // Filter out the queued jobs that are do not correspond to a valid runner type
-  queuedJobs = queuedJobs.filter((requested_runner) => {
-    return Array.from(validRunnerTypes.keys()).some((available_runner_label) => {
-      return available_runner_label === requested_runner.runner_label;
-    });
-  });
-
-  // Send a message to the SQS queue to scale up the runners
-  let scaleUpRequests : Array<ActionRequestMessage> = queuedJobs.map((runner) => {
-    return {
-      "id": Math.floor(Math.random() * 100000000000000),
-      "eventType": "workflow_job",
-      "repositoryName": runner.repo,
-      "repositoryOwner": runner.org,
-      "runnerLabels": [runner.runner_label],
-    };
-  });
-
-  if (!Config.Instance.scaleUpRecordQueueUrl) {
-    throw new Error('scaleUpRecordQueueUrl is not set. Cannot send scale up requests');
-  }
-
-  await sqsSendMessages(metrics, scaleUpRequests, Config.Instance.scaleUpRecordQueueUrl);
-}
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
   if (!Config.Instance.scaleUpRecordQueueUrl) {
@@ -122,7 +86,7 @@ export async function getQueuedJobs(metrics: ScaleUpChronMetrics, scaleUpRecordQ
     });
 
     // Map the response to the class
-    const responseData = JSON.parse(response.data);
+    const responseData = response.data ? JSON.parse(response.data): {};
     return responseData.map((runner: any) => {
       metrics.queuedRunnerStats(runner.org, runner.runner_label, runner.num_queued_jobs,);
       return {
