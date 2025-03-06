@@ -39,6 +39,7 @@ export class Config {
   readonly scaleConfigOrg: string;
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
+  readonly scaleUpMinQueueTimeMinutes: number;
   readonly scaleUpRecordQueueUrl: string | undefined;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
@@ -97,6 +98,7 @@ export class Config {
     this.retryScaleUpRecordJitterPct = Number(process.env.RETRY_SCALE_UP_RECORD_JITTER_PCT || '0');
     this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_RECORD_QUEUE_URL;
     this.scaleUpRecordQueueUrl = process.env.SCALE_UP_RECORD_QUEUE_URL;
+    this.scaleUpMinQueueTimeMinutes = process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES ? Number(process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES) : 30
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     this.scaleConfigOrg = process.env.SCALE_CONFIG_ORG || '';
