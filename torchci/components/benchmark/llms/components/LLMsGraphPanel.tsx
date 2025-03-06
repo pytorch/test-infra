@@ -200,12 +200,6 @@ export default function LLMsGraphPanel({
       tableData[commit].push(data);
     });
   });
-  console.log(chartData);
-  //if ("6946094f6fe9ff77ca02736567ddf2fc031d5fd300ce7c60d832cf9c301c4c48" in tableData) {
-  //  console.log(  tableData["6946094f6fe9ff77ca02736567ddf2fc031d5fd300ce7c60d832cf9c301c4c48"].filter(
-  //                          (data: LLMsBenchmarkData) => data.metric === "autoquant_vs_compile_speedup"
-  //                        ));
-  //}
 
   return (
     <>
