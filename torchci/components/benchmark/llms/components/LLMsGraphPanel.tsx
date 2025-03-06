@@ -4,6 +4,7 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import _ from "lodash";
 
 import {
   Granularity,
@@ -151,26 +152,7 @@ export default function LLMsGraphPanel({
 
               if (repoName === "vllm-project/vllm") {
                 let requestRate = record.extra!["request_rate"];
-                // TODO (huydhn): Fix the invalid JSON on vLLM side
-                if (
-                  metric.includes("itl") ||
-                  metric.includes("tpot") ||
-                  metric.includes("ttft")
-                ) {
-                  requestRate = requestRate !== "" ? requestRate : "Inf";
-                }
-
                 let tensorParallel = record.extra!["tensor_parallel_size"];
-                // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
-                // script on vLLM side
-                if (model.includes("8B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "1";
-                } else if (model.includes("70B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "4";
-                } else if (model.includes("8x7B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "2";
-                }
-
                 if (requestRate !== "") {
                   record.display = `${model} / tp${tensorParallel} / qps_${requestRate}`;
                 } else {
@@ -207,9 +189,23 @@ export default function LLMsGraphPanel({
     );
   });
 
-  const availableMetric =
-    metricNames.find((metric) => chartData[metric].length !== 0) ??
-    metricNames[0];
+  // This is the detail table below the charts
+  const tableData: { [k: string]: any } = {};
+  Object.keys(chartData).forEach((metric: string) => {
+    chartData[metric].forEach((data: LLMsBenchmarkData) => {
+      const commit = WORKFLOW_ID_TO_COMMIT[data.workflow_id];
+      if (!(commit in tableData)) {
+        tableData[commit] = [];
+      }
+      tableData[commit].push(data);
+    });
+  });
+  console.log(chartData);
+  //if ("6946094f6fe9ff77ca02736567ddf2fc031d5fd300ce7c60d832cf9c301c4c48" in tableData) {
+  //  console.log(  tableData["6946094f6fe9ff77ca02736567ddf2fc031d5fd300ce7c60d832cf9c301c4c48"].filter(
+  //                          (data: LLMsBenchmarkData) => data.metric === "autoquant_vs_compile_speedup"
+  //                        ));
+  //}
 
   return (
     <>
@@ -262,19 +258,19 @@ export default function LLMsGraphPanel({
                   <th key={metric}>
                     {chartData[metric].length !== 0
                       ? metric in METRIC_DISPLAY_SHORT_HEADERS
-                        ? METRIC_DISPLAY_SHORT_HEADERS[metric]
-                        : metric
+                        ? `${METRIC_DISPLAY_SHORT_HEADERS[metric]} |`
+                        : `${metric} |`
                       : ""}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {chartData[availableMetric].map((entry: any, index: number) => {
-                let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+              {Object.keys(tableData).map((commit: string) => {
+                const commitData = tableData[commit];
                 return (
-                  <tr key={index}>
-                    <td>{entry.granularity_bucket}</td>
+                  <tr key={commit}>
+                    <td>{commitData[0].granularity_bucket}</td>
                     <td>
                       <code>
                         <a
@@ -288,11 +284,18 @@ export default function LLMsGraphPanel({
                     {metricNames
                       .filter((metric) => chartData[metric].length !== 0)
                       .map((metric: string) => (
-                        <td key={`${metric}-${index}`}>
-                          {chartData[metric][index] !== undefined &&
-                          chartData[metric][index].workflow_id ===
-                            entry.workflow_id
-                            ? chartData[metric][index].actual
+                        <td key={`${metric}-${commit}`}>
+                          {commitData.filter(
+                            (data: LLMsBenchmarkData) => data.metric === metric
+                          ).length !== 0
+                            ? _.mean(
+                                commitData
+                                  .filter(
+                                    (data: LLMsBenchmarkData) =>
+                                      data.metric === metric
+                                  )
+                                  .map((data: LLMsBenchmarkData) => data.actual)
+                              ).toFixed(2)
                             : ""}
                         </td>
                       ))}
