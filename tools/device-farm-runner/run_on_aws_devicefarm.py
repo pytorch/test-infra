@@ -25,7 +25,7 @@ MAX_UPLOAD_WAIT_IN_SECOND = 600
 
 AWS_REGION = "us-west-2"
 # NB: This is the curated top devices from AWS. We could create our own device
-# pool if we want to
+# pool if we want to.
 AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
 AWS_ARN_PREFIX = "arn:aws:devicefarm:"
 DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID}"
