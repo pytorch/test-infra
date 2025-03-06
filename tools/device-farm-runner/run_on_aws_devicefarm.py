@@ -25,7 +25,7 @@ MAX_UPLOAD_WAIT_IN_SECOND = 600
 
 AWS_REGION = "us-west-2"
 # NB: This is the curated top devices from AWS. We could create our own device
-# pool if we want to.
+# pool if we want to
 AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
 AWS_ARN_PREFIX = "arn:aws:devicefarm:"
 DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID}"
@@ -281,14 +281,15 @@ def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
 
 
 def print_testspec(
-    job_name: Optional[str],
+    job_name: str,
     os: str,
+    job_conclusion: str,
     file_name: str,
 ) -> None:
     """
     The test spec output from AWS Device Farm is the main output of the test job.
     """
-    print(f"::group::{job_name} {os} test output")
+    print(f"::group::{job_name} {os} test output [Job Result: {job_conclusion}]")
     with open(file_name) as f:
         print(f.read())
     print("::endgroup::")
@@ -419,6 +420,7 @@ class DeviceFarmReport:
 class JobReport(DeviceFarmReport):
     os: str
 
+
 class ReportProcessor:
     def __init__(
         self,
@@ -436,28 +438,29 @@ class ReportProcessor:
         self.workflow_attempt = workflow_attempt
         self.run_report: Optional[DeviceFarmReport] = None
         self.job_reports: list[JobReport] = []
-        self.test_spec_info_list:list[Dict] = []
+        self.test_spec_info_list: list[Dict] = []
         self.is_debug = is_debug
 
     def start(self, report: Dict[str, Any]):
         if not report:
             warn("Missing report, returning...")
             return []
+        if self.is_debug:
+            info(
+                "[DEBUG MODE] the artifacts won't be uploaded to s3, it should mainly used in local env"
+            )
         run_report = self._add_run_report(report)
-        self.print_run_report()
         job_reports_resp = self.aws_client.list_jobs(arn=run_report.arn)
 
         res = []
         for job_report in job_reports_resp.get(ReportType.JOB.value + "s", []):
             # info(f"Job Report: {jreport}")
-            metadata = self._add_job_report(job_report, run_report.arn)
-            self.print_job_reports()
+            metadata = self._to_job_report(job_report, run_report.arn)
+            self.job_reports.append(metadata)
             artifacts = self._fetch_artifacts_and_reports(
                 job_report,
                 ReportType(metadata.report_type),
-                metadata.arn,
-                metadata.name,
-                metadata.os,
+                metadata,
             )
             res.extend(artifacts)
         return res
@@ -466,9 +469,7 @@ class ReportProcessor:
         self,
         report: Dict[str, Any],
         report_type: ReportType,
-        job_arn,
-        job_name: str,
-        os: str,
+        job_metadata: JobReport,
         indent: int = 0,
     ) -> List[Dict[str, str]]:
         """
@@ -498,7 +499,7 @@ class ReportProcessor:
             more_reports = self.aws_client.list_tests(arn=arn)
             next_report_type = ReportType.TEST
         elif report_type == ReportType.TEST:
-            return self._fetch_test_artifacts(arn, job_arn, job_name, os, indent + 2)
+            return self._fetch_test_artifacts(arn, job_metadata, indent + 2)
         else:
             warn(f"Unknown report type {report_type}")
             return []
@@ -509,15 +510,13 @@ class ReportProcessor:
                 self._fetch_artifacts_and_reports(
                     more_report,
                     next_report_type,
-                    job_arn,
-                    job_name,
-                    os,
+                    job_metadata,
                     indent + 2,
                 )
             )
         return artifacts
 
-    def _add_job_report(
+    def _to_job_report(
         self, report: Dict[str, Any], parent_arn: str, infos: Dict[str, str] = dict()
     ) -> JobReport:
         arn = report.get("arn", "")
@@ -526,7 +525,7 @@ class ReportProcessor:
         result = report.get("result", "")
         counters = report.get("counters", "{}")
         os = report.get("device", {}).get("os", "")
-        job_report = JobReport(
+        return JobReport(
             arn=arn,
             name=name,
             report_type=ReportType.JOB.value,
@@ -537,8 +536,6 @@ class ReportProcessor:
             infos=infos,
             os=os,
         )
-        self.job_reports.append(job_report)
-        return job_report
 
     def _add_run_report(self, report: Dict[str, Any], infos: Dict[str, str] = dict()):
         arn = report.get("arn", "")
@@ -560,7 +557,7 @@ class ReportProcessor:
         return run_report
 
     def _fetch_test_artifacts(
-        self, test_arn: str, job_arn: str, job_name: str, os: str, indent: int = 0
+        self, test_arn: str, job_metadata: JobReport, indent: int = 0
     ) -> List[Dict[str, str]]:
         """
         Return all artifacts from this specific test. There are 3 types of artifacts
@@ -582,13 +579,11 @@ class ReportProcessor:
                 s3_key = f"device_farm/{self.workflow_id}/{self.workflow_attempt}/{local_filename}"
 
                 # Download the artifact locally
-                artifacts = download_artifact(artifact["url"], local_filename)
+                artifact_file = download_artifact(artifact["url"], local_filename)
 
                 if not self.is_debug:
                     # upload artifacts to s3 bucket
-                    self._upload_file_to_s3(artifacts, DEVICE_FARM_BUCKET, s3_key)
-                    s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
-                    artifact["s3_url"] = s3_url
+                    self._upload_file_to_s3(artifact_file, DEVICE_FARM_BUCKET, s3_key)
                 s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
                 artifact["s3_url"] = s3_url
 
@@ -599,28 +594,32 @@ class ReportProcessor:
 
                 # Some more metadata to identify where the artifact comes from
                 artifact["app_type"] = self.app_type
-                artifact["job_name"] = job_name
-                artifact["os"] = os
-                artifact["job_arn"] = job_arn
+                artifact["job_name"] = job_metadata.name
+                artifact["os"] = job_metadata.os
+                artifact["job_arn"] = job_metadata.arn
+                artifact["job_conclusion"] = job_metadata.result
                 gathered_artifacts.append(artifact)
                 # Additional step to print the test output
                 if filetype == "TESTSPEC_OUTPUT":
-                    self.test_spec_info_list.append({
-                        "job_name": job_name,
-                        "os": os,
-                        "job_arn": job_arn,
-                        "local_filename": local_filename,
-                    })
-        info(f"{' ' * indent} DONE. gathering artifacts for {job_name} {os}")
+                    self.test_spec_info_list.append(
+                        {
+                            "job_name": job_metadata.name,
+                            "os": job_metadata.os,
+                            "job_arn": job_metadata.arn,
+                            "job_conclusion": job_metadata.result,
+                            "local_filename": local_filename,
+                        }
+                    )
         return gathered_artifacts
 
     def print_test_spec(self) -> None:
         info(f"Test Spec Outputs:")
         for test_spec_info in self.test_spec_info_list:
             print_testspec(
-                test_spec_info['job_name'],
-                test_spec_info['os'],
-                test_spec_info['local_filename'],
+                test_spec_info["job_name"],
+                test_spec_info["os"],
+                test_spec_info["job_conclusion"],
+                test_spec_info["local_filename"],
             )
 
     def get_run_report(self):
@@ -767,17 +766,6 @@ def main() -> None:
     if not is_success(result):
         sys.exit(1)
 
-def test():
-    dc = boto3.client("devicefarm", region_name=AWS_REGION)
-    s3 = boto3.client("s3")
-    processor = ReportProcessor(dc,s3,"1","1",1,True)
-    fakeReport = {"name":"test","arn":"arn:aws:devicefarm:us-west-2:308535385114:run:b531574a-fb82-40ae-b687-8f0b81341ae0/d54bd41b-d546-4cbf-91f9-e17b866390a9"}
-    artifacts = processor.start(fakeReport)
-    set_output(json.dumps(artifacts), "artifacts", "yang_test.txt")
-    processor.print_test_spec()
-    processor.print_run_report()
-    processor.print_job_reports()
-
 
 if __name__ == "__main__":
-    test()
+    main()
