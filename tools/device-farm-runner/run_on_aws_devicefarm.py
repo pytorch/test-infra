@@ -589,11 +589,6 @@ class ReportProcessor:
                     self._upload_file_to_s3(artifacts, DEVICE_FARM_BUCKET, s3_key)
                     s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
                     artifact["s3_url"] = s3_url
-
-                # Download the artifact locally
-                artifacts = download_artifact(artifact["url"], local_filename)
-                # upload artifacts to s3 bucket
-                self._upload_file_to_s3(artifacts, DEVICE_FARM_BUCKET, s3_key)
                 s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
                 artifact["s3_url"] = s3_url
 
@@ -623,9 +618,9 @@ class ReportProcessor:
         info(f"Test Spec Outputs:")
         for test_spec_info in self.test_spec_info_list:
             print_testspec(
-                test_spec_info.job_name,
-                test_spec_info.os,
-                test_spec_info.local_filename,
+                test_spec_info['job_name'],
+                test_spec_info['os'],
+                test_spec_info['local_filename'],
             )
 
     def get_run_report(self):
@@ -772,6 +767,17 @@ def main() -> None:
     if not is_success(result):
         sys.exit(1)
 
+def test():
+    dc = boto3.client("devicefarm", region_name=AWS_REGION)
+    s3 = boto3.client("s3")
+    processor = ReportProcessor(dc,s3,"1","1",1,True)
+    fakeReport = {"name":"test","arn":"arn:aws:devicefarm:us-west-2:308535385114:run:b531574a-fb82-40ae-b687-8f0b81341ae0/d54bd41b-d546-4cbf-91f9-e17b866390a9"}
+    artifacts = processor.start(fakeReport)
+    set_output(json.dumps(artifacts), "artifacts", "yang_test.txt")
+    processor.print_test_spec()
+    processor.print_run_report()
+    processor.print_job_reports()
+
 
 if __name__ == "__main__":
-    main()
+    test()

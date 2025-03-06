@@ -197,9 +197,33 @@ class Test(unittest.TestCase):
         m_df.getMockClient().list_jobs.assert_called_once()
         self.assertEqual(m_df.getMockClient().list_suites.call_count, 2)
         self.assertEqual(m_df.getMockClient().list_tests.call_count, 6)
-
+        self.assertEqual(m_s3.getMockClient().upload_file.call_count, 36)
         self.assertEqual(len(artifacts), 36)
-        print(artifacts[0])
+
+        print("yang",artifacts[0])
+
+    @mock.patch("run_on_aws_devicefarm.download_artifact")
+    def test_reportProcessor_debug(self, download_artifact_mock):
+        m_df = MockDeviceFarmClient()
+        m_s3 = MockS3Client()
+        fakeReport = {
+            "name": "test",
+            "arn": "arn-run-report",
+            "status": "COMPLETED",
+            "result": "PASSED",
+            "counters": {"total": 3, "passed": 3, "failed": 0, "warned": 0},
+        }
+        processor = ReportProcessor(
+            m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1, True
+        )
+        artifacts = processor.start(fakeReport)
+
+        m_df.getMockClient().list_jobs.assert_called_once()
+        self.assertEqual(m_df.getMockClient().list_suites.call_count, 2)
+        self.assertEqual(m_df.getMockClient().list_tests.call_count, 6)
+        self.assertEqual(len(artifacts), 36)
+
+        self.assertEqual(m_s3.getMockClient().upload_file.call_count, 0)
 
 
 if __name__ == "__main__":
