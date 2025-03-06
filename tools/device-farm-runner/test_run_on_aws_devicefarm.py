@@ -204,6 +204,7 @@ class Test(unittest.TestCase):
 
     @mock.patch("run_on_aws_devicefarm.download_artifact")
     def test_reportProcessor_debug(self, download_artifact_mock):
+
         m_df = MockDeviceFarmClient()
         m_s3 = MockS3Client()
         fakeReport = {

@@ -434,9 +434,9 @@ class ReportProcessor:
         self.app_type = app_type
         self.workflow_id = workflow_id
         self.workflow_attempt = workflow_attempt
-        self.run_report = None
+        self.run_report: Optional[DeviceFarmReport] = None
         self.job_reports: list[JobReport] = []
-        self.test_spec_info_list = []
+        self.test_spec_info_list:list[Dict] = []
         self.is_debug = is_debug
 
     def start(self, report: Dict[str, Any]):
