@@ -166,6 +166,7 @@ export async function updateDrciComments(
         pr_info.repo,
         pr_info.pr_number
       );
+
       const {
         pending,
         failedJobs,
