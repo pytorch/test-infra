@@ -127,13 +127,13 @@ export async function updateDrciComments(
           NUM_MINUTES + ""
         ),
   ]);
+
   const workflowsByPR = await reorganizeWorkflows(
     OWNER,
     repo,
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
-
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
