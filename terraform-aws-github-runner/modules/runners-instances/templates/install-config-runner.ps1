@@ -54,7 +54,7 @@ if ($config -match '--ephemeral') {
 @"
 `$DateTime = (Get-Date).ToUniversalTime()
 `$UnixTimeStamp = [System.Math]::Truncate((Get-Date -Date `$DateTime -UFormat %s))
-aws ec2 create-tags --region `$Region --resource `$InstanceId --tags "Key=EphemeralRunnerFinished,Value=`$UnixTimeStamp"
+aws ec2 create-tags --region $Region --resource $InstanceId --tags "Key=EphemeralRunnerFinished,Value=`$UnixTimeStamp"
 "@ | Add-Content -Path C:\actions-runner\jobcompleted.ps1
 }
 
