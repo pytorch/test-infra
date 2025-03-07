@@ -1146,6 +1146,7 @@ export async function reorganizeWorkflows(
           prBody = prData.body;
           prShas = prData.shas;
         }
+
         return {
           pr_number: parseInt(prNumber),
           head_sha: workflows[0].head_sha,
