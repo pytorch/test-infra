@@ -1130,7 +1130,6 @@ export async function reorganizeWorkflows(
             workflows[0].head_sha
           );
         }
-
         workflows.forEach((workflow) => {
           if (isTime0(workflow.head_sha_timestamp) && headShaTimestamp) {
             workflow.head_sha_timestamp = headShaTimestamp;
