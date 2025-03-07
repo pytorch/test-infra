@@ -59,8 +59,8 @@ def get_base_query(query: str, sha: str) -> str:
 
 EXECUTION_METRICS = """
 SELECT
-    round(avg(query_duration_ms)) AS realTimeMSAvg,
-    avg(memory_usage) as memoryBytesAvg
+    quantile(0.5)(query_duration_ms) AS realTimeMSAvg,
+    quantile(0.5)(memory_usage) as memoryBytesAvg
 FROM
     clusterAllReplicas(default, system.query_log)
 where
