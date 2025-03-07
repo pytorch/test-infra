@@ -193,6 +193,7 @@ class MockDeviceFarmClient:
 class Test(unittest.TestCase):
     @mock.patch("run_on_aws_devicefarm.download_artifact")
     def test_reportProcessor(self, download_artifact_mock):
+        # setup
         m_df = MockDeviceFarmClient()
         m_s3 = MockS3Client()
         fakeReport = {
@@ -205,6 +206,8 @@ class Test(unittest.TestCase):
         processor = ReportProcessor(
             m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1
         )
+
+        # execute
         artifacts = processor.start(fakeReport)
 
         # assert aws client calls
@@ -245,6 +248,7 @@ class Test(unittest.TestCase):
 
     @mock.patch("run_on_aws_devicefarm.download_artifact")
     def test_reportProcessor_debug(self, download_artifact_mock):
+        # setup
         m_df = MockDeviceFarmClient()
         m_s3 = MockS3Client()
         fakeReport = {
@@ -257,8 +261,11 @@ class Test(unittest.TestCase):
         processor = ReportProcessor(
             m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1, True
         )
+
+        # execute
         artifacts = processor.start(fakeReport)
 
+        # assert aws client calls
         m_df.getMockClient().list_jobs.assert_called_once()
         self.assertEqual(m_df.getMockClient().list_suites.call_count, 2)
         self.assertEqual(m_df.getMockClient().list_tests.call_count, 4)
@@ -268,18 +275,23 @@ class Test(unittest.TestCase):
         self.assertEqual(m_s3.getMockClient().upload_file.call_count, 0)
 
     def test_reportProcessor_emptyReportInput_returnEmptyList(self):
+        # setup
         m_df = MockDeviceFarmClient()
         m_s3 = MockS3Client()
         fakeReport = {}
         processor = ReportProcessor(
             m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1, True
         )
+
+        # execute
         artifacts = processor.start(fakeReport)
 
+        # assert
         self.assertEqual(m_df.getMockClient().list_jobs.call_count, 0)
         self.assertEqual(len(artifacts), 0)
 
     def test_reportProcessor_missingArnInReportInput_returnEmptyList(self):
+        # setup
         m_df = MockDeviceFarmClient()
         m_s3 = MockS3Client()
         fakeReport = {
@@ -289,8 +301,11 @@ class Test(unittest.TestCase):
         processor = ReportProcessor(
             m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1
         )
+
+        # execute
         artifacts = processor.start(fakeReport)
 
+        # assert
         self.assertEqual(m_df.getMockClient().list_jobs.call_count, 0)
         self.assertEqual(len(artifacts), 0)
 
