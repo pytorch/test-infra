@@ -281,21 +281,6 @@ def set_output(val: Any, gh_var_name: str, filename: Optional[str]) -> None:
             print(val, file=f)
 
 
-def print_testspec(
-    job_name: str,
-    os: str,
-    job_conclusion: str,
-    file_name: str,
-) -> None:
-    """
-    The test spec output from AWS Device Farm is the main output of the test job.
-    """
-    print(f"::group::{job_name} {os} test output [Job Result: {job_conclusion}]")
-    with open(file_name) as f:
-        print(f.read())
-    print("::endgroup::")
-
-
 def generate_ios_xctestrun(
     client: Any, project_arn: str, prefix: str, ios_xctestrun: str, test_spec: str
 ) -> Dict[str, str]:
@@ -635,12 +620,27 @@ class ReportProcessor:
     def print_test_spec(self) -> None:
         info(f"Test Spec Outputs:")
         for test_spec_info in self.test_spec_info_list:
-            print_testspec(
+            self.print_single_testspec(
                 test_spec_info["job_name"],
                 test_spec_info["os"],
                 test_spec_info["job_conclusion"],
                 test_spec_info["local_filename"],
             )
+
+    def print_single_testspec(
+        self,
+        job_name: str,
+        os: str,
+        job_conclusion: str,
+        file_name: str,
+    ) -> None:
+        """
+        The test spec output from AWS Device Farm is the main output of the test job.
+        """
+        print(f"::group::{job_name} {os} test output [Job Result: {job_conclusion}]")
+        with open(file_name) as f:
+            print(f.read())
+        print("::endgroup::")
 
     def get_run_report(self):
         if not self.run_report:
