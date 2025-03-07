@@ -267,6 +267,33 @@ class Test(unittest.TestCase):
 
         self.assertEqual(m_s3.getMockClient().upload_file.call_count, 0)
 
+    def test_reportProcessor_emptyReportInput_returnEmptyList(self):
+        m_df = MockDeviceFarmClient()
+        m_s3 = MockS3Client()
+        fakeReport = {}
+        processor = ReportProcessor(
+            m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1, True
+        )
+        artifacts = processor.start(fakeReport)
+
+        self.assertEqual(m_df.getMockClient().list_jobs.call_count, 0)
+        self.assertEqual(len(artifacts), 0)
+
+    def test_reportProcessor_missingArnInReportInput_returnEmptyList(self):
+        m_df = MockDeviceFarmClient()
+        m_s3 = MockS3Client()
+        fakeReport = {
+            "status": "COMPLETED",
+            "result": "PASSED",
+        }
+        processor = ReportProcessor(
+            m_df.getMockClient(), m_s3.getMockClient(), "IOS", "wf1", 1
+        )
+        artifacts = processor.start(fakeReport)
+
+        self.assertEqual(m_df.getMockClient().list_jobs.call_count, 0)
+        self.assertEqual(len(artifacts), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

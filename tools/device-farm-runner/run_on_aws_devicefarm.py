@@ -20,6 +20,7 @@ import boto3  # type: ignore[import-not-found]
 import requests
 
 
+# TODO(elainewy): refactor and add unit tests for benchmark test logic
 POLLING_DELAY_IN_SECOND = 5
 MAX_UPLOAD_WAIT_IN_SECOND = 600
 
@@ -422,6 +423,14 @@ class JobReport(DeviceFarmReport):
 
 
 class ReportProcessor:
+    """
+    A helper class to process the modebile test result from AWS Device Farm.
+
+    Usage:
+        processor = ReportProcessor(...) \n
+        processor.start(mobile_run_report)
+    """
+
     def __init__(
         self,
         device_farm_client: Any,
@@ -441,10 +450,17 @@ class ReportProcessor:
         self.test_spec_info_list: list[Dict] = []
         self.is_debug = is_debug
 
-    def start(self, report: Dict[str, Any]):
+    # todo(elainewy): add main method to pass run arn
+    def start(self, report: Dict[str, Any]) -> List[Dict[str, str]]:
         if not report:
             warn("Missing report, returning...")
             return []
+
+        arn = report.get("arn", "")
+        if not arn:
+            warn("Missing arn from input report, returning...")
+            return []
+
         if self.is_debug:
             info(
                 "[DEBUG MODE] the artifacts won't be uploaded to s3, it should mainly used in local env"
@@ -548,6 +564,7 @@ class ReportProcessor:
         name = report.get("name", "")
         result = report.get("result", "")
         counters = report.get("counters", "{}")
+
         return DeviceFarmReport(
             name=name,
             arn=arn,
