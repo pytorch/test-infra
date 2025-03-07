@@ -85,7 +85,8 @@ export async function getQueuedJobs(metrics: ScaleUpChronMetrics, scaleUpRecordQ
     });
 
     // Map the response to the class
-    return response?.data.map((runner: any) => {
+    const responseData = JSON.parse(response.data);
+    return responseData.map((runner: any) => {
       metrics.queuedRunnerStats(runner.org, runner.runner_label, runner.num_queued_jobs,);
       return {
         runner_label: runner.runner_label,
