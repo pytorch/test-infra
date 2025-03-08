@@ -1,5 +1,4 @@
-SELECT
-    COUNT(*) as num
+SELECT COUNT(*) AS num
 FROM
     push
 WHERE
