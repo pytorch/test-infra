@@ -46,6 +46,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only relevant if --results is used. If set, it will sort the query results before comparing",
     )
+    parser.add_argument(
+        "--wait-time",
+        type=int,
+        default=30,
+        help=(
+            "Time to wait before querying the stats table. Only relevant if --perf is used. "
+            "Set this to a higher amount if the stats table is not populated"
+        ),
+    )
     args = parser.parse_args()
     return args
 
@@ -133,7 +142,7 @@ def perf_compare(args: argparse.Namespace) -> None:
     # Split up the query execution and the stats collection because the stats
     # table needs time to populate. Also sleep for 10 seconds to the table more
     # time to populate
-    time.sleep(30)
+    time.sleep(args.wait_time)
     table = PrettyTable()
     if args.base:
         table.field_names = [
