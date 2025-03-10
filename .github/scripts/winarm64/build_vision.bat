@@ -43,8 +43,8 @@ call .\.venv\Scripts\activate
 
 :: Install dependencies
 pip install numpy
-:: TODO: Once torch for WinArm64 becomes public, update path
-:: pip install %PYTORCH_PATH%
+pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu
+
 exit /b 0
 
 :: Activate visual studio

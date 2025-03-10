@@ -42,7 +42,7 @@ echo * > .venv\.gitignore
 call .\.venv\Scripts\activate
 
 :: Install dependencies
-pip install %PYTORCH_PATH%
+pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu
 
 :: Activate visual studio
 call "%VCVARSALL_PATH%" arm64
