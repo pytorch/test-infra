@@ -52,7 +52,8 @@ def parse_args() -> argparse.Namespace:
         default=30,
         help=(
             "Time to wait before querying the stats table. Only relevant if --perf is used. "
-            "Set this to a higher amount if the stats table is not populated"
+            "Set this to a higher amount if the stats table is not populated. This will likely"
+            "show up as a type error (ex comparing None to int) when running the script."
         ),
     )
     args = parser.parse_args()
