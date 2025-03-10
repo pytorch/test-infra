@@ -1,31 +1,34 @@
-with jobs as (
-    select
-        j.torchci_classification.line as line,
-        j.torchci_classification.captures as captures,
+WITH jobs AS (
+    SELECT
+        j.torchci_classification.line AS line,
+        j.torchci_classification.captures AS captures,
         j.run_id
-    from
-        default.workflow_job j final
-    where
-        j.id in (
-            select id from materialized_views.workflow_job_by_created_at
-            where created_at >= {startTime: DateTime64(3)} and created_at < {stopTime: DateTime64(3)}
+    FROM
+        default.workflow_job j FINAL
+    WHERE
+        j.id IN (
+            SELECT id FROM materialized_views.workflow_job_by_created_at
+            WHERE
+                created_at >= {startTime: DateTime64(3)}
+                AND created_at < {stopTime: DateTime64(3)}
         )
-        and j.conclusion in ('cancelled', 'failure', 'time_out')
+        AND j.conclusion IN ('cancelled', 'failure', 'time_out')
 )
-select
-    COUNT(*) as num,
-    any(line) as example,
-    captures as captures
-from
+
+SELECT
+    COUNT(*) AS num,
+    any(line) AS example,
+    captures AS captures
+FROM
     jobs j
-    join default.workflow_run w final on w.id = j.run_id
-where
-    w.id in (select run_id from jobs)
-    and w.head_branch = 'main'
-    and w.head_repository.'full_name' = 'pytorch/pytorch'
+JOIN default.workflow_run w FINAL ON w.id = j.run_id
+WHERE
+    w.id IN (SELECT run_id FROM jobs)
+    AND w.head_branch = 'main'
+    AND w.head_repository.'full_name' = 'pytorch/pytorch'
     AND w.event != 'workflow_run'
     AND w.event != 'repository_dispatch'
-group by
+GROUP BY
     captures
-order by
-    COUNT(*) desc
+ORDER BY
+    COUNT(*) DESC

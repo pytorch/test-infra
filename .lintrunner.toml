@@ -360,44 +360,6 @@ is_formatter = true
 [[linter]]
 code = 'SQLFLUFF'
 include_patterns = ['torchci/clickhouse_queries/**/*.sql']
-exclude_patterns = [
-    # The files below existed prior to the creation of this linter and have not
-    # yet been linted and should eventually be linted. If you created a new file
-    # and want to exclude on purpose, add it above this comment instead of below
-    # so we can track which ones are explicitly excluded and which are excluded
-    # due to history
-    "torchci/clickhouse_queries/external_contribution_stats/query.sql",
-    "torchci/clickhouse_queries/last_successful_jobs/query.sql",
-    "torchci/clickhouse_queries/duration_job_per_owning_account/query.sql",
-    "torchci/clickhouse_queries/reverts/query.sql",
-    "torchci/clickhouse_queries/cost_job_per_job_name/query.sql",
-    "torchci/clickhouse_queries/queued_jobs_by_label/query.sql",
-    "torchci/clickhouse_queries/master_commit_red_avg/query.sql",
-    "torchci/clickhouse_queries/torchbench_userbenchmark_list_commits/query.sql",
-    "torchci/clickhouse_queries/num_reverts/query.sql",
-    "torchci/clickhouse_queries/tts_duration_historical_percentile/query.sql",
-    "torchci/clickhouse_queries/monthly_contribution_stats/query.sql",
-    "torchci/clickhouse_queries/duration_job_per_workflow_name/query.sql",
-    "torchci/clickhouse_queries/master_commit_red_jobs/query.sql",
-    "torchci/clickhouse_queries/commit_jobs_query/query.sql",
-    "torchci/clickhouse_queries/job_duration_percentile/query.sql",
-    "torchci/clickhouse_queries/master_commit_red/query.sql",
-    "torchci/clickhouse_queries/testStatsDistinctCount/query.sql",
-    "torchci/clickhouse_queries/cost_job_per_workflow_name/query.sql",
-    "torchci/clickhouse_queries/unique_repos_in_runnercost/query.sql",
-    "torchci/clickhouse_queries/pr_commits/query.sql",
-    "torchci/clickhouse_queries/get_workers_on_period/query.sql",
-    "torchci/clickhouse_queries/number_of_force_pushes_historical/query.sql",
-    "torchci/clickhouse_queries/tts_avg/query.sql",
-    "torchci/clickhouse_queries/last_branch_push/query.sql",
-    "torchci/clickhouse_queries/queue_times_historical_pct/query.sql",
-    "torchci/clickhouse_queries/recent_pr_workflows_query/query.sql",
-    "torchci/clickhouse_queries/master_commit_red_percent_groups/query.sql",
-    "torchci/clickhouse_queries/torchbench_userbenchmark_query_metrics/query.sql",
-    "torchci/clickhouse_queries/tts_percentile/query.sql",
-    "torchci/clickhouse_queries/queued_jobs_aggregate/query.sql",
-    "torchci/clickhouse_queries/log_captures_count/query.sql",
-]
 command = [
     'python3',
     'tools/linter/adapters/sqlfluff_linter.py',
