@@ -46,6 +46,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only relevant if --results is used. If set, it will sort the query results before comparing",
     )
+    parser.add_argument(
+        "--wait-time",
+        type=int,
+        default=30,
+        help=(
+            "Time to wait before querying the stats table. Only relevant if --perf is used. "
+            "Set this to a higher amount if the stats table is not populated. This will likely "
+            "show up as a type error (ex comparing None to int) when running the script."
+        ),
+    )
     args = parser.parse_args()
     return args
 
@@ -59,8 +69,8 @@ def get_base_query(query: str, sha: str) -> str:
 
 EXECUTION_METRICS = """
 SELECT
-    round(avg(query_duration_ms)) AS realTimeMSAvg,
-    avg(memory_usage) as memoryBytesAvg
+    quantile(0.5)(query_duration_ms) AS realTimeMSAvg,
+    quantile(0.5)(memory_usage) as memoryBytesAvg
 FROM
     clusterAllReplicas(default, system.query_log)
 where
@@ -77,7 +87,11 @@ def get_avg_stats(query_ids: list) -> tuple:
 def get_query_ids(query: str, params: dict, times: int) -> list[str]:
     def _get_query_id(query: str, params: dict) -> Optional[str]:
         try:
-            res = get_clickhouse_client().query(query, params)
+            res = get_clickhouse_client().query(
+                query,
+                params,
+                settings={"enable_filesystem_cache": 0, "use_query_cache": 0},
+            )
             return res.query_id
         except Exception as e:
             print(f"Error: {e}")
@@ -129,7 +143,7 @@ def perf_compare(args: argparse.Namespace) -> None:
     # Split up the query execution and the stats collection because the stats
     # table needs time to populate. Also sleep for 10 seconds to the table more
     # time to populate
-    time.sleep(20)
+    time.sleep(args.wait_time)
     table = PrettyTable()
     if args.base:
         table.field_names = [
