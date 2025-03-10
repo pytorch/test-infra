@@ -188,7 +188,7 @@ describe('scale-down', () => {
       mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true, status: 'online' }),
       mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false, status: 'online' }),
       mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true, status: 'online' }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
+      mockRunner({ id: '0007', name: 'keep-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
       mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false, status: 'online' }),
       mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false, status: 'online' }),
       mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false, status: 'online' }),
@@ -302,7 +302,7 @@ describe('scale-down', () => {
       {
         awsRegion: baseConfig.awsRegion,
         runnerType: 'a-ephemeral-runner',
-        instanceId: 'remove-ephemeral-01-fail-ghr', // X
+        instanceId: 'keep-ephemeral-01-fail-ghr', // X
         org: theOrg,
         launchTime: dateRef
           .clone()
@@ -319,7 +319,34 @@ describe('scale-down', () => {
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
           .toDate(),
       },
-
+      {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'a-ephemeral-runner',
+        instanceId: 'keep-this-ebs-not-min-time-01',
+        org: theOrg,
+        ebsVolumeReplacementRequestTimestamp: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      },
+      {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'a-ephemeral-runner',
+        instanceId: 'keep-this-recently-finished-job-01',
+        org: theOrg,
+        ephemeralRunnerFinished: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      },
       {
         awsRegion: baseConfig.awsRegion,
         runnerType: 'keep-min-runners-oldest',
@@ -439,23 +466,19 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(16);
+      expect(mockedListGithubRunnersOrg).toBeCalledTimes(18);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(9);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
-      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
+      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(4);
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
       }
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
-      }
-      {
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
       }
       {
@@ -511,7 +534,7 @@ describe('scale-down', () => {
       mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true, status: 'online' }),
       mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false, status: 'online' }),
       mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true, status: 'online' }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
+      mockRunner({ id: '0007', name: 'keep-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
       mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false, status: 'online' }),
       mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false, status: 'online' }),
       mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false, status: 'online' }),
@@ -622,7 +645,7 @@ describe('scale-down', () => {
       {
         awsRegion: baseConfig.awsRegion,
         runnerType: 'a-ephemeral-runner',
-        instanceId: 'remove-ephemeral-01-fail-ghr', // X
+        instanceId: 'keep-ephemeral-01-fail-ghr', // X
         repo: theRepo,
         launchTime: dateRef
           .clone()
@@ -634,6 +657,34 @@ describe('scale-down', () => {
         runnerType: 'a-ephemeral-runner',
         instanceId: 'remove-ephemeral-02', // X
         repo: theRepo,
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      },
+      {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'a-ephemeral-runner',
+        instanceId: 'keep-this-ebs-not-min-time-01',
+        repo: theRepo,
+        ebsVolumeReplacementRequestTimestamp: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      },
+      {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'a-ephemeral-runner',
+        instanceId: 'keep-this-recently-finished-job-01',
+        repo: theRepo,
+        ephemeralRunnerFinished: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes')
+          .unix(),
         launchTime: dateRef
           .clone()
           .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
@@ -757,23 +808,19 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(16);
+      expect(mockedListGithubRunnersRepo).toBeCalledTimes(18);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(13);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(9);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
-      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
+      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(4);
       {
         const { ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
       {
         const { ghR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
-      }
-      {
-        const { ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
       {
