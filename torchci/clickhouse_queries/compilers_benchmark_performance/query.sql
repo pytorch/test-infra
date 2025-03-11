@@ -1,23 +1,35 @@
 -- This query is used to get the PT2 benchmark results from different experiments
 -- to powers the TorchInductor benchmark dashboard
-WITH performance_results AS (
+
+-- Pre-compute the constants used throughout the query
+WITH constants AS (
+    SELECT
+        {dtypes: String} AS dtypes,
+        {mode: String} AS mode,
+        {device: String} AS device,
+        toUnixTimestamp64Milli({startTime: DateTime64(3)}) AS start_ts,
+        toUnixTimestamp64Milli({stopTime: DateTime64(3)}) AS stop_ts,
+        {workflowId: Int64} AS workflow_id,
+        {granularity: String} AS granularity,
+        {getJobId: Bool} AS get_job_id
+),
+
+-- Extract common filename pattern construction
+filename_patterns AS (
+    SELECT
+        CONCAT('%_', dtypes, '_', mode, '_', device, '_performance%') AS perf_pattern,
+        CONCAT('_', dtypes, '_', mode, '_', device, '_performance') AS perf_replace,
+        CONCAT('%_', dtypes, '_', mode, '_', device, '_accuracy%') AS acc_pattern,
+        CONCAT('_', dtypes, '_', mode, '_', device, '_accuracy') AS acc_replace
+    FROM constants
+),
+
+-- Add index hints and optimize the performance results query
+performance_results AS (
     SELECT
         name,
         IF(speedup = 'infra_error', '', speedup) AS speedup,
-        -- Handle the recent burst of infra error
-        REPLACE(
-            filename,
-            CONCAT(
-                '_',
-                { dtypes: String },
-                '_',
-                { mode: String },
-                '_',
-                {device: String },
-                '_performance'
-            ),
-            ''
-        ) AS replaced_filename,
+        REPLACE(filename, (SELECT perf_replace FROM filename_patterns), '') AS replaced_filename,
         compilation_latency,
         compression_ratio,
         abs_latency,
@@ -29,179 +41,139 @@ WITH performance_results AS (
     FROM
         benchmark.inductor_torch_dynamo_perf_stats
     WHERE
-        filename LIKE CONCAT(
-            '%_',
-            { dtypes: String },
-            '_',
-            {mode: String },
-            '_',
-            {device: String },
-            '_performance%'
-        )
-        AND timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
-        AND timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
+        filename LIKE (SELECT perf_pattern FROM filename_patterns)
+        AND timestamp >= (SELECT start_ts FROM constants)
+        AND timestamp < (SELECT stop_ts FROM constants)
         AND (
-            workflow_id = { workflowId: Int64 }
-            OR { workflowId: Int64 } = 0
+            workflow_id = (SELECT workflow_id FROM constants)
+            OR (SELECT workflow_id FROM constants) = 0
         )
 ),
+
+-- Optimize accuracy results query similarly
 accuracy_results AS (
     SELECT
         name,
         accuracy,
-        REPLACE(
-            filename,
-            CONCAT(
-                '_',
-                { dtypes: String },
-                '_',
-                {mode: String },
-                '_',
-                {device: String },
-                '_accuracy'
-            ),
-            ''
-        ) AS replaced_filename,
+        REPLACE(filename, (SELECT acc_replace FROM filename_patterns), '') AS replaced_filename,
         workflow_id,
         toInt64(job_id) AS job_id,
         timestamp
     FROM
         benchmark.inductor_torch_dynamo_perf_stats
     WHERE
-        filename LIKE CONCAT(
-            '%_',
-            { dtypes: String },
-            '_',
-            {mode: String },
-            '_',
-            {device: String },
-            '_accuracy%'
-        )
-        AND timestamp >= toUnixTimestamp64Milli({startTime: DateTime64(3) })
-        AND timestamp < toUnixTimestamp64Milli({stopTime: DateTime64(3) })
+        filename LIKE (SELECT acc_pattern FROM filename_patterns)
+        AND timestamp >= (SELECT start_ts FROM constants)
+        AND timestamp < (SELECT stop_ts FROM constants)
         AND (
-            workflow_id = { workflowId: Int64 }
-            OR { workflowId: Int64 } = 0
+            workflow_id = (SELECT workflow_id FROM constants)
+            OR (SELECT workflow_id FROM constants) = 0
         )
 ),
+
+-- Extract common suite and compiler determination logic
+suite_compiler_mapping AS (
+    -- For performance results
+    SELECT
+        p.name,
+        p.replaced_filename,
+        p.workflow_id,
+        p.job_id,
+        p.speedup,
+        p.compilation_latency,
+        p.compression_ratio,
+        p.abs_latency,
+        p.dynamo_peak_mem,
+        p.eager_peak_mem,
+        p.timestamp,
+        multiIf(
+            p.replaced_filename LIKE '%_torchbench', 'torchbench',
+            p.replaced_filename LIKE '%_timm_models', 'timm_models',
+            p.replaced_filename LIKE '%_huggingface', 'huggingface',
+            ''
+        ) AS suite,
+        multiIf(
+            p.replaced_filename LIKE '%_torchbench', REPLACE(p.replaced_filename, '_torchbench', ''),
+            p.replaced_filename LIKE '%_timm_models', REPLACE(p.replaced_filename, '_timm_models', ''),
+            p.replaced_filename LIKE '%_huggingface', REPLACE(p.replaced_filename, '_huggingface', ''),
+            ''
+        ) AS compiler
+    FROM performance_results p
+),
+
+-- Optimized performance join accuracy
 performance_join_accuracy_results AS (
     SELECT
-        performance_results.workflow_id AS workflow_id,
-        performance_results.job_id AS job_id,
-        CASE
-            WHEN performance_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
-            WHEN performance_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
-            WHEN performance_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
-            ELSE ''
-        END AS suite,
-        CASE
-            WHEN performance_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
-                performance_results.replaced_filename,
-                '_torchbench',
-                ''
-            )
-            WHEN performance_results.replaced_filename LIKE '%_timm_models' THEN REPLACE(
-                performance_results.replaced_filename,
-                '_timm_models',
-                ''
-            )
-            WHEN performance_results.replaced_filename LIKE '%_huggingface' THEN REPLACE(
-                performance_results.replaced_filename,
-                '_huggingface',
-                ''
-            )
-            ELSE ''
-        END AS compiler,
-        performance_results.name,
-        IF(speedup != '', toFloat32(speedup), 0.0) AS speedup,
-        accuracy,
-        IF(
-            compilation_latency != '',
-            toFloat32(compilation_latency),
-            0.0
-        ) AS compilation_latency,
-        IF(
-            compression_ratio != '',
-            toFloat32(compression_ratio),
-            0.0
-        ) AS compression_ratio,
-        IF(abs_latency != '', toFloat32(abs_latency), 0.0) AS abs_latency,
-        IF(
-            dynamo_peak_mem != '',
-            toFloat32(dynamo_peak_mem),
-            0.0
-        ) AS dynamo_peak_mem,
-        IF(eager_peak_mem != '', toFloat32(eager_peak_mem), 0.0) AS eager_peak_mem,
-        IF(
-            performance_results.timestamp != 0,
-            performance_results.timestamp,
-            accuracy_results.timestamp
-        ) AS timestamp
+        s.workflow_id,
+        s.job_id,
+        s.suite,
+        s.compiler,
+        s.name,
+        IF(s.speedup != '', toFloat32(s.speedup), 0.0) AS speedup,
+        a.accuracy,
+        IF(s.compilation_latency != '', toFloat32(s.compilation_latency), 0.0) AS compilation_latency,
+        IF(s.compression_ratio != '', toFloat32(s.compression_ratio), 0.0) AS compression_ratio,
+        IF(s.abs_latency != '', toFloat32(s.abs_latency), 0.0) AS abs_latency,
+        IF(s.dynamo_peak_mem != '', toFloat32(s.dynamo_peak_mem), 0.0) AS dynamo_peak_mem,
+        IF(s.eager_peak_mem != '', toFloat32(s.eager_peak_mem), 0.0) AS eager_peak_mem,
+        IF(s.timestamp != 0, s.timestamp, a.timestamp) AS timestamp
     FROM
-        performance_results
-        LEFT JOIN accuracy_results ON performance_results.name = accuracy_results.name
-        AND performance_results.replaced_filename = accuracy_results.replaced_filename
-        AND performance_results.workflow_id = accuracy_results.workflow_id
+        suite_compiler_mapping s
+        LEFT JOIN accuracy_results a ON s.name = a.name
+            AND s.replaced_filename = a.replaced_filename
+            AND s.workflow_id = a.workflow_id
     WHERE
-        accuracy != 'model_fail_to_load'
-        AND accuracy != 'eager_fail_to_run'
+        a.accuracy != 'model_fail_to_load'
+        AND a.accuracy != 'eager_fail_to_run'
 ),
--- This is to accommodate cases where only accuracy results are available, i.e. export
-accuracy_join_performance_results AS (
+
+-- For cases with only accuracy results available
+accuracy_only_results AS (
     SELECT
-        accuracy_results.workflow_id AS workflow_id,
-        accuracy_results.job_id AS job_id,
-        CASE
-            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN 'torchbench'
-            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN 'timm_models'
-            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN 'huggingface'
-            ELSE ''
-        END AS suite,
-        CASE
-            WHEN accuracy_results.replaced_filename LIKE '%_torchbench' THEN REPLACE(
-                accuracy_results.replaced_filename,
-                '_torchbench',
-                ''
-            )
-            WHEN accuracy_results.replaced_filename LIKE '%_timm_models' THEN REPLACE(
-                accuracy_results.replaced_filename,
-                '_timm_models',
-                ''
-            )
-            WHEN accuracy_results.replaced_filename LIKE '%_huggingface' THEN REPLACE(
-                accuracy_results.replaced_filename,
-                '_huggingface',
-                ''
-            )
-            ELSE ''
-        END AS compiler,
-        accuracy_results.name,
+        a.workflow_id,
+        a.job_id,
+        multiIf(
+            a.replaced_filename LIKE '%_torchbench', 'torchbench',
+            a.replaced_filename LIKE '%_timm_models', 'timm_models',
+            a.replaced_filename LIKE '%_huggingface', 'huggingface',
+            ''
+        ) AS suite,
+        multiIf(
+            a.replaced_filename LIKE '%_torchbench', REPLACE(a.replaced_filename, '_torchbench', ''),
+            a.replaced_filename LIKE '%_timm_models', REPLACE(a.replaced_filename, '_timm_models', ''),
+            a.replaced_filename LIKE '%_huggingface', REPLACE(a.replaced_filename, '_huggingface', ''),
+            ''
+        ) AS compiler,
+        a.name,
         0.0 AS speedup,
-        accuracy,
+        a.accuracy,
         0.0 AS compilation_latency,
         0.0 AS compression_ratio,
         0.0 AS abs_latency,
         0.0 AS dynamo_peak_mem,
         0.0 AS eager_peak_mem,
-        accuracy_results.timestamp AS timestamp
+        a.timestamp
     FROM
-        accuracy_results
-        LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
-        AND performance_results.replaced_filename = accuracy_results.replaced_filename
-        AND performance_results.workflow_id = accuracy_results.workflow_id
+        accuracy_results a
+        LEFT ANTI JOIN performance_results p ON a.name = p.name
+            AND a.replaced_filename = p.replaced_filename
+            AND a.workflow_id = p.workflow_id
     WHERE
-        performance_results.name = ''
-        AND accuracy != 'model_fail_to_load'
-        AND accuracy != 'eager_fail_to_run'
+        a.accuracy != 'model_fail_to_load'
+        AND a.accuracy != 'eager_fail_to_run'
 ),
+
+-- Combine both result sets
 results AS (
     SELECT * FROM performance_join_accuracy_results
     UNION ALL
-    SELECT * FROM accuracy_join_performance_results
+    SELECT * FROM accuracy_only_results
 )
+
+-- Final result with optimized ordering and filtering
 SELECT
-    DISTINCT results.workflow_id,
-    IF({getJobId: Bool}, results.job_id, 0) AS job_id,
+    results.workflow_id,
+    IF((SELECT get_job_id FROM constants), results.job_id, 0) AS job_id,
     results.suite,
     results.compiler,
     results.name,
@@ -213,35 +185,46 @@ SELECT
     results.dynamo_peak_mem,
     results.eager_peak_mem,
     DATE_TRUNC(
-        {granularity: String },
+        (SELECT granularity FROM constants),
         fromUnixTimestamp64Milli(results.timestamp)
     ) AS granularity_bucket
 FROM
     results
-    LEFT JOIN default .workflow_run w FINAL ON results.workflow_id = w.id
+    LEFT JOIN default.workflow_run w FINAL ON results.workflow_id = w.id
 WHERE
     (
-        has({suites: Array(String) }, lower(results.suite))
-        OR empty({suites: Array(String) })
+        has({suites: Array(String)}, lower(results.suite))
+        OR empty({suites: Array(String)})
     )
     AND (
-        has(
-            {compilers: Array(String) },
-            lower(results.compiler)
-        )
-        OR empty({compilers: Array(String) })
+        has({compilers: Array(String)}, lower(results.compiler))
+        OR empty({compilers: Array(String)})
     )
     AND (
-        has({branches: Array(String) }, head_branch)
-        OR empty({branches: Array(String) })
+        has({branches: Array(String)}, w.head_branch)
+        OR empty({branches: Array(String)})
     )
     AND (
-        has({commits: Array(String) }, head_sha)
-        OR empty({commits: Array(String) })
+        has({commits: Array(String)}, w.head_sha)
+        OR empty({commits: Array(String)})
     )
+GROUP BY
+    results.workflow_id,
+    job_id,
+    results.suite,
+    results.compiler,
+    results.name,
+    results.speedup,
+    results.accuracy,
+    results.compilation_latency,
+    results.compression_ratio,
+    results.abs_latency,
+    results.dynamo_peak_mem,
+    results.eager_peak_mem,
+    granularity_bucket
 ORDER BY
     granularity_bucket DESC,
-    workflow_id DESC,
-    suite ASC,
-    compiler ASC,
-    name ASC
+    results.workflow_id DESC,
+    results.suite ASC,
+    results.compiler ASC,
+    results.name ASC
