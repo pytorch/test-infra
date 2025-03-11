@@ -207,6 +207,12 @@ def parse_args() -> Any:
         help="debug mode, the artifacts won't be uploaded to s3, it should mainly used in local env",
     )
 
+    parser.add_argument(
+        "--new-json-output",
+        action="store_true",
+        help="enable new json artifact output format with jobrun, and list of artifacts, this is temporary ",
+    )
+
     return parser.parse_args()
 
 
@@ -652,7 +658,16 @@ class ReportProcessor:
             warn(
                 "cannot print run report, run_report is empty, make sure you call start() first"
             )
-            return None
+            return DeviceFarmReport(
+                name="",
+                arn="",
+                report_type="",
+                status="",
+                result="",
+                counters={},
+                infos={},
+                parent_arn="",
+            )
         return copy.deepcopy(self.run_report)
 
     def get_job_reports(self):
@@ -781,10 +796,32 @@ def main() -> None:
             device_farm_client, s3_client, app_type, workflow_id, workflow_attempt
         )
         artifacts = processor.start(r.get("run"))
-        set_output(json.dumps(artifacts), "artifacts", args.output)
+
+        if args.new_json_output:
+            info("Generating new json output")
+            output = generate_artifacts_output(
+                artifacts, processor.get_run_report(), processor.get_job_reports()
+            )
+            set_output(json.dumps(output), "artifacts", args.output)
+        else:
+            info("Generating legacy json output")
+            set_output(json.dumps(artifacts), "artifacts", args.output)
         processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
+
+
+def generate_artifacts_output(
+    artifacts: List[Dict[str, str]],
+    run_report: DeviceFarmReport,
+    job_reports: List[JobReport],
+):
+    output = {
+        "artifacts": artifacts,
+        "run_report": asdict(run_report),
+        "job_reports": [asdict(job_report) for job_report in job_reports],
+    }
+    return output
 
 
 if __name__ == "__main__":
