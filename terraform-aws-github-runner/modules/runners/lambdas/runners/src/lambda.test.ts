@@ -240,16 +240,10 @@ describe('scaleUpChron', () => {
     jest.spyOn(MetricsModule, 'ScaleUpChronMetrics').mockReturnValue(mockScaleUpChronMetrics);
   });
 
-
-
   it('succeeds', async () => {
     const mockedScaleUpChron = mocked(scaleUpChron).mockResolvedValue(undefined);
     const callback = jest.fn();
-    await scaleUpChronL(
-      {} as unknown as ScheduledEvent,
-      {} as unknown as Context,
-      callback,
-    );
+    await scaleUpChronL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleUpChron).toBeCalledTimes(1);
     expect(mockedScaleUpChron).toBeCalledWith(mockScaleUpChronMetrics);
     expect(callback).toBeCalledTimes(1);
@@ -259,11 +253,7 @@ describe('scaleUpChron', () => {
   it('fails', async () => {
     const mockedScaleUpChron = mocked(scaleUpChron).mockRejectedValue(Error('error'));
     const callback = jest.fn();
-    await scaleUpChronL(
-      {} as unknown as ScheduledEvent,
-      {} as unknown as Context,
-      callback,
-    );
+    await scaleUpChronL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleUpChron).toBeCalledTimes(1);
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed');
