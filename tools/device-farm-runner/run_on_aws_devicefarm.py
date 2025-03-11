@@ -4,6 +4,7 @@ import copy
 import datetime
 import json
 import logging
+from math import inf
 import os
 import random
 import string
@@ -774,6 +775,7 @@ def main() -> None:
         warn(f"Failed to run {unique_prefix}: {error}")
         sys.exit(1)
     finally:
+        info(f"Run {unique_prefix} finished with state {state} and result {result}")
         s3_client = boto3.client("s3")
         processor = ReportProcessor(
             device_farm_client, s3_client, app_type, workflow_id, workflow_attempt
@@ -783,7 +785,6 @@ def main() -> None:
         processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
