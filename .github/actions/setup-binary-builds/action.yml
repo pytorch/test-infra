@@ -149,9 +149,11 @@ runs:
             # TODO: remove this once python 3.13t is fully suported on conda
             # Please see : https://github.com/conda/conda/issues/14554
             if [[ "$(uname)" == Darwin ]]; then
-              # required to be able to downgrade on MacOS m1 side
+              # required to be able to downgrade on MacOS arm64
               conda install -y python=3.9
-              conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
+              if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
+                conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
+              fi
             fi
             conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
           fi
