@@ -92,8 +92,11 @@ export async function getQueuedJobs(
     });
 
     // Map the response to the class
-    // TODO validate the response, trow an error if not valid
-    return JSON.parse(response.data) as QueuedJobsForRunner[];
+    if (response && response.data) {
+      return JSON.parse(response.data) as QueuedJobsForRunner[];
+    } else {
+      throw new Error('No data returned from axios get request with url: ' + url);
+    }
   } catch (error) {
     metrics.queuedRunnerFailure((error as Error).message);
     console.error('Error fetching queued runners:', error);

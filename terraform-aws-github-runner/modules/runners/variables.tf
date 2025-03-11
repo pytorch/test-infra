@@ -318,3 +318,9 @@ variable "min_available_runners" {
   description = "Minimum number of runners to keep available."
   type        = number
 }
+
+variable "hud_query_url" {
+  description = "URL used in scale-up-chron to query HUD for queued jobs"
+  type        = string
+  default     = ""
+}

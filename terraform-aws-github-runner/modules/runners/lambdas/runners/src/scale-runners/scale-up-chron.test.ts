@@ -213,9 +213,11 @@ describe('getQueuedJobs', () => {
 
   it('get queue data from url request with empty response', async () => {
     const errorResponse = '';
+    const queuedRunnerFailureSpy = jest.spyOn(metrics, 'queuedRunnerFailure');
 
     mocked(expBackOff).mockResolvedValue({ data: errorResponse });
 
     expect(await getQueuedJobs(metrics, 'url')).toEqual([]);
+    expect(queuedRunnerFailureSpy).toBeCalledTimes(1);
   });
 });
