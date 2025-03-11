@@ -1,17 +1,21 @@
 import { Config } from './config';
 import { mocked } from 'ts-jest/utils';
-import { getRepo, expBackOff } from './utils';
+import { getRepo, expBackOff, shuffleArrayInPlace} from './utils';
+import { getRunnerTypes } from './gh-runners';
 
 // import * as ScaleUpChronModule from './scale-up-chron';
 import { scaleUpChron, getQueuedJobs } from './scale-up-chron';
+import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 
 import * as MetricsModule from './metrics';
+import { RunnerType } from './runners';
 
 jest.mock('./runners');
 jest.mock('./gh-runners');
 jest.mock('./gh-issues');
 jest.mock('./utils');
 jest.mock('axios');
+jest.mock('./scale-up');
 
 const hudQueryValidResponse = `
 [
@@ -20,16 +24,16 @@ const hudQueryValidResponse = `
       "org":"test_org1",
       "repo":"test_repo1",
       "num_queued_jobs":1,
-      "min_queue_time_minutes":1,
-      "max_queue_time_minutes":1
+      "min_queue_time_minutes":31,
+      "max_queue_time_minutes":31
    },
    {
       "runner_label":"test_runner_type2",
       "org":"test_org2",
       "repo":"test_repo2",
       "num_queued_jobs":2,
-      "min_queue_time_minutes":2,
-      "max_queue_time_minutes":2
+      "min_queue_time_minutes":32,
+      "max_queue_time_minutes":32
    }
 ]`;
 const hudQueryInvalidRunnerLabelResponse = `
@@ -39,16 +43,16 @@ const hudQueryInvalidRunnerLabelResponse = `
       "org":"test_org1",
       "repo":"test_repo1",
       "num_queued_jobs":1,
-      "min_queue_time_minutes":1,
-      "max_queue_time_minutes":1
+      "min_queue_time_minutes":31,
+      "max_queue_time_minutes":31
    },
    {
       "runner_label":"test_runner_type2",
       "org":"test_org2",
       "repo":"test_repo2",
       "num_queued_jobs":2,
-      "min_queue_time_minutes":2,
-      "max_queue_time_minutes":2
+      "min_queue_time_minutes":32,
+      "max_queue_time_minutes":32
    }
 ]`;
 const hudQueryInvalidOrgResponse = `
@@ -58,18 +62,21 @@ const hudQueryInvalidOrgResponse = `
       "org":"test_org1-nomatch",
       "repo":"test_repo1",
       "num_queued_jobs":1,
-      "min_queue_time_minutes":1,
-      "max_queue_time_minutes":1
+      "min_queue_time_minutes":31,
+      "max_queue_time_minutes":31
    },
    {
       "runner_label":"test_runner_type2",
       "org":"test_org2",
       "repo":"test_repo2",
       "num_queued_jobs":2,
-      "min_queue_time_minutes":2,
-      "max_queue_time_minutes":2
+      "min_queue_time_minutes":32,
+      "max_queue_time_minutes":32
    }
 ]`;
+
+const runnerTypeValid = 'test_runner_type1';
+const runnerTypeInvalid = 'runner_type_invalid';
 
 const baseCfg = {
   scaleConfigOrg: 'test_org1',
@@ -78,29 +85,12 @@ const baseCfg = {
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpChronMetrics();
-// beforeEach(() => {
-//   jest.resetModules();
-//   jest.clearAllMocks();
-//   jest.restoreAllMocks();
+beforeEach(() => {
+  jest.resetModules();
+  jest.clearAllMocks();
+  jest.restoreAllMocks();
+});
 
-// mocked(getRepo).mockReturnValue ({ owner: 'owner', repo: 'repo' });
-
-// mocked(getRunnerTypes).mockResolvedValue(
-//   new Map([
-//     [
-//       'label1',
-//       {
-//         instance_type: 'instance_type',
-//         os: 'os',
-//         max_available: 33,
-//         disk_size: 113,
-//         runnerTypeName: 'runnerTypeName',
-//         is_ephemeral: false,
-//       },
-//     ],
-//   ]),
-// );
-// });
 describe('scaleUpChron', () => {
   it('invalid scaleUpRecordQueueUrl', async () => {
     jest.clearAllMocks();
@@ -112,6 +102,8 @@ describe('scaleUpChron', () => {
         } as unknown as Config),
     );
     mocked(getRepo).mockReturnValue({ owner: 'owner', repo: 'repo' });
+    const runnerType = 'runner_type1';
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, { is_ephemeral: false } as RunnerType]]));
     const scaleUpChron = jest.requireActual('./scale-up-chron').scaleUpChron;
     await expect(scaleUpChron(metrics)).rejects.toThrow(
       new Error('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests'),
@@ -121,7 +113,9 @@ describe('scaleUpChron', () => {
   it('queued jobs do not match available runners', async () => {
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
+
     mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
     mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidRunnerLabelResponse });
 
     const scaleUpInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
@@ -133,12 +127,32 @@ describe('scaleUpChron', () => {
   it('queued jobs do not match scale config org', async () => {
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
+
     mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
     mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidOrgResponse });
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
 
     const scaleUpInstanceNoOp = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
     await scaleUpChron(metrics);
     expect(scaleUpInstanceNoOp).toBeCalledTimes(1);
+  });
+
+  it('queued jobs match available runners and scale config org', async () => {
+    jest.clearAllMocks();
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
+
+    mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
+    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, {   runnerTypeName: 'test_runner_type1'    } as RunnerType]]));
+    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+
+
+    const scaleUpInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
+
+    await scaleUpChron(metrics);
+    expect(scaleUpInstanceNoOpSpy).toBeCalledTimes(0);
+    expect(mockedScaleUp).toBeCalledTimes(1);
   });
 });
 
@@ -152,16 +166,16 @@ describe('getQueuedJobs', () => {
         org: 'test_org1',
         repo: 'test_repo1',
         num_queued_jobs: 1,
-        min_queue_time_minutes: 1,
-        max_queue_time_minutes: 1,
+        min_queue_time_minutes: 31,
+        max_queue_time_minutes: 31,
       },
       {
         runner_label: 'test_runner_type2',
         org: 'test_org2',
         repo: 'test_repo2',
         num_queued_jobs: 2,
-        min_queue_time_minutes: 2,
-        max_queue_time_minutes: 2,
+        min_queue_time_minutes: 32,
+        max_queue_time_minutes: 32,
       },
     ]);
   });
