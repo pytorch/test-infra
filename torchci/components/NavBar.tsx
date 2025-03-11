@@ -2,6 +2,7 @@ import styles from "components/NavBar.module.css";
 import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
+import DarkModeToggle from "./DarkModeToggle";
 import LoginSection from "./LoginSection";
 
 const NavBarDropdown = ({
@@ -178,10 +179,13 @@ function NavBar() {
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "black" }}
+              style={{ color: "var(--icon-color)" }}
             >
               <AiFillGithub />
             </Link>
+          </li>
+          <li>
+            <DarkModeToggle />
           </li>
           <li style={{ padding: "0 1rem" }}>
             <LoginSection></LoginSection>

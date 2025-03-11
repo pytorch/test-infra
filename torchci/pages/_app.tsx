@@ -3,6 +3,7 @@ import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
+import { DarkModeProvider } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
@@ -23,15 +24,17 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <SessionProvider>
-        <TitleProvider>
-          <NavBar />
-          <AnnouncementBanner />
-          <SevReport />
-          <div style={{ margin: "20px" }}>
-            <Component {...pageProps} />
-            <Analytics />
-          </div>
-        </TitleProvider>
+        <DarkModeProvider>
+          <TitleProvider>
+            <NavBar />
+            <AnnouncementBanner />
+            <SevReport />
+            <div style={{ margin: "20px" }}>
+              <Component {...pageProps} />
+              <Analytics />
+            </div>
+          </TitleProvider>
+        </DarkModeProvider>
       </SessionProvider>
     </>
   );

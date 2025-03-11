@@ -2,10 +2,10 @@
   display: flex;
   padding: 0 1rem;
   font: bold;
-  background: rgb(255, 227, 227);
-  background: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
-  box-shadow: 0 -4px 20px 0px #c2c2c2;
+  background: var(--navbar-bg);
+  box-shadow: var(--navbar-shadow);
   width: 100%;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 .navbar li {
@@ -51,10 +51,11 @@
 
 .dropdown {
   position: absolute;
-  box-shadow: 0 -4px 20px 0px #c2c2c2;
+  box-shadow: var(--dropdown-shadow);
   z-index: 9999;
   min-width: 10rem;
   padding: 0.5rem 0;
-  background-color: white;
+  background-color: var(--dropdown-bg);
   display: none;
+  transition: background-color 0.3s ease;
 }
