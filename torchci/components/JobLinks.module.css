@@ -1,6 +1,7 @@
 .disableTestButton {
   background-color: #ffc107;
   border-color: #ffc107;
+  color: #212529; /* Ensure good contrast in both light and dark mode */
 }
 
 .closedDisableIssueButton {

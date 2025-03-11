@@ -8,17 +8,19 @@ type DarkModeContextType = {
 const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
 
 export function DarkModeProvider({ children }: { children: ReactNode }) {
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  // Initialize state with undefined to avoid hydration mismatch
+  const [darkMode, setDarkMode] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     // On mount, read the preference from localStorage
     const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode !== null) {
-      setDarkMode(savedDarkMode === 'true');
-    }
+    setDarkMode(savedDarkMode === 'true');
   }, []);
 
   useEffect(() => {
+    // Only run after initial mount when darkMode is defined
+    if (darkMode === undefined) return;
+    
     // Apply or remove the dark class based on the darkMode state
     if (darkMode) {
       document.documentElement.classList.add('dark-mode');
@@ -31,11 +33,11 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
   }, [darkMode]);
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    setDarkMode(prevMode => !prevMode);
   };
 
   return (
-    <DarkModeContext.Provider value={{ darkMode, toggleDarkMode }}>
+    <DarkModeContext.Provider value={{ darkMode: !!darkMode, toggleDarkMode }}>
       {children}
     </DarkModeContext.Provider>
   );

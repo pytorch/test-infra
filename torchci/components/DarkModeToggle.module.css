@@ -13,3 +13,10 @@
 .toggleButton:hover {
   opacity: 0.7;
 }
+
+.togglePlaceholder {
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0.5rem;
+  opacity: 0;
+}

@@ -10,20 +10,22 @@
   --dropdown-shadow: 0 -4px 20px 0px #c2c2c2;
   --button-color: #212529;
   --button-bg: transparent;
+  --border-color: #e1e1e1;
 }
 
 .dark-mode {
-  --background-color: #121212;
-  --text-color: #e0e0e0;
-  --link-color: #4da6ff;
-  --navbar-bg: linear-gradient(326deg, rgb(32 32 32), rgb(28 28 28));
-  --navbar-shadow: 0 -4px 20px 0px #000000;
-  --dropdown-bg: #1e1e1e;
-  --code-bg: #2d2d2d;
-  --icon-color: #e0e0e0;
-  --dropdown-shadow: 0 -4px 20px 0px #000000;
-  --button-color: #e0e0e0;
+  --background-color: #1E1E1E;
+  --text-color: #E0E0E0;
+  --link-color: #4A90E2;
+  --navbar-bg: linear-gradient(326deg, #2A2A2A, #2D2D2D);
+  --navbar-shadow: 0 -4px 20px 0px rgba(0, 0, 0, 0.4);
+  --dropdown-bg: #2A2A2A;
+  --code-bg: #2A2A2A;
+  --icon-color: #E0E0E0;
+  --dropdown-shadow: 0 -4px 20px 0px rgba(0, 0, 0, 0.3);
+  --button-color: #E0E0E0;
   --button-bg: transparent;
+  --border-color: #3A3A3A;
 }
 
 html {
@@ -77,6 +79,31 @@ button {
   border: 1px solid transparent;
   border-radius: 0.25rem;
   background-color: var(--button-bg);
+}
+
+/* Add table styling with border colors */
+table {
+  border-collapse: collapse;
+  border-color: var(--border-color);
+}
+
+th, td {
+  border-color: var(--border-color);
+}
+
+/* Style for any element with a border */
+[class*="border"], [style*="border"] {
+  border-color: var(--border-color) !important;
+}
+
+/* For dividers and horizontal rules */
+hr {
+  border-color: var(--border-color);
+}
+
+/* Component background elements */
+.component-bg {
+  background-color: var(--dropdown-bg);
 }
 
 .animate-on-click {

@@ -9,11 +9,11 @@
 }
 
 .success {
-  color: green;
+  color: #4caf50; /* Green that works in both light and dark mode */
 }
 
 .failure {
-  color: red;
+  color: #f44336; /* Red that works in both light and dark mode */
 }
 
 .failure_monster {
@@ -24,46 +24,46 @@
 }
 
 .skipped {
-  color: grey;
+  color: #9e9e9e; /* Grey that works in both light and dark mode */
 }
 
 .neutral {
-  color: grey;
+  color: #9e9e9e; /* Grey that works in both light and dark mode */
 }
 
 .cancelled {
-  color: red;
+  color: #f44336; /* Red that works in both light and dark mode */
 }
 
 .timed_out {
-  color: red;
+  color: #f44336; /* Red that works in both light and dark mode */
 }
 
 .pending {
-  color: goldenrod;
+  color: #ffc107; /* Gold/yellow that works in both light and dark mode */
 }
 
 .queued {
-  color: lightgray;
+  color: #bdbdbd; /* Light gray that works in both light and dark mode */
 }
 
 .none {
-  color: lightgray;
+  color: #bdbdbd; /* Light gray that works in both light and dark mode */
 }
 
 .all_null {
-  color: grey;
+  color: #9e9e9e; /* Grey that works in both light and dark mode */
 }
 
 .flaky {
-  color: lightgreen;
+  color: #8bc34a; /* Light green that works in both light and dark mode */
 }
 
 .warning {
-  color: #f8b88b;
+  color: #ff9800; /* Orange that works in both light and dark mode */
 }
 
 .viablestrict_blocking {
-  border-left: 1px solid red;
-  border-right: 1px solid red;
+  border-left: 1px solid #f44336;
+  border-right: 1px solid #f44336;
 }
