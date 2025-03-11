@@ -1,4 +1,6 @@
 import { Analytics } from "@vercel/analytics/react";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
@@ -10,6 +12,7 @@ import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import ReactGA from "react-ga4";
+import { useAppTheme } from "styles/MuiThemeOverrides";
 import "styles/globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
@@ -21,22 +24,36 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, [router, router.pathname]);
 
   ReactGA.initialize("G-HZEXJ323ZF");
+
+  // Wrap everything in DarkModeProvider
   return (
     <>
       <SessionProvider>
         <DarkModeProvider>
-          <TitleProvider>
-            <NavBar />
-            <AnnouncementBanner />
-            <SevReport />
-            <div style={{ margin: "20px" }}>
-              <Component {...pageProps} />
-              <Analytics />
-            </div>
-          </TitleProvider>
+          <AppContent Component={Component} pageProps={pageProps} />
         </DarkModeProvider>
       </SessionProvider>
     </>
+  );
+}
+
+// Separate component to use the dark mode hooks
+function AppContent({ Component, pageProps }: { Component: any, pageProps: any }) {
+  const theme = useAppTheme();
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <TitleProvider>
+        <NavBar />
+        <AnnouncementBanner />
+        <SevReport />
+        <div style={{ margin: "20px" }}>
+          <Component {...pageProps} />
+          <Analytics />
+        </div>
+      </TitleProvider>
+    </ThemeProvider>
   );
 }
 

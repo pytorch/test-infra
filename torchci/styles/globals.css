@@ -11,6 +11,12 @@
   --button-color: #212529;
   --button-bg: transparent;
   --border-color: #e1e1e1;
+  
+  /* HUD specific colors */
+  --forced-merge-bg: lightyellow;
+  --forced-merge-failure-bg: #ffe0b3;
+  --selected-row-bg: lightblue;
+  --highlight-bg: #ffa;
 }
 
 .dark-mode {
@@ -26,6 +32,12 @@
   --button-color: #E0E0E0;
   --button-bg: transparent;
   --border-color: #3A3A3A;
+  
+  /* HUD specific colors - dark mode variants */
+  --forced-merge-bg: #453e00;
+  --forced-merge-failure-bg: #5e3a00;
+  --selected-row-bg: #0a3550;
+  --highlight-bg: #525200;
 }
 
 html {
@@ -68,6 +80,19 @@ a {
   color: var(--link-color);
 }
 
+/* Specific styling for table links */
+table a, 
+tbody a, 
+tr a, 
+td a {
+  color: var(--link-color);
+}
+
+/* MUI Data Grid specific styles */
+.MuiDataGrid-root .MuiDataGrid-cell a {
+  color: var(--link-color);
+}
+
 button {
   cursor: pointer;
   display: inline-block;
@@ -79,6 +104,21 @@ button {
   border: 1px solid transparent;
   border-radius: 0.25rem;
   background-color: var(--button-bg);
+}
+
+/* Form elements in dark mode */
+input, textarea, select {
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Fix for select dropdown text color */
+select option {
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
 }
 
 /* Add table styling with border colors */

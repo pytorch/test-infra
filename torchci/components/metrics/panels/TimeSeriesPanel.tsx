@@ -248,10 +248,58 @@ export function TimeSeriesPanelWithData({
   );
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+    <Paper 
+      sx={{ 
+        p: 2, 
+        height: "100%",
+        backgroundColor: 'var(--dropdown-bg)',
+        color: 'var(--text-color)',
+      }} 
+      elevation={3}
+    >
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
-        option={options}
+        option={_.merge(
+          {
+            textStyle: {
+              color: 'var(--text-color)',
+            },
+            title: {
+              textStyle: {
+                color: 'var(--text-color)',
+              }
+            },
+            legend: {
+              textStyle: {
+                color: 'var(--text-color)',
+              }
+            },
+            xAxis: {
+              axisLine: {
+                lineStyle: {
+                  color: 'var(--border-color)',
+                }
+              },
+              axisLabel: {
+                color: 'var(--text-color)',
+              }
+            },
+            yAxis: {
+              axisLine: {
+                lineStyle: {
+                  color: 'var(--border-color)',
+                }
+              },
+              axisLabel: {
+                color: 'var(--text-color)',
+              },
+              nameTextStyle: {
+                color: 'var(--text-color)',
+              }
+            },
+          }, 
+          options
+        )}
         notMerge={true}
         onEvents={onEvents}
       />
