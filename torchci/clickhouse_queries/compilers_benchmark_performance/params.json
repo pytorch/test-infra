@@ -15,22 +15,18 @@
   },
   "tests": [
     {
-      "name": "default_benchmark_query",
-      "description": "Fetches performance data for inductor compiler on CUDA for the last 7 days",
-      "params": {
-        "branches": ["main"],
-        "commits": [],
-        "compilers": [],
-        "device": "cuda_h100",
-        "dtypes": "bfloat16",
-        "getJobId": false,
-        "granularity": "hour",
-        "mode": "inference",
-        "startTime": "2025-03-03T00:00:00.000",
-        "stopTime": "2025-03-10T00:00:00.000",
-        "suites": [],
-        "workflowId": 0
-      }
+      "branches": ["main"],
+      "commits": [],
+      "compilers": [],
+      "device": "cuda_h100",
+      "dtypes": "bfloat16",
+      "getJobId": false,
+      "granularity": "hour",
+      "mode": "inference",
+      "startTime": "2025-03-03 00:00:00.000",
+      "stopTime": "2025-03-10 00:00:00.000",
+      "suites": [],
+      "workflowId": 0
     }
   ]
 }
