@@ -50,12 +50,36 @@ function MasterCommitRedPanel({
     title: {
       text: "Commits red on main, by day",
       subtext: "Based on workflows which block viable/strict upgrade",
+      textStyle: {
+        color: 'var(--text-color)',
+      },
+      subtextStyle: {
+        color: 'var(--text-color)',
+      },
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
-    xAxis: { type: "category" },
+    xAxis: { 
+      type: "category",
+      axisLine: {
+        lineStyle: {
+          color: 'var(--border-color)',
+        }
+      },
+      axisLabel: {
+        color: 'var(--text-color)',
+      }
+    },
     yAxis: {
       type: "value",
+      axisLine: {
+        lineStyle: {
+          color: 'var(--border-color)',
+        }
+      },
+      axisLabel: {
+        color: 'var(--text-color)',
+      }
     },
     series: [
       {
@@ -101,10 +125,36 @@ function MasterCommitRedPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+    <Paper 
+      sx={{ 
+        p: 2, 
+        height: "100%",
+        backgroundColor: 'var(--dropdown-bg)',
+        color: 'var(--text-color)',  
+      }} 
+      elevation={3}
+    >
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
-        option={options}
+        option={{
+          ...options,
+          textStyle: {
+            color: 'var(--text-color)',
+          },
+          legend: {
+            textStyle: {
+              color: 'var(--text-color)',
+            }
+          },
+          tooltip: {
+            ...options.tooltip,
+            backgroundColor: 'var(--dropdown-bg)',
+            borderColor: 'var(--border-color)',
+            textStyle: {
+              color: 'var(--text-color)',
+            }
+          }
+        }}
       />
     </Paper>
   );

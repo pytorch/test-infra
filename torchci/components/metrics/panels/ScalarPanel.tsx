@@ -25,17 +25,24 @@ export function ScalarPanelWithValue({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let fontColor = badThreshold(value) ? "#ee6666" : "black";
+  let fontColor = badThreshold(value) ? "#ee6666" : "var(--text-color)";
 
   return (
-    <Paper sx={{ p: 2 }} elevation={3}>
+    <Paper 
+      sx={{ 
+        p: 2,
+        backgroundColor: 'var(--dropdown-bg)',
+        color: 'var(--text-color)',
+      }} 
+      elevation={3}
+    >
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
         }}
       >
-        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+        <Typography sx={{ fontSize: "1rem", fontWeight: "bold", color: "var(--text-color)" }}>
           {title}
         </Typography>
         <Typography
