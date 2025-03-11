@@ -573,7 +573,7 @@ class ReportProcessor:
         from Device Farm including FILE, LOG, and SCREENSHOT
         """
         gathered_artifacts = []
-        info("{' ' * indent} start gathering artifacts")
+        info(f"{' ' * indent} start gathering artifacts")
         for artifact_type in ["FILE", "LOG", "SCREENSHOT"]:
             r = self.aws_client.list_artifacts(arn=test_arn, type=artifact_type)
             for artifact in r.get("artifacts", []):
