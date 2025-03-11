@@ -200,7 +200,11 @@ def parse_args() -> Any:
         help="an optional file to write the list of artifacts from AWS in JSON format",
     )
 
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="debug mode, the artifacts won't be uploaded to s3, it should mainly used in local env",
+    )
 
     return parser.parse_args()
 
@@ -441,8 +445,8 @@ class ReportProcessor:
             warn("Missing report, returning...")
             return []
 
-        arn = report.get("arn", "")
-        if not arn:
+        run_arn = report.get("arn", "")
+        if not run_arn:
             warn("Missing arn from input report, returning...")
             return []
 
@@ -450,17 +454,17 @@ class ReportProcessor:
             info(
                 "[DEBUG MODE] the artifacts won't be uploaded to s3, it should mainly used in local env"
             )
-        run_report = self._to_run_report(report)
-        self.run_report = run_report
+
+        self.run_report = self._to_run_report(report)
 
         # fetch mobile job report from the run
-        job_reports_resp = self.aws_client.list_jobs(arn=run_report.arn)
+        job_reports_resp = self.aws_client.list_jobs(arn=run_arn)
         res = []
 
         # fetch artifacts, and sub-reports for each mobile job
         for job_report in job_reports_resp.get(ReportType.JOB.value + "s", []):
             # info(f"Job Report: {jreport}")
-            metadata = self._to_job_report(job_report, run_report.arn)
+            metadata = self._to_job_report(job_report, run_arn)
             self.job_reports.append(metadata)
             artifacts = self._fetch_artifacts_and_reports(
                 job_report,
@@ -733,12 +737,6 @@ def main() -> None:
             args.android_instrumentation_test,
             args.test_spec,
         )
-
-    if test_to_run == {}:
-        warn(
-            "Must specify either iOS or Android test to run: --android_instrumentation_test --ios_xctestrun"
-        )
-        sys.exit(1)
 
     configuration = {}
     if args.extra_data:
