@@ -4,7 +4,6 @@ import copy
 import datetime
 import json
 import logging
-from math import inf
 import os
 import random
 import string
@@ -14,6 +13,7 @@ from argparse import Action, ArgumentParser, Namespace
 from dataclasses import asdict, dataclass
 from enum import Enum
 from logging import info
+from math import inf
 from typing import Any, Dict, List, Optional
 from warnings import warn
 
@@ -785,6 +785,7 @@ def main() -> None:
         processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
