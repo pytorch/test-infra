@@ -1635,7 +1635,11 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     super();
   }
   queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
-    const dimensions = new Map([['Org', org], ['RunnerType', runnerType], ['numQueuedJobs', numQueuedJobs.toString()]]);
+    const dimensions = new Map([
+      ['Org', org],
+      ['RunnerType', runnerType],
+      ['numQueuedJobs', numQueuedJobs.toString()],
+    ]);
     this.addEntry('gh.scaleupchron.queuedRunners', 3, dimensions);
   }
   queuedRunnerFailure(error: string) {
@@ -1662,12 +1666,12 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.scaleUpSuccess();
     this.countEntry('run.scaleupchron.success');
   }
-  scaleUpInstanceFailureNonRetryable(error:string) {
+  scaleUpInstanceFailureNonRetryable(error: string) {
     const dimensions = new Map([['error', error]]);
     // should we add more information about this or do we not care since  it'll be requeued?
     this.countEntry('run.scaleupchron.failure.nonRetryable', 1, dimensions);
   }
-  scaleUpInstanceFailureRetryable(error:string) {
+  scaleUpInstanceFailureRetryable(error: string) {
     const dimensions = new Map([['error', error]]);
 
     // should we add more information about this or do we not care since  it'll be requeued?
@@ -1676,7 +1680,6 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
   scaleUpInstanceNoOp() {
     this.countEntry('run.scaleupchron.noop');
   }
-
 }
 
 export interface sendMetricsTimeoutVars {

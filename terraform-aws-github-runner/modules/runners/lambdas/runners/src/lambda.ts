@@ -2,7 +2,12 @@ import { ActionRequestMessage, RetryableScalingError, scaleUp as scaleUpR } from
 import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
 
 import { Config } from './scale-runners/config';
-import { ScaleUpMetrics, ScaleUpChronMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './scale-runners/metrics';
+import {
+  ScaleUpMetrics,
+  ScaleUpChronMetrics,
+  sendMetricsAtTimeout,
+  sendMetricsTimeoutVars,
+} from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { scaleUpChron as scaleUpChronR } from './scale-runners/scale-up-chron';

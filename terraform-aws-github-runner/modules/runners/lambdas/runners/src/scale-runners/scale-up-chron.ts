@@ -1,12 +1,10 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 import { Config } from './config';
 import { getRepo, shuffleArrayInPlace, expBackOff } from './utils';
 import { ScaleUpChronMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
-import { sqsSendMessages } from './sqs';
-import { ActionRequestMessage, scaleUp} from './scale-up';
-import { randomUUID } from 'crypto';
+import { ActionRequestMessage, scaleUp } from './scale-up';
 
 export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> {
   // This function does the following:
@@ -21,40 +19,45 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
   if (!Config.Instance.scaleUpRecordQueueUrl) {
-    metrics.scaleUpInstanceFailureNonRetryable('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests');
+    metrics.scaleUpInstanceFailureNonRetryable(
+      'scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests',
+    );
     throw new Error('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests');
   }
   const scaleUpRecordQueueUrl = Config.Instance.scaleUpRecordQueueUrl;
   // Only proactively scale up the jobs that have been queued for longer than normal
   // Filter out the queued jobs that are do not correspond to a valid runner type
-  const queuedJobs = (await getQueuedJobs(metrics, scaleUpRecordQueueUrl)).filter((runner) => {
-    return runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes &&
-      runner.org === Config.Instance.scaleConfigOrg;
-  }).filter((requested_runner) => {
-    return Array.from(validRunnerTypes.keys()).some((available_runner_label) => {
-      return available_runner_label === requested_runner.runner_label;
+  const queuedJobs = (await getQueuedJobs(metrics, scaleUpRecordQueueUrl))
+    .filter((runner) => {
+      return (
+        runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes && runner.org === Config.Instance.scaleConfigOrg
+      );
+    })
+    .filter((requested_runner) => {
+      return Array.from(validRunnerTypes.keys()).some((available_runner_label) => {
+        return available_runner_label === requested_runner.runner_label;
+      });
     });
-  });;
 
   if (queuedJobs.length === 0) {
     metrics.scaleUpInstanceNoOp();
-    return
+    return;
   }
 
   // Send a message to the SQS queue to scale up the runners
-  const scaleUpRequests : Array<ActionRequestMessage> = queuedJobs.map((runner) => {
+  const scaleUpRequests: Array<ActionRequestMessage> = queuedJobs.map((runner) => {
     return {
-      "id": Math.floor(Math.random() * 100000000000000),
-      "eventType": "workflow_job",
-      "repositoryName": runner.repo,
-      "repositoryOwner": runner.org,
-      "runnerLabels": [runner.runner_label],
+      id: Math.floor(Math.random() * 100000000000000),
+      eventType: 'workflow_job',
+      repositoryName: runner.repo,
+      repositoryOwner: runner.org,
+      runnerLabels: [runner.runner_label],
     };
   });
 
   for (const request of shuffleArrayInPlace(scaleUpRequests)) {
-    try{
-      await scaleUp("aws:sqs", request, metrics);
+    try {
+      await scaleUp('aws:sqs', request, metrics);
       metrics.scaleUpInstanceSuccess();
     } catch (error) {
       metrics.scaleUpInstanceFailureRetryable((error as Error).message);
@@ -71,7 +74,10 @@ interface QueuedJobsForRunner {
   max_queue_time_minutes: number;
 }
 
-export async function getQueuedJobs(metrics: ScaleUpChronMetrics, scaleUpRecordQueueUrl: string): Promise<QueuedJobsForRunner[]> {
+export async function getQueuedJobs(
+  metrics: ScaleUpChronMetrics,
+  scaleUpRecordQueueUrl: string,
+): Promise<QueuedJobsForRunner[]> {
   // This function queries the HUD for queued runners
   // and returns a list of them
 
@@ -80,23 +86,14 @@ export async function getQueuedJobs(metrics: ScaleUpChronMetrics, scaleUpRecordQ
   try {
     const response = await expBackOff(() => {
       return metrics.trackRequest(metrics.getQueuedJobsEndpointSuccess, metrics.getQueuedJobsEndpointFailure, () => {
-        return axios.get(url);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return axios.get<any, AxiosResponse<string>>(url);
       });
     });
 
     // Map the response to the class
-    const responseData = JSON.parse(response.data);
-    return responseData.map((runner: any) => {
-      metrics.queuedRunnerStats(runner.org, runner.runner_label, runner.num_queued_jobs,);
-      return {
-        runner_label: runner.runner_label,
-        org: runner.org,
-        repo: runner.repo,
-        num_queued_jobs: Number(runner.num_queued_jobs),
-        min_queue_time_minutes: Number(runner.min_queue_time_minutes),
-        max_queue_time_minutes: Number(runner.max_queue_time_minutes)
-      };
-    });
+    // TODO validate the response, trow an error if not valid
+    return JSON.parse(response.data) as QueuedJobsForRunner[];
   } catch (error) {
     metrics.queuedRunnerFailure((error as Error).message);
     console.error('Error fetching queued runners:', error);
