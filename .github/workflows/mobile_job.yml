@@ -393,21 +393,15 @@ jobs:
         shell: bash
         env:
           DEVICE_TYPE: ${{ inputs.device-type }}
-          IOS_FILE: ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
-          ANDROID_FILE: android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
+          ARTIFACT_FILE: ${{ inputs.device-type }}-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           GIT_JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
         run: |
-          if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE" ]]; then
-            echo "missing android artifact json ${ANDROID_FILE}, generating ... "
-            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$ANDROID_FILE"
+          if [[ ! -f "$ARTIFACT_FILE" ]]; then
+            echo "missing artifact json file for ${DEVICE_TYPE} with name ${ARTIFACT_FILE}, generating ... "
+            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$ARTIFACT_FILE"
           fi
 
-          if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE" ]]; then
-            echo "missing ios artifact json, generating ..."
-            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$IOS_FILE"
-          fi
-
-      - name: Upload iOS artifacts to S3
+      - name: Upload artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
         if: always()
         with:
@@ -416,15 +410,4 @@ jobs:
           s3-prefix: |
             device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
           path: |
-            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
-
-      - name: Upload Android artifacts to S3
-        uses: seemethere/upload-artifact-s3@v5
-        if: always()
-        with:
-          retention-days: 14
-          s3-bucket: gha-artifacts
-          s3-prefix: |
-            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
-          path: |
-            test-infra/tools/device-farm-runner/android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
+            test-infra/tools/device-farm-runner/${{ inputs.device-type }}-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
