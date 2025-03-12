@@ -19,12 +19,12 @@ const NavBarDropdown = ({
     <li
       onMouseEnter={() => setDropdown(true)}
       onMouseLeave={() => setDropdown(false)}
-      style={{ padding: 0 }}
+      style={{ padding: 0, position: "relative" }}
     >
       <div className={styles.dropdowntitle}>{title} ▾</div>
       <ul className={styles.dropdown} style={dropdownStyle}>
         {items.map((item: any) => (
-          <li key={item.href}>
+          <li key={item.href} style={{ height: "auto" }}>
             <Link href={item.href} prefetch={false}>
               {item.name}
             </Link>
@@ -150,6 +150,8 @@ function NavBar() {
         style={{
           marginLeft: "auto",
           marginRight: "0px",
+          display: "flex",
+          alignItems: "center",
         }}
       >
         <ul className={styles.navbarlinkslist}>
@@ -175,11 +177,17 @@ function NavBar() {
           </li>
           <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
-          <li style={{ cursor: "pointer" }}>
+          <li
+            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+          >
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "var(--icon-color)" }}
+              style={{
+                color: "var(--icon-color)",
+                display: "flex",
+                alignItems: "center",
+              }}
             >
               <AiFillGithub />
             </Link>
