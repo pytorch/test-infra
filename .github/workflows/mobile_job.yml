@@ -238,8 +238,6 @@ jobs:
         run: |
           set -ex
 
-          exit 1
-
           if [[ "${TEST_SPEC}" == http* ]]; then
             TEST_SPEC_OUTPUT="ci.yml"
 
@@ -343,6 +341,7 @@ jobs:
               --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
+            exit 1
       - name: Run Android tests on devices
         id: android-test
         if: ${{ inputs.device-type == 'android' }}
@@ -386,7 +385,7 @@ jobs:
               --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
-
+            exit 1
       - name: Check artifacts if any job fails
         if: failure()
         working-directory: test-infra/tools/device-farm-runner
