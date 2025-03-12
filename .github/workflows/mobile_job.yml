@@ -397,12 +397,12 @@ jobs:
         run: |
           if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE" ]]; then
             echo "missing android artifact json, generating ..."
-            '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> "$ANDROID_FILE"
+            '{"git_job_name": "$GIT_JOB_NAME"}'  >> "$ANDROID_FILE"
           fi
 
           if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE" ]]; then
             echo "missing ios artifact json, generating ..."
-            '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> "$IOS_FILE"
+            '{"git_job_name": "$GIT_JOB_NAME"}' >> "$IOS_FILE"
           fi
 
       - name: Upload iOS artifacts to S3
