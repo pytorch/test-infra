@@ -386,7 +386,6 @@ jobs:
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
-
       - name: Check artifacts if any job fails
         if: failure()
         working-directory: test-infra/tools/device-farm-runner
@@ -397,10 +396,10 @@ jobs:
           ANDROID_FILE: android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           GIT_JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
         run: |
-          if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE"]]; then
+          if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE" ]]; then
             echo "missing android artifact json, generating ..."
             '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> $ANDROID_FILE
-          if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE"]]; then
+          if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE" ]]; then
             echo "missing ios artifact json, generating ..."
             '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> $IOS_FILE
 
