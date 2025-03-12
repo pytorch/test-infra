@@ -384,6 +384,7 @@ function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
         key = id;
       }
     } finally {
+      key = key.toString();
       if (!grouping.has(key)) {
         grouping.set(key, []);
       }
