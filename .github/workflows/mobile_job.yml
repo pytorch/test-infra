@@ -388,7 +388,7 @@ jobs:
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
               --output "android-artifacts-${JOB_ID}.json" \
-              --new-json-output-format ${NEW_OUTPUT_FORMAT_FLAG}
+              --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
       - name: Upload Android artifacts to S3

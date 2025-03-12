@@ -209,8 +209,11 @@ def parse_args() -> Any:
 
     parser.add_argument(
         "--new-json-output-format",
-        action="store_true",
-        help="enable new json artifact output format with jobrun, and list of artifacts, this is temporary ",
+        type=str,
+        choices=["true", "false"],
+        default="false",
+        required=False,
+        help="enable new json artifact output format with mobile job reports and list of artifacts",
     )
 
     return parser.parse_args()
@@ -810,7 +813,7 @@ def main() -> None:
         )
         artifacts = processor.start(r.get("run"))
 
-        if args.new_json_output_format:
+        if args.new_json_output_format == "true":
             info("Generating new json output")
             output = generate_artifacts_output(
                 artifacts, processor.get_run_report(), processor.get_job_reports()
