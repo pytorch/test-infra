@@ -28,12 +28,12 @@ export function ScalarPanelWithValue({
   let fontColor = badThreshold(value) ? "#ee6666" : "var(--text-color)";
 
   return (
-    <Paper 
-      sx={{ 
+    <Paper
+      sx={{
         p: 2,
-        backgroundColor: 'var(--dropdown-bg)',
-        color: 'var(--text-color)',
-      }} 
+        backgroundColor: "var(--dropdown-bg)",
+        color: "var(--text-color)",
+      }}
       elevation={3}
     >
       <Box
@@ -42,7 +42,13 @@ export function ScalarPanelWithValue({
           flexDirection: "column",
         }}
       >
-        <Typography sx={{ fontSize: "1rem", fontWeight: "bold", color: "var(--text-color)" }}>
+        <Typography
+          sx={{
+            fontSize: "1rem",
+            fontWeight: "bold",
+            color: "var(--text-color)",
+          }}
+        >
           {title}
         </Typography>
         <Typography

@@ -33,7 +33,7 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
 const JobButton = styled(Button)(({ theme }) => ({
   fontSize: "8px",
   padding: "0 1px 0 1px",
-  color: 'var(--duration-color-good)',
+  color: "var(--duration-color-good)",
   margin: "2px",
 }));
 function WorkflowJobSummary({

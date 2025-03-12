@@ -2,8 +2,8 @@ import styles from "components/NavBar.module.css";
 import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
-import ThemeModePicker from "./ThemeModePicker";
 import LoginSection from "./LoginSection";
+import ThemeModePicker from "./ThemeModePicker";
 
 const NavBarDropdown = ({
   title,

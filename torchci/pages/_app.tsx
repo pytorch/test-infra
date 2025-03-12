@@ -1,6 +1,6 @@
-import { Analytics } from "@vercel/analytics/react";
-import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
+import { Analytics } from "@vercel/analytics/react";
 import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
@@ -38,13 +38,19 @@ function MyApp({ Component, pageProps }: AppProps) {
 }
 
 // Separate component to use the dark mode hooks
-function AppContent({ Component, pageProps }: { Component: any, pageProps: any }) {
+function AppContent({
+  Component,
+  pageProps,
+}: {
+  Component: any;
+  pageProps: any;
+}) {
   const theme = useAppTheme();
   const { darkMode } = useDarkMode();
 
   // Apply chart theme when dark mode changes
   useEffect(() => {
-    import('lib/chartTheme').then(({ applyChartTheme }) => {
+    import("lib/chartTheme").then(({ applyChartTheme }) => {
       applyChartTheme(!!darkMode);
     });
   }, [darkMode]);

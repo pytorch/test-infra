@@ -339,7 +339,10 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
         : `- ${durationHuman(Math.abs(absoluteChange))}`;
     const concerningChange = Math.abs(absoluteChange) > 60 * 30;
     if (concerningChange) {
-      color = absoluteChange > 0 ? "var(--duration-color-bad)" : "var(--duration-color-good)";
+      color =
+        absoluteChange > 0
+          ? "var(--duration-color-bad)"
+          : "var(--duration-color-good)";
     }
     return {
       concerningChange,

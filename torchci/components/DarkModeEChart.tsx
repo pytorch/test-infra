@@ -1,55 +1,59 @@
-import { useDarkMode } from 'lib/DarkModeContext';
-import ReactECharts from 'echarts-for-react';
-import { useRef, useEffect } from 'react';
+import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
+import { useEffect, useRef } from "react";
 
 export default function DarkModeEChart(props: any) {
   const { darkMode } = useDarkMode();
   const chartRef = useRef(null);
-  
+
   // Function to update all text colors in the chart SVG
   const updateChartColors = () => {
     if (!chartRef.current) return;
-    
+
     // Access the DOM elements directly
     const chartElement = chartRef.current as any;
     if (!chartElement || !chartElement.getEchartsInstance) return;
-    
+
     try {
       const echartsInstance = chartElement.getEchartsInstance();
       const dom = echartsInstance.getDom();
       if (!dom) return;
-      
-      const textColor = darkMode ? '#E0E0E0' : '#212529';
-      
+
+      const textColor = darkMode ? "#E0E0E0" : "#212529";
+
       // Update all text elements
-      dom.querySelectorAll('text').forEach((text: SVGTextElement) => {
+      dom.querySelectorAll("text").forEach((text: SVGTextElement) => {
         text.style.fill = textColor;
-        text.setAttribute('fill', textColor);
+        text.setAttribute("fill", textColor);
       });
-      
+
       // Special handling for title text
-      dom.querySelectorAll('.ec-title, .ec-title-sub').forEach((el: any) => {
+      dom.querySelectorAll(".ec-title, .ec-title-sub").forEach((el: any) => {
         if (el && el.style) {
           el.style.fill = textColor;
           el.style.color = textColor;
         }
-        
+
         // Also look for text elements inside titles
-        el.querySelectorAll('text, tspan').forEach((text: SVGTextElement) => {
+        el.querySelectorAll("text, tspan").forEach((text: SVGTextElement) => {
           text.style.fill = textColor;
-          text.setAttribute('fill', textColor);
+          text.setAttribute("fill", textColor);
         });
       });
-      
+
       // Update SVG title and subtitle elements
-      dom.querySelectorAll('[data-zr-dom-id="zr_0"] title, [data-zr-dom-id="zr_0"] title-sub').forEach((el: any) => {
-        if (el && el.style) {
-          el.style.fill = textColor;
-          el.setAttribute('fill', textColor);
-        }
-      });
+      dom
+        .querySelectorAll(
+          '[data-zr-dom-id="zr_0"] title, [data-zr-dom-id="zr_0"] title-sub'
+        )
+        .forEach((el: any) => {
+          if (el && el.style) {
+            el.style.fill = textColor;
+            el.setAttribute("fill", textColor);
+          }
+        });
     } catch (e) {
-      console.error('Failed to update chart colors:', e);
+      console.error("Failed to update chart colors:", e);
     }
   };
 
@@ -59,24 +63,26 @@ export default function DarkModeEChart(props: any) {
     const timers = [
       setTimeout(() => updateChartColors(), 100),
       setTimeout(() => updateChartColors(), 500),
-      setTimeout(() => updateChartColors(), 1000)
+      setTimeout(() => updateChartColors(), 1000),
     ];
-    
+
     // Set up event listener for chart rendering
     if (chartRef.current) {
       const chartElement = chartRef.current as any;
       if (chartElement.getEchartsInstance) {
         const echartsInstance = chartElement.getEchartsInstance();
-        echartsInstance.on('rendered', updateChartColors);
-        echartsInstance.on('finished', updateChartColors);
-        
+        echartsInstance.on("rendered", updateChartColors);
+        echartsInstance.on("finished", updateChartColors);
+
         // Direct hack for title and subtitle
-        echartsInstance.on('finished', () => {
+        echartsInstance.on("finished", () => {
           try {
             // Force update title text
-            const titleElements = chartElement.ele?.querySelectorAll('.ec-title, .ec-title-sub');
-            const textColor = darkMode ? '#E0E0E0' : '#212529';
-            
+            const titleElements = chartElement.ele?.querySelectorAll(
+              ".ec-title, .ec-title-sub"
+            );
+            const textColor = darkMode ? "#E0E0E0" : "#212529";
+
             if (titleElements && titleElements.length > 0) {
               titleElements.forEach((el: any) => {
                 if (el && el.style) {
@@ -86,22 +92,22 @@ export default function DarkModeEChart(props: any) {
               });
             }
           } catch (e) {
-            console.error('Failed to update title colors:', e);
+            console.error("Failed to update title colors:", e);
           }
         });
       }
     }
-    
-    return () => timers.forEach(timer => clearTimeout(timer));
+
+    return () => timers.forEach((timer) => clearTimeout(timer));
   }, [darkMode]);
-  
+
   // Merge the base options with dark mode specific options
   const baseOptions = props.option || {};
-  const textColor = darkMode ? '#E0E0E0' : '#212529';
-  
+  const textColor = darkMode ? "#E0E0E0" : "#212529";
+
   const options = {
     ...baseOptions,
-    backgroundColor: darkMode ? '#2A2A2A' : undefined,
+    backgroundColor: darkMode ? "#2A2A2A" : undefined,
     textStyle: {
       color: textColor,
     },
@@ -115,7 +121,7 @@ export default function DarkModeEChart(props: any) {
       subtextStyle: {
         ...(baseOptions.title?.subtextStyle || {}),
         color: textColor,
-      }
+      },
     },
     legend: {
       ...(baseOptions.legend || {}),
@@ -129,7 +135,7 @@ export default function DarkModeEChart(props: any) {
         ...(baseOptions.xAxis?.axisLine || {}),
         lineStyle: {
           ...(baseOptions.xAxis?.axisLine?.lineStyle || {}),
-          color: darkMode ? '#3A3A3A' : '#D9D9D9',
+          color: darkMode ? "#3A3A3A" : "#D9D9D9",
         },
       },
       axisLabel: {
@@ -143,7 +149,7 @@ export default function DarkModeEChart(props: any) {
         ...(baseOptions.yAxis?.axisLine || {}),
         lineStyle: {
           ...(baseOptions.yAxis?.axisLine?.lineStyle || {}),
-          color: darkMode ? '#3A3A3A' : '#D9D9D9',
+          color: darkMode ? "#3A3A3A" : "#D9D9D9",
         },
       },
       axisLabel: {
@@ -153,7 +159,7 @@ export default function DarkModeEChart(props: any) {
       nameTextStyle: {
         ...(baseOptions.yAxis?.nameTextStyle || {}),
         color: textColor,
-      }
+      },
     },
   };
 
