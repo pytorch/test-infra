@@ -121,7 +121,7 @@ export function seriesWithInterpolatedTimes(
   if (filter) {
     if (isRegex) {
       try {
-        const regex = new RegExp(filter, 'i');
+        const regex = new RegExp(filter, "i");
         series = series.filter((s) => regex.test(s.name));
       } catch (e) {
         // If regex is invalid, fall back to simple include
