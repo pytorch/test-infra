@@ -699,6 +699,19 @@ class ReportProcessor:
         )
 
 
+def generate_artifacts_output(
+    artifacts: List[Dict[str, str]],
+    run_report: DeviceFarmReport,
+    job_reports: List[JobReport],
+):
+    output = {
+        "artifacts": artifacts,
+        "run_report": asdict(run_report),
+        "job_reports": [asdict(job_report) for job_report in job_reports],
+    }
+    return output
+
+
 def main() -> None:
     args = parse_args()
 
@@ -797,7 +810,7 @@ def main() -> None:
         )
         artifacts = processor.start(r.get("run"))
 
-        if args.new_json_output:
+        if args.new_json_output_format:
             info("Generating new json output")
             output = generate_artifacts_output(
                 artifacts, processor.get_run_report(), processor.get_job_reports()
@@ -809,19 +822,6 @@ def main() -> None:
         processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
-
-
-def generate_artifacts_output(
-    artifacts: List[Dict[str, str]],
-    run_report: DeviceFarmReport,
-    job_reports: List[JobReport],
-):
-    output = {
-        "artifacts": artifacts,
-        "run_report": asdict(run_report),
-        "job_reports": [asdict(job_report) for job_report in job_reports],
-    }
-    return output
 
 
 if __name__ == "__main__":
