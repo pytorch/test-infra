@@ -326,6 +326,7 @@ jobs:
           command: |
             set -ex
 
+            exit 1
             pushd "${WORKING_DIRECTORY}"
             ${CONDA_RUN} python run_on_aws_devicefarm.py \
               --project-arn "${PROJECT_ARN}" \
