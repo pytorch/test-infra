@@ -113,6 +113,8 @@ module "runners" {
     encrypt    = var.encrypt_secrets
   }
 
+  retry_scale_up_cron_hud_query_url = var.retry_scale_up_cron_hud_query_url
+
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels
 
