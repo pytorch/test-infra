@@ -12,7 +12,7 @@ export default function Document() {
                 try {
                   var themeMode = localStorage.getItem('themeMode');
                   var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  
+
                   if (themeMode === 'dark' || (themeMode === 'system' && systemDark)) {
                     document.documentElement.classList.add('dark-mode');
                   }
