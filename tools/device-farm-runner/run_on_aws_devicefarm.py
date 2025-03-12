@@ -216,7 +216,10 @@ def parse_args() -> Any:
         help="enable new json artifact output format with mobile job reports and list of artifacts",
     )
 
-    return parser.parse_args()
+    # in case when removing the flag, the mobile jobs does not failed due to unrecognized flag.
+    args, unknown = parser.parse_known_args()
+    info(f"detected unknown flags: {unknown}")
+    return args
 
 
 def upload_file(
@@ -815,6 +818,7 @@ def main() -> None:
         )
         artifacts = processor.start(r.get("run"))
 
+        info(f"set new_json_output_format: {args.new_json_output_format}")
         if args.new_json_output_format == "true":
             info("Generating new json output")
             output = generate_artifacts_output(
