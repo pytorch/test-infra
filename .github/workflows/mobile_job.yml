@@ -314,7 +314,9 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
+          GIT_JOB_NAME:  ${{ steps.get-job-id.outputs.job-name }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
+          NEW_OUTPUT_FORMAT_FLAG: ${{ inputs.new-output-format-flag }}
         uses: nick-fields/retry@v3.0.0
         with:
           shell: bash
@@ -336,6 +338,8 @@ jobs:
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
               --output "ios-artifacts-${JOB_ID}.json"
+              --git-job-name "${GIT_JOB_NAME}"
+              --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
       - name: Upload iOS artifacts to S3
@@ -365,6 +369,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
+          GIT_JOB_NAME:  ${{ steps.get-job-id.outputs.job-name }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
           NEW_OUTPUT_FORMAT_FLAG: ${{ inputs.new-output-format-flag }}
         uses: nick-fields/retry@v3.0.0
@@ -388,6 +393,7 @@ jobs:
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
               --output "android-artifacts-${JOB_ID}.json" \
+              --git-job-name "${GIT_JOB_NAME}"
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 

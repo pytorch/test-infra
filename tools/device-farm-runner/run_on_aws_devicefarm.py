@@ -195,6 +195,11 @@ def parse_args() -> Any:
         default=0,
         help="the workflow run attempt",
     )
+
+    parser.add_argument(
+        "--git-job-name", type=str, required=True, help="the name of the git job name."
+    )
+
     parser.add_argument(
         "--output",
         type=str,
@@ -541,7 +546,7 @@ class ReportProcessor:
         return artifacts
 
     def _to_job_report(
-        self, report: Dict[str, Any],parent_arn: str, infos: Dict[str, str] = dict()
+        self, report: Dict[str, Any], parent_arn: str, infos: Dict[str, str] = dict()
     ) -> JobReport:
         arn = report.get("arn", "")
         status = report.get("status", "")
@@ -713,11 +718,13 @@ def generate_artifacts_output(
     artifacts: List[Dict[str, str]],
     run_report: DeviceFarmReport,
     job_reports: List[JobReport],
+    git_job_name: str,
 ):
     output = {
         "artifacts": artifacts,
         "run_report": asdict(run_report),
         "job_reports": [asdict(job_report) for job_report in job_reports],
+        "git_job_name": git_job_name,
     }
     return output
 
@@ -817,6 +824,11 @@ def main() -> None:
             time.sleep(30)
     except Exception as error:
         warn(f"Failed to run {unique_prefix}: {error}")
+        if args.new_json_output_format == "true":
+            json_file = {
+                "git_job_name": args.git_job_name,
+            }
+            set_output(json.dumps(json_file), "artifacts", args.output)
         sys.exit(1)
     finally:
         info(f"Run {unique_prefix} finished with state {state} and result {result}")
@@ -831,6 +843,7 @@ def main() -> None:
                 artifacts,
                 processor.get_run_report(),
                 processor.get_job_reports(),
+                git_job_name=args.git_job_name,
             )
             set_output(json.dumps(output), "artifacts", args.output)
         else:
