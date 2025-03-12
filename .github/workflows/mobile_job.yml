@@ -325,8 +325,6 @@ jobs:
           retry_wait_seconds: ${{ env.WAIT_TIME_IN_SECONDS || 120 }}
           command: |
             set -ex
-
-            exit 1
             pushd "${WORKING_DIRECTORY}"
             ${CONDA_RUN} python run_on_aws_devicefarm.py \
               --project-arn "${PROJECT_ARN}" \
@@ -342,7 +340,7 @@ jobs:
               --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
-
+            exit 1
       - name: Run Android tests on devices
         id: android-test
         if: ${{ inputs.device-type == 'android' }}
