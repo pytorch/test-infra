@@ -14,7 +14,7 @@ import styles from "./JobConclusion.module.css";
  * @returns {JSX.Element} - A div element with a monster sprite as a background image.
  * If the conclusion is not `JobStatus.Failure` or `jobData.failureLines` is not defined or empty, an empty object is returned.
  */
-const getFailureEl = (conclusion?: string, jobData?: JobData) => {
+export const getFailureEl = (conclusion?: string, jobData?: JobData) => {
   if (
     conclusion !== JobStatus.Failure ||
     !jobData?.failureLines ||
@@ -38,6 +38,7 @@ const getFailureEl = (conclusion?: string, jobData?: JobData) => {
     <div
       className={styles.failure_monster}
       style={/*background position*/ { backgroundPosition: `-${x}px -${y}px` }}
+      data-monster-hash={spriteIdx}
     />
   );
 };
