@@ -415,6 +415,7 @@ class DeviceFarmReport:
     status: str
     result: str
     counters: Dict[str, str]
+    app_type: str
     infos: Dict[str, str]
     parent_arn: str
 
@@ -540,7 +541,7 @@ class ReportProcessor:
         return artifacts
 
     def _to_job_report(
-        self, report: Dict[str, Any], parent_arn: str, infos: Dict[str, str] = dict()
+        self, report: Dict[str, Any],parent_arn: str, infos: Dict[str, str] = dict()
     ) -> JobReport:
         arn = report.get("arn", "")
         status = report.get("status", "")
@@ -551,6 +552,7 @@ class ReportProcessor:
         return JobReport(
             arn=arn,
             name=name,
+            app_type=self.app_type,
             report_type=ReportType.JOB.value,
             status=status,
             result=result,
@@ -570,6 +572,7 @@ class ReportProcessor:
         return DeviceFarmReport(
             name=name,
             arn=arn,
+            app_type=self.app_type,
             report_type=ReportType.RUN.value,
             status=status,
             result=result,
@@ -667,7 +670,8 @@ class ReportProcessor:
             return DeviceFarmReport(
                 name="",
                 arn="",
-                report_type="",
+                app_type=self.app_type,
+                report_type=ReportType.RUN.value,
                 status="",
                 result="",
                 counters={},
