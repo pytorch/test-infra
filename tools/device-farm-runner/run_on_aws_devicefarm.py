@@ -706,8 +706,10 @@ def generate_artifacts_output(
     artifacts: List[Dict[str, str]],
     run_report: DeviceFarmReport,
     job_reports: List[JobReport],
+    app_type: str,
 ):
     output = {
+        "app_type": app_type,
         "artifacts": artifacts,
         "run_report": asdict(run_report),
         "job_reports": [asdict(job_report) for job_report in job_reports],
@@ -816,7 +818,10 @@ def main() -> None:
         if args.new_json_output_format == "true":
             info("Generating new json output")
             output = generate_artifacts_output(
-                artifacts, processor.get_run_report(), processor.get_job_reports()
+                artifacts,
+                processor.get_run_report(),
+                processor.get_job_reports(),
+                app_type
             )
             set_output(json.dumps(output), "artifacts", args.output)
         else:
