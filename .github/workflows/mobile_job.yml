@@ -237,7 +237,7 @@ jobs:
           TEST_SPEC: ${{ inputs.test-spec }}
         run: |
           set -ex
-          
+
           exit 1
 
           if [[ "${TEST_SPEC}" == http* ]]; then
