@@ -392,7 +392,6 @@ jobs:
         working-directory: test-infra/tools/device-farm-runner
         shell: bash
         env:
-          WORKING_DIRECTORY: test-infra/tools/device-farm-runner
           DEVICE_TYPE: ${{ inputs.device-type }}
           IOS_FILE: ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           ANDROID_FILE: android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
