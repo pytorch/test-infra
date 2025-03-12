@@ -42,6 +42,11 @@
   --info-button-bg: #17a2b8;
   --info-button-border: #17a2b8;
   --info-button-text: white;
+
+  /* Tooltip colors */
+  --tooltip-bg: #e0e0e0;
+  --tooltip-pinned-bg: #add8e6;
+  --tooltip-text: #212529;
 }
 
 .dark-mode {
@@ -88,6 +93,11 @@
   --info-button-bg: #0d5a66;
   --info-button-border: #094954;
   --info-button-text: #e0e0e0;
+
+  /* Tooltip colors - dark mode variants */
+  --tooltip-bg: #3a3a3a;
+  --tooltip-pinned-bg: #1e4555;
+  --tooltip-text: #e0e0e0;
 }
 
 html {

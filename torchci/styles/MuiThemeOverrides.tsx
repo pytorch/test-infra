@@ -70,6 +70,18 @@ export function useAppTheme() {
               },
             },
           },
+          MuiTooltip: {
+            styleOverrides: {
+              tooltip: {
+                backgroundColor: darkMode ? "#3A3A3A" : "#E0E0E0",
+                color: darkMode ? "#E0E0E0" : "#212529",
+                border: darkMode ? "1px solid #3A3A3A" : "1px solid #E1E1E1",
+              },
+              arrow: {
+                color: darkMode ? "#3A3A3A" : "#E0E0E0",
+              },
+            },
+          },
         },
       })
     );

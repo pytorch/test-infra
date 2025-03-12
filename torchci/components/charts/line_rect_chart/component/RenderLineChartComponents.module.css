@@ -7,9 +7,10 @@
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1;
   padding: 12px;
-  background-color: white;
+  background-color: var(--tooltip-bg, #f0f0f0);
+  color: var(--tooltip-text, black);
   border-radius: 5px;
-  border: 1px solid grey;
+  border: 1px solid var(--border-color, grey);
 }
 
 .selected-rect {

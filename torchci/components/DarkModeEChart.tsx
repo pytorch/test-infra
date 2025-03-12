@@ -129,6 +129,32 @@ export default function DarkModeEChart(props: any) {
         color: textColor,
       },
     },
+    // Add tooltip styling
+    tooltip: {
+      ...(baseOptions.tooltip || {}),
+      backgroundColor: darkMode ? "#3A3A3A" : "#E0E0E0",
+      borderColor: darkMode ? "#4A4A4A" : "#C0C0C0",
+      textStyle: {
+        color: darkMode ? "#E0E0E0" : "#212529",
+      },
+      axisPointer: {
+        ...(baseOptions.tooltip?.axisPointer || {}),
+        lineStyle: {
+          ...(baseOptions.tooltip?.axisPointer?.lineStyle || {}),
+          color: darkMode ? "#4A90E2" : "#0064CF",
+        },
+        crossStyle: {
+          ...(baseOptions.tooltip?.axisPointer?.crossStyle || {}),
+          color: darkMode ? "#4A90E2" : "#0064CF",
+        },
+        shadowStyle: {
+          ...(baseOptions.tooltip?.axisPointer?.shadowStyle || {}),
+          color: darkMode
+            ? "rgba(74, 144, 226, 0.1)"
+            : "rgba(0, 100, 207, 0.1)",
+        },
+      },
+    },
     xAxis: {
       ...(baseOptions.xAxis || {}),
       axisLine: {

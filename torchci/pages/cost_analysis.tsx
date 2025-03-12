@@ -574,7 +574,7 @@ export default function Page() {
         id={`outlined-basic-${type}`}
         label={
           <div>
-            <FaFilter /> Filter {type}
+            <FaFilter style={{ color: "var(--icon-color)" }} /> Filter {type}
           </div>
         }
         onChange={handleChange}
@@ -597,7 +597,7 @@ export default function Page() {
         </Typography>
         <Tooltip title="This page gives an estimate of cost and duration of CI jobs. Note: prices are list prices for the providers and may not reflect actual costs.">
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
-            <FaInfoCircle />
+            <FaInfoCircle style={{ color: "var(--icon-color)" }} />
           </Typography>
         </Tooltip>
         <CopyLink
@@ -666,7 +666,10 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <MdOutlineStackedBarChart size={"2em"} fill="#444" />
+                      <MdOutlineStackedBarChart
+                        size={"2em"}
+                        fill="var(--icon-color)"
+                      />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -677,7 +680,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <FaRegChartBar size={"2em"} fill="#444" />
+                      <FaRegChartBar size={"2em"} fill="var(--icon-color)" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -688,7 +691,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <BiLineChart size={"2em"} fill="#444" />
+                      <BiLineChart size={"2em"} fill="var(--icon-color)" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
