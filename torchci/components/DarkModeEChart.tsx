@@ -19,13 +19,34 @@ export default function DarkModeEChart(props: any) {
       const dom = echartsInstance.getDom();
       if (!dom) return;
       
-      // Update all text elements
-      const textElements = dom.querySelectorAll('text');
       const textColor = darkMode ? '#E0E0E0' : '#212529';
       
-      textElements.forEach((text: SVGTextElement) => {
+      // Update all text elements
+      dom.querySelectorAll('text').forEach((text: SVGTextElement) => {
         text.style.fill = textColor;
         text.setAttribute('fill', textColor);
+      });
+      
+      // Special handling for title text
+      dom.querySelectorAll('.ec-title, .ec-title-sub').forEach((el: any) => {
+        if (el && el.style) {
+          el.style.fill = textColor;
+          el.style.color = textColor;
+        }
+        
+        // Also look for text elements inside titles
+        el.querySelectorAll('text, tspan').forEach((text: SVGTextElement) => {
+          text.style.fill = textColor;
+          text.setAttribute('fill', textColor);
+        });
+      });
+      
+      // Update SVG title and subtitle elements
+      dom.querySelectorAll('[data-zr-dom-id="zr_0"] title, [data-zr-dom-id="zr_0"] title-sub').forEach((el: any) => {
+        if (el && el.style) {
+          el.style.fill = textColor;
+          el.setAttribute('fill', textColor);
+        }
       });
     } catch (e) {
       console.error('Failed to update chart colors:', e);
@@ -34,9 +55,12 @@ export default function DarkModeEChart(props: any) {
 
   // Update colors whenever the chart is rendered or dark mode changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      updateChartColors();
-    }, 100);
+    // Apply multiple times to ensure it catches all text elements
+    const timers = [
+      setTimeout(() => updateChartColors(), 100),
+      setTimeout(() => updateChartColors(), 500),
+      setTimeout(() => updateChartColors(), 1000)
+    ];
     
     // Set up event listener for chart rendering
     if (chartRef.current) {
@@ -45,47 +69,91 @@ export default function DarkModeEChart(props: any) {
         const echartsInstance = chartElement.getEchartsInstance();
         echartsInstance.on('rendered', updateChartColors);
         echartsInstance.on('finished', updateChartColors);
+        
+        // Direct hack for title and subtitle
+        echartsInstance.on('finished', () => {
+          try {
+            // Force update title text
+            const titleElements = chartElement.ele?.querySelectorAll('.ec-title, .ec-title-sub');
+            const textColor = darkMode ? '#E0E0E0' : '#212529';
+            
+            if (titleElements && titleElements.length > 0) {
+              titleElements.forEach((el: any) => {
+                if (el && el.style) {
+                  el.style.fill = textColor;
+                  el.style.color = textColor;
+                }
+              });
+            }
+          } catch (e) {
+            console.error('Failed to update title colors:', e);
+          }
+        });
       }
     }
     
-    return () => clearTimeout(timer);
+    return () => timers.forEach(timer => clearTimeout(timer));
   }, [darkMode]);
   
   // Merge the base options with dark mode specific options
   const baseOptions = props.option || {};
+  const textColor = darkMode ? '#E0E0E0' : '#212529';
+  
   const options = {
     ...baseOptions,
     backgroundColor: darkMode ? '#2A2A2A' : undefined,
     textStyle: {
-      color: darkMode ? '#E0E0E0' : '#212529',
+      color: textColor,
+    },
+    // Handle title specifically
+    title: {
+      ...(baseOptions.title || {}),
+      textStyle: {
+        ...(baseOptions.title?.textStyle || {}),
+        color: textColor,
+      },
+      subtextStyle: {
+        ...(baseOptions.title?.subtextStyle || {}),
+        color: textColor,
+      }
     },
     legend: {
       ...(baseOptions.legend || {}),
       textStyle: {
-        color: darkMode ? '#E0E0E0' : '#212529',
+        color: textColor,
       },
     },
     xAxis: {
       ...(baseOptions.xAxis || {}),
       axisLine: {
+        ...(baseOptions.xAxis?.axisLine || {}),
         lineStyle: {
+          ...(baseOptions.xAxis?.axisLine?.lineStyle || {}),
           color: darkMode ? '#3A3A3A' : '#D9D9D9',
         },
       },
       axisLabel: {
-        color: darkMode ? '#E0E0E0' : '#212529',
+        ...(baseOptions.xAxis?.axisLabel || {}),
+        color: textColor,
       },
     },
     yAxis: {
       ...(baseOptions.yAxis || {}),
       axisLine: {
+        ...(baseOptions.yAxis?.axisLine || {}),
         lineStyle: {
+          ...(baseOptions.yAxis?.axisLine?.lineStyle || {}),
           color: darkMode ? '#3A3A3A' : '#D9D9D9',
         },
       },
       axisLabel: {
-        color: darkMode ? '#E0E0E0' : '#212529',
+        ...(baseOptions.yAxis?.axisLabel || {}),
+        color: textColor,
       },
+      nameTextStyle: {
+        ...(baseOptions.yAxis?.nameTextStyle || {}),
+        color: textColor,
+      }
     },
   };
 

@@ -22,7 +22,6 @@ import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
@@ -51,36 +50,36 @@ function MasterCommitRedPanel({
     title: {
       text: "Commits red on main, by day",
       subtext: "Based on workflows which block viable/strict upgrade",
-      textStyle: {
-        color: 'var(--text-color)',
-      },
-      subtextStyle: {
-        color: 'var(--text-color)',
-      },
+      //   textStyle: {
+      //     color: 'var(--text-color)',
+      //   },
+      //   subtextStyle: {
+      //     color: 'var(--text-color)',
+      //   },
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
-    xAxis: { 
+    xAxis: {
       type: "category",
       axisLine: {
         lineStyle: {
-          color: 'var(--border-color)',
-        }
+          color: "var(--border-color)",
+        },
       },
       axisLabel: {
-        color: 'var(--text-color)',
-      }
+        color: "var(--text-color)",
+      },
     },
     yAxis: {
       type: "value",
       axisLine: {
         lineStyle: {
-          color: 'var(--border-color)',
-        }
+          color: "var(--border-color)",
+        },
       },
       axisLabel: {
-        color: 'var(--text-color)',
-      }
+        color: "var(--text-color)",
+      },
     },
     series: [
       {
@@ -126,13 +125,13 @@ function MasterCommitRedPanel({
   };
 
   return (
-    <Paper 
-      sx={{ 
-        p: 2, 
+    <Paper
+      sx={{
+        p: 2,
         height: "100%",
-        backgroundColor: 'var(--dropdown-bg)',
-        color: 'var(--text-color)',  
-      }} 
+        backgroundColor: "var(--dropdown-bg)",
+        color: "var(--text-color)",
+      }}
       elevation={3}
     >
       <DarkModeEChart
