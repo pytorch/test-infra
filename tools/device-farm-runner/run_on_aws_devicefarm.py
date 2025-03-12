@@ -709,10 +709,8 @@ def generate_artifacts_output(
     artifacts: List[Dict[str, str]],
     run_report: DeviceFarmReport,
     job_reports: List[JobReport],
-    app_type: str,
 ):
     output = {
-        "app_type": app_type,
         "artifacts": artifacts,
         "run_report": asdict(run_report),
         "job_reports": [asdict(job_report) for job_report in job_reports],
@@ -722,6 +720,12 @@ def generate_artifacts_output(
 
 def main() -> None:
     args = parse_args()
+
+    # (TODO): remove this once remove the flag.
+    if args.args.new_json_output_format == "true":
+        info("use new json output format")
+    else:
+        info("use legacy json output format")
 
     project_arn = args.project_arn
     name_prefix = args.name_prefix
@@ -818,14 +822,11 @@ def main() -> None:
         )
         artifacts = processor.start(r.get("run"))
 
-        info(f"set new_json_output_format: {args.new_json_output_format}")
         if args.new_json_output_format == "true":
-            info("Generating new json output")
             output = generate_artifacts_output(
                 artifacts,
                 processor.get_run_report(),
                 processor.get_job_reports(),
-                app_type
             )
             set_output(json.dumps(output), "artifacts", args.output)
         else:
