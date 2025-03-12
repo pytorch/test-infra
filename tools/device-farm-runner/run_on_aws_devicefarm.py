@@ -722,7 +722,7 @@ def main() -> None:
     args = parse_args()
 
     # (TODO): remove this once remove the flag.
-    if args.args.new_json_output_format == "true":
+    if args.new_json_output_format == "true":
         info("use new json output format")
     else:
         info("use legacy json output format")
