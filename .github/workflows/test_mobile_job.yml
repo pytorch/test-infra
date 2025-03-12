@@ -42,7 +42,6 @@ jobs:
       test-spec: https://ossci-assets.s3.amazonaws.com/android-llm-device-farm-test-spec.yml
       extra-data: https://ossci-assets.s3.amazonaws.com/executorch-android-llama2-7b-0717.zip
 
-
   test-ios-job-with-new-output-flag:
     permissions:
       id-token: write
