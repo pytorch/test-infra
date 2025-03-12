@@ -23,6 +23,7 @@ on:
         required: false
         type: string
         default: '3.11'
+
       # AWS Device Farm, this can be copied from AWS console and it's default to
       # PyTorch project
       project-arn:

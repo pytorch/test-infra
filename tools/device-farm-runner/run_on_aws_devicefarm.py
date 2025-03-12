@@ -223,7 +223,8 @@ def parse_args() -> Any:
 
     # in case when removing the flag, the mobile jobs does not failed due to unrecognized flag.
     args, unknown = parser.parse_known_args()
-    info(f"detected unknown flags: {unknown}")
+    if len(unknown) > 0:
+        info(f"detected unknown flags: {unknown}")
     return args
 
 
@@ -734,9 +735,9 @@ def main() -> None:
 
     # (TODO): remove this once remove the flag.
     if args.new_json_output_format == "true":
-        info("use new json output format")
+        info(f"use new json output format for {args.output}")
     else:
-        info("use legacy json output format")
+        info("use legacy json output format for {args.output}")
 
     project_arn = args.project_arn
     name_prefix = args.name_prefix
@@ -824,11 +825,11 @@ def main() -> None:
             time.sleep(30)
     except Exception as error:
         warn(f"Failed to run {unique_prefix}: {error}")
-        if args.new_json_output_format == "true":
-            json_file = {
-                "git_job_name": args.git_job_name,
-            }
-            set_output(json.dumps(json_file), "artifacts", args.output)
+        # just use the new json output format
+        json_file = {
+            "git_job_name": args.git_job_name,
+        }
+        set_output(json.dumps(json_file), "artifacts", args.output)
         sys.exit(1)
     finally:
         info(f"Run {unique_prefix} finished with state {state} and result {result}")
