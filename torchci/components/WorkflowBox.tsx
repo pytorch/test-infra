@@ -30,12 +30,12 @@ function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   return ("" + jobA.jobName).localeCompare("" + jobB.jobName); // the '' forces the type to be a string
 }
 
-const JobButton = styled(Button)({
+const JobButton = styled(Button)(({ theme }) => ({
   fontSize: "8px",
   padding: "0 1px 0 1px",
-  color: "green",
+  color: 'var(--duration-color-good)',
   margin: "2px",
-});
+}));
 function WorkflowJobSummary({
   job,
   utilMetadata,

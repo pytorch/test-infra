@@ -75,7 +75,7 @@ function FailedJob({ job }: { job: JobData }) {
   const isClassified = job.failureAnnotation != null;
   const linkStyle: CSSProperties = { cursor: "pointer", marginRight: "0.5em" };
   if (job.name === jobHoverContext) {
-    linkStyle.backgroundColor = "khaki";
+    linkStyle.backgroundColor = "var(--job-hover-bg)";
   }
   let jobStyle = styles.failedJob;
   if (highlighted) {
@@ -309,7 +309,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
     availableData: boolean
   ) {
     const durationString = availableData ? durationHuman(duration) : "N/A";
-    let color = "black";
+    let color = "var(--duration-color-normal)";
     if (
       !availableData ||
       prevJobs === undefined ||
@@ -339,7 +339,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
         : `- ${durationHuman(Math.abs(absoluteChange))}`;
     const concerningChange = Math.abs(absoluteChange) > 60 * 30;
     if (concerningChange) {
-      color = absoluteChange > 0 ? "red" : "green";
+      color = absoluteChange > 0 ? "var(--duration-color-bad)" : "var(--duration-color-good)";
     }
     return {
       concerningChange,
@@ -404,22 +404,26 @@ function DurationInfo({
   }
   return (
     <div style={{ padding: "10px" }}>
-      <table>
-        <tbody>
-          {concerning.map((val) => (
-            <Row {...val} key={`duration-row-${val.name}`} />
-          ))}
-        </tbody>
-      </table>
-      <details open={expandAllDurationInfo}>
-        <summary>See all jobs</summary>
+      <div className={styles.tableWrapper}>
         <table>
           <tbody>
-            {notConcerning.map((val) => (
+            {concerning.map((val) => (
               <Row {...val} key={`duration-row-${val.name}`} />
             ))}
           </tbody>
         </table>
+      </div>
+      <details open={expandAllDurationInfo}>
+        <summary>See all jobs</summary>
+        <div className={styles.tableWrapper}>
+          <table>
+            <tbody>
+              {notConcerning.map((val) => (
+                <Row {...val} key={`duration-row-${val.name}`} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </details>
     </div>
   );

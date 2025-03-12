@@ -1,11 +1,11 @@
 .disableTestButton {
-  background-color: #ffc107;
-  border-color: #ffc107;
-  color: #212529; /* Ensure good contrast in both light and dark mode */
+  background-color: var(--warning-button-bg, #ffc107);
+  border-color: var(--warning-button-border, #ffc107);
+  color: var(--warning-button-text, #212529);
 }
 
 .closedDisableIssueButton {
-  background-color: #17a2b8;
-  border-color: #17a2b8;
-  color: white;
+  background-color: var(--info-button-bg, #17a2b8);
+  border-color: var(--info-button-border, #17a2b8);
+  color: var(--info-button-text, white);
 }
