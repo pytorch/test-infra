@@ -69,14 +69,20 @@ function isJobViableStrictBlocking(
   return false;
 }
 
-// Renders either a group conclusion character or monsterized icons for failures
-function renderGroupConclusion(
-  conclusion: GroupedJobStatus,
-  isClassified: boolean,
-  erroredJobs: JobData[],
-  toggleExpanded: () => void
-) {
-  const [monsterFailures] = useContext(MonsterFailuresContext);
+// React component to render either a group conclusion character or monsterized icons for failures
+function GroupConclusionContent({
+  conclusion,
+  isClassified,
+  erroredJobs,
+  toggleExpanded,
+  monsterFailures
+}: {
+  conclusion: GroupedJobStatus;
+  isClassified: boolean;
+  erroredJobs: JobData[];
+  toggleExpanded: () => void;
+  monsterFailures: boolean;
+}) {
 
   // Only show monsters for failures and when monsterized failures is enabled
   if (conclusion !== GroupedJobStatus.Failure || !monsterFailures) {
@@ -249,12 +255,13 @@ export default function HudGroupedCell({
                 }
                 style={{ padding: "0 1px" }}
               >
-                {renderGroupConclusion(
-                  conclusion,
-                  isClassified,
-                  erroredJobs,
-                  toggleExpanded
-                )}
+                <GroupConclusionContent
+                  conclusion={conclusion}
+                  isClassified={isClassified}
+                  erroredJobs={erroredJobs}
+                  toggleExpanded={toggleExpanded}
+                  monsterFailures={monsterFailures}
+                />
               </span>
             </span>
           ) : (
@@ -263,12 +270,13 @@ export default function HudGroupedCell({
                 viableStrictBlocking ? styles.viablestrict_blocking : ""
               }`}
             >
-              {renderGroupConclusion(
-                conclusion,
-                isClassified,
-                erroredJobs,
-                toggleExpanded
-              )}
+              <GroupConclusionContent
+                conclusion={conclusion}
+                isClassified={isClassified}
+                erroredJobs={erroredJobs}
+                toggleExpanded={toggleExpanded}
+                monsterFailures={monsterFailures}
+              />
             </span>
           )}
         </TooltipTarget>
@@ -336,7 +344,7 @@ function GroupTooltip({
                     : "1 job with this error type:"}
                 </span>
               </div>
-              {group.jobs.map((job, jobIndex) => (
+              {group.jobs.map((job: JobData, jobIndex: number) => (
                 <div
                   key={jobIndex}
                   style={{ marginLeft: "24px", marginTop: "4px" }}
