@@ -75,7 +75,7 @@ function GroupConclusionContent({
   isClassified,
   erroredJobs,
   toggleExpanded,
-  monsterFailures
+  monsterFailures,
 }: {
   conclusion: GroupedJobStatus;
   isClassified: boolean;
@@ -83,7 +83,6 @@ function GroupConclusionContent({
   toggleExpanded: () => void;
   monsterFailures: boolean;
 }) {
-
   // Only show monsters for failures and when monsterized failures is enabled
   if (conclusion !== GroupedJobStatus.Failure || !monsterFailures) {
     return (
