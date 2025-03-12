@@ -396,13 +396,13 @@ jobs:
           GIT_JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
         run: |
           if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE" ]]; then
-            echo "missing android artifact json, generating ..."
-            '{"git_job_name": "$GIT_JOB_NAME"}'  >> "$ANDROID_FILE"
+            echo "missing android artifact json ${ANDROID_FILE}, generating ... "
+            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$ANDROID_FILE"
           fi
 
           if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE" ]]; then
             echo "missing ios artifact json, generating ..."
-            '{"git_job_name": "$GIT_JOB_NAME"}' >> "$IOS_FILE"
+            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$IOS_FILE"
           fi
 
       - name: Upload iOS artifacts to S3
