@@ -58,6 +58,27 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Force ECharts legend text color */
+.echarts-for-react div {
+  color: var(--text-color) !important;
+}
+
+/* Additional styling for ECharts components */
+.echarts-for-react .echarts-legend-text {
+  color: var(--text-color) !important;
+  fill: var(--text-color) !important;
+}
+.echarts-for-react .echarts-legend {
+  color: var(--text-color) !important;
+  fill: var(--text-color) !important;
+}
+.echarts-for-react text {
+  fill: var(--text-color) !important;
+}
+.echarts-for-react .axis-label {
+  fill: var(--text-color) !important;
+}
+
 a {
   color: inherit;
   text-decoration: none;

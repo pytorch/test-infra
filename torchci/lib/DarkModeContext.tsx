@@ -30,6 +30,14 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
     
     // Save the preference to localStorage
     localStorage.setItem('darkMode', darkMode.toString());
+    
+    // Dispatch event for chart theme changes
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('dark-mode-changed', { 
+        detail: { darkMode } 
+      });
+      window.dispatchEvent(event);
+    }
   }, [darkMode]);
 
   const toggleDarkMode = () => {

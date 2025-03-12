@@ -3,6 +3,7 @@
  */
 
 import { Paper, Skeleton } from "@mui/material";
+import DarkModeEChart from "components/DarkModeEChart";
 import { formatTimeForCharts, TIME_DISPLAY_FORMAT } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -201,6 +202,15 @@ export function TimeSeriesPanelWithData({
         right: 10,
         top: "center",
         type: "scroll",
+        textStyle: {
+          color: 'var(--text-color)',
+        },
+        pageTextStyle: {
+          color: 'var(--text-color)',
+        },
+        pageIconColor: 'var(--text-color)',
+        pageIconInactiveColor: 'var(--border-color)',
+        inactiveColor: 'var(--border-color)',
         formatter: (name: string) => {
           return name.length > 40 ? name.substring(0, 40) + "..." : name;
         },
@@ -257,49 +267,9 @@ export function TimeSeriesPanelWithData({
       }} 
       elevation={3}
     >
-      <ReactECharts
+      <DarkModeEChart
         style={{ height: "100%", width: "100%" }}
-        option={_.merge(
-          {
-            textStyle: {
-              color: 'var(--text-color)',
-            },
-            title: {
-              textStyle: {
-                color: 'var(--text-color)',
-              }
-            },
-            legend: {
-              textStyle: {
-                color: 'var(--text-color)',
-              }
-            },
-            xAxis: {
-              axisLine: {
-                lineStyle: {
-                  color: 'var(--border-color)',
-                }
-              },
-              axisLabel: {
-                color: 'var(--text-color)',
-              }
-            },
-            yAxis: {
-              axisLine: {
-                lineStyle: {
-                  color: 'var(--border-color)',
-                }
-              },
-              axisLabel: {
-                color: 'var(--text-color)',
-              },
-              nameTextStyle: {
-                color: 'var(--text-color)',
-              }
-            },
-          }, 
-          options
-        )}
+        option={options}
         notMerge={true}
         onEvents={onEvents}
       />

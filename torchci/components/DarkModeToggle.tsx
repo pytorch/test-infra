@@ -22,7 +22,11 @@ export default function DarkModeToggle(): JSX.Element {
       title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
       aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
     >
-      {darkMode ? <BsSun /> : <BsMoon />}
+      {darkMode ? (
+        <BsSun size={18} color="#E0E0E0" /> 
+      ) : (
+        <BsMoon size={18} color="#212529" />
+      )}
     </button>
   );
 }

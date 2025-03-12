@@ -5,7 +5,7 @@ import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
-import { DarkModeProvider } from "lib/DarkModeContext";
+import { DarkModeProvider, useDarkMode } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
@@ -40,6 +40,15 @@ function MyApp({ Component, pageProps }: AppProps) {
 // Separate component to use the dark mode hooks
 function AppContent({ Component, pageProps }: { Component: any, pageProps: any }) {
   const theme = useAppTheme();
+  const { darkMode } = useDarkMode();
+
+  // Register chart themes when the component mounts
+  useEffect(() => {
+    import('lib/chartTheme').then(({ registerChartThemes, applyChartTheme }) => {
+      registerChartThemes();
+      applyChartTheme(!!darkMode);
+    });
+  }, [darkMode]);
 
   return (
     <ThemeProvider theme={theme}>

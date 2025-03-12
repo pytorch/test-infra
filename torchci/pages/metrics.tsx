@@ -13,6 +13,7 @@ import {
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import DarkModeEChart from "components/DarkModeEChart";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
@@ -134,27 +135,9 @@ function MasterCommitRedPanel({
       }} 
       elevation={3}
     >
-      <ReactECharts
+      <DarkModeEChart
         style={{ height: "100%", width: "100%" }}
-        option={{
-          ...options,
-          textStyle: {
-            color: 'var(--text-color)',
-          },
-          legend: {
-            textStyle: {
-              color: 'var(--text-color)',
-            }
-          },
-          tooltip: {
-            ...options.tooltip,
-            backgroundColor: 'var(--dropdown-bg)',
-            borderColor: 'var(--border-color)',
-            textStyle: {
-              color: 'var(--text-color)',
-            }
-          }
-        }}
+        option={options}
       />
     </Paper>
   );

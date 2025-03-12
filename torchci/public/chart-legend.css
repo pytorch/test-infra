@@ -1,0 +1,29 @@
+/* Direct styling for ECharts legends */
+.echarts-legend-text,
+.echarts-for-react text,
+.echarts-for-react tspan,
+.echarts-for-react .ec-legend,
+.ec-legend text {
+  fill: var(--text-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* Axis lines */
+.echarts-for-react .ec-axis-line,
+.ec-axis-line {
+  stroke: var(--border-color) !important;
+}
+
+/* Grid lines */
+.echarts-for-react .ec-grid-line,
+.ec-grid-line {
+  stroke: var(--border-color) !important;
+  opacity: 0.3;
+}
+
+/* Split lines */
+.echarts-for-react .ec-split-line,
+.ec-split-line {
+  stroke: var(--border-color) !important;
+  opacity: 0.3;
+}

@@ -19,6 +19,8 @@ export default function Document() {
             `,
           }}
         />
+        {/* Custom styles for charts */}
+        <link rel="stylesheet" href="/chart-legend.css" />
       </Head>
       <body>
         <Main />
