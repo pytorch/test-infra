@@ -337,8 +337,8 @@ jobs:
               --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
-              --output "ios-artifacts-${JOB_ID}.json"
-              --git-job-name "${GIT_JOB_NAME}"
+              --output "ios-artifacts-${JOB_ID}.json" \
+              --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
@@ -393,7 +393,7 @@ jobs:
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
               --output "android-artifacts-${JOB_ID}.json" \
-              --git-job-name "${GIT_JOB_NAME}"
+              --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
