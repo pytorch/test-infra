@@ -25,11 +25,12 @@ import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { BiLineChart } from "react-icons/bi";
 import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
+import _ from "lodash";
 
 function CustomDatePicker({ label, value, setValue }: any) {
   return (
@@ -227,6 +228,7 @@ export default function Page() {
     : PROVIDER_OPTIONS;
   const initialSelectedYAxis = (query.yAxis as YAxis) || "cost";
   const initialSearchFilter = query.searchFilter || "";
+  const initialIsRegex = query.isRegex === "true";
   const initialSelectedRepos = query.repos
     ? splitString(query.repos)
     : undefined;
@@ -260,6 +262,7 @@ export default function Page() {
   const [searchFilter, setSearchFilter] = useState(
     initialSearchFilter as string
   );
+  const [isRegex, setIsRegex] = useState(initialIsRegex);
 
   const [routerReady, setRouterReady] = useState(false);
 
@@ -277,6 +280,7 @@ export default function Page() {
     setSelectedProviders(initialSelectedProviders);
     setSelectedYAxis(initialSelectedYAxis || "cost");
     setSearchFilter(initialSearchFilter as string);
+    setIsRegex(initialIsRegex);
   }
 
   const timeParamsClickHouse = {
@@ -343,6 +347,7 @@ export default function Page() {
 
     if (selectedYAxis) params.set("yAxis", selectedYAxis);
     if (searchFilter) params.set("searchFilter", searchFilter);
+    if (isRegex) params.set("isRegex", isRegex.toString());
 
     router.push({
       pathname: router.pathname,
@@ -361,6 +366,7 @@ export default function Page() {
     selectedOwners,
     selectedYAxis,
     searchFilter,
+    isRegex,
     selectedRepos,
   ]);
 
@@ -391,6 +397,7 @@ export default function Page() {
             smooth={false}
             chartType={chartType}
             filter={searchFilter}
+            isRegex={isRegex}
             timeFieldDisplayFormat="M/D (UTC)"
             sort_by="total"
             auto_refresh={false}
@@ -559,28 +566,60 @@ export default function Page() {
     );
   };
 
+  // Create debounced search filter update function - defined once
+  const debouncedSetSearchFilter = useCallback(
+    _.debounce((value: string) => {
+      setSearchFilter(value);
+    }, 500),
+    [] // Empty dependency array ensures this is created only once
+  );
+  
   const generateFilterBar = (type: CostCategory, style = {}) => {
+    const [inputValue, setInputValue] = useState(searchFilter);
+    
+    // Update the local input value immediately for responsiveness
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
-      setTimeout(() => {
-        setSearchFilter(() => {
-          return value;
-        });
-      }, 500);
+      setInputValue(value);
+      debouncedSetSearchFilter(value);
+    };
+    
+    // Update inputValue when searchFilter changes from URL/elsewhere
+    useEffect(() => {
+      setInputValue(searchFilter);
+    }, [searchFilter]);
+    
+    const handleRegexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setIsRegex(e.target.checked);
     };
 
     return (
-      <TextField
-        id={`outlined-basic-${type}`}
-        label={
-          <div>
-            <FaFilter /> Filter {type}
+      <Box>
+        <TextField
+          id={`outlined-basic-${type}`}
+          label={
+            <div>
+              <FaFilter /> Filter {type}
+            </div>
+          }
+          onChange={handleChange}
+          variant="outlined"
+          fullWidth
+          value={inputValue}
+        />
+        <FormGroup row>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px' }}>
+            <input 
+              type="checkbox" 
+              id="regex-checkbox"
+              checked={isRegex}
+              onChange={handleRegexChange}
+              style={{ marginRight: '8px' }}
+            />
+            <label htmlFor="regex-checkbox">Use Regex</label>
           </div>
-        }
-        onChange={handleChange}
-        variant="outlined"
-        fullWidth
-      />
+        </FormGroup>
+      </Box>
     );
   };
 
