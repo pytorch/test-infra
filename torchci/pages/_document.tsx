@@ -10,8 +10,10 @@ export default function Document() {
             __html: `
               (function() {
                 try {
-                  var darkMode = localStorage.getItem('darkMode');
-                  if (darkMode === 'true') {
+                  var themeMode = localStorage.getItem('themeMode');
+                  var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  
+                  if (themeMode === 'dark' || (themeMode === 'system' && systemDark)) {
                     document.documentElement.classList.add('dark-mode');
                   }
                 } catch (e) {}

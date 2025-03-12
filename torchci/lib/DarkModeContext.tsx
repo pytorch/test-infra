@@ -1,26 +1,57 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
+// Theme mode options
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 type DarkModeContextType = {
+  themeMode: ThemeMode;
   darkMode: boolean;
-  toggleDarkMode: () => void;
+  setThemeMode: (mode: ThemeMode) => void;
 };
 
 const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
 
 export function DarkModeProvider({ children }: { children: ReactNode }) {
   // Initialize state with undefined to avoid hydration mismatch
-  const [darkMode, setDarkMode] = useState<boolean | undefined>(undefined);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [systemDarkMode, setSystemDarkMode] = useState<boolean>(false);
 
+  // Check for system dark mode preference
   useEffect(() => {
-    // On mount, read the preference from localStorage
-    const savedDarkMode = localStorage.getItem('darkMode');
-    setDarkMode(savedDarkMode === 'true');
+    if (typeof window !== 'undefined') {
+      // Check if system prefers dark mode
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setSystemDarkMode(mediaQuery.matches);
+
+      // Listen for changes to the system dark mode preference
+      const handler = (e: MediaQueryListEvent) => {
+        setSystemDarkMode(e.matches);
+      };
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
   }, []);
 
+  // Load saved preference from localStorage on initial load
   useEffect(() => {
-    // Only run after initial mount when darkMode is defined
-    if (darkMode === undefined) return;
-    
+    const savedThemeMode = localStorage.getItem('themeMode') as ThemeMode | null;
+    if (savedThemeMode && ['light', 'dark', 'system'].includes(savedThemeMode)) {
+      setThemeMode(savedThemeMode);
+    }
+  }, []);
+
+  // Update darkMode based on themeMode and system preference
+  useEffect(() => {
+    if (themeMode === 'system') {
+      setDarkMode(systemDarkMode);
+    } else {
+      setDarkMode(themeMode === 'dark');
+    }
+  }, [themeMode, systemDarkMode]);
+
+  // Apply dark mode class and save preference
+  useEffect(() => {
     // Apply or remove the dark class based on the darkMode state
     if (darkMode) {
       document.documentElement.classList.add('dark-mode');
@@ -29,7 +60,7 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
     }
     
     // Save the preference to localStorage
-    localStorage.setItem('darkMode', darkMode.toString());
+    localStorage.setItem('themeMode', themeMode);
     
     // Dispatch event for chart theme changes
     if (typeof window !== 'undefined') {
@@ -38,14 +69,18 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
       });
       window.dispatchEvent(event);
     }
-  }, [darkMode]);
+  }, [darkMode, themeMode]);
 
-  const toggleDarkMode = () => {
-    setDarkMode(prevMode => !prevMode);
+  const handleSetThemeMode = (mode: ThemeMode) => {
+    setThemeMode(mode);
   };
 
   return (
-    <DarkModeContext.Provider value={{ darkMode: !!darkMode, toggleDarkMode }}>
+    <DarkModeContext.Provider value={{ 
+      themeMode, 
+      darkMode, 
+      setThemeMode: handleSetThemeMode 
+    }}>
       {children}
     </DarkModeContext.Provider>
   );

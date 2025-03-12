@@ -2,7 +2,7 @@ import styles from "components/NavBar.module.css";
 import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
-import DarkModeToggle from "./DarkModeToggle";
+import ThemeModePicker from "./ThemeModePicker";
 import LoginSection from "./LoginSection";
 
 const NavBarDropdown = ({
@@ -185,7 +185,7 @@ function NavBar() {
             </Link>
           </li>
           <li>
-            <DarkModeToggle />
+            <ThemeModePicker />
           </li>
           <li style={{ padding: "0 1rem" }}>
             <LoginSection></LoginSection>
