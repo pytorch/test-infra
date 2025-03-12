@@ -12,8 +12,18 @@ type DarkModeContextType = {
 const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
 
 export function DarkModeProvider({ children }: { children: ReactNode }) {
-  // Initialize state with undefined to avoid hydration mismatch
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  // Initialize with a function to prevent execution during SSR
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    // Only run in browser context
+    if (typeof window !== 'undefined') {
+      const savedThemeMode = localStorage.getItem('themeMode') as ThemeMode | null;
+      if (savedThemeMode && ['light', 'dark', 'system'].includes(savedThemeMode)) {
+        return savedThemeMode;
+      }
+    }
+    return 'light';
+  });
+  
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [systemDarkMode, setSystemDarkMode] = useState<boolean>(false);
 
@@ -30,14 +40,6 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
       };
       mediaQuery.addEventListener('change', handler);
       return () => mediaQuery.removeEventListener('change', handler);
-    }
-  }, []);
-
-  // Load saved preference from localStorage on initial load
-  useEffect(() => {
-    const savedThemeMode = localStorage.getItem('themeMode') as ThemeMode | null;
-    if (savedThemeMode && ['light', 'dark', 'system'].includes(savedThemeMode)) {
-      setThemeMode(savedThemeMode);
     }
   }, []);
 
@@ -60,14 +62,8 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
     }
     
     // Save the preference to localStorage
-    localStorage.setItem('themeMode', themeMode);
-    
-    // Dispatch event for chart theme changes
     if (typeof window !== 'undefined') {
-      const event = new CustomEvent('dark-mode-changed', { 
-        detail: { darkMode } 
-      });
-      window.dispatchEvent(event);
+      localStorage.setItem('themeMode', themeMode);
     }
   }, [darkMode, themeMode]);
 

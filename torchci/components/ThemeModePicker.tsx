@@ -1,14 +1,13 @@
-import { useDarkMode, ThemeMode } from 'lib/DarkModeContext';
-import { useState, useEffect } from 'react';
-import { BsSun, BsMoon } from 'react-icons/bs';
-import SystemThemeIcon from './SystemThemeIcon';
-import styles from './ThemeModePicker.module.css';
+import { ThemeMode, useDarkMode } from "lib/DarkModeContext";
+import { useEffect, useState } from "react";
+import { BsMoon, BsSun } from "react-icons/bs";
+import styles from "./ThemeModePicker.module.css";
 
 export default function ThemeModePicker(): JSX.Element {
   const { themeMode, setThemeMode, darkMode } = useDarkMode();
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  
+
   // This ensures hydration mismatch is avoided
   useEffect(() => {
     setIsMounted(true);
@@ -19,7 +18,7 @@ export default function ThemeModePicker(): JSX.Element {
 
   // Get the icon component based on active theme
   const getIconComponent = () => {
-    if (themeMode === 'system') {
+    if (themeMode === "system") {
       const iconColor = darkMode ? "#E0E0E0" : "#212529";
       return (
         <div className={styles.iconGroup} style={{ width: 18, height: 18 }}>
@@ -28,7 +27,7 @@ export default function ThemeModePicker(): JSX.Element {
         </div>
       );
     }
-    const Icon = darkMode ? BsSun : BsMoon;
+    const Icon = darkMode ? BsMoon : BsSun;
     return <Icon size={18} color={darkMode ? "#E0E0E0" : "#212529"} />;
   };
 
@@ -47,24 +46,30 @@ export default function ThemeModePicker(): JSX.Element {
       >
         {getIconComponent()}
       </button>
-      
+
       {isOpen && (
         <div className={styles.dropdown}>
           <button
-            className={`${styles.option} ${themeMode === 'light' ? styles.active : ''}`}
-            onClick={() => handleThemeChange('light')}
+            className={`${styles.option} ${
+              themeMode === "light" ? styles.active : ""
+            }`}
+            onClick={() => handleThemeChange("light")}
           >
             <BsSun size={16} /> <span>Light</span>
           </button>
           <button
-            className={`${styles.option} ${themeMode === 'dark' ? styles.active : ''}`}
-            onClick={() => handleThemeChange('dark')}
+            className={`${styles.option} ${
+              themeMode === "dark" ? styles.active : ""
+            }`}
+            onClick={() => handleThemeChange("dark")}
           >
             <BsMoon size={16} /> <span>Dark</span>
           </button>
           <button
-            className={`${styles.option} ${themeMode === 'system' ? styles.active : ''}`}
-            onClick={() => handleThemeChange('system')}
+            className={`${styles.option} ${
+              themeMode === "system" ? styles.active : ""
+            }`}
+            onClick={() => handleThemeChange("system")}
           >
             <div className={styles.iconGroup}>
               <BsSun size={12} className={styles.sunIcon} />

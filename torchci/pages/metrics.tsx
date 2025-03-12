@@ -50,12 +50,6 @@ function MasterCommitRedPanel({
     title: {
       text: "Commits red on main, by day",
       subtext: "Based on workflows which block viable/strict upgrade",
-      //   textStyle: {
-      //     color: 'var(--text-color)',
-      //   },
-      //   subtextStyle: {
-      //     color: 'var(--text-color)',
-      //   },
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },

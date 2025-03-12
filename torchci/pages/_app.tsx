@@ -42,10 +42,9 @@ function AppContent({ Component, pageProps }: { Component: any, pageProps: any }
   const theme = useAppTheme();
   const { darkMode } = useDarkMode();
 
-  // Register chart themes when the component mounts
+  // Apply chart theme when dark mode changes
   useEffect(() => {
-    import('lib/chartTheme').then(({ registerChartThemes, applyChartTheme }) => {
-      registerChartThemes();
+    import('lib/chartTheme').then(({ applyChartTheme }) => {
       applyChartTheme(!!darkMode);
     });
   }, [darkMode]);

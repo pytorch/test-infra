@@ -8,7 +8,6 @@ import { formatTimeForCharts, TIME_DISPLAY_FORMAT } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import useSWR from "swr";
@@ -203,14 +202,14 @@ export function TimeSeriesPanelWithData({
         top: "center",
         type: "scroll",
         textStyle: {
-          color: 'var(--text-color)',
+          color: "var(--text-color)",
         },
         pageTextStyle: {
-          color: 'var(--text-color)',
+          color: "var(--text-color)",
         },
-        pageIconColor: 'var(--text-color)',
-        pageIconInactiveColor: 'var(--border-color)',
-        inactiveColor: 'var(--border-color)',
+        pageIconColor: "var(--text-color)",
+        pageIconInactiveColor: "var(--border-color)",
+        inactiveColor: "var(--border-color)",
         formatter: (name: string) => {
           return name.length > 40 ? name.substring(0, 40) + "..." : name;
         },
@@ -258,13 +257,13 @@ export function TimeSeriesPanelWithData({
   );
 
   return (
-    <Paper 
-      sx={{ 
-        p: 2, 
+    <Paper
+      sx={{
+        p: 2,
         height: "100%",
-        backgroundColor: 'var(--dropdown-bg)',
-        color: 'var(--text-color)',
-      }} 
+        backgroundColor: "var(--dropdown-bg)",
+        color: "var(--text-color)",
+      }}
       elevation={3}
     >
       <DarkModeEChart
