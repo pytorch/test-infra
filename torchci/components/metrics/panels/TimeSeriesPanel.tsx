@@ -39,7 +39,8 @@ export function seriesWithInterpolatedTimes(
   smooth: boolean = true,
   sort_by: "total" | "name" = "name",
   graph_type: ChartType = "line",
-  filter: string | undefined = undefined
+  filter: string | undefined = undefined,
+  isRegex: boolean = false
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
   // with 0.
@@ -118,9 +119,21 @@ export function seriesWithInterpolatedTimes(
     return serie;
   });
   if (filter) {
-    series = series.filter((s) =>
-      s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
-    );
+    if (isRegex) {
+      try {
+        const regex = new RegExp(filter, "i");
+        series = series.filter((s) => regex.test(s.name));
+      } catch (e) {
+        // If regex is invalid, fall back to simple include
+        series = series.filter((s) =>
+          s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+        );
+      }
+    } else {
+      series = series.filter((s) =>
+        s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+      );
+    }
   }
   if (sort_by === "name") {
     return _.sortBy(series, (x) => x.name);
@@ -305,6 +318,7 @@ export default function TimeSeriesPanel({
   sort_by = "name",
   max_items_in_series = 0,
   filter = undefined,
+  isRegex = false,
   auto_refresh = true,
   // Additional function to process the data after querying
   dataReader = undefined,
@@ -325,6 +339,7 @@ export default function TimeSeriesPanel({
   sort_by?: "total" | "name";
   max_items_in_series?: number;
   filter?: string;
+  isRegex?: boolean;
   auto_refresh?: boolean;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
 }) {
@@ -367,7 +382,8 @@ export default function TimeSeriesPanel({
     smooth,
     sort_by,
     chartType,
-    filter
+    filter,
+    isRegex
   );
 
   // If we have too many series, we'll only show the top N series by total value

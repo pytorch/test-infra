@@ -24,8 +24,9 @@ import TimeSeriesPanel, {
 import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import _ from "lodash";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { BiLineChart } from "react-icons/bi";
 import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
@@ -227,6 +228,7 @@ export default function Page() {
     : PROVIDER_OPTIONS;
   const initialSelectedYAxis = (query.yAxis as YAxis) || "cost";
   const initialSearchFilter = query.searchFilter || "";
+  const initialIsRegex = query.isRegex === "true";
   const initialSelectedRepos = query.repos
     ? splitString(query.repos)
     : undefined;
@@ -260,6 +262,7 @@ export default function Page() {
   const [searchFilter, setSearchFilter] = useState(
     initialSearchFilter as string
   );
+  const [isRegex, setIsRegex] = useState(initialIsRegex);
 
   const [routerReady, setRouterReady] = useState(false);
 
@@ -277,6 +280,7 @@ export default function Page() {
     setSelectedProviders(initialSelectedProviders);
     setSelectedYAxis(initialSelectedYAxis || "cost");
     setSearchFilter(initialSearchFilter as string);
+    setIsRegex(initialIsRegex);
   }
 
   const timeParamsClickHouse = {
@@ -343,6 +347,7 @@ export default function Page() {
 
     if (selectedYAxis) params.set("yAxis", selectedYAxis);
     if (searchFilter) params.set("searchFilter", searchFilter);
+    if (isRegex) params.set("isRegex", isRegex.toString());
 
     router.push({
       pathname: router.pathname,
@@ -361,6 +366,7 @@ export default function Page() {
     selectedOwners,
     selectedYAxis,
     searchFilter,
+    isRegex,
     selectedRepos,
   ]);
 
@@ -391,6 +397,7 @@ export default function Page() {
             smooth={false}
             chartType={chartType}
             filter={searchFilter}
+            isRegex={isRegex}
             timeFieldDisplayFormat="M/D (UTC)"
             sort_by="total"
             auto_refresh={false}
@@ -559,28 +566,88 @@ export default function Page() {
     );
   };
 
+  // Create debounced search filter update function - defined once
+  const debouncedSetSearchFilter = useCallback(
+    _.debounce((value: string) => {
+      setSearchFilter(value);
+    }, 500),
+    [] // Empty dependency array ensures this is created only once
+  );
+
+  // Local state for input value to keep input responsive
+  const [inputValue, setInputValue] = useState(initialSearchFilter || "");
+
+  // Update inputValue when searchFilter changes from URL/elsewhere
+  useEffect(() => {
+    setInputValue(searchFilter);
+  }, [searchFilter]);
+
   const generateFilterBar = (type: CostCategory, style = {}) => {
+    // Update the local input value immediately for responsiveness
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
-      setTimeout(() => {
-        setSearchFilter(() => {
-          return value;
-        });
-      }, 500);
+      setInputValue(value);
+      debouncedSetSearchFilter(value);
+    };
+
+    const handleRegexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setIsRegex(e.target.checked);
     };
 
     return (
-      <TextField
-        id={`outlined-basic-${type}`}
-        label={
-          <div>
-            <FaFilter style={{ color: "var(--icon-color)" }} /> Filter {type}
-          </div>
-        }
-        onChange={handleChange}
-        variant="outlined"
-        fullWidth
-      />
+      <Box>
+        <TextField
+          id={`outlined-basic-${type}`}
+          label={
+            <div>
+              <FaFilter style={{ color: "var(--icon-color)" }} /> Filter {type}
+            </div>
+          }
+          onChange={handleChange}
+          variant="outlined"
+          fullWidth
+          value={inputValue}
+          InputProps={{
+            endAdornment: (
+              <Tooltip
+                title={
+                  isRegex
+                    ? "Disable regex pattern matching"
+                    : "Enable regex pattern matching"
+                }
+              >
+                <div
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setIsRegex(!isRegex)}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "4px 8px",
+                      marginRight: "4px",
+                      borderRadius: "4px",
+                      fontSize: "0.75rem",
+                      fontFamily: "monospace",
+                      backgroundColor: isRegex
+                        ? "rgba(63, 81, 181, 0.1)"
+                        : "transparent",
+                      color: isRegex ? "#3f51b5" : "rgba(0, 0, 0, 0.54)",
+                      border: isRegex
+                        ? "1px solid rgba(63, 81, 181, 0.5)"
+                        : "1px solid transparent",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    .*
+                  </div>
+                </div>
+              </Tooltip>
+            ),
+          }}
+        />
+      </Box>
     );
   };
 
