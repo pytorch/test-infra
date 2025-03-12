@@ -121,7 +121,7 @@ variable "lambda_timeout_scale_up" {
 variable "lambda_timeout_scale_up_chron" {
   description = "Time out for the scale up chron lambda in seconds."
   type        = number
-  default     = 60
+  default     = 900
 }
 
 variable "role_permissions_boundary" {
@@ -319,7 +319,7 @@ variable "min_available_runners" {
   type        = number
 }
 
-variable "hud_query_url" {
+variable "retry_scale_up_cron_hud_query_url" {
   description = "URL used in scale-up-chron to query HUD for queued jobs"
   type        = string
   default     = ""

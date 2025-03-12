@@ -40,7 +40,7 @@ export class Config {
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
   readonly scaleUpMinQueueTimeMinutes: number;
-  readonly scaleUpRecordQueueUrl: string | undefined;
+  readonly scaleUpCronRecordQueueUrl: string | undefined;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
   readonly sSMParamMaxCleanupAllowance: number;
@@ -96,8 +96,8 @@ export class Config {
     this.retryScaleUpRecordDelayS = Number(process.env.RETRY_SCALE_UP_RECORD_DELAY_S || '0');
     /* istanbul ignore next */
     this.retryScaleUpRecordJitterPct = Number(process.env.RETRY_SCALE_UP_RECORD_JITTER_PCT || '0');
-    this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_RECORD_QUEUE_URL;
-    this.scaleUpRecordQueueUrl = process.env.SCALE_UP_RECORD_QUEUE_URL;
+    this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_CRON_RECORD_QUEUE_URL;
+    this.scaleUpCronRecordQueueUrl = process.env.SCALE_UP_CRON_HUD_QUERY_URL;
     this.scaleUpMinQueueTimeMinutes = process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES
       ? Number(process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES)
       : 30;

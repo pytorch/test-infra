@@ -9,6 +9,7 @@ import { scaleUp } from './scale-up';
 
 import * as MetricsModule from './metrics';
 import { RunnerType } from './runners';
+import nock from 'nock';
 
 jest.mock('./runners');
 jest.mock('./gh-runners');
@@ -81,7 +82,7 @@ const runnerTypeInvalid = 'runner_type_invalid';
 const baseCfg = {
   scaleConfigOrg: 'test_org1',
   scaleUpMinQueueTimeMinutes: 30,
-  scaleUpRecordQueueUrl: 'url',
+  scaleUpCronRecordQueueUrl: 'url',
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpChronMetrics();
@@ -89,10 +90,12 @@ beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();
+
+  nock.disableNetConnect();
 });
 
 describe('scaleUpChron', () => {
-  it('invalid scaleUpRecordQueueUrl', async () => {
+  it('invalid scaleUpCronRecordQueueUrl', async () => {
     const scaleUpChron = jest.requireActual('./scale-up-chron').scaleUpChron;
 
     jest.clearAllMocks();
@@ -100,7 +103,7 @@ describe('scaleUpChron', () => {
       () =>
         ({
           ...baseCfg,
-          scaleUpRecordQueueUrl: null,
+          scaleUpCronRecordQueueUrl: null,
         } as unknown as Config),
     );
 
@@ -108,7 +111,7 @@ describe('scaleUpChron', () => {
     mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, { is_ephemeral: false } as RunnerType]]));
 
     await expect(scaleUpChron(metrics)).rejects.toThrow(
-      new Error('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests'),
+      new Error('scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests'),
     );
   });
 

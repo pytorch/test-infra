@@ -65,7 +65,7 @@ resource "aws_lambda_function" "scale_up" {
       REDIS_LOGIN                          = var.redis_login
       RETRY_SCALE_UP_RECORD_DELAY_S        = "60"
       RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
-      RETRY_SCALE_UP_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
+      RETRY_SCALE_UP_CRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
       SCALE_CONFIG_ORG                     = var.scale_config_org
       SCALE_CONFIG_REPO                    = var.scale_config_repo

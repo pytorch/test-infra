@@ -11,23 +11,23 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   // 1. Queries for queued runners via HUD
   // 2. Polls scale-config to filter the list to ones that are self-hosted by this fleet and
   //    are ephemeral and nonephemeral
-  // 3. Sends a SQS request to the scale-up lambda to provision more of those instances
+  // 3. For each runner queued for longer than the minimum delay, try to scale it up
 
   const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
 
   const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
-  if (!Config.Instance.scaleUpRecordQueueUrl) {
+  if (!Config.Instance.scaleUpCronRecordQueueUrl) {
     metrics.scaleUpInstanceFailureNonRetryable(
-      'scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests',
+      'scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests',
     );
-    throw new Error('scaleUpRecordQueueUrl is not set. Cannot send queued scale up requests');
+    throw new Error('scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests');
   }
-  const scaleUpRecordQueueUrl = Config.Instance.scaleUpRecordQueueUrl;
+  const scaleUpCronRecordQueueUrl = Config.Instance.scaleUpCronRecordQueueUrl;
   // Only proactively scale up the jobs that have been queued for longer than normal
   // Filter out the queued jobs that are do not correspond to a valid runner type
-  const queuedJobs = (await getQueuedJobs(metrics, scaleUpRecordQueueUrl))
+  const queuedJobs = (await getQueuedJobs(metrics, scaleUpCronRecordQueueUrl))
     .filter((runner) => {
       return (
         runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes && runner.org === Config.Instance.scaleConfigOrg
@@ -76,12 +76,12 @@ interface QueuedJobsForRunner {
 
 export async function getQueuedJobs(
   metrics: ScaleUpChronMetrics,
-  scaleUpRecordQueueUrl: string,
+  scaleUpCronRecordQueueUrl: string,
 ): Promise<QueuedJobsForRunner[]> {
   // This function queries the HUD for queued runners
   // and returns a list of them
 
-  const url = scaleUpRecordQueueUrl;
+  const url = scaleUpCronRecordQueueUrl;
 
   try {
     const response = await expBackOff(() => {
@@ -93,9 +93,25 @@ export async function getQueuedJobs(
 
     // Map the response to the class
     if (response && response.data) {
-      return JSON.parse(response.data) as QueuedJobsForRunner[];
+      const data = JSON.parse(response.data);
+      // check if data is valid as QueuedJobsForRunner[]
+      if (data && Array.isArray(data)) {
+        return data.filter(
+          (runner) =>
+            runner.runner_label &&
+            runner.org &&
+            runner.repo &&
+            typeof runner.num_queued_jobs == 'number' &&
+            runner.num_queued_jobs > 0 &&
+            typeof runner.min_queue_time_minutes == 'number' &&
+            typeof runner.max_queue_time_minutes == 'number',
+        );
+      } else {
+        /* istanbul ignore next */
+        throw new Error(`Invalid data returned from axios get request with url: ${url} - Not an array`);
+      }
     } else {
-      throw new Error('No data returned from axios get request with url: ' + url);
+      throw new Error(`No data returned from axios get request with url: ${url}`);
     }
   } catch (error) {
     metrics.queuedRunnerFailure((error as Error).message);
