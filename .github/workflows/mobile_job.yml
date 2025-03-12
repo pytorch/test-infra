@@ -342,17 +342,6 @@ jobs:
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
-      - name: Upload iOS artifacts to S3
-        uses: seemethere/upload-artifact-s3@v5
-        if: always()
-        with:
-          retention-days: 14
-          s3-bucket: gha-artifacts
-          s3-prefix: |
-            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
-          path: |
-            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
-
       - name: Run Android tests on devices
         id: android-test
         if: ${{ inputs.device-type == 'android' }}
@@ -396,6 +385,32 @@ jobs:
               --git-job-name "${GIT_JOB_NAME}" \
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
+
+      - name: Check artifacts if any job fails
+        if: failure()
+        shell: bash
+        env:
+          DEVICE_TYPE: ${{ inputs.device-type }}
+          IOS_FILE: ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
+          ANDROID_FILE: android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
+          GIT_JOB_NAME: ${{ GIT_JOB_NAME}}
+        run: |
+          if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE"]]; then
+            echo '{"git_job_name": "$GIT_JOB_NAME" }' >> $ANDROID_FILE
+
+          if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE"]]; then
+            echo '{"git_job_name": "$GIT_JOB_NAME" }' >> $IOS_FILE
+
+      - name: Upload iOS artifacts to S3
+        uses: seemethere/upload-artifact-s3@v5
+        if: always()
+        with:
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            device_farm/${{ github.run_id }}/${{ github.run_attempt }}/artifacts
+          path: |
+            test-infra/tools/device-farm-runner/ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
 
       - name: Upload Android artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
