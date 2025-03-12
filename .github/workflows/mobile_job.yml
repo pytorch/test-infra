@@ -393,12 +393,12 @@ jobs:
         shell: bash
         env:
           DEVICE_TYPE: ${{ inputs.device-type }}
-          ARTIFACT_FILE: ${{ inputs.device-type }}-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
+          BENCHMARK_OUTPUT: ${{ inputs.device-type }}-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           GIT_JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
         run: |
-          if [[ ! -f "$ARTIFACT_FILE" ]]; then
-            echo "missing artifact json file for ${DEVICE_TYPE} with name ${ARTIFACT_FILE}, generating ... "
-            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$ARTIFACT_FILE"
+          if [[ ! -f "$BENCHMARK_OUTPUT" ]]; then
+            echo "missing artifact json file for ${DEVICE_TYPE} with name ${BENCHMARK_OUTPUT}, generating ... "
+            echo "{\"git_job_name\": \"$GIT_JOB_NAME\"}" >> "$BENCHMARK_OUTPUT"
           fi
 
       - name: Upload artifacts to S3
