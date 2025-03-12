@@ -386,8 +386,10 @@ jobs:
               --new-json-output-format "${NEW_OUTPUT_FORMAT_FLAG}"
             popd
 
+
       - name: Check artifacts if any job fails
         if: failure()
+        working-directory: test-infra/tools/device-farm-runner
         shell: bash
         env:
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
@@ -395,14 +397,13 @@ jobs:
           IOS_FILE: ios-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           ANDROID_FILE: android-artifacts-${{ steps.get-job-id.outputs.job-id }}.json
           GIT_JOB_NAME: ${{ steps.get-job-id.outputs.job-name }}
-        run:
-          pushd "${WORKING_DIRECTORY}"
+        run: |
           if [[ "$DEVICE_TYPE" == "android" && ! -f "$ANDROID_FILE"]]; then
-            echo "missing andrroid artifact json, generating ..."
-            echo '{"git_job_name": "$GIT_JOB_NAME" }' >> $ANDROID_FILE
+            echo "missing android artifact json, generating ..."
+            '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> $ANDROID_FILE
           if [[ "$DEVICE_TYPE" == "ios" && ! -f "$IOS_FILE"]]; then
             echo "missing ios artifact json, generating ..."
-            echo '{"git_job_name": "$GIT_JOB_NAME" }' >> $IOS_FILE
+            '{"git_job_name": "%s"}\n' "$GIT_JOB_NAME" >> $IOS_FILE
 
       - name: Upload iOS artifacts to S3
         uses: seemethere/upload-artifact-s3@v5
