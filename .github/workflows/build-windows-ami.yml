@@ -36,7 +36,7 @@ jobs:
           role-to-assume: arn:aws:iam::391835788720:role/gha-packer-role
 
       - name: Setup Packer
-        uses: hashicorp/setup-packer@main
+        uses: hashicorp/setup-packer@release/2.7
         with:
           version: ${{ env.PACKER_VERSION }}
 
