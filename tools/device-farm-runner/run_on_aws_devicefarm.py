@@ -208,7 +208,7 @@ def parse_args() -> Any:
     )
 
     parser.add_argument(
-        "--new-json-output",
+        "--new-json-output-format",
         action="store_true",
         help="enable new json artifact output format with jobrun, and list of artifacts, this is temporary ",
     )

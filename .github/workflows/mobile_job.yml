@@ -23,7 +23,6 @@ on:
         required: false
         type: string
         default: '3.11'
-
       # AWS Device Farm, this can be copied from AWS console and it's default to
       # PyTorch project
       project-arn:
@@ -34,6 +33,11 @@ on:
         description: The device pool associated with the project
         default: 'arn:aws:devicefarm:us-west-2::devicepool:082d10e5-d7d7-48a5-ba5c-b33d66efa1f5'
         type: string
+      new-output-format-flag:
+        description: experiment flag to enable the new artifact json format
+        required: false
+        default: false
+        type: boolean
 
       # Pulling test-infra itself for device farm runner script
       test-infra-repository:
@@ -362,6 +366,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           JOB_ID: ${{ steps.get-job-id.outputs.job-id }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
+          NEW_OUTPUT_FORMAT_FLAG: ${{ inputs.new-output-format-flag }}
         uses: nick-fields/retry@v3.0.0
         with:
           shell: bash
@@ -382,7 +387,8 @@ jobs:
               --name-prefix "${JOB_NAME}-${DEVICE_TYPE}" \
               --workflow-id "${RUN_ID}" \
               --workflow-attempt "${RUN_ATTEMPT}" \
-              --output "android-artifacts-${JOB_ID}.json"
+              --output "android-artifacts-${JOB_ID}.json" \
+              --new-json-output-format ${NEW_OUTPUT_FORMAT_FLAG}
             popd
 
       - name: Upload Android artifacts to S3
