@@ -2,7 +2,14 @@
   --background-color: #ffffff;
   --text-color: #212529;
   --link-color: #0064cf;
+  --navbar-bg: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
+  --navbar-shadow: 0 -4px 20px 0px #c2c2c2;
+  --dropdown-bg: white;
   --code-bg: aliceblue;
+  --icon-color: black;
+  --dropdown-shadow: 0 -4px 20px 0px #c2c2c2;
+  --button-color: #212529;
+  --button-bg: transparent;
   --border-color: #e1e1e1;
 
   /* HUD specific colors */
@@ -25,8 +32,8 @@
   --revert-button-text: white;
   --job-hover-bg: khaki;
   --duration-color-normal: #212529;
-  --duration-color-good: green;
-  --duration-color-bad: red;
+  --duration-color-good: #4caf50;
+  --duration-color-bad: #f44336;
 
   /* Button colors */
   --warning-button-bg: #ffc107;
@@ -89,29 +96,68 @@ td a {
   color: var(--link-color);
 }
 
+/* MUI Data Grid specific styles */
+.MuiDataGrid-root .MuiDataGrid-cell a {
+  color: var(--link-color);
+}
+
 button {
   cursor: pointer;
   display: inline-block;
   font-weight: 400;
-  color: var(--text-color);
+  color: var(--button-color);
   text-align: center;
   vertical-align: middle;
   user-select: none;
   border: 1px solid transparent;
   border-radius: 0.25rem;
-  background-color: transparent;
+  background-color: var(--button-bg);
+}
+
+/* Form elements styling */
+input,
+textarea,
+select {
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+}
+
+/* Fix for select dropdown text color */
+select option {
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
 }
 
 /* Add table styling with border colors */
 table {
   border-collapse: collapse;
   border-color: var(--border-color);
+  color: var(--text-color);
+  background-color: var(--dropdown-bg);
 }
 
 th,
 td {
   border-color: var(--border-color);
   padding: 1px 3px;
+}
+
+/* Style for any element with a border */
+[class*="border"],
+[style*="border"] {
+  border-color: var(--border-color) !important;
+}
+
+/* For dividers and horizontal rules */
+hr {
+  border-color: var(--border-color);
+}
+
+/* Component background elements */
+.component-bg {
+  background-color: var(--dropdown-bg);
 }
 
 .animate-on-click {
