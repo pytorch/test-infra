@@ -385,7 +385,8 @@ class S3Index:
         for obj in sorted(self.gen_file_list(subdir, package_name)):
             # Do not include checksum for nightly packages, see
             # https://github.com/pytorch/test-infra/pull/6307
-            maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum and not obj.orig_key.startswith("whl/nightly") else ""
+            is_excluded = obj.key.startswith("whl/nightly") or obj.key.startswith("whl/test")
+            maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum and not is_excluded else ""
             pep658_attribute = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
