@@ -87,11 +87,6 @@
   white-space: nowrap;
   border-radius: 2px;
   padding: 0 2px;
-  transition: max-width 0.2s ease;
-}
-
-.jobMetadataTruncated:hover {
-  max-width: 60ch;
 }
 
 .jobMetadataTruncatedAuthor {
