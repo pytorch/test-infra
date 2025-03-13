@@ -208,6 +208,14 @@ def is_config_valid_internally(
                 "property or set it to a negative value."
             )
             invalid_runners.add(runner_type)
+        # This validation is absolute not necessary, as it is being validated on the jsonschema
+        # but it is here to make the code scanner happy
+        elif not isinstance(runner_config["max_available"], int):
+            print(
+                f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
+                "which is not an integer"
+            )
+            invalid_runners.add(runner_type)
         elif (
             runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
             and runner_config["max_available"] >= 0
