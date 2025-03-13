@@ -95,14 +95,6 @@ export async function getQueuedJobs(
     if (response && response.data) {
       // check if data is valid as QueuedJobsForRunner[]
       if (response.data && Array.isArray(response.data)) {
-        response.data.push({
-          runner_label: 'linux.12xlarge',
-          org: 'pytorch',
-          repo: 'pytorch',
-          num_queued_jobs: 3,
-          min_queue_time_minutes: 1790,
-          max_queue_time_minutes: 1790
-        });
         return response.data.filter(
           (runner) =>
             runner.runner_label &&
