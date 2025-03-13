@@ -5,7 +5,7 @@
 }
 
 .classified {
-  color: lightpink;
+  color: var(--color-classified);
 }
 
 .success {
