@@ -53,14 +53,14 @@
 /* code to roatate the workflow name headers */
 .jobHeader {
   font-family: sans-serif;
-  height: 220px;
+  height: 150px; /* Reduced from 220px */
   white-space: nowrap;
   font-family: sans-serif;
   padding-right: 4px;
 }
 
 .jobHeaderName {
-  transform: translate(10px, 100px) rotate(315deg);
+  transform: translate(10px, 70px) rotate(315deg); /* Adjusted Y position from 100px to 70px */
   width: 12px;
   font-weight: 400;
   font-size: 0.8em;
@@ -153,10 +153,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.4rem;
-  margin-bottom: 0.5rem;
-  float: left;
-  margin-right: 2rem;
-  width: 200px;
+  margin-bottom: 1rem;
+  width: 100%;
 }
 
 .controlsContainer > div {
