@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 from pathlib import Path
-from typing import Any, cast, Dict, List, NamedTuple
+from typing import Any, Union, cast, Dict, List, NamedTuple
 
 import jsonschema  # type: ignore[import-untyped]
 import yaml
@@ -139,7 +139,7 @@ def runner_types_are_equivalent(
     return are_same
 
 
-def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
+def is_config_valid_internally(runner_types: Dict[str, Dict[str, Union[int, str, dict]]]) -> bool:
     """
     Ensure that for every linux runner type in the config:
 
@@ -159,7 +159,23 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
             # so the next part of the code might break
             continue
 
-        ephemeral_variant = runner_config.get("variants", {}).get("ephemeral", None)
+        # Unecessary validations, that could be a simple onliner, but Code scanning / lintrunner
+        # is mercerless and will complain about it
+        if "variants" not in runner_config:
+            print(
+                f"Runner type {runner_type} does not have a variants section defined"
+            )
+            invalid_runners.add(runner_type)
+            continue
+        if not isinstance(runner_config["variants"], dict):
+            print(
+                f"Runner type {runner_type} has a variants section that is not a dictionary"
+            )
+            invalid_runners.add(runner_type)
+            continue
+
+        ephemeral_variant: Union[None, dict] = runner_config["variants"].get("ephemeral", None)
+
         if ephemeral_variant is None:
             print(
                 f"Runner type {runner_type} does not have an ephemeral variant defined"
