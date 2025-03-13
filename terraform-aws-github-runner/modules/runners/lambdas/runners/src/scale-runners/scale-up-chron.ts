@@ -15,7 +15,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
 
   const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
 
-  const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics);
+  const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics, Config.Instance.scaleConfigRepoPath);
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
   if (!Config.Instance.scaleUpCronRecordQueueUrl) {
@@ -45,14 +45,14 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   }
 
   // Send a message to the SQS queue to scale up the runners
-  const scaleUpRequests: Array<ActionRequestMessage> = queuedJobs.map((runner) => {
-    return {
+  const scaleUpRequests: Array<ActionRequestMessage> = queuedJobs.flatMap((runner) => {
+    return new Array(runner.num_queued_jobs).fill({
       id: Math.floor(Math.random() * 100000000000000),
       eventType: 'workflow_job',
       repositoryName: runner.repo,
       repositoryOwner: runner.org,
       runnerLabels: [runner.runner_label],
-    };
+    });
   });
 
   for (const request of shuffleArrayInPlace(scaleUpRequests)) {
@@ -93,10 +93,17 @@ export async function getQueuedJobs(
 
     // Map the response to the class
     if (response && response.data) {
-      const data = JSON.parse(response.data);
       // check if data is valid as QueuedJobsForRunner[]
-      if (data && Array.isArray(data)) {
-        return data.filter(
+      if (response.data && Array.isArray(response.data)) {
+        response.data.push({
+          runner_label: 'linux.12xlarge',
+          org: 'pytorch',
+          repo: 'pytorch',
+          num_queued_jobs: 3,
+          min_queue_time_minutes: 1790,
+          max_queue_time_minutes: 1790
+        });
+        return response.data.filter(
           (runner) =>
             runner.runner_label &&
             runner.org &&
