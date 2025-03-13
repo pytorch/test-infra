@@ -74,10 +74,10 @@
   --border-color: #3a3a3a;
 
   /* HUD specific colors - dark mode variants */
-  --forced-merge-bg: #453e00;
-  --forced-merge-failure-bg: #5e3a00;
+  --forced-merge-bg: #827d33;
+  --forced-merge-failure-bg: #a16b42;
   --selected-row-bg: #0a3550;
-  --highlight-bg: #525200;
+  --highlight-bg: #827d33;
 
   /* MiniHud specific colors - dark mode variants */
   --workflow-box-none-bg: #383838;

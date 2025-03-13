@@ -45,7 +45,7 @@
 .monster_with_count {
   position: relative;
   display: inline-block;
-  margin: 0 1px;
+  margin: 0;
 }
 
 .monster_count {

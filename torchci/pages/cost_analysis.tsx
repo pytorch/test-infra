@@ -599,8 +599,8 @@ export default function Page() {
         <TextField
           id={`outlined-basic-${type}`}
           label={
-            <div>
-              <FaFilter /> Filter {type}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <FaFilter style={{ color: 'var(--text-color)' }} /> Filter {type}
             </div>
           }
           onChange={handleChange}
@@ -631,11 +631,11 @@ export default function Page() {
                       fontSize: "0.75rem",
                       fontFamily: "monospace",
                       backgroundColor: isRegex
-                        ? "rgba(63, 81, 181, 0.1)"
+                        ? "var(--highlight-bg)"
                         : "transparent",
-                      color: isRegex ? "#3f51b5" : "rgba(0, 0, 0, 0.54)",
+                      color: isRegex ? "var(--link-color)" : "var(--text-color-secondary)",
                       border: isRegex
-                        ? "1px solid rgba(63, 81, 181, 0.5)"
+                        ? "1px solid var(--link-color)"
                         : "1px solid transparent",
                       transition: "all 0.2s",
                     }}
@@ -733,7 +733,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <MdOutlineStackedBarChart size={"2em"} fill="#444" />
+                      <MdOutlineStackedBarChart size={"2em"} fill="var(--text-color)" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -744,7 +744,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <FaRegChartBar size={"2em"} fill="#444" />
+                      <FaRegChartBar size={"2em"} fill="var(--text-color)" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -755,7 +755,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <BiLineChart size={"2em"} fill="#444" />
+                      <BiLineChart size={"2em"} fill="var(--text-color)" />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
