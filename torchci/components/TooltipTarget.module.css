@@ -8,7 +8,7 @@
 }
 
 .content {
-  background-color: lightgray;
+  background-color: var(--tooltip-bg);
   padding: 5px 8px;
   border-radius: 6px;
   cursor: default;
@@ -16,13 +16,13 @@
 
   position: absolute;
   z-index: 1;
-  top: calc(100% + 5px);
-  left: calc(100% + 5px);
-  white-space: nowrap;
+
+  max-width: 95vw;
+  min-height: 3em;
 }
 
 .contentPinned {
-  background-color: lightblue;
+  background-color: var(--tooltip-pinned-bg);
   padding: 5px 8px;
   border-radius: 6px;
   cursor: default;
@@ -30,7 +30,16 @@
 
   position: absolute;
   z-index: 1;
-  top: calc(100% + 5px);
-  left: calc(100% + 5px);
-  white-space: nowrap;
+
+  max-width: 95vw;
+}
+
+.content pre {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.contentPinned pre {
+  white-space: pre-wrap;
+  margin: 0;
 }

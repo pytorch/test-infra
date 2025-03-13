@@ -1,3 +1,47 @@
+:root {
+  --background-color: #ffffff;
+  --text-color: #212529;
+  --link-color: #0064cf;
+  --code-bg: aliceblue;
+  --border-color: #e1e1e1;
+
+  /* HUD specific colors */
+  --forced-merge-bg: lightyellow;
+  --forced-merge-failure-bg: #ffe0b3;
+  --selected-row-bg: lightblue;
+  --highlight-bg: #ffa;
+
+  /* MiniHud specific colors */
+  --workflow-box-none-bg: lightgray;
+  --workflow-box-fail-bg: mistyrose;
+  --workflow-box-pending-bg: azure;
+  --workflow-box-success-bg: lightgreen;
+  --workflow-box-classified-bg: linen;
+  --workflow-box-highlight-border: #5eced4;
+  --workflow-box-highlight-shadow: rgba(81, 203, 238, 1);
+  --failed-job-highlight-border: #5eced4;
+  --revert-button-bg: #dc3545;
+  --revert-button-border: #dc3545;
+  --revert-button-text: white;
+  --job-hover-bg: khaki;
+  --duration-color-normal: #212529;
+  --duration-color-good: green;
+  --duration-color-bad: red;
+
+  /* Button colors */
+  --warning-button-bg: #ffc107;
+  --warning-button-border: #ffc107;
+  --warning-button-text: #212529;
+  --info-button-bg: #17a2b8;
+  --info-button-border: #17a2b8;
+  --info-button-text: white;
+
+  /* Tooltip colors */
+  --tooltip-bg: #e0e0e0;
+  --tooltip-pinned-bg: #add8e6;
+  --tooltip-text: #212529;
+}
+
 html {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
@@ -11,6 +55,8 @@ h1 {
 body {
   margin: 0;
   padding: 5px;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 a {
@@ -23,32 +69,53 @@ a {
 }
 
 pre {
-  background-color: aliceblue;
+  background-color: var(--code-bg);
 }
 
 code {
-  background-color: aliceblue;
+  background-color: var(--code-bg);
 }
 
 a {
   text-decoration: none;
-  color: #0064cf;
+  color: var(--link-color);
+}
+
+/* Specific styling for table links */
+table a,
+tbody a,
+tr a,
+td a {
+  color: var(--link-color);
 }
 
 button {
   cursor: pointer;
   display: inline-block;
   font-weight: 400;
-  color: #212529;
+  color: var(--text-color);
   text-align: center;
   vertical-align: middle;
   user-select: none;
   border: 1px solid transparent;
   border-radius: 0.25rem;
+  background-color: transparent;
+}
+
+/* Add table styling with border colors */
+table {
+  border-collapse: collapse;
+  border-color: var(--border-color);
+}
+
+th,
+td {
+  border-color: var(--border-color);
+  padding: 1px 3px;
 }
 
 .animate-on-click {
-  background-color: white;
+  background-color: var(--background-color);
 }
 
 .animate-on-click:active {

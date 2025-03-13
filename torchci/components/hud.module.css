@@ -72,7 +72,7 @@
 
 .jobMetadata a {
   text-decoration: none;
-  color: #0064cf;
+  color: var(--link-color);
 }
 
 .jobMetadataTruncated {
@@ -115,7 +115,7 @@
 .branchFormInput {
   font-weight: bold;
   font-family: monospace;
-  background-color: aliceblue;
+  background-color: var(--code-bg);
   font-size: 1em;
   border: 0px;
   padding: 0px;
@@ -129,15 +129,15 @@
 }
 
 .forcedMerge {
-  background-color: lightyellow;
+  background-color: var(--forced-merge-bg);
 }
 
 .forcedMergeWithFailure {
-  background-color: #ffe0b3;
+  background-color: var(--forced-merge-failure-bg);
 }
 
 .selectedRow {
-  background-color: lightblue;
+  background-color: var(--selected-row-bg);
   font-weight: bold;
 }
 
@@ -150,5 +150,5 @@
 }
 
 .highlight {
-  background-color: #ffa;
+  background-color: var(--highlight-bg);
 }
