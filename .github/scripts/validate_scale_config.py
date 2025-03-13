@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 from pathlib import Path
-from typing import Any, Union, cast, Dict, List, NamedTuple
+from typing import Any, cast, Dict, List, NamedTuple, Union
 
 import jsonschema  # type: ignore[import-untyped]
 import yaml
@@ -139,7 +139,9 @@ def runner_types_are_equivalent(
     return are_same
 
 
-def is_config_valid_internally(runner_types: Dict[str, Dict[str, Union[int, str, dict]]]) -> bool:
+def is_config_valid_internally(
+    runner_types: Dict[str, Dict[str, Union[int, str, dict]]],
+) -> bool:
     """
     Ensure that for every linux runner type in the config:
 
@@ -162,9 +164,7 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, Union[int, str,
         # Unecessary validations, that could be a simple onliner, but Code scanning / lintrunner
         # is mercerless and will complain about it
         if "variants" not in runner_config:
-            print(
-                f"Runner type {runner_type} does not have a variants section defined"
-            )
+            print(f"Runner type {runner_type} does not have a variants section defined")
             invalid_runners.add(runner_type)
             continue
         if not isinstance(runner_config["variants"], dict):
@@ -174,7 +174,9 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, Union[int, str,
             invalid_runners.add(runner_type)
             continue
 
-        ephemeral_variant: Union[None, dict] = runner_config["variants"].get("ephemeral", None)
+        ephemeral_variant: Union[None, dict] = runner_config["variants"].get(
+            "ephemeral", None
+        )
 
         if ephemeral_variant is None:
             print(
@@ -183,9 +185,9 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, Union[int, str,
             invalid_runners.add(runner_type)
             continue
         else:
-            if not ephemeral_variant.get("is_ephemeral", False) and not runner_config.get(
+            if not ephemeral_variant.get(
                 "is_ephemeral", False
-            ):
+            ) and not runner_config.get("is_ephemeral", False):
                 print(
                     f"Runner type {runner_type} has an ephemeral variant that is not ephemeral"
                 )
