@@ -27,16 +27,16 @@ export default function TooltipTarget({
       return;
     }
     clearTimeout(timeoutId.current!);
-    // Show tooltip immediately
-    setVisible(true);
+    timeoutId.current = setTimeout(() => {
+      setVisible(true);
+    }, 5);
   }
 
   function handleMouseLeave() {
-    // Add a longer delay before hiding the tooltip to prevent flickering
-    clearTimeout(timeoutId.current!);
-    timeoutId.current = setTimeout(() => {
-      setVisible(false);
-    }, 100);
+    setVisible(false);
+    if (timeoutId.current !== null) {
+      clearTimeout(timeoutId.current!);
+    }
   }
   function handleClick(e: React.MouseEvent) {
     if (pinnedId.sha !== undefined || pinnedId.name !== undefined) {
