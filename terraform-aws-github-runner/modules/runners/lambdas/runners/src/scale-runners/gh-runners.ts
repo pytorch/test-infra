@@ -377,26 +377,26 @@ export async function getRunnerTypes(
           return;
         }
 
-        if (runnerType.variants.size > 0) {
-          Array.from(runnerType.variants.keys()).forEach((variant) => {
-            const variantType = runnerType.variants?.get(variant);
-            /* istanbul ignore next */
-            if (!variantType) {
-              return;
-            }
+        Array.from(runnerType.variants.keys()).forEach((variant) => {
+          const variantType = runnerType.variants?.get(variant);
+          /* istanbul ignore next */
+          if (!variantType) {
+            return;
+          }
 
-            let variantRunnTypeName: string;
-            if (key.startsWith('lf.c.')) {
-              variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
-            } else if (key.startsWith('lf.')) {
-              variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
-            } else {
-              variantRunnTypeName = `${variant}.${key}`;
-            }
+          let variantRunnTypeName: string;
+          if (key.startsWith('lf.c.')) {
+            variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
+          } else if (key.startsWith('lf.')) {
+            variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
+          } else if (key.startsWith('c.')) {
+            variantRunnTypeName = `c.${variant}.${key.slice(2)}`;
+          } else {
+            variantRunnTypeName = `${variant}.${key}`;
+          }
 
-            result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
-          });
-        }
+          result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
+        });
       });
 
       const filteredResult: Map<string, RunnerType> = new Map(

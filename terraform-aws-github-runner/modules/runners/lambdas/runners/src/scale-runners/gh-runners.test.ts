@@ -695,6 +695,15 @@ runner_types:
       variants:
         ephemeral:
           is_ephemeral: true
+    c.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      min_available: 1
+      max_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        dummyvariant: {}
     lf.c.linux.4xlarge:
       instance_type: c5.2xlarge
       os: linux
@@ -702,6 +711,7 @@ runner_types:
       disk_size: 150
       is_ephemeral: false
       variants:
+        dummyvariant: {}
         ephemeral:
           is_ephemeral: true`;
 
@@ -767,6 +777,30 @@ runner_types:
       },
     ],
     [
+      'c.dummyvariant.linux.4xlarge',
+      {
+        runnerTypeName: 'c.dummyvariant.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'c.linux.4xlarge',
+      {
+        runnerTypeName: 'c.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
       'lf.linux.4xlarge',
       {
         runnerTypeName: 'lf.linux.4xlarge',
@@ -794,6 +828,17 @@ runner_types:
       'lf.c.linux.4xlarge',
       {
         runnerTypeName: 'lf.c.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.c.dummyvariant.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.dummyvariant.linux.4xlarge',
         instance_type: 'c5.2xlarge',
         os: 'linux',
         min_available: 1,

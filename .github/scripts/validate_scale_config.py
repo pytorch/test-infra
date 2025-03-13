@@ -145,6 +145,7 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
 
     1 - they match RunnerTypeScaleConfig https://github.com/pytorch/test-infra/blob/f3c58fea68ec149391570d15a4d0a03bc26fbe4f/terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/runners.ts#L50
     2 - they have a max_available of at least 50, or is not enforced
+    3 - a ephemeral variant is defined
     """
     invalid_runners = set()
 
@@ -157,6 +158,23 @@ def is_config_valid_internally(runner_types: Dict[str, Dict[str, str]]) -> bool:
             # continue, as the syntax is invalid and we can't trust the rest of the config
             # so the next part of the code might break
             continue
+
+        ephemeral_variant = runner_config.get("variants", {}).get("ephemeral", None)
+        if ephemeral_variant is None:
+            print(
+                f"Runner type {runner_type} does not have an ephemeral variant defined"
+            )
+            invalid_runners.add(runner_type)
+            continue
+        else:
+            if not ephemeral_variant.get("is_ephemeral", False) and not runner_config.get(
+                "is_ephemeral", False
+            ):
+                print(
+                    f"Runner type {runner_type} has an ephemeral variant that is not ephemeral"
+                )
+                invalid_runners.add(runner_type)
+                continue
 
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
