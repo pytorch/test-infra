@@ -60,7 +60,7 @@
 }
 
 .jobHeaderName {
-  transform: translate(10px, 70px) rotate(315deg);
+  transform: translate(5px, 60px) rotate(315deg);
   width: 12px;
   font-weight: 400;
   font-size: 0.8em;
