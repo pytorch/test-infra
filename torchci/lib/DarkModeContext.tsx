@@ -6,8 +6,12 @@ import {
   useState,
 } from "react";
 
-// Theme mode options
-export type ThemeMode = "light" | "dark" | "system";
+// Theme mode options as enum
+export enum ThemeMode {
+  Light = "light",
+  Dark = "dark",
+  System = "system"
+}
 
 type DarkModeContextType = {
   themeMode: ThemeMode;
@@ -24,17 +28,15 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     // Only run in browser context
     if (typeof window !== "undefined") {
-      const savedThemeMode = localStorage.getItem(
-        "themeMode"
-      ) as ThemeMode | null;
+      const savedThemeMode = localStorage.getItem("themeMode");
       if (
         savedThemeMode &&
-        ["light", "dark", "system"].includes(savedThemeMode)
+        Object.values(ThemeMode).includes(savedThemeMode as ThemeMode)
       ) {
-        return savedThemeMode;
+        return savedThemeMode as ThemeMode;
       }
     }
-    return "light";
+    return ThemeMode.Light;
   });
 
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -58,10 +60,10 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
 
   // Update darkMode based on themeMode and system preference
   useEffect(() => {
-    if (themeMode === "system") {
+    if (themeMode === ThemeMode.System) {
       setDarkMode(systemDarkMode);
     } else {
-      setDarkMode(themeMode === "dark");
+      setDarkMode(themeMode === ThemeMode.Dark);
     }
   }, [themeMode, systemDarkMode]);
 
