@@ -1,16 +1,18 @@
 .target {
-  cursor: pointer;
+  cursor: help;
 }
 
 .container {
   position: relative;
+  display: inline-flex;
 }
 
 .content {
   background-color: lightgray;
-  padding: 5px 0;
+  padding: 5px 8px;
   border-radius: 6px;
   cursor: default;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 
   position: absolute;
   z-index: 1;
@@ -21,9 +23,10 @@
 
 .contentPinned {
   background-color: lightblue;
-  padding: 5px 0;
+  padding: 5px 8px;
   border-radius: 6px;
   cursor: default;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 
   position: absolute;
   z-index: 1;

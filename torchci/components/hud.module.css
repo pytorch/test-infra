@@ -29,6 +29,27 @@
   cursor: default;
 }
 
+/* Define column widths */
+.jobColumnThin {
+  width: 100px;
+}
+
+.jobColumnMedium {
+  width: 150px;
+}
+
+.jobColumnWide {
+  width: 200px;
+}
+
+.jobColumnXWide {
+  width: 250px;
+}
+
+.jobColumnFlex {
+  flex: 1;
+}
+
 /* code to roatate the workflow name headers */
 .jobHeader {
   font-family: sans-serif;
@@ -61,9 +82,16 @@
   min-width: 0;
   max-width: 37ch;
   display: inline-block;
-  overflow: clip;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 2px;
+  padding: 0 2px;
+  transition: max-width 0.2s ease;
+}
+
+.jobMetadataTruncated:hover {
+  max-width: 60ch;
 }
 
 .jobMetadataTruncatedAuthor {
@@ -73,9 +101,11 @@
   min-width: 0;
   max-width: 12ch;
   display: inline-block;
-  overflow: clip;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 .branchForm {
@@ -112,6 +142,10 @@
 }
 
 .center {
+  text-align: center;
+}
+
+.centered {
   text-align: center;
 }
 
