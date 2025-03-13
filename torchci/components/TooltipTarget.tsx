@@ -19,6 +19,7 @@ export default function TooltipTarget({
 }) {
   const [visible, setVisible] = useState(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
+  const targetRef = useRef<HTMLDivElement>(null);
   const isPinned = pinnedId.sha == sha && pinnedId.name == name;
 
   function handleMouseOver() {
@@ -26,15 +27,16 @@ export default function TooltipTarget({
       return;
     }
     clearTimeout(timeoutId.current!);
-    timeoutId.current = setTimeout(() => {
-      setVisible(true);
-    }, 5);
+    // Show tooltip immediately
+    setVisible(true);
   }
+
   function handleMouseLeave() {
-    // Add a small delay before hiding the tooltip to prevent flickering
+    // Add a longer delay before hiding the tooltip to prevent flickering
+    clearTimeout(timeoutId.current!);
     timeoutId.current = setTimeout(() => {
       setVisible(false);
-    }, 50);
+    }, 100);
   }
   function handleClick(e: React.MouseEvent) {
     if (pinnedId.sha !== undefined || pinnedId.name !== undefined) {
@@ -60,11 +62,12 @@ export default function TooltipTarget({
     ) : null;
 
   return (
-    <div className={styles.target}>
+    <div className={styles.target} ref={targetRef}>
       <div
         onMouseOver={handleMouseOver}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
+        className={styles.targetContent}
       >
         {children}
       </div>

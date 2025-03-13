@@ -1,10 +1,19 @@
 .target {
   cursor: help;
   position: relative;
+  display: inline-block;
+}
+
+.targetContent {
+  display: inline-block;
+  padding: 2px 0;
 }
 
 .container {
   position: absolute;
+  left: 0;
+  top: -5px;
+  transform: translateY(-100%);
   display: inline-flex;
   z-index: 100;
   pointer-events: none;
@@ -17,12 +26,11 @@
   cursor: default;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   pointer-events: auto;
-
-  position: absolute;
+  position: relative;
   z-index: 1;
-
   max-width: 95vw;
   min-height: 3em;
+  margin-bottom: 10px;
 }
 
 .contentPinned {
@@ -32,11 +40,10 @@
   cursor: default;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   pointer-events: auto;
-
-  position: absolute;
+  position: relative;
   z-index: 1;
-
   max-width: 95vw;
+  margin-bottom: 10px;
 }
 
 .content pre {
