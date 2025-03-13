@@ -1,8 +1,8 @@
 import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import DarkModeEChart from "components/DarkModeEChart";
 import TablePanel from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
@@ -64,7 +64,7 @@ function NightlyJobsRedPanel({
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
+      <DarkModeEChart
         style={{ height: "100%", width: "100%" }}
         option={options}
       />

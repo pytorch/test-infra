@@ -1,5 +1,6 @@
 import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import DarkModeEChart from "components/DarkModeEChart";
 import GranularityPicker from "components/GranularityPicker";
 import styles from "components/hud.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -11,7 +12,6 @@ import {
 import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { approximateFailureByTypePercent } from "lib/metricUtils";
 import { JobAnnotation } from "lib/types";
@@ -180,7 +180,7 @@ function GraphPanel({
   };
 
   return (
-    <ReactECharts
+    <DarkModeEChart
       style={{ height: "100%", width: "100%" }}
       option={options}
       notMerge={true}

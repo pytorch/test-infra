@@ -13,6 +13,7 @@ import {
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import DarkModeEChart from "components/DarkModeEChart";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
@@ -21,7 +22,6 @@ import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
@@ -102,7 +102,7 @@ function MasterCommitRedPanel({
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
+      <DarkModeEChart
         style={{ height: "100%", width: "100%" }}
         option={options}
       />

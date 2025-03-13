@@ -1,10 +1,24 @@
-// Placeholder file for applying dark mode to charts
-// Full chart theming will be implemented in PR3
+// This file provides a function to set chart themes for ECharts
 
-// This is just a stub for PR2, to be fully implemented in PR3
-export function applyChartTheme(darkMode: boolean): void {
-  // PR3 will implement actual chart theming based on dark mode
-  console.log(
-    `Chart theme will be set to ${darkMode ? "dark" : "light"} in PR3`
-  );
+export function applyChartTheme(isDarkMode: boolean) {
+  // This function can be called after charts are rendered to help fix legend colors
+  setTimeout(() => {
+    const legendTexts = document.querySelectorAll(".echarts-for-react text");
+    const textColor = isDarkMode ? "#E0E0E0" : "#212529";
+
+    legendTexts.forEach((text) => {
+      if (text instanceof SVGTextElement) {
+        text.style.fill = textColor;
+        text.setAttribute("fill", textColor);
+      }
+    });
+
+    // Also try to update any spans in legend
+    const legendSpans = document.querySelectorAll(".echarts-for-react span");
+    legendSpans.forEach((span) => {
+      if (span instanceof HTMLElement) {
+        span.style.color = textColor;
+      }
+    });
+  }, 100);
 }
