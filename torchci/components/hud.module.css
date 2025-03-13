@@ -147,3 +147,15 @@
 .highlight {
   background-color: var(--highlight-bg);
 }
+
+.controlsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.controlsContainer > div {
+  margin: 0;
+}

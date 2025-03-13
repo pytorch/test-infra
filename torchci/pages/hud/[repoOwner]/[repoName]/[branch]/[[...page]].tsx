@@ -303,26 +303,28 @@ function GroupFilterableHudTable({
   const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
-      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
-      <CheckBoxSelector
-        value={useGrouping}
-        setValue={(value) => setUseGrouping(value)}
-        checkBoxName="groupView"
-        labelText={"Use grouped view"}
-      />
-      <CheckBoxSelector
-        value={hideUnstable}
-        setValue={(value) => setHideUnstable(value)}
-        checkBoxName="hideUnstable"
-        labelText={"Hide unstable jobs"}
-      />
-      <CheckBoxSelector
-        value={mergeLF}
-        setValue={setMergeLF}
-        checkBoxName="mergeLF"
-        labelText={"Condense LF jobs"}
-      />
-      <MonsterFailuresCheckbox />
+      <div className={styles.controlsContainer}>
+        <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
+        <CheckBoxSelector
+          value={useGrouping}
+          setValue={(value) => setUseGrouping(value)}
+          checkBoxName="groupView"
+          labelText={"Use grouped view"}
+        />
+        <CheckBoxSelector
+          value={hideUnstable}
+          setValue={(value) => setHideUnstable(value)}
+          checkBoxName="hideUnstable"
+          labelText={"Hide unstable jobs"}
+        />
+        <CheckBoxSelector
+          value={mergeLF}
+          setValue={setMergeLF}
+          checkBoxName="mergeLF"
+          labelText={"Condense LF jobs"}
+        />
+        <MonsterFailuresCheckbox />
+      </div>
       <table className={styles.hudTable}>
         <GroupHudTableColumns names={headerNames} />
         <GroupHudTableHeader names={headerNames} />
@@ -366,14 +368,12 @@ export function MonsterFailuresCheckbox() {
     MonsterFailuresContext
   );
   return (
-    <div title="Replace `X` with a monster icon based on the error line.">
-      <CheckBoxSelector
-        value={monsterFailures}
-        setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
-        checkBoxName="monsterFailures"
-        labelText={"Monsterize failures"}
-      />
-    </div>
+    <CheckBoxSelector
+      value={monsterFailures}
+      setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
+      checkBoxName="monsterFailures"
+      labelText={"Monsterize failures"}
+    />
   );
 }
 

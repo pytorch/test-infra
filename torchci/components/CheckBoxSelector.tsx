@@ -10,10 +10,16 @@ export default function CheckBoxSelector({
   labelText: string;
 }) {
   return (
-    <div>
+    <div style={{ margin: 0 }}>
       <span
         onClick={() => {
           setValue(!value);
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.25rem",
+          cursor: "pointer",
         }}
       >
         <input
@@ -21,8 +27,11 @@ export default function CheckBoxSelector({
           name={checkBoxName}
           checked={value}
           onChange={() => {}}
+          style={{ margin: 0 }}
         />
-        <label htmlFor={checkBoxName}> {labelText}</label>
+        <label htmlFor={checkBoxName} style={{ margin: 0, cursor: "pointer" }}>
+          {labelText}
+        </label>
       </span>
     </div>
   );
