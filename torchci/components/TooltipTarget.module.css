@@ -1,10 +1,12 @@
 .target {
   cursor: help;
+  position: relative;
 }
 
 .container {
-  position: relative;
+  position: absolute;
   display: inline-flex;
+  z-index: 100;
 }
 
 .content {

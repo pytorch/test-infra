@@ -61,7 +61,6 @@ export default function TooltipTarget({
 
   return (
     <div className={styles.target}>
-      {content}
       <div
         onMouseOver={handleMouseOver}
         onMouseLeave={handleMouseLeave}
@@ -69,6 +68,7 @@ export default function TooltipTarget({
       >
         {children}
       </div>
+      {content}
     </div>
   );
 }
