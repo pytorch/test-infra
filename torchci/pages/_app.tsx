@@ -50,8 +50,10 @@ function AppContent({
 
   // Apply chart theme when dark mode changes
   useEffect(() => {
-    // We'll add chart theming in PR3, just prepare the hook here
-    // This will be implemented in the next PR with Echarts integration
+    // Basic chart theme integration - full implementation in PR3
+    import("lib/chartTheme").then(({ applyChartTheme }) => {
+      applyChartTheme(!!darkMode);
+    });
   }, [darkMode]);
 
   return (
