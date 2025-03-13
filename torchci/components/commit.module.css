@@ -1,9 +1,10 @@
 .commitMessage {
-  background-color: whitesmoke;
+  background-color: var(--code-bg);
   white-space: pre;
   max-height: 13em;
   overflow: scroll;
   margin: 10px;
+  color: var(--text-color);
 }
 
 .workflowContainer {
@@ -13,23 +14,25 @@
 }
 
 .workflowBoxFail {
-  border: 1px solid gray;
+  border: 1px solid var(--border-color);
   padding: 10px;
   border-radius: 5px;
-  background-color: mistyrose;
+  background-color: var(--workflow-box-fail-bg);
 }
 
 .workflowBoxSuccess {
-  border: 1px solid gray;
+  border: 1px solid var(--border-color);
   padding: 10px;
   border-radius: 5px;
-  background-color: azure;
+  background-color: var(--workflow-box-success-bg);
 }
 
 .buttonBorder {
-  border: 1px solid;
+  border: 1px solid var(--border-color);
+  color: var(--button-color);
+  background-color: var(--button-bg);
 }
 
 .buttonBorder:hover {
-  background-color: lightgrey;
+  background-color: var(--dropdown-bg);
 }

@@ -7,10 +7,12 @@
 }
 
 .content {
-  background-color: lightgray;
+  background-color: var(--tooltip-bg, lightgray);
+  color: var(--tooltip-text, black);
   padding: 5px 0;
   border-radius: 6px;
   cursor: default;
+  border: 1px solid var(--border-color);
 
   position: absolute;
   z-index: 1;
@@ -20,10 +22,12 @@
 }
 
 .contentPinned {
-  background-color: lightblue;
+  background-color: var(--tooltip-pinned-bg, lightblue);
+  color: var(--tooltip-text, black);
   padding: 5px 0;
   border-radius: 6px;
   cursor: default;
+  border: 1px solid var(--border-color);
 
   position: absolute;
   z-index: 1;
