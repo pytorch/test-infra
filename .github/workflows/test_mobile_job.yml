@@ -18,7 +18,7 @@ jobs:
       device-type: ios
       # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
       runner: ubuntu-latest
-      # There values are prepared beforehand for the test
+      # These values are prepared beforehand for the test
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
       device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:b531574a-fb82-40ae-b687-8f0b81341ae0/da5d902d-45db-477b-ae0a-766e06ef3845
       ios-ipa-archive: https://ossci-assets.s3.amazonaws.com/DeviceFarm.ipa
@@ -34,10 +34,45 @@ jobs:
       device-type: android
       runner: ubuntu-latest
       timeout: 120
-      # There values are prepared beforehand for the test
+      # These values are prepared beforehand for the test
       project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
       device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:b531574a-fb82-40ae-b687-8f0b81341ae0/bd86eb80-74a6-4511-8183-09aa66e3ccc4
       android-app-archive: https://ossci-assets.s3.amazonaws.com/app-debug.apk
       android-test-archive: https://ossci-assets.s3.amazonaws.com/app-debug-androidTest.apk
       test-spec: https://ossci-assets.s3.amazonaws.com/android-llm-device-farm-test-spec.yml
       extra-data: https://ossci-assets.s3.amazonaws.com/executorch-android-llama2-7b-0717.zip
+
+  test-ios-job-with-new-output-flag:
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/mobile_job.yml
+    with:
+      device-type: ios
+      # For iOS testing, the runner just needs to call AWS Device Farm, so there is no need to run this on macOS
+      runner: ubuntu-latest
+      # These values are prepared beforehand for the test
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
+      device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:b531574a-fb82-40ae-b687-8f0b81341ae0/da5d902d-45db-477b-ae0a-766e06ef3845
+      ios-ipa-archive: https://ossci-assets.s3.amazonaws.com/DeviceFarm.ipa
+      ios-xctestrun-zip: https://ossci-assets.s3.amazonaws.com/MobileNetClassifierTest_MobileNetClassifierTest_iphoneos17.4-arm64.xctestrun.zip
+      test-spec: https://ossci-assets.s3.amazonaws.com/default-ios-device-farm-appium-test-spec.yml
+      new-output-format-flag: true
+
+  test-android-llama2-job-with-new-output-flag:
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/mobile_job.yml
+    with:
+      device-type: android
+      runner: ubuntu-latest
+      timeout: 120
+      # These values are prepared beforehand for the test
+      project-arn: arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0
+      device-pool-arn: arn:aws:devicefarm:us-west-2:308535385114:devicepool:b531574a-fb82-40ae-b687-8f0b81341ae0/bd86eb80-74a6-4511-8183-09aa66e3ccc4
+      android-app-archive: https://ossci-assets.s3.amazonaws.com/app-debug.apk
+      android-test-archive: https://ossci-assets.s3.amazonaws.com/app-debug-androidTest.apk
+      test-spec: https://ossci-assets.s3.amazonaws.com/android-llm-device-farm-test-spec.yml
+      extra-data: https://ossci-assets.s3.amazonaws.com/executorch-android-llama2-7b-0717.zip
+      new-output-format-flag: true
