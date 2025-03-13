@@ -1,5 +1,5 @@
 resource "aws_kms_grant" "scale_up_chron" {
-  count             = var.encryption.encrypt ? (var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0) : 0
+  count             = var.encryption.encrypt ? (var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0) : 0
   name              = "${var.environment}-scale-up-chron"
   key_id            = var.encryption.kms_key_id
   grantee_principal = aws_iam_role.scale_up_chron[0].arn
@@ -13,7 +13,7 @@ resource "aws_kms_grant" "scale_up_chron" {
 }
 
 resource "aws_lambda_function" "scale_up_chron" {
-  count             = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count             = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   s3_bucket         = var.lambda_s3_bucket != null ? var.lambda_s3_bucket : null
   s3_key            = var.runners_lambda_s3_key != null ? var.runners_lambda_s3_key : null
   s3_object_version = var.runners_lambda_s3_object_version != null ? var.runners_lambda_s3_object_version : null
@@ -48,7 +48,7 @@ resource "aws_lambda_function" "scale_up_chron" {
       SCALE_CONFIG_REPO               = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
       SCALE_UP_MIN_QUEUE_TIME_MINUTES = 30
-      SCALE_UP_CRON_HUD_QUERY_URL       = var.retry_scale_up_cron_hud_query_url
+      SCALE_UP_CHRON_HUD_QUERY_URL       = var.retry_scale_up_chron_hud_query_url
       scale_up_chron_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       AWS_REGIONS_TO_VPC_IDS = join(
@@ -102,27 +102,27 @@ resource "aws_lambda_function" "scale_up_chron" {
 }
 
 resource "aws_cloudwatch_log_group" "scale_up_chron" {
-  count             = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count             = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   name              = "/aws/lambda/${aws_lambda_function.scale_up_chron[0].function_name}"
   retention_in_days = var.logging_retention_in_days
   tags              = var.tags
 }
 
 resource "aws_cloudwatch_event_rule" "scale_up_chron" {
-  count             = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count             = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   name                = "${var.environment}-scale-up-chron-rule"
   schedule_expression = var.scale_up_chron_schedule_expression
   tags                = var.tags
 }
 
 resource "aws_cloudwatch_event_target" "scale_up_chron" {
-  count = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   rule  = aws_cloudwatch_event_rule.scale_up_chron[0].name
   arn   = aws_lambda_function.scale_up_chron[0].arn
 }
 
 resource "aws_lambda_permission" "scale_up_chron" {
-  count         = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count         = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   statement_id  = "AllowExecutionFromCloudWatch"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.scale_up_chron[0].function_name
@@ -131,7 +131,7 @@ resource "aws_lambda_permission" "scale_up_chron" {
 }
 
 resource "aws_iam_role" "scale_up_chron" {
-  count                = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count                = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   name                 = "${var.environment}-action-scale-up-chron-lambda-role"
   assume_role_policy   = data.aws_iam_policy_document.lambda_assume_role_policy.json
   path                 = local.role_path
@@ -140,7 +140,7 @@ resource "aws_iam_role" "scale_up_chron" {
 }
 
 resource "aws_iam_role_policy" "scale_up_chron" {
-  count  = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count  = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   name   = "${var.environment}-lambda-scale-up-chron-policy"
   role   = aws_iam_role.scale_up_chron[0].name
   policy = templatefile("${path.module}/policies/lambda-scale-up-chron.json", {
@@ -149,7 +149,7 @@ resource "aws_iam_role_policy" "scale_up_chron" {
 }
 
 resource "aws_iam_role_policy" "scale_up_chron_logging" {
-  count  = var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0
+  count  = var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0
   name   = "${var.environment}-lambda-logging"
   role   = aws_iam_role.scale_up_chron[0].name
   policy = templatefile("${path.module}/policies/lambda-cloudwatch.json", {
@@ -158,13 +158,13 @@ resource "aws_iam_role_policy" "scale_up_chron_logging" {
 }
 
 resource "aws_iam_role_policy_attachment" "scale_up_chron_vpc_execution_role" {
-  count      = length(var.lambda_subnet_ids) > 0 ? (var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0) : 0
+  count      = length(var.lambda_subnet_ids) > 0 ? (var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0) : 0
   role       = aws_iam_role.scale_up_chron[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 resource "aws_iam_role_policy" "scale_up_chron_secretsmanager_access" {
-  count = var.secretsmanager_secrets_id != null ? (var.retry_scale_up_cron_hud_query_url != "" ? 1 : 0) : 0
+  count = var.secretsmanager_secrets_id != null ? (var.retry_scale_up_chron_hud_query_url != "" ? 1 : 0) : 0
   role  = aws_iam_role.scale_up_chron[0].name
   policy = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
     secretsmanager_arn = data.aws_secretsmanager_secret_version.app_creds.arn
