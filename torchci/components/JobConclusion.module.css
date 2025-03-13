@@ -9,11 +9,11 @@
 }
 
 .success {
-  color: green;
+  color: var(--color-success);
 }
 
 .failure {
-  color: red;
+  color: var(--color-failure);
 }
 
 .failure_monster {
@@ -53,53 +53,53 @@
   bottom: -1px;
   right: -4px;
   font-size: 8px;
-  color: #f44336;
+  color: var(--color-failure);
   font-weight: bold;
   font-family: sans-serif;
   text-shadow: 0px 0px 1px white;
 }
 
 .skipped {
-  color: grey;
+  color: var(--color-grey);
 }
 
 .neutral {
-  color: grey;
+  color: var(--color-grey);
 }
 
 .cancelled {
-  color: red;
+  color: var(--color-failure);
 }
 
 .timed_out {
-  color: red;
+  color: var(--color-failure);
 }
 
 .pending {
-  color: goldenrod;
+  color: var(--color-pending);
 }
 
 .queued {
-  color: lightgray;
+  color: var(--color-light-grey);
 }
 
 .none {
-  color: lightgray;
+  color: var(--color-light-grey);
 }
 
 .all_null {
-  color: grey;
+  color: var(--color-grey);
 }
 
 .flaky {
-  color: lightgreen;
+  color: var(--color-flaky);
 }
 
 .warning {
-  color: #f8b88b;
+  color: var(--color-warning);
 }
 
 .viablestrict_blocking {
-  border-left: 1px solid red;
-  border-right: 1px solid red;
+  border-left: 1px solid var(--color-failure);
+  border-right: 1px solid var(--color-failure);
 }

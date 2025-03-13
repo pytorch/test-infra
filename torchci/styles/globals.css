@@ -47,6 +47,15 @@
   --tooltip-bg: #e0e0e0;
   --tooltip-pinned-bg: #add8e6;
   --tooltip-text: #212529;
+
+  /* Job status colors */
+  --color-success: #4caf50;
+  --color-failure: #f44336;
+  --color-grey: #9e9e9e;
+  --color-light-grey: #bdbdbd;
+  --color-warning: #ff9800;
+  --color-pending: #ffc107;
+  --color-flaky: #8bc34a;
 }
 
 html {
