@@ -209,8 +209,8 @@ def is_config_valid_internally(
             )
             invalid_runners.add(runner_type)
         elif (
-            int(runner_config["max_available"]) < MAX_AVAILABLE_MINIMUM
-            and int(runner_config["max_available"]) >= 0
+            runner_config["max_available"] < MAX_AVAILABLE_MINIMUM
+            and runner_config["max_available"] >= 0
         ):
             print(
                 f"Runner type {runner_type} has max_available set to {runner_config['max_available']}, "
