@@ -303,33 +303,38 @@ function GroupFilterableHudTable({
   const [mergeLF, setMergeLF] = useContext(MergeLFContext);
   return (
     <>
-      <div className={styles.controlsContainer}>
-        <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
-        <CheckBoxSelector
-          value={useGrouping}
-          setValue={(value) => setUseGrouping(value)}
-          checkBoxName="groupView"
-          labelText={"Use grouped view"}
-        />
-        <CheckBoxSelector
-          value={hideUnstable}
-          setValue={(value) => setHideUnstable(value)}
-          checkBoxName="hideUnstable"
-          labelText={"Hide unstable jobs"}
-        />
-        <CheckBoxSelector
-          value={mergeLF}
-          setValue={setMergeLF}
-          checkBoxName="mergeLF"
-          labelText={"Condense LF jobs"}
-        />
-        <MonsterFailuresCheckbox />
+      <div style={{ position: "relative", clear: "both" }}>
+        <div className={styles.controlsContainer}>
+          <JobFilterInput
+            currentFilter={jobFilter}
+            handleSubmit={handleSubmit}
+          />
+          <CheckBoxSelector
+            value={useGrouping}
+            setValue={(value) => setUseGrouping(value)}
+            checkBoxName="groupView"
+            labelText={"Use grouped view"}
+          />
+          <CheckBoxSelector
+            value={hideUnstable}
+            setValue={(value) => setHideUnstable(value)}
+            checkBoxName="hideUnstable"
+            labelText={"Hide unstable jobs"}
+          />
+          <CheckBoxSelector
+            value={mergeLF}
+            setValue={setMergeLF}
+            checkBoxName="mergeLF"
+            labelText={"Condense LF jobs"}
+          />
+          <MonsterFailuresCheckbox />
+        </div>
+        <table className={styles.hudTable} style={{ overflow: "auto" }}>
+          <GroupHudTableColumns names={headerNames} />
+          <GroupHudTableHeader names={headerNames} />
+          {children}
+        </table>
       </div>
-      <table className={styles.hudTable}>
-        <GroupHudTableColumns names={headerNames} />
-        <GroupHudTableHeader names={headerNames} />
-        {children}
-      </table>
     </>
   );
 }

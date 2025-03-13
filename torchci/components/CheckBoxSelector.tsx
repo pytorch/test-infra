@@ -20,6 +20,7 @@ export default function CheckBoxSelector({
           alignItems: "center",
           gap: "0.25rem",
           cursor: "pointer",
+          whiteSpace: "nowrap",
         }}
       >
         <input
