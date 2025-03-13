@@ -195,6 +195,11 @@ def parse_args() -> Any:
         default=0,
         help="the workflow run attempt",
     )
+
+    parser.add_argument(
+        "--git-job-name", type=str, required=True, help="the name of the git job name."
+    )
+
     parser.add_argument(
         "--output",
         type=str,
@@ -208,12 +213,19 @@ def parse_args() -> Any:
     )
 
     parser.add_argument(
-        "--new-json-output",
-        action="store_true",
-        help="enable new json artifact output format with jobrun, and list of artifacts, this is temporary ",
+        "--new-json-output-format",
+        type=str,
+        choices=["true", "false"],
+        default="false",
+        required=False,
+        help="enable new json artifact output format with mobile job reports and list of artifacts",
     )
 
-    return parser.parse_args()
+    # in case when removing the flag, the mobile jobs does not failed due to unrecognized flag.
+    args, unknown = parser.parse_known_args()
+    if len(unknown) > 0:
+        info(f"detected unknown flags: {unknown}")
+    return args
 
 
 def upload_file(
@@ -409,6 +421,7 @@ class DeviceFarmReport:
     status: str
     result: str
     counters: Dict[str, str]
+    app_type: str
     infos: Dict[str, str]
     parent_arn: str
 
@@ -545,6 +558,7 @@ class ReportProcessor:
         return JobReport(
             arn=arn,
             name=name,
+            app_type=self.app_type,
             report_type=ReportType.JOB.value,
             status=status,
             result=result,
@@ -564,6 +578,7 @@ class ReportProcessor:
         return DeviceFarmReport(
             name=name,
             arn=arn,
+            app_type=self.app_type,
             report_type=ReportType.RUN.value,
             status=status,
             result=result,
@@ -661,7 +676,8 @@ class ReportProcessor:
             return DeviceFarmReport(
                 name="",
                 arn="",
-                report_type="",
+                app_type=self.app_type,
+                report_type=ReportType.RUN.value,
                 status="",
                 result="",
                 counters={},
@@ -699,8 +715,29 @@ class ReportProcessor:
         )
 
 
+def generate_artifacts_output(
+    artifacts: List[Dict[str, str]],
+    run_report: DeviceFarmReport,
+    job_reports: List[JobReport],
+    git_job_name: str,
+):
+    output = {
+        "artifacts": artifacts,
+        "run_report": asdict(run_report),
+        "job_reports": [asdict(job_report) for job_report in job_reports],
+        "git_job_name": git_job_name,
+    }
+    return output
+
+
 def main() -> None:
     args = parse_args()
+
+    # (TODO): remove this once remove the flag.
+    if args.new_json_output_format == "true":
+        info(f"use new json output format for {args.output}")
+    else:
+        info("use legacy json output format for {args.output}")
 
     project_arn = args.project_arn
     name_prefix = args.name_prefix
@@ -788,6 +825,11 @@ def main() -> None:
             time.sleep(30)
     except Exception as error:
         warn(f"Failed to run {unique_prefix}: {error}")
+        # just use the new json output format
+        json_file = {
+            "git_job_name": args.git_job_name,
+        }
+        set_output(json.dumps(json_file), "artifacts", args.output)
         sys.exit(1)
     finally:
         info(f"Run {unique_prefix} finished with state {state} and result {result}")
@@ -797,10 +839,12 @@ def main() -> None:
         )
         artifacts = processor.start(r.get("run"))
 
-        if args.new_json_output:
-            info("Generating new json output")
+        if args.new_json_output_format == "true":
             output = generate_artifacts_output(
-                artifacts, processor.get_run_report(), processor.get_job_reports()
+                artifacts,
+                processor.get_run_report(),
+                processor.get_job_reports(),
+                git_job_name=args.git_job_name,
             )
             set_output(json.dumps(output), "artifacts", args.output)
         else:
@@ -809,19 +853,6 @@ def main() -> None:
         processor.print_test_spec()
     if not is_success(result):
         sys.exit(1)
-
-
-def generate_artifacts_output(
-    artifacts: List[Dict[str, str]],
-    run_report: DeviceFarmReport,
-    job_reports: List[JobReport],
-):
-    output = {
-        "artifacts": artifacts,
-        "run_report": asdict(run_report),
-        "job_reports": [asdict(job_report) for job_report in job_reports],
-    }
-    return output
 
 
 if __name__ == "__main__":
