@@ -59,23 +59,14 @@ export default function DarkModeEChart(props: any) {
 
   // Update colors whenever the chart is rendered or dark mode changes
   useEffect(() => {
-    // Apply multiple times to ensure it catches all text elements
-    const timers = [
-      setTimeout(() => updateChartColors(), 100),
-      setTimeout(() => updateChartColors(), 500),
-      setTimeout(() => updateChartColors(), 1000),
-    ];
-
     // Set up event listener for chart rendering
     if (chartRef.current) {
       const chartElement = chartRef.current as any;
       if (chartElement.getEchartsInstance) {
         const echartsInstance = chartElement.getEchartsInstance();
         echartsInstance.on("rendered", updateChartColors);
-        echartsInstance.on("finished", updateChartColors);
-
-        // Direct hack for title and subtitle
         echartsInstance.on("finished", () => {
+          updateChartColors();
           try {
             // Force update title text
             const titleElements = chartElement.ele?.querySelectorAll(
@@ -83,14 +74,12 @@ export default function DarkModeEChart(props: any) {
             );
             const textColor = darkMode ? "#E0E0E0" : "#212529";
 
-            if (titleElements && titleElements.length > 0) {
-              titleElements.forEach((el: any) => {
-                if (el && el.style) {
-                  el.style.fill = textColor;
-                  el.style.color = textColor;
-                }
-              });
-            }
+            titleElements?.forEach((el: any) => {
+              if (el && el.style) {
+                el.style.fill = textColor;
+                el.style.color = textColor;
+              }
+            });
           } catch (e) {
             console.error("Failed to update title colors:", e);
           }
@@ -98,7 +87,8 @@ export default function DarkModeEChart(props: any) {
       }
     }
 
-    return () => timers.forEach((timer) => clearTimeout(timer));
+    // Call updateChartColors immediately too
+    updateChartColors();
   }, [darkMode]);
 
   // Merge the base options with dark mode specific options
