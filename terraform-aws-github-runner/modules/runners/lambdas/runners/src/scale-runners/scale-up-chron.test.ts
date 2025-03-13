@@ -18,63 +18,60 @@ jest.mock('./utils');
 jest.mock('axios');
 jest.mock('./scale-up');
 
-const hudQueryValidResponse = `
-[
-   {
-      "runner_label":"test_runner_type1",
-      "org":"test_org1",
-      "repo":"test_repo1",
-      "num_queued_jobs":1,
-      "min_queue_time_minutes":31,
-      "max_queue_time_minutes":31
-   },
-   {
-      "runner_label":"test_runner_type2",
-      "org":"test_org2",
-      "repo":"test_repo2",
-      "num_queued_jobs":2,
-      "min_queue_time_minutes":32,
-      "max_queue_time_minutes":32
-   }
-]`;
-const hudQueryInvalidRunnerLabelResponse = `
-[
-   {
-      "runner_label":"label1-nomatch",
-      "org":"test_org1",
-      "repo":"test_repo1",
-      "num_queued_jobs":1,
-      "min_queue_time_minutes":31,
-      "max_queue_time_minutes":31
-   },
-   {
-      "runner_label":"test_runner_type2",
-      "org":"test_org2",
-      "repo":"test_repo2",
-      "num_queued_jobs":2,
-      "min_queue_time_minutes":32,
-      "max_queue_time_minutes":32
-   }
-]`;
-const hudQueryInvalidOrgResponse = `
-[
-   {
-      "runner_label":"label1",
-      "org":"test_org1-nomatch",
-      "repo":"test_repo1",
-      "num_queued_jobs":1,
-      "min_queue_time_minutes":31,
-      "max_queue_time_minutes":31
-   },
-   {
-      "runner_label":"test_runner_type2",
-      "org":"test_org2",
-      "repo":"test_repo2",
-      "num_queued_jobs":2,
-      "min_queue_time_minutes":32,
-      "max_queue_time_minutes":32
-   }
-]`;
+const hudQueryValidResponse = [
+  {
+    runner_label: 'test_runner_type1',
+    org: 'test_org1',
+    repo: 'test_repo1',
+    num_queued_jobs: 1,
+    min_queue_time_minutes: 31,
+    max_queue_time_minutes: 31,
+  },
+  {
+    runner_label: 'test_runner_type2',
+    org: 'test_org2',
+    repo: 'test_repo2',
+    num_queued_jobs: 2,
+    min_queue_time_minutes: 32,
+    max_queue_time_minutes: 32,
+  },
+];
+const hudQueryInvalidRunnerLabelResponse = [
+  {
+    runner_label: 'label1-nomatch',
+    org: 'test_org1',
+    repo: 'test_repo1',
+    num_queued_jobs: 1,
+    min_queue_time_minutes: 31,
+    max_queue_time_minutes: 31,
+  },
+  {
+    runner_label: 'test_runner_type2',
+    org: 'test_org2',
+    repo: 'test_repo2',
+    num_queued_jobs: 2,
+    min_queue_time_minutes: 32,
+    max_queue_time_minutes: 32,
+  },
+];
+const hudQueryInvalidOrgResponse = [
+  {
+    runner_label: 'label1',
+    org: 'test_org1-nomatch',
+    repo: 'test_repo1',
+    num_queued_jobs: 1,
+    min_queue_time_minutes: 31,
+    max_queue_time_minutes: 31,
+  },
+  {
+    runner_label: 'test_runner_type2',
+    org: 'test_org2',
+    repo: 'test_repo2',
+    num_queued_jobs: 2,
+    min_queue_time_minutes: 32,
+    max_queue_time_minutes: 32,
+  },
+];
 
 const runnerTypeValid = 'test_runner_type1';
 const runnerTypeInvalid = 'runner_type_invalid';
@@ -82,7 +79,7 @@ const runnerTypeInvalid = 'runner_type_invalid';
 const baseCfg = {
   scaleConfigOrg: 'test_org1',
   scaleUpMinQueueTimeMinutes: 30,
-  scaleUpCronRecordQueueUrl: 'url',
+  scaleUpChronRecordQueueUrl: 'url',
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpChronMetrics();
@@ -95,7 +92,7 @@ beforeEach(() => {
 });
 
 describe('scaleUpChron', () => {
-  it('invalid scaleUpCronRecordQueueUrl', async () => {
+  it('invalid scaleUpChronRecordQueueUrl', async () => {
     const scaleUpChron = jest.requireActual('./scale-up-chron').scaleUpChron;
 
     jest.clearAllMocks();
@@ -103,7 +100,7 @@ describe('scaleUpChron', () => {
       () =>
         ({
           ...baseCfg,
-          scaleUpCronRecordQueueUrl: null,
+          scaleUpChronRecordQueueUrl: null,
         } as unknown as Config),
     );
 
@@ -111,7 +108,7 @@ describe('scaleUpChron', () => {
     mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, { is_ephemeral: false } as RunnerType]]));
 
     await expect(scaleUpChron(metrics)).rejects.toThrow(
-      new Error('scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests'),
+      new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests'),
     );
   });
 

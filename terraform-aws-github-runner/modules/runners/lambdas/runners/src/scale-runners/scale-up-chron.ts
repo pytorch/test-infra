@@ -18,16 +18,16 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics, Config.Instance.scaleConfigRepoPath);
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
-  if (!Config.Instance.scaleUpCronRecordQueueUrl) {
+  if (!Config.Instance.scaleUpChronRecordQueueUrl) {
     metrics.scaleUpInstanceFailureNonRetryable(
-      'scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests',
+      'scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests',
     );
-    throw new Error('scaleUpCronRecordQueueUrl is not set. Cannot send queued scale up requests');
+    throw new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests');
   }
-  const scaleUpCronRecordQueueUrl = Config.Instance.scaleUpCronRecordQueueUrl;
+  const scaleUpChronRecordQueueUrl = Config.Instance.scaleUpChronRecordQueueUrl;
   // Only proactively scale up the jobs that have been queued for longer than normal
   // Filter out the queued jobs that are do not correspond to a valid runner type
-  const queuedJobs = (await getQueuedJobs(metrics, scaleUpCronRecordQueueUrl))
+  const queuedJobs = (await getQueuedJobs(metrics, scaleUpChronRecordQueueUrl))
     .filter((runner) => {
       return (
         runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes && runner.org === Config.Instance.scaleConfigOrg
@@ -76,12 +76,12 @@ interface QueuedJobsForRunner {
 
 export async function getQueuedJobs(
   metrics: ScaleUpChronMetrics,
-  scaleUpCronRecordQueueUrl: string,
+  scaleUpChronRecordQueueUrl: string,
 ): Promise<QueuedJobsForRunner[]> {
   // This function queries the HUD for queued runners
   // and returns a list of them
 
-  const url = scaleUpCronRecordQueueUrl;
+  const url = scaleUpChronRecordQueueUrl;
 
   try {
     const response = await expBackOff(() => {

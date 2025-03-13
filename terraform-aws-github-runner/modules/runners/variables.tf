@@ -319,7 +319,7 @@ variable "min_available_runners" {
   type        = number
 }
 
-variable "retry_scale_up_cron_hud_query_url" {
+variable "retry_scale_up_chron_hud_query_url" {
   description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
   type        = string
 }
