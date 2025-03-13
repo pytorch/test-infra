@@ -599,8 +599,8 @@ export default function Page() {
         <TextField
           id={`outlined-basic-${type}`}
           label={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <FaFilter style={{ color: 'var(--text-color)' }} /> Filter {type}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <FaFilter style={{ color: "var(--text-color)" }} /> Filter {type}
             </div>
           }
           onChange={handleChange}
@@ -633,7 +633,9 @@ export default function Page() {
                       backgroundColor: isRegex
                         ? "var(--highlight-bg)"
                         : "transparent",
-                      color: isRegex ? "var(--link-color)" : "var(--text-color-secondary)",
+                      color: isRegex
+                        ? "var(--link-color)"
+                        : "var(--text-color-secondary)",
                       border: isRegex
                         ? "1px solid var(--link-color)"
                         : "1px solid transparent",
@@ -733,7 +735,10 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <MdOutlineStackedBarChart size={"2em"} fill="var(--text-color)" />
+                      <MdOutlineStackedBarChart
+                        size={"2em"}
+                        fill="var(--text-color)"
+                      />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
