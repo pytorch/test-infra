@@ -36,8 +36,11 @@ export class Config {
   readonly retryScaleUpRecordQueueUrl: string | undefined;
   readonly runnerGroupName: string | undefined;
   readonly runnersExtraLabels: undefined | string;
+  readonly scaleConfigOrg: string;
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
+  readonly scaleUpMinQueueTimeMinutes: number;
+  readonly scaleUpChronRecordQueueUrl: string | undefined;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
   readonly sSMParamMaxCleanupAllowance: number;
@@ -93,9 +96,14 @@ export class Config {
     this.retryScaleUpRecordDelayS = Number(process.env.RETRY_SCALE_UP_RECORD_DELAY_S || '0');
     /* istanbul ignore next */
     this.retryScaleUpRecordJitterPct = Number(process.env.RETRY_SCALE_UP_RECORD_JITTER_PCT || '0');
-    this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_RECORD_QUEUE_URL;
+    this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL;
+    this.scaleUpChronRecordQueueUrl = process.env.SCALE_UP_CHRON_HUD_QUERY_URL;
+    this.scaleUpMinQueueTimeMinutes = process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES
+      ? Number(process.env.SCALE_UP_MIN_QUEUE_TIME_MINUTES)
+      : 30;
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
+    this.scaleConfigOrg = process.env.SCALE_CONFIG_ORG || '';
     /* istanbul ignore next */
     this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || '';
     if (this.enableOrganizationRunners && !this.scaleConfigRepo) {

@@ -913,8 +913,8 @@ export class Metrics {
 }
 
 export class ScaleUpMetrics extends Metrics {
-  constructor() {
-    super('scaleUp');
+  constructor(lambdaName: string | undefined = undefined) {
+    super(lambdaName || 'scaleUp');
   }
 
   /* istanbul ignore next */
@@ -1627,6 +1627,64 @@ export class ScaleDownMetrics extends Metrics {
         this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.skipped', 1, repoDim);
       }
     }
+  }
+}
+
+export class ScaleUpChronMetrics extends ScaleUpMetrics {
+  constructor() {
+    super('scaleUpChron');
+  }
+
+  queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
+    const dimensions = new Map([
+      ['Org', org],
+      ['RunnerType', runnerType],
+      ['numQueuedJobs', numQueuedJobs.toString()],
+    ]);
+    this.addEntry('gh.scaleupchron.queuedRunners', 3, dimensions);
+  }
+
+  queuedRunnerFailure(error: string) {
+    const dimensions = new Map([['error', error]]);
+    this.countEntry('gh.scaleupchron.queuedRunners.failure', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  getQueuedJobsEndpointSuccess(ms: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.success`, 1);
+    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  getQueuedJobsEndpointFailure(ms: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.failure`, 1);
+    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+  }
+
+  scaleUpInstanceSuccess() {
+    this.scaleUpSuccess();
+    this.countEntry('run.scaleupchron.success');
+  }
+
+  scaleUpInstanceFailureNonRetryable(error: string) {
+    const dimensions = new Map([['error', error]]);
+    // should we add more information about this or do we not care since  it'll be requeued?
+    this.countEntry('run.scaleupchron.failure.nonRetryable', 1, dimensions);
+  }
+
+  scaleUpInstanceFailureRetryable(error: string) {
+    const dimensions = new Map([['error', error]]);
+
+    // should we add more information about this or do we not care since  it'll be requeued?
+    this.countEntry('run.scaleupchron.failure.retryable', 1, dimensions);
+  }
+
+  scaleUpInstanceNoOp() {
+    this.countEntry('run.scaleupchron.noop');
   }
 }
 
