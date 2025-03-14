@@ -23,6 +23,7 @@
   background-size: 152px 426px; /* total size of the spritesheet (downscaled 1.5x) */
   display: inline-block;
   vertical-align: middle;
+  margin-left: 2px;
   image-rendering: pixelated;
 }
 

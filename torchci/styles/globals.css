@@ -59,6 +59,57 @@
   --color-classified: lightpink;
 }
 
+.dark-mode {
+  --background-color: #1e1e1e;
+  --text-color: #e0e0e0;
+  --link-color: #4a90e2;
+  --navbar-bg: linear-gradient(326deg, #2a2a2a, #2d2d2d);
+  --navbar-shadow: 0 -4px 20px 0px rgba(0, 0, 0, 0.4);
+  --dropdown-bg: #2a2a2a;
+  --code-bg: #2a2a2a;
+  --icon-color: #e0e0e0;
+  --dropdown-shadow: 0 -4px 20px 0px rgba(0, 0, 0, 0.3);
+  --button-color: #e0e0e0;
+  --button-bg: transparent;
+  --border-color: #3a3a3a;
+
+  /* HUD specific colors - dark mode variants */
+  --forced-merge-bg: #453e00;
+  --forced-merge-failure-bg: #5e3a00;
+  --selected-row-bg: #0a3550;
+  --highlight-bg: #525200;
+
+  /* MiniHud specific colors - dark mode variants */
+  --workflow-box-none-bg: #383838;
+  --workflow-box-fail-bg: #4b2c2c;
+  --workflow-box-pending-bg: #1e3540;
+  --workflow-box-success-bg: #1e4020;
+  --workflow-box-classified-bg: #3b332a;
+  --workflow-box-highlight-border: #1e7e82;
+  --workflow-box-highlight-shadow: rgba(26, 98, 117, 0.7);
+  --failed-job-highlight-border: #1e7e82;
+  --revert-button-bg: #6b1a23;
+  --revert-button-border: #541217;
+  --revert-button-text: #e0e0e0;
+  --job-hover-bg: #5a512a;
+  --duration-color-normal: #e0e0e0;
+  --duration-color-good: #4caf50;
+  --duration-color-bad: #f44336;
+
+  /* Button colors - dark mode variants */
+  --warning-button-bg: #6d5304;
+  --warning-button-border: #574100;
+  --warning-button-text: #e0e0e0;
+  --info-button-bg: #0d5a66;
+  --info-button-border: #094954;
+  --info-button-text: #e0e0e0;
+
+  /* Tooltip colors - dark mode variants */
+  --tooltip-bg: #3a3a3a;
+  --tooltip-pinned-bg: #1e4555;
+  --tooltip-text: #e0e0e0;
+}
+
 html {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
@@ -74,6 +125,7 @@ body {
   padding: 5px;
   background-color: var(--background-color);
   color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -132,6 +184,8 @@ select {
   color: var(--text-color);
   border: 1px solid var(--border-color);
   border-radius: 0.25rem;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* Fix for select dropdown text color */
