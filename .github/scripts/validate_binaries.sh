@@ -81,6 +81,8 @@ else
     fi
     eval $INSTALLATION
 
+    python3 ${SCRIPT_DIR}/test_import.py
+
     pushd ${PWD}/.ci/pytorch/
 
     # TODO: enable torch-compile on ROCM and on 3.13t
