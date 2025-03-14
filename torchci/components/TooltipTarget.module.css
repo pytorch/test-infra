@@ -29,7 +29,7 @@
   position: relative;
   z-index: 1;
   max-width: 900px;
-  min-width: 500px;
+  width: max-content;
   min-height: 3em;
   margin-bottom: 10px;
 }
@@ -44,7 +44,7 @@
   position: relative;
   z-index: 1;
   max-width: 900px;
-  min-width: 500px;
+  width: max-content;
   margin-bottom: 10px;
 }
 
@@ -52,12 +52,10 @@
   white-space: pre-wrap;
   margin: 0;
   word-break: break-word;
-  min-width: 450px;
 }
 
 .contentPinned pre {
   white-space: pre-wrap;
   margin: 0;
   word-break: break-word;
-  min-width: 450px;
 }
