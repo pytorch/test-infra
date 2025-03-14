@@ -16,7 +16,8 @@ else
     fi
 
     if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-        conda update -y -n base -c defaults conda
+        # conda update -y -n base -c defaults conda
+        conda install -y conda=23.11.0
     elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
         # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
         conda install -y conda=23.11.0
@@ -28,7 +29,7 @@ else
         TORCH_ONLY='true'
     else
         # Please note ffmpeg is required for torchaudio, see https://github.com/pytorch/pytorch/issues/96159
-        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} ffmpeg
+        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
         conda activate ${ENV_NAME}
     fi
 
