@@ -158,6 +158,8 @@ jobs:
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
+        python3 ../../test-infra/.github/scripts/test_import.py
+
         CUDA_VERSION_STABLE=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${MATRIX_CHANNEL})
         # Special case PyPi installation package. And Install of PyPi package via poetry
         if [[ ${MATRIX_PACKAGE_TYPE} == "manywheel" && \
