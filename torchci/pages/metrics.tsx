@@ -25,6 +25,7 @@ import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import("lib/chartTheme");
 
 function MasterCommitRedPanel({
   params,
@@ -103,6 +104,7 @@ function MasterCommitRedPanel({
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
+        theme="dark-hud"
         style={{ height: "100%", width: "100%" }}
         option={options}
       />
