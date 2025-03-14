@@ -1,6 +1,7 @@
 import { Grid2, Paper, Stack, Typography } from "@mui/material";
 import CheckBoxList from "components/common/CheckBoxList";
 import CopyLink from "components/CopyLink";
+import DarkModeEChart from "components/DarkModeEChart";
 import GranularityPicker from "components/GranularityPicker";
 import LoadingPage from "components/LoadingPage";
 import {
@@ -11,7 +12,6 @@ import {
 import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { encodeParams, fetcher } from "lib/GeneralUtils";
 import {
   compressToEncodedURIComponent,
@@ -68,7 +68,7 @@ function Panel({
   };
 
   return (
-    <ReactECharts
+    <DarkModeEChart
       style={{ height: "100%", width: "100%" }}
       option={options}
       notMerge={true}

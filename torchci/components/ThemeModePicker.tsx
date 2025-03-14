@@ -18,7 +18,7 @@ export default function ThemeModePicker(): JSX.Element {
 
   // Get the icon component based on active theme
   const getIconComponent = () => {
-    if (themeMode === "system") {
+    if (themeMode === ThemeMode.System) {
       const iconColor = darkMode ? "#E0E0E0" : "#212529";
       return (
         <div className={styles.iconGroup} style={{ width: 18, height: 18 }}>
@@ -51,25 +51,25 @@ export default function ThemeModePicker(): JSX.Element {
         <div className={styles.dropdown}>
           <button
             className={`${styles.option} ${
-              themeMode === "light" ? styles.active : ""
+              themeMode === ThemeMode.Light ? styles.active : ""
             }`}
-            onClick={() => handleThemeChange("light")}
+            onClick={() => handleThemeChange(ThemeMode.Light)}
           >
             <BsSun size={16} /> <span>Light</span>
           </button>
           <button
             className={`${styles.option} ${
-              themeMode === "dark" ? styles.active : ""
+              themeMode === ThemeMode.Dark ? styles.active : ""
             }`}
-            onClick={() => handleThemeChange("dark")}
+            onClick={() => handleThemeChange(ThemeMode.Dark)}
           >
             <BsMoon size={16} /> <span>Dark</span>
           </button>
           <button
             className={`${styles.option} ${
-              themeMode === "system" ? styles.active : ""
+              themeMode === ThemeMode.System ? styles.active : ""
             }`}
-            onClick={() => handleThemeChange("system")}
+            onClick={() => handleThemeChange(ThemeMode.System)}
           >
             <div className={styles.iconGroup}>
               <BsSun size={12} className={styles.sunIcon} />

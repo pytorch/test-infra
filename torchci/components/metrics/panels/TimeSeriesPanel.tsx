@@ -3,11 +3,11 @@
  */
 
 import { Paper, Skeleton } from "@mui/material";
+import DarkModeEChart from "components/DarkModeEChart";
 import { formatTimeForCharts, TIME_DISPLAY_FORMAT } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import useSWR from "swr";
@@ -262,7 +262,7 @@ export function TimeSeriesPanelWithData({
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
+      <DarkModeEChart
         style={{ height: "100%", width: "100%" }}
         option={options}
         notMerge={true}
