@@ -28,7 +28,8 @@
   pointer-events: auto;
   position: relative;
   z-index: 1;
-  max-width: 700px;
+  max-width: 900px;
+  min-width: 500px;
   min-height: 3em;
   margin-bottom: 10px;
 }
@@ -42,16 +43,21 @@
   pointer-events: auto;
   position: relative;
   z-index: 1;
-  max-width: 700px;
+  max-width: 900px;
+  min-width: 500px;
   margin-bottom: 10px;
 }
 
 .content pre {
   white-space: pre-wrap;
   margin: 0;
+  word-break: break-word;
+  min-width: 450px;
 }
 
 .contentPinned pre {
   white-space: pre-wrap;
   margin: 0;
+  word-break: break-word;
+  min-width: 450px;
 }
