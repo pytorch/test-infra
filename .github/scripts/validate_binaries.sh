@@ -16,7 +16,7 @@ else
     fi
 
     if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-        # conda update -y -n base -c defaults conda
+        conda update -y -n base -c defaults conda
         conda install -y conda=23.11.0
     elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
         # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
