@@ -81,7 +81,8 @@ else
     fi
     eval $INSTALLATION
 
-    python3 ${SCRIPT_DIR}/test_import1.py
+    pushd ${SCRIPT_DIR}
+    python3 test_import1.py
 
     pushd ${PWD}/.ci/pytorch/
 
