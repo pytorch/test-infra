@@ -18,16 +18,22 @@ export default function JobFilterInput({
     setCurrVal(currentFilter ?? "");
   }, [currentFilter]);
   return (
-    <div>
+    <div style={{ margin: 0 }}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           handleSubmit(currVal);
         }}
+        style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
       >
-        <label htmlFor="name_filter">Job filter: </label>
+        <label
+          htmlFor="name_filter"
+          style={{ margin: 0, whiteSpace: "nowrap" }}
+        >
+          Job filter:
+        </label>
         <input
-          style={{ width: width }}
+          style={{ width: width || "150px" }}
           type="text"
           name="name_filter"
           value={currVal}
