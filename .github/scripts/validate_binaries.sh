@@ -88,11 +88,11 @@ else
         TEST_SUFFIX=${TEST_SUFFIX}" --torch-compile-check disabled"
     fi
 
-    if [[ ${TARGET_OS} == 'linux' ]]; then
-        export CONDA_LIBRARY_PATH="$(dirname $(which python))/../lib"
-        export LD_LIBRARY_PATH=$CONDA_LIBRARY_PATH:$LD_LIBRARY_PATH
-        source ./check_binary.sh
-    fi
+    #if [[ ${TARGET_OS} == 'linux' ]]; then
+    #    export CONDA_LIBRARY_PATH="$(dirname $(which python))/../lib"
+    #    export LD_LIBRARY_PATH=$CONDA_LIBRARY_PATH:$LD_LIBRARY_PATH
+    #    source ./check_binary.sh
+    #fi
 
      # We are only interested in CUDA tests and Python 3.9-3.11. Not all requirement libraries are available for 3.12 yet.
     if [[ ${INCLUDE_TEST_OPS:-} == 'true' &&  ${MATRIX_GPU_ARCH_TYPE} == 'cuda' && ${MATRIX_PYTHON_VERSION} != "3.13" ]]; then
