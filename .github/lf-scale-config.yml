@@ -77,11 +77,15 @@ runner_types:
     instance_type: c5.9xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
   lf.linux.12xlarge.ephemeral:
     disk_size: 200
     instance_type: c5.12xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
   lf.linux.16xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.16xlarge
@@ -103,6 +107,8 @@ runner_types:
     instance_type: c5.24xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
   lf.linux.2xlarge:
     disk_size: 150
     instance_type: c5.2xlarge
@@ -220,11 +226,15 @@ runner_types:
     instance_type: t4g.2xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
   lf.linux.arm64.m7g.4xlarge.ephemeral:
     disk_size: 256
     instance_type: m7g.4xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
   lf.linux.arm64.m7g.metal:
     disk_size: 256
     instance_type: m7g.metal
@@ -238,6 +248,8 @@ runner_types:
     instance_type: g4dn.xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      ephemeral: {}
   lf.windows.g4dn.xlarge.nonephemeral:
     disk_size: 256
     instance_type: g4dn.xlarge
@@ -251,6 +263,8 @@ runner_types:
     instance_type: c5d.4xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      ephemeral: {}
   lf.windows.4xlarge.nonephemeral:
     disk_size: 256
     instance_type: c5d.4xlarge
@@ -264,6 +278,8 @@ runner_types:
     instance_type: p3.2xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      ephemeral: {}
   lf.windows.8xlarge.nvidia.gpu.nonephemeral:
     disk_size: 256
     instance_type: p3.2xlarge
@@ -317,3 +333,5 @@ runner_types:
     instance_type: r5.12xlarge
     is_ephemeral: true
     os: linux
+    variants:
+      ephemeral: {}
