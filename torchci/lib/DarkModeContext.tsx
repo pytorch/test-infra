@@ -10,7 +10,7 @@ import {
 export enum ThemeMode {
   Light = "light",
   Dark = "dark",
-  System = "system"
+  System = "system",
 }
 
 type DarkModeContextType = {
