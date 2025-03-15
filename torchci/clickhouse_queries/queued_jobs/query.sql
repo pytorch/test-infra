@@ -16,6 +16,7 @@ SELECT
         job.created_at,
         CURRENT_TIMESTAMP()
     ) AS queue_s,
+    workflow.repository.'full_name' as repo,
     workflow.name AS workflow_name,
     job.name AS job_name,
     job.html_url,
