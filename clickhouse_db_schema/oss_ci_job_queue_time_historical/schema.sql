@@ -1,25 +1,21 @@
-CREATE TABLE misc.oss_ci_queue_time_histogram(
-    `type` String,
+CREATE TABLE misc.oss_ci_job_queue_time_historical(
+    `queue_s` UInt64,
     `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_name` String,
     `job_name` String,
-    `machine_type` String,
-    `histogram_version` String,
-    `histogram` Array(UInt64),
-    `max_queue_time` UInt64,
-    `sum_queue_time` UInt64,
-    `total_count` UInt64,
+    `machine_type` String
     `time` DateTime64(9),
-    `extra_info` Map(String,String)
+    -- The raw records on S3, this is populated by the s3 replicator
+    `_meta` Tuple(bucket String, key String)
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(time)
 ORDER BY (
-    type,
+    repo,
     workflow_name,
     job_name,
     machine_type,
-    repo,
+    queue_s,
     time,
 )
 TTL toDate(time) + toIntervalYear(5)
