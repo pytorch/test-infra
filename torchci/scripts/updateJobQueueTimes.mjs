@@ -15,16 +15,22 @@ const s3client = getS3Client();
 
 // %7B%7D = encoded {}
 const response = await fetch(
-  "http://localhost:3000/api/clickhouse/queued_jobs?parameters=%7B%7D"
+  "https://hud.pytorch.org/api/clickhouse/queued_jobs?parameters=%7B%7D"
 ).then((r) => r.json());
 
 const unixTime = Math.floor(Date.now() / 1000);
+
+let repo = "pytorch/pytorch";
+if (response.length != 0) {
+    repo = response[0].repo;
+}
+
 const json_records = response.map((item) => JSON.stringify(item)).join("\n");
 
 s3client.send(
   new PutObjectCommand({
     Bucket: "ossci-raw-job-status",
-    Key: `job_queue_times_historical/${unixTime}.txt`,
+    Key: `job_queue_times_historical/${repo}/${unixTime}.txt`,
     Body: json_records,
   })
 );
