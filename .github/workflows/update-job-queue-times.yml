@@ -1,7 +1,6 @@
 name: Update job queue times dataset
 
 on:
-  pull_request:
   schedule:
     # Run every 15 minutes
     - cron: "*/15 * * * *"
