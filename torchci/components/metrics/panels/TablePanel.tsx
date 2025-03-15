@@ -21,6 +21,8 @@ export default function TablePanel({
   helpLink,
   // An optional flag to show the table footer
   showFooter,
+  // A custom function to modify the data before it is passed to table rendering
+  dataModifier,
 }: {
   title: string;
   queryName: string;
@@ -29,6 +31,7 @@ export default function TablePanel({
   dataGridProps: any;
   helpLink?: string;
   showFooter?: boolean;
+  dataModifier?: (data: any) => any;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -38,10 +41,16 @@ export default function TablePanel({
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });
 
+
+  let inputData = data;
+  if  (dataModifier !== undefined && data!=undefined) {
+    inputData = dataModifier(data);
+  }
+
   return (
     <TablePanelWithData
       title={title}
-      data={data}
+      data={inputData}
       columns={columns}
       dataGridProps={dataGridProps}
       helpLink={helpLink}

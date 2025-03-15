@@ -1,0 +1,27 @@
+name: Update job queue times dataset
+
+on:
+  pull_request:
+  schedule:
+    # Run every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: torchci
+jobs:
+  update-queue-times:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: yarn install --frozen-lockfile
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_update_queue_times
+          aws-region: us-east-1
+      - run: yarn node scripts/updatJobQueueTimes.mjs
