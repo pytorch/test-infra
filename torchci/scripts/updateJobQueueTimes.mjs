@@ -15,7 +15,7 @@ const s3client = getS3Client();
 
 // %7B%7D = encoded {}
 const response = await fetch(
-  "https://hud.pytorch.org/api/clickhouse/queued_jobs?parameters=%7B%7D"
+  "http://localhost:3000/api/clickhouse/queued_jobs?parameters=%7B%7D"
 ).then((r) => r.json());
 
 const unixTime = Math.floor(Date.now() / 1000);
