@@ -19,12 +19,12 @@ const response = await fetch(
 ).then((r) => r.json());
 
 const unixTime = Math.floor(Date.now() / 1000);
-json_records = result.map((item) => JSON.stringify(item)).join("\n");
+const json_records = response.map((item) => JSON.stringify(item)).join("\n");
 
 s3client.send(
   new PutObjectCommand({
     Bucket: "ossci-raw-job-status",
-    Key: `job_queue_times_historical/${unixTime}.json`,
+    Key: `job_queue_times_historical/${unixTime}.txt`,
     Body: json_records,
   })
 );
