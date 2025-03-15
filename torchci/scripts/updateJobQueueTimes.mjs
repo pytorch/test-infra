@@ -21,7 +21,7 @@ const response = await fetch(
 const unixTime = Math.floor(Date.now() / 1000);
 
 let repo = "pytorch/pytorch";
-if (response.length > 0 && response[0].repo) {
+if (response.length > 0 && response[0].repo != undefined) {
     repo = response[0].repo
 }
 
