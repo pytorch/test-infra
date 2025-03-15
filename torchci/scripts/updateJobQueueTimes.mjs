@@ -12,6 +12,7 @@ export function getS3Client() {
 }
 
 const s3client = getS3Client();
+const repo = "pytorch/pytorch";
 
 // %7B%7D = encoded {}
 const response = await fetch(
@@ -20,12 +21,12 @@ const response = await fetch(
 
 const unixTime = Math.floor(Date.now() / 1000);
 
-let repo = "pytorch/pytorch";
-if (response.length > 0 && response[0].repo != undefined) {
-    repo = response[0].repo
-}
-
-const json_records = response.map((item) => JSON.stringify(item)).join("\n");
+const json_records = response
+  .map((item) => {
+    item.time = unixTime;
+    return JSON.stringify(item);
+  })
+  .join("\n");
 
 s3client.send(
   new PutObjectCommand({
