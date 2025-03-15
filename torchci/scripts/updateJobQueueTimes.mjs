@@ -21,8 +21,8 @@ const response = await fetch(
 const unixTime = Math.floor(Date.now() / 1000);
 
 let repo = "pytorch/pytorch";
-if (response.length != 0) {
-    repo = response[0].repo;
+if (response.length > 0 && response[0].repo) {
+    repo = response[0].repo
 }
 
 const json_records = response.map((item) => JSON.stringify(item)).join("\n");
