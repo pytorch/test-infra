@@ -16,7 +16,9 @@ SELECT
         job.created_at,
         CURRENT_TIMESTAMP()
     ) AS queue_s,
-    CONCAT(workflow.name, ' / ', job.name) AS name,
+    workflow.repository.'full_name' AS repo,
+    workflow.name AS workflow_name,
+    job.name AS job_name,
     job.html_url,
     IF(
         LENGTH(job.labels) = 0,
