@@ -778,14 +778,12 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
-            dataModifier={
-              (data: any[]) =>{
-                return data.map((el) => {
-                  el.name = el.workflow_name+"/"+el.job_name;
-                  return el;
-                })
-              }
-            }
+            dataModifier={(data: any[]) => {
+              return data.map((el) => {
+                el.name = el.workflow_name + "/" + el.job_name;
+                return el;
+              });
+            }}
           />
         </Grid2>
 

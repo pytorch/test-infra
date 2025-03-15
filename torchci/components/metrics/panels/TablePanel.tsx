@@ -41,9 +41,8 @@ export default function TablePanel({
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });
 
-
   let inputData = data;
-  if  (dataModifier !== undefined && data!=undefined) {
+  if (dataModifier !== undefined && data != undefined) {
     inputData = dataModifier(data);
   }
 
