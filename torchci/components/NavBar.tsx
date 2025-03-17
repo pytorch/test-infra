@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import LoginSection from "./LoginSection";
+import ThemeModePicker from "./ThemeModePicker";
 
 const NavBarDropdown = ({
   title,
@@ -149,6 +150,8 @@ function NavBar() {
         style={{
           marginLeft: "auto",
           marginRight: "0px",
+          display: "flex",
+          alignItems: "center",
         }}
       >
         <ul className={styles.navbarlinkslist}>
@@ -174,14 +177,23 @@ function NavBar() {
           </li>
           <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
-          <li style={{ cursor: "pointer" }}>
+          <li
+            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+          >
             <Link
               href="https://github.com/pytorch/test-infra/tree/main/torchci"
               passHref
-              style={{ color: "black" }}
+              style={{
+                color: "var(--icon-color)",
+                display: "flex",
+                alignItems: "center",
+              }}
             >
               <AiFillGithub />
             </Link>
+          </li>
+          <li>
+            <ThemeModePicker />
           </li>
           <li style={{ padding: "0 1rem" }}>
             <LoginSection></LoginSection>
