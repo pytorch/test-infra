@@ -194,7 +194,7 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
             # added into the list of benchmark results with the length of 1
             if isinstance(r, dict):
                 benchmark_results.append(r)
-            else:
+            elif isinstance(r, (list, tuple)):
                 benchmark_results = r
 
         except JSONDecodeError:
