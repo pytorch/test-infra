@@ -1,15 +1,13 @@
-import subprocess
+ import multiprocessing
 
-SEGFAULT_PROCESS_RETURNCODE = -11
-
-
-try:
-    subprocess.run(["python3", "-m", "run_torch.py"],
-                   check=True)
-except subprocess.CalledProcessError as err:
-    if err.returncode == SEGFAULT_PROCESS_RETURNCODE:
-        print("probably segfaulted")
-    else:
-        print(f"crashed for other reasons: {err.returncode}")
-else:
-    print("ok")
+def run_in_subprocess():
+    try:
+        import torch
+        pass
+    except Exception:
+        traceback.print_exc()
+        
+if __name__ == "__main__":
+    p = multiprocessing.Process(target=run_in_subprocess)
+    p.start()
+    p.join()
