@@ -84,7 +84,7 @@ else
     pushd ${SCRIPT_DIR}
     conda list
     conda info
-    python3 -m trace --trace test_import1.py
+    python3 test_import1.py
 
     pushd ${PWD}/.ci/pytorch/
 
