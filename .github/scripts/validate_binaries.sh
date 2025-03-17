@@ -121,11 +121,7 @@ else
         python -c "import torch;import os;print(torch.cuda.device_count(), torch.__version__);os.environ['CUDA_VISIBLE_DEVICES']='0';print(torch.empty(2, device='cuda'))"
     fi
 
-    # this is optional step
-    if [[ ${TARGET_OS} != linux*  ]]; then
-        conda deactivate
-        conda env remove -n ${ENV_NAME}
-    fi
+
     popd
 
 fi
