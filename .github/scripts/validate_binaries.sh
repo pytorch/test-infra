@@ -16,12 +16,12 @@ else
         if [[ ${MATRIX_GPU_ARCH_TYPE} == "xpu" ]]; then
             export PYTHON_RUN="${SCRIPT_DIR}/xpu_env_helper.bat python"
         fi
-        .venv\\Scripts\\activate
+        source .venv\\Scripts\\activate
     else
         source .venv/bin/activate
     fi
 
-    uv pip3 install numpy --force-reinstall
+    uv pip install numpy --force-reinstall
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
