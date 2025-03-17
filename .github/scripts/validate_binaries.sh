@@ -82,7 +82,11 @@ else
     eval $INSTALLATION
 
     pushd ${SCRIPT_DIR}
-    python -q -X faulthandler test_import1.py
+    git clone https://github.com/timmaxw/cfaulthandler.git
+    cd cfaulthandler
+    python setup.py install
+    cd ..
+    python test_import1.py
 
 
     pushd ${PWD}/.ci/pytorch/
