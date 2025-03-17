@@ -913,6 +913,31 @@ export default function Page() {
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
           />
         </Grid2>
+
+        <Grid2 size={{ xs: 12 }}>
+          <br />
+          <br />
+          <Typography variant="h3" gutterBottom>
+            Ephemeral vs Nonephemeral runners migration
+          </Typography>
+          <p>
+            This pannel shows the % of jobs that are running on `ephemeral`
+            experiment.
+          </p>
+        </Grid2>
+
+        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Percentage of jobs on ephemeral experiment"}
+            queryName={"ephemeral_rollover_percentage"}
+            queryParams={{ ...timeParams, days_ago: timeRange }}
+            granularity={"hour"}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
+          />
+        </Grid2>
       </Grid2>
     </div>
   );
