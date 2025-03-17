@@ -51,7 +51,7 @@
   flex: 1;
 }
 
-/* code to roatate the workflow name headers */
+/* code to rotate the workflow name headers */
 .jobHeader {
   font-family: sans-serif;
   height: 150px;
@@ -160,4 +160,7 @@
 
 .controlsContainer > div {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
