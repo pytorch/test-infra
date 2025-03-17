@@ -22,16 +22,19 @@ import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import("lib/chartTheme");
 
 function MasterCommitRedPanel({
   params,
 }: {
   params: { [key: string]: string };
 }) {
+  // Use the dark mode context to determine whether to use the dark theme
+  const { darkMode } = useDarkMode();
+
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
       ...params,
@@ -104,7 +107,7 @@ function MasterCommitRedPanel({
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
-        theme="dark-hud"
+        theme={darkMode ? "dark-hud" : undefined}
         style={{ height: "100%", width: "100%" }}
         option={options}
       />

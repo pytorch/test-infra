@@ -25,7 +25,7 @@ export function ScalarPanelWithValue({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  let fontColor = badThreshold(value) ? "#ee6666" : "black";
+  let fontColor = badThreshold(value) ? "#ee6666" : "inherit";
 
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
