@@ -194,7 +194,7 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
             # added into the list of benchmark results with the length of 1
             if isinstance(r, dict):
                 benchmark_results.append(r)
-            elif isinstance(r, (list, tuple)):
+            elif isinstance(r, list):
                 benchmark_results = r
 
         except JSONDecodeError:
@@ -207,7 +207,7 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
                     # Each row needs to be a dictionary in JSON format or a list
                     if isinstance(r, dict):
                         benchmark_results.append(r)
-                    elif isinstance(r, (list, tuple)):
+                    elif isinstance(r, list):
                         benchmark_results.extend(r)
                     else:
                         warn(f"Not a JSON dict or list {line}, skipping")
