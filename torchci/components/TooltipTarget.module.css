@@ -31,6 +31,7 @@
   max-width: 95vw;
   min-height: 3em;
   margin-bottom: 10px;
+  width: max-content;
 }
 
 .contentPinned {
@@ -44,6 +45,7 @@
   z-index: 1;
   max-width: 95vw;
   margin-bottom: 10px;
+  width: max-content;
 }
 
 .content pre {
