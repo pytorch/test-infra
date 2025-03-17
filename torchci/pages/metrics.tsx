@@ -908,47 +908,6 @@ export default function Page() {
 
         <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"LF vs Meta: Success rate delta"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel={"rate delta"}
-            yAxisFieldName={"success_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"LF vs Meta: Cancelled rate delta"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel={"rate delta"}
-            yAxisFieldName={"cancelled_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"LF vs Meta: Duration increase ratio"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel="increase ratio"
-            yAxisFieldName={"success_duration_increase_ratio"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
             queryParams={{ ...timeParams, days_ago: timeRange }}

@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Resources:
+  ScaleUpChronFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: index.scaleUpChron
+      Runtime: nodejs20.x
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: 'rate(1 minute)'

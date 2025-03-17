@@ -104,6 +104,7 @@ module "runners" {
   environment          = var.environment
   tags                 = local.tags
 
+  scale_config_org       = var.scale_config_org
   scale_config_repo      = var.scale_config_repo
   scale_config_repo_path = var.scale_config_repo_path
 
@@ -111,6 +112,8 @@ module "runners" {
     kms_key_id = local.kms_key_id
     encrypt    = var.encrypt_secrets
   }
+
+  retry_scale_up_chron_hud_query_url = var.retry_scale_up_chron_hud_query_url
 
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels

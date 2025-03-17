@@ -43,7 +43,6 @@ export default function ThemeModePicker(): JSX.Element {
   const getIconComponent = () => {
     if (themeMode === "system") {
       const iconColor = darkMode ? "#E0E0E0" : "#212529";
-      // Show just one icon based on system preference
       const Icon = darkMode ? BsMoon : BsSun;
       return <Icon size={18} color={iconColor} />;
     }

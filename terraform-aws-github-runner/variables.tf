@@ -345,6 +345,11 @@ variable "cant_have_issues_labels" {
   default     = []
 }
 
+variable "scale_config_org" {
+  description = "Organization to fetch scale config from."
+  type        = string
+}
+
 variable "scale_config_repo" {
   description = "Repository to fetch scale config from.  Optional if `enable_organization_runners` is set to false, in which case the job's repo will be used"
   default     = ""
@@ -361,4 +366,10 @@ variable "min_available_runners" {
   description = "Minimum number of runners to keep available."
   type        = number
   default     = 10
+}
+
+variable "retry_scale_up_chron_hud_query_url" {
+  description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
+  type        = string
+  default     =""
 }
