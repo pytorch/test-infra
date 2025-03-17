@@ -16,31 +16,31 @@ const colorPalette = [
   "#05c091", // Teal
   "#ff8a45", // Orange
   "#8d48e3", // Purple
-  "#dd79ff" // Pink
+  "#dd79ff", // Pink
 ];
 
 const axisCommon = () => {
   return {
     axisLine: {
       lineStyle: {
-        color: textColor
-      }
+        color: textColor,
+      },
     },
     splitLine: {
       lineStyle: {
-        color: borderColor
-      }
+        color: borderColor,
+      },
     },
     splitArea: {
       areaStyle: {
-        color: ["rgba(255,255,255,0.02)", "rgba(255,255,255,0.05)"]
-      }
+        color: ["rgba(255,255,255,0.02)", "rgba(255,255,255,0.05)"],
+      },
     },
     minorSplitLine: {
       lineStyle: {
-        color: borderColor
-      }
-    }
+        color: borderColor,
+      },
+    },
   };
 };
 
@@ -50,143 +50,143 @@ const theme = {
   backgroundColor: backgroundColor,
   axisPointer: {
     lineStyle: {
-      color: borderColor
+      color: borderColor,
     },
     crossStyle: {
-      color: borderColor
+      color: borderColor,
     },
     label: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   legend: {
     textStyle: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   textStyle: {
-    color: textColor
+    color: textColor,
   },
   title: {
     textStyle: {
-      color: textColor
+      color: textColor,
     },
     subtextStyle: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   toolbox: {
     iconStyle: {
-      borderColor: textColor
-    }
+      borderColor: textColor,
+    },
   },
   dataZoom: {
     borderColor: borderColor,
     textStyle: {
-      color: textColor
+      color: textColor,
     },
     brushStyle: {
-      color: "rgba(135,163,206,0.3)"
+      color: "rgba(135,163,206,0.3)",
     },
     handleStyle: {
       color: backgroundColor,
-      borderColor: textColor
+      borderColor: textColor,
     },
     moveHandleStyle: {
       color: textColor,
-      opacity: 0.3
+      opacity: 0.3,
     },
     fillerColor: "rgba(135,163,206,0.2)",
     emphasis: {
       handleStyle: {
         borderColor: linkColor,
-        color: backgroundColor
+        color: backgroundColor,
       },
       moveHandleStyle: {
         color: textColor,
-        opacity: 0.7
-      }
+        opacity: 0.7,
+      },
     },
     dataBackground: {
       lineStyle: {
         color: borderColor,
-        width: 1
+        width: 1,
       },
       areaStyle: {
-        color: borderColor
-      }
+        color: borderColor,
+      },
     },
     selectedDataBackground: {
       lineStyle: {
-        color: linkColor
+        color: linkColor,
       },
       areaStyle: {
-        color: linkColor
-      }
-    }
+        color: linkColor,
+      },
+    },
   },
   visualMap: {
     textStyle: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   timeline: {
     lineStyle: {
-      color: textColor
+      color: textColor,
     },
     label: {
-      color: textColor
+      color: textColor,
     },
     controlStyle: {
       color: textColor,
-      borderColor: textColor
-    }
+      borderColor: textColor,
+    },
   },
   calendar: {
     itemStyle: {
-      color: backgroundColor
+      color: backgroundColor,
     },
     dayLabel: {
-      color: textColor
+      color: textColor,
     },
     monthLabel: {
-      color: textColor
+      color: textColor,
     },
     yearLabel: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   timeAxis: axisCommon(),
   logAxis: axisCommon(),
   valueAxis: axisCommon(),
   categoryAxis: axisCommon(),
   line: {
-    symbol: "circle"
+    symbol: "circle",
   },
   graph: {
-    color: colorPalette
+    color: colorPalette,
   },
   gauge: {
     title: {
-      color: textColor
-    }
+      color: textColor,
+    },
   },
   candlestick: {
     itemStyle: {
       color: "#f44336", // Failure color / red
       color0: "#4caf50", // Success color / green
       borderColor: "#f44336", // Failure color / red
-      borderColor0: "#4caf50" // Success color / green
-    }
-  }
+      borderColor0: "#4caf50", // Success color / green
+    },
+  },
 };
 
 (theme.categoryAxis as any).splitLine.show = false;
 echarts.registerTheme("dark-hud", theme);
 
-console.log('Echarts dark theme registered with color palette:', colorPalette);
+console.log("Echarts dark theme registered with color palette:", colorPalette);
 
 // Export the theme name for use in other files
-const darkThemeHud = 'dark-hud';
+const darkThemeHud = "dark-hud";
 
 export default darkThemeHud;

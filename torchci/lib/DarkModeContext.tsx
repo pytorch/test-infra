@@ -34,7 +34,7 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
         return savedThemeMode;
       }
     }
-    return "light";
+    return "system";
   });
 
   const [darkMode, setDarkMode] = useState<boolean>(false);
