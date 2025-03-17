@@ -82,8 +82,8 @@ else
     eval $INSTALLATION
 
     pushd ${SCRIPT_DIR}
-    python3 test_import1.py
-    cat fault_handler.log
+    PYTHONFAULTHANDLER=1 python test_import1.py
+
 
     pushd ${PWD}/.ci/pytorch/
 
