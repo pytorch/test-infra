@@ -185,6 +185,10 @@ jobs:
       script: |
         set -ex
         python3 -m ensurepip --upgrade
+
+        # install Dev Tools in order to test torch.compile
+        dnf groupinstall -y "Development Tools"
+
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
 
