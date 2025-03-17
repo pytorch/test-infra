@@ -23,6 +23,7 @@ export default function Document() {
                     
                     // Create and append a style element to handle navbar and other elements before React loads
                     var style = document.createElement('style');
+                    style.id = 'dark-mode-init-styles';
                     style.textContent = \`
                       html, body { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
                       div[class*="navbar"] { 

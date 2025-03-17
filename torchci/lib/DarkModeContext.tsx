@@ -72,6 +72,19 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
       document.documentElement.classList.add("dark-mode");
     } else {
       document.documentElement.classList.remove("dark-mode");
+      
+      // Reset any inline styles that might have been set during initial load
+      document.querySelectorAll('[style*="background"]').forEach(el => {
+        if ((el as HTMLElement).style.backgroundColor === '#1e1e1e') {
+          (el as HTMLElement).style.removeProperty('background-color');
+        }
+      });
+      
+      // Remove any dark mode inline styles we added at page load
+      const styleEl = document.getElementById('dark-mode-init-styles');
+      if (styleEl) {
+        styleEl.remove();
+      }
     }
 
     // Save the preference to localStorage
