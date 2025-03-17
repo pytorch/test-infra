@@ -83,6 +83,7 @@ else
 
     pushd ${SCRIPT_DIR}
     python3 test_import1.py
+    cat fault_handler.log
 
     pushd ${PWD}/.ci/pytorch/
 
