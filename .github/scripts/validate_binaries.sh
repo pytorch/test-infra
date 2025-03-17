@@ -82,8 +82,8 @@ else
     eval $INSTALLATION
 
     pushd ${SCRIPT_DIR}
+    python -c "import pdb"
     python test_import1.py
-
 
     pushd ${PWD}/.ci/pytorch/
 
