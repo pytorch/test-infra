@@ -1,6 +1,7 @@
-import faulthandler
+import cfaulthandler
 
-with open("fault_handler.log", "w") as fobj:
-    faulthandler.enable(fobj)
-    import torch
-    print(torch.__version__)
+cfaulthandler.enable()
+import torch
+print(torch.__version__)
+    
+    
