@@ -28,7 +28,7 @@ else
         conda activate ${ENV_NAME}
         TORCH_ONLY='true'
     elif [[ ${MATRIX_PYTHON_VERSION} == "3.13" ]]; then
-        conda create -y -n ${ENV_NAME} python=3.13.1
+        conda create -y -n ${ENV_NAME} python=3.13 -c conda-forge
         conda activate ${ENV_NAME}
     else
         # Please note ffmpeg is required for torchaudio, see https://github.com/pytorch/pytorch/issues/96159
