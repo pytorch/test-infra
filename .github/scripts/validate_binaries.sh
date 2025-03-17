@@ -16,12 +16,12 @@ else
         if [[ ${MATRIX_GPU_ARCH_TYPE} == "xpu" ]]; then
             export PYTHON_RUN="${SCRIPT_DIR}/xpu_env_helper.bat python"
         fi
-        .venv\Scripts\activate
+        .venv\\Scripts\\activate
     else
         source .venv/bin/activate
     fi
 
-    pip3 install numpy --force-reinstall
+    uv pip3 install numpy --force-reinstall
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
@@ -65,9 +65,11 @@ else
 
     # Make sure we remove previous installation if it exists
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
-        pip3 uninstall -y torch torchaudio torchvision
+        uv pip uninstall -y torch torchaudio torchvision
     fi
-    eval $INSTALLATION
+    
+    INSTALLATION=${INSTALLATION/"pip3"/"pip"}
+    uv $INSTALLATION
 
     pushd ${PWD}/.ci/pytorch/
 
