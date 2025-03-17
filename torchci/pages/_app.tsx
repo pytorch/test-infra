@@ -5,7 +5,7 @@ import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
-import { DarkModeProvider, useDarkMode } from "lib/DarkModeContext";
+import { DarkModeProvider } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import ReactGA from "react-ga4";
 import { useAppTheme } from "styles/MuiThemeOverrides";
 import "styles/globals.css";
+import("lib/chartTheme");
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -46,15 +47,6 @@ function AppContent({
   pageProps: any;
 }) {
   const theme = useAppTheme();
-  const { darkMode } = useDarkMode();
-
-  // Apply chart theme when dark mode changes
-  useEffect(() => {
-    // Basic chart theme integration - full implementation in PR3
-    import("lib/chartTheme").then(({ applyChartTheme }) => {
-      applyChartTheme(!!darkMode);
-    });
-  }, [darkMode]);
 
   return (
     <ThemeProvider theme={theme}>

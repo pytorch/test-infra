@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import useSWR from "swr";
@@ -191,6 +192,8 @@ export function TimeSeriesPanelWithData({
   legendPadding?: number;
   onEvents?: { [key: string]: any };
 }) {
+  // Use the dark mode context to determine whether to use the dark theme
+  const { darkMode } = useDarkMode();
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? legendPadding : 48;
   const title_padding = yAxisLabel ? 65 : 48;
@@ -264,6 +267,7 @@ export function TimeSeriesPanelWithData({
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
+        theme={darkMode ? "dark-hud" : undefined}
         option={options}
         notMerge={true}
         onEvents={onEvents}
