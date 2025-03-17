@@ -116,6 +116,7 @@ html {
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   background-color: var(--background-color);
   color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h1 {
@@ -127,6 +128,7 @@ body {
   padding: 5px;
   background-color: var(--background-color);
   color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -223,6 +225,7 @@ hr {
 /* Component background elements */
 .component-bg {
   background-color: var(--dropdown-bg);
+  transition: background-color 0.3s ease;
 }
 
 .animate-on-click {
