@@ -185,10 +185,6 @@ jobs:
       script: |
         set -ex
         python3 -m ensurepip --upgrade
-
-        # install Dev Tools in order to test torch.compile
-        dnf groupinstall -y "Development Tools"
-
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
 
@@ -199,8 +195,6 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
         fi
 
-        # smoke tests include numpy tests hence install numpy
-        python3 -m pip install numpy
         # install torch using default python version and smoke test
         python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
         python3 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
