@@ -5,12 +5,13 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import psutil
-import platform
-import socket
 import json
 import os
-from typing import Dict, Any
+import platform
+import socket
+from typing import Any, Dict
+
+import psutil
 
 
 def set_output(name: str, val: Any) -> None:
