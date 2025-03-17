@@ -7,29 +7,18 @@ if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
 else
 
     export PYTHON_RUN="python3"
+    pip install -y uv
+    uv venv --python ${MATRIX_PYTHON_VERSION}
+
     if [[ ${TARGET_OS} == 'windows' ]]; then
         export PYTHON_RUN="python"
         # Currently xpu env need a helper script to activate
         if [[ ${MATRIX_GPU_ARCH_TYPE} == "xpu" ]]; then
             export PYTHON_RUN="${SCRIPT_DIR}/xpu_env_helper.bat python"
         fi
-    fi
-
-    if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-        conda update -y -n base -c defaults conda
-    elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
-        # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
-        conda install -y conda=23.11.0
-    fi
-
-    if [[ ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
-        conda create -y -n ${ENV_NAME} python=3.13 python-freethreading -c conda-forge
-        conda activate ${ENV_NAME}
-        TORCH_ONLY='true'
+        .venv\Scripts\activate
     else
-        # Please note ffmpeg is required for torchaudio, see https://github.com/pytorch/pytorch/issues/96159
-        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} ffmpeg
-        conda activate ${ENV_NAME}
+        source .venv/bin/activate
     fi
 
     pip3 install numpy --force-reinstall
@@ -118,8 +107,8 @@ else
 
     # this is optional step
     if [[ ${TARGET_OS} != linux*  ]]; then
-        conda deactivate
-        conda env remove -n ${ENV_NAME}
+        deactivate
+        rm -rf .venv
     fi
     popd
 
