@@ -82,8 +82,6 @@ else
     eval $INSTALLATION
 
     pushd ${SCRIPT_DIR}
-    conda list
-    conda info
     python3 test_import1.py
 
     pushd ${PWD}/.ci/pytorch/
