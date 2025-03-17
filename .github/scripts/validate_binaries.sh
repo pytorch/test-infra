@@ -7,7 +7,7 @@ if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
 else
 
     export PYTHON_RUN="python3"
-    pip install -y uv
+    pip install uv
     uv venv --python ${MATRIX_PYTHON_VERSION}
 
     if [[ ${TARGET_OS} == 'windows' ]]; then
