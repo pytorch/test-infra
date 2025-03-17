@@ -185,7 +185,6 @@ jobs:
       script: |
         set -ex
         python3 -m ensurepip --upgrade
-        conda install -y conda=23.5.2
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
 
