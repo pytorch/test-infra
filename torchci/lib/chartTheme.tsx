@@ -184,8 +184,6 @@ const theme = {
 (theme.categoryAxis as any).splitLine.show = false;
 echarts.registerTheme("dark-hud", theme);
 
-console.log("Echarts dark theme registered with color palette:", colorPalette);
-
 // Export the theme name for use in other files
 const darkThemeHud = "dark-hud";
 
