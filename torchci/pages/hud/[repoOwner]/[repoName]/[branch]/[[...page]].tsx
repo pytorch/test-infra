@@ -16,12 +16,7 @@ import JobFilterInput from "components/job/JobFilterInput";
 import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
 import { fetcher } from "lib/GeneralUtils";
-import {
-  getGroupingData,
-  groups,
-  isUnstableGroup,
-  sortGroupNamesForHUD,
-} from "lib/JobClassifierUtil";
+import { isUnstableGroup } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -195,9 +190,10 @@ function HudJobCells({
   unstableIssues: IssueData[];
   params: HudParams;
 }) {
-  let groupNames = groups.map((group) => group.name).concat("other");
   const { expandedGroups, setExpandedGroups, groupNameMapping } =
     useContext(GroupingContext);
+  const groupNames = Array.from(groupNameMapping.keys());
+
   return (
     <>
       {names.map((name) => {
@@ -580,7 +576,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   }, [router, useGrouping]);
 
   const groupNames = Array.from(groupNameMapping.keys());
-  let names = sortGroupNamesForHUD(groupNames);
+  let names = sortGroupNamesForHUD(groupNames, groupSettings);
 
   if (useGrouping) {
     expandedGroups.forEach((group) => {
@@ -598,7 +594,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     }
   } else {
     names = [...jobNames];
-    groups.forEach((group) => {
+    groupSettings.forEach((group) => {
       if (
         groupNames.includes(group.name) &&
         (group.persistent ||
