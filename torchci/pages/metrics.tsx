@@ -971,7 +971,11 @@ export default function Page() {
           <TimeSeriesPanel
             title={"Percentage of jobs running on experiment"}
             queryName={"experiment_rollover_percentage"}
-            queryParams={{ ...timeParams, days_ago: timeRange, experiment_name: experimentName }}
+            queryParams={{
+              ...timeParams,
+              days_ago: timeRange,
+              experiment_name: experimentName,
+            }}
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
