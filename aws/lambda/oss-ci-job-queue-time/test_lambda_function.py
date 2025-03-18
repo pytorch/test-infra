@@ -18,99 +18,85 @@ def get_default_result_rows(test_sample: str = "0"):
     generate result rows for testing, this corrresponds to the following columns:
        'queue_s', 'repo', 'workflow_name', 'job_name', 'html_url', 'machine_type', 'time'
     """
-    match test_sample:
-        case "0":
-            return [
-                (
-                    60000,
-                    "pytorch/pytorch",
-                    "workflow-name-1",
-                    "job-name-1",
-                    "runs/1/job/1",
-                    "linux.aws.h100",
-                    1742262372,
-                ),
-                (
-                    1400,
-                    "pytorch/pytorch",
-                    "workflow-name-2",
-                    "job-name-2",
-                    "runs/2/job/2",
-                    "linux.rocm.gpu.2",
-                    1742262372,
-                ),
-            ]
-        case "1":
-            return [
-                (
-                    60000,
-                    "pytorch/pytorch",
-                    "inductor-h100",
-                    "test1 (h100, 5, 5, linux.aws.h100)",
-                    "runs/1/job/1",
-                    "linux.aws.h100",
-                    1742262372,
-                ),
-                (
-                    50000,
-                    "pytorch/pytorch",
-                    "inductor-h100",
-                    "test1 (h100, 5, 5, linux.aws.h100)",
-                    "runs/1/job/2",
-                    "linux.aws.h100",
-                    1742262372,
-                ),
-                (
-                    55000,
-                    "pytorch/pytorch",
-                    "inductor-h100",
-                    "test1 (h100, 2, 6, linux.aws.h100)",
-                    "runs/1/job/3",
-                    "linux.aws.h100",
-                    1742262372,
-                ),
-                (
-                    1729,
-                    "pytorch/pytorch",
-                    "inductor-h100",
-                    "test2 (h100, 1, 1, linux.aws.h100)",
-                    "runs/2/job/1",
-                    "linux.aws.h100",
-                    1742262372,
-                ),
-                (
-                    1352,
-                    "pytorch/pytorch",
-                    "inductor-rocm",
-                    "rocm-test1(1, 1, linux.rocm.gpu.2)",
-                    "runs/3/job/1",
-                    "linux.rocm.gpu.2",
-                    1742262372,
-                ),
-                (
-                    1400,
-                    "pytorch/pytorch",
-                    "inductor-rocm",
-                    "rocm-test1 (1, 1, linux.rocm.gpu.2)",
-                    "runs/4/job/2",
-                    "linux.rocm.gpu.2",
-                    1742262372,
-                ),
-            ]
-        case _:
-            return []
+    if (test_sample == "0"):
+        return [
+            (
+                60000,
+                "pytorch/pytorch",
+                "workflow-name-1",
+                "job-name-1",
+                "runs/1/job/1",
+                "linux.aws.h100",
+                1742262372,
+            ),
+            (
+                1400,
+                "pytorch/pytorch",
+                "workflow-name-2",
+                "job-name-2",
+                "runs/2/job/2"
+            )]
+
+    return [
+        (
+            60000,
+            "pytorch/pytorch",
+            "inductor-h100",
+            "test1 (h100, 5, 5, linux.aws.h100)",
+            "runs/1/job/1",
+            "linux.aws.h100",
+            1742262372,
+        ),
+        (
+            50000,
+            "pytorch/pytorch",
+            "inductor-h100",
+            "test1 (h100, 5, 5, linux.aws.h100)",
+            "runs/1/job/2",
+            "linux.aws.h100",
+            1742262372,
+        ),
+        (
+            55000,
+            "pytorch/pytorch",
+            "inductor-h100",
+            "test1 (h100, 2, 6, linux.aws.h100)",
+            "runs/1/job/3",
+            "linux.aws.h100",
+            1742262372,
+        ),
+        (
+            1729,
+            "pytorch/pytorch",
+            "inductor-h100",
+            "test2 (h100, 1, 1, linux.aws.h100)",
+            "runs/2/job/1",
+            "linux.aws.h100",
+            1742262372,
+        ),
+        (
+            1352,
+            "pytorch/pytorch",
+            "inductor-rocm",
+            "rocm-test1(1, 1, linux.rocm.gpu.2)",
+            "runs/3/job/1",
+            "linux.rocm.gpu.2",
+            1742262372,
+        ),
+        (
+            1400,
+            "pytorch/pytorch",
+            "inductor-rocm",
+            "rocm-test1 (1, 1, linux.rocm.gpu.2)",
+            "runs/4/job/2",
+            "linux.rocm.gpu.2",
+            1742262372,
+        ),
+    ]
 
 
-def get_default_result_columns() -> Tuple:
-    return (
-        "queue_s",
-        "repo",
-        "workflow_name",
-        "job_name",
-        "html_url",
-        "machine_type",
-        "time",
-    )
+def get_default_result_columns():
+    return "queue_s", "repo", "workflow_name", "job_name", "html_url", "machine_type","time"
 
 
 def mock_s3_resource_put(mock_s3_resource: Any) -> None:

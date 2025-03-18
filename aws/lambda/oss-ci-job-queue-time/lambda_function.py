@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from functools import lru_cache
 import json
 from typing import Any
@@ -211,19 +212,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="when set true, only print instead of writing results to s3",
     )
-    return parser.parse_known_args()[0]
+    args,_ = parser.parse_known_args()
+    return args
 
 
-def main(*args, **kwargs) -> None:
+def main() -> None:
     """
     Main method to run in local test environment
     """
-    args = parse_args()
+
+    arguments = parse_args()
 
     db_client = get_clickhouse_client(
-        host=args.clickhouse_endpoint,
-        user=args.clickhouse_username,
-        password=args.clickhouse_password,
+        host=arguments.clickhouse_endpoint,
+        user=arguments.clickhouse_username,
+        password=arguments.clickhouse_password,
     )
     s3_client = get_aws_s3_resource()
 
