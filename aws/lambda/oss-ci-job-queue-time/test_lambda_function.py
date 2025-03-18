@@ -5,7 +5,7 @@ from re import M, T
 from typing import Any, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from oss_ci_job_queue_time import (
+from lambda_function import (
     lambda_handler,
     get_aws_s3_resource,
     get_clickhouse_client,
