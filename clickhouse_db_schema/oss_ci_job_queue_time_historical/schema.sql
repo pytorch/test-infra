@@ -1,3 +1,4 @@
+ -- This table is used to keep track of snapshots of in-queue jobs
 CREATE TABLE misc.oss_ci_job_queue_time_historical(
     `queue_s` UInt64,
     `repo` String DEFAULT 'pytorch/pytorch',

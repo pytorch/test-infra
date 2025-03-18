@@ -1,4 +1,7 @@
+ -- This table is used to store queue time histogram
 CREATE TABLE misc.oss_ci_queue_time_histogram(
+     -- the type of histogram, currently we store two types of histogram:
+     -- 'in-queue-histogram','completed-queue-histogram'
     `type` String,
     `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_name` String,
@@ -7,7 +10,7 @@ CREATE TABLE misc.oss_ci_queue_time_histogram(
     `histogram_version` String,
     `histogram` Array(UInt64),
     `max_queue_time` UInt64,
-    `sum_queue_time` UInt64,
+    `avg_queue_time` UInt64,
     `total_count` UInt64,
     `time` DateTime64(9),
     `extra_info` Map(String,String)
