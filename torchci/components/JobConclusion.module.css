@@ -2,6 +2,9 @@
   font-family: monospace;
   font-size: 1rem;
   font-weight: bold;
+  display: inline-block;
+  width: 14px;
+  text-align: center;
 }
 
 .classified {
@@ -23,6 +26,7 @@
   background-size: 152px 426px; /* total size of the spritesheet (downscaled 1.5x) */
   display: inline-block;
   vertical-align: middle;
+  margin-left: 0;
   image-rendering: pixelated;
 }
 

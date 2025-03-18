@@ -87,9 +87,9 @@ function GroupConclusionContent({
   if (conclusion !== GroupedJobStatus.Failure || !monsterFailures) {
     return (
       <span
-        className={
+        className={`${styles.conclusion} ${
           isClassified ? styles["classified"] : styles[conclusion ?? "none"]
-        }
+        }`}
         onDoubleClick={toggleExpanded}
         style={{
           border: "1px solid gainsboro",
@@ -143,7 +143,7 @@ function GroupConclusionContent({
 
   return (
     <span
-      className={styles.monster_with_count}
+      className={`${styles.monster_with_count} ${styles.conclusion}`}
       onDoubleClick={toggleExpanded}
       title={`${allMonsters.length} unique failure ${
         allMonsters.length === 1 ? "type" : "types"

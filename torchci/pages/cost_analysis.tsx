@@ -633,7 +633,7 @@ export default function Page() {
                       backgroundColor: isRegex
                         ? "rgba(63, 81, 181, 0.1)"
                         : "transparent",
-                      color: isRegex ? "#3f51b5" : "rgba(0, 0, 0, 0.54)",
+                      color: isRegex ? "primary.main" : "text.secondary",
                       border: isRegex
                         ? "1px solid rgba(63, 81, 181, 0.5)"
                         : "1px solid transparent",
@@ -733,7 +733,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <MdOutlineStackedBarChart size={"2em"} fill="#444" />
+                      <MdOutlineStackedBarChart size={"2em"} />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -744,7 +744,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <FaRegChartBar size={"2em"} fill="#444" />
+                      <FaRegChartBar size={"2em"} />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
@@ -755,7 +755,7 @@ export default function Page() {
                       alignItems="center"
                       justifyContent="center"
                     >
-                      <BiLineChart size={"2em"} fill="#444" />
+                      <BiLineChart size={"2em"} />
                     </Box>
                   </Tooltip>
                 </ToggleButton>
