@@ -17,15 +17,11 @@ from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 
-CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
-CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
-CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
-
 
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True
+        host=host, user=user, password=password, secure=True, verify=False
     )
 
 
@@ -34,13 +30,15 @@ def get_aws_s3_resource() -> Any:
     return boto3.resource("s3")
 
 
-def get_clickhouse_client_handler() -> Any:
+def get_clickhouse_client_environment() -> Any:
     for env in ["CLICKHOUSE_ENDPOINT", "CLICKHOUSE_USERNAME", "CLICKHOUSE_PASSWORD"]:
         if not os.getenv(env):
             raise ValueError(f"Missing environment variable {env}")
 
     return get_clickhouse_client(
-        host=CLICKHOUSE_ENDPOINT, user=CLICKHOUSE_USERNAME, password=CLICKHOUSE_PASSWORD
+        host=os.getenv("CLICKHOUSE_ENDPOINT"),
+        user=os.getenv("CLICKHOUSE_USERNAME"),
+        password=os.getenv("CLICKHOUSE_PASSWORD"),
     )
 
 
@@ -183,7 +181,7 @@ def lambda_handler(event: Any, context: Any) -> None:
     """
     Main method to run in aws lambda environment
     """
-    db_client = get_clickhouse_client_handler()
+    db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
 
     QueueTimeProcessor(db_client, s3_client).process()
@@ -197,47 +195,50 @@ def parse_args() -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--clickhouse_endpoint",
+        "--clickhouse-endpoint",
+        default=os.getenv("CLICKHOUSE_ENDPOINT", ""),
         type=str,
-        required=True,
         help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
     )
     parser.add_argument(
-        "--clickhouse_username", type=str, required=True, help="the clickhouse username"
+        "--clickhouse-username",
+        type=str,
+        default=os.getenv("CLICKHOUSE_USERNAME", ""),
+        help="the clickhouse username",
     )
     parser.add_argument(
-        "--clickhouse_password",
+        "--clickhouse-password",
         type=str,
-        required=True,
+        default=os.getenv("CLICKHOUSE_PASSWORD", ""),
         help="the clickhouse password for the user name",
     )
     parser.add_argument(
-        "--dry-run",
+        "--not-dry-run",
         action="store_true",
-        help="when set true, only print instead of writing results to s3",
+        help="when set true, writing results to s3 from local . By default, local run is dry run mode",
     )
-    args,_ = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
     return args
 
 
 def main() -> None:
     """
-    Main method to run in local test environment
+    method to run in local test environment
     """
 
     arguments = parse_args()
 
-    db_client = get_clickhouse_client(
-        host=arguments.clickhouse_endpoint,
-        user=arguments.clickhouse_username,
-        password=arguments.clickhouse_password,
-    )
+    # update environment variables for input parameters
+    os.environ["CLICKHOUSE_ENDPOINT"] = arguments.clickhouse_endpoint
+    os.environ["CLICKHOUSE_USERNAME"] = arguments.clickhouse_username
+    os.environ["CLICKHOUSE_PASSWORD"] = arguments.clickhouse_password
+
+    db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
 
-    # process the queue time events
-    QueueTimeProcessor(db_client, s3_client, is_dry_run=True).process()
-
-    return
+    # always run in dry run mode in local test environment, unless it's disabled.
+    is_dry_run = not arguments.not_dry_run
+    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run).process()
 
 
 if __name__ == "__main__":

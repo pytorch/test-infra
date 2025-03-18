@@ -119,7 +119,7 @@ def mock_db_client(
     mock_client.query.return_value.column_names = result_columns
 
 
-def setEnvironmentVariables():
+def set_default_env_variables():
     os.environ["CLICKHOUSE_ENDPOINT"] = "https://clickhouse.test1"
     os.environ["CLICKHOUSE_USERNAME"] = "user1"
     os.environ["CLICKHOUSE_PASSWORD"] = "pwd1"
@@ -133,7 +133,7 @@ class Test(unittest.TestCase):
     ):
         print("test_lambda_handler_when_row_result_is_empty ")
         # prepare
-        setEnvironmentVariables()
+        set_default_env_variables()
         mock_s3_resource_put(mock_s3_resource)
         mock_db_client(mock_get_client, result_rows=[])
 
@@ -152,7 +152,7 @@ class Test(unittest.TestCase):
         self, mock_get_client, mock_s3_resource
     ):
         # prepare
-        setEnvironmentVariables()
+        set_default_env_variables()
         mock_s3_resource_put(mock_s3_resource)
         mock_db_client(mock_get_client)
 
@@ -198,7 +198,7 @@ class Test(unittest.TestCase):
                 mock_get_client.reset_mock(return_value=True)
                 mock_s3_resource.reset_mock(return_value=True)
 
-                setEnvironmentVariables()
+                set_default_env_variables()
                 os.environ[x] = ""
 
                 # execute
