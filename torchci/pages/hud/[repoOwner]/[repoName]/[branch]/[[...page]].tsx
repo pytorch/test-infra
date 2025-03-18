@@ -39,6 +39,7 @@ import {
 } from "lib/types";
 import {
   useGroupingPreference,
+  useHideGreenColumnsPreference,
   useMonsterFailuresPreference,
   usePreference,
 } from "lib/useGroupingPreference";
@@ -289,6 +290,8 @@ function GroupFilterableHudTable({
   setUseGrouping,
   hideUnstable,
   setHideUnstable,
+  hideGreenColumns,
+  setHideGreenColumns,
 }: {
   params: HudParams;
   children: React.ReactNode;
@@ -297,6 +300,8 @@ function GroupFilterableHudTable({
   setUseGrouping: any;
   hideUnstable: boolean;
   setHideUnstable: any;
+  hideGreenColumns: boolean;
+  setHideGreenColumns: any;
 }) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const headerNames = groupNames;
@@ -320,6 +325,12 @@ function GroupFilterableHudTable({
             setValue={(value) => setHideUnstable(value)}
             checkBoxName="hideUnstable"
             labelText={"Hide unstable jobs"}
+          />
+          <CheckBoxSelector
+            value={hideGreenColumns}
+            setValue={(value) => setHideGreenColumns(value)}
+            checkBoxName="hideGreenColumns"
+            labelText={"Hide green columns"}
           />
           <CheckBoxSelector
             value={mergeLF}
@@ -557,16 +568,19 @@ function GroupedHudTable({
   );
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
+  const [hideGreenColumns, setHideGreenColumns] =
+    useHideGreenColumnsPreference();
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter
   );
 
-  const { shaGrid, groupNameMapping } = getGroupingData(
-    data,
-    jobNames,
-    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-    unstableIssuesData ?? []
-  );
+  const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
+    getGroupingData(
+      data,
+      jobNames,
+      (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+      unstableIssuesData ?? []
+    );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
@@ -617,9 +631,27 @@ function GroupedHudTable({
       }
     });
   }
-  names = names.filter((name) =>
-    passesGroupFilter(jobFilter, name, groupNameMapping)
-  );
+
+  names = names.filter((name) => {
+    // Filter by job filter text first
+    if (!passesGroupFilter(jobFilter, name, groupNameMapping)) {
+      return false;
+    }
+
+    // If hiding green columns, filter out names that don't have any failed jobs
+    if (hideGreenColumns) {
+      // For group names, check if any job in the group has failures
+      if (groupNameMapping.has(name)) {
+        return groupsWithFailures.has(name);
+      }
+      // For individual job names, check if this job has failures
+      else {
+        return jobsWithFailures.has(name);
+      }
+    }
+
+    return true;
+  });
 
   return (
     <GroupingContext.Provider
@@ -632,6 +664,8 @@ function GroupedHudTable({
         setUseGrouping={setUseGrouping}
         hideUnstable={hideUnstable}
         setHideUnstable={setHideUnstable}
+        hideGreenColumns={hideGreenColumns}
+        setHideGreenColumns={setHideGreenColumns}
       >
         <HudTableBody
           shaGrid={shaGrid}
