@@ -1,5 +1,5 @@
 import { Highlight } from "lib/types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./TooltipTarget.module.css";
 
 export default function TooltipTarget({
@@ -21,6 +21,41 @@ export default function TooltipTarget({
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
   const targetRef = useRef<HTMLDivElement>(null);
   const isPinned = pinnedId.sha == sha && pinnedId.name == name;
+
+  useEffect(() => {
+    // find the last child of the ref
+    const target = targetRef.current;
+
+    const targetContent = target?.lastElementChild;
+    const child = targetContent?.firstElementChild as HTMLElement;
+
+    if (!child) {
+      return;
+    }
+
+    // get bounding box of target content
+    const targetRect = targetContent?.getBoundingClientRect();
+
+    if (targetRect === undefined) {
+      return;
+    }
+
+    // calculate width of child element content to be used for positioning
+    const childWidth = child.getBoundingClientRect().width;
+
+    const xTargetContent = targetRect.x;
+
+    // if on the right side of the screen, position tooltip to the left if width is smaller than half of the screen
+    if (xTargetContent + childWidth > window.innerWidth) {
+      child.style.left = `calc(100% - ${childWidth}px)`;
+    } // if on the left side of the screen, position tooltip to the right if width is smaller than half of the screen
+    else if (xTargetContent < 0 && childWidth < window.innerWidth / 2) {
+      child.style.left = "0";
+    } else {
+      // otherwise we make sure it doens't go off the screen
+      child.style.left = "0";
+    }
+  }, [isPinned, targetRef.current]);
 
   function handleMouseOver() {
     if (pinnedId.sha !== undefined && pinnedId.name !== undefined) {
