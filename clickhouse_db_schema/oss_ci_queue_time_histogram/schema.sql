@@ -16,11 +16,11 @@ ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(time)
 ORDER BY (
     type,
-    workflow_name,
-    job_name,
-    machine_type,
     repo,
     time,
+    machine_type,
+    job_name,
+    workflow_name,
 )
 TTL toDate(time) + toIntervalYear(5)
 SETTINGS index_granularity = 8192
