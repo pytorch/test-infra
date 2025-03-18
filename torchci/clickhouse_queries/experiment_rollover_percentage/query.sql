@@ -32,7 +32,7 @@ WITH
         FROM
             normalized_jobs AS j
         WHERE
-            j.label LIKE '%.ephemeral.%'
+            j.label LIKE concat('%.', {experiment_name: String}, '.%')
     ),
     comparable_jobs AS (
         SELECT
@@ -53,7 +53,7 @@ WITH
             job_name,
             workflow_name,
             label,
-            if(like(label, '%.ephemeral.%'), True, False) AS is_ephemeral_exp
+            if(like(label, concat('%.', {experiment_name: String}, '.%')), True, False) AS is_ephemeral_exp
         FROM
             comparable_jobs
         GROUP BY
@@ -76,10 +76,7 @@ WITH
         WHERE
             experiment.job_name = m.job_name
             AND experiment.workflow_name = m.workflow_name
-            AND (
-                (experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0)
-                OR (experiment.is_ephemeral_exp = 0 AND m.is_ephemeral_exp = 1)
-            )
+            AND experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0
             AND experiment.group_size > 3
             AND m.group_size > 3
         GROUP BY
