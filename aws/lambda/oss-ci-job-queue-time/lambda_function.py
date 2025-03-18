@@ -4,7 +4,7 @@ import json
 from typing import Any
 import clickhouse_connect
 import os
-import boto3
+import boto3 # type: ignore[import]
 import argparse
 from logging import info
 import logging
