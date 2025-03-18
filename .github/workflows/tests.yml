@@ -51,8 +51,7 @@ jobs:
         echo ::group::setup Python environment
         python -m venv .venv/
         source .venv/bin/activate
-        pip install pip==23.0.1 pytest==7.2.0 boto3==1.35.33 \
-          clickhouse-connect==0.8.5
+        pip install pip==23.0.1 pytest==7.2.0 boto3==1.35.33 clickhouse-connect==0.8.5
         echo ::endgroup::
 
         # Test aws lambda
