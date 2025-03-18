@@ -1,3 +1,4 @@
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Button as _Button, Menu, MenuItem } from "@mui/material";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -23,8 +24,9 @@ export default function LoginSection() {
   return (
     <>
       {status == "loading" && (
+        // Shows up very briefly while api responds
         <Button disabled>
-          <SyncIcon />
+          <SyncIcon fontSize="inherit" />
         </Button>
       )}
       {status != "loading" && !session?.user && (
@@ -38,18 +40,25 @@ export default function LoginSection() {
           <Button variant="contained">Sign in</Button>
         </Link>
       )}
-      {session?.user && (
+      {session && (
         <>
           <Button onClick={onClick}>
-            <img
-              style={{
-                backgroundImage: `url('${session.user.image}')`,
-              }}
-              className={styles.avatar}
-            />
+            {session.user?.image ? (
+              <img
+                style={{
+                  backgroundImage: `url('${session.user.image}')`,
+                }}
+                className={styles.avatar}
+              />
+            ) : (
+              // Hopefully shouldn't get here
+              <QuestionMarkIcon fontSize="inherit" />
+            )}
           </Button>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
-            <MenuItem>Signed in as {session.user.name}</MenuItem>
+            {session.user?.name && (
+              <MenuItem>Signed in as {session.user.name}</MenuItem>
+            )}
             <Link
               href={`/api/auth/signout`}
               onClick={(e) => {
