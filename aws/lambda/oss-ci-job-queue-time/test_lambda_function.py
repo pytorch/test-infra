@@ -1,16 +1,14 @@
 import unittest
 import os
-import json
-from re import M, T
-from typing import Any, Dict, List, Tuple
-from unittest import mock
-from unittest.mock import MagicMock, patch
+import gzip
+
+from typing import Any, List, Tuple
+from unittest.mock import patch
 from lambda_function import (
     lambda_handler,
     get_aws_s3_resource,
     get_clickhouse_client,
 )
-import gzip
 
 
 def get_default_result_rows(test_sample: str = "0"):
@@ -34,7 +32,9 @@ def get_default_result_rows(test_sample: str = "0"):
                 "pytorch/pytorch",
                 "workflow-name-2",
                 "job-name-2",
-                "runs/2/job/2"
+                "runs/2/job/2",
+                "linux.rocm.gpu.2",
+                1742262372,
             )]
 
     return [
@@ -95,8 +95,8 @@ def get_default_result_rows(test_sample: str = "0"):
     ]
 
 
-def get_default_result_columns():
-    return "queue_s", "repo", "workflow_name", "job_name", "html_url", "machine_type","time"
+def get_default_result_columns() -> Tuple:
+    return ("queue_s", "repo", "workflow_name", "job_name", "html_url", "machine_type","time")
 
 
 def mock_s3_resource_put(mock_s3_resource: Any) -> None:
