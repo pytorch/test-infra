@@ -1,15 +1,18 @@
 #!/usr/bin/env python
-from functools import lru_cache
-import json
-from typing import Any
-import clickhouse_connect
-import os
-import boto3 # type: ignore[import]
 import argparse
-from logging import info
-import logging
 import io
+import json
+import logging
+import os
 import gzip
+
+import boto3  # type: ignore[import]
+import clickhouse_connect
+
+# Local imports
+from functools import lru_cache
+from logging import info
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 
