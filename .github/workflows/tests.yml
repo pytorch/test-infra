@@ -39,6 +39,26 @@ jobs:
         # Test tools
         python3 -m unittest discover -vs tools/tests -p 'test_*.py'
 
+  test-aws-lambda:
+    name: Test github scripts
+    if: ${{ github.repository == 'pytorch/test-infra' }}
+    uses: ./.github/workflows/linux_job_v2.yml
+    with:
+      docker-image: python:3.10-slim-bullseye
+      runner: linux.large
+      script: |
+        # Environment setup
+        echo ::group::setup Python environment
+        python -m venv .venv/
+        source .venv/bin/activate
+        pip install pip==23.0.1 pytest==7.2.0 \
+          jsonschema==4.17.3 numpy==1.24.1 pandas==2.1.4 boto3==1.19.12 \
+          clickhouse-connect==0.8.14
+        echo ::endgroup::
+
+        # Test aws lambda
+        pytest -v aws/lambda/tests
+
   test-github-scripts:
     name: Test github scripts
     if: ${{ github.repository == 'pytorch/test-infra' }}

@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import gzip
+import sys
 
 import boto3  # type: ignore[import]
 import clickhouse_connect

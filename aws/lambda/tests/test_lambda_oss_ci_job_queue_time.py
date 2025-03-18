@@ -4,7 +4,7 @@ import gzip
 
 from typing import Any, List, Tuple
 from unittest.mock import patch
-from lambda_function import (
+from oss_ci_job_queue_time.lambda_function import (
     lambda_handler,
     get_aws_s3_resource,
     get_clickhouse_client,
@@ -126,8 +126,8 @@ def setEnvironmentVariables():
 
 
 class Test(unittest.TestCase):
-    @patch("lambda_function.get_aws_s3_resource")
-    @patch("lambda_function.get_clickhouse_client")
+    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
+    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
     def test_lambda_handler_when_row_result_is_empty(
         self, mock_get_client, mock_s3_resource
     ):
@@ -146,8 +146,8 @@ class Test(unittest.TestCase):
             mock_s3_resource
         ).return_value.put.assert_not_called()
 
-    @patch("lambda_function.get_aws_s3_resource")
-    @patch("lambda_function.get_clickhouse_client")
+    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
+    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
     def test_lambda_handler_when_lambda_happy_flow_then_success(
         self, mock_get_client, mock_s3_resource
     ):
