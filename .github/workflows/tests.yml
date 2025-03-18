@@ -40,7 +40,7 @@ jobs:
         python3 -m unittest discover -vs tools/tests -p 'test_*.py'
 
   test-aws-lambda:
-    name: Test github scripts
+    name: Test aws lambda
     if: ${{ github.repository == 'pytorch/test-infra' }}
     uses: ./.github/workflows/linux_job_v2.yml
     with:
