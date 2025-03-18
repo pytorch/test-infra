@@ -3,7 +3,8 @@ CREATE TABLE misc.oss_ci_job_queue_time_historical(
     `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_name` String,
     `job_name` String,
-    `machine_type` String
+    `html_url` String,
+    `machine_type` String,
     `time` DateTime64(9),
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String)
