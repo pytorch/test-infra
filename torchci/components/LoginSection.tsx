@@ -25,7 +25,7 @@ export default function LoginSection() {
             signIn();
           }}
         >
-          <Button>Sign in</Button>
+          <Button variant="contained">Sign in</Button>
         </Link>
       )}
       {session && (
