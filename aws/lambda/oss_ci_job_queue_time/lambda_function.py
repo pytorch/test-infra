@@ -53,6 +53,8 @@ FROM
 
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
+
+    # clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
     )
@@ -450,11 +452,12 @@ class QueueTimeProcessor:
     """
 
     def __init__(
-        self, clickhouse_client: Any, s3_client: Any, is_dry_run: bool = False
+        self, clickhouse_client: Any, s3_client: Any, is_dry_run: bool = False, local_output: bool = False
     ) -> None:
         self.clickhouse_client = clickhouse_client
         self.s3_client = s3_client
         self.is_dry_run = is_dry_run
+        self.local_output = local_output and is_dry_run
 
     def process(self) -> None:
         github_access_token = os.getenv("GITHUB_ACCESS_TOKEN", "")
@@ -540,10 +543,15 @@ class QueueTimeProcessor:
         key = f"job_queue_times_historical/{repo}/{timestamp}.txt"
         if self.is_dry_run:
             info(f"[Dry Run Mode]: {len(snapshot)} records to S3 {_bucket_name}/{key}")
-            info(json.dumps(snapshot))
+            if self.local_output:
+                file_name = f"job_queue_times_historical_snapshot_{timestamp}.json"
+                info(f"[Dry Run Mode]: local output to {file_name}.json")
+                with open(file_name, "w") as f:
+                    f.write(json.dumps(snapshot))
+            else:
+                info(json.dumps(snapshot))
             return
 
-        print("Yang", snapshot)
 
         upload_to_s3_txt(self.s3_client, _bucket_name, key, snapshot)
 
@@ -621,6 +629,17 @@ def parse_args() -> argparse.Namespace:
         help="the clickhouse password for the user name",
     )
     parser.add_argument(
+        "--github-access-token",
+        type=str,
+        default=os.getenv("GITHUB_ACCESS_TOKEN", ""),
+        help="the github access token to access github api",
+    )
+    parser.add_argument(
+        "--local-output",
+        action="store_true",
+        help="when set, generate json result in local environment. this is only used for local test environment when dry-run is enabled",
+    )
+    parser.add_argument(
         "--not-dry-run",
         action="store_true",
         help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
@@ -640,6 +659,7 @@ def main() -> None:
     os.environ["CLICKHOUSE_ENDPOINT"] = arguments.clickhouse_endpoint
     os.environ["CLICKHOUSE_USERNAME"] = arguments.clickhouse_username
     os.environ["CLICKHOUSE_PASSWORD"] = arguments.clickhouse_password
+    os.environ["GITHUB_ACCESS_TOKEN"] = arguments.github_access_token
 
     db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
@@ -647,7 +667,7 @@ def main() -> None:
     # always run in dry-run mode in local environment, unless it's disabled.
     is_dry_run = not arguments.not_dry_run
 
-    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run).process()
+    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run, local_output=arguments.local_output).process()
 
 
 if __name__ == "__main__":
