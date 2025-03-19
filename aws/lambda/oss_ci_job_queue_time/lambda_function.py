@@ -60,7 +60,7 @@ FROM
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    #return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -83,6 +83,32 @@ def get_clickhouse_client_environment() -> Any:
         user=ENVS["CLICKHOUSE_USERNAME"],
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
+
+
+def write_to_file(data: Any, filename="", path=""):
+    """
+    Writes data to a specified file. If no path is provided, writes to the current directory.
+
+    :param data: The content to write to the file.
+    :param filename: The name of the file (default: 'output.txt').
+    :param path: The directory where the file should be saved (default: current directory).
+    """
+
+    if not filename:
+        filename = "output_snapshot.json"
+    if not path:
+        path = "."
+
+    # Ensure the path exists
+    os.makedirs(path, exist_ok=True)
+
+    # Construct full file path
+    file_path = os.path.join(path, filename)
+
+    # Write data to file
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(data)
+    print(f"File written to: {os.path.abspath(file_path)}")
 
 
 def upload_to_s3_txt(
@@ -392,11 +418,16 @@ class QueueTimeProcessor:
         github_access_token: str = "",
         is_dry_run: bool = False,
         local_output: bool = False,
+        output_snapshot_file_name: str = "job_queue_times_snapshot",
+        output_snapshot_file_path: str = "",
     ) -> None:
         self.clickhouse_client = clickhouse_client
         self.s3_client = s3_client
         self.is_dry_run = is_dry_run
         self.local_output = local_output and is_dry_run
+
+        self.output_snapshot_file_name = output_snapshot_file_name
+        self.output_snapshot_file_path = output_snapshot_file_path
 
         if not github_access_token:
             raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
@@ -433,10 +464,11 @@ class QueueTimeProcessor:
             f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
         )
         if self.local_output:
-            file_name = f"job_queue_times_snapshot_{timestamp}.json"
-            info(f"[Dry Run Mode]: local output to {file_name}.json")
-            with open(file_name, "w") as f:
-                f.write(json.dumps(snapshot))
+            write_to_file(
+                json.dumps(snapshot),
+                self.output_snapshot_file_name,
+                self.output_snapshot_file_path,
+            )
             return
         info(json.dumps(snapshot))
 
@@ -678,6 +710,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
     )
+    parser.add_argument(
+        "--output-file-name",
+        type=str,
+        default="job_queue_times_snapshot.json",
+        help="the name of output file for local environment. this is only used for local test environment when local-output is enabled",
+    )
+    parser.add_argument(
+        "--output-file-path",
+        type=str,
+        default="",
+        help="the path of output file for local environment. this is only used for local test environment when local-output is enabled",
+    )
     args, _ = parser.parse_known_args()
     return args
 
@@ -707,6 +751,8 @@ def main() -> None:
         arguments.github_access_token,
         is_dry_run=is_dry_run,
         local_output=arguments.local_output,
+        output_snapshot_file_name=arguments.output_file_name,
+        output_snapshot_file_path=arguments.output_file_path,
     ).process()
 
 
