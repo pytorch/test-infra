@@ -5,6 +5,9 @@ import json
 import logging
 import os
 import gzip
+import threading
+import dateutil.parser
+import yaml
 
 import boto3  # type: ignore[import]
 import clickhouse_connect
@@ -13,12 +16,14 @@ from datetime import datetime, time
 # Local imports
 from functools import lru_cache
 from logging import info
-from typing import Any
+from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
+from github import Github, Auth
+from dateutil.parser import parse
+
 
 logging.basicConfig(level=logging.INFO)
 
 _bucket_name = "ossci-raw-job-status"
-# common query statement for in_queue jobs
 _in_queue_job_select_statement = """
 SELECT
     DATE_DIFF(
@@ -39,7 +44,7 @@ SELECT
             job.labels[1]
         )
     ) AS machine_type,
-    toUnixTimestamp({timestamp:DateTime}) AS time,
+    toUnixTimestamp({timestamp:DateTime}) AS time
 FROM
     default.workflow_job job FINAL
     JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
@@ -93,7 +98,248 @@ def upload_to_s3_txt(
     info(f"Done! Finish writing document to S3 {bucket_name}/{key} ")
 
 
-def query_picked_up_job_for_given_snapshot(time: str, repo: str = "pytorch/pytorch"):
+class LazyFileHistory:
+    """
+    Reads the content of a file from a GitHub repository on the version that it was on a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
+    All public methods are thread-safe.
+    """
+
+    def __init__(self, repo: Any, path: str) -> None:
+        self.repo = repo
+        self.path = path
+        self._commits_cache = []
+        self._content_cache = {}
+        self._fetched_all_commits = False
+        self._lock = threading.RLock()
+
+    def is_unix_timestamp(self, value: str) -> bool:
+        """Check if the string is a valid Unix timestamp."""
+        if value.isdigit():  # Ensure it's numeric
+            try:
+                timestamp = int(value)
+                # Check if it's within a reasonable range (1970 to 2100)
+                datetime.fromtimestamp(timestamp)
+                return True
+            except (ValueError, OSError):
+                return False
+        return False
+
+    def get_version_after_timestamp(self, timestamp: str | datetime) -> Optional[str]:
+        try:
+            with self._lock:
+                if not isinstance(timestamp, datetime):
+                    if self.is_unix_timestamp(timestamp):
+                        timestamp = datetime.fromtimestamp(
+                            float(timestamp)
+                        ).astimezone()
+                    else:
+                        timestamp = parse(timestamp)
+                commit = self._find_earliest_after_in_cache(timestamp)
+                if commit:
+                    return self._fetch_content_for_commit(commit)
+
+                if not self._fetched_all_commits:
+                    commit = self._fetch_until_timestamp(timestamp)
+                    if commit:
+                        return self._fetch_content_for_commit(commit)
+        except Exception as e:
+            print(
+                f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
+            )
+
+        return None
+
+    def _find_earliest_after_in_cache(self, timestamp: datetime) -> Optional[str]:
+        commits_after = [
+            c for c in self._commits_cache if c.commit.author.date > timestamp
+        ]
+        if not commits_after:
+            return None
+        return commits_after[-1]
+
+    def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
+        all_commits = self.repo.get_commits(path=self.path)
+        known_shas = {c.sha for c in self._commits_cache}
+
+        newly_fetched = []
+
+        for commit in all_commits:
+            if commit.sha in known_shas:
+                break
+            newly_fetched.append(commit)
+
+            if commit.commit.author.date <= timestamp:
+                break
+
+        self._commits_cache.extend(newly_fetched)
+        self._commits_cache.sort(key=lambda c: c.commit.author.date, reverse=True)
+
+        if not newly_fetched:
+            self._fetched_all_commits = True
+
+        return self._find_earliest_after_in_cache(timestamp)
+
+    def _fetch_content_for_commit(self, commit: any) -> str:
+        if commit.sha not in self._content_cache:
+            print(
+                f"Fetching content for {self.repo} : {self.path} at {commit.commit.author.date} - {commit.sha}"
+            )
+            # We can retrieve the file content at a specific commit
+            file_content = self.repo.get_contents(
+                self.path, ref=commit.sha
+            ).decoded_content.decode()
+            self._content_cache[commit.sha] = file_content
+        return self._content_cache[commit.sha]
+
+
+def explode_runner_variants(
+    runner_configs: Dict[str, Dict[str, Any]]
+) -> Dict[str, Dict[str, Any]]:
+    runner_types_list = [i for i in runner_configs["runner_types"].items()]
+
+    for runner, runner_config in runner_types_list:
+        if "variants" in runner_config:
+            for variant, variant_config in runner_config["variants"].items():
+                if runner.startswith("lf."):
+                    runner_without_lf = runner[3:]
+                    variant_name = f"lf.{variant}.{runner_without_lf}"
+                else:
+                    variant_name = f"{variant}.{runner}"
+                runner_configs["runner_types"][variant_name] = {
+                    **runner_config,
+                    **variant_config,
+                }
+    return runner_configs
+
+
+def update_tags(
+    tag_categories: Dict[str, Set[str]], machine_types: Iterable[str]
+) -> None:
+    """
+    iterate through machine types from jobs, and update potential tags that it belongs to
+    """
+    for machine_type in machine_types:
+        if not machine_type:
+            continue
+        tag_categories["all"].add(machine_type)
+        if machine_type not in tag_categories["dynamic"]:
+            if "ubuntu" in machine_type.lower():
+                tag_categories["linux"].add(machine_type)
+                tag_categories["github"].add(machine_type)
+            else:
+                tag_categories["other"].add(machine_type)
+
+
+def create_tag_categorires(
+    runner_configs: Dict[str, Dict[str, Any]],
+    lf_runner_configs: Dict[str, Dict[str, Any]],
+) -> Dict[str, Set[str]]:
+    """
+    Create the tag_categorires, that are groups of runners with some common characteristics that we might find relevant
+    to view them in a group instead of individually.
+    """
+    breakdowns = {
+        "github": set(),  # provided by github
+        "pet": set(),  # managed as pet instances
+        "dynamic": set(),  # managed as auto-scaling instances
+        "ephemeral": set(),  # auto-scaling instances that are ephemeral
+        "nonephemeral": set(),  # auto-scaling instances that are not ephemeral
+        "linux": set(),  # linux instances
+        "linux-meta": set(),  # linux instances provided by meta
+        "linux-lf": set(),  # linux instances provided by Linux Foundation
+        "macos": set(),  # macos instances
+        "macos-meta": set(),  # macos instances provided by meta
+        "windows": set(),  # windows instances
+        "windows-meta": set(),  # windows instances provided by meta
+        "windows-lf": set(),  # windows instances provided by Linux Foundation
+        "all": set(),  # all instances
+        "lf": set(),  # instances managed by Linux Foundation
+        "meta": set(),  # instances managed by meta
+        "multi-tenant": set(),  # instances that are multi-tenant
+        "other": set(),  # other instances
+    }
+
+    github_mac_runners = (
+        "macos-12",
+        "macos-12-xl",
+        "macos-13-large",
+        "macos-13-xl",
+        "macos-13-xlarge",
+        "macos-14-arm64",
+        "macos-14-xlarge",
+    )
+    breakdowns["github"].update(github_mac_runners)
+    breakdowns["macos"].update(github_mac_runners)
+
+    meta_pet_mac_runners = (
+        "macos-m1-12",
+        "macos-m1-13",
+        "macos-m1-14",
+        "macos-m1-stable",
+        "macos-m2-14",
+        "macos-m2-15",
+        "macos-m2-max",
+    )
+    breakdowns["meta"].update(meta_pet_mac_runners)
+    breakdowns["macos"].update(meta_pet_mac_runners)
+    breakdowns["pet"].update(meta_pet_mac_runners)
+
+    meta_pet_nvidia = (
+        "linux.aws.a100",
+        "linux.aws.h100",
+    )
+    breakdowns["meta"].update(meta_pet_nvidia)
+    breakdowns["linux"].update(meta_pet_nvidia)
+    breakdowns["linux-meta"].update(meta_pet_nvidia)
+    breakdowns["pet"].update(meta_pet_nvidia)
+    breakdowns["multi-tenant"].update(meta_pet_nvidia)
+
+    all_runners_configs = (
+        runner_configs["runner_types"] | lf_runner_configs["runner_types"]
+    )
+
+    for runner, runner_config in all_runners_configs.items():
+        breakdowns["dynamic"].add(runner)
+
+        if "is_ephemeral" in runner_config and runner_config["is_ephemeral"]:
+            breakdowns["ephemeral"].add(runner)
+        else:
+            breakdowns["nonephemeral"].add(runner)
+
+        if runner_config["os"].lower() == "linux":
+            breakdowns["linux"].add(runner)
+        elif runner_config["os"].lower() == "windows":
+            breakdowns["windows"].add(runner)
+
+    for runner, runner_config in runner_configs["runner_types"].items():
+        breakdowns["meta"].add(runner)
+
+        if runner_config["os"].lower() == "linux":
+            breakdowns["linux-meta"].add(runner)
+        elif runner_config["os"].lower() == "windows":
+            breakdowns["windows-meta"].add(runner)
+
+    for runner, runner_config in lf_runner_configs["runner_types"].items():
+        breakdowns["lf"].add(runner)
+
+        if runner_config["os"].lower() == "linux":
+            breakdowns["linux-lf"].add(runner)
+        elif runner_config["os"].lower() == "windows":
+            breakdowns["windows-lf"].add(runner)
+
+    return breakdowns
+
+
+def get_runner_config(
+    retriever: LazyFileHistory, start_time: str | datetime
+) -> Dict[str, Dict[str, Any]]:
+    contents = retriever.get_version_after_timestamp(start_time)
+    if contents:
+        return explode_runner_variants(yaml.safe_load(contents))
+    return {"runner_types": {}}
+
+
+def get_query_statement_for_picked_up_job(time: str, repo: str = "pytorch/pytorch"):
     """
     this query is used to get jobs that were in queue in given snapshot time, but were picked up by workers later
     """
@@ -123,7 +369,6 @@ def query_picked_up_job_for_given_snapshot(time: str, repo: str = "pytorch/pytor
         queue_s DESC
     """
     query = s1 + _in_queue_job_select_statement + s2
-
     parameters = {
         "timestamp": time,
         "repo": repo,
@@ -131,7 +376,7 @@ def query_picked_up_job_for_given_snapshot(time: str, repo: str = "pytorch/pytor
     return query, parameters
 
 
-def query_in_queue_jobs_for_given_snapshot(time: str, repo: str = "pytorch/pytorch"):
+def get_query_statement_for_queueing_jobs(time: str, repo: str = "pytorch/pytorch"):
     """
     this query is used to get jobs that werre in queue in given snapshot time, and not being picked up by workers
     """
@@ -168,6 +413,28 @@ def query_in_queue_jobs_for_given_snapshot(time: str, repo: str = "pytorch/pytor
     return query, parameters
 
 
+def get_config_retrievers(github_access_token: str) -> Tuple[Any, Any, Any]:
+    auth = Auth.Token(github_access_token)
+    test_infra_repo = Github(auth=auth).get_repo("pytorch/test-infra")
+    pytorch_repo = Github(auth=auth).get_repo("pytorch/pytorch")
+
+    meta_runner_config_retriever = LazyFileHistory(
+        test_infra_repo, ".github/scale-config.yml"
+    )
+    lf_runner_config_retriever = LazyFileHistory(
+        test_infra_repo, ".github/lf-scale-config.yml"
+    )
+    old_lf_lf_runner_config_retriever = LazyFileHistory(
+        pytorch_repo, ".github/lf-scale-config.yml"
+    )
+
+    return (
+        meta_runner_config_retriever,
+        lf_runner_config_retriever,
+        old_lf_lf_runner_config_retriever,
+    )
+
+
 class QueueTimeProcessor:
     """
     this class used to handle oss ci queue time data aggregations. Currently it fetches in-queue jobs from clickhouse at current time
@@ -185,24 +452,33 @@ class QueueTimeProcessor:
         self.is_dry_run = is_dry_run
 
     def process(self) -> None:
-        self.proceses_job_queue_times_historical()
+        github_access_token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+        if not github_access_token:
+            raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
 
-    def proceses_job_queue_times_historical(
-        self, snapshot_time: str = "", repo: str = "pytorch/pytorch"
-    ) -> None:
-        # by default, we use current time as snapshot
-        timestamp = str(int(datetime.now().timestamp()))
-        if snapshot_time:
-            timestamp = snapshot_time
+        (
+            meta_runner_config_retriever,
+            lf_runner_config_retriever,
+            old_lf_lf_runner_config_retriever,
+        ) = get_config_retrievers(github_access_token)
+        self.proceses_job_queue_times_historical(
+            meta_runner_config_retriever,
+            lf_runner_config_retriever,
+            old_lf_lf_runner_config_retriever,
+        )
 
-        # fetches jobs that were in queue in given snapshot time, that are not being picked up by workers
-        queued_query, queued_parameters = query_in_queue_jobs_for_given_snapshot(
+    def snapshot_jobs_in_queue(
+        self, timestamp: str = "", repo: str = "pytorch/pytorch"
+    ) -> List[Dict[str, Any]]:
+        # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
+        queued_query, queued_parameters = get_query_statement_for_queueing_jobs(
             timestamp, repo
         )
         jobs_in_queue = self.process_in_queue_jobs(queued_query, queued_parameters)
 
-        # fetches jobs that were in queue in given snapshot time, but were picked up by workers later of given snapshot time
-        picked_query, picked_params = query_picked_up_job_for_given_snapshot(
+        # in queue in given snapshot time, fetches jobs that were in queue but were picked up by workers later of given snapshot time
+        # this happens when the snapshot time is not latest timestamp
+        picked_query, picked_params = get_query_statement_for_picked_up_job(
             timestamp, repo
         )
         jobs_pick = self.process_in_queue_jobs(picked_query, picked_params)
@@ -214,19 +490,57 @@ class QueueTimeProcessor:
         info(
             f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by workers later"
         )
+        result = jobs_in_queue + jobs_pick
+        return result
 
-        if len(jobs_in_queue) == 0 and len(jobs_pick) == 0:
-            info(f"No jobs were in queue at time {datetime_str}, skipping")
+    def proceses_job_queue_times_historical(
+        self,
+        meta_runner_config_retriever,
+        lf_runner_config_retriever,
+        old_lf_lf_runner_config_retriever,
+        snapshot_time: str = "",
+        repo: str = "pytorch/pytorch",
+    ) -> None:
+        # by default, we use current time as snapshot
+        timestamp = str(int(datetime.now().timestamp()))
+        if snapshot_time:
+            timestamp = snapshot_time
+
+        snapshot = self.snapshot_jobs_in_queue(timestamp, repo)
+        if len(snapshot) == 0:
+            info(f"No jobs in queue at time: {timestamp}")
             return
+
+        lf_runner_config = get_runner_config(lf_runner_config_retriever, timestamp)
+
+        if not lf_runner_config or not lf_runner_config["runner_types"]:
+            lf_runner_config = get_runner_config(
+                old_lf_lf_runner_config_retriever, timestamp
+            )
+
+        # create dictionary of tags with set of targeting machine types
+        tag_categories = create_tag_categorires(
+            get_runner_config(meta_runner_config_retriever, timestamp), lf_runner_config
+        )
+        update_tags(tag_categories, set([job["machine_type"] for job in snapshot]))
+
+        # iterate throught jobs, and update tags for each job
+        for job in snapshot:
+            job_tags = []
+            for tag in tag_categories:
+                if job["machine_type"] in tag_categories[tag]:
+                    job_tags.append(tag)
+            job["tags"] = job_tags
 
         key = f"job_queue_times_historical/{repo}/{timestamp}.txt"
-        result = jobs_in_queue + jobs_pick
         if self.is_dry_run:
-            info(f"[Dry Run Mode]: {len(result)} records to S3 {_bucket_name}/{key}")
-            print(json.dumps(result))
+            info(f"[Dry Run Mode]: {len(snapshot)} records to S3 {_bucket_name}/{key}")
+            info(json.dumps(snapshot))
             return
 
-        upload_to_s3_txt(self.s3_client, _bucket_name, key, result)
+        print("Yang", snapshot)
+
+        upload_to_s3_txt(self.s3_client, _bucket_name, key, snapshot)
 
     def process_in_queue_jobs(
         self, queryStr: str, parameters: Any
@@ -238,7 +552,6 @@ class QueueTimeProcessor:
         seen = set()
         db_resp = self.query(queryStr, parameters)
         result = []
-
         for record in db_resp:
             if record["html_url"] in seen:
                 continue

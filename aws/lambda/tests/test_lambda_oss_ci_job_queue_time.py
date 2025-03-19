@@ -142,41 +142,53 @@ def set_default_env_variables():
     os.environ["CLICKHOUSE_ENDPOINT"] = "https://clickhouse.test1"
     os.environ["CLICKHOUSE_USERNAME"] = "user1"
     os.environ["CLICKHOUSE_PASSWORD"] = "pwd1"
+    os.environ["GITHUB_ACCESS_TOKEN"] = "token1"
 
 
 class Test(unittest.TestCase):
-    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
-    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
-    def test_lambda_handler_when_row_result_is_empty(
-        self, mock_get_client, mock_s3_resource
-    ):
+    def setUp(self):
+        patcher1 = patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
+        patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
+        patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
+        patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
+
+        self.mock_s3_resource = patcher1.start()
+        self.mock_get_client = patcher2.start()
+        self.mock_get_runner_config = patcher3.start()
+        self.mock_get_config_retrievers = patcher4.start()
+
+        self.mock_get_runner_config.return_value = {"runner_types": {}}
+        self.mock_get_config_retrievers.return_value = ({}, {}, {})
+
+        self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
+        self.addCleanup(patcher2.stop)
+        self.addCleanup(patcher3.stop)
+        self.addCleanup(patcher4.stop)
+
+    def test_lambda_handler_when_row_result_is_empty(self):
         print("test_lambda_handler_when_row_result_is_empty ")
         # prepare
         set_default_env_variables()
-        mock_s3_resource_put(mock_s3_resource)
-        mock_db_client(mock_get_client, [], [])
+        mock_s3_resource_put(self.mock_s3_resource)
+        mock_db_client(self.mock_get_client, [], [])
 
         # execute
         lambda_handler(None, None)
 
         # assert
-        mock_get_client.assert_called_once()
+        self.mock_get_client.assert_called_once()
         get_mock_s3_resource_object(
-            mock_s3_resource
+            self.mock_s3_resource
         ).return_value.put.assert_not_called()
 
-    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
-    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
-    def test_lambda_handler_when_lambda_happy_flow_then_success(
-        self, mock_get_client, mock_s3_resource
-    ):
+    def test_lambda_handler_when_lambda_happy_flow_then_success(self):
         # prepare
         set_default_env_variables()
-        mock_s3_resource_put(mock_s3_resource)
-        mock_db_client(mock_get_client)
+        mock_s3_resource_put(self.mock_s3_resource)
+        mock_db_client(self.mock_get_client)
 
-        expected_r1 = b'{"queue_s": 60000, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-1", "job_name": "job-name-1", "html_url": "runs/1/job/1", "machine_type": "linux.aws.h100", "time": 1742262372}\n'
-        expected_r2 = b'{"queue_s": 1400, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-2", "job_name": "job-name-2", "html_url": "runs/2/job/2", "machine_type": "linux.rocm.gpu.2", "time": 1742262372}\n'
+        expected_r1 = b'{"queue_s": 60000, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-1", "job_name": "job-name-1", "html_url": "runs/1/job/1", "machine_type": "linux.aws.h100", "time": 1742262372, "tags": ["pet", "linux", "linux-meta", "all", "meta", "multi-tenant", "other"]}\n'
+        expected_r2 = b'{"queue_s": 1400, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-2", "job_name": "job-name-2", "html_url": "runs/2/job/2", "machine_type": "linux.rocm.gpu.2", "time": 1742262372, "tags": ["all", "other"]}\n'
         expected_s3_body = expected_r1 + expected_r2
         expect = gzip.compress(expected_s3_body)
 
@@ -186,36 +198,33 @@ class Test(unittest.TestCase):
         # assert
 
         # assert clickhouse client
-        mock_get_client.assert_called_once()
-        self.assertEqual(mock_get_client.return_value.query.call_count, 2)
+        self.mock_get_client.assert_called_once()
+        self.assertEqual(self.mock_get_client.return_value.query.call_count, 2)
 
         # assert s3 resource
-        mock_s3_resource.assert_called_once()
+        self.mock_s3_resource.assert_called_once()
         get_mock_s3_resource_object(
-            mock_s3_resource
+            self.mock_s3_resource
         ).return_value.put.assert_called_once()
         get_mock_s3_resource_object(
-            mock_s3_resource
+            self.mock_s3_resource
         ).return_value.put.assert_called_once_with(
             Body=expect, ContentEncoding="gzip", ContentType="text/plain"
         )
 
-    @patch("boto3.resource")
-    @patch("clickhouse_connect.get_client")
-    def test_lambda_handler_when_missing_required_env_vars_then_throws_error(
-        self, mock_get_client, mock_s3_resource
-    ):
+    def test_lambda_handler_when_missing_required_env_vars_then_throws_error(self):
         test_cases = [
             ("CLICKHOUSE_ENDPOINT"),
             ("CLICKHOUSE_USERNAME"),
             ("CLICKHOUSE_PASSWORD"),
+            ("GITHUB_ACCESS_TOKEN"),
         ]
 
         for x in test_cases:
             with self.subTest(x=x):
                 # prepare
-                mock_get_client.reset_mock(return_value=True)
-                mock_s3_resource.reset_mock(return_value=True)
+                self.mock_get_client.reset_mock(return_value=True)
+                self.mock_s3_resource.reset_mock(return_value=True)
 
                 set_default_env_variables()
                 os.environ[x] = ""
@@ -226,20 +235,18 @@ class Test(unittest.TestCase):
 
                 # assert
                 self.assertTrue(x in str(context.exception))
-                mock_get_client.return_value.query.assert_not_called()
+                self.mock_get_client.return_value.query.assert_not_called()
                 get_mock_s3_resource_object(
-                    mock_s3_resource
+                    self.mock_s3_resource
                 ).return_value.put.assert_not_called()
 
-    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
-    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
     def test_local_run_with_dry_run_when_lambda_happy_flow_then_success_without_s3_write(
-        self, mock_get_client, mock_s3_resource
+        self,
     ):
         # prepare
         set_default_env_variables()
-        mock_s3_resource_put(mock_s3_resource)
-        mock_db_client(mock_get_client)
+        mock_s3_resource_put(self.mock_s3_resource)
+        mock_db_client(self.mock_get_client)
 
         # execute
         main()
@@ -247,13 +254,13 @@ class Test(unittest.TestCase):
         # assert
 
         # assert clickhouse client
-        mock_get_client.assert_called_once()
-        self.assertEqual(mock_get_client.return_value.query.call_count, 2)
+        self.mock_get_client.assert_called_once()
+        self.assertEqual(self.mock_get_client.return_value.query.call_count, 2)
 
         # assert s3 resource
-        mock_s3_resource.assert_called_once()
+        self.mock_s3_resource.assert_called_once()
         get_mock_s3_resource_object(
-            mock_s3_resource
+            self.mock_s3_resource
         ).return_value.put.assert_not_called()
 
 
