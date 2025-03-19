@@ -484,24 +484,27 @@ class QueueTimeProcessor:
             "pytorch/pytorch",
         )
 
-        self.output_snapshot(snapshot)
-        # TODO(elainewy): add logics to generate histograms based on the snapshot
+        if self.is_dry_run:
+            self.output_snapshot(snapshot)
+        # TODO(elainewy): add logics to generate histograms based on the snapshot results
 
     def output_snapshot(
         self,
         snapshot: List[Dict[str, Any]],
     ) -> None:
-        if self.is_dry_run:
-            info(
-                f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
-            )
-            if self.local_output:
-                file_name = f"job_queue_times_snapshot_{timestamp}.json"
-                info(f"[Dry Run Mode]: local output to {file_name}.json")
-                with open(file_name, "w") as f:
-                    f.write(json.dumps(snapshot))
-            info(json.dumps(snapshot))
-            return
+        """
+        print the snapshot to local file or terminal for local test
+        """
+        info(
+            f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
+        )
+        if self.local_output:
+            file_name = f"job_queue_times_snapshot_{timestamp}.json"
+            info(f"[Dry Run Mode]: local output to {file_name}.json")
+            with open(file_name, "w") as f:
+                f.write(json.dumps(snapshot))
+        info(json.dumps(snapshot))
+        return
 
     def query_queueing_jobs(
         self, timestamp: str = "", repo: str = "pytorch/pytorch"
