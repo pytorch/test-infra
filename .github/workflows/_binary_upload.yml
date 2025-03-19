@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     timeout-minutes: 30
-    name: ${{ matrix.build_name }}
+    name: upload-${{ matrix.build_name }}
     env:
       DO_UPLOAD: ${{ contains(matrix.validation_runner, 'windows') || contains(matrix.validation_runner, 'macos') || contains(matrix.container_image, '2_28') || contains(matrix.container_image, 'manylinuxaarch64-builder:cuda') }}
     steps:
