@@ -161,8 +161,7 @@ def parse_args() -> Any:
 def main() -> None:
     args = parse_args()
 
-    # commits = get_latest_commits(args.viable_strict_branch, args.main_branch)
-    commits = ["b963d96badca4cbb21209c5cb8b599d71e980ba5"]
+    commits = get_latest_commits(args.viable_strict_branch, args.main_branch)
     results = query_commits(commits)
     try:
         required_checks = json.loads(args.required_checks)
