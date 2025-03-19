@@ -2,12 +2,10 @@ import unittest
 import os
 import gzip
 
-from typing import Any, List, Tuple
-from unittest.mock import patch
+from typing import Any, List, Tuple, Dict
+from unittest.mock import patch,MagicMock
 from oss_ci_job_queue_time.lambda_function import (
     lambda_handler,
-    get_aws_s3_resource,
-    get_clickhouse_client,
 )
 
 
@@ -94,10 +92,18 @@ def get_default_result_rows(test_sample: str = "0"):
         ),
     ]
 
-
 def get_default_result_columns() -> Tuple:
     return ("queue_s", "repo", "workflow_name", "job_name", "html_url", "machine_type","time")
 
+def mock_query_result(query: str, parameters:str, rows_in_queue: List[Tuple], rows_picked: List[Tuple]) ->Any:
+    result = MagicMock()
+    if "LENGTH(job.steps) = 0" in query:
+        result.column_names = get_default_result_columns()
+        result.result_rows = rows_in_queue
+    if "LENGTH(job.steps) != 0'" in query:
+        result.column_names = get_default_result_columns()
+        result.result_rows = rows_picked
+    return result
 
 def mock_s3_resource_put(mock_s3_resource: Any) -> None:
     mock_s3 = mock_s3_resource.return_value
@@ -111,13 +117,13 @@ def get_mock_s3_resource_object(mock_s3_resource: Any):
 
 def mock_db_client(
     mock: Any,
-    result_rows: List[Tuple] = get_default_result_rows(),
-    result_columns: Tuple = get_default_result_columns(),
+    rows_in_queue: List[Tuple] = get_default_result_rows(),
+    rows_picked: List[Tuple] = [],
 ) -> None:
     mock_client = mock.return_value
-    mock_client.query.return_value.result_rows = result_rows
-    mock_client.query.return_value.column_names = result_columns
-
+    mock_client.query.side_effect = (
+        lambda query, parameters: mock_query_result(query,parameters, rows_in_queue, rows_picked)
+    )
 
 def set_default_env_variables():
     os.environ["CLICKHOUSE_ENDPOINT"] = "https://clickhouse.test1"
@@ -135,7 +141,7 @@ class Test(unittest.TestCase):
         # prepare
         set_default_env_variables()
         mock_s3_resource_put(mock_s3_resource)
-        mock_db_client(mock_get_client, result_rows=[])
+        mock_db_client(mock_get_client,[],[])
 
         # execute
         lambda_handler(None, None)
@@ -168,7 +174,7 @@ class Test(unittest.TestCase):
 
         # assert clickhouse client
         mock_get_client.assert_called_once()
-        mock_get_client.return_value.query.assert_called_once()
+        self.assertEqual(mock_get_client.return_value.query.call_count, 2)
 
         # assert s3 resource
         mock_s3_resource.assert_called_once()
