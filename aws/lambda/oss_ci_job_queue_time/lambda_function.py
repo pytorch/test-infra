@@ -6,7 +6,6 @@ import logging
 import os
 import gzip
 import threading
-import dateutil.parser
 import yaml
 
 import boto3  # type: ignore[import]
@@ -54,7 +53,7 @@ FROM
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -182,7 +181,7 @@ class LazyFileHistory:
 
         return self._find_earliest_after_in_cache(timestamp)
 
-    def _fetch_content_for_commit(self, commit: any) -> str:
+    def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
             print(
                 f"Fetching content for {self.repo} : {self.path} at {commit.commit.author.date} - {commit.sha}"
