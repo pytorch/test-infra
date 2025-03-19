@@ -5,10 +5,10 @@ import json
 import logging
 import os
 import gzip
-import sys
 
 import boto3  # type: ignore[import]
 import clickhouse_connect
+from datetime import datetime, time
 
 # Local imports
 from functools import lru_cache
@@ -17,6 +17,34 @@ from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 
+_bucket_name = "ossci-raw-job-status"
+_in_queue_job_select_statement = """
+SELECT
+    DATE_DIFF(
+        'second',
+        job.created_at,
+        {timestamp:DateTime}
+    ) AS queue_s,
+    workflow.repository.'full_name' AS repo,
+    workflow.name AS workflow_name,
+    job.name AS job_name,
+    job.html_url,
+    IF(
+        LENGTH(job.labels) = 0,
+        'N/A',
+        IF(
+            LENGTH(job.labels) > 1,
+            job.labels[2],
+            job.labels[1]
+        )
+    ) AS machine_type,
+    toUnixTimestamp({timestamp:DateTime}) AS time,
+    toUnixTimestamp(job.started_at) as started_at,
+    toUnixTimestamp(job.created_at) as created_at
+FROM
+    default.workflow_job job FINAL
+    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
+"""
 
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
@@ -64,53 +92,78 @@ def upload_to_s3_txt(
     )
     info(f"Done! Finish writing document to S3 {bucket_name}/{key} ")
 
-
-def query_in_queue_jobs_now() -> str:
-    query = """
+def query_picked_up_job_for_given_snapshot(time:str,repo: str = 'pytorch/pytorch'):
+    """
+     this query is used to get jobs that were in queue in given snapshot time, but were picked up by workers later
+    """
+    s1 = """
     WITH possible_queued_jobs AS (
         SELECT
             id,
-            run_id
+            run_id,
+            started_at,
+            created_at
         FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
         WHERE
-            status = 'queued'
-            AND created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-            AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
-    )
-    SELECT
-        DATE_DIFF(
-            'second',
-            job.created_at,
-            CURRENT_TIMESTAMP()
-        ) AS queue_s,
-        workflow.repository.'full_name' AS repo,
-        workflow.name AS workflow_name,
-        job.name AS job_name,
-        job.html_url,
-        IF(
-            LENGTH(job.labels) = 0,
-            'N/A',
-            IF(
-                LENGTH(job.labels) > 1,
-                job.labels[2],
-                job.labels[1]
-            )
-        ) AS machine_type,
-        toUnixTimestamp(CURRENT_TIMESTAMP()) AS time
-    FROM
-        default.workflow_job job FINAL
-    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
+            started_at > ({timestamp:DateTime})
+            AND created_at < ({timestamp:DateTime} - INTERVAL 5 MINUTE)
+            AND created_at > ({timestamp:DateTime} - INTERVAL 1 WEEK)
+    )"""
+
+    s2 = """
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        AND workflow.repository.'full_name' = {repo:String}
+        AND job.status = 'completed'
+        AND LENGTH(job.steps) != 0
+        AND workflow.status = 'completed'
+    ORDER BY
+        queue_s DESC
+    """
+    query = s1 + _in_queue_job_select_statement + s2
+
+    parameters={
+        'timestamp': time ,
+        'repo': repo,
+    }
+    return query,parameters
+
+def query_in_queue_jobs_for_given_snapshot(time:str, repo:str = 'pytorch/pytorch'):
+    """
+        this query is used to get jobs that werre in queue in given snapshot time, and not being picked up by workers
+    """
+    s1 = """
+    WITH possible_queued_jobs AS (
+        SELECT
+            id,
+            run_id,
+            started_at,
+            created_at
+        FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
+        WHERE
+            status = 'queued'
+            AND created_at < ({timestamp:DateTime} - INTERVAL 5 MINUTE)
+            AND created_at > ({timestamp:DateTime} - INTERVAL 1 WEEK)
+    )
+    """
+    s2 ="""
+    WHERE
+        job.id IN (SELECT id FROM possible_queued_jobs)
+        AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+        AND workflow.repository.'full_name' = {repo:String}
         AND job.status = 'queued'
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
     ORDER BY
-        queue_s DESC    """
-    return query
-
+        queue_s DESC
+    """
+    query = s1 + _in_queue_job_select_statement + s2
+    parameters={
+        'timestamp': time ,
+        'repo': repo,
+    }
+    return query, parameters
 
 class QueueTimeProcessor:
     """
@@ -120,7 +173,6 @@ class QueueTimeProcessor:
        processor = QueueTimeProcessor(clickhouse_client,s3_client)
        processor.process()
     """
-
     def __init__(
         self, clickhouse_client: Any, s3_client: Any, is_dry_run: bool = False
     ) -> None:
@@ -131,33 +183,57 @@ class QueueTimeProcessor:
     def process(self) -> None:
         self.proceses_job_queue_times_historical()
 
-    def proceses_job_queue_times_historical(self) -> None:
-        jobs_in_queue = self.get_jobs_in_queue_now()
+    def proceses_job_queue_times_historical(self, timestamp:str = "", repo: str = 'pytorch/pytorch') -> None:
+        # by default, we use current time as snapshot
+        snapshot_time = str(int(datetime.now().timestamp()))
+        if timestamp:
+            snapshot_time = timestamp
 
-        if len(jobs_in_queue) == 0:
-            info("No jobs in queue now, skipping writing to s3")
+
+        # fetches jobs that were in queue in given snapshot time, that are not being picked up by workers
+        queued_query, queued_parameters = query_in_queue_jobs_for_given_snapshot(timestamp,repo)
+        jobs_in_queue = self.process_in_queue_jobs(queued_query, queued_parameters)
+
+        # fetches jobs that were in queue in given snapshot time, but were picked up by workers later of given snapshot time
+        picked_query, picked_params = query_picked_up_job_for_given_snapshot(timestamp,repo)
+        jobs_pick = self.process_in_queue_jobs(picked_query, picked_params)
+
+        datetime_str = datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
+        print(datetime_str,timestamp,len(jobs_in_queue),len(jobs_pick),)
+
+        info(f"Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by workers later")
+        if len(jobs_in_queue) == 0 and len(jobs_pick) == 0:
+            info(f"No jobs in queue at time {datetime_str}, skipping mutation to S3")
             return
 
-        info(f"Found {len(jobs_in_queue)} jobs in queue now")
-        info(f"Peeking data: {jobs_in_queue[0]}")
-
-        bucket_name = "ossci-raw-job-status"
-        repo = jobs_in_queue[0]["repo"]
-        time = jobs_in_queue[0]["time"]
-
-        key = f"job_queue_times_historical/{repo}/{time}.txt"
-
+        key = f"job_queue_times_historical/{repo}/{timestamp}.txt"
+        result = jobs_in_queue + jobs_pick
         if self.is_dry_run:
             info(
-                f"[Dry Run Mode]: {len(jobs_in_queue)} records to S3 {bucket_name}/{key}"
+                f"[Dry Run Mode]: {len(result)} records to S3 {_bucket_name}/{key}"
             )
-            info(json.dumps(jobs_in_queue, indent=4))
+            print(json.dumps(result))
             return
 
-        upload_to_s3_txt(self.s3_client, bucket_name, key, jobs_in_queue)
+        upload_to_s3_txt(self.s3_client, _bucket_name, key, result)
 
-    def get_jobs_in_queue_now(self) -> list[dict[str, Any]]:
-        reader = self.clickhouse_client.query(query_in_queue_jobs_now())
+    def process_in_queue_jobs(self, queryStr:str, parameters:Any) -> list[dict[str, Any]]:
+        """
+        post query process to remove duplicated jobs
+        this is bc clickhouse client returns duplicated jobs for some reason
+        """
+        seen = set()
+        db_resp  = self.query(queryStr, parameters)
+        result = []
+        for record in db_resp:
+            if record['html_url']in seen:
+                continue
+            seen.add(record['html_url'])
+            result.append(record)
+        return result
+
+    def query(self, query, params={}) -> list[dict[str, Any]]:
+        reader = self.clickhouse_client.query(query, params)
         # clickhouse returns a generator to return column names and rows
         # see https://clickhouse.com/docs/integrations/python#the-queryresult-object
         column_names = reader.column_names
@@ -215,7 +291,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--not-dry-run",
         action="store_true",
-        help="when set true, writing results to s3 from local . By default, local run is dry run mode",
+        help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
     )
     args, _ = parser.parse_known_args()
     return args
@@ -236,10 +312,10 @@ def main() -> None:
     db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
 
-    # always run in dry run mode in local test environment, unless it's disabled.
+    # always run in dry-run mode in local environment, unless it's disabled.
     is_dry_run = not arguments.not_dry_run
-    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run).process()
 
+    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run).process()
 
 if __name__ == "__main__":
     main()
