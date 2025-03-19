@@ -418,7 +418,6 @@ def get_query_statement_for_queueing_jobs(time: str, repo: str = "pytorch/pytorc
     }
     return query, parameters
 
-
 def get_config_retrievers(github_access_token: str) -> Tuple[Any, Any, Any]:
     auth = Auth.Token(github_access_token)
     test_infra_repo = Github(auth=auth).get_repo("pytorch/test-infra")
@@ -439,7 +438,6 @@ def get_config_retrievers(github_access_token: str) -> Tuple[Any, Any, Any]:
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
     )
-
 
 class QueueTimeProcessor:
     """
