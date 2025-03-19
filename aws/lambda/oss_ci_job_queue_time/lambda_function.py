@@ -484,17 +484,20 @@ class QueueTimeProcessor:
             "pytorch/pytorch",
         )
 
-        if self.is_dry_run:
-            self.output_snapshot(snapshot)
+        self.output_snapshot(snapshot,timestamp)
         # TODO(elainewy): add logics to generate histograms based on the snapshot results
 
     def output_snapshot(
         self,
         snapshot: List[Dict[str, Any]],
+        timestamp: str,
     ) -> None:
         """
-        print the snapshot to local file or terminal for local test
+        print the snapshot to local file or terminal for local test only
         """
+        if not self.is_dry_run:
+            return
+
         info(
             f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
         )
