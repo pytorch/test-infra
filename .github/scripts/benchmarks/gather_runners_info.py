@@ -6,12 +6,17 @@
 # LICENSE file in the root directory of this source tree.
 
 import json
+import logging
 import os
 import platform
 import socket
+from logging import info
 from typing import Any, Dict
 
 import psutil
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 def set_output(name: str, val: Any) -> None:
@@ -39,7 +44,7 @@ def get_runner_info() -> Dict[str, Any]:
             device_type = torch.cuda.get_device_name()
 
     except ImportError:
-        pass
+        info("Fail to import torch to get the device name")
 
     runner_info = {
         "cpu_info": platform.processor(),
