@@ -7,6 +7,7 @@ CREATE TABLE misc.oss_ci_job_queue_time_historical(
     `html_url` String,
     `machine_type` String,
     `time` DateTime64(9),
+    `runner_labels` Array(String),
     -- The raw records on S3, this is populated by the s3 replicator
     `_meta` Tuple(bucket String, key String)
 )
