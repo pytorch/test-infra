@@ -53,7 +53,6 @@ FROM
 
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
-
     # clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
@@ -215,7 +214,7 @@ def explode_runner_variants(
 
 
 def update_tags(
-    tag_categories: Dict[str, Set[str]], machine_types: Iterable[str]
+    runner_labels: Dict[str, Set[str]], machine_types: Iterable[str]
 ) -> None:
     """
     iterate through machine types from jobs, and update potential tags that it belongs to
@@ -223,29 +222,29 @@ def update_tags(
     for machine_type in machine_types:
         if not machine_type:
             continue
-        tag_categories["all"].add(machine_type)
+        runner_labels["all"].add(machine_type)
 
         if machine_type.startswith("linux.rocm.gpu"):
-            tag_categories["linux"].add(machine_type)
-            tag_categories["linux-amd"].add(machine_type)
+            runner_labels["linux"].add(machine_type)
+            runner_labels["linux-amd"].add(machine_type)
 
-        if machine_type not in tag_categories["dynamic"]:
+        if machine_type not in runner_labels["dynamic"]:
             if "ubuntu" in machine_type.lower():
-                tag_categories["linux"].add(machine_type)
-                tag_categories["github"].add(machine_type)
+                runner_labels["linux"].add(machine_type)
+                runner_labels["github"].add(machine_type)
             else:
-                tag_categories["other"].add(machine_type)
+                runner_labels["other"].add(machine_type)
 
 
-def create_tag_categorires(
+def create_runner_labels(
     runner_configs: Dict[str, Dict[str, Any]],
     lf_runner_configs: Dict[str, Dict[str, Any]],
 ) -> Dict[str, Set[str]]:
     """
-    Create the tag_categorires, that are groups of runners with some common characteristics that we might find relevant
+    Create the runner_labels, that are groups of runners with some common characteristics that we might find relevant
     to view them in a group instead of individually.
     """
-    tag_dict = {
+    runner_labels_dict = {
         "github": set(),  # provided by github
         "pet": set(),  # managed as pet instances
         "dynamic": set(),  # managed as auto-scaling instances
@@ -276,8 +275,8 @@ def create_tag_categorires(
         "macos-14-arm64",
         "macos-14-xlarge",
     )
-    tag_dict["github"].update(github_mac_runners)
-    tag_dict["macos"].update(github_mac_runners)
+    runner_labels_dict["github"].update(github_mac_runners)
+    runner_labels_dict["macos"].update(github_mac_runners)
 
     meta_pet_mac_runners = (
         "macos-m1-12",
@@ -288,53 +287,53 @@ def create_tag_categorires(
         "macos-m2-15",
         "macos-m2-max",
     )
-    tag_dict["meta"].update(meta_pet_mac_runners)
-    tag_dict["macos"].update(meta_pet_mac_runners)
-    tag_dict["pet"].update(meta_pet_mac_runners)
+    runner_labels_dict["meta"].update(meta_pet_mac_runners)
+    runner_labels_dict["macos"].update(meta_pet_mac_runners)
+    runner_labels_dict["pet"].update(meta_pet_mac_runners)
 
     meta_pet_nvidia = (
         "linux.aws.a100",
         "linux.aws.h100",
     )
-    tag_dict["meta"].update(meta_pet_nvidia)
-    tag_dict["linux"].update(meta_pet_nvidia)
-    tag_dict["linux-meta"].update(meta_pet_nvidia)
-    tag_dict["pet"].update(meta_pet_nvidia)
-    tag_dict["multi-tenant"].update(meta_pet_nvidia)
+    runner_labels_dict["meta"].update(meta_pet_nvidia)
+    runner_labels_dict["linux"].update(meta_pet_nvidia)
+    runner_labels_dict["linux-meta"].update(meta_pet_nvidia)
+    runner_labels_dict["pet"].update(meta_pet_nvidia)
+    runner_labels_dict["multi-tenant"].update(meta_pet_nvidia)
 
     all_runners_configs = (
         runner_configs["runner_types"] | lf_runner_configs["runner_types"]
     )
 
     for runner, runner_config in all_runners_configs.items():
-        tag_dict["dynamic"].add(runner)
+        runner_labels_dict["dynamic"].add(runner)
 
         if "is_ephemeral" in runner_config and runner_config["is_ephemeral"]:
-            tag_dict["ephemeral"].add(runner)
+            runner_labels_dict["ephemeral"].add(runner)
         else:
-            tag_dict["nonephemeral"].add(runner)
+            runner_labels_dict["nonephemeral"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            tag_dict["linux"].add(runner)
+            runner_labels_dict["linux"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            tag_dict["windows"].add(runner)
+            runner_labels_dict["windows"].add(runner)
 
     for runner, runner_config in runner_configs["runner_types"].items():
-        tag_dict["meta"].add(runner)
+        runner_labels_dict["meta"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            tag_dict["linux-meta"].add(runner)
+            runner_labels_dict["linux-meta"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            tag_dict["windows-meta"].add(runner)
+            runner_labels_dict["windows-meta"].add(runner)
 
     for runner, runner_config in lf_runner_configs["runner_types"].items():
-        tag_dict["lf"].add(runner)
+        runner_labels_dict["lf"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            tag_dict["linux-lf"].add(runner)
+            runner_labels_dict["linux-lf"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            tag_dict["windows-lf"].add(runner)
-    return tag_dict
+            runner_labels_dict["windows-lf"].add(runner)
+    return runner_labels_dict
 
 
 def get_runner_config(
@@ -452,7 +451,11 @@ class QueueTimeProcessor:
     """
 
     def __init__(
-        self, clickhouse_client: Any, s3_client: Any, is_dry_run: bool = False, local_output: bool = False
+        self,
+        clickhouse_client: Any,
+        s3_client: Any,
+        is_dry_run: bool = False,
+        local_output: bool = False,
     ) -> None:
         self.clickhouse_client = clickhouse_client
         self.s3_client = s3_client
@@ -526,19 +529,20 @@ class QueueTimeProcessor:
             lf_runner_config = get_runner_config(
                 old_lf_lf_runner_config_retriever, timestamp
             )
-        tag_categories = create_tag_categorires(
+        runner_labels = create_runner_labels(
             get_runner_config(meta_runner_config_retriever, timestamp), lf_runner_config
         )
-        update_tags(tag_categories, set([job["machine_type"] for job in snapshot]))
+        update_tags(runner_labels, set([job["machine_type"] for job in snapshot]))
 
         # iterate throught jobs, and update tags for each job
         for job in snapshot:
-            job_tags = []
-            for tag in tag_categories:
-                if job["machine_type"] in tag_categories[tag]:
-                    job_tags.append(tag)
-            job_tags.append(job["machine_type"])
-            job["tags"] = job_tags
+            job_labels = []
+            for tag in runner_labels:
+                if job["machine_type"] in runner_labels[tag]:
+                    job_labels.append(tag)
+            # add job's own machine type to runner labels
+            job_labels.append(job["machine_type"])
+            job["runner_labels"] = job_labels
 
         key = f"job_queue_times_historical/{repo}/{timestamp}.txt"
         if self.is_dry_run:
@@ -551,7 +555,6 @@ class QueueTimeProcessor:
             else:
                 info(json.dumps(snapshot))
             return
-
 
         upload_to_s3_txt(self.s3_client, _bucket_name, key, snapshot)
 
@@ -667,7 +670,9 @@ def main() -> None:
     # always run in dry-run mode in local environment, unless it's disabled.
     is_dry_run = not arguments.not_dry_run
 
-    QueueTimeProcessor(db_client, s3_client, is_dry_run=is_dry_run, local_output=arguments.local_output).process()
+    QueueTimeProcessor(
+        db_client, s3_client, is_dry_run=is_dry_run, local_output=arguments.local_output
+    ).process()
 
 
 if __name__ == "__main__":
