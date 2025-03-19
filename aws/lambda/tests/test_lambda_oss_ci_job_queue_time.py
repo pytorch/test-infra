@@ -165,7 +165,11 @@ class Test(unittest.TestCase):
         self.mock_envs = envs_patcher.start()
 
         self.mock_get_runner_config.return_value = {"runner_types": {}}
-        self.mock_get_config_retrievers.return_value = ({}, {}, {})
+        self.mock_get_config_retrievers.return_value = {
+            "meta": MagicMock(),
+            "lf": MagicMock(),
+            "old_lf": MagicMock(),
+        }
 
         self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
         self.addCleanup(patcher2.stop)
@@ -237,7 +241,6 @@ class Test(unittest.TestCase):
                 get_mock_s3_resource_object(
                     self.mock_s3_resource
                 ).return_value.put.assert_not_called()
-
 
                 # reset
                 # manually reset the envs, todo: find a better way to do this,maybe use parameterized

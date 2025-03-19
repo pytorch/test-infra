@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import gzip
+import re
 import threading
 import yaml
 
@@ -59,7 +60,7 @@ FROM
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    #return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -353,7 +354,7 @@ def get_runner_config(
     return {"runner_types": {}}
 
 
-def get_config_retrievers(github_access_token: str) -> Tuple[Any, Any, Any]:
+def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory]:
     auth = Auth.Token(github_access_token)
     test_infra_repo = Github(auth=auth).get_repo("pytorch/test-infra")
     pytorch_repo = Github(auth=auth).get_repo("pytorch/pytorch")
@@ -368,11 +369,11 @@ def get_config_retrievers(github_access_token: str) -> Tuple[Any, Any, Any]:
         pytorch_repo, ".github/lf-scale-config.yml"
     )
 
-    return (
-        meta_runner_config_retriever,
-        lf_runner_config_retriever,
-        old_lf_lf_runner_config_retriever,
-    )
+    return {
+        "meta": meta_runner_config_retriever,
+        "lf": lf_runner_config_retriever,
+        "old_lf": old_lf_lf_runner_config_retriever,
+    }
 
 
 class QueueTimeProcessor:
@@ -403,24 +404,21 @@ class QueueTimeProcessor:
 
     def process(self) -> None:
         # get runner config retrievers
-        (
-            meta_runner_config_retriever,
-            lf_runner_config_retriever,
-            old_lf_lf_runner_config_retriever,
-        ) = get_config_retrievers(self.github_access_token)
+        retrievers = get_config_retrievers(self.github_access_token)
 
         # use current time as snapshot time
         timestamp = str(int(datetime.now().timestamp()))
 
         snapshot = self.get_queueing_jobs_snapshot(
-            meta_runner_config_retriever,
-            lf_runner_config_retriever,
-            old_lf_lf_runner_config_retriever,
+            retrievers["meta"],
+            retrievers["lf"],
+            retrievers["old_lf"],
             timestamp,
             "pytorch/pytorch",
         )
 
-        self.output_snapshot(snapshot, timestamp)
+        if self.is_dry_run:
+            self.output_snapshot(snapshot, timestamp)
         # TODO(elainewy): add logics to generate histograms based on the snapshot results
 
     def output_snapshot(
@@ -431,9 +429,6 @@ class QueueTimeProcessor:
         """
         print the snapshot to local file or terminal for local test only
         """
-        if not self.is_dry_run:
-            return
-
         info(
             f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
         )
@@ -442,24 +437,24 @@ class QueueTimeProcessor:
             info(f"[Dry Run Mode]: local output to {file_name}.json")
             with open(file_name, "w") as f:
                 f.write(json.dumps(snapshot))
+            return
         info(json.dumps(snapshot))
-        return
 
     def _fetch_snapshot_from_db(
         self, timestamp: str = "", repo: str = "pytorch/pytorch"
     ) -> List[Dict[str, Any]]:
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
-        queued_query, queued_parameters = self.get_query_statement_for_queueing_jobs(
-            timestamp, repo
+        queued_query = self.get_query_statement_for_queueing_jobs(timestamp, repo)
+        jobs_in_queue = self._query_in_queue_jobs(
+            queued_query["query"], queued_query["parameters"]
         )
-        jobs_in_queue = self._query_in_queue_jobs(queued_query, queued_parameters)
 
         # in given snapshot time, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
-        picked_query, picked_params = self.get_query_statement_for_picked_up_job(
-            timestamp, repo
+        picked_query = self.get_query_statement_for_picked_up_job(timestamp, repo)
+        jobs_pick = self._query_in_queue_jobs(
+            picked_query["query"], picked_query["parameters"]
         )
-        jobs_pick = self._query_in_queue_jobs(picked_query, picked_params)
 
         datetime_str = datetime.fromtimestamp(int(timestamp)).strftime(
             "%Y-%m-%d %H:%M:%S"
@@ -583,11 +578,14 @@ class QueueTimeProcessor:
             "timestamp": time,
             "repo": repo,
         }
-        return query, parameters
+        return {
+            "query": query,
+            "parameters": parameters,
+        }
 
     def get_query_statement_for_queueing_jobs(
         self, time: str, repo: str = "pytorch/pytorch"
-    ):
+    ) -> Dict[str, Any]:
         """
         this query is used to get jobs that werre in queue in given snapshot time, and not being picked up by workers
         """
@@ -621,7 +619,10 @@ class QueueTimeProcessor:
             "timestamp": time,
             "repo": repo,
         }
-        return query, parameters
+        return {
+            "query": query,
+            "parameters": parameters,
+        }
 
 
 def lambda_handler(event: Any, context: Any) -> None:
