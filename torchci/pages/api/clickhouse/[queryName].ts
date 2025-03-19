@@ -10,6 +10,5 @@ export default async function handler(
     queryName,
     JSON.parse(req.query.parameters as string)
   );
-
   res.status(200).json(response);
 }
