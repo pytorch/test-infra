@@ -222,6 +222,11 @@ def update_tags(
         if not machine_type:
             continue
         tag_categories["all"].add(machine_type)
+
+        if machine_type.startswith("linux.rocm.gpu"):
+            tag_categories["linux"].add(machine_type)
+            tag_categories["linux-amd"].add(machine_type)
+
         if machine_type not in tag_categories["dynamic"]:
             if "ubuntu" in machine_type.lower():
                 tag_categories["linux"].add(machine_type)
@@ -238,7 +243,7 @@ def create_tag_categorires(
     Create the tag_categorires, that are groups of runners with some common characteristics that we might find relevant
     to view them in a group instead of individually.
     """
-    breakdowns = {
+    tag_dict = {
         "github": set(),  # provided by github
         "pet": set(),  # managed as pet instances
         "dynamic": set(),  # managed as auto-scaling instances
@@ -247,6 +252,7 @@ def create_tag_categorires(
         "linux": set(),  # linux instances
         "linux-meta": set(),  # linux instances provided by meta
         "linux-lf": set(),  # linux instances provided by Linux Foundation
+        "linux-amd": set(),  # linux instances provided by amd. for instance linux.rocm.gpu.2
         "macos": set(),  # macos instances
         "macos-meta": set(),  # macos instances provided by meta
         "windows": set(),  # windows instances
@@ -268,8 +274,8 @@ def create_tag_categorires(
         "macos-14-arm64",
         "macos-14-xlarge",
     )
-    breakdowns["github"].update(github_mac_runners)
-    breakdowns["macos"].update(github_mac_runners)
+    tag_dict["github"].update(github_mac_runners)
+    tag_dict["macos"].update(github_mac_runners)
 
     meta_pet_mac_runners = (
         "macos-m1-12",
@@ -280,54 +286,53 @@ def create_tag_categorires(
         "macos-m2-15",
         "macos-m2-max",
     )
-    breakdowns["meta"].update(meta_pet_mac_runners)
-    breakdowns["macos"].update(meta_pet_mac_runners)
-    breakdowns["pet"].update(meta_pet_mac_runners)
+    tag_dict["meta"].update(meta_pet_mac_runners)
+    tag_dict["macos"].update(meta_pet_mac_runners)
+    tag_dict["pet"].update(meta_pet_mac_runners)
 
     meta_pet_nvidia = (
         "linux.aws.a100",
         "linux.aws.h100",
     )
-    breakdowns["meta"].update(meta_pet_nvidia)
-    breakdowns["linux"].update(meta_pet_nvidia)
-    breakdowns["linux-meta"].update(meta_pet_nvidia)
-    breakdowns["pet"].update(meta_pet_nvidia)
-    breakdowns["multi-tenant"].update(meta_pet_nvidia)
+    tag_dict["meta"].update(meta_pet_nvidia)
+    tag_dict["linux"].update(meta_pet_nvidia)
+    tag_dict["linux-meta"].update(meta_pet_nvidia)
+    tag_dict["pet"].update(meta_pet_nvidia)
+    tag_dict["multi-tenant"].update(meta_pet_nvidia)
 
     all_runners_configs = (
         runner_configs["runner_types"] | lf_runner_configs["runner_types"]
     )
 
     for runner, runner_config in all_runners_configs.items():
-        breakdowns["dynamic"].add(runner)
+        tag_dict["dynamic"].add(runner)
 
         if "is_ephemeral" in runner_config and runner_config["is_ephemeral"]:
-            breakdowns["ephemeral"].add(runner)
+            tag_dict["ephemeral"].add(runner)
         else:
-            breakdowns["nonephemeral"].add(runner)
+            tag_dict["nonephemeral"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            breakdowns["linux"].add(runner)
+            tag_dict["linux"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            breakdowns["windows"].add(runner)
+            tag_dict["windows"].add(runner)
 
     for runner, runner_config in runner_configs["runner_types"].items():
-        breakdowns["meta"].add(runner)
+        tag_dict["meta"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            breakdowns["linux-meta"].add(runner)
+            tag_dict["linux-meta"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            breakdowns["windows-meta"].add(runner)
+            tag_dict["windows-meta"].add(runner)
 
     for runner, runner_config in lf_runner_configs["runner_types"].items():
-        breakdowns["lf"].add(runner)
+        tag_dict["lf"].add(runner)
 
         if runner_config["os"].lower() == "linux":
-            breakdowns["linux-lf"].add(runner)
+            tag_dict["linux-lf"].add(runner)
         elif runner_config["os"].lower() == "windows":
-            breakdowns["windows-lf"].add(runner)
-
-    return breakdowns
+            tag_dict["windows-lf"].add(runner)
+    return tag_dict
 
 
 def get_runner_config(
@@ -530,6 +535,7 @@ class QueueTimeProcessor:
             for tag in tag_categories:
                 if job["machine_type"] in tag_categories[tag]:
                     job_tags.append(tag)
+            job_tags.append(job["machine_type"])
             job["tags"] = job_tags
 
         key = f"job_queue_times_historical/{repo}/{timestamp}.txt"

@@ -187,8 +187,8 @@ class Test(unittest.TestCase):
         mock_s3_resource_put(self.mock_s3_resource)
         mock_db_client(self.mock_get_client)
 
-        expected_r1 = b'{"queue_s": 60000, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-1", "job_name": "job-name-1", "html_url": "runs/1/job/1", "machine_type": "linux.aws.h100", "time": 1742262372, "tags": ["pet", "linux", "linux-meta", "all", "meta", "multi-tenant", "other"]}\n'
-        expected_r2 = b'{"queue_s": 1400, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-2", "job_name": "job-name-2", "html_url": "runs/2/job/2", "machine_type": "linux.rocm.gpu.2", "time": 1742262372, "tags": ["all", "other"]}\n'
+        expected_r1 = b'{"queue_s": 60000, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-1", "job_name": "job-name-1", "html_url": "runs/1/job/1", "machine_type": "linux.aws.h100", "time": 1742262372, "tags": ["pet", "linux", "linux-meta", "all", "meta", "multi-tenant", "other", "linux.aws.h100"]}\n'
+        expected_r2 = b'{"queue_s": 1400, "repo": "pytorch/pytorch", "workflow_name": "workflow-name-2", "job_name": "job-name-2", "html_url": "runs/2/job/2", "machine_type": "linux.rocm.gpu.2", "time": 1742262372, "tags": ["linux", "linux-amd", "all", "other", "linux.rocm.gpu.2"]}\n'
         expected_s3_body = expected_r1 + expected_r2
         expect = gzip.compress(expected_s3_body)
 
