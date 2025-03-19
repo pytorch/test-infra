@@ -205,12 +205,7 @@ class Test(unittest.TestCase):
         self.mock_s3_resource.assert_called_once()
         get_mock_s3_resource_object(
             self.mock_s3_resource
-        ).return_value.put.assert_called_once()
-        get_mock_s3_resource_object(
-            self.mock_s3_resource
-        ).return_value.put.assert_called_once_with(
-            Body=expect, ContentEncoding="gzip", ContentType="text/plain"
-        )
+        ).return_value.put.assert_not_called()
 
     def test_lambda_handler_when_missing_required_env_vars_then_throws_error(self):
         test_cases = [

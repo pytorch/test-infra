@@ -473,7 +473,6 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         ) = get_config_retrievers(github_access_token)
 
-
         # by default, we use current time as snapshot
         timestamp = str(int(datetime.now().timestamp()))
 
@@ -485,22 +484,24 @@ class QueueTimeProcessor:
             "pytorch/pytorch",
         )
 
-        # TODO(elainewy): add logic to generate histograms based on the snapshot
-        self.output(snapshot, timestamp, "pytorch/pytorch")
+        self.output_snapshot(snapshot)
+        # TODO(elainewy): add logics to generate histograms based on the snapshot
 
-    def output(self, snapshot: List[Dict[str, Any]], timestamp: str, repo:str ='pytorch/pytorch') -> None:
-        # key = f"job_queue_times_histogram/{repo}/{timestamp}.txt"
+    def output_snapshot(
+        self,
+        snapshot: List[Dict[str, Any]],
+    ) -> None:
         if self.is_dry_run:
-            info(f"[Dry Run Mode]: {len(snapshot)} records to S3 {_bucket_name}/{key}")
+            info(
+                f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
+            )
             if self.local_output:
                 file_name = f"job_queue_times_snapshot_{timestamp}.json"
                 info(f"[Dry Run Mode]: local output to {file_name}.json")
                 with open(file_name, "w") as f:
                     f.write(json.dumps(snapshot))
-
             info(json.dumps(snapshot))
             return
-        # upload_to_s3_txt(self.s3_client, _bucket_name, key, snapshot)
 
     def query_queueing_jobs(
         self, timestamp: str = "", repo: str = "pytorch/pytorch"
@@ -523,7 +524,7 @@ class QueueTimeProcessor:
         )
 
         info(
-            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by workers later"
+            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by runners"
         )
         result = jobs_in_queue + jobs_pick
         return result
@@ -536,7 +537,6 @@ class QueueTimeProcessor:
         timestamp: str,
         repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
-
         # fetches jobs in queue at given snapshot time from db
         snapshot = self.query_queueing_jobs(timestamp, repo)
         if len(snapshot) == 0:
