@@ -511,19 +511,18 @@ class QueueTimeProcessor:
         if snapshot_time:
             timestamp = snapshot_time
 
+        # fetch jobs in queue at given snapshot time
         snapshot = self.snapshot_jobs_in_queue(timestamp, repo)
         if len(snapshot) == 0:
             info(f"No jobs in queue at time: {timestamp}")
             return
 
+        # create dictionary of tags with set of targeting machine types
         lf_runner_config = get_runner_config(lf_runner_config_retriever, timestamp)
-
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
                 old_lf_lf_runner_config_retriever, timestamp
             )
-
-        # create dictionary of tags with set of targeting machine types
         tag_categories = create_tag_categorires(
             get_runner_config(meta_runner_config_retriever, timestamp), lf_runner_config
         )
