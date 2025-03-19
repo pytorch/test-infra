@@ -473,7 +473,7 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         ) = get_config_retrievers(github_access_token)
 
-        # by default, we use current time as snapshot
+        # use current time as snapshot time
         timestamp = str(int(datetime.now().timestamp()))
 
         snapshot = self.get_jobs_in_queue_snapshot(
