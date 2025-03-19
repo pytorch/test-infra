@@ -18,6 +18,7 @@ from typing import Any
 logging.basicConfig(level=logging.INFO)
 
 _bucket_name = "ossci-raw-job-status"
+# common query statement for in_queue jobs
 _in_queue_job_select_statement = """
 SELECT
     DATE_DIFF(
@@ -209,11 +210,13 @@ class QueueTimeProcessor:
         datetime_str = datetime.fromtimestamp(int(timestamp)).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
+
         info(
             f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by workers later"
         )
+
         if len(jobs_in_queue) == 0 and len(jobs_pick) == 0:
-            info(f"No jobs in queue at time {datetime_str}, skipping mutation to S3")
+            info(f"No jobs were in queue at time {datetime_str}, skipping")
             return
 
         key = f"job_queue_times_historical/{repo}/{timestamp}.txt"

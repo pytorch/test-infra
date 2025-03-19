@@ -4,9 +4,7 @@ import gzip
 
 from typing import Any, List, Tuple, Dict
 from unittest.mock import patch, MagicMock
-from oss_ci_job_queue_time.lambda_function import (
-    lambda_handler,
-)
+from oss_ci_job_queue_time.lambda_function import lambda_handler, main
 
 
 def get_default_result_rows(test_sample: str = "0"):
@@ -232,6 +230,31 @@ class Test(unittest.TestCase):
                 get_mock_s3_resource_object(
                     mock_s3_resource
                 ).return_value.put.assert_not_called()
+
+    @patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
+    @patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
+    def test_local_run_with_dry_run_when_lambda_happy_flow_then_success_without_s3_write(
+        self, mock_get_client, mock_s3_resource
+    ):
+        # prepare
+        set_default_env_variables()
+        mock_s3_resource_put(mock_s3_resource)
+        mock_db_client(mock_get_client)
+
+        # execute
+        main()
+
+        # assert
+
+        # assert clickhouse client
+        mock_get_client.assert_called_once()
+        self.assertEqual(mock_get_client.return_value.query.call_count, 2)
+
+        # assert s3 resource
+        mock_s3_resource.assert_called_once()
+        get_mock_s3_resource_object(
+            mock_s3_resource
+        ).return_value.put.assert_not_called()
 
 
 if __name__ == "__main__":
