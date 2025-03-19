@@ -13,6 +13,7 @@ CREATE TABLE misc.oss_ci_queue_time_histogram(
     `avg_queue_time` UInt64,
     `total_count` UInt64,
     `time` DateTime64(9),
+    `runner_labels` Array(String),
     `extra_info` Map(String,String)
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
