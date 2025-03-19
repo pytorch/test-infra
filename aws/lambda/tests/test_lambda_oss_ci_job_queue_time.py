@@ -3,7 +3,7 @@ import os
 import gzip
 
 from typing import Any, List, Tuple, Dict
-from unittest.mock import patch,MagicMock
+from unittest.mock import patch, MagicMock
 from oss_ci_job_queue_time.lambda_function import (
     lambda_handler,
 )
@@ -14,7 +14,7 @@ def get_default_result_rows(test_sample: str = "0"):
     generate result rows for testing, this corrresponds to the following columns:
        'queue_s', 'repo', 'workflow_name', 'job_name', 'html_url', 'machine_type', 'time'
     """
-    if (test_sample == "0"):
+    if test_sample == "0":
         return [
             (
                 60000,
@@ -33,7 +33,8 @@ def get_default_result_rows(test_sample: str = "0"):
                 "runs/2/job/2",
                 "linux.rocm.gpu.2",
                 1742262372,
-            )]
+            ),
+        ]
 
     return [
         (
@@ -92,10 +93,22 @@ def get_default_result_rows(test_sample: str = "0"):
         ),
     ]
 
-def get_default_result_columns() -> Tuple:
-    return ("queue_s", "repo", "workflow_name", "job_name", "html_url", "machine_type","time")
 
-def mock_query_result(query: str, parameters:str, rows_in_queue: List[Tuple], rows_picked: List[Tuple]) ->Any:
+def get_default_result_columns() -> Tuple:
+    return (
+        "queue_s",
+        "repo",
+        "workflow_name",
+        "job_name",
+        "html_url",
+        "machine_type",
+        "time",
+    )
+
+
+def mock_query_result(
+    query: str, parameters: str, rows_in_queue: List[Tuple], rows_picked: List[Tuple]
+) -> Any:
     result = MagicMock()
     if "LENGTH(job.steps) = 0" in query:
         result.column_names = get_default_result_columns()
@@ -104,6 +117,7 @@ def mock_query_result(query: str, parameters:str, rows_in_queue: List[Tuple], ro
         result.column_names = get_default_result_columns()
         result.result_rows = rows_picked
     return result
+
 
 def mock_s3_resource_put(mock_s3_resource: Any) -> None:
     mock_s3 = mock_s3_resource.return_value
@@ -121,9 +135,10 @@ def mock_db_client(
     rows_picked: List[Tuple] = [],
 ) -> None:
     mock_client = mock.return_value
-    mock_client.query.side_effect = (
-        lambda query, parameters: mock_query_result(query,parameters, rows_in_queue, rows_picked)
+    mock_client.query.side_effect = lambda query, parameters: mock_query_result(
+        query, parameters, rows_in_queue, rows_picked
     )
+
 
 def set_default_env_variables():
     os.environ["CLICKHOUSE_ENDPOINT"] = "https://clickhouse.test1"
@@ -141,7 +156,7 @@ class Test(unittest.TestCase):
         # prepare
         set_default_env_variables()
         mock_s3_resource_put(mock_s3_resource)
-        mock_db_client(mock_get_client,[],[])
+        mock_db_client(mock_get_client, [], [])
 
         # execute
         lambda_handler(None, None)
