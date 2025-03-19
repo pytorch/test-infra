@@ -138,11 +138,13 @@ def mock_db_client(
     )
 
 
-def set_default_env_variables():
-    os.environ["CLICKHOUSE_ENDPOINT"] = "https://clickhouse.test1"
-    os.environ["CLICKHOUSE_USERNAME"] = "user1"
-    os.environ["CLICKHOUSE_PASSWORD"] = "pwd1"
-    os.environ["GITHUB_ACCESS_TOKEN"] = "token1"
+def get_default_environment_variables():
+    return {
+        "CLICKHOUSE_ENDPOINT": "test",
+        "CLICKHOUSE_USERNAME": "test",
+        "CLICKHOUSE_PASSWORD": "test",
+        "GITHUB_ACCESS_TOKEN": "test",
+    }
 
 
 class Test(unittest.TestCase):
@@ -151,11 +153,16 @@ class Test(unittest.TestCase):
         patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
         patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
         patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
+        envs_patcher = patch(
+            "oss_ci_job_queue_time.lambda_function.ENVS",
+            new=get_default_environment_variables(),
+        )
 
         self.mock_s3_resource = patcher1.start()
         self.mock_get_client = patcher2.start()
         self.mock_get_runner_config = patcher3.start()
         self.mock_get_config_retrievers = patcher4.start()
+        self.mock_envs = envs_patcher.start()
 
         self.mock_get_runner_config.return_value = {"runner_types": {}}
         self.mock_get_config_retrievers.return_value = ({}, {}, {})
@@ -164,11 +171,11 @@ class Test(unittest.TestCase):
         self.addCleanup(patcher2.stop)
         self.addCleanup(patcher3.stop)
         self.addCleanup(patcher4.stop)
+        self.addCleanup(envs_patcher.stop)
 
     def test_lambda_handler_when_row_result_is_empty(self):
         print("test_lambda_handler_when_row_result_is_empty ")
         # prepare
-        set_default_env_variables()
         mock_s3_resource_put(self.mock_s3_resource)
         mock_db_client(self.mock_get_client, [], [])
 
@@ -183,7 +190,6 @@ class Test(unittest.TestCase):
 
     def test_lambda_handler_when_lambda_happy_flow_then_success(self):
         # prepare
-        set_default_env_variables()
         mock_s3_resource_put(self.mock_s3_resource)
         mock_db_client(self.mock_get_client)
 
@@ -214,15 +220,12 @@ class Test(unittest.TestCase):
             ("CLICKHOUSE_PASSWORD"),
             ("GITHUB_ACCESS_TOKEN"),
         ]
-
         for x in test_cases:
-            with self.subTest(x=x):
+            with self.subTest(f"Test Environment {x}", x=x):
                 # prepare
                 self.mock_get_client.reset_mock(return_value=True)
                 self.mock_s3_resource.reset_mock(return_value=True)
-
-                set_default_env_variables()
-                os.environ[x] = ""
+                self.mock_envs[x] = ""
 
                 # execute
                 with self.assertRaises(ValueError) as context:
@@ -235,11 +238,15 @@ class Test(unittest.TestCase):
                     self.mock_s3_resource
                 ).return_value.put.assert_not_called()
 
+
+                # reset
+                # manually reset the envs, todo: find a better way to do this,maybe use parameterized
+                self.mock_envs[x] = get_default_environment_variables()[x]
+
     def test_local_run_with_dry_run_when_lambda_happy_flow_then_success_without_s3_write(
         self,
     ):
         # prepare
-        set_default_env_variables()
         mock_s3_resource_put(self.mock_s3_resource)
         mock_db_client(self.mock_get_client)
 

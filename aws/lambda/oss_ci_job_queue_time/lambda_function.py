@@ -19,10 +19,16 @@ from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
 from github import Github, Auth
 from dateutil.parser import parse
 
+ENVS = {
+    "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
+    "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
+    "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
+    "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
+}
+
 
 logging.basicConfig(level=logging.INFO)
 _bucket_name = "ossci-raw-job-status"
-
 _in_queue_job_select_statement = """
 SELECT
     DATE_DIFF(
@@ -66,14 +72,15 @@ def get_aws_s3_resource() -> Any:
 
 
 def get_clickhouse_client_environment() -> Any:
-    for env in ["CLICKHOUSE_ENDPOINT", "CLICKHOUSE_USERNAME", "CLICKHOUSE_PASSWORD"]:
-        if not os.getenv(env):
-            raise ValueError(f"Missing environment variable {env}")
+    info(f"Getting environment variables {ENVS}")
+    for name, env_val in ENVS.items():
+        if not env_val:
+            raise ValueError(f"Missing environment variable {name}")
 
     return get_clickhouse_client(
-        host=os.getenv("CLICKHOUSE_ENDPOINT"),
-        user=os.getenv("CLICKHOUSE_USERNAME"),
-        password=os.getenv("CLICKHOUSE_PASSWORD"),
+        host=ENVS["CLICKHOUSE_ENDPOINT"],
+        user=ENVS["CLICKHOUSE_USERNAME"],
+        password=ENVS["CLICKHOUSE_PASSWORD"],
     )
 
 
@@ -381,6 +388,7 @@ class QueueTimeProcessor:
         self,
         clickhouse_client: Any,
         s3_client: Any,
+        github_access_token: str = "",
         is_dry_run: bool = False,
         local_output: bool = False,
     ) -> None:
@@ -389,17 +397,17 @@ class QueueTimeProcessor:
         self.is_dry_run = is_dry_run
         self.local_output = local_output and is_dry_run
 
-    def process(self) -> None:
-        github_access_token = os.getenv("GITHUB_ACCESS_TOKEN", "")
         if not github_access_token:
             raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
+        self.github_access_token = github_access_token
 
+    def process(self) -> None:
         # get runner config retrievers
         (
             meta_runner_config_retriever,
             lf_runner_config_retriever,
             old_lf_lf_runner_config_retriever,
-        ) = get_config_retrievers(github_access_token)
+        ) = get_config_retrievers(self.github_access_token)
 
         # use current time as snapshot time
         timestamp = str(int(datetime.now().timestamp()))
@@ -623,7 +631,9 @@ def lambda_handler(event: Any, context: Any) -> None:
     db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
 
-    QueueTimeProcessor(db_client, s3_client).process()
+    QueueTimeProcessor(
+        db_client, s3_client, github_access_token=ENVS["GITHUB_ACCESS_TOKEN"]
+    ).process()
 
     return
 
@@ -635,26 +645,26 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--clickhouse-endpoint",
-        default=os.getenv("CLICKHOUSE_ENDPOINT", ""),
+        default=ENVS["CLICKHOUSE_ENDPOINT"],
         type=str,
         help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
     )
     parser.add_argument(
         "--clickhouse-username",
         type=str,
-        default=os.getenv("CLICKHOUSE_USERNAME", ""),
+        default=ENVS["CLICKHOUSE_USERNAME"],
         help="the clickhouse username",
     )
     parser.add_argument(
         "--clickhouse-password",
         type=str,
-        default=os.getenv("CLICKHOUSE_PASSWORD", ""),
+        default=ENVS["CLICKHOUSE_PASSWORD"],
         help="the clickhouse password for the user name",
     )
     parser.add_argument(
         "--github-access-token",
         type=str,
-        default=os.getenv("GITHUB_ACCESS_TOKEN", ""),
+        default=ENVS["GITHUB_ACCESS_TOKEN"],
         help="the github access token to access github api",
     )
     parser.add_argument(
@@ -679,19 +689,23 @@ def main() -> None:
     arguments = parse_args()
 
     # update environment variables for input parameters
-    os.environ["CLICKHOUSE_ENDPOINT"] = arguments.clickhouse_endpoint
-    os.environ["CLICKHOUSE_USERNAME"] = arguments.clickhouse_username
-    os.environ["CLICKHOUSE_PASSWORD"] = arguments.clickhouse_password
-    os.environ["GITHUB_ACCESS_TOKEN"] = arguments.github_access_token
 
-    db_client = get_clickhouse_client_environment()
+    db_client = get_clickhouse_client(
+        host=arguments.clickhouse_endpoint,
+        user=arguments.clickhouse_username,
+        password=arguments.clickhouse_password,
+    )
     s3_client = get_aws_s3_resource()
 
     # always run in dry-run mode in local environment, unless it's disabled.
     is_dry_run = not arguments.not_dry_run
 
     QueueTimeProcessor(
-        db_client, s3_client, is_dry_run=is_dry_run, local_output=arguments.local_output
+        db_client,
+        s3_client,
+        arguments.github_access_token,
+        is_dry_run=is_dry_run,
+        local_output=arguments.local_output,
     ).process()
 
 
