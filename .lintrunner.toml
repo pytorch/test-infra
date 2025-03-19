@@ -43,6 +43,7 @@ include_patterns = [
     'torchci/**/*.py',
     'torchci/**/*.pyi',
     '.github/scripts/*.py',
+    'aws/lambda/oss-ci-job-queue-time/*.py',
     'aws/lambda/whl_metadata_upload_pep658/**/*.py',
 ]
 command = [
