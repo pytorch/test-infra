@@ -1,4 +1,4 @@
-import GranularityPicker from "components/GranularityPicker";
+import GranularityPicker from "components/common/GranularityPicker";
 import { TimeRangePicker } from "pages/metrics";
 import { Dispatch } from "react";
 export const LLMsTimeRangePicker = ({

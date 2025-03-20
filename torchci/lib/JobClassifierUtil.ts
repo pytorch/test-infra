@@ -1,4 +1,4 @@
-import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
+import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
 import { IssueData, RowData } from "./types";
 

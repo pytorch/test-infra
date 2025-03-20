@@ -1,6 +1,6 @@
 import { Pagination, Stack, Tooltip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import TestSearchForm from "components/tests/TestSearchForm";
 import { encodeParams } from "lib/GeneralUtils";
 import { useRouter } from "next/router";

@@ -1,53 +1,46 @@
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
-import _ from "lodash";
 import { useSession } from "next-auth/react";
 import React from "react";
-import { JobAnnotation, JobData } from "../lib/types";
+import { JobData, LogAnnotation } from "../../../lib/types";
 
-export default function JobAnnotationToggle({
+export default function LogAnnotationToggle({
   job,
-  similarJobs,
   annotation,
   repo = null,
+  log_metadata,
 }: {
   job: JobData;
-  similarJobs?: JobData[] | null;
-  annotation: JobAnnotation;
+  annotation: LogAnnotation;
   repo?: string | null;
+  log_metadata: Record<string, string>;
 }) {
-  const allJobs = similarJobs ?? [];
-  // Double check if the job exists before adding it
-  if (!_.find(allJobs, (j: JobData) => j.id === job.id)) {
-    allJobs.push(job);
-  }
-
-  const [state, setState] = React.useState<JobAnnotation>(
-    (annotation ?? "null") as JobAnnotation
+  const [state, setState] = React.useState<LogAnnotation>(
+    (annotation ?? "null") as LogAnnotation
   );
   const session = useSession();
   async function handleChange(
     _: React.MouseEvent<HTMLElement>,
-    newState: JobAnnotation
+    newState: LogAnnotation
   ) {
     setState(newState);
-    await fetch(`/api/job_annotation/${repo ?? job.repo}/${newState}`, {
+    const all_metadata = log_metadata;
+    all_metadata["job_id"] = job.id ?? "";
+    await fetch(`/api/log_annotation/${repo ?? job.repo}/${newState}`, {
       method: "POST",
-      // Also send over the list of similar jobs so that they can be annotated
-      // in one API call
-      body: JSON.stringify(allJobs.map((job) => job.id)),
+      body: JSON.stringify(all_metadata),
     });
   }
 
   return (
     <>
-      Classify failure:{" "}
+      Which log is preferable:{" "}
       <ToggleButtonGroup
         value={state}
         exclusive
         onChange={handleChange}
         disabled={session.status !== "authenticated"}
       >
-        {Object.keys(JobAnnotation).map((annotation, ind) => {
+        {Object.keys(LogAnnotation).map((annotation, ind) => {
           return (
             <ToggleButton
               key={ind}
@@ -56,7 +49,7 @@ export default function JobAnnotationToggle({
             >
               {
                 //@ts-ignore
-                JobAnnotation[annotation]
+                LogAnnotation[annotation]
               }
             </ToggleButton>
           );
