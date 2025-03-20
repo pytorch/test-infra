@@ -1,10 +1,10 @@
 import { Stack } from "@mui/material";
 import { BarChart } from "@mui/x-charts";
+import LoadingPage from "components/common/LoadingPage";
+import LogViewer from "components/common/log/LogViewer";
 import { TextFieldSubmit } from "components/common/TextFieldSubmit";
 import JobLinks from "components/job/JobLinks";
 import JobSummary from "components/job/JobSummary";
-import LoadingPage from "components/common/LoadingPage";
-import LogViewer from "components/common/log/LogViewer";
 import TestSearchForm from "components/tests/TestSearchForm";
 import dayjs from "dayjs";
 import { encodeParams, fetcher } from "lib/GeneralUtils";

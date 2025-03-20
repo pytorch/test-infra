@@ -4,11 +4,14 @@ import CopyLink from "components/common/CopyLink";
 import GranularityPicker from "components/common/GranularityPicker";
 import LoadingPage from "components/common/LoadingPage";
 import {
+  durationDisplay,
+  formatTimeForCharts,
+} from "components/common/TimeUtils";
+import {
   getTooltipMarker,
   Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay, formatTimeForCharts } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";

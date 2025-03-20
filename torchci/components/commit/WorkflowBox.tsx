@@ -12,10 +12,10 @@ import React, { useEffect, useState } from "react";
 import useSWR from "swr";
 import { getConclusionSeverityForSorting } from "../../lib/JobClassifierUtil";
 import { TestInfo } from "../additionalTestInfo/TestInfo";
-import JobArtifact from "../job/JobArtifact";
-import JobSummary from "../job/JobSummary";
 import LogViewer, { SearchLogViewer } from "../common/log/LogViewer";
 import { durationDisplay } from "../common/TimeUtils";
+import JobArtifact from "../job/JobArtifact";
+import JobSummary from "../job/JobSummary";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs

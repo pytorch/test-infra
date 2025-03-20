@@ -14,8 +14,8 @@ import {
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import CopyLink from "components/common/CopyLink";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/common/TimeUtils";
+import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";

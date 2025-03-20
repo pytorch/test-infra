@@ -1,8 +1,8 @@
 import { Stack } from "@mui/material";
 import CommitStatus from "components/commit/CommitStatus";
 import DrCIButton from "components/common/DrCIButton";
-import { useSetTitle } from "components/layout/DynamicTitle";
 import ErrorBoundary from "components/common/ErrorBoundary";
+import { useSetTitle } from "components/layout/DynamicTitle";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";

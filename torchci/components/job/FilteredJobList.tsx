@@ -3,10 +3,10 @@ import { IssueData, JobAnnotation, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
 import { useRouter } from "next/router";
 import useSWR from "swr";
+import LogViewer from "../common/log/LogViewer";
 import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
-import LogViewer from "../common/log/LogViewer";
 
 function FailedJobInfo({
   job,

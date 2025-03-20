@@ -11,10 +11,10 @@ import {
   PinnedTooltipContext,
 } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
+import { SingleWorkflowDispatcher } from "../commit/WorkflowDispatcher";
 import hudStyles from "../hud.module.css";
 import { getFailureEl } from "./JobConclusion";
 import styles from "./JobConclusion.module.css";
-import { SingleWorkflowDispatcher } from "../commit/WorkflowDispatcher";
 
 export enum JobStatus {
   Success = "success",
