@@ -52,6 +52,7 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   "compilation_time(s)": false,
   speedup: true,
   "avg_inference_latency(ms)": false,
+  "trimmean_inference_latency(ms)": false,
   "model_load_time(ms)": false,
   "peak_inference_mem_usage(mb)": false,
   "peak_load_mem_usuage(mb)": false,
