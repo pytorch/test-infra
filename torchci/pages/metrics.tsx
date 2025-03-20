@@ -18,7 +18,7 @@ import ScalarPanel, {
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
+import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";

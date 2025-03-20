@@ -7,9 +7,9 @@ import {
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts";
 import CheckBoxList from "components/common/CheckBoxList";
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
+import { durationDisplay, formatTimeForCharts } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";

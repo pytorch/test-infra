@@ -16,12 +16,12 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
 import TimeSeriesPanel, {
   ChartType,
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
-import MultiSelectPicker from "components/MultiSelectPicker";
+import MultiSelectPicker from "components/common/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";

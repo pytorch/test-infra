@@ -1,5 +1,5 @@
 import { Button, styled } from "@mui/material";
-import styles from "components/commit.module.css";
+import styles from "components/commit/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
@@ -10,12 +10,12 @@ import {
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
 import useSWR from "swr";
-import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
-import { TestInfo } from "./additionalTestInfo/TestInfo";
-import JobArtifact from "./JobArtifact";
-import JobSummary from "./JobSummary";
-import LogViewer, { SearchLogViewer } from "./LogViewer";
-import { durationDisplay } from "./TimeUtils";
+import { getConclusionSeverityForSorting } from "../../lib/JobClassifierUtil";
+import { TestInfo } from "../additionalTestInfo/TestInfo";
+import JobArtifact from "../job/JobArtifact";
+import JobSummary from "../job/JobSummary";
+import LogViewer, { SearchLogViewer } from "../common/log/LogViewer";
+import { durationDisplay } from "../common/TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs

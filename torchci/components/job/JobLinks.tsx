@@ -2,13 +2,13 @@ import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
-import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
-import { isFailedJob, transformJobName } from "../lib/jobUtils";
-import { IssueData, JobData } from "../lib/types";
-import CopyLink from "./CopyLink";
+import { isFailure, IsJobInProgress } from "../../lib/JobClassifierUtil";
+import { isFailedJob, transformJobName } from "../../lib/jobUtils";
+import { IssueData, JobData } from "../../lib/types";
+import CopyLink from "../common/CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
-import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
+import { durationDisplay, LocalTimeHuman } from "../common/TimeUtils";
 
 const DEFAULT_REPO = "pytorch/pytorch";
 function getRepoFromHtmlURL(htmlUrl?: string) {

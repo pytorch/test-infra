@@ -1,14 +1,14 @@
 import { Grid2, Paper, Stack, Typography } from "@mui/material";
 import CheckBoxList from "components/common/CheckBoxList";
-import CopyLink from "components/CopyLink";
-import GranularityPicker from "components/GranularityPicker";
-import LoadingPage from "components/LoadingPage";
+import CopyLink from "components/common/CopyLink";
+import GranularityPicker from "components/common/GranularityPicker";
+import LoadingPage from "components/common/LoadingPage";
 import {
   getTooltipMarker,
   Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay, formatTimeForCharts } from "components/TimeUtils";
+import { durationDisplay, formatTimeForCharts } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";

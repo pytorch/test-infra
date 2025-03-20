@@ -6,7 +6,7 @@ import useSWR from "swr";
 import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
-import LogViewer from "./LogViewer";
+import LogViewer from "../common/log/LogViewer";
 
 function FailedJobInfo({
   job,

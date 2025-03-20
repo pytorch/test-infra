@@ -1,10 +1,10 @@
 import { Button, TextField } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import CheckBoxSelector from "components/CheckBoxSelector";
-import JobLinks from "components/JobLinks";
-import JobSummary from "components/JobSummary";
-import LoadingPage from "components/LoadingPage";
-import LogViewer from "components/LogViewer";
+import CheckBoxSelector from "components/common/CheckBoxSelector";
+import JobLinks from "components/job/JobLinks";
+import JobSummary from "components/job/JobSummary";
+import LoadingPage from "components/common/LoadingPage";
+import LogViewer from "components/common/log/LogViewer";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { encodeParams } from "lib/GeneralUtils";

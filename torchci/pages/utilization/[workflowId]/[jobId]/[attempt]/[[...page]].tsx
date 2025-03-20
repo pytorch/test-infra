@@ -1,4 +1,4 @@
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { UtilizationAPIResponse } from "lib/utilization/types";
