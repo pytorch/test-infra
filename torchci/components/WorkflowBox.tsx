@@ -319,7 +319,7 @@ function useArtifacts(workflowIds: (string | number | undefined)[]): {
 } {
   const uniqueWorkflowIds = Array.from(new Set(workflowIds)).filter(
     (id) => id !== undefined
-  )
+  );
   // Get all artifacts for these ids
   const { data, error } = useSWR<Artifact[]>(
     `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,
