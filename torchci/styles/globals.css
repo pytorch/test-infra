@@ -17,6 +17,10 @@
   --forced-merge-failure-bg: #ffe0b3;
   --selected-row-bg: lightblue;
   --highlight-bg: #ffa;
+  --commit-message-bg: whitesmoke;
+  --button-hover-bg: lightgrey;
+  --table-row-odd-bg: #f5f5f5;
+  --table-row-even-bg: rgba(125, 125, 125, 0.1);
 
   /* MiniHud specific colors */
   --workflow-box-none-bg: lightgray;
@@ -78,12 +82,16 @@
   --forced-merge-failure-bg: #a06200;
   --selected-row-bg: #164863;
   --highlight-bg: #555500;
+  --commit-message-bg: #2a2a2a;
+  --button-hover-bg: #4a4a4a;
+  --table-row-odd-bg: #2a2a2a;
+  --table-row-even-bg: rgba(125, 125, 125, 0.1);
 
   /* MiniHud specific colors - dark mode variants */
   --workflow-box-none-bg: #383838;
   --workflow-box-fail-bg: #4b2c2c;
   --workflow-box-pending-bg: #1e3540;
-  --workflow-box-success-bg: #1e4020;
+  --workflow-box-success-bg: #0d3010;
   --workflow-box-classified-bg: #3b332a;
   --workflow-box-highlight-border: #1e7e82;
   --workflow-box-highlight-shadow: rgba(26, 98, 117, 0.7);

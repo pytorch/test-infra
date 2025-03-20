@@ -33,7 +33,7 @@ export const TestList = styled(Paper)({
   maxHeight: 300,
   maxWidth: 800,
   overflow: "auto",
-  backgroundColor: "#f5f5f5",
+  backgroundColor: "var(--table-row-odd-bg)",
 });
 const defaultTestViewValue = "chart";
 
