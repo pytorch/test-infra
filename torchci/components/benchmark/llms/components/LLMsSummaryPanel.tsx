@@ -347,7 +347,6 @@ export default function LLMsSummaryPanel({
   return (
     <Grid2 container spacing={10}>
       <Grid2 size={{ xs: 12, lg: 11.8 }}>
-        {" "}
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -355,7 +354,9 @@ export default function LLMsSummaryPanel({
           dataGridProps={{ getRowId: (el: any) => el.name }}
           showFooter={true}
           disableAutoPageSize={true}
-          customStyle={{ maxHeight: "1000px" }}
+          customStyle={{
+            maxHeight: 1200,
+          }}
         />
       </Grid2>
     </Grid2>
