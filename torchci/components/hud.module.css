@@ -8,7 +8,7 @@
 /* Fix the width of these columns to avoid layout shift when loading the HUD
  table. */
 .colTime {
-  width: 13ch;
+  width: 14ch;
 }
 .colSha {
   width: 8ch;
