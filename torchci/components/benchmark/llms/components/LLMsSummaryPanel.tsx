@@ -13,9 +13,6 @@ import {
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 
-const ROW_GAP = 100;
-const ROW_HEIGHT = 38;
-
 const getDeviceArch = (
   device: string | undefined,
   arch: string | undefined
