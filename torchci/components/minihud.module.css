@@ -123,9 +123,9 @@
 
 /* Add even/odd row styling for better readability in tables */
 .tableWrapper :global(tbody tr:nth-child(odd)) {
-  background-color: #f5f5f5;
+  background-color: var(--table-row-odd-bg);
 }
 
 .tableWrapper :global(tbody tr:nth-child(even)) {
-  background-color: rgba(125, 125, 125, 0.1);
+  background-color: var(--table-row-even-bg);
 }
