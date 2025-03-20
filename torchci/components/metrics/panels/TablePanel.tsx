@@ -1,5 +1,5 @@
 import HelpIcon from "@mui/icons-material/Help";
-import { Box, Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CSSProperties } from "react";
@@ -66,7 +66,7 @@ export function TablePanelWithData({
   showFooter,
   pageSize,
   disableAutoPageSize,
-  customStyle
+  customStyle,
 }: {
   title: string;
   data: any;
@@ -101,17 +101,19 @@ export function TablePanelWithData({
 
   return (
     <>
-    <DataGrid
-      style={customStyle}
-      {...dataGridProps}
-      density={"compact"}
-      rows={data}
-      columns={columns}
-      hideFooter={!showFooter}
-      autoPageSize={showFooter && pageSize === undefined && !disableAutoPageSize}
-      pageSize={pageSize}
-      slots={{ toolbar: Header }}
-    />
+      <DataGrid
+        style={customStyle}
+        {...dataGridProps}
+        density={"compact"}
+        rows={data}
+        columns={columns}
+        hideFooter={!showFooter}
+        autoPageSize={
+          showFooter && pageSize === undefined && !disableAutoPageSize
+        }
+        pageSize={pageSize}
+        slots={{ toolbar: Header }}
+      />
     </>
   );
 }

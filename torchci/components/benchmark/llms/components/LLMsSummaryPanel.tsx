@@ -1,5 +1,4 @@
 import { Grid2 } from "@mui/material";
-import { maxHeight } from "@mui/system";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -13,7 +12,6 @@ import {
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
-import { max } from "lodash";
 
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -348,16 +346,16 @@ export default function LLMsSummaryPanel({
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
     <Grid2 container spacing={2}>
-      <Grid2
-        size={{ xs: 12, lg: 12 }}
-      >  <TablePanelWithData
+      <Grid2 size={{ xs: 12, lg: 12 }}>
+        {" "}
+        <TablePanelWithData
           title={"Models"}
           data={data}
           columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
           showFooter={true}
           disableAutoPageSize={true}
-          customStyle={{maxHeight: "1000px"}}
+          customStyle={{ maxHeight: "1000px" }}
         />
       </Grid2>
     </Grid2>
