@@ -26,7 +26,7 @@
   --workflow-box-none-bg: lightgray;
   --workflow-box-fail-bg: mistyrose;
   --workflow-box-pending-bg: azure;
-  --workflow-box-success-bg: lightgreen;
+  --workflow-box-success-bg: #dcffdc;
   --workflow-box-classified-bg: linen;
   --workflow-box-highlight-border: #5eced4;
   --workflow-box-highlight-shadow: rgba(81, 203, 238, 1);
