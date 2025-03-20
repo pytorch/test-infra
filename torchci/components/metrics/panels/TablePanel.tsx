@@ -1,7 +1,8 @@
 import HelpIcon from "@mui/icons-material/Help";
-import { Skeleton, Typography } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { CSSProperties } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -64,6 +65,8 @@ export function TablePanelWithData({
   // An optional flag to show the table footer
   showFooter,
   pageSize,
+  disableAutoPageSize,
+  customStyle
 }: {
   title: string;
   data: any;
@@ -71,6 +74,8 @@ export function TablePanelWithData({
   dataGridProps: any;
   helpLink?: string;
   showFooter?: boolean;
+  disableAutoPageSize?: boolean;
+  customStyle?: CSSProperties;
   pageSize?: number;
 }) {
   if (data === undefined) {
@@ -95,15 +100,18 @@ export function TablePanelWithData({
   }
 
   return (
+    <>
     <DataGrid
+      style={customStyle}
       {...dataGridProps}
       density={"compact"}
       rows={data}
       columns={columns}
       hideFooter={!showFooter}
-      autoPageSize={showFooter && pageSize === undefined}
+      autoPageSize={showFooter && pageSize === undefined && !disableAutoPageSize}
       pageSize={pageSize}
       slots={{ toolbar: Header }}
     />
+    </>
   );
 }
