@@ -4,7 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import AnnouncementBanner from "components/layout/AnnouncementBanner";
 import TitleProvider from "components/layout/DynamicTitle";
 import NavBar from "components/layout/NavBar";
-import SevReport from "components/servReport/SevReport";
+import SevReport from "components/sevReport/SevReport";
 import { DarkModeProvider } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
