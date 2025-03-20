@@ -16,6 +16,7 @@ import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer, { SearchLogViewer } from "./LogViewer";
 import { durationDisplay } from "./TimeUtils";
+import _ from "lodash";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -167,7 +168,13 @@ export default function WorkflowBox({
   const { utilMetadataList } = useUtilMetadata(workflowId);
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
-  const { artifacts, error } = useArtifacts(workflowId);
+  const { artifacts, error } = useArtifacts(
+    _(jobs)
+      .map("workflowId")
+      .uniq()
+      .filter((w) => w !== undefined)
+      .value() as (string | number)[]
+  );
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
   const [searchString, setSearchString] = useState("");
@@ -313,21 +320,20 @@ function useUtilMetadata(workflowId: string | undefined): {
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
-function useArtifacts(workflowId: string | undefined): {
+function useArtifacts(workflowIds: (string | number )[]): {
   artifacts: Artifact[];
   error: any;
 } {
+  const uniqueWorkflowIds = Array.from(new Set(workflowIds));
+  // Get all artifacts for these ids
   const { data, error } = useSWR<Artifact[]>(
-    `/api/artifacts/s3/${workflowId}`,
+    `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,
     fetcher,
     {
       refreshInterval: 60 * 1000,
       refreshWhenHidden: true,
     }
   );
-  if (workflowId === undefined) {
-    return { artifacts: [], error: "No workflow ID" };
-  }
   if (data == null) {
     return { artifacts: [], error: "Loading..." };
   }

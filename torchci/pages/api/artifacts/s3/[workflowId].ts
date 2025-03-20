@@ -6,5 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Artifact[]>
 ) {
-  res.status(200).json(await fetchS3Links(req.query.workflowId as string));
+  const workflowIds = (req.query.workflowId as string)
+    .split(",")
+    .map((id) => id.trim());
+  res.status(200).json(await fetchS3Links(workflowIds));
 }
