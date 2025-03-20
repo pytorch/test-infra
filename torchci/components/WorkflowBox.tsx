@@ -168,13 +168,7 @@ export default function WorkflowBox({
   const { utilMetadataList } = useUtilMetadata(workflowId);
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
-  const { artifacts, error } = useArtifacts(
-    _(jobs)
-      .map("workflowId")
-      .uniq()
-      .filter((w) => w !== undefined)
-      .value() as (string | number)[]
-  );
+  const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
   const [searchString, setSearchString] = useState("");
@@ -320,11 +314,13 @@ function useUtilMetadata(workflowId: string | undefined): {
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
-function useArtifacts(workflowIds: (string | number )[]): {
+function useArtifacts(workflowIds: (string | number | undefined)[]): {
   artifacts: Artifact[];
   error: any;
 } {
-  const uniqueWorkflowIds = Array.from(new Set(workflowIds));
+  const uniqueWorkflowIds = Array.from(new Set(workflowIds)).filter(
+    (id) => id !== undefined
+  )
   // Get all artifacts for these ids
   const { data, error } = useSWR<Artifact[]>(
     `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,

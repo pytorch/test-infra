@@ -10,9 +10,9 @@ export default async function fetchS3Links(
   const unflattenedList = await Promise.all(
     _(suiteIds)
       .split(",")
-      .map((suiteId) => suiteId.trim())
       .uniq()
       .map(async (suiteId) => {
+        suiteId = suiteId.trim();
         const response = await fetch(GHA_ARTIFACTS_LAMBDA, {
           method: "POST",
           body: JSON.stringify({
