@@ -345,8 +345,8 @@ export default function LLMsSummaryPanel({
 
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
-    <Grid2 container spacing={2}>
-      <Grid2 size={{ xs: 12, lg: 12 }}>
+    <Grid2 container spacing={10}>
+      <Grid2 size={{ xs: 12, lg: 11.8 }}>
         {" "}
         <TablePanelWithData
           title={"Models"}
