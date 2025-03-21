@@ -238,36 +238,6 @@ export function combineLeftAndRight(
       if (repoName === "vllm-project/vllm") {
         // These fields are only available on vLLM benchmark
         const extraInfo = JSON.parse(extra);
-        // TODO (huydhn): Fix the invalid JSON on vLLM side
-        if (
-          metric.includes("itl") ||
-          metric.includes("tpot") ||
-          metric.includes("ttft")
-        ) {
-          extraInfo["request_rate"] =
-            extraInfo["request_rate"] !== ""
-              ? extraInfo["request_rate"]
-              : "Inf";
-        }
-        // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
-        // script on vLLM side
-        if (model.includes("8B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 1;
-        } else if (model.includes("70B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 4;
-        } else if (model.includes("8x7B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 2;
-        }
-
         row["extra"] = extraInfo;
         row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
         row["request_rate"] = extraInfo["request_rate"];
