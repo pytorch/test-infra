@@ -36,7 +36,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
 
-      - uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
+      - uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
         name: Setup dependencies
         with:
           shell: bash

@@ -318,7 +318,7 @@ jobs:
           GIT_JOB_NAME:  ${{ steps.get-job-id.outputs.job-name }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
           NEW_OUTPUT_FORMAT_FLAG: ${{ inputs.new-output-format-flag }}
-        uses: nick-fields/retry@v3.0.0
+        uses: nick-fields/retry@v3.0.2
         with:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
@@ -362,7 +362,7 @@ jobs:
           GIT_JOB_NAME:  ${{ steps.get-job-id.outputs.job-name }}
           WORKING_DIRECTORY: test-infra/tools/device-farm-runner
           NEW_OUTPUT_FORMAT_FLAG: ${{ inputs.new-output-format-flag }}
-        uses: nick-fields/retry@v3.0.0
+        uses: nick-fields/retry@v3.0.2
         with:
           shell: bash
           timeout_minutes: ${{ inputs.timeout }}
