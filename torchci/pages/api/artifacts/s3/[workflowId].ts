@@ -6,5 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Artifact[]>
 ) {
-  res.status(200).json(await fetchS3Links(req.query.workflowId as string));
+  res
+    .status(200)
+    .setHeader("Cache-Control", "s-maxage=300")
+    .json(await fetchS3Links(req.query.workflowId as string));
 }

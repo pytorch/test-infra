@@ -9,7 +9,7 @@ import {
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWRImmutable from "swr/immutable";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import { TestInfo } from "./additionalTestInfo/TestInfo";
 import JobArtifact from "./JobArtifact";
@@ -280,16 +280,11 @@ function useUtilMetadata(workflowId: string | undefined): {
   utilMetadataList: UtilizationMetadataInfo[];
   metaError: any;
 } {
-  const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
-    `/api/list_utilization_metadata_info/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
+  const { data, error } =
+    useSWRImmutable<ListUtilizationMetadataInfoAPIResponse>(
+      `/api/list_utilization_metadata_info/${workflowId}`,
+      fetcher
+    );
 
   if (!workflowId) {
     return { utilMetadataList: [], metaError: "No workflow ID" };
@@ -321,13 +316,9 @@ function useArtifacts(workflowIds: (string | number | undefined)[]): {
     (id) => id !== undefined
   );
   // Get all artifacts for these ids
-  const { data, error } = useSWR<Artifact[]>(
+  const { data, error } = useSWRImmutable<Artifact[]>(
     `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000,
-      refreshWhenHidden: true,
-    }
+    fetcher
   );
   if (data == null) {
     return { artifacts: [], error: "Loading..." };
