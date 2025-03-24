@@ -348,6 +348,9 @@ export default function Page() {
     if (selectedYAxis) params.set("yAxis", selectedYAxis);
     if (searchFilter) params.set("searchFilter", searchFilter);
     if (isRegex) params.set("isRegex", isRegex.toString());
+    if (selectedRepos && selectedRepos.length < availableRepos.length) {
+      params.set("repos", selectedRepos.join(","));
+    }
 
     router.push({
       pathname: router.pathname,
