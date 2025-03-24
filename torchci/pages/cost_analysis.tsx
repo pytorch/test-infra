@@ -229,14 +229,13 @@ export default function Page() {
   const initialSelectedYAxis = (query.yAxis as YAxis) || "cost";
   const initialSearchFilter = query.searchFilter || "";
   const initialIsRegex = query.isRegex === "true";
-  const initialSelectedRepos = query.repos
-    ? splitString(query.repos)
-    : undefined;
+  const initialSelectedRepos = query.repos ? splitString(query.repos) : [];
 
   // State variables
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
-  const [selectedRepos, setSelectedRepos] = useState<string[]>();
+  const [selectedRepos, setSelectedRepos] =
+    useState<string[]>(initialSelectedRepos);
   const [availableRepos, setAvailableRepos] = useState<string[]>([]);
 
   const [granularity, setGranularity] = useState<Granularity>(
@@ -281,6 +280,9 @@ export default function Page() {
     setSelectedYAxis(initialSelectedYAxis || "cost");
     setSearchFilter(initialSearchFilter as string);
     setIsRegex(initialIsRegex);
+    if (initialSelectedRepos) {
+      setSelectedRepos(initialSelectedRepos);
+    }
   }
 
   const timeParamsClickHouse = {
@@ -300,15 +302,14 @@ export default function Page() {
     isLoading,
   } = useSWR<{ repo: string }[]>(url, fetcher);
 
-  if (selectedRepos === undefined && repos) {
+  if (repos && availableRepos.length === 0) {
     const repoList = repos?.map((item) => item.repo) ?? [];
     setAvailableRepos(repoList);
-    if (initialSelectedRepos) {
-      setSelectedRepos(initialSelectedRepos);
-    } else {
+
+    if (!selectedRepos || selectedRepos.length === 0) {
+      // Only set all repos if none are already selected from URL params
       setSelectedRepos(repoList);
     }
-  } else {
   }
 
   // Update URL params on state change
