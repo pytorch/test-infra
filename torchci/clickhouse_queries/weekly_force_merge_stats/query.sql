@@ -25,20 +25,21 @@ WITH issue_comments AS (
     FROM
         issue_comment FINAL
     WHERE
-        (
+        issue_comment.created_at >= {startTime: DateTime64(3)}
+        AND issue_comment.created_at < {stopTime: DateTime64(3)}
+        AND (
             issue_comment.body LIKE '%pytorchbot merge%'
             OR issue_comment.body LIKE '%pytorchmergebot merge%'
         )
         AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
         AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
         AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
-        AND issue_comment.issue_url LIKE '%https://api.github.com/repos/pytorch/pytorch/issues/%'
-        AND issue_comment.created_at >= {startTime: DateTime64(3)}
-        AND issue_comment.created_at < {stopTime: DateTime64(3)}
+        AND startsWith(issue_comment.issue_url, 'https://api.github.com/repos/pytorch/pytorch/issues/')
 ),
 
-all_merges AS (
-    SELECT DISTINCT
+-- Pre-filter merges before joining
+filtered_merges AS (
+    SELECT
         m.skip_mandatory_checks,
         LENGTH(m.failed_checks) AS failed_checks_count,
         LENGTH(m.ignore_current_checks) AS ignored_checks_count,
@@ -46,24 +47,38 @@ all_merges AS (
         m.ignore_current,
         m.is_failed,
         m.pr_num,
-        m.merge_commit_sha,
-        max(c.created_at) AS time
+        m.merge_commit_sha
     FROM
         merges m
-    INNER JOIN issue_comments c ON m.pr_num = c.pr_num
     WHERE
         m.owner = 'pytorch'
         AND m.project = 'pytorch'
         AND m.merge_commit_sha != '' -- only consider successful merges
-    GROUP BY
+),
+
+all_merges AS (
+    SELECT DISTINCT
         m.skip_mandatory_checks,
-        m.failed_checks,
+        m.failed_checks_count,
+        m.ignored_checks_count,
+        m.pending_checks_count,
         m.ignore_current,
         m.is_failed,
         m.pr_num,
         m.merge_commit_sha,
-        m.ignore_current_checks,
-        m.pending_checks
+        max(c.created_at) AS time
+    FROM
+        filtered_merges m
+    INNER JOIN issue_comments c ON m.pr_num = c.pr_num
+    GROUP BY
+        m.skip_mandatory_checks,
+        m.failed_checks_count,
+        m.ignored_checks_count,
+        m.pending_checks_count,
+        m.ignore_current,
+        m.is_failed,
+        m.pr_num,
+        m.merge_commit_sha
 ),
 
 -- A legit force merge needs to satisfy one of the two conditions below:
