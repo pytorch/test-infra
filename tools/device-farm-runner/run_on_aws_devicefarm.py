@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import random
+from re import A
 import string
 import sys
 import time
@@ -24,13 +25,23 @@ import requests
 # TODO(elainewy): refactor and add unit tests for benchmark test logic
 POLLING_DELAY_IN_SECOND = 5
 MAX_UPLOAD_WAIT_IN_SECOND = 600
-
 AWS_REGION = "us-west-2"
 # NB: This is the curated top devices from AWS. We could create our own device
 # pool if we want to
-AWS_GUID = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
 AWS_ARN_PREFIX = "arn:aws:devicefarm:"
-DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID}"
+AWS_GUID_PROJECT = "02a2cf0f-6d9b-45ee-ba1a-a086587469e6"
+AWS_GUID_DEVICE_POOL = "082d10e5-d7d7-48a5-ba5c-b33d66efa1f5"
+# Project ARN defaults to the executorch project and device pool ARN defaults to the top devices (mix of android and ios)
+DEFAULT_PROJECT_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}:308535385114:project:{AWS_GUID_PROJECT}"
+DEFAULT_DEVICE_POOL_ARN = f"{AWS_ARN_PREFIX}{AWS_REGION}::devicepool:{AWS_GUID_DEVICE_POOL}"
+# support existing device pool arns in executorch project
+EXECUTORCH_DEVICE_POOL_ARN_PREFIX = f"{AWS_ARN_PREFIX}{AWS_REGION}:308535385114:devicepool:02a2cf0f-6d9b-45ee-ba1a-a086587469e6"
+S22_DEVICE_POOL_ARN = f"{EXECUTORCH_DEVICE_POOL_ARN_PREFIX}/e59f866a-30aa-4aa1-87b7-4510e5820dfa"
+S24_DEVICE_POOL_ARN = f"{EXECUTORCH_DEVICE_POOL_ARN_PREFIX}/98f8788c-2e25-4a3c-8bb2-0d1e8897c0db"
+PIXEL_DEVICE_POOL_ARN = f"{EXECUTORCH_DEVICE_POOL_ARN_PREFIX}/d65096ab-900b-4521-be8b-a3619b69236a"
+IPHONE_15_DEVICE_POOL_ARN = f"{EXECUTORCH_DEVICE_POOL_ARN_PREFIX}/3b5acd2e-92e2-4778-b651-7726bafe129d"
+IOS_18_DEVICE_POOL_ARN = f"{EXECUTORCH_DEVICE_POOL_ARN_PREFIX}/12c8b15c-8d03-4e07-950d-0a627e7595b4"
+
 
 
 # Device Farm report type
@@ -130,7 +141,11 @@ class ValidateTestSpec(Action):
 def parse_args() -> Any:
     parser = ArgumentParser("Run Android and iOS tests on AWS Device Farm")
     parser.add_argument(
-        "--project-arn", type=str, required=True, help="the ARN of the project on AWS"
+        "--project-arn", 
+        type=str, 
+        default=DEFAULT_PROJECT_ARN, 
+        required=False, 
+        help="the ARN of the project on AWS"
     )
     parser.add_argument(
         "--app",
@@ -177,17 +192,20 @@ def parse_args() -> Any:
         required=True,
         help="the name prefix of this test run",
     )
+
     parser.add_argument(
-        "--device-pool-arn",
+        "--device",
         type=str,
-        default=DEFAULT_DEVICE_POOL_ARN,
-        help="the name of the device pool to test on",
+        required=False,
+        default="", #will default to latest or what's first available
+        help="the version of the device to run on. Example: iphone_15,  android_S22, ios_18, ",
     )
+
     parser.add_argument(
         "--workflow-id",
         type=str,
-        default="invalid-workflow-id",
-        help="the workflow run ID",
+        default="cli",
+        help="the workflow run ID. This is optional and only for CI run jobs, not CLI",
     )
     parser.add_argument(
         "--workflow-attempt",
@@ -197,12 +215,17 @@ def parse_args() -> Any:
     )
 
     parser.add_argument(
-        "--git-job-name", type=str, required=True, help="the name of the git job name."
+        "--git-job-name", 
+        type=str, 
+        default="device_farm_runner_git_job_{}".format("".join(random.sample(string.digits, 8))),
+        help="the name of the git job name."
     )
 
     parser.add_argument(
         "--output",
         type=str,
+        default="",
+        required=False,
         help="an optional file to write the list of artifacts from AWS in JSON format",
     )
 
@@ -458,6 +481,7 @@ class ReportProcessor:
         self.job_reports: list[JobReport] = []
         self.test_spec_info_list: list[Dict] = []
         self.is_debug = is_debug
+        self.is_ci = workflow_id != "cli"
 
     # todo(elainewy): add main method to pass run arn
     def start(self, report: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -612,16 +636,17 @@ class ReportProcessor:
                 # Download the artifact locally
                 artifact_file = download_artifact(artifact["url"], local_filename)
 
-                if not self.is_debug:
+                if not self.is_debug and self.is_ci:
                     # upload artifacts to s3 bucket
                     self._upload_file_to_s3(artifact_file, DEVICE_FARM_BUCKET, s3_key)
-                s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
-                artifact["s3_url"] = s3_url
+                    # moving into if block. Why share this if nothing is there? 
+                    s3_url = f"https://{DEVICE_FARM_BUCKET}.s3.amazonaws.com/{s3_key}"
+                    artifact["s3_url"] = s3_url
 
-                info(
-                    f"{' ' * indent} Saving {artifact_type} {filename}.{extension} ({filetype}) "
-                    + f"at {s3_url}"
-                )
+                    info(
+                        f"{' ' * indent} Saving {artifact_type} {filename}.{extension} ({filetype}) "
+                        + f"at {s3_url}"
+                    )
 
                 # Some more metadata to identify where the artifact comes from
                 artifact["app_type"] = self.app_type
@@ -715,6 +740,28 @@ class ReportProcessor:
         )
 
 
+def parse_device_to_device_pool_arn (
+    device_type: str
+) -> str:
+    device_type = device_type.lower()
+    if "s22" in device_type:
+        return S22_DEVICE_POOL_ARN
+    if "s24" in device_type:
+        return S24_DEVICE_POOL_ARN
+    if "pixel" in device_type:
+        return PIXEL_DEVICE_POOL_ARN
+    elif "iphone" in device_type:
+        if "15" in device_type:
+            return IPHONE_15_DEVICE_POOL_ARN
+        if "16" in device_type:
+            return DEFAULT_DEVICE_POOL_ARN
+        return DEFAULT_DEVICE_POOL_ARN
+    elif "ios" in device_type:
+        if "18" in device_type:
+            return IOS_18_DEVICE_POOL_ARN
+    return DEFAULT_DEVICE_POOL_ARN
+
+
 def generate_artifacts_output(
     artifacts: List[Dict[str, str]],
     run_report: DeviceFarmReport,
@@ -737,14 +784,21 @@ def main() -> None:
     if args.new_json_output_format == "true":
         info(f"use new json output format for {args.output}")
     else:
-        info("use legacy json output format for {args.output}")
+        info(f"use legacy json output format for {args.output}")
 
-    project_arn = args.project_arn
+    if (str(args.project_arn).lower() == 'executorch'): 
+        project_arn = 'arn:aws:devicefarm:us-west-2:308535385114:project:02a2cf0f-6d9b-45ee-ba1a-a086587469e6'
+    elif (str(args.project_arn).lower() == 'pytorch'):
+        project_arn = 'arn:aws:devicefarm:us-west-2:308535385114:project:b531574a-fb82-40ae-b687-8f0b81341ae0'
+    else:
+        project_arn = args.project_arn
+
     name_prefix = args.name_prefix
     workflow_id = args.workflow_id
     workflow_attempt = args.workflow_attempt
 
     # NB: Device Farm is only available in us-west-2 region atm
+    print(f"Using AWS region camyllh: {AWS_REGION}")
     device_farm_client = boto3.client("devicefarm", region_name=AWS_REGION)
 
     unique_prefix = (
@@ -797,12 +851,14 @@ def main() -> None:
             device_farm_client, project_arn, unique_prefix, args.extra_data
         )
 
+    device_pool_arn = parse_device_to_device_pool_arn(args.device)
+
     # Schedule the test
     r = device_farm_client.schedule_run(
         projectArn=project_arn,
         name=unique_prefix,
         appArn=appfile_arn,
-        devicePoolArn=args.device_pool_arn,
+        devicePoolArn=device_pool_arn,
         test=test_to_run,
         configuration=configuration,
     )
@@ -838,7 +894,8 @@ def main() -> None:
             device_farm_client, s3_client, app_type, workflow_id, workflow_attempt
         )
         artifacts = processor.start(r.get("run"))
-
+        if args.output == "" and not args.workflow_id == "cli":
+            args.output = f"{args.name_prefix}_{args.git_job_name}_artifacts.json"
         if args.new_json_output_format == "true":
             output = generate_artifacts_output(
                 artifacts,
