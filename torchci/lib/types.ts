@@ -246,7 +246,7 @@ export function packHudParams(input: any) {
     repoName: input.repoName as string,
     branch: input.branch as string,
     page: parseInt((input.page as string) ?? 1),
-    per_page: parseInt((input.per_page as string) ?? 50),
+    per_page: parseInt((input.per_page as string)),
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),

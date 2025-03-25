@@ -41,6 +41,7 @@ import {
   useGroupingPreference,
   useHideGreenColumnsPreference,
   useMonsterFailuresPreference,
+  usePerPagePreference,
   usePreference,
 } from "lib/useGroupingPreference";
 import useHudData from "lib/useHudData";
@@ -443,7 +444,18 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
 export default function Hud() {
   const router = useRouter();
   const [mergeLF, setMergeLF] = usePreference("mergeLF");
-  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
+
+  // Get URL parameter if available
+  const urlParams = router.query;
+  const urlPerPage = urlParams.per_page ? Number(urlParams.per_page) : undefined;
+
+  // Get and use the appropraite perPage initial value
+  const [perPage, _] = usePerPagePreference(urlPerPage);
+  const params = packHudParams({
+    ...router.query,
+    mergeLF: mergeLF,
+    per_page: perPage
+  });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.

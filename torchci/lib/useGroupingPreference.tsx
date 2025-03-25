@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * A hook to manage a boolean preference in local storage.
@@ -30,6 +30,59 @@ export function usePreference(
   }, [initialVal]);
 
   return [state, setStatePersist, setState];
+}
+
+/**
+ * Generic hook for numeric preferences with validation and error handling
+ */
+export function useNumberPreference<T extends number>(
+  name: string,
+  override: number | undefined = undefined,
+  defaultValue: T
+): [T, (value: T) => void] {
+  // Try to get from localStorage with error handling
+  const getLocalStorageValue = (): T => {
+    try {
+      if (typeof window === "undefined") {
+        return defaultValue;
+      }
+
+      const storedValue = window.localStorage.getItem(name);
+      if (storedValue === null) {
+        return defaultValue;
+      }
+
+      const parsedValue = parseInt(storedValue);
+      return isNaN(parsedValue) ? defaultValue : parsedValue as T;
+    } catch (error) {
+      console.error(`Error retrieving preference "${name}" from localStorage:`, error);
+      return defaultValue;
+    }
+  };
+
+  // Initial value hierarchy: override > localStorage > default
+  const initialVal = override !== undefined ? override as T : getLocalStorageValue();
+  const [state, setState] = useState<T>(initialVal);
+
+  // Persist the value and handle errors
+  const setStatePersist = useCallback((value: T) => {
+    try {
+      setState(value);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(name, String(value));
+      }
+    } catch (error) {
+      console.error(`Error saving preference "${name}" to localStorage:`, error);
+      setState(value); // Still update the state even if persistence fails
+    }
+  }, [name]);
+
+  // Handle hydration properly
+  useEffect(() => {
+    setState(initialVal);
+  }, [initialVal]);
+
+  return [state, setStatePersist];
 }
 
 export function useGroupingPreference(
@@ -75,5 +128,22 @@ export function useHideGreenColumnsPreference(): [
     /*override*/ undefined,
     /*default*/ false
   );
+  return [state, setState];
+}
+
+/**
+ * Custom hook to handle per_page preference with persistence
+ * @param initialValue Optional override from URL or other source
+ * @returns [current value, setter function]
+ */
+export function usePerPagePreference(
+  initialValue?: number
+): [number, (perPageValue: number) => void] {
+  const [state, setState] = useNumberPreference<number>(
+    "perPage",
+    initialValue,
+    /*default*/ 50
+  );
+
   return [state, setState];
 }
