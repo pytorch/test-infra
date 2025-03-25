@@ -3,6 +3,6 @@
     "workflowName": "String"
   },
   "tests": [
-    "workflowName=docker-builds"
+    {"workflowName": "docker-builds"}
   ]
 }
