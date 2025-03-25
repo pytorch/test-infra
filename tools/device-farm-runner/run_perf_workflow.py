@@ -81,23 +81,30 @@ def parse_args() -> Any:
 
 
 def run_workflow(app_type, branch, models, devices, benchmark_configs):
+    dispatch_hook = "/dispatches"
     if app_type == "android":
-        #url = "https://api.github.com/users/camyll"
-        url = f"https://api.github.com/repos/pytorch/executorch/actions/workflows/android-perf.yml/dispatches"
+        url = f"https://api.github.com/repos/pytorch/executorch/actions/workflows/android-perf.yml"
     else: 
-        url = f"https://api.github.com/repos/pytorch/executorch/actions/workflows/apple-perf.yml/dispatches"
+        url = f"https://api.github.com/repos/pytorch/executorch/actions/workflows/apple-perf.yml"
     
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28",
-        "X-Accepted-GitHub-Permissions": "contents=read"
     }
 
-    data = '{"ref":"'+branch+'", inputs: {"branch": "'+branch+'", "models": "'+models+'", "device": "'+devices+'", "benchmark_configs": "'+benchmark_configs+'"}}'
-    
-    return requests.post(url, headers=headers, data=data)
-    
+    data = {"ref":f"{branch}", "inputs": {"models": f"{models}", "devices": f"{devices}", "benchmark_configs": f"{benchmark_configs}"}}
+   
+    resp = requests.post(url + dispatch_hook, headers=headers, data=json.dumps(data))
+    if resp.status_code != 204:
+        raise Exception(f"Failed to start workflow: {resp.text}")
+    else:
+        print("Workflow started successfully.")
+        if app_type == "android":
+            print("Find your workflow run here: https://github.com/pytorch/executorch/actions/workflows/android-perf.yml")
+        else:
+            print("Find your workflow run here: https://github.com/pytorch/executorch/actions/workflows/apple-perf.yml")
+  
 
 def main() -> None:
     args = parse_args()
@@ -107,10 +114,6 @@ def main() -> None:
         resp = run_workflow("ios", args.branch, args.models, args.devices, args.benchmark_configs)
     else:
         raise Exception("No app type specified. Please specify either --android or --ios.")
-    print(resp.headers['X-Accepted-GitHub-Permissions'])
-    print(json.loads(resp.text))
-    print(resp.text)
-    
 
 
 if __name__ == "__main__":
