@@ -1,27 +1,26 @@
-SELECT
-    DATE_DIFF('second', workflow.created_at, CURRENT_TIMESTAMP()) AS last_success_seconds_ago
-FROM
-(
+WITH workflow AS (
     SELECT
       head_commit.id as head_commit_id,
       created_at
     FROM default.workflow_run
-    PREWHERE
+    WHERE
       conclusion = 'success'
       AND created_at > CURRENT_TIMESTAMP() - INTERVAL 15 DAY
       AND name = {workflowName: String}
     ORDER BY created_at DESC
-) AS workflow
-JOIN
-(
+),
+push AS (
     SELECT
       push.head_commit.id as head_commit_id
     FROM default.push
-    PREWHERE
+    WHERE
       ref IN ('refs/heads/master', 'refs/heads/main')
       AND repository.owner.name = 'pytorch'
       AND repository.name = 'pytorch'
-) AS push
+    )
+SELECT
+    DATE_DIFF('second', workflow.created_at, CURRENT_TIMESTAMP()) AS last_success_seconds_ago
+FROM workflow JOIN push
 ON workflow.head_commit_id = push.head_commit_id
 ORDER BY
     workflow.created_at DESC
