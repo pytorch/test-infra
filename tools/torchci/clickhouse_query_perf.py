@@ -26,13 +26,8 @@ def get_latest_commit() -> str:
 
 def get_unstaged_file(file_path: str) -> str:
     """Get the contents of an unstaged file."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        raise FileNotFoundError(f"File not found: {file_path}")
-    except IOError:
-        raise FileNotFoundError(f"Error reading file: {file_path}")
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def parse_args() -> argparse.Namespace:
