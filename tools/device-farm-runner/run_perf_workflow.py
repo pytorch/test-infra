@@ -77,12 +77,6 @@ def parse_args() -> Any:
         help="The list of configs used in the benchmark",
     )
 
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="debug mode, the artifacts won't be uploaded to s3, it should mainly used in local env",
-    )
-
     # in case when removing the flag, the mobile jobs does not failed due to unrecognized flag.
     args, unknown = parser.parse_known_args()
     if len(unknown) > 0:
