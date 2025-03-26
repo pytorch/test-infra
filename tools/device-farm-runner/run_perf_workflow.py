@@ -52,19 +52,27 @@ def parse_args() -> Any:
         type=str,
         required=False,
         default="llama",
-        help="the model to run on. Default is llama.",
+        help="the model to run on. Default is llama. See https://github.com/pytorch/executorch/blob/0342babc505bcb90244874e9ed9218d90dd67b87/examples/models/__init__.py#L53 for more model options",
     )
     parser.add_argument(
         "--devices",
         type=str,
         required=False,
         default="",
+        choices=[
+            "apple_iphone_15",
+            "apple_iphone_15+ios_18",
+            "samsung_galaxy_s22",
+            "samsung_galaxy_s24",
+            "google_pixel_8_pro",
+        ],
         help="specific devices to run on. Default is s22 for android and iphone 15 for ios.",
     )
     parser.add_argument(
         "--benchmark_configs",
         type=str,
         required=False,
+        choices=["xplat", "android", "ios"],
         default="",
         help="The list of configs used in the benchmark",
     )
