@@ -87,9 +87,6 @@ export async function queryClickhouseSaved(
   const queryParams = new Map(
     Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
-  if (queryName == "master_commit_red_avg") {
-    console.log("queryClickhouseSaved",  queryParams);
-  }
   return await thisModule.queryClickhouse(
     query,
     Object.fromEntries(queryParams),
