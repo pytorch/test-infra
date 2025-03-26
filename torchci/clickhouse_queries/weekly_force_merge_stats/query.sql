@@ -23,7 +23,7 @@ WITH issue_comments AS (
             ) AS INT
         ) AS pr_num
     FROM
-        issue_comment FINAL
+        issue_comment
     WHERE
         issue_comment.created_at >= {startTime: DateTime64(3)}
         AND issue_comment.created_at < {stopTime: DateTime64(3)}
@@ -34,7 +34,10 @@ WITH issue_comments AS (
         AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
         AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
         AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
-        AND startsWith(issue_comment.issue_url, 'https://api.github.com/repos/pytorch/pytorch/issues/')
+        AND startsWith(
+            issue_comment.issue_url,
+            'https://api.github.com/repos/pytorch/pytorch/issues/'
+        )
 ),
 
 -- Pre-filter merges before joining
