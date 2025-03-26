@@ -6,5 +6,20 @@
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)"
   },
-  "tests": []
+  "tests": [
+    {
+      "granularity": "week",
+      "merge_type": null,
+      "one_bucket": false,
+      "startTime": "2025-03-01 00:00:00.000",
+      "stopTime": "2025-03-07 00:00:00.000"
+    },
+    {
+      "granularity": "week",
+      "merge_type": null,
+      "one_bucket": false,
+      "startTime": "2025-02-01 00:00:00.000",
+      "stopTime": "2025-02-28 00:00:00.000"
+    }
+  ]
 }
