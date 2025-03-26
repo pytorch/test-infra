@@ -27,9 +27,7 @@ SELECT
   j.created_at AS time
 FROM
   default.workflow_job j final
-  -- Do a left join here because the push table won't have any information about
-  -- commits from forked repo
-  LEFT JOIN relevant_pushes p ON p.after = j.head_sha
+  JOIN relevant_pushes p ON p.after = j.head_sha
 WHERE
   j.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
   AND j.conclusion IN ('failure', 'cancelled')
