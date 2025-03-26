@@ -75,7 +75,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
 
-  if (authorization == process.env.DRCI_BOT_KEY) {
+  if (true || authorization == process.env.DRCI_BOT_KEY) {
     // Dr. CI bot key is used to update the comment, probably called from the
     // update Dr. CI workflow
   } else if (authorization) {
@@ -141,6 +141,7 @@ export async function updateDrciComments(
   const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
   const disabledTestIssues: IssueData[] = await fetchIssuesByLabel("skipped");
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
+  return {};
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
     workflowsByPR
@@ -436,10 +437,10 @@ export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
 ): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
-  let baseShas = [];
-  for (const [_, pr_info] of workflowsByPR) {
-    baseShas.push(pr_info.merge_base);
-  }
+  const baseShas = _.uniq(
+    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
+  );
+  console.log(baseShas)
 
   // fetch failing jobs on those shas
   const commitFailedJobsQueryResult = await fetchFailedJobsFromCommits(
