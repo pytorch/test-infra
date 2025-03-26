@@ -492,13 +492,14 @@ class QueueTimeProcessor:
             queued_query["query"], queued_query["parameters"]
         )
 
-        # in given snapshot time, fetches jobs that were in queue but were picked up by workers later of given snapshot time
+        # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         jobs_pick = self._query_in_queue_jobs(
             picked_query["query"], picked_query["parameters"]
         )
 
+        # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
         completed_within_dates_sql = self.get_query_statement_for_completed_jobs(
             start_timestamp, end_timestamp, repo
         )
@@ -617,7 +618,7 @@ class QueueTimeProcessor:
             WHERE
                 started_at > ({start_timestamp:DateTime})
                 AND started_at <= ({end_timestamp:DateTime})
-                AND created_at < ({start_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at < ({start_timestamp:DateTime}  - INTERVAL 20 SECOND)
                 AND created_at > ({start_timestamp:DateTime} - INTERVAL 1 WEEK)
         )
         """
@@ -660,7 +661,7 @@ class QueueTimeProcessor:
             FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
             WHERE
                 started_at > ({end_timestamp:DateTime})
-                AND created_at < ({end_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at < ({end_timestamp:DateTime} - INTERVAL 20 SECOND)
                 AND created_at > ({end_timestamp:DateTime} - INTERVAL 1 WEEK)
         )"""
 
@@ -700,7 +701,7 @@ class QueueTimeProcessor:
             FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
             WHERE
                 status = 'queued'
-                AND created_at < ({end_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at < ({end_timestamp:DateTime} - INTERVAL 20 SECOND)
                 AND created_at > ({end_timestamp:DateTime} - INTERVAL 1 WEEK)
         )
         """
