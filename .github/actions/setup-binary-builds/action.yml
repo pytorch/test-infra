@@ -118,6 +118,8 @@ runs:
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
