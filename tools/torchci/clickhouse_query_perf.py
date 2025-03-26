@@ -101,7 +101,9 @@ where
 """
 
 
-def get_avg_stats(query_ids: list) -> tuple:
+def get_avg_stats(query_ids: Optional[List[str]]) -> tuple:
+    if not query_ids:
+        return None, None
     metrics = query_clickhouse(EXECUTION_METRICS, {"query_ids": query_ids})
     return metrics[0]["realTimeMSAvg"], metrics[0]["memoryBytesAvg"]
 
@@ -233,8 +235,25 @@ def perf_compare(args: argparse.Namespace) -> None:
         table.field_names = ["Test", "Avg Time", "Avg Mem"]
     for i, (new, base) in enumerate(query_ids):
         avg_time, avg_bytes = get_avg_stats(new)
-        if base:
+        if args.base:
             old_avg_time, old_avg_bytes = get_avg_stats(base)
+
+            if avg_time is None or old_avg_time is None:
+                table.add_row(
+                    [
+                        i,
+                        avg_time,
+                        old_avg_time,
+                        None,
+                        None,
+                        avg_bytes,
+                        old_avg_bytes,
+                        None,
+                        None,
+                    ]
+                )
+                continue
+
             table.add_row(
                 [
                     i,
