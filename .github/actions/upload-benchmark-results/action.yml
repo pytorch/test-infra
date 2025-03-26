@@ -19,7 +19,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        python3 -mpip install boto3==1.35.33
+        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
 
     - name: Check that GITHUB_TOKEN is defined
       if: ${{ inputs.schema-version != 'v2' }}
@@ -72,8 +72,7 @@ runs:
       run: |
         set -eux
 
-        # TODO (huydhn): Implement this part
-        echo "runners=[]" >> "${GITHUB_OUTPUT}"
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_runners_info.py"
 
     - name: Gather the dependencies information
       id: gather-dependencies
