@@ -35,12 +35,14 @@ SELECT
     DATE_DIFF(
         'second',
         job.created_at,
-        {timestamp:DateTime}
+        {end_timestamp:DateTime}
     ) AS queue_s,
     workflow.repository.'full_name' AS repo,
     workflow.name AS workflow_name,
     job.name AS job_name,
     job.html_url,
+    toUnixTimestamp(job.created_at) AS queue_start_at,
+    toUnixTimestamp(job.started_at) AS queue_stop_at,
     IF(
         LENGTH(job.labels) = 0,
         'N/A',
@@ -50,7 +52,7 @@ SELECT
             job.labels[1]
         )
     ) AS machine_type,
-    toUnixTimestamp({timestamp:DateTime}) AS time
+    toUnixTimestamp({end_timestamp:DateTime}) AS time
 FROM
     default.workflow_job job FINAL
     JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
@@ -60,7 +62,9 @@ FROM
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -439,17 +443,21 @@ class QueueTimeProcessor:
 
         # use current time as snapshot time
         timestamp = str(int(datetime.now().timestamp()))
+        timestamp = "1742946298"
+        hour_before = str(int(timestamp) - 3600)
 
-        snapshot = self.get_queueing_jobs_snapshot(
+        # 1742900960,1742946560
+        snapshot = self.get_queueing_jobs(
             retrievers["meta"],
             retrievers["lf"],
             retrievers["old_lf"],
+            hour_before,
             timestamp,
             "pytorch/pytorch",
         )
 
-        if self.is_dry_run:
-            self.output_snapshot(snapshot, timestamp)
+        # if self.is_dry_run:
+        # self.output_snapshot(snapshot, timestamp)
         # TODO(elainewy): add logics to generate histograms based on the snapshot results
 
     def output_snapshot(
@@ -473,37 +481,56 @@ class QueueTimeProcessor:
         info(json.dumps(snapshot))
 
     def _fetch_snapshot_from_db(
-        self, timestamp: str = "", repo: str = "pytorch/pytorch"
+        self,
+        start_timestamp: str,
+        end_timestamp: str = "",
+        repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
-        queued_query = self.get_query_statement_for_queueing_jobs(timestamp, repo)
+        queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         jobs_in_queue = self._query_in_queue_jobs(
             queued_query["query"], queued_query["parameters"]
         )
 
         # in given snapshot time, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
-        picked_query = self.get_query_statement_for_picked_up_job(timestamp, repo)
+        picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         jobs_pick = self._query_in_queue_jobs(
             picked_query["query"], picked_query["parameters"]
         )
 
-        datetime_str = datetime.fromtimestamp(int(timestamp)).strftime(
-            "%Y-%m-%d %H:%M:%S"
+        completed_within_dates_sql = self.get_query_statement_for_completed_jobs(
+            start_timestamp, end_timestamp, repo
         )
+        job_completed_within_dates = self._query_in_queue_jobs(
+            completed_within_dates_sql["query"],
+            completed_within_dates_sql["parameters"],
+        )
+
+        dt = datetime.fromtimestamp(int(end_timestamp))
+        datetime_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        dt2 = datetime.fromtimestamp(int(start_timestamp))
+        dt2_str = dt2.strftime("%Y-%m-%d %H:%M:%S")
 
         info(
-            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs in queue, and {len(jobs_pick)} jobs was in queue but picked up by runners later"
+            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later"
         )
         result = jobs_in_queue + jobs_pick
+
+        info(
+            f"[Snapshot time:{datetime_str}]. Found in-queue {len(result)} jobs, completed within {dt2_str} to {datetime_str}  ({start_timestamp},{end_timestamp}) has {len(job_completed_within_dates)} jobs"
+        )
+
         return result
 
-    def get_queueing_jobs_snapshot(
+    def get_queueing_jobs(
         self,
         meta_runner_config_retriever,
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
-        timestamp: str,
+        start_timestamp: str,
+        end_timestamp: str,
         repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
         """
@@ -511,19 +538,20 @@ class QueueTimeProcessor:
         """
 
         # fetches queued jobs at given snapshot time from db
-        snapshot = self._fetch_snapshot_from_db(timestamp, repo)
+        snapshot = self._fetch_snapshot_from_db(start_timestamp, end_timestamp, repo)
         if len(snapshot) == 0:
-            info(f"No jobs in queue at time: {timestamp}")
+            info(f"No jobs in queue at time: {end_timestamp}")
             return []
 
         # create dictionary of tags with set of targeting machine types
-        lf_runner_config = get_runner_config(lf_runner_config_retriever, timestamp)
+        lf_runner_config = get_runner_config(lf_runner_config_retriever, end_timestamp)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
-                old_lf_lf_runner_config_retriever, timestamp
+                old_lf_lf_runner_config_retriever, end_timestamp
             )
         runner_labels = create_runner_labels(
-            get_runner_config(meta_runner_config_retriever, timestamp), lf_runner_config
+            get_runner_config(meta_runner_config_retriever, end_timestamp),
+            lf_runner_config,
         )
         update_tags(runner_labels, set([job["machine_type"] for job in snapshot]))
 
@@ -574,6 +602,48 @@ class QueueTimeProcessor:
             li.append(record)
         return li
 
+    def get_query_statement_for_completed_jobs(
+        self, start_timestamp: str, end_timestamp: str, repo: str = "pytorch/pytorch"
+    ):
+        """
+        this query is used to get jobs that were in queue within given time range, and completed
+        """
+        s11 = """
+        WITH possible_queued_jobs AS (
+            SELECT
+                id,
+                run_id,
+            FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
+            WHERE
+                started_at > ({start_timestamp:DateTime})
+                AND started_at <= ({end_timestamp:DateTime})
+                AND created_at < ({start_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at > ({start_timestamp:DateTime} - INTERVAL 1 WEEK)
+        )
+        """
+
+        s12 = """
+        WHERE
+            job.id IN (SELECT id FROM possible_queued_jobs)
+            AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+            AND workflow.repository.'full_name' = {repo:String}
+            AND LENGTH(job.steps) != 0
+            AND job.status = 'completed'
+        ORDER BY
+            queue_s DESC
+        """
+
+        query = s11 + _in_queue_job_select_statement + s12
+        parameters = {
+            "start_timestamp": start_timestamp,
+            "end_timestamp": end_timestamp,
+            "repo": repo,
+        }
+        return {
+            "query": query,
+            "parameters": parameters,
+        }
+
     def get_query_statement_for_picked_up_job(
         self, time: str, repo: str = "pytorch/pytorch"
     ):
@@ -589,9 +659,9 @@ class QueueTimeProcessor:
                 created_at
             FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
             WHERE
-                started_at > ({timestamp:DateTime})
-                AND created_at < ({timestamp:DateTime} - INTERVAL 5 MINUTE)
-                AND created_at > ({timestamp:DateTime} - INTERVAL 1 WEEK)
+                started_at > ({end_timestamp:DateTime})
+                AND created_at < ({end_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at > ({end_timestamp:DateTime} - INTERVAL 1 WEEK)
         )"""
 
         s2 = """
@@ -601,13 +671,12 @@ class QueueTimeProcessor:
             AND workflow.repository.'full_name' = {repo:String}
             AND job.status = 'completed'
             AND LENGTH(job.steps) != 0
-            AND workflow.status = 'completed'
         ORDER BY
             queue_s DESC
         """
         query = s1 + _in_queue_job_select_statement + s2
         parameters = {
-            "timestamp": time,
+            "end_timestamp": time,
             "repo": repo,
         }
         return {
@@ -631,8 +700,8 @@ class QueueTimeProcessor:
             FROM default.workflow_job -- FINAL not needed since we just use this to filter a table that has already been FINALed
             WHERE
                 status = 'queued'
-                AND created_at < ({timestamp:DateTime} - INTERVAL 5 MINUTE)
-                AND created_at > ({timestamp:DateTime} - INTERVAL 1 WEEK)
+                AND created_at < ({end_timestamp:DateTime} - INTERVAL 1 MINUTE)
+                AND created_at > ({end_timestamp:DateTime} - INTERVAL 1 WEEK)
         )
         """
         s2 = """
@@ -648,7 +717,7 @@ class QueueTimeProcessor:
         """
         query = s1 + _in_queue_job_select_statement + s2
         parameters = {
-            "timestamp": time,
+            "end_timestamp": time,
             "repo": repo,
         }
         return {
