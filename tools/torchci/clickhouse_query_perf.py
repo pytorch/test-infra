@@ -64,16 +64,6 @@ def parse_args() -> argparse.Namespace:
         help="Only relevant if --results is used. If set, it will sort the query results before comparing",
     )
     parser.add_argument(
-        "--wait-time",
-        type=int,
-        default=30,
-        help=(
-            "Time to wait before querying the stats table. Only relevant if --perf is used. "
-            "Set this to a higher amount if the stats table is not populated. This will likely "
-            "show up as a type error (ex comparing None to int) when running the script."
-        ),
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print the first execution result of the query",
@@ -92,19 +82,26 @@ def get_base_query(query: str, sha: str) -> str:
 EXECUTION_METRICS = """
 SELECT
     quantile(0.5)(query_duration_ms) AS realTimeMSAvg,
-    quantile(0.5)(memory_usage) as memoryBytesAvg
+    quantile(0.5)(memory_usage) as memoryBytesAvg,
+    count() as cnt
 FROM
     clusterAllReplicas(default, system.query_log)
 where
     has({query_ids: Array(String)}, query_id)
     and type = 'QueryFinish'
+    and event_time >= now() - interval 1 hour
 """
 
 
 def get_avg_stats(query_ids: Optional[List[str]]) -> tuple:
     if not query_ids:
         return None, None
-    metrics = query_clickhouse(EXECUTION_METRICS, {"query_ids": query_ids})
+    while True:
+        metrics = query_clickhouse(EXECUTION_METRICS, {"query_ids": query_ids})
+        if int(metrics[0]["cnt"]) == len(query_ids):
+            break
+        time.sleep(5)
+
     return metrics[0]["realTimeMSAvg"], metrics[0]["memoryBytesAvg"]
 
 
@@ -215,9 +212,7 @@ def perf_compare(args: argparse.Namespace) -> None:
         query_ids.append((new_qids, base_qids))
 
     # Split up the query execution and the stats collection because the stats
-    # table needs time to populate. Also sleep for 10 seconds to the table more
-    # time to populate
-    time.sleep(args.wait_time)
+    # table needs time to populate.
     table = PrettyTable()
     if args.base:
         table.field_names = [
