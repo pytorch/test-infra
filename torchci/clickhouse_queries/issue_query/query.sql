@@ -1,6 +1,3 @@
--- Optimized query: uses arrayExists instead of array join for better performance
--- Original query used array join which processes all arrays before filtering
--- Using arrayExists reduces memory usage significantly (~2.4x reduction)
 SELECT
     issue.number,
     issue.title,
