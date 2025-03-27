@@ -509,7 +509,7 @@ export async function tryReuseRunner(
         continue;
       }
 
-      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes - 1, 'minutes') < moment(new Date()).utc()) {
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes - 5, 'minutes') < moment(new Date()).utc()) {
         console.debug(
           `[tryReuseRunner]: Runner ${
             runner.instanceId
