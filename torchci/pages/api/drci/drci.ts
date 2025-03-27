@@ -436,9 +436,10 @@ export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
 ): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
-  const baseShas = _.uniq(
-    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
-  );
+  let baseShas = [];
+  for (const [_, pr_info] of workflowsByPR) {
+    baseShas.push(pr_info.merge_base);
+  }
 
   // fetch failing jobs on those shas
   const commitFailedJobsQueryResult = await fetchFailedJobsFromCommits(
