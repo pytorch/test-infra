@@ -8,5 +8,24 @@
     "workflowId": "Int64",
     "workflowNames": "Array(String)"
   },
-  "tests": []
+  "tests": [
+    {
+      "branches": ["main"],
+      "maxAttempt": 1,
+      "nextWorkflowId": 0,
+      "numHours": 48,
+      "repo": "pytorch/pytorch",
+      "workflowId": 14072313906,
+      "workflowNames": ["pull"]
+    },
+    {
+      "branches": ["main"],
+      "maxAttempt": 1,
+      "nextWorkflowId": 0,
+      "numHours": 48,
+      "repo": "pytorch/pytorch",
+      "workflowId": 14094503541,
+      "workflowNames": ["pull"]
+    }
+  ]
 }
