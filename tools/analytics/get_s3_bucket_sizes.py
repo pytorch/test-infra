@@ -13,23 +13,23 @@ Installation:
   pip install boto3
 """
 
-import boto3
+import os
 import sys
 from datetime import datetime, timedelta, timezone
-import os
+
+import boto3
 
 
 def main():
-
     print("🔍 Fetching S3 bucket list...")
 
     # Create S3 and CloudWatch clients
-    s3 = boto3.client('s3')
+    s3 = boto3.client("s3")
 
     try:
         # Get buckets
         response = s3.list_buckets()
-        buckets = [bucket['Name'] for bucket in response['Buckets']]
+        buckets = [bucket["Name"] for bucket in response["Buckets"]]
     except Exception as e:
         print(f"❌ Error accessing AWS: {str(e)}")
         sys.exit(1)
@@ -51,33 +51,33 @@ def main():
         # Get bucket region
         try:
             location = s3.get_bucket_location(Bucket=bucket)
-            region = location.get('LocationConstraint')
+            region = location.get("LocationConstraint")
             # # If None, assume it's in us-east-1
             # region = region if region else 'us-east-1'
         except Exception as e:
             print(f"   ⚠️ Error getting region for {bucket}: {str(e)}")
-            region = 'us-east-1'
+            region = "us-east-1"
 
         # Create CloudWatch client for the bucket's region
-        cloudwatch = boto3.client('cloudwatch', region_name=region)
+        cloudwatch = boto3.client("cloudwatch", region_name=region)
 
         # Get metrics
         try:
             response = cloudwatch.get_metric_statistics(
-                Namespace='AWS/S3',
-                MetricName='BucketSizeBytes',
+                Namespace="AWS/S3",
+                MetricName="BucketSizeBytes",
                 Dimensions=[
-                    {'Name': 'BucketName', 'Value': bucket},
-                    {'Name': 'StorageType', 'Value': 'StandardStorage'}
+                    {"Name": "BucketName", "Value": bucket},
+                    {"Name": "StorageType", "Value": "StandardStorage"},
                 ],
                 StartTime=datetime.now(timezone.utc) - timedelta(days=1),
                 EndTime=datetime.now(timezone.utc),
                 Period=86400,
-                Statistics=['Average']
+                Statistics=["Average"],
             )
 
-            if response['Datapoints']:
-                size = response['Datapoints'][0]['Average']
+            if response["Datapoints"]:
+                size = response["Datapoints"][0]["Average"]
             else:
                 size = 0
         except Exception as e:
@@ -105,6 +105,7 @@ def main():
         print(f"{size_gb:9.2f}\t{bucket}")
 
     print("\n✅ Done!")
+
 
 if __name__ == "__main__":
     main()
