@@ -27,30 +27,43 @@ resource "aws_lambda_function" "scale_up_chron" {
   tags              = local.tags
   memory_size       = 2048
 
+  # changes should reflect the changes in scale-up.tf
   environment {
     variables = {
-      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
-      DATETIME_DEPLOY                 = local.datetime_deploy
-      ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
-      ENVIRONMENT                     = var.environment
-      GHES_URL                        = var.ghes_url
-      GITHUB_APP_CLIENT_ID            = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET        = var.github_app_client_secret
-      GITHUB_APP_ID                   = var.github_app.id
-      GITHUB_APP_KEY_BASE64           = var.github_app_key_base64
-      KMS_KEY_ID                      = var.encryption.kms_key_id
-      LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_up_chron
-      MIN_AVAILABLE_RUNNERS           = var.min_available_runners
-      MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
-      REDIS_ENDPOINT                  = var.redis_endpoint
-      REDIS_LOGIN                     = var.redis_login
-      SCALE_CONFIG_ORG                = var.scale_config_org
-      SCALE_CONFIG_REPO               = var.scale_config_repo
-      SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
-      SCALE_UP_MIN_QUEUE_TIME_MINUTES = 30
-      SCALE_UP_CHRON_HUD_QUERY_URL       = var.retry_scale_up_chron_hud_query_url
-      scale_up_chron_CONFIG               = jsonencode(var.idle_config)
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
+      CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
+      DATETIME_DEPLOY                      = local.datetime_deploy
+      ENABLE_ORGANIZATION_RUNNERS          = var.enable_organization_runners
+      ENVIRONMENT                          = var.environment
+      GITHUB_APP_CLIENT_ID                 = var.github_app.client_id
+      GITHUB_APP_CLIENT_SECRET             = var.github_app_client_secret
+      GITHUB_APP_ID                        = var.github_app.id
+      GITHUB_APP_KEY_BASE64                = var.github_app_key_base64
+      KMS_KEY_ID                           = var.encryption.kms_key_id
+      LAMBDA_TIMEOUT                       = var.lambda_timeout_scale_up
+      LAUNCH_TEMPLATE_NAME_LINUX           = var.launch_template_name_linux
+      LAUNCH_TEMPLATE_NAME_LINUX_ARM64     = var.launch_template_name_linux_arm64
+      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA    = var.launch_template_name_linux_nvidia
+      LAUNCH_TEMPLATE_NAME_WINDOWS         = var.launch_template_name_windows
+      LAUNCH_TEMPLATE_VERSION_LINUX        = var.launch_template_version_linux
+      LAUNCH_TEMPLATE_VERSION_LINUX_ARM64  = var.launch_template_version_linux_arm64
+      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = var.launch_template_version_linux_nvidia
+      LAUNCH_TEMPLATE_VERSION_WINDOWS      = var.launch_template_version_windows
+      MAX_RETRY_SCALEUP_RECORD             = "10"
+      MIN_AVAILABLE_RUNNERS                = var.min_available_runners
+      MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
+      REDIS_ENDPOINT                       = var.redis_endpoint
+      REDIS_LOGIN                          = var.redis_login
+      RETRY_SCALE_UP_RECORD_DELAY_S        = "60"
+      RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
+      RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
+      RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
+      SCALE_CONFIG_ORG                     = var.scale_config_org
+      SCALE_CONFIG_REPO                    = var.scale_config_repo
+      SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
+      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
+      SCALE_UP_CHRON_HUD_QUERY_URL         = var.retry_scale_up_chron_hud_query_url
+      SCALE_UP_MIN_QUEUE_TIME_MINUTES      = 30
+
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
         sort(distinct([
