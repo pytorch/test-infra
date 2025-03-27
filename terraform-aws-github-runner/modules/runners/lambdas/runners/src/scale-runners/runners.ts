@@ -6,6 +6,7 @@ import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { redisCached, redisLocked } from './cache';
+import moment from 'moment';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
@@ -500,10 +501,26 @@ export async function tryReuseRunner(
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
       continue;
     }
-    if (runner.ephemeralRunnerFinished !== undefined && runner.ephemeralRunnerFinished > Date.now() / 1000 - 60) {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
-      continue;
+    if (runner.ephemeralRunnerFinished !== undefined) {
+      const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
+
+      if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
+        console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+        continue;
+      }
+
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes - 1, 'minutes') < moment(new Date()).utc()) {
+        console.debug(
+          `[tryReuseRunner]: Runner ${
+            runner.instanceId
+          } is already over minimumRunningTimeInMinutes time to be reused ${
+            Config.Instance.minimumRunningTimeInMinutes
+          } ${runner.ephemeralRunnerFinished} ${moment(new Date()).utc().toDate().getTime() / 1000}`,
+        );
+        continue;
+      }
     }
+
     try {
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);

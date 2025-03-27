@@ -60,6 +60,7 @@ resource "aws_lambda_function" "scale_up" {
       LAUNCH_TEMPLATE_VERSION_WINDOWS      = var.launch_template_version_windows
       MAX_RETRY_SCALEUP_RECORD             = "10"
       MIN_AVAILABLE_RUNNERS                = var.min_available_runners
+      MINIMUM_RUNNING_TIME_IN_MINUTES      = var.minimum_running_time_in_minutes
       MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
       REDIS_ENDPOINT                       = var.redis_endpoint
       REDIS_LOGIN                          = var.redis_login
