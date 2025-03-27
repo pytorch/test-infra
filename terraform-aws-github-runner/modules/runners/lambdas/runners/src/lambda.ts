@@ -82,6 +82,16 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
 
       try {
         const body = JSON.parse(evt.body) as ActionRequestMessage;
+
+        if (body.runnerLabels !== undefined) {
+          const runnerLabels = body.runnerLabels?.filter((i) => i.endsWith('for.testing.donotuse') == false) ?? [];
+          if (body.runnerLabels !== undefined && body.runnerLabels.length === 0 && runnerLabels.length === 0) {
+            console.warn(`Skipping message due to empty runnerLabels: ${evt.body}`);
+            continue recordsIterProcess;
+          }
+          body.runnerLabels = runnerLabels;
+        }
+
         if (
           !stochaticRunOvershoot(body?.retryCount ?? 0, 900, Math.max(Config.Instance.retryScaleUpRecordDelayS, 20))
         ) {
