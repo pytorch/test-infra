@@ -16,7 +16,8 @@ To register runners, the partner should create a github app visible to PyTorch o
 
 As a next step, the partner should reach out to one of the PyTorch org admins and request the installation of the app, making sure its scope is limited to `pytorch/pytorch` repository.
 
-(A note about github apps, they are simply a method of authentication, similar to tokens)
+> [!NOTE]
+> Github apps are simply a method of authentication, similar to tokens
 
 Once the app is installed (in other words, permissions are granted) the app administrator should generate and download a private key. Please note that tokens are not sufficient for the use case.
 
