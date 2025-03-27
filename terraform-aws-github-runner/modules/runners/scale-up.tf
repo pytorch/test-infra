@@ -39,6 +39,7 @@ resource "aws_lambda_function" "scale_up" {
   }
 
   environment {
+    # changes should reflect the changes in scale-up-chron.tf
     variables = {
       CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
       DATETIME_DEPLOY                      = local.datetime_deploy
