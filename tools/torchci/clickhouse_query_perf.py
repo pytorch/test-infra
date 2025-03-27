@@ -96,11 +96,15 @@ where
 def get_avg_stats(query_ids: Optional[List[str]]) -> tuple:
     if not query_ids:
         return None, None
+    i = 0
     while True:
         metrics = query_clickhouse(EXECUTION_METRICS, {"query_ids": query_ids})
         if int(metrics[0]["cnt"]) == len(query_ids):
             break
+        if i == 1:
+            print("Waiting for metrics to populate, please be patient")
         time.sleep(5)
+        i += 1
 
     return metrics[0]["realTimeMSAvg"], metrics[0]["memoryBytesAvg"]
 
