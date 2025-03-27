@@ -203,13 +203,6 @@ def results_compare(args: argparse.Namespace) -> None:
             base_results = sorted(
                 base_results, key=lambda x: json.dumps(x, sort_keys=True)
             )
-
-        new_results = set(
-            json.dumps(x, sort_keys=True) for x in new_results
-        )
-        base_results = set(
-            json.dumps(x, sort_keys=True) for x in base_results
-        )
         if new_results != base_results:
             print(f"Results for test {i} differ")
             print(f"Test: {json.dumps(test, indent=2)}")
