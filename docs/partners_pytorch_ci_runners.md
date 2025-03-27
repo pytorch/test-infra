@@ -47,9 +47,9 @@ So, the final step is to generate a token to register a runner. This can be acco
 auth = Auth.AppAuth(get_github_app_id(), get_private_key()).get_installation_auth(get_github_app_installation_id())
 gh_app =  Github(auth=auth)
 pytorch_repo = gh_client.get_repo('pytorch/pytorch)
-   _, data = pytorch_repo._requester.requestJsonAndCheck(
-       "POST",
-       f"/repos/pytorch/pytorch/actions/runners/registration-token",
-   )
-   return data['token']
+_, data = pytorch_repo._requester.requestJsonAndCheck(
+    "POST",
+    f"/repos/pytorch/pytorch/actions/runners/registration-token",
+)
+print(data['token'])
 ```
