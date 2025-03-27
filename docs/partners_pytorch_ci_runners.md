@@ -6,7 +6,7 @@ This document tries to facilitate and guide partners who want to contribute with
 
 ### Reasoning
 
-Due to the past a big number of stale runners, we enforce that any offline CI runner is automatically deleted from the list of available CI runners for PyTorch. This should not introduce any work for dynamically scaled instances, quite the opposite, as it allows the developer to not worry about cleanup and stale instances. But it can be a bit extra work for providers of a static fleet of instances.
+In the past we ended up collecting a large number of stale, offline runners. So now we enforce that any offline CI runner is automatically deleted from the list of available CI runners for PyTorch. This should not introduce any work for dynamically scaled instances, quite the opposite, as it allows the developer to not worry about cleanup and stale instances. But it can be a bit extra work for providers of a static fleet of instances.
 
 Another advantage of having this is the fact that it enables PyTorch Foundation to quickly isolate and remove runners that are problematic or suffered a security incident, even if they are dynamically scaled (so deleting one-by-one is not an option).
 
