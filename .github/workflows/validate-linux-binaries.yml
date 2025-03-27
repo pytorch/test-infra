@@ -191,7 +191,7 @@ jobs:
         yum install -y python-devel
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
-        ${MATRIX_GPU_ARCH_VERSION} == "${CUDA_VERSION}" 
+        export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}" 
 
         DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu${CUDA_VERSION_NODOT}"
         if [[ ${{ inputs.channel }} == 'test' ]]; then
