@@ -4,11 +4,11 @@ with runs as (
   select
     w.id as id,
     w.head_commit.'author'.'email' as authorEmail,
-    w.head_commit.'id' as head_sha,
     w.head_commit.timestamp as head_sha_timestamp
   from default.workflow_run w
   where
     w.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
+    and w.head_sha in {shas: Array(String)}
 )
 SELECT
   j.id as id,
