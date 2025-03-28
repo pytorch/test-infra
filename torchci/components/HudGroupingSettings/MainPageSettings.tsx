@@ -1,3 +1,18 @@
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { KeyboardArrowDown } from "@mui/icons-material";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import {
@@ -22,6 +37,7 @@ import {
   isDupName,
   saveTreeData,
 } from "./mainPageSettingsUtils";
+import { set } from "lodash";
 
 function validRegex(value: string) {
   try {
@@ -119,6 +135,19 @@ export default function SettingsModal({
 }) {
   const [treeData, setTreeData] = useState(getStoredTreeData());
   const [orderBy, setOrderBy] = useState<"display" | "filter">("display");
+  const treeDataOrdered = treeData.sort((a, b) => {
+    if (orderBy === "display") {
+      return a.displayPriority - b.displayPriority;
+    }
+    return a.filterPriority - b.filterPriority;
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   function addSection() {
     setTreeData([
@@ -184,8 +213,16 @@ export default function SettingsModal({
   }
 
   const Node = React.memo(function Node({ data }: { data: Group }) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: data.name });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
     return (
-      <ListItem>
+      <ListItem ref={setNodeRef} style={style}  {...attributes} {...listeners} id={data.name}>
         <ListItemButton>
           <Stack
             direction="row"
@@ -218,7 +255,61 @@ export default function SettingsModal({
       </ListItem>
     );
   });
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    const priority = orderBy === "display" ? "displayPriority" : "filterPriority";
+    console.log(active.id, over.id);
+    treeDataOrdered.forEach((node) => {
+      console.log(node.name, node[priority]);
+    })
 
+    const oldIndex = treeData.find((node) => node.name === active.id)![priority];
+    const newIndex = treeData.find((node) => node.name === over.id)![priority];
+    console.log(newIndex, oldIndex);
+    if (oldIndex < newIndex) {
+      setTreeData(
+        treeData.map((node) => {
+          if (node[priority] === oldIndex) {
+            return {
+              ...node,
+              [priority]: newIndex,
+            };
+          } else if (oldIndex <= node[priority] && node[priority] <= newIndex) {
+            return {
+              ...node,
+              [orderBy]: node[priority] - 1,
+            };
+          }
+          return node;
+        })
+      );
+    }
+    if (newIndex < oldIndex) {
+      setTreeData(
+        treeData.map((node) => {
+          if (node[priority] === oldIndex) {
+            return {
+              ...node,
+              [priority]: newIndex,
+            };
+          } else if (newIndex <= node[priority] && node[priority] <= oldIndex) {
+            return {
+              ...node,
+              [priority]: node[priority] + 1,
+            };
+          }
+          return node;
+        })
+      );
+    }
+    // if (active.id !== over.id) {
+    //   setItems((items) => {
+    //     const oldIndex = items.indexOf(active.id);
+    //     const newIndex = items.indexOf(over.id);
+
+    //   });
+    // }
+  }
   return (
     <Dialog
       open={visible}
@@ -265,16 +356,20 @@ export default function SettingsModal({
       </Stack>
 
       <List>
-        {treeData
-          .sort((a, b) => {
-            if (orderBy === "display") {
-              return a.displayPriority - b.displayPriority;
-            }
-            return a.filterPriority - b.filterPriority;
-          })
-          .map((node) => (
-            <Node key={node.name} data={node} />
-          ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={treeDataOrdered.map((node) => node.name)}
+            strategy={verticalListSortingStrategy}
+          >
+            {treeDataOrdered.map((id) => (
+              <Node key={id.name} data={id}/>
+            ))}
+          </SortableContext>
+        </DndContext>
       </List>
     </Dialog>
   );
