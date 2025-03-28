@@ -35,6 +35,7 @@ import {
   isDupName,
   saveTreeData,
 } from "./mainPageSettingsUtils";
+import { DragHandle } from "@mui/icons-material";
 
 function validRegex(value: string) {
   try {
@@ -62,7 +63,7 @@ function EditSectionDialog({
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Edit</Button>
+      <Button onClick={() => {setOpen(true)}}>Edit</Button>
       <Dialog
         open={open}
         closeAfterTransition={false}
@@ -141,9 +142,6 @@ export default function SettingsModal({
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
   );
 
   function addSection() {
@@ -194,13 +192,7 @@ export default function SettingsModal({
     };
 
     return (
-      <ListItem
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        id={data.name}
-      >
+      <ListItem ref={setNodeRef} style={style} id={data.name}>
         <ListItemButton>
           <Stack
             direction="row"
@@ -208,7 +200,8 @@ export default function SettingsModal({
             justifyContent="space-between"
             flexGrow={1}
           >
-            <Stack>
+            <Stack direction="row" alignItems={"center"} spacing={2}>
+              <DragHandle {...attributes} {...listeners} />
               <Typography style={{ fontWeight: "bold" }}>
                 {data.name}
               </Typography>
@@ -220,15 +213,19 @@ export default function SettingsModal({
                 name={data.name}
                 setGroup={setItem}
               />
-              <Button onClick={(e) => removeSection(data.name)}>Delete</Button>
+              <Button onClick={() => removeSection(data.name)}>Delete</Button>
             </Stack>
           </Stack>
         </ListItemButton>
       </ListItem>
     );
   });
+
   function handleDragEnd(event: any) {
     const { active, over } = event;
+    if (active == null || over == null) {
+      return;
+    }
     const priority =
       orderBy === "display" ? "displayPriority" : "filterPriority";
     const oldIndex = treeData.find((node) => node.name === active.id)![
@@ -279,7 +276,6 @@ export default function SettingsModal({
       maxWidth="xl"
       onClose={handleClose}
       onClick={(e) => e.stopPropagation()}
-      style={{ zIndex: 400000 }}
     >
       <Stack
         spacing={2}
@@ -329,7 +325,7 @@ export default function SettingsModal({
             strategy={verticalListSortingStrategy}
           >
             {treeDataOrdered.map((id) => (
-              <Node key={id.name} data={id} />
+              <Node key={id.name} data={id}/>
             ))}
           </SortableContext>
         </DndContext>
