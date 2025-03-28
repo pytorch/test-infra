@@ -168,12 +168,8 @@ class LazyFileHistory:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
-                    if self.is_unix_timestamp(timestamp):
-                        timestamp = datetime.fromtimestamp(
-                            float(timestamp)
-                        ).astimezone()
-                    else:
-                        timestamp = parse(timestamp)
+                    timestamp = parse(timestamp)
+
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
                     return self._fetch_content_for_commit(commit)
@@ -183,9 +179,9 @@ class LazyFileHistory:
                     if commit:
                         return self._fetch_content_for_commit(commit)
         except Exception as e:
-            print(
-                f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
-            )
+            print(f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}")
+
+        return None
 
         return None
 
@@ -193,6 +189,8 @@ class LazyFileHistory:
         commits_after = [
             c for c in self._commits_cache if c.commit.author.date > timestamp
         ]
+
+        print("commits",  [c.commit.author.date for c in self._commits_cache])
         if not commits_after:
             return None
         return commits_after[-1]
@@ -213,6 +211,8 @@ class LazyFileHistory:
 
         self._commits_cache.extend(newly_fetched)
         self._commits_cache.sort(key=lambda c: c.commit.author.date, reverse=True)
+
+        print(self._commits_cache)
 
         if not newly_fetched:
             self._fetched_all_commits = True
@@ -262,11 +262,6 @@ def update_tags(
         if not machine_type:
             continue
         runner_labels["all"].add(machine_type)
-
-        if machine_type.startswith("linux.rocm.gpu"):
-            runner_labels["linux"].add(machine_type)
-            runner_labels["linux-amd"].add(machine_type)
-
         if machine_type not in runner_labels["dynamic"]:
             if "ubuntu" in machine_type.lower():
                 runner_labels["linux"].add(machine_type)
@@ -292,7 +287,6 @@ def create_runner_labels(
         "linux": set(),  # linux instances
         "linux-meta": set(),  # linux instances provided by meta
         "linux-lf": set(),  # linux instances provided by Linux Foundation
-        "linux-amd": set(),  # linux instances provided by amd. for instance linux.rocm.gpu.2
         "macos": set(),  # macos instances
         "macos-meta": set(),  # macos instances provided by meta
         "windows": set(),  # windows instances
@@ -343,6 +337,7 @@ def create_runner_labels(
     all_runners_configs = (
         runner_configs["runner_types"] | lf_runner_configs["runner_types"]
     )
+
 
     for runner, runner_config in all_runners_configs.items():
         runner_labels_dict["dynamic"].add(runner)
@@ -456,8 +451,8 @@ class QueueTimeProcessor:
             "pytorch/pytorch",
         )
 
-        # if self.is_dry_run:
-        # self.output_snapshot(snapshot, timestamp)
+        if self.is_dry_run:
+            self.output_snapshot(snapshot, timestamp)
         # TODO(elainewy): add logics to generate histograms based on the snapshot results
 
     def output_snapshot(
@@ -489,14 +484,14 @@ class QueueTimeProcessor:
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         jobs_in_queue = self._query_in_queue_jobs(
-            queued_query["query"], queued_query["parameters"]
+            queued_query["query"], queued_query["parameters"],["queued"]
         )
 
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         jobs_pick = self._query_in_queue_jobs(
-            picked_query["query"], picked_query["parameters"]
+            picked_query["query"], picked_query["parameters"],["queued"]
         )
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
@@ -506,6 +501,7 @@ class QueueTimeProcessor:
         job_completed_within_dates = self._query_in_queue_jobs(
             completed_within_dates_sql["query"],
             completed_within_dates_sql["parameters"],
+            ["completed"]
         )
 
         dt = datetime.fromtimestamp(int(end_timestamp))
@@ -515,15 +511,15 @@ class QueueTimeProcessor:
         dt2_str = dt2.strftime("%Y-%m-%d %H:%M:%S")
 
         info(
-            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later"
+            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within `{dt2_str}` to `{datetime_str}` "
         )
-        result = jobs_in_queue + jobs_pick
 
-        info(
-            f"[Snapshot time:{datetime_str}]. Found in-queue {len(result)} jobs, completed within {dt2_str} to {datetime_str}  ({start_timestamp},{end_timestamp}) has {len(job_completed_within_dates)} jobs"
-        )
+        result = jobs_in_queue + jobs_pick + job_completed_within_dates
 
         return result
+
+    def toDateTime(self, timestamp: str):
+        return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
 
     def get_queueing_jobs(
         self,
@@ -545,16 +541,20 @@ class QueueTimeProcessor:
             return []
 
         # create dictionary of tags with set of targeting machine types
-        lf_runner_config = get_runner_config(lf_runner_config_retriever, end_timestamp)
+        start_date_time =  datetime.fromtimestamp(int(start_timestamp)).astimezone()
+        lf_runner_config = get_runner_config(lf_runner_config_retriever, start_date_time)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
-                old_lf_lf_runner_config_retriever, end_timestamp
+                old_lf_lf_runner_config_retriever, start_date_time
             )
         runner_labels = create_runner_labels(
-            get_runner_config(meta_runner_config_retriever, end_timestamp),
+            get_runner_config(meta_runner_config_retriever, start_date_time),
             lf_runner_config,
         )
         update_tags(runner_labels, set([job["machine_type"] for job in snapshot]))
+
+        serialized_data = {k: list(v) for k, v in runner_labels.items()}
+        print("runner_labels\n",json.dumps(serialized_data, indent=4))
 
         # iterates throught jobs, and update tags for each job
         for job in snapshot:
@@ -567,7 +567,7 @@ class QueueTimeProcessor:
         return snapshot
 
     def _query_in_queue_jobs(
-        self, queryStr: str, parameters: Any
+        self, queryStr: str, parameters: Any, tags: List[str] = []
     ) -> list[dict[str, Any]]:
         """
         post query process to remove duplicated jobs
@@ -580,6 +580,8 @@ class QueueTimeProcessor:
             if record["html_url"] in seen:
                 continue
             seen.add(record["html_url"])
+
+            record["tags"] = tags
             result.append(record)
         return result
 
