@@ -13,8 +13,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { KeyboardArrowDown } from "@mui/icons-material";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import {
   Button,
   Dialog,
@@ -37,7 +35,6 @@ import {
   isDupName,
   saveTreeData,
 } from "./mainPageSettingsUtils";
-import { set } from "lodash";
 
 function validRegex(value: string) {
   try {
@@ -172,31 +169,6 @@ export default function SettingsModal({
     setTreeData(treeData.filter((node) => node.name !== name));
   }
 
-  function moveItem(name: string, direction: "up" | "down") {
-    const group = treeData.find((node) => node.name === name)!;
-    const index =
-      orderBy === "display" ? group.displayPriority : group.filterPriority;
-    const swapWithIndex = index + (direction === "down" ? 1 : -1);
-
-    if (swapWithIndex < 0 || swapWithIndex >= treeData.length) {
-      return;
-    }
-    const swapWith = treeData.find(
-      (node) =>
-        (orderBy === "display" ? node.displayPriority : node.filterPriority) ===
-        swapWithIndex
-    );
-
-    if (orderBy == "display") {
-      group.displayPriority = swapWithIndex;
-      swapWith!.displayPriority = index;
-    } else {
-      group.filterPriority = swapWithIndex;
-      swapWith!.filterPriority = index;
-    }
-    setTreeData([...treeData]);
-  }
-
   function setItem(name: string, newName: string, regex: string) {
     setTreeData(
       treeData.map((node) => {
@@ -222,7 +194,13 @@ export default function SettingsModal({
     };
 
     return (
-      <ListItem ref={setNodeRef} style={style}  {...attributes} {...listeners} id={data.name}>
+      <ListItem
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        id={data.name}
+      >
         <ListItemButton>
           <Stack
             direction="row"
@@ -237,12 +215,6 @@ export default function SettingsModal({
               <Typography>{data.regex.source}</Typography>
             </Stack>
             <Stack direction="row" alignItems={"center"}>
-              <Button onClick={() => moveItem(data.name, "up")}>
-                <KeyboardArrowUpIcon />
-              </Button>
-              <Button onClick={() => moveItem(data.name, "down")}>
-                <KeyboardArrowDown />
-              </Button>
               <EditSectionDialog
                 treeData={treeData}
                 name={data.name}
@@ -257,15 +229,12 @@ export default function SettingsModal({
   });
   function handleDragEnd(event: any) {
     const { active, over } = event;
-    const priority = orderBy === "display" ? "displayPriority" : "filterPriority";
-    console.log(active.id, over.id);
-    treeDataOrdered.forEach((node) => {
-      console.log(node.name, node[priority]);
-    })
-
-    const oldIndex = treeData.find((node) => node.name === active.id)![priority];
+    const priority =
+      orderBy === "display" ? "displayPriority" : "filterPriority";
+    const oldIndex = treeData.find((node) => node.name === active.id)![
+      priority
+    ];
     const newIndex = treeData.find((node) => node.name === over.id)![priority];
-    console.log(newIndex, oldIndex);
     if (oldIndex < newIndex) {
       setTreeData(
         treeData.map((node) => {
@@ -277,7 +246,7 @@ export default function SettingsModal({
           } else if (oldIndex <= node[priority] && node[priority] <= newIndex) {
             return {
               ...node,
-              [orderBy]: node[priority] - 1,
+              [priority]: node[priority] - 1,
             };
           }
           return node;
@@ -302,13 +271,6 @@ export default function SettingsModal({
         })
       );
     }
-    // if (active.id !== over.id) {
-    //   setItems((items) => {
-    //     const oldIndex = items.indexOf(active.id);
-    //     const newIndex = items.indexOf(over.id);
-
-    //   });
-    // }
   }
   return (
     <Dialog
@@ -317,7 +279,7 @@ export default function SettingsModal({
       maxWidth="xl"
       onClose={handleClose}
       onClick={(e) => e.stopPropagation()}
-      style={{zIndex: 3000}}
+      style={{ zIndex: 400000 }}
     >
       <Stack
         spacing={2}
@@ -367,7 +329,7 @@ export default function SettingsModal({
             strategy={verticalListSortingStrategy}
           >
             {treeDataOrdered.map((id) => (
-              <Node key={id.name} data={id}/>
+              <Node key={id.name} data={id} />
             ))}
           </SortableContext>
         </DndContext>
