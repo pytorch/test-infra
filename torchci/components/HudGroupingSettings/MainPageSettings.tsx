@@ -317,6 +317,7 @@ export default function SettingsModal({
       maxWidth="xl"
       onClose={handleClose}
       onClick={(e) => e.stopPropagation()}
+      style={{zIndex: 3000}}
     >
       <Stack
         spacing={2}
