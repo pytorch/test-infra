@@ -27,9 +27,9 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.6", "12.8"],
-    "test": ["11.8", "12.6", "12.8"],
-    "release": ["11.8", "12.4", "12.6"],
+    "nightly": ["12.4"],
+    "test": ["12.4"],
+    "release": ["12.4"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.2.4", "6.3"],
@@ -50,7 +50,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.4",
 }
 
-CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -75,7 +75,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.0"
+CURRENT_CANDIDATE_VERSION = "2.6.0"
 CURRENT_STABLE_VERSION = "2.6.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -492,7 +492,7 @@ def generate_wheels_matrix(
                 "validation_runner": validation_runner(gpu_arch_type, os),
                 "installation": get_wheel_install_command(
                     os,
-                    channel,
+                    "release",
                     gpu_arch_type,
                     gpu_arch_version,
                     desired_cuda,
