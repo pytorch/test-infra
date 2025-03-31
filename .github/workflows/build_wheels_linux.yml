@@ -47,6 +47,10 @@ on:
         description: "The target to build and publish (for repos that build multiple packages)"
         default: ""
         type: string
+      pytorch-version-override:
+        description: "The version of PyTorch to use for the build.  If unspecified, the PyTorch will be automatically determined based on the git branch / tag"
+        default: ""
+        type: string
       trigger-event:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
@@ -190,9 +194,14 @@ jobs:
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
         run: |
-          # When building RC, set the version to be the current candidate version,
-          # otherwise, leave it alone so nightly will pick up the latest
-          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
+          if [[ "${{ env.pytorch-version-override }}" != "" ]]; then
+            # If a PyTorch version override is specified, use that
+            echo "PYTORCH_VERSION=${{ env.pytorch-version-override }}" >> "${GITHUB_ENV}"
+          else
+            # When building RC, set the version to be the current candidate version,
+            # otherwise, leave it alone so nightly will pick up the latest
+            echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
+          fi
       - uses: ./test-infra/.github/actions/setup-binary-builds
         env:
           PLATFORM: ${{ inputs.architecture == 'aarch64'  && 'linux-aarch64' || ''}}
