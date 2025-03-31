@@ -125,7 +125,7 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
-  mergeLF?: boolean;
+  mergeEphemeralLF?: boolean;
 }
 
 export interface PRData {
@@ -250,7 +250,7 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
-    mergeLF: input.mergeLF as boolean,
+    mergeEphemeralLF: input.mergeEphemeralLF as boolean,
   };
 }
 
@@ -291,8 +291,8 @@ function formatHudURL(
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
 
-  if (params.mergeLF) {
-    base += `&mergeLF=true`;
+  if (params.mergeEphemeralLF) {
+    base += `&mergeEphemeralLF=true`;
   }
 
   return base;

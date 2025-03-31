@@ -388,5 +388,7 @@ export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
 
 export function getNameWithoutLF(name: string) {
   const lfRegex = /, lf\.(linux|windows)/g;
-  return name.replace(lfRegex, ", $1");
+  name = name.replace(lfRegex, ", $1");
+  const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
+  return name.replace(ephemeralRegex, ", $1");
 }
