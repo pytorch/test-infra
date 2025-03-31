@@ -443,7 +443,10 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
-  const params = packHudParams({ ...router.query, mergeEphemeralLF: mergeEphemeralLF });
+  const params = packHudParams({
+    ...router.query,
+    mergeEphemeralLF: mergeEphemeralLF,
+  });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -487,7 +490,9 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          <MergeLFContext.Provider value={[mergeEphemeralLF, setMergeEphemeralLF]}>
+          <MergeLFContext.Provider
+            value={[mergeEphemeralLF, setMergeEphemeralLF]}
+          >
             {params.branch !== undefined && (
               <div onClick={handleClick}>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
