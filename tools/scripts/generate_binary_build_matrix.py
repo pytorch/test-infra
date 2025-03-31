@@ -28,7 +28,7 @@ PYTHON_ARCHES_DICT = {
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.6", "12.8"],
-    "test": ["11.8", "12.6", "12.8"],
+    "test": ["11.8", "12.4", "12.6"],
     "release": ["11.8", "12.4", "12.6"],
 }
 ROCM_ARCHES_DICT = {
@@ -50,7 +50,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.4",
 }
 
-CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -75,7 +75,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.0"
+CURRENT_CANDIDATE_VERSION = "2.6.0"
 CURRENT_STABLE_VERSION = "2.6.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
