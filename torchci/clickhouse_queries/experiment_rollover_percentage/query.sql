@@ -51,11 +51,11 @@ WITH
             count(*) AS group_size,
             bucket,
             replaceOne(replaceOne(label, 'lf.', ''), concat({experiment_name: String}, '.'), '') AS label_ref,
-            if(match(label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+')), True, False) AS is_ephemeral_exp
+            if(match(label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+')), True, False) AS is_experiment
         FROM
             comparable_jobs
         GROUP BY
-            bucket, label_ref, is_ephemeral_exp
+            bucket, label_ref, is_experiment
     ),
     comparison_stats AS (
         SELECT
@@ -63,10 +63,10 @@ WITH
             SUM(experiment.group_size + m.group_size) AS total_jobs,
             SUM(m.group_size) AS compliment_jobs,
             SUM(experiment.group_size) AS counted_jobs,
-            m.is_ephemeral_exp AS c_fleet,
-            experiment.is_ephemeral_exp AS m_fleet,
+            m.is_experiment AS c_fleet,
+            experiment.is_experiment AS m_fleet,
             CAST(SUM(experiment.group_size) AS Float32) / SUM(experiment.group_size + m.group_size) * 100 AS percentage,
-            IF(experiment.is_ephemeral_exp, 'On experiment', 'Not on experiment') AS fleet
+            IF(experiment.is_experiment, 'On experiment', 'Not on experiment') AS fleet
         FROM
             success_stats AS experiment
         INNER JOIN
@@ -75,9 +75,9 @@ WITH
             experiment.label_ref = m.label_ref
             AND experiment.bucket = m.bucket
         WHERE
-            experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0
+            experiment.is_experiment = 1 AND m.is_experiment = 0
         GROUP BY
-            experiment.bucket, experiment.is_ephemeral_exp, m.is_ephemeral_exp
+            experiment.bucket, experiment.is_experiment, m.is_experiment
     )
 SELECT * FROM comparison_stats
 ORDER BY  bucket DESC
