@@ -284,12 +284,6 @@ jobs:
           fi
       # NB: Only upload to GitHub after passing smoke tests
 
-      - name: Upload wheel
-        uses: ./test-infra/.github/actions/binary-upload
-        with:
-          repository: ${{ inputs.repository }}
-          trigger-event: ${{ inputs.trigger-event }}
-
       - name: Upload wheel to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v4
