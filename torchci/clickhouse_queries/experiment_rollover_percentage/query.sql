@@ -19,7 +19,7 @@ WITH
             workflow_job AS j
             ARRAY JOIN j.labels as l
         WHERE
-            j.created_at > now() - INTERVAL {days_ago: Int64} DAY
+            j.started_at > now() - INTERVAL {days_ago: Int64} DAY
             AND j.status = 'completed'
             AND l != 'self-hosted'
             AND l NOT LIKE 'lf.c.%'
@@ -32,7 +32,7 @@ WITH
         FROM
             normalized_jobs AS j
         WHERE
-            j.label LIKE concat('%.', {experiment_name: String}, '.%')
+            match(j.label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+'))
     ),
     comparable_jobs AS (
         SELECT
@@ -48,16 +48,14 @@ WITH
     ),
     success_stats AS (
         SELECT
-            bucket,
             count(*) AS group_size,
-            job_name,
-            workflow_name,
-            label,
-            if(like(label, concat('%.', {experiment_name: String}, '.%')), True, False) AS is_ephemeral_exp
+            bucket,
+            replaceOne(replaceOne(label, 'lf.', ''), concat({experiment_name: String}, '.'), '') AS label_ref,
+            if(match(label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+')), True, False) AS is_ephemeral_exp
         FROM
             comparable_jobs
         GROUP BY
-            bucket, job_name, workflow_name, label
+            bucket, label_ref, is_ephemeral_exp
     ),
     comparison_stats AS (
         SELECT
@@ -72,15 +70,14 @@ WITH
         FROM
             success_stats AS experiment
         INNER JOIN
-            success_stats AS m ON experiment.bucket = m.bucket
+            success_stats AS m
+        ON
+            experiment.label_ref = m.label_ref
+            AND experiment.bucket = m.bucket
         WHERE
-            experiment.job_name = m.job_name
-            AND experiment.workflow_name = m.workflow_name
-            AND experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0
-            AND experiment.group_size > 3
-            AND m.group_size > 3
+            experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0
         GROUP BY
             experiment.bucket, experiment.is_ephemeral_exp, m.is_ephemeral_exp
     )
 SELECT * FROM comparison_stats
-ORDER BY  bucket DESC, fleet
+ORDER BY  bucket DESC
