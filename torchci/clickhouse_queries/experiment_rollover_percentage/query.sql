@@ -60,16 +60,11 @@ WITH
     comparison_stats AS (
         SELECT
             experiment.bucket,
-            SUM(experiment.group_size + m.group_size) AS total_jobs,
-            SUM(m.group_size) AS compliment_jobs,
-            SUM(experiment.group_size) AS counted_jobs,
-            m.is_experiment AS c_fleet,
-            experiment.is_experiment AS m_fleet,
             CAST(SUM(experiment.group_size) AS Float32) / SUM(experiment.group_size + m.group_size) * 100 AS percentage,
             IF(experiment.is_experiment, 'On experiment', 'Not on experiment') AS fleet
         FROM
             success_stats AS experiment
-        INNER JOIN
+        FULL OUTER JOIN
             success_stats AS m
         ON
             experiment.label_ref = m.label_ref
@@ -79,5 +74,11 @@ WITH
         GROUP BY
             experiment.bucket, experiment.is_experiment, m.is_experiment
     )
-SELECT * FROM comparison_stats
-ORDER BY  bucket DESC
+SELECT
+    bucket,
+    fleet,
+    avg(percentage) OVER (ORDER BY bucket DESC ROWS BETWEEN 5 PRECEDING AND CURRENT ROW) AS percentage
+FROM
+    comparison_stats
+ORDER BY
+    bucket DESC
