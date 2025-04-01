@@ -123,7 +123,6 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
-      IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') || contains(matrix.container_image, 'manylinuxaarch64-builder:cuda') }}
     name: build-${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
@@ -146,16 +145,8 @@ jobs:
           echo "::endgroup::"
 
       - uses: actions/checkout@v4
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         with:
           # Support the use case where we need to checkout someone's fork
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
-
-      - uses: atalman/checkout-action@main
-        if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
-        with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
@@ -199,7 +190,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
-          use-github-checkout: ${{ env.IS_MANYLINUX2_28 }}
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
@@ -295,14 +285,12 @@ jobs:
       # NB: Only upload to GitHub after passing smoke tests
 
       - name: Upload wheel
-        if: ${{ env.IS_MANYLINUX2_28 != 'true' }}
         uses: ./test-infra/.github/actions/binary-upload
         with:
           repository: ${{ inputs.repository }}
           trigger-event: ${{ inputs.trigger-event }}
 
       - name: Upload wheel to GitHub
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

@@ -40,11 +40,6 @@ inputs:
     required: false
     type: boolean
     default: no
-  use-github-checkout:
-    description: One of the parameter used by pkg-helpers
-    required: false
-    type: boolean
-    default: true
 
 runs:
   using: composite
@@ -58,20 +53,11 @@ runs:
           rm -rf "${REPOSITORY}"
 
       - uses: actions/checkout@v4
-        if: ${{ inputs.use-github-checkout == 'true' }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
-
-      - uses: atalman/checkout-action@main
-        if: ${{ inputs.use-github-checkout == 'false' }}
-        with:
-          repository: ${{ inputs.repository }}
-          path: ${{ inputs.repository }}
-          submodules: ${{ inputs.submodules }}
-          ref: ${{ inputs.ref }}
 
       - name: Log Available Webhook Fields
         shell: bash
@@ -146,7 +132,7 @@ runs:
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
 
             # downgrade conda version for python 3.13t install.
-            # TODO: remove this once python 3.13t is fully suported on conda
+            # TODO: remove this once python 3.13t is fully supported on conda
             # Please see : https://github.com/conda/conda/issues/14554
             if [[ "$(uname)" == Darwin ]]; then
               # required to be able to downgrade on MacOS arm64
