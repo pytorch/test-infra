@@ -103,7 +103,7 @@ variable "scale_up_chron_schedule_expression" {
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
-  default     = 5
+  default     = 45
 }
 
 variable "lambda_timeout_scale_down" {

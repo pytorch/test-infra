@@ -15,6 +15,7 @@ import { ScaleUpMetrics } from './metrics';
 import { Config } from './config';
 import nock from 'nock';
 import { locallyCached, clearLocalCache, redisLocked } from './cache';
+import moment from 'moment';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
@@ -159,8 +160,9 @@ describe('list instances', () => {
   const mockDescribeInstances = { promise: jest.fn() };
   const config = {
     awsRegion: 'us-east-1',
-    shuffledAwsRegionInstances: ['us-east-1'],
     environment: 'gi-ci',
+    minimumRunningTimeInMinutes: 45,
+    shuffledAwsRegionInstances: ['us-east-1'],
   };
 
   beforeEach(() => {
@@ -279,6 +281,7 @@ describe('listSSMParameters', () => {
     resetRunnersCaches();
     const config = {
       environment: 'gi-ci',
+      minimumRunningTimeInMinutes: 45,
     };
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
@@ -325,6 +328,7 @@ describe('terminateRunner', () => {
     mockEC2.terminateInstances.mockClear();
     const config = {
       environment: 'gi-ci',
+      minimumRunningTimeInMinutes: 45,
     };
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
 
@@ -467,6 +471,7 @@ describe('tryReuseRunner', () => {
       return ['vpc-agdgaduwg113'];
     }),
     environment: 'gi-ci',
+    minimumRunningTimeInMinutes: 45,
   };
 
   beforeEach(() => {
@@ -534,6 +539,136 @@ describe('tryReuseRunner', () => {
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
     });
 
+    it('has a runner, but free less than a minute ago', async () => {
+      // SSM putParameter
+      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createTags
+      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //deleteTags
+      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createReplaceRootVolumeTask
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      // describeInstances
+      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
+      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+        Reservations: [
+          {
+            Instances: [
+              {
+                LaunchTime: launchTime,
+                InstanceId: 'i-0113',
+                Placement: {
+                  AvailabilityZone: 'us-east-1a',
+                },
+                Tags: [
+                  { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
+                  { Key: 'Application', Value: 'github-action-runner' },
+                  { Key: 'GithubRunnerID', Value: '1234' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+
+      expect(mockEC2.describeInstances).toBeCalledWith({
+        Filters: [
+          { Name: 'tag:Application', Values: ['github-action-runner'] },
+          { Name: 'instance-state-name', Values: ['running', 'pending'] },
+          { Name: 'instance-type', Values: ['c5.2xlarge'] },
+          { Name: 'tag:ApplicationDeployDatetime', Values: ['20201010T144800'] },
+          { Name: 'tag:Environment', Values: ['wg113'] },
+          { Name: 'tag:Repo', Values: ['jeanschmidt/regularizationTheory'] },
+          { Name: 'tag:RunnerType', Values: ['linuxCpu'] },
+          { Name: 'tag:GithubRunnerID', Values: ['*'] },
+          { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
+        ],
+      });
+      expect(mockSSM.putParameter).not.toBeCalled();
+      expect(mockEC2.createTags).not.toBeCalled();
+      expect(mockEC2.deleteTags).not.toBeCalled();
+      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+    });
+
+    it('has a runner, but free more than minimumRunningTimeInMinutes ago', async () => {
+      // SSM putParameter
+      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createTags
+      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //deleteTags
+      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createReplaceRootVolumeTask
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      // describeInstances
+      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date())
+          .subtract(Config.Instance.minimumRunningTimeInMinutes + 10, 'minutes')
+          .utc()
+          .toDate()
+          .getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
+      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+        Reservations: [
+          {
+            Instances: [
+              {
+                LaunchTime: launchTime,
+                InstanceId: 'i-0113',
+                Placement: {
+                  AvailabilityZone: 'us-east-1a',
+                },
+                Tags: [
+                  { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
+                  { Key: 'Application', Value: 'github-action-runner' },
+                  { Key: 'GithubRunnerID', Value: '1234' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+
+      expect(mockEC2.describeInstances).toBeCalledWith({
+        Filters: [
+          { Name: 'tag:Application', Values: ['github-action-runner'] },
+          { Name: 'instance-state-name', Values: ['running', 'pending'] },
+          { Name: 'instance-type', Values: ['c5.2xlarge'] },
+          { Name: 'tag:ApplicationDeployDatetime', Values: ['20201010T144800'] },
+          { Name: 'tag:Environment', Values: ['wg113'] },
+          { Name: 'tag:Repo', Values: ['jeanschmidt/regularizationTheory'] },
+          { Name: 'tag:RunnerType', Values: ['linuxCpu'] },
+          { Name: 'tag:GithubRunnerID', Values: ['*'] },
+          { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
+        ],
+      });
+      expect(mockSSM.putParameter).not.toBeCalled();
+      expect(mockEC2.createTags).not.toBeCalled();
+      expect(mockEC2.deleteTags).not.toBeCalled();
+      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+    });
+
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
       mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
@@ -549,12 +684,16 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
               {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
+                LaunchTime: launchTime,
                 InstanceId: 'i-0113',
                 Placement: {
                   AvailabilityZone: 'us-east-1a',
@@ -563,7 +702,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
-                  { Key: 'EphemeralRunnerFinished', Value: '113' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
                 ],
               },
             ],
@@ -575,10 +714,10 @@ describe('tryReuseRunner', () => {
       expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
-        ephemeralRunnerFinished: 113,
+        ephemeralRunnerFinished: ephemeralRunnerFinished,
+        launchTime: launchTime,
         ghRunnerId: '1234',
         instanceId: 'i-0113',
-        launchTime: new Date('2020-10-10T14:48:00.000+09:00'),
         repo: 'jeanschmidt/regularizationTheory',
       });
 
@@ -624,12 +763,16 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
               {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
+                LaunchTime: launchTime,
                 InstanceId: 'i-0113',
                 Placement: {
                   AvailabilityZone: 'us-east-1a',
@@ -638,7 +781,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
-                  { Key: 'EphemeralRunnerFinished', Value: '113' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
                 ],
               },
             ],
@@ -743,12 +886,16 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
               {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
+                LaunchTime: launchTime,
                 InstanceId: 'i-0113',
                 Placement: {
                   AvailabilityZone: 'us-east-1a',
@@ -757,7 +904,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
-                  { Key: 'EphemeralRunnerFinished', Value: '113' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
                 ],
               },
             ],
@@ -769,10 +916,10 @@ describe('tryReuseRunner', () => {
       expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
-        ephemeralRunnerFinished: 113,
+        ephemeralRunnerFinished: ephemeralRunnerFinished,
         ghRunnerId: '1234',
         instanceId: 'i-0113',
-        launchTime: new Date('2020-10-10T14:48:00.000+09:00'),
+        launchTime: launchTime,
         repo: 'jeanschmidt/regularizationTheory',
       });
 
@@ -818,12 +965,16 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
               {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
+                LaunchTime: launchTime,
                 InstanceId: 'i-0113',
                 Placement: {
                   AvailabilityZone: 'us-east-1a',
@@ -832,7 +983,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
-                  { Key: 'EphemeralRunnerFinished', Value: '113' },
+                  { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
                 ],
               },
             ],
@@ -902,6 +1053,7 @@ describe('createRunner', () => {
         return ['vpc-agdgaduwg113'];
       }),
       environment: 'gi-ci',
+      minimumRunningTimeInMinutes: 45,
     };
     const mockDescribeInstances = { promise: jest.fn() };
 
@@ -1274,6 +1426,7 @@ describe('createRunner', () => {
         return Array.from(regionToVpc.get(awsRegion) ?? []);
       }),
       environment: 'gi-ci',
+      minimumRunningTimeInMinutes: 45,
     };
     const runInstanceSuccess = {
       Instances: [

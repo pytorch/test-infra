@@ -305,7 +305,7 @@ function GroupFilterableHudTable({
 }) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const headerNames = groupNames;
-  const [mergeLF, setMergeLF] = useContext(MergeLFContext);
+  const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
   return (
     <>
       <div style={{ position: "relative", clear: "both" }}>
@@ -333,10 +333,10 @@ function GroupFilterableHudTable({
             labelText={"Hide green columns"}
           />
           <CheckBoxSelector
-            value={mergeLF}
-            setValue={setMergeLF}
-            checkBoxName="mergeLF"
-            labelText={"Condense LF jobs"}
+            value={mergeEphemeralLF}
+            setValue={setMergeEphemeralLF}
+            checkBoxName="mergeEphemeralLF"
+            labelText={"Condense LF, ephemeral jobs"}
           />
           <MonsterFailuresCheckbox />
         </div>
@@ -442,8 +442,11 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
 
 export default function Hud() {
   const router = useRouter();
-  const [mergeLF, setMergeLF] = usePreference("mergeLF");
-  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
+  const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  const params = packHudParams({
+    ...router.query,
+    mergeEphemeralLF: mergeEphemeralLF,
+  });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -487,7 +490,9 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          <MergeLFContext.Provider value={[mergeLF, setMergeLF]}>
+          <MergeLFContext.Provider
+            value={[mergeEphemeralLF, setMergeEphemeralLF]}
+          >
             {params.branch !== undefined && (
               <div onClick={handleClick}>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>

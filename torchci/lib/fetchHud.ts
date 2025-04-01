@@ -98,7 +98,7 @@ export default async function fetchHud(
       jobsBySha[job.sha!] = {};
     }
     let key = job.name!;
-    if (params.mergeLF) {
+    if (params.mergeEphemeralLF) {
       key = getNameWithoutLF(key);
     }
 

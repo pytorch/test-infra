@@ -3,7 +3,7 @@ import { UtilizationPage } from "components/utilization/UtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { UtilizationAPIResponse } from "lib/utilization/types";
 import { useRouter } from "next/router";
-import useSWRImmutable from "swr";
+import useSWRImmutable from "swr/immutable";
 
 const Utilization = () => {
   const router = useRouter();

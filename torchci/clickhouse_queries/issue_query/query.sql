@@ -6,9 +6,8 @@ SELECT
     issue.body,
     issue.updated_at,
     issue.author_association,
-    arrayMap(x -> x.'name', issue.labels) as labels
+    arrayMap(x -> x.'name', issue.labels) AS labels
 FROM
-    default.issues AS issue final
-    array join issue.labels AS label
+    default.issues AS issue FINAL
 WHERE
-    label.name = {label: String}
+    arrayExists(x -> x.'name' = {label: String}, issue.labels)

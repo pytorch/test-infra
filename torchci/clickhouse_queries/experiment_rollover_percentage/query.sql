@@ -4,7 +4,7 @@ WITH
             l AS label,
             extract(j.name, '[^,]*') AS job_name, -- Remove shard number and label from job names
             j.workflow_name,
-            toStartOfInterval(j.started_at, INTERVAL 1 HOUR) AS bucket
+            toStartOfInterval(j.created_at, INTERVAL 1 HOUR) AS bucket
         FROM
             -- Deliberatly not adding FINAL to this workflow_job.
             -- Risks of not using it:
@@ -32,7 +32,7 @@ WITH
         FROM
             normalized_jobs AS j
         WHERE
-            j.label LIKE concat('%.', {experiment_name: String}, '.%')
+            match(j.label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+'))
     ),
     comparable_jobs AS (
         SELECT
@@ -48,39 +48,37 @@ WITH
     ),
     success_stats AS (
         SELECT
-            bucket,
             count(*) AS group_size,
-            job_name,
-            workflow_name,
-            label,
-            if(like(label, concat('%.', {experiment_name: String}, '.%')), True, False) AS is_ephemeral_exp
+            bucket,
+            replaceOne(replaceOne(label, 'lf.', ''), concat({experiment_name: String}, '.'), '') AS label_ref,
+            if(match(label, concat('(?-s)(lf.)?([[:alnum:]]\\.)*?', {experiment_name: String}, '(\\..)+')), True, False) AS is_experiment
         FROM
             comparable_jobs
         GROUP BY
-            bucket, job_name, workflow_name, label
+            bucket, label_ref, is_experiment
     ),
     comparison_stats AS (
         SELECT
             experiment.bucket,
-            SUM(experiment.group_size + m.group_size) AS total_jobs,
-            SUM(m.group_size) AS compliment_jobs,
-            SUM(experiment.group_size) AS counted_jobs,
-            m.is_ephemeral_exp AS c_fleet,
-            experiment.is_ephemeral_exp AS m_fleet,
             CAST(SUM(experiment.group_size) AS Float32) / SUM(experiment.group_size + m.group_size) * 100 AS percentage,
-            IF(experiment.is_ephemeral_exp, 'On experiment', 'Not on experiment') AS fleet
+            IF(experiment.is_experiment, 'On experiment', 'Not on experiment') AS fleet
         FROM
             success_stats AS experiment
-        INNER JOIN
-            success_stats AS m ON experiment.bucket = m.bucket
+        FULL OUTER JOIN
+            success_stats AS m
+        ON
+            experiment.label_ref = m.label_ref
+            AND experiment.bucket = m.bucket
         WHERE
-            experiment.job_name = m.job_name
-            AND experiment.workflow_name = m.workflow_name
-            AND experiment.is_ephemeral_exp = 1 AND m.is_ephemeral_exp = 0
-            AND experiment.group_size > 3
-            AND m.group_size > 3
+            experiment.is_experiment = 1 AND m.is_experiment = 0
         GROUP BY
-            experiment.bucket, experiment.is_ephemeral_exp, m.is_ephemeral_exp
+            experiment.bucket, experiment.is_experiment, m.is_experiment
     )
-SELECT * FROM comparison_stats
-ORDER BY  bucket DESC, fleet
+SELECT
+    bucket,
+    fleet,
+    avg(percentage) OVER (ORDER BY bucket DESC ROWS BETWEEN 5 PRECEDING AND CURRENT ROW) AS percentage
+FROM
+    comparison_stats
+ORDER BY
+    bucket DESC

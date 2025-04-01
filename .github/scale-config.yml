@@ -121,6 +121,14 @@ runner_types:
     variants:
       ephemeral:
         is_ephemeral: true
+  linux.4xlarge.for.testing.donotuse:
+    disk_size: 150
+    instance_type: c5.4xlarge
+    is_ephemeral: false
+    os: linux
+    variants:
+      ephemeral:
+        is_ephemeral: true
   linux.4xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.4xlarge
