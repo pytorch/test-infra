@@ -4,7 +4,7 @@ WITH
             l AS label,
             extract(j.name, '[^,]*') AS job_name, -- Remove shard number and label from job names
             j.workflow_name,
-            toStartOfInterval(j.started_at, INTERVAL 1 HOUR) AS bucket
+            toStartOfInterval(j.created_at, INTERVAL 1 HOUR) AS bucket
         FROM
             -- Deliberatly not adding FINAL to this workflow_job.
             -- Risks of not using it:
@@ -19,7 +19,7 @@ WITH
             workflow_job AS j
             ARRAY JOIN j.labels as l
         WHERE
-            j.started_at > now() - INTERVAL {days_ago: Int64} DAY
+            j.created_at > now() - INTERVAL {days_ago: Int64} DAY
             AND j.status = 'completed'
             AND l != 'self-hosted'
             AND l NOT LIKE 'lf.c.%'
