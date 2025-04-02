@@ -1,4 +1,4 @@
-import { getParser, getInputArgs } from "../lib/bot/cliParser";
+import { getParser } from "../lib/bot/cliParser";
 
 describe("CLI Parser", () => {
   describe("cherry-pick command", () => {
@@ -9,7 +9,7 @@ describe("CLI Parser", () => {
         "--onto",
         "release/2.1",
         "-c",
-        "regression"
+        "regression",
       ]);
 
       expect(args.command).toBe("cherry-pick");
@@ -24,7 +24,7 @@ describe("CLI Parser", () => {
         "--into",
         "release/2.1",
         "-c",
-        "regression"
+        "regression",
       ]);
 
       expect(args.command).toBe("cherry-pick");
