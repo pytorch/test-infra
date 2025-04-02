@@ -61,6 +61,9 @@
   --color-pending: #ffc107;
   --color-flaky: #8bc34a;
   --color-classified: lightpink;
+
+  /* Scroll to highlight */
+  --scroll-highlight-bg: lightyellow;
 }
 
 .dark-mode {
@@ -116,6 +119,9 @@
   --tooltip-bg: #3a3a3a;
   --tooltip-pinned-bg: #1e4555;
   --tooltip-text: #e0e0e0;
+
+  /* Scroll to highlight */
+  --scroll-highlight-bg: rgba(0, 22, 74, 0.7);
 }
 
 html {
