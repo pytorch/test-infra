@@ -12,22 +12,24 @@ import botocore
 
 PLATFORMS = [
     "manylinux1_x86_64",
-    "manylinux2014_aarch64",
+    "manylinux_2_28_aarch64",
     "win_amd64",
     "macosx_11_0_arm64",
 ]
-PYTHON_VERSIONS = ["cp38", "cp39", "cp310", "cp311", "cp312"]
+PYTHON_VERSIONS = ["cp39", "cp310", "cp311", "cp312", "cp313"]
 S3_PYPI_STAGING = "pytorch-backup"
 PACKAGE_RELEASES = {
-    "torch": "2.3.1",
-    "torchvision": "0.18.1",
-    "torchaudio": "2.3.1",
-    "torchtext": "0.18.0",
-    "executorch": "0.2.1",
+    "torch": "2.6.0",
+    "torchvision": "0.21.0",
+    "torchaudio": "2.6.0",
+    # "torchtext": "0.18.0",
+    # "executorch": "0.2.1",
 }
 
 PATTERN_V = "Version:"
 PATTERN_RD = "Requires-Dist:"
+PATTERN_PYTHON = "Requires-Python:"
+PATTERN_PROGRAMMING = "Classifier: Programming Language :: Python ::"
 
 s3 = boto3.client("s3")
 
@@ -104,7 +106,11 @@ def validate_file_metadata(build: str, package: str, version: str):
                     f"FAILURE VERSION DOES NOT MATCH expected {version} got {exttracted_version}"
                 )
 
-        elif line.startswith(PATTERN_RD):
+        elif (
+            line.startswith(PATTERN_RD)
+            or line.startswith(PATTERN_PYTHON)
+            or line.startswith(PATTERN_PROGRAMMING)
+        ):
             print(f"{line}", end="")
 
     shutil.rmtree(temp_dir)

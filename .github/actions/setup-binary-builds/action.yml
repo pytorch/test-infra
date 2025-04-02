@@ -144,12 +144,16 @@ runs:
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
-            if [[ "$(uname)" != Darwin ]]; then
-              # Pin conda and conda-libmamba-solver for 3.13t linux build
-              # this solver allows us to install anaconda dependencies on
-              # python-freethreading on conda-forge environment
-              conda install conda==24.7.1 conda-libmamba-solver=24.1.0
+
+            # downgrade conda version for python 3.13t install.
+            # TODO: remove this once python 3.13t is fully suported on conda
+            # Please see : https://github.com/conda/conda/issues/14554
+            if [[ "$(uname)" == Darwin ]]; then
+              # required to be able to downgrade on MacOS m1 side
+              conda install -y python=3.9
+              conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
             fi
+            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           conda create \
