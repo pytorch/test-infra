@@ -128,7 +128,7 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("add ci-no-td label when PR title contains Reland", async () => {
+  test("add ci-no-td label when PR title contains Revert", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
