@@ -8,8 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from torchci.clickhouse import query_clickhouse
-from torchci.github_analyze import GitCommit, GitRepo  # type: ignore[import]
-
+from analytics.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 # Should match the contents produced by trymerge on revert
 RE_REVERT_COMMIT_BODY = r"Reverted .* on behalf of .* due to .* \(\[comment\]\((.*)\)\)"
