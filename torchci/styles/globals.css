@@ -121,7 +121,7 @@
   --tooltip-text: #e0e0e0;
 
   /* Scroll to highlight */
-  --scroll-highlight-bg: rgba(0, 22, 74, 0.7);
+  --scroll-highlight-bg: lightyellow;
 }
 
 html {
