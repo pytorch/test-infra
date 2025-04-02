@@ -63,7 +63,7 @@
   --color-classified: lightpink;
 
   /* Scroll to highlight */
-  --scroll-highlight-bg: lightyellow;
+  --scroll-highlight-bg: rgba(255, 255, 0, 0.3);
 }
 
 .dark-mode {
@@ -121,7 +121,7 @@
   --tooltip-text: #e0e0e0;
 
   /* Scroll to highlight */
-  --scroll-highlight-bg: #000000;
+  --scroll-highlight-bg: rgba(0, 22, 74, 0.7);
 }
 
 html {
