@@ -52,10 +52,9 @@ def main():
         try:
             location = s3.get_bucket_location(Bucket=bucket)
             region = location.get("LocationConstraint")
-            # # If None, assume it's in us-east-1
-            # region = region if region else 'us-east-1'
         except Exception as e:
             print(f"   ⚠️ Error getting region for {bucket}: {str(e)}")
+            # Assume it's in us-east-1
             region = "us-east-1"
 
         # Create CloudWatch client for the bucket's region
