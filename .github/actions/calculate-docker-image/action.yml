@@ -64,7 +64,7 @@ runs:
         # If the docker build directory or the build script doesn't exist, the action will
         # gracefully return the docker image name as it is.  Pulling docker image in Linux
         # job could then download the pre-built image as usual
-        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_SCRIPT_DIR}/${DOCKER_BUILD_SCRIPT}" ]]; then
+        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_BUILD_DIR}/${DOCKER_BUILD_SCRIPT}" ]]; then
           echo "skip=true" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
 
