@@ -4,7 +4,7 @@ WITH
             l AS label,
             extract(j.name, '[^,]*') AS job_name, -- Remove shard number and label from job names
             j.workflow_name,
-            toStartOfInterval(j.started_at, INTERVAL 1 HOUR) AS bucket
+            toStartOfInterval(j.created_at, INTERVAL 1 HOUR) AS bucket
         FROM
             -- Deliberatly not adding FINAL to this workflow_job.
             -- Risks of not using it:
@@ -32,16 +32,13 @@ WITH
         FROM
             normalized_jobs AS j
         WHERE
-            j.label LIKE 'lf%'
+            j.label LIKE 'lf.%'
     ),
-    -- filter jobs down to the ones that ran in both
-    -- LF and Meta fleets
     comparable_jobs AS (
         SELECT
             j.bucket,
             j.label,
             j.job_name,
-            -- Remove shard number and label from job names
             j.workflow_name
         FROM
             normalized_jobs AS j
@@ -50,42 +47,53 @@ WITH
     ),
     success_stats AS (
         SELECT
-            bucket,
             count(*) AS group_size,
-            job_name,
-            workflow_name,
-            label,
+            bucket,
+            replaceOne(label, 'lf.', '') AS label_ref,
             if(substring(label, 1, 3) = 'lf.', True, False) AS lf_fleet
         FROM
             comparable_jobs
         GROUP BY
-            bucket, job_name, workflow_name, label
+            bucket, label_ref, lf_fleet
+    ),
+    lf_success_stats AS (
+        SELECT
+            *
+        FROM
+            success_stats
+        WHERE
+            lf_fleet = True
+    ),
+    meta_success_stats AS (
+        SELECT
+            *
+        FROM
+            success_stats
+        WHERE
+            lf_fleet = False
     ),
     comparison_stats AS (
         SELECT
-            lf.bucket,
-            SUM(lf.group_size + m.group_size) AS total_jobs,
-            SUM(m.group_size) AS compliment_jobs,
-            SUM(lf.group_size) AS counted_jobs,
-            m.lf_fleet AS c_fleet,
-            lf.lf_fleet AS m_fleet,
+            -- *
+            greatest(lf.bucket, m.bucket) AS bucket,
             CAST(SUM(lf.group_size) AS Float32) / SUM(lf.group_size + m.group_size) * 100 AS percentage,
-            IF(lf.lf_fleet, 'Linux Foundation', 'Meta') AS fleet
+            -- IF(lf.lf_fleet, 'Linux Foundation', 'Meta') AS fleet
+            'Linux Fundation' AS fleet
         FROM
-            success_stats AS lf
-        INNER JOIN
-            success_stats AS m ON lf.bucket = m.bucket
-        WHERE
-            lf.job_name = m.job_name
-            AND lf.workflow_name = m.workflow_name
-            AND (
-                (lf.lf_fleet = 1 AND m.lf_fleet = 0)
-                OR (lf.lf_fleet = 0 AND m.lf_fleet = 1)
-            )
-            AND lf.group_size > 3
-            AND m.group_size > 3
+            lf_success_stats AS lf
+        FULL OUTER JOIN
+            meta_success_stats AS m
+        ON
+            lf.label_ref = m.label_ref
+            AND lf.bucket = m.bucket
         GROUP BY
-            lf.bucket, lf.lf_fleet, m.lf_fleet
+            bucket
     )
-SELECT * FROM comparison_stats
-ORDER BY  bucket DESC, fleet
+SELECT
+    bucket,
+    fleet,
+    avg(percentage) OVER (ORDER BY bucket DESC ROWS BETWEEN 5 PRECEDING AND CURRENT ROW) AS percentage
+FROM
+    comparison_stats
+ORDER BY
+    bucket DESC
