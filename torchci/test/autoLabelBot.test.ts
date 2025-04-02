@@ -128,6 +128,30 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
+  test("add ci-no-td label when PR title contains Revert", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Failed test [Revert]";
+    payload["pull_request"]["labels"] = [];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200)
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["ci-no-td"] });
+        return true;
+      })
+      .reply(200);
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
   test("add ci-no-td label when PR title contains mixed cases reLanD", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
