@@ -377,14 +377,13 @@ def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory
 
 class QueueTimeProcessor:
     """
-    this class used to form the histogram queue time data:
-      1. fetch jobs in queue from source table for the given time range
-      2. generate histogram data per job name
-      3. assign runner label based on machine type
+    generating histogram data for queue times. It performs the following tasks:
+        1. Retrieves jobs from the source table within a specified time range.
+        2. Generates histogram data categorized by job name.
+        3. Assigns runner labels to each histogram data based on machine type.
 
     To run the main method:
-       processor = QueueTimeProcessor(clickhouse_client,s3_client)
-       processor.process()
+       processor = QueueTimeProcessor(clickhouse_client,s3_client).process()
     """
 
     def __init__(
@@ -407,7 +406,10 @@ class QueueTimeProcessor:
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
         # fetches queued jobs at given time interval from db
-        queued_jobs = self._get_queueing_jobs(start_time, end_time, repo)
+        queued_jobs = self._fetch_snapshot_from_db(start_time, end_time, repo)
+
+        if len(queued_jobs) == 0:
+            info(f" No jobs in queue in time range: [{start_time},{end_time}]")
 
         # add runner labels to each job based on machine type
         self._add_runner_labels(
@@ -418,8 +420,8 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         )
         return {
-            "start_time": start_time.timestamp(),
-            "end_time": end_time.timestamp(),
+            "start_time": int(start_time.timestamp()),
+            "end_time": int(end_time.timestamp()),
             "queued_jobs": queued_jobs,
         }
 
@@ -430,21 +432,24 @@ class QueueTimeProcessor:
         repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
         """
-        fetches queued jobs at given time range from source table workflow_job:
+        fetches queued jobs at given time range (start_time, end_time) from source table workflow_job:
+
             1. fetches jobs that are currently in queue but not being picked up by workers
             2. fetches jobs that were in queue but were picked up by workers later of given end_time
             3. fetches jobs that were in-queue but completed WITHIN given time range [start_time, end_time]
         """
-
         # clickhouse does not accept iso format, using timestamp instead
         start_timestamp = str(int(start_time.timestamp()))
         end_timestamp = str(int(end_time.timestamp()))
 
         info(
-            f" [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]: fetching jobs in queue ...."
+            f" [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]: Start to fetch queued jobs in default.workflow_run ...."
         )
 
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
+        info(
+            f" [Snapshot:{end_timestamp}]Start to fetch jobs with `queued` status in default.workflow_run ...."
+        )
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         jobs_in_queue = self._query_in_queue_jobs(
             queued_query["query"], queued_query["parameters"], ["queued"]
@@ -452,12 +457,18 @@ class QueueTimeProcessor:
 
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
+        info(
+            f" [Snapshot:{end_timestamp}] start to fetch jobs with `completed` status but was in `queue` in default.workflow_run ...."
+        )
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         jobs_pick = self._query_in_queue_jobs(
             picked_query["query"], picked_query["parameters"], ["queued"]
         )
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
+        info(
+            f" [Snapshot:{end_timestamp}]start to fetch jobs was in queueu and `completed` in [star_time, end_time] ...."
+        )
         completed_within_dates_sql = self.get_query_statement_for_completed_jobs(
             start_timestamp, end_timestamp, repo
         )
@@ -468,7 +479,7 @@ class QueueTimeProcessor:
         )
 
         info(
-            f" [Snapshot time:{start_time.isoformat()}].Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within given time range"
+            f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within given time range"
         )
         result = jobs_in_queue + jobs_pick + job_completed_within_dates
 
@@ -506,24 +517,6 @@ class QueueTimeProcessor:
                 if job["machine_type"] in runner_labels[tag]:
                     job_labels.append(tag)
             job["runner_labels"] = job_labels
-
-    def _get_queueing_jobs(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        repo: str = "pytorch/pytorch",
-    ) -> List[Dict[str, Any]]:
-        """
-        this method is used to fetch jobs that were in queue in given snapshot time
-        """
-
-        # fetches queued jobs at given time interval from db
-        snapshot = self._fetch_snapshot_from_db(start_time, end_time, repo)
-
-        if len(snapshot) == 0:
-            info(f"No jobs in queue at time: {end_time}")
-            return []
-        return snapshot
 
     def _query_in_queue_jobs(
         self, queryStr: str, parameters: Any, tags: List[str] = []
@@ -720,10 +713,11 @@ class QueueTimeProcessor:
 
 class WorkerPoolHandler:
     """
-    WorkerPoolHandler: runs workers in parallet to generate queue time histogram, and writes to target destination.
-       1. generate histgram data to process intervals using threadpool
-       2. collect all results for intervals from threadpool
-       3. write all valid results to target destination (s3 bucket)
+    WorkerPoolHandler runs workers in parallel to generate queue time histograms and writes the results to the target destination.
+    It performs the following tasks:
+     1. Uses a thread pool to generate histogram data for specified intervals.
+     2. Collects the results for all intervals from the thread pool.
+     3. Writes all valid results to the target destination (e.g., an S3 bucket).
     """
 
     def __init__(
@@ -746,7 +740,13 @@ class WorkerPoolHandler:
         self.local_output = local_output and is_dry_run
 
     def start(self, time_intervals: List[List[datetime]]) -> None:
-        info(" start to process queue time data...")
+        info(
+            f" start to process queue time data with {len(time_intervals)} jobs and {self.max_workers} max num of workers..."
+        )
+
+        if len(time_intervals) == 0:
+            info(" no time intervals to process, exiting...")
+            return
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
@@ -787,6 +787,8 @@ class WorkerPoolHandler:
             for snapshot in results:
                 time = datetime.fromtimestamp(snapshot["end_time"])
                 self.output_snapshot(snapshot["queued_jobs"], time)
+            info(f" done. Write results to terminal/local file .")
+            return
 
         # TODO(elainewy): writing result to s3
         info(f" writing results to s3 bucket...")
@@ -816,50 +818,12 @@ class WorkerPoolHandler:
         # otherwise, print to terminal
         if len(snapshot) > 10:
             info(
-                f"[Dry Run Mode]:[{time.isoformat()}]found {len(snapshot)} records, print first 2 in terminal. for full result, use local-output option"
+                f" [Dry Run Mode]:[{time.isoformat()}]found {len(snapshot)} records, print first 2 in terminal. for full result, use local-output option"
             )
             info(json.dumps(snapshot[:2], indent=4))
         else:
-            info(f"[Dry Run Mode]: found {len(snapshot)} records, print in terminal")
+            info(f" [Dry Run Mode]: found {len(snapshot)} records, print in terminal")
             info(json.dumps(snapshot, indent=4))
-
-
-def get_latest_queue_time_histogram_table(
-    cc: clickhouse_connect.driver.client.Client,
-) -> str:
-    query = """
-    SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
-    """
-    info("Getting last queue time from misc.oss_ci_queue_time_histogram....")
-    res = cc.query(query, {})
-
-    if res.row_count != 1:
-        raise ValueError(
-            f" [get_latest_queue_time_histogram_table] Expected 1 row, got {res.row_count}"
-        )
-    if len(res.column_names) != 1:
-        raise ValueError(
-            f" [get_latest_queue_time_histogram_table] Expected 1 column, got {str(len(res.column_names))}"
-        )
-    return res.result_rows[0][0]
-
-
-def get_latest_time_workflow_job_table(clickhouse_client) -> str:
-    query = """
-    SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
-    """
-    res = clickhouse_client.query(query, {})
-
-    if res.row_count != 1:
-        raise ValueError(
-            f" [get_latest_time_workflow_job_table] Expected 1 row, got {res.row_count}"
-        )
-    if len(res.column_names) != 1:
-        raise ValueError(
-            f" [get_latest_time_workflow_job_table] Expected 1 column, got {str(len(res.column_names))}"
-        )
-
-    return res.result_rows[0][0]
 
 
 class TimeIntervalGenerator:
@@ -870,24 +834,24 @@ class TimeIntervalGenerator:
         currently the interval gap is 30 minutes. It is a necessary step since the data ingested into source table can be delayed
         for the time range we want to calculate, due to the nature of github data pipeline.
     Example:
-    source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
-    source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
-    source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
+       source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
+       source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
+       source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
     """
 
     def __init__(self):
         pass
 
     def generate(self, clickhouse_client: Any):
+        info(" start to generate time intervals...")
         utc_now = datetime.now(timezone.utc)
-        info(f"current time (UTC) is{utc_now.isoformat}")
+        info(f" Current time (UTC) is{utc_now}")
 
         # get latest time from histogram table, and find the previous half-hour time stamp
-        # 8:45am -> 8:30am, 11:15pm -> 11:00pm
-        lastest_time_histogram = get_latest_queue_time_histogram_table(
+        # Ex: 8:45am -> 8:30am, 11:15pm -> 11:00pm
+        lastest_time_histogram = self.get_latest_queue_time_histogram_table(
             clickhouse_client
         )
-
         lastest_time_histogram_dt = self._to_date_time(
             lastest_time_histogram, timezone=timezone.utc
         )
@@ -898,10 +862,11 @@ class TimeIntervalGenerator:
             f"  done parse lastest time from histogram table: {lastest_time_histogram} (UTC format:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
         )
 
-        lastest_time_workflow_job = get_latest_time_workflow_job_table(
+        lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
             clickhouse_client
         )
 
+        # get latest time from workflow_job table, and find the previous half-hour time stamp
         lastest_time_workflow_job_dt = self._to_date_time(lastest_time_workflow_job)
         new_src_dt = self._round_down_to_previous_half_hour(
             lastest_time_workflow_job_dt
@@ -909,10 +874,13 @@ class TimeIntervalGenerator:
         info(
             f"  done parse lastest time from workflow_job table: {lastest_time_workflow_job}, (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
         )
+
+        # generate intervals between exist_target_dt and new_src_dt
         intervals = self._generate_half_hour_intervals(exist_target_dt, new_src_dt)
 
+        # TODO(elainewy): add logic to investigate if any interval already existed in db, skip.
         info(
-            f"  generates {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
+            f"  done. {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
         )
         return intervals
 
@@ -964,7 +932,7 @@ class TimeIntervalGenerator:
         num_of_half_hours = int((end_time - start_time).total_seconds() / 1800)
         if num_of_half_hours > maximum_intervals:
             raise ValueError(
-                f"num_of_half_hours {num_of_half_hours} is greater than maximum_intervals {maximum_intervals}, investigation is needed and run generator manually"
+                f" the intervals with length {num_of_half_hours} is greater than maximum_intervals {maximum_intervals}, investigation is needed and run generator manually"
             )
 
         return [
@@ -976,9 +944,8 @@ class TimeIntervalGenerator:
         ]
 
     def _is_unix_epoch(self, dt: datetime):
-        return (
-            int(dt.timestamp()) == 0
-        )  # Compare against Unix epoch (1970-01-01 00:00:00 UTC)
+        # Compare against Unix epoch (1970-01-01 00:00:00 UTC)
+        return int(dt.timestamp()) == 0
 
     def _round_down_to_half_hour(self, dt):
         # If minutes are less than 30, set them to 0; if greater or equal, set to 30
@@ -993,6 +960,44 @@ class TimeIntervalGenerator:
         else:
             # Round down to the half-hour (00:30:00, 01:30:00, etc.)
             return dt.replace(minute=30, second=0, microsecond=0)
+
+    def get_latest_queue_time_histogram_table(
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+    ) -> str:
+        query = """
+        SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
+        """
+        info(" Getting last queue time from misc.oss_ci_queue_time_histogram....")
+        res = cc.query(query, {})
+
+        if res.row_count != 1:
+            raise ValueError(
+                f" [get_latest_queue_time_histogram_table] Expected 1 row, got {res.row_count}"
+            )
+        if len(res.column_names) != 1:
+            raise ValueError(
+                f" [get_latest_queue_time_histogram_table] Expected 1 column, got {str(len(res.column_names))}"
+            )
+        return res.result_rows[0][0]
+
+    def get_latest_time_workflow_job_table(self, clickhouse_client) -> str:
+        info(" Getting last queue time from default.workflow_job...")
+        query = """
+        SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
+        """
+        res = clickhouse_client.query(query, {})
+
+        if res.row_count != 1:
+            raise ValueError(
+                f" [get_latest_time_workflow_job_table] Expected 1 row, got {res.row_count}"
+            )
+        if len(res.column_names) != 1:
+            raise ValueError(
+                f" [get_latest_time_workflow_job_table] Expected 1 column, got {str(len(res.column_names))}"
+            )
+
+        return res.result_rows[0][0]
 
 
 def main(
@@ -1013,6 +1018,7 @@ def main(
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
 
     # gets config retrievers, this is used to generate runner labels for histgram
+
     config_retrievers = get_config_retrievers(github_access_token)
     queue_time_processor = QueueTimeProcessor(
         clickhouse_client,
