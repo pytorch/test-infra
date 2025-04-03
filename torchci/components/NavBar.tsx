@@ -50,6 +50,10 @@ function NavBar() {
       href: "/torchbench/userbenchmark",
     },
     {
+      name: "Triton Compile",
+      href: "/tritonbench/compile_time",
+    },
+    {
       name: "PyTorch LLMs",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
     },
