@@ -22,7 +22,6 @@ from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
 from github import Github, Auth
 from dateutil.parser import parse
 
-unix_timestamp_0 = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 ENVS = {
     "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
@@ -63,6 +62,10 @@ def get_clickhouse_client_environment() -> Any:
         user=ENVS["CLICKHOUSE_USERNAME"],
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
+
+
+def toTimestampStr(time: datetime) -> str:
+    return str(int(time.timestamp()))
 
 
 def write_to_file(data: Any, filename="", path=""):
@@ -307,7 +310,7 @@ def create_runner_labels(
 
     if len(all_runners_configs.keys()) == 0:
         warning(
-            " No runners found in the github config files, something is wrong, please investigate."
+            " [method: create_runner_labels] No runners found in the github config files, something is wrong, please investigate."
         )
 
     for runner, runner_config in all_runners_configs.items():
@@ -420,8 +423,8 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         )
         return {
-            "start_time": int(start_time.timestamp()),
-            "end_time": int(end_time.timestamp()),
+            "start_time": toTimestampStr(start_time),
+            "end_time": toTimestampStr(end_time),
             "queued_jobs": queued_jobs,
         }
 
@@ -439,16 +442,20 @@ class QueueTimeProcessor:
             3. fetches jobs that were in-queue but completed WITHIN given time range [start_time, end_time]
         """
         # clickhouse does not accept iso format, using timestamp instead
-        start_timestamp = str(int(start_time.timestamp()))
-        end_timestamp = str(int(end_time.timestamp()))
+        start_timestamp = toTimestampStr(start_time)
+        end_timestamp = toTimestampStr(end_time)
 
         info(
-            f" [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]: Start to fetch queued jobs in default.workflow_run ...."
+            f" [Snapshot:{end_timestamp}] Logging interval info: [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]"
+        )
+
+        info(
+            f" [Snapshot:{end_timestamp}] Start to fetch queued jobs in default.workflow_run ...."
         )
 
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
         info(
-            f" [Snapshot:{end_timestamp}]Start to fetch jobs with `queued` status in default.workflow_run ...."
+            f" [Snapshot:{end_timestamp}] Start to fetch jobs with `queued` status in default.workflow_run ...."
         )
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         queued_jobs = self._query_in_queue_jobs(
@@ -458,7 +465,7 @@ class QueueTimeProcessor:
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
         info(
-            f" [Snapshot:{end_timestamp}] start to fetch jobs with `completed` status but was in `queue` in default.workflow_run ...."
+            f" [Snapshot:{end_timestamp}] Start to fetch jobs with `completed` status but was in `queue` in default.workflow_run ...."
         )
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         picked_jobs = self._query_in_queue_jobs(
@@ -467,7 +474,7 @@ class QueueTimeProcessor:
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
         info(
-            f" [Snapshot:{end_timestamp}]start to fetch jobs was in queueu and `completed` in [star_time, end_time] ...."
+            f" [Snapshot:{end_timestamp}] Start to fetch jobs was in queueu and `completed` in [star_time, end_time] ...."
         )
         completed_within_interval_sql = self.get_query_statement_for_completed_jobs(
             start_timestamp, end_timestamp, repo
@@ -479,7 +486,7 @@ class QueueTimeProcessor:
         )
 
         info(
-            f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(queued_jobs)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_interval)} jobs completed within given time range"
+            f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(queued_jobs)} jobs still has queued status, and {len(picked_jobs)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_interval)} jobs completed within given time range"
         )
         result = queued_jobs + picked_jobs + job_completed_within_interval
 
@@ -741,7 +748,7 @@ class WorkerPoolHandler:
 
     def start(self, time_intervals: List[List[datetime]]) -> None:
         info(
-            f" start to process queue time data with {len(time_intervals)} jobs and {self.max_workers} max num of workers..."
+            f" [WorkerPoolHandler] start to process queue time data with {len(time_intervals)} jobs and {self.max_workers} max num of workers..."
         )
 
         if len(time_intervals) == 0:
@@ -773,29 +780,33 @@ class WorkerPoolHandler:
                 warning(f"Error processing future: {e}")
                 errors.append({"error": str(e)})
         info(
-            f" done. total works: {len(time_intervals)}, success: {len(results)}, failure:{len(errors)}"
+            f" [WorkerPoolHandler] done. total works: {len(time_intervals)}, success: {len(results)}, failure:{len(errors)}"
         )
 
         if len(errors) > 0:
             warning(
-                f" [Failure] Errors occurred while processing futures: {errors}, investigation is needed"
+                f" [Failure][WorkerPoolHandler] Errors occurred while processing futures: {errors}, investigation is needed"
             )
 
         # output results to local file or terminal for local test only
         if self.is_dry_run:
-            info(f" writing results to terminal/local file ...")
+            info(
+                f" [Dry Run Mode][WorkerPoolHandler] Writing results to terminal/local file ..."
+            )
             for snapshot in results:
-                time = datetime.fromtimestamp(snapshot["end_time"])
+                time = datetime.fromtimestamp(int(snapshot["end_time"]))
                 self.output_snapshot(snapshot["queued_jobs"], time)
-            info(f" done. Write results to terminal/local file .")
+            info(
+                f" [Dry Run Mode][WorkerPoolHandler] Done. Write results to terminal/local file ."
+            )
             return
 
         # TODO(elainewy): writing result to s3
-        info(f" writing results to s3 bucket...")
+        info(f" [WorkerPoolHandler] Writing results to s3 bucket...")
 
     def output_snapshot(
         self,
-        snapshot: List[Dict[str, Any]],
+        data: List[Dict[str, Any]],
         time: datetime,
     ) -> None:
         """
@@ -806,24 +817,26 @@ class WorkerPoolHandler:
         file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
         if self.local_output:
             info(
-                f"[Dry Run Mode]: found {len(snapshot)} records, outputing to file: {file_name_with_time}   "
+                f"[Dry Run Mode][Snapshot {toTimestampStr(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
             )
             write_to_file(
-                json.dumps(snapshot),
+                json.dumps(data),
                 file_name_with_time,
                 self.output_snapshot_file_path,
             )
             return
 
         # otherwise, print to terminal
-        if len(snapshot) > 10:
+        if len(data) > 10:
             info(
-                f" [Dry Run Mode]:[{time.isoformat()}]found {len(snapshot)} records, print first 2 in terminal. for full result, use local-output option"
+                f" [Dry Run Mode]:[{time.isoformat()}]found {len(data)} records, print first 2 in terminal. for full result, use local-output option"
             )
-            info(json.dumps(snapshot[:2], indent=4))
+            info(json.dumps(data[:2], indent=4))
         else:
-            info(f" [Dry Run Mode]: found {len(snapshot)} records, print in terminal")
-            info(json.dumps(snapshot, indent=4))
+            info(
+                f" [Dry Run Mode][Snapshot {toTimestampStr(time)}] Found {len(data)} records, print in terminal"
+            )
+            info(json.dumps(data, indent=4))
 
 
 class TimeIntervalGenerator:
@@ -859,7 +872,7 @@ class TimeIntervalGenerator:
             lastest_time_histogram_dt
         )
         info(
-            f"  done parse lastest time from histogram table: {lastest_time_histogram} (UTC format:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
+            f"  [TimeIntervalGenerator] Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC format:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
         )
 
         lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
@@ -872,7 +885,7 @@ class TimeIntervalGenerator:
             lastest_time_workflow_job_dt
         )
         info(
-            f"  done parse lastest time from workflow_job table: {lastest_time_workflow_job}, (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
+            f" [TimeIntervalGenerator] Done. parse lastest time from workflow_job table: {lastest_time_workflow_job}, (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
         )
 
         # generate intervals between exist_target_dt and new_src_dt
@@ -880,7 +893,7 @@ class TimeIntervalGenerator:
 
         # TODO(elainewy): add logic to investigate if any interval already existed in db, skip.
         info(
-            f"  done. {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
+            f"  [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
         )
         return intervals
 
@@ -1028,6 +1041,12 @@ def main(
 
     # get time intervals.
     time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
+
+    if len(time_intervals) == 0:
+        info(" [Main] No time intervals to process, exiting...")
+        return
+
+    info(f" [Main] initiating worker pool for {len(time_intervals)} intervals")
 
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
