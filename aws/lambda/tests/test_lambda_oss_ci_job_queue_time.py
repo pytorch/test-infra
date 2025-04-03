@@ -442,45 +442,10 @@ class TestTimeIntervalGenerator(unittest.TestCase):
                     )
 
 
-class TestQueueTimeProcessor(unittest.TestCase):
-    def setUp(self):
-        envs_patcher = patch(
-            "oss_ci_job_queue_time.lambda_function.ENVS",
-            new=get_default_environment_variables(),
-        )
-
-        # mock runner config method to return empty dict
-        runner_config_patch = patch(
-            "oss_ci_job_queue_time.lambda_function.get_runner_config"
-        )
-        self.mock_get_runner_config = runner_config_patch.start()
-        self.mock_get_runner_config.return_value = {"runner_types": {}}
-
-        # mock method get_config_retrievers
-        self.mock_get_config_retrievers = MagicMock()
-        self.mock_get_config_retrievers.return_value = {
-            "meta": MagicMock(),
-            "lf": MagicMock(),
-            "old_lf": MagicMock(),
-        }
-
-        self.mock_s3_resource = MagicMock()
-        self.mock_db_client = MagicMock()
-        self.mock_envs = envs_patcher.start()
-
-        # clean up for each test
-        self.addCleanup(runner_config_patch.stop)
-
+class TestQueueTimeProcessor(EnvironmentBaseTest):
     def test_queue_time_processor_when_happy_flow_then_success(self):
-        # prepare
-        mock_s3_resource_put(self.mock_s3_resource)
-        setup_mock_db_client(self.mock_db_client)
-
         # execute
-        processor = QueueTimeProcessor(
-            clickhouse_client=self.mock_db_client,
-            s3_client=self.mock_s3_resource,
-        )
+        processor = QueueTimeProcessor()
         processor.process(
             MagicMock(),
             MagicMock(),
@@ -491,26 +456,22 @@ class TestQueueTimeProcessor(unittest.TestCase):
 
         # assert
         # assert clickhouse client
-        self.mock_db_client.query.assert_called()  # Generic check
-        self.assertEqual(self.mock_db_client.query.call_count, 3)
+        self.mock_get_client.assert_called()  # Generic check
+        self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
 
         # assert s3 resource
         # TODO(elainewy): add called check when introduce histogram logic
         self.mock_s3_resource.Object.put.assert_not_called()
 
     def test_queue_time_processor_when_row_result_is_empty_then_success(self):
-        print("test_queue_time_processor_when_row_result_is_empty ")
         # prepare
         mock_s3_resource_put(self.mock_s3_resource)
 
         mq = MockQuery(rows_in_queue=[], rows_picked=[])
-        setup_mock_db_client(self.mock_db_client, mq)
+        setup_mock_db_client(self.mock_get_client, mq)
 
         # execute
-        processor = QueueTimeProcessor(
-            clickhouse_client=self.mock_db_client,
-            s3_client=self.mock_s3_resource,
-        )
+        processor = QueueTimeProcessor()
         processor.process(
             MagicMock(),
             MagicMock(),
@@ -520,8 +481,8 @@ class TestQueueTimeProcessor(unittest.TestCase):
         )
 
         # assert
-        self.mock_db_client.query.assert_called()  # Generic check
-        self.assertEqual(self.mock_db_client.query.call_count, 3)
+        self.mock_get_client.assert_called()  # Generic check
+        self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
 
         get_mock_s3_resource_object(
             self.mock_s3_resource
@@ -663,14 +624,8 @@ class TestLambdaHanlder(EnvironmentBaseTest):
 
         # assert
         # assert clickhouse client
-        self.mock_get_client.assert_called_once()
+        self.assertEqual(self.mock_get_client.call_count, 2)
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
-
-        # assert s3 resource
-        self.mock_s3_resource.assert_called_once()
-        get_mock_s3_resource_object(
-            self.mock_s3_resource
-        ).return_value.put.assert_not_called()
 
 
 class TestLocalRun(EnvironmentBaseTest):
@@ -686,14 +641,8 @@ class TestLocalRun(EnvironmentBaseTest):
 
         # assert
         # assert clickhouse client
-        self.mock_get_client.assert_called_once()
+        self.assertEqual(self.mock_get_client.call_count, 2)
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
-
-        # assert s3 resource
-        self.mock_s3_resource.assert_called_once()
-        get_mock_s3_resource_object(
-            self.mock_s3_resource
-        ).return_value.put.assert_not_called()
 
 
 # ------------------------ ENVIRONMENT UNIT TESTS END ----------------------------------

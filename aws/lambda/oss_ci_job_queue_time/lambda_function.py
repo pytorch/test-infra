@@ -397,17 +397,13 @@ class QueueTimeProcessor:
         3. Assign runner labels to each histogram data based on machine type.
 
     To run the main method:
-       processor = QueueTimeProcessor(clickhouse_client,s3_client).process()
+       processor = QueueTimeProcessor().process()
     """
 
     def __init__(
         self,
-        clickhouse_client: Any,
-        s3_client: Any,
         is_dry_run: bool = False,
     ) -> None:
-        self.clickhouse_client = clickhouse_client
-        self.s3_client = s3_client
         self.is_dry_run = is_dry_run
 
     def process(
@@ -417,10 +413,20 @@ class QueueTimeProcessor:
         meta_runner_config_retriever,
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
+        args: Optional[argparse.Namespace] = None,
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
+        if args:
+            cc = get_clickhouse_client(
+                args.clickhouse_endpoint,
+                args.clickhouse_username,
+                args.clickhouse_password,
+            )
+        else:
+            cc = get_clickhouse_client_environment()
+
         # fetches queued jobs at given time interval from db
-        queued_jobs = self._fetch_snapshot_from_db(start_time, end_time, repo)
+        queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
 
         if len(queued_jobs) == 0:
             info(f" No jobs in queue in time range: [{start_time},{end_time}]")
@@ -433,6 +439,7 @@ class QueueTimeProcessor:
             lf_runner_config_retriever,
             old_lf_lf_runner_config_retriever,
         )
+        # TODO(elainewy): change to histogramß
         return {
             "start_time": to_timestap_str(start_time),
             "end_time": to_timestap_str(end_time),
@@ -441,6 +448,7 @@ class QueueTimeProcessor:
 
     def _fetch_snapshot_from_db(
         self,
+        cc: clickhouse_connect.driver.client.Client,
         start_time: datetime,  # must be UTC
         end_time: datetime,  # must be UTC
         repo: str = "pytorch/pytorch",
@@ -470,7 +478,7 @@ class QueueTimeProcessor:
         )
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         queued_jobs = self._query_in_queue_jobs(
-            queued_query["query"], queued_query["parameters"], ["queued"]
+            cc, queued_query["query"], queued_query["parameters"], ["queued"]
         )
 
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
@@ -480,7 +488,7 @@ class QueueTimeProcessor:
         )
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         picked_jobs = self._query_in_queue_jobs(
-            picked_query["query"], picked_query["parameters"], ["queued"]
+            cc, picked_query["query"], picked_query["parameters"], ["queued"]
         )
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
@@ -491,6 +499,7 @@ class QueueTimeProcessor:
             start_timestamp, end_timestamp, repo
         )
         job_completed_within_interval = self._query_in_queue_jobs(
+            cc,
             completed_within_interval_sql["query"],
             completed_within_interval_sql["parameters"],
             ["completed"],
@@ -537,14 +546,18 @@ class QueueTimeProcessor:
             job["runner_labels"] = job_labels
 
     def _query_in_queue_jobs(
-        self, queryStr: str, parameters: Any, tags: List[str] = []
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+        queryStr: str,
+        parameters: Any,
+        tags: List[str] = [],
     ) -> list[dict[str, Any]]:
         """
         post query process to remove duplicated jobs
         this is bc clickhouse client returns duplicated jobs for some reason
         """
         seen = set()
-        db_resp = self._query(queryStr, parameters)
+        db_resp = self._query(cc, queryStr, parameters)
         result = []
         for record in db_resp:
             if record["html_url"] in seen:
@@ -555,8 +568,10 @@ class QueueTimeProcessor:
             result.append(record)
         return result
 
-    def _query(self, query, params={}) -> list[dict[str, Any]]:
-        reader = self.clickhouse_client.query(query, params)
+    def _query(
+        self, cc: clickhouse_connect.driver.client.Client, query, params={}
+    ) -> list[dict[str, Any]]:
+        reader = cc.query(query, params)
         # clickhouse returns a generator to return column names and rows
         # see https://clickhouse.com/docs/integrations/python#the-queryresult-object
         column_names = reader.column_names
@@ -757,15 +772,17 @@ class WorkerPoolHandler:
         self.output_snapshot_file_path = output_snapshot_file_path
         self.local_output = local_output and is_dry_run
 
-    def start(self, time_intervals: List[List[datetime]]) -> None:
+    def start(
+        self,
+        time_intervals: List[List[datetime]],
+        args: Optional[argparse.Namespace] = None,
+    ) -> None:
         info(
             f" [WorkerPoolHandler] start to process queue time data with {len(time_intervals)} jobs and {self.max_workers} max num of workers..."
         )
-
         if len(time_intervals) == 0:
             info(" no time intervals to process, exiting...")
             return
-
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
             for interval in time_intervals:
@@ -776,6 +793,7 @@ class WorkerPoolHandler:
                     self.retrievers["meta"],
                     self.retrievers["lf"],
                     self.retrievers["old_lf"],
+                    args=args,
                 )
                 futures.append(future)
 
@@ -1004,8 +1022,7 @@ class TimeIntervalGenerator:
 
 
 def main(
-    clickhouse_client: Any,
-    s3_client: Any,
+    args: Optional[argparse.Namespace] = None,
     github_access_token: str = "",
     is_dry_run: bool = False,
     local_output: bool = False,
@@ -1023,6 +1040,13 @@ def main(
     # gets config retrievers, this is used to generate runner labels for histgram
     info(f" [Main] generating time intervals ....")
 
+    if args:
+        clickhouse_client = get_clickhouse_client(
+            args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
+        )
+    else:
+        clickhouse_client = get_clickhouse_client_environment()
+
     # get time intervals.
     time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
 
@@ -1036,8 +1060,6 @@ def main(
 
     config_retrievers = get_config_retrievers(github_access_token)
     queue_time_processor = QueueTimeProcessor(
-        clickhouse_client,
-        s3_client,
         is_dry_run=is_dry_run,
     )
     # get jobs in queue from clickhouse for list of time intervals, in parallel
@@ -1049,7 +1071,7 @@ def main(
         output_snapshot_file_name=output_snapshot_file_name,
         output_snapshot_file_path=output_snapshot_file_path,
     )
-    handler.start(time_intervals)
+    handler.start(time_intervals, args)
     info(f" [Main] Done. work completed.")
 
 
@@ -1057,15 +1079,16 @@ def lambda_handler(event: Any, context: Any) -> None:
     """
     Main method to run in aws lambda environment
     """
-    db_client = get_clickhouse_client_environment()
-    s3_client = get_aws_s3_resource()
-    main(db_client, s3_client, github_access_token=ENVS["GITHUB_ACCESS_TOKEN"])
+    main(
+        None,
+        github_access_token=ENVS["GITHUB_ACCESS_TOKEN"],
+    )
     return
 
 
 def parse_args() -> argparse.Namespace:
     """
-    Parse command line arguments, this is mainly used for local test environment.
+    Parse command line args, this is mainly used for local test environment.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1123,28 +1146,20 @@ def local_run() -> None:
     method to run in local test environment
     """
 
-    arguments = parse_args()
+    args = parse_args()
 
     # update environment variables for input parameters
 
-    db_client = get_clickhouse_client(
-        host=arguments.clickhouse_endpoint,
-        user=arguments.clickhouse_username,
-        password=arguments.clickhouse_password,
-    )
-    s3_client = get_aws_s3_resource()
-
     # always run in dry-run mode in local environment, unless it's disabled.
-    is_dry_run = not arguments.not_dry_run
+    is_dry_run = not args.not_dry_run
 
     main(
-        db_client,
-        s3_client,
-        arguments.github_access_token,
+        args,
+        args.github_access_token,
         is_dry_run=is_dry_run,
-        local_output=arguments.local_output,
-        output_snapshot_file_name=arguments.output_file_name,
-        output_snapshot_file_path=arguments.output_file_path,
+        local_output=args.local_output,
+        output_snapshot_file_name=args.output_file_name,
+        output_snapshot_file_path=args.output_file_path,
     )
 
 
