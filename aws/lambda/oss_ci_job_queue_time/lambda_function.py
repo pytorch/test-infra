@@ -37,7 +37,9 @@ _bucket_name = "ossci-raw-job-status"
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -939,15 +941,12 @@ class TimeIntervalGenerator:
 
         if self._is_unix_epoch(start_time):
             # find closest :00 and :30 time from source table
-            single_end_time = self._round_down_to_half_hour(end_time)
             # then find previous half-hour closest to the end_time
-            single_start_time = self._round_down_to_half_hour(
-                single_end_time - timedelta(minutes=1)
-            )
+            generated_start_time = end_time - timedelta(minutes=30)
             info(
-                f"  [Initialization] start_time is unix timestamp 0. generating interval from workflow_job table: [{single_start_time.isoformat()}, {single_end_time.isoformat()}]"
+                f"  [Initialization] start_time is unix timestamp 0. Generating interval from workflow_job table: [{generated_start_time}, {end_time}]"
             )
-            return [[single_start_time, single_end_time]]
+            return [[generated_start_time, end_time]]
 
         num_of_half_hours = int((end_time - start_time).total_seconds() / 1800)
         if num_of_half_hours > maximum_intervals:
@@ -966,20 +965,6 @@ class TimeIntervalGenerator:
     def _is_unix_epoch(self, dt: datetime):
         # Compare against Unix epoch (1970-01-01 00:00:00 UTC)
         return int(dt.timestamp()) == 0
-
-    def _round_down_to_half_hour(self, dt):
-        # If minutes are less than 30, set them to 0; if greater or equal, set to 30
-        if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-            # Go back to 12:30 of the previous day
-            return (dt - timedelta(days=1)).replace(
-                hour=12, minute=30, second=0, microsecond=0
-            )
-        elif dt.minute < 30:
-            # Round down to the start of the hour (00:00:00, 01:00:00, etc.)
-            return dt.replace(minute=0, second=0, microsecond=0)
-        else:
-            # Round down to the half-hour (00:30:00, 01:30:00, etc.)
-            return dt.replace(minute=30, second=0, microsecond=0)
 
     def get_latest_queue_time_histogram_table(
         self,
