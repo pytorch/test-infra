@@ -401,6 +401,7 @@ class QueueTimeProcessor:
     To run the main method:
        processor = QueueTimeProcessor(clickhouse_client,s3_client).process()
     """
+
     def __init__(
         self,
         clickhouse_client: Any,
