@@ -1,0 +1,9 @@
+{
+    "params": {
+      "repo": "String",
+      "benchmark_name": "String",
+      "startTime": "DateTime64(3)",
+      "stopTime": "DateTime64(3)"
+    },
+    "tests": []
+  }
