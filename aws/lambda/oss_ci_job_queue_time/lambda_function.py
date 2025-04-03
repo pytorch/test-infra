@@ -843,13 +843,15 @@ class TimeIntervalGenerator:
     """
     TimeIntervalGenerator:
         calculates time intervals between the source table (workflow_job table) and the target table (histogram table).
-        It reads the latest time from both tables, and find the previous half-hour timestamp. if time gap exists, generate intervals.
-        currently the interval gap is 30 minutes. It is a necessary step since the data ingested into source table can be delayed
-        for the time range we want to calculate, due to the nature of github data pipeline.
-    Example:
-       source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
-       source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
-       source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
+        It retrieves the latest timestamps from both tables and determines the most recent half-hour mark.If a time gap
+        exists, it generates the necessary intervals. Currently, the interval length is set to 30 minutes.
+        This generator is essential because data ingestion into the source table can be delayed within the desired time range due
+        to the nature of the GitHub data pipeline.
+
+        Ex:
+        source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  output 2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
+        source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> output 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
+        source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> output 0 intervals: [] empty, since things are in sync at 10:30
     """
 
     def __init__(self):
@@ -1011,7 +1013,6 @@ class TimeIntervalGenerator:
             )
 
         return res.result_rows[0][0]
-
 
 def main(
     clickhouse_client: Any,
