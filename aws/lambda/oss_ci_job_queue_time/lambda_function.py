@@ -3,24 +3,22 @@ import argparse
 import io
 import json
 import logging
-from math import e
 import os
 import gzip
-import re
 import threading
 import yaml
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import boto3  # type: ignore[import]
 import clickhouse_connect
-from datetime import date, datetime, timezone, timedelta
 
 # Local imports
 from functools import lru_cache
 from logging import info, warning
-from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
+from typing import Any, Optional, Dict, Set, Iterable, List
 from github import Github, Auth
 from dateutil.parser import parse
+from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO)
 
