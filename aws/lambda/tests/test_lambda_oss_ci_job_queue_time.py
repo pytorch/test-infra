@@ -258,14 +258,16 @@ class EnvironmentBaseTest(unittest.TestCase):
 
 
 class TestTimeIntervalGenerator(unittest.TestCase):
-    def test_time_interval_generator_happy_flow(self):
+    def test_time_interval_generator_happy_flow_then_success(self):
         mock = MagicMock()
         setup_mock_db_client(mock, is_patch=False)
         time_interval_generator = TimeIntervalGenerator()
         time_interval_generator.generate(mock)
         self.assertEqual(mock.query.call_count, 2)
 
-    def test_time_interval_generator_empty_result_from_histogram_error(self):
+    def test_time_interval_generator_when_empty_result_from_histogram_then_throws_error(
+        self,
+    ):
         mock = MagicMock()
         mq = MockQuery(
             rows_max_historagram=[],
@@ -276,7 +278,9 @@ class TestTimeIntervalGenerator(unittest.TestCase):
             time_interval_generator.generate(mock)
         self.assertTrue("Expected 1 row, got 0" in str(context.exception))
 
-    def test_time_interval_generator_empty_result_from_workflow_job_error(self):
+    def test_time_interval_generator_when_empty_result_from_workflow_job_then_throws_error(
+        self,
+    ):
         mock = MagicMock()
         mq = MockQuery(
             rows_max_workflow_job=[],
@@ -347,7 +351,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
                     f"[{x[0]}] expected {x[3]} intervals, got {len(res)}",
                 )
 
-    def test_time_interval_generator(self):
+    def test_time_interval_generator_with_time_gap(self):
         # [ test description, start_time, end_time, expected_intervals, expected_error]
         test_cases = [
             (
@@ -494,7 +498,7 @@ class TestQueueTimeProcessor(unittest.TestCase):
         # TODO(elainewy): add called check when introduce histogram logic
         self.mock_s3_resource.Object.put.assert_not_called()
 
-    def test_queue_time_processor_when_row_result_is_empty(self):
+    def test_queue_time_processor_when_row_result_is_empty_then_success(self):
         print("test_queue_time_processor_when_row_result_is_empty ")
         # prepare
         mock_s3_resource_put(self.mock_s3_resource)
@@ -541,7 +545,7 @@ class TestWorkerPoolHandler(unittest.TestCase):
         handler.start([])
         mock_qtp_instance.process.assert_not_called()
 
-    def test_worker_pool_handler_when_single_input(self):
+    def test_worker_pool_handler_when_single_input_then_success(self):
         mock_qtp_instance = MagicMock(spec=QueueTimeProcessor)
         mock_qtp_instance.process.side_effect = (
             lambda param1, *_: get_mock_queue_time_processor_process(param1)
@@ -559,7 +563,7 @@ class TestWorkerPoolHandler(unittest.TestCase):
         # execute
         mock_qtp_instance.process.assert_called()
 
-    def test_worker_pool_handler_when_happy_flow_then_success(self):
+    def test_worker_pool_handler_when_multi_threads_then_success(self):
         # prepare
         mock_qtp_instance = MagicMock(spec=QueueTimeProcessor)
         mock_qtp_instance.process.side_effect = (
