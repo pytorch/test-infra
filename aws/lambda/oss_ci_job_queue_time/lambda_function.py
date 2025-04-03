@@ -1040,7 +1040,9 @@ def main(
         info(" [Main] No time intervals to process, exiting...")
         return
 
-    info(f" [Main] initiating util methods and worker pool for {len(time_intervals)} intervals")
+    info(
+        f" [Main] initiating util methods and worker pool for {len(time_intervals)} intervals"
+    )
 
     config_retrievers = get_config_retrievers(github_access_token)
     queue_time_processor = QueueTimeProcessor(
@@ -1059,6 +1061,7 @@ def main(
     )
     handler.start(time_intervals)
     info(f" [Main] Done. work completed.")
+
 
 def lambda_handler(event: Any, context: Any) -> None:
     """
