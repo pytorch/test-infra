@@ -394,7 +394,7 @@ def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory
 class QueueTimeProcessor:
     """
     QueueTimeProcessor: generating histogram data for a time range [start_time, end_time]. It performs the following tasks:
-        1. Retrieve queuend jobs from the source table within the single time range.
+        1. Retrieve snapshot of queuend jobs from the source table within the single time range.
         2. Generate histogram data group by job name.
         3. Assign runner labels to each histogram data based on machine type.
 
