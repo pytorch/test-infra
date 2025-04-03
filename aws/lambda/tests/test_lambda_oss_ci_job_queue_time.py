@@ -14,10 +14,12 @@ from oss_ci_job_queue_time.lambda_function import (
 )
 
 # ------------------------ MOCKS START ----------------------------------
-_TEST_DATETIME1 = datetime(2025, 1, 1, 0, 30, 0)
-_TEST_DATETIME2 = datetime(2025, 1, 1, 1, 0, 0)
-_TEST_DATETIME3 = datetime(2025, 1, 1, 1, 30, 0)
-_TEST_DATETIME4 = datetime(2025, 1, 1, 2, 0, 0)
+_TEST_DATETIME_1M1D0030 = datetime(2025, 1, 1, 0, 30, 0)
+_TEST_DATETIME_1M1D0100 = datetime(2025, 1, 1, 1, 0, 0)
+_TEST_DATETIME_1M1D0130 = datetime(2025, 1, 1, 1, 30, 0)
+_TEST_DATETIME_1M1D0200 = datetime(2025, 1, 1, 2, 0, 0)
+_TEST_DATETIME_2023 = datetime(2023, 1, 1, 0, 30, 0)
+_TEST_DATETIME_2024_1 = datetime(2024, 12, 31, 23, 55, 0)
 
 
 def get_default_result_rows(test_sample: str = "0"):
@@ -118,10 +120,10 @@ def get_default_result_columns() -> Tuple:
 
 
 def get_mock_queue_time_processor_process(start_time: datetime):
-    if start_time == _TEST_DATETIME1:
+    if start_time == _TEST_DATETIME_1M1D0030:
         return {
-            "end_time": _TEST_DATETIME2,
-            "start_time": _TEST_DATETIME1,
+            "end_time": _TEST_DATETIME_1M1D0100,
+            "start_time": _TEST_DATETIME_1M1D0030,
             "queued_jobs": [
                 {
                     "queue_s": 10,
@@ -129,12 +131,12 @@ def get_mock_queue_time_processor_process(start_time: datetime):
                 }
             ],
         }
-    elif start_time == _TEST_DATETIME3:
+    elif start_time == _TEST_DATETIME_1M1D0130:
         raise Exception("test exception")
 
     return {
-        "end_time": _TEST_DATETIME3,
-        "start_time": _TEST_DATETIME2,
+        "end_time": _TEST_DATETIME_1M1D0130,
+        "start_time": _TEST_DATETIME_1M1D0100,
         "queued_jobs": [
             {
                 "queue_s": 20,
@@ -149,8 +151,8 @@ class MockQuery:
         self,
         rows_in_queue: List[Tuple] = get_default_result_rows(),
         rows_picked: List[Tuple] = [],
-        rows_max_historagram: List[Tuple] = [(_TEST_DATETIME1.isoformat(),)],
-        rows_max_workflow_job: List[Tuple] = [(_TEST_DATETIME2.isoformat(),)],
+        rows_max_historagram: List[Tuple] = [(_TEST_DATETIME_1M1D0030.isoformat(),)],
+        rows_max_workflow_job: List[Tuple] = [(_TEST_DATETIME_1M1D0100.isoformat(),)],
     ) -> None:
         self.rows_in_queue = rows_in_queue
         self.rows_picked = rows_picked
@@ -286,13 +288,72 @@ class TestTimeIntervalGenerator(unittest.TestCase):
             time_interval_generator.generate(mock)
         self.assertTrue("Expected 1 row, got 0" in str(context.exception))
 
+    def test_time_interval_generator_with_different_format(self):
+        # [ test description, start_time, end_time, expected_intervals]
+        test_cases = [
+            (
+                "datetime string",
+                "2025-01-01 00:30:00+00:00",
+                "2025-01-01T01:00:00",
+                1,
+            ),
+            (
+                "unix timestamp integer",
+                1735691400,
+                1735693200,
+                1,
+            ),
+            (
+                "unix timestamp string",
+                "1735691400",
+                "1735693200",
+                1,
+            ),
+            (
+                "mixed format (int, datetime string)",
+                "2025-03-26 14:10:00+00:00",
+                1743001800,
+                2,
+            ),
+            (
+                "unix timestmap float",
+                _TEST_DATETIME_1M1D0030.timestamp(),
+                _TEST_DATETIME_1M1D0100.timestamp(),
+                1,
+                False,
+            ),
+        ]
+        for x in test_cases:
+            with self.subTest(f"Test Environment {x[0]}", x=x):
+                print(f"[subTest] Running subtest for {x[0]}")
+                # prepare
+                mock = MagicMock()
+                start_time = x[1]
+                end_time = x[2]
+                mq = MockQuery(
+                    rows_max_historagram=[
+                        (start_time,),
+                    ],
+                    rows_max_workflow_job=[
+                        (end_time,),
+                    ],
+                )
+                setup_mock_db_client(mock, mq, is_patch=False)
+                time_interval_generator = TimeIntervalGenerator()
+                res = time_interval_generator.generate(mock)
+                self.assertEqual(
+                    len(res),
+                    x[3],
+                    f"[{x[0]}] expected {x[3]} intervals, got {len(res)}",
+                )
+
     def test_time_interval_generator(self):
         # [ test description, start_time, end_time, expected_intervals, expected_error]
         test_cases = [
             (
                 "single gap happy flow 1",
-                "2025-01-01 00:30:00+00:00",
-                "2025-01-01T01:00:00",
+                _TEST_DATETIME_1M1D0030.timestamp(),
+                _TEST_DATETIME_1M1D0100.timestamp(),
                 1,
                 False,
             ),
@@ -304,36 +365,22 @@ class TestTimeIntervalGenerator(unittest.TestCase):
                 False,
             ),
             (
-                "single gap happy flow 3",
-                "2025-04-03 00:32:00",
-                "2025-04-03 01:23:27",
-                1,
-                False,
-            ),
-            (
-                "single gap happy flow 4",
-                "2025-04-03 00:30:00+00:00",
-                "2025-04-03 01:22:27",
-                1,
-                False,
-            ),
-            (
                 "multiple intervals 1",
-                "2025-04-03 05:30:00+00:00",
-                "2025-04-03 06:55:27",
-                2,
+                int(_TEST_DATETIME_1M1D0030.timestamp()),
+                int(_TEST_DATETIME_1M1D0200.timestamp()),
+                3,
                 False,
             ),
             (
                 "multiple intervals 2",
-                "2025-04-03 05:30:00+00:00",
-                "2025-04-03 07:00:00",
+                _TEST_DATETIME_1M1D0030.timestamp() + 10,
+                _TEST_DATETIME_1M1D0030.timestamp() + 5500,
                 3,
                 False,
             ),
             (
                 "start_time unix timestamp 0",
-                "1970-01-01 00:00:00+00:00",
+                0,
                 "2025-04-03 00:55:27",
                 1,
                 False,
@@ -347,15 +394,15 @@ class TestTimeIntervalGenerator(unittest.TestCase):
             ),
             (
                 "year gap between time range",
-                "2024-12-31 23:30:00+00:00",
-                "2025-01-01 00:55:27",
+                int(_TEST_DATETIME_2024_1.timestamp()),
+                int(_TEST_DATETIME_1M1D0030.timestamp()),
                 2,
                 False,
             ),
             (
                 "time range is above maximum intervals",
-                "2025-01-01 11:30:00+00:00",
-                "2025-04-04 00:55:27",
+                int(_TEST_DATETIME_2023.timestamp()),
+                int(_TEST_DATETIME_1M1D0030.timestamp()),
                 None,
                 True,
             ),
@@ -431,7 +478,11 @@ class TestQueueTimeProcessor(unittest.TestCase):
             s3_client=self.mock_s3_resource,
         )
         processor.process(
-            MagicMock(), MagicMock(), MagicMock(), _TEST_DATETIME1, _TEST_DATETIME2
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            _TEST_DATETIME_1M1D0030,
+            _TEST_DATETIME_1M1D0100,
         )
 
         # assert
@@ -457,7 +508,11 @@ class TestQueueTimeProcessor(unittest.TestCase):
             s3_client=self.mock_s3_resource,
         )
         processor.process(
-            MagicMock(), MagicMock(), MagicMock(), _TEST_DATETIME1, _TEST_DATETIME2
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            _TEST_DATETIME_1M1D0030,
+            _TEST_DATETIME_1M1D0100,
         )
 
         # assert
@@ -499,7 +554,7 @@ class TestWorkerPoolHandler(unittest.TestCase):
             },
             mock_qtp_instance,
         )
-        handler.start([[_TEST_DATETIME1, _TEST_DATETIME2]])
+        handler.start([[_TEST_DATETIME_1M1D0030, _TEST_DATETIME_1M1D0100]])
 
         # execute
         mock_qtp_instance.process.assert_called()
@@ -521,7 +576,10 @@ class TestWorkerPoolHandler(unittest.TestCase):
             mock_qtp_instance,
         )
         handler.start(
-            [[_TEST_DATETIME1, _TEST_DATETIME2], [_TEST_DATETIME2, _TEST_DATETIME3]]
+            [
+                [_TEST_DATETIME_1M1D0030, _TEST_DATETIME_1M1D0100],
+                [_TEST_DATETIME_1M1D0100, _TEST_DATETIME_1M1D0130],
+            ]
         )
 
         # assert
@@ -545,9 +603,9 @@ class TestWorkerPoolHandler(unittest.TestCase):
 
         handler.start(
             [
-                [_TEST_DATETIME1, _TEST_DATETIME2],
-                [_TEST_DATETIME2, _TEST_DATETIME3],
-                [_TEST_DATETIME3, _TEST_DATETIME4],
+                [_TEST_DATETIME_1M1D0030, _TEST_DATETIME_1M1D0100],
+                [_TEST_DATETIME_1M1D0100, _TEST_DATETIME_1M1D0130],
+                [_TEST_DATETIME_1M1D0130, _TEST_DATETIME_1M1D0200],
             ]
         )
 

@@ -31,7 +31,6 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
 }
 
-
 logging.basicConfig(level=logging.INFO)
 _bucket_name = "ossci-raw-job-status"
 
@@ -39,7 +38,9 @@ _bucket_name = "ossci-raw-job-status"
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -113,6 +114,8 @@ def upload_to_s3_txt(
     info(f"Done! Finish writing document to S3 {bucket_name}/{key} ")
 
 
+# TODO(elainewy): Move this into seperate files
+#  ---------  Github Config File Methods Start----
 class LazyFileHistory:
     """
     Reads the content of a file from a GitHub repository on the version that it was on a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
@@ -131,8 +134,12 @@ class LazyFileHistory:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
-                    timestamp = parse(timestamp)
-
+                    if timestamp.isdigit():
+                        timestamp = datetime.fromtimestamp(
+                            int(timestamp), tz=timezone.utc
+                        )
+                    else:
+                        timestamp = parse(timestamp)
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
                     return self._fetch_content_for_commit(commit)
@@ -365,9 +372,15 @@ def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory
     }
 
 
+#  ---------  Github Config File Methods END----
+
+
 class QueueTimeProcessor:
     """
-    this class used to handle oss ci queue time data aggregations
+    this class used to form the histogram queue time data:
+      1. fetch jobs in queue from source table for the given time range
+      2. generate histogram data per job name
+      3. assign runner label based on machine type
 
     To run the main method:
        processor = QueueTimeProcessor(clickhouse_client,s3_client)
@@ -706,6 +719,13 @@ class QueueTimeProcessor:
 
 
 class WorkerPoolHandler:
+    """
+    WorkerPoolHandler: runs workers in parallet to generate queue time histogram, and writes to target destination.
+       1. generate histgram data to process intervals using threadpool
+       2. collect all results for intervals from threadpool
+       3. write all valid results to target destination (s3 bucket)
+    """
+
     def __init__(
         self,
         retrievers: Dict[str, LazyFileHistory],
@@ -728,7 +748,6 @@ class WorkerPoolHandler:
     def start(self, time_intervals: List[List[datetime]]) -> None:
         info(" start to process queue time data...")
 
-        # get runner config retrievers
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
             for interval in time_intervals:
@@ -744,6 +763,7 @@ class WorkerPoolHandler:
 
         results = []
         errors = []
+
         # handle results from parallel processing
         for future in as_completed(futures):
             try:
@@ -808,7 +828,7 @@ def get_latest_queue_time_histogram_table(
     cc: clickhouse_connect.driver.client.Client,
 ) -> str:
     query = """
-    SELECT MAX(time) as latest FROM fortesting.oss_ci_queue_time_histogram
+    SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
     """
     info("Getting last queue time from misc.oss_ci_queue_time_histogram....")
     res = cc.query(query, {})
@@ -826,7 +846,7 @@ def get_latest_queue_time_histogram_table(
 
 def get_latest_time_workflow_job_table(clickhouse_client) -> str:
     query = """
-    SELECT GREATEST(MAX(created_at), MAX(started_at)) AS latest from default.workflow_job
+    SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
     """
     res = clickhouse_client.query(query, {})
 
@@ -840,71 +860,6 @@ def get_latest_time_workflow_job_table(clickhouse_client) -> str:
         )
 
     return res.result_rows[0][0]
-
-
-def lambda_handler(event: Any, context: Any) -> None:
-    """
-    Main method to run in aws lambda environment
-    """
-    db_client = get_clickhouse_client_environment()
-    s3_client = get_aws_s3_resource()
-    main(db_client, s3_client)
-    return
-
-
-def parse_args() -> argparse.Namespace:
-    """
-    Parse command line arguments, this is mainly used for local test environment.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--clickhouse-endpoint",
-        default=ENVS["CLICKHOUSE_ENDPOINT"],
-        type=str,
-        help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
-    )
-    parser.add_argument(
-        "--clickhouse-username",
-        type=str,
-        default=ENVS["CLICKHOUSE_USERNAME"],
-        help="the clickhouse username",
-    )
-    parser.add_argument(
-        "--clickhouse-password",
-        type=str,
-        default=ENVS["CLICKHOUSE_PASSWORD"],
-        help="the clickhouse password for the user name",
-    )
-    parser.add_argument(
-        "--github-access-token",
-        type=str,
-        default=ENVS["GITHUB_ACCESS_TOKEN"],
-        help="the github access token to access github api",
-    )
-    parser.add_argument(
-        "--local-output",
-        action="store_true",
-        help="when set, generate json result in local environment. this is only used for local test environment when dry-run is enabled",
-    )
-    parser.add_argument(
-        "--not-dry-run",
-        action="store_true",
-        help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
-    )
-    parser.add_argument(
-        "--output-file-name",
-        type=str,
-        default="job_queue_times_snapshot.json",
-        help="the name of output file for local environment. this is only used for local test environment when local-output is enabled",
-    )
-    parser.add_argument(
-        "--output-file-path",
-        type=str,
-        default="",
-        help="the path of output file for local environment. this is only used for local test environment when local-output is enabled",
-    )
-    args, _ = parser.parse_known_args()
-    return args
 
 
 class TimeIntervalGenerator:
@@ -924,19 +879,6 @@ class TimeIntervalGenerator:
         pass
 
     def generate(self, clickhouse_client: Any):
-        """
-        calculates time intervals between the source table (workflow_job table) and the target table (histogram table).
-        By default, we assume everything stored in database is in UTC timezone.
-
-        It reads the latest time from both tables, and find the previous half-hour timestamp. if time gap exists, generate intervals.
-        currently the interval gap is 30 minutes. It is a necessary step since the data ingested into source table can be delayed
-        for the time range we want to calculate, due to the nature of github data pipeline.
-        Example:
-        source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
-        source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
-        source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
-
-        """
         utc_now = datetime.now(timezone.utc)
         info(f"current time (UTC) is{utc_now.isoformat}")
 
@@ -946,18 +888,27 @@ class TimeIntervalGenerator:
             clickhouse_client
         )
 
-        exist_target_dt = self._round_down_to_previous_half_hour(lastest_time_histogram)
-        info(
-            f"  done parse lastest time from histogram table: {exist_target_dt}. Prevous half-hour time (UTC): {exist_target_dt}"
+        lastest_time_histogram_dt = self._to_date_time(
+            lastest_time_histogram, timezone=timezone.utc
         )
+        exist_target_dt = self._round_down_to_previous_half_hour(
+            lastest_time_histogram_dt
+        )
+        info(
+            f"  done parse lastest time from histogram table: {lastest_time_histogram} (UTC format:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
+        )
+
         lastest_time_workflow_job = get_latest_time_workflow_job_table(
             clickhouse_client
         )
-        new_src_dt = self._round_down_to_previous_half_hour(lastest_time_workflow_job)
-        info(
-            f"  done parse lastest time from workflow_job table: {lastest_time_workflow_job}. Previous half-hour time (UTC): {new_src_dt}"
-        )
 
+        lastest_time_workflow_job_dt = self._to_date_time(lastest_time_workflow_job)
+        new_src_dt = self._round_down_to_previous_half_hour(
+            lastest_time_workflow_job_dt
+        )
+        info(
+            f"  done parse lastest time from workflow_job table: {lastest_time_workflow_job}, (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
+        )
         intervals = self._generate_half_hour_intervals(exist_target_dt, new_src_dt)
 
         info(
@@ -965,10 +916,22 @@ class TimeIntervalGenerator:
         )
         return intervals
 
-    def _round_down_to_previous_half_hour(self, time: str | datetime) -> datetime:
-        if not isinstance(time, datetime):
-            time = parse(time)
+    def _to_date_time(
+        self, time: str | datetime | int | float, timezone=timezone.utc
+    ) -> datetime:
+        if isinstance(time, int):
+            time = datetime.fromtimestamp(time, timezone.utc)
+        elif isinstance(time, float):
+            time = datetime.fromtimestamp(int(time), timezone.utc)
+        elif isinstance(time, str):
+            if time.isdigit():
+                time = datetime.fromtimestamp(int(time), timezone.utc)
+            else:
+                time = parse(time)
         time = time.replace(tzinfo=timezone.utc)
+        return time
+
+    def _round_down_to_previous_half_hour(self, time: datetime) -> datetime:
         minutes = (time.minute // 30) * 30  # Round down to the nearest 30-minute mark
         return time.replace(minute=minutes, second=0, microsecond=0)
 
@@ -1042,7 +1005,9 @@ def main(
     output_snapshot_file_path: str = "",
 ):
     """
-    Main method to run in both local environment and lambda handler
+    Main method to run in both local environment and lambda handler.
+       1. generate intervals[start_time,end_time] using latest timestamp from source table and target table
+       2. call WorkerPoolHandler to geneterate and write histogram data for each interval in parallel
     """
     if not github_access_token:
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
@@ -1068,6 +1033,71 @@ def main(
         output_snapshot_file_path=output_snapshot_file_path,
     )
     handler.start(time_intervals)
+
+
+def lambda_handler(event: Any, context: Any) -> None:
+    """
+    Main method to run in aws lambda environment
+    """
+    db_client = get_clickhouse_client_environment()
+    s3_client = get_aws_s3_resource()
+    main(db_client, s3_client)
+    return
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments, this is mainly used for local test environment.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--clickhouse-endpoint",
+        default=ENVS["CLICKHOUSE_ENDPOINT"],
+        type=str,
+        help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
+    )
+    parser.add_argument(
+        "--clickhouse-username",
+        type=str,
+        default=ENVS["CLICKHOUSE_USERNAME"],
+        help="the clickhouse username",
+    )
+    parser.add_argument(
+        "--clickhouse-password",
+        type=str,
+        default=ENVS["CLICKHOUSE_PASSWORD"],
+        help="the clickhouse password for the user name",
+    )
+    parser.add_argument(
+        "--github-access-token",
+        type=str,
+        default=ENVS["GITHUB_ACCESS_TOKEN"],
+        help="the github access token to access github api",
+    )
+    parser.add_argument(
+        "--local-output",
+        action="store_true",
+        help="when set, generate json result in local environment. this is only used for local test environment when dry-run is enabled",
+    )
+    parser.add_argument(
+        "--not-dry-run",
+        action="store_true",
+        help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
+    )
+    parser.add_argument(
+        "--output-file-name",
+        type=str,
+        default="job_queue_times_snapshot.json",
+        help="the name of output file for local environment. this is only used for local test environment when local-output is enabled",
+    )
+    parser.add_argument(
+        "--output-file-path",
+        type=str,
+        default="",
+        help="the path of output file for local environment. this is only used for local test environment when local-output is enabled",
+    )
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def local_run() -> None:
