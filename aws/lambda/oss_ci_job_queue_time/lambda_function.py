@@ -310,7 +310,7 @@ def create_runner_labels(
 
     if len(all_runners_configs.keys()) == 0:
         warning(
-            " [method: create_runner_labels] No runners found in the github config files, something is wrong, please investigate."
+            " [method: create_runner_labels] No runner labels found in the github config files, something is wrong, please investigate."
         )
 
     for runner, runner_config in all_runners_configs.items():
