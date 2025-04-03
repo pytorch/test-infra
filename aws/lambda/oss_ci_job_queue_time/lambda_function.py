@@ -34,41 +34,12 @@ ENVS = {
 
 logging.basicConfig(level=logging.INFO)
 _bucket_name = "ossci-raw-job-status"
-_in_queue_job_select_statement = """
-SELECT
-    DATE_DIFF(
-        'second',
-        job.created_at,
-        {end_timestamp:DateTime}
-    ) AS queue_s,
-    workflow.repository.'full_name' AS repo,
-    workflow.name AS workflow_name,
-    job.name AS job_name,
-    job.html_url,
-    toUnixTimestamp(job.created_at) AS queue_start_at,
-    toUnixTimestamp(job.started_at) AS queue_stop_at,
-    IF(
-        LENGTH(job.labels) = 0,
-        'N/A',
-        IF(
-            LENGTH(job.labels) > 1,
-            job.labels[2],
-            job.labels[1]
-        )
-    ) AS machine_type,
-    toUnixTimestamp({end_timestamp:DateTime}) AS time
-FROM
-    default.workflow_job job FINAL
-    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
-"""
 
 
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -396,7 +367,7 @@ def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory
 
 class QueueTimeProcessor:
     """
-    this class used to handle oss ci queue time data aggregations. Currently it fetches in-queue jobs from clickhouse at current time
+    this class used to handle oss ci queue time data aggregations
 
     To run the main method:
        processor = QueueTimeProcessor(clickhouse_client,s3_client)
@@ -413,14 +384,52 @@ class QueueTimeProcessor:
         self.s3_client = s3_client
         self.is_dry_run = is_dry_run
 
-    def _fetch_snapshot_from_db(
+    def process(
         self,
         start_time: datetime,
         end_time: datetime,
+        meta_runner_config_retriever,
+        lf_runner_config_retriever,
+        old_lf_lf_runner_config_retriever,
+        repo: str = "pytorch/pytorch",
+    ) -> Dict[str, Any]:
+        # fetches queued jobs at given time interval from db
+        queued_jobs = self._get_queueing_jobs(start_time, end_time, repo)
+
+        # add runner labels to each job based on machine type
+        self._add_runner_labels(
+            queued_jobs,
+            start_time,
+            meta_runner_config_retriever,
+            lf_runner_config_retriever,
+            old_lf_lf_runner_config_retriever,
+        )
+        return {
+            "start_time": start_time.timestamp(),
+            "end_time": end_time.timestamp(),
+            "queued_jobs": queued_jobs,
+        }
+
+    def _fetch_snapshot_from_db(
+        self,
+        start_time: datetime,  # must be UTC
+        end_time: datetime,  # must be UTC
         repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
+        """
+        fetches queued jobs at given time range from source table workflow_job:
+            1. fetches jobs that are currently in queue but not being picked up by workers
+            2. fetches jobs that were in queue but were picked up by workers later of given end_time
+            3. fetches jobs that were in-queue but completed WITHIN given time range [start_time, end_time]
+        """
+
+        # clickhouse does not accept iso format, using timestamp instead
         start_timestamp = str(int(start_time.timestamp()))
         end_timestamp = str(int(end_time.timestamp()))
+
+        info(
+            f" [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]: fetching jobs in queue ...."
+        )
 
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
@@ -452,10 +461,7 @@ class QueueTimeProcessor:
 
         return result
 
-    def toDateTime(self, timestamp: str):
-        return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
-
-    def add_runner_labels(
+    def _add_runner_labels(
         self,
         jobs: List[Dict[str, Any]],
         start_time: datetime,
@@ -488,33 +494,7 @@ class QueueTimeProcessor:
                     job_labels.append(tag)
             job["runner_labels"] = job_labels
 
-    def process(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        meta_runner_config_retriever,
-        lf_runner_config_retriever,
-        old_lf_lf_runner_config_retriever,
-        repo: str = "pytorch/pytorch",
-    ) -> Dict[str, Any]:
-        # fetches queued jobs at given time interval from db
-        queued_jobs = self.get_queueing_jobs(start_time, end_time, repo)
-
-        # add runner labels to each job based on machine type
-        self.add_runner_labels(
-            queued_jobs,
-            start_time,
-            meta_runner_config_retriever,
-            lf_runner_config_retriever,
-            old_lf_lf_runner_config_retriever,
-        )
-        return {
-            "start_time": start_time.timestamp(),
-            "end_time": end_time.timestamp(),
-            "queued_jobs": queued_jobs,
-        }
-
-    def get_queueing_jobs(
+    def _get_queueing_jobs(
         self,
         start_time: datetime,
         end_time: datetime,
@@ -540,7 +520,7 @@ class QueueTimeProcessor:
         this is bc clickhouse client returns duplicated jobs for some reason
         """
         seen = set()
-        db_resp = self.query(queryStr, parameters)
+        db_resp = self._query(queryStr, parameters)
         result = []
         for record in db_resp:
             if record["html_url"] in seen:
@@ -551,7 +531,7 @@ class QueueTimeProcessor:
             result.append(record)
         return result
 
-    def query(self, query, params={}) -> list[dict[str, Any]]:
+    def _query(self, query, params={}) -> list[dict[str, Any]]:
         reader = self.clickhouse_client.query(query, params)
         # clickhouse returns a generator to return column names and rows
         # see https://clickhouse.com/docs/integrations/python#the-queryresult-object
@@ -570,6 +550,36 @@ class QueueTimeProcessor:
                 record[name] = row[idx]
             li.append(record)
         return li
+
+    def _get_query_template(self):
+        _in_queue_job_select_statement = """
+            SELECT
+                DATE_DIFF(
+                    'second',
+                    job.created_at,
+                    {end_timestamp:DateTime}
+                ) AS queue_s,
+                workflow.repository.'full_name' AS repo,
+                workflow.name AS workflow_name,
+                job.name AS job_name,
+                job.html_url,
+                toUnixTimestamp(job.created_at) AS queue_start_at,
+                toUnixTimestamp(job.started_at) AS queue_stop_at,
+                IF(
+                    LENGTH(job.labels) = 0,
+                    'N/A',
+                    IF(
+                        LENGTH(job.labels) > 1,
+                        job.labels[2],
+                        job.labels[1]
+                    )
+                ) AS machine_type,
+                toUnixTimestamp({end_timestamp:DateTime}) AS time
+            FROM
+                default.workflow_job job FINAL
+                JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
+            """
+        return _in_queue_job_select_statement
 
     def get_query_statement_for_completed_jobs(
         self, start_timestamp: str, end_timestamp: str, repo: str = "pytorch/pytorch"
@@ -602,7 +612,7 @@ class QueueTimeProcessor:
             queue_s DESC
         """
 
-        query = s11 + _in_queue_job_select_statement + s12
+        query = s11 + self._get_query_template() + s12
         parameters = {
             "start_timestamp": start_timestamp,
             "end_timestamp": end_timestamp,
@@ -643,7 +653,7 @@ class QueueTimeProcessor:
         ORDER BY
             queue_s DESC
         """
-        query = s1 + _in_queue_job_select_statement + s2
+        query = s1 + self._get_query_template() + s2
         parameters = {
             "end_timestamp": time,
             "repo": repo,
@@ -684,7 +694,7 @@ class QueueTimeProcessor:
         ORDER BY
             queue_s DESC
         """
-        query = s1 + _in_queue_job_select_statement + s2
+        query = s1 + self._get_query_template() + s2
         parameters = {
             "end_timestamp": time,
             "repo": repo,
