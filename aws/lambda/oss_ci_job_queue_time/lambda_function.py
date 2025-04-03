@@ -1061,7 +1061,7 @@ def lambda_handler(event: Any, context: Any) -> None:
     """
     db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
-    main(db_client, s3_client)
+    main(db_client, s3_client, github_access_token=ENVS["GITHUB_ACCESS_TOKEN"])
     return
 
 

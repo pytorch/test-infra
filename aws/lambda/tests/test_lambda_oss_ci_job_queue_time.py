@@ -647,9 +647,30 @@ class TestLambdaHanlder(EnvironmentBaseTest):
                 # manually reset the envs, todo: find a better way to do this,maybe use parameterized
                 self.mock_envs[x] = get_default_environment_variables()[x]
 
+    def test_lambda_handler_run_happy_flow_success(
+        self,
+    ):
+        # prepare
+        mock_s3_resource_put(self.mock_s3_resource)
+        setup_mock_db_client(self.mock_get_client)
+
+        # execute
+        lambda_handler(None, None)
+
+        # assert
+        # assert clickhouse client
+        self.mock_get_client.assert_called_once()
+        self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
+
+        # assert s3 resource
+        self.mock_s3_resource.assert_called_once()
+        get_mock_s3_resource_object(
+            self.mock_s3_resource
+        ).return_value.put.assert_not_called()
+
 
 class TestLocalRun(EnvironmentBaseTest):
-    def test_local_run_with_dry_run_when_lambda_happy_flow_then_success_without_s3_write(
+    def test_local_run_happy_flow_with_dry_run_success(
         self,
     ):
         # prepare
