@@ -451,7 +451,7 @@ class QueueTimeProcessor:
             f" [Snapshot:{end_timestamp}]Start to fetch jobs with `queued` status in default.workflow_run ...."
         )
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
-        jobs_in_queue = self._query_in_queue_jobs(
+        queued_jobs = self._query_in_queue_jobs(
             queued_query["query"], queued_query["parameters"], ["queued"]
         )
 
@@ -461,7 +461,7 @@ class QueueTimeProcessor:
             f" [Snapshot:{end_timestamp}] start to fetch jobs with `completed` status but was in `queue` in default.workflow_run ...."
         )
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
-        jobs_pick = self._query_in_queue_jobs(
+        picked_jobs = self._query_in_queue_jobs(
             picked_query["query"], picked_query["parameters"], ["queued"]
         )
 
@@ -469,19 +469,19 @@ class QueueTimeProcessor:
         info(
             f" [Snapshot:{end_timestamp}]start to fetch jobs was in queueu and `completed` in [star_time, end_time] ...."
         )
-        completed_within_dates_sql = self.get_query_statement_for_completed_jobs(
+        completed_within_interval_sql = self.get_query_statement_for_completed_jobs(
             start_timestamp, end_timestamp, repo
         )
-        job_completed_within_dates = self._query_in_queue_jobs(
-            completed_within_dates_sql["query"],
-            completed_within_dates_sql["parameters"],
+        job_completed_within_interval = self._query_in_queue_jobs(
+            completed_within_interval_sql["query"],
+            completed_within_interval_sql["parameters"],
             ["completed"],
         )
 
         info(
-            f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within given time range"
+            f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(queued_jobs)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_interval)} jobs completed within given time range"
         )
-        result = jobs_in_queue + jobs_pick + job_completed_within_dates
+        result = queued_jobs + picked_jobs + job_completed_within_interval
 
         return result
 
