@@ -34,7 +34,6 @@ ENVS = {
 _bucket_name = "ossci-raw-job-status"
 
 
-# lru_cache makes it able to be used in multithreads
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
@@ -45,7 +44,6 @@ def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     )
 
 
-# lru_cache makes it able to be used in multithreads
 @lru_cache()
 def get_aws_s3_resource() -> Any:
     return boto3.resource("s3")
@@ -419,6 +417,7 @@ class QueueTimeProcessor:
         args: Optional[argparse.Namespace] = None,
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
+        # ensure each thread has its own clickhouse client. clickhouse client is not thread-safe.
         if cc is None:
             tlocal = threading.local()
             if not hasattr(tlocal, "cc"):
@@ -894,7 +893,7 @@ class TimeIntervalGenerator:
     def __init__(self):
         pass
 
-    def generate(self, clickhouse_client: Any):
+    def generate(self, clickhouse_client: clickhouse_connect.driver.client.Client):
         info(" [TimeIntervalGenerator] Start to generate time intervals...")
         utc_now = datetime.now(timezone.utc)
         info(f" Current time (UTC) is {utc_now}")
@@ -1042,20 +1041,19 @@ def main(
        1. generate intervals[start_time,end_time] using latest timestamp from source table and target table
        2. call WorkerPoolHandler to geneterate and write histogram data for each interval in parallel
     """
+    # gets config retrievers, this is used to generate runner labels for histgram
     if not github_access_token:
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
+    config_retrievers = get_config_retrievers(github_access_token)
 
-    # gets config retrievers, this is used to generate runner labels for histgram
+    # get time intervals.
     info(f" [Main] generating time intervals ....")
-
     if args:
         clickhouse_client = get_clickhouse_client(
             args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
         )
     else:
         clickhouse_client = get_clickhouse_client_environment()
-
-    # get time intervals.
     time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
 
     if len(time_intervals) == 0:
@@ -1065,8 +1063,6 @@ def main(
     info(
         f" [Main] initiating util methods and worker pool for {len(time_intervals)} intervals"
     )
-
-    config_retrievers = get_config_retrievers(github_access_token)
     queue_time_processor = QueueTimeProcessor(
         is_dry_run=is_dry_run,
     )
