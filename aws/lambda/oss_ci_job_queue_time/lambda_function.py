@@ -30,9 +30,7 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
 }
 
-logging.basicConfig(level=logging.INFO)
 _bucket_name = "ossci-raw-job-status"
-
 
 # lru_cache makes it able to be used in multithreads
 @lru_cache()
