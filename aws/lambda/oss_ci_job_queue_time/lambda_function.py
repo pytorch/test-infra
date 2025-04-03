@@ -33,11 +33,9 @@ _bucket_name = "ossci-raw-job-status"
 
 
 @lru_cache()
-def get_clickhouse_client(host: str, user: str, password: str) -> Any:
+def get_clickhouse_client(host: str, user: str, password: str) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -49,7 +47,7 @@ def get_aws_s3_resource() -> Any:
     return boto3.resource("s3")
 
 
-def get_clickhouse_client_environment() -> Any:
+def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Client:
     info(f"Getting environment variables {ENVS}")
     for name, env_val in ENVS.items():
         if not env_val:
@@ -1034,12 +1032,12 @@ def main(
     # get time intervals.
     info(f" [Main] generating time intervals ....")
     if args:
-        clickhouse_client = get_clickhouse_client(
+        cc = get_clickhouse_client(
             args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
         )
     else:
-        clickhouse_client = get_clickhouse_client_environment()
-    time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
+        cc = get_clickhouse_client_environment()
+    time_intervals = TimeIntervalGenerator().generate(cc)
 
     if len(time_intervals) == 0:
         info(" [Main] No time intervals to process, exiting...")
@@ -1048,7 +1046,12 @@ def main(
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
         config_retrievers,
-        QueueTimeProcessor(is_dry_run=is_dry_run),
+        QueueTimeProcessor(
+            is_dry_run=is_dry_run,
+            local_output=local_output,
+            output_snapshot_file_name=output_snapshot_file_name,
+            output_snapshot_file_path=output_snapshot_file_path
+            ),
     )
     handler.start(time_intervals, args)
     info(f" [Main] Done. work completed.")
