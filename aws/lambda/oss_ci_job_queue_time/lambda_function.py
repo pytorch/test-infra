@@ -37,9 +37,7 @@ _bucket_name = "ossci-raw-job-status"
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    #return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
