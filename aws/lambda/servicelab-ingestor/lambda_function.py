@@ -43,11 +43,9 @@ def lambda_handler(event: Any, context: Any) -> None:
                 upsert_document(record)
             else:
                 warn(f"Unrecognized event type {event_name} in {json.dumps(record)}")
-
             counts[event_name] += 1
         except Exception as error:
             warn(f"Failed to process {json.dumps(record)}: {error}")
-
     print(f"Finish processing {json.dumps(counts)}")
 
 

@@ -3,22 +3,26 @@ import argparse
 import io
 import json
 import logging
+from math import e
 import os
 import gzip
 import re
 import threading
 import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import boto3  # type: ignore[import]
 import clickhouse_connect
-from datetime import datetime, time
+from datetime import date, datetime, timezone, timedelta
 
 # Local imports
 from functools import lru_cache
-from logging import info
+from logging import info, warning
 from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
 from github import Github, Auth
 from dateutil.parser import parse
+
+unix_timestamp_0 = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 ENVS = {
     "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
@@ -112,7 +116,7 @@ def write_to_file(data: Any, filename="", path=""):
     # Write data to file
     with open(file_path, "w", encoding="utf-8") as file:
         file.write(data)
-    print(f"File written to: {os.path.abspath(file_path)}")
+    info(f"File written to: {os.path.abspath(file_path)}")
 
 
 def upload_to_s3_txt(
@@ -152,18 +156,6 @@ class LazyFileHistory:
         self._fetched_all_commits = False
         self._lock = threading.RLock()
 
-    def is_unix_timestamp(self, value: str) -> bool:
-        """Check if the string is a valid Unix timestamp."""
-        if value.isdigit():  # Ensure it's numeric
-            try:
-                timestamp = int(value)
-                # Check if it's within a reasonable range (1970 to 2100)
-                datetime.fromtimestamp(timestamp)
-                return True
-            except (ValueError, OSError):
-                return False
-        return False
-
     def get_version_after_timestamp(self, timestamp: str | datetime) -> Optional[str]:
         try:
             with self._lock:
@@ -179,9 +171,9 @@ class LazyFileHistory:
                     if commit:
                         return self._fetch_content_for_commit(commit)
         except Exception as e:
-            print(f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}")
-
-        return None
+            warning(
+                f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
+            )
 
         return None
 
@@ -190,7 +182,6 @@ class LazyFileHistory:
             c for c in self._commits_cache if c.commit.author.date > timestamp
         ]
 
-        print("commits",  [c.commit.author.date for c in self._commits_cache])
         if not commits_after:
             return None
         return commits_after[-1]
@@ -212,8 +203,6 @@ class LazyFileHistory:
         self._commits_cache.extend(newly_fetched)
         self._commits_cache.sort(key=lambda c: c.commit.author.date, reverse=True)
 
-        print(self._commits_cache)
-
         if not newly_fetched:
             self._fetched_all_commits = True
 
@@ -221,7 +210,7 @@ class LazyFileHistory:
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
-            print(
+            info(
                 f"Fetching content for {self.repo} : {self.path} at {commit.commit.author.date} - {commit.sha}"
             )
             # We can retrieve the file content at a specific commit
@@ -338,6 +327,10 @@ def create_runner_labels(
         runner_configs["runner_types"] | lf_runner_configs["runner_types"]
     )
 
+    if len(all_runners_configs.keys()) == 0:
+        warning(
+            " No runners found in the github config files, something is wrong, please investigate."
+        )
 
     for runner, runner_config in all_runners_configs.items():
         runner_labels_dict["dynamic"].add(runner)
@@ -414,84 +407,32 @@ class QueueTimeProcessor:
         self,
         clickhouse_client: Any,
         s3_client: Any,
-        github_access_token: str = "",
         is_dry_run: bool = False,
-        local_output: bool = False,
-        output_snapshot_file_name: str = "job_queue_times_snapshot",
-        output_snapshot_file_path: str = "",
     ) -> None:
         self.clickhouse_client = clickhouse_client
         self.s3_client = s3_client
         self.is_dry_run = is_dry_run
-        self.local_output = local_output and is_dry_run
-
-        self.output_snapshot_file_name = output_snapshot_file_name
-        self.output_snapshot_file_path = output_snapshot_file_path
-
-        if not github_access_token:
-            raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
-        self.github_access_token = github_access_token
-
-    def process(self) -> None:
-        # get runner config retrievers
-        retrievers = get_config_retrievers(self.github_access_token)
-
-        # use current time as snapshot time
-        timestamp = str(int(datetime.now().timestamp()))
-        timestamp = "1742946298"
-        hour_before = str(int(timestamp) - 3600)
-
-        # 1742900960,1742946560
-        snapshot = self.get_queueing_jobs(
-            retrievers["meta"],
-            retrievers["lf"],
-            retrievers["old_lf"],
-            hour_before,
-            timestamp,
-            "pytorch/pytorch",
-        )
-
-        if self.is_dry_run:
-            self.output_snapshot(snapshot, timestamp)
-        # TODO(elainewy): add logics to generate histograms based on the snapshot results
-
-    def output_snapshot(
-        self,
-        snapshot: List[Dict[str, Any]],
-        timestamp: str,
-    ) -> None:
-        """
-        print the snapshot to local file or terminal for local test only
-        """
-        info(
-            f"[Dry Run Mode]: generated {len(snapshot)} records from get_jobs_in_queue_snapshot"
-        )
-        if self.local_output:
-            write_to_file(
-                json.dumps(snapshot),
-                self.output_snapshot_file_name,
-                self.output_snapshot_file_path,
-            )
-            return
-        info(json.dumps(snapshot))
 
     def _fetch_snapshot_from_db(
         self,
-        start_timestamp: str,
-        end_timestamp: str = "",
+        start_time: datetime,
+        end_time: datetime,
         repo: str = "pytorch/pytorch",
     ) -> List[Dict[str, Any]]:
+        start_timestamp = str(int(start_time.timestamp()))
+        end_timestamp = str(int(end_time.timestamp()))
+
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
         jobs_in_queue = self._query_in_queue_jobs(
-            queued_query["query"], queued_query["parameters"],["queued"]
+            queued_query["query"], queued_query["parameters"], ["queued"]
         )
 
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
         jobs_pick = self._query_in_queue_jobs(
-            picked_query["query"], picked_query["parameters"],["queued"]
+            picked_query["query"], picked_query["parameters"], ["queued"]
         )
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
@@ -501,19 +442,12 @@ class QueueTimeProcessor:
         job_completed_within_dates = self._query_in_queue_jobs(
             completed_within_dates_sql["query"],
             completed_within_dates_sql["parameters"],
-            ["completed"]
+            ["completed"],
         )
-
-        dt = datetime.fromtimestamp(int(end_timestamp))
-        datetime_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        dt2 = datetime.fromtimestamp(int(start_timestamp))
-        dt2_str = dt2.strftime("%Y-%m-%d %H:%M:%S")
 
         info(
-            f"[Snapshot time:{datetime_str}]. Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within `{dt2_str}` to `{datetime_str}` "
+            f" [Snapshot time:{start_time.isoformat()}].Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(jobs_in_queue)} jobs still has queued status, and {len(jobs_pick)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_dates)} jobs completed within given time range"
         )
-
         result = jobs_in_queue + jobs_pick + job_completed_within_dates
 
         return result
@@ -521,49 +455,81 @@ class QueueTimeProcessor:
     def toDateTime(self, timestamp: str):
         return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
 
-    def get_queueing_jobs(
+    def add_runner_labels(
         self,
+        jobs: List[Dict[str, Any]],
+        start_time: datetime,
         meta_runner_config_retriever,
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
-        start_timestamp: str,
-        end_timestamp: str,
-        repo: str = "pytorch/pytorch",
-    ) -> List[Dict[str, Any]]:
-        """
-        this method is used to fetch jobs that were in queue in given snapshot time
-        """
-
-        # fetches queued jobs at given snapshot time from db
-        snapshot = self._fetch_snapshot_from_db(start_timestamp, end_timestamp, repo)
-        if len(snapshot) == 0:
-            info(f"No jobs in queue at time: {end_timestamp}")
-            return []
-
+    ) -> None:
         # create dictionary of tags with set of targeting machine types
-        start_date_time =  datetime.fromtimestamp(int(start_timestamp)).astimezone()
-        lf_runner_config = get_runner_config(lf_runner_config_retriever, start_date_time)
+
+        lf_runner_config = get_runner_config(lf_runner_config_retriever, start_time)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
-                old_lf_lf_runner_config_retriever, start_date_time
+                old_lf_lf_runner_config_retriever, start_time
             )
         runner_labels = create_runner_labels(
-            get_runner_config(meta_runner_config_retriever, start_date_time),
+            get_runner_config(meta_runner_config_retriever, start_time),
             lf_runner_config,
         )
-        update_tags(runner_labels, set([job["machine_type"] for job in snapshot]))
+        update_tags(runner_labels, set([job["machine_type"] for job in jobs]))
 
-        serialized_data = {k: list(v) for k, v in runner_labels.items()}
-        print("runner_labels\n",json.dumps(serialized_data, indent=4))
+        # for debugging
+        #  serialized_data = {k: list(v) for k, v in runner_labels.items()}
+        # info(f"list runner_labels\n {json.dumps(serialized_data, indent=4)}")
 
         # iterates throught jobs, and update tags for each job
-        for job in snapshot:
+        for job in jobs:
             job_labels = []
             for tag in runner_labels:
                 if job["machine_type"] in runner_labels[tag]:
                     job_labels.append(tag)
             job["runner_labels"] = job_labels
 
+    def process(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        meta_runner_config_retriever,
+        lf_runner_config_retriever,
+        old_lf_lf_runner_config_retriever,
+        repo: str = "pytorch/pytorch",
+    ) -> Dict[str, Any]:
+        # fetches queued jobs at given time interval from db
+        queued_jobs = self.get_queueing_jobs(start_time, end_time, repo)
+
+        # add runner labels to each job based on machine type
+        self.add_runner_labels(
+            queued_jobs,
+            start_time,
+            meta_runner_config_retriever,
+            lf_runner_config_retriever,
+            old_lf_lf_runner_config_retriever,
+        )
+        return {
+            "start_time": start_time.timestamp(),
+            "end_time": end_time.timestamp(),
+            "queued_jobs": queued_jobs,
+        }
+
+    def get_queueing_jobs(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        repo: str = "pytorch/pytorch",
+    ) -> List[Dict[str, Any]]:
+        """
+        this method is used to fetch jobs that were in queue in given snapshot time
+        """
+
+        # fetches queued jobs at given time interval from db
+        snapshot = self._fetch_snapshot_from_db(start_time, end_time, repo)
+
+        if len(snapshot) == 0:
+            info(f"No jobs in queue at time: {end_time}")
+            return []
         return snapshot
 
     def _query_in_queue_jobs(
@@ -729,17 +695,150 @@ class QueueTimeProcessor:
         }
 
 
+class WorkerPoolHandler:
+    def __init__(
+        self,
+        retrievers: Dict[str, LazyFileHistory],
+        queue_time_processor: QueueTimeProcessor,
+        max_workers: int = 4,
+        is_dry_run: bool = False,
+        local_output: bool = False,
+        output_snapshot_file_name: str = "job_queue_times_snapshot",
+        output_snapshot_file_path: str = "",
+    ):
+        self.retrievers = retrievers
+        self.queue_time_processor = queue_time_processor
+        self.max_workers = max_workers
+        self.is_dry_run = is_dry_run
+
+        self.output_snapshot_file_name = output_snapshot_file_name
+        self.output_snapshot_file_path = output_snapshot_file_path
+        self.local_output = local_output and is_dry_run
+
+    def start(self, time_intervals: List[List[datetime]]) -> None:
+        info(" start to process queue time data...")
+
+        # get runner config retrievers
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = []
+            for interval in time_intervals:
+                future = executor.submit(
+                    self.queue_time_processor.process,
+                    interval[0],  # start_timestamp
+                    interval[1],  # end_timestamp
+                    self.retrievers["meta"],
+                    self.retrievers["lf"],
+                    self.retrievers["old_lf"],
+                )
+                futures.append(future)
+
+        results = []
+        errors = []
+        # handle results from parallel processing
+        for future in as_completed(futures):
+            try:
+                result = future.result()  # This will raise an exception if one occurred
+                results.append(result)
+            except Exception as e:
+                warning(f"Error processing future: {e}")
+                errors.append({"error": str(e)})
+        info(
+            f" done. total works: {len(time_intervals)}, success: {len(results)}, failure:{len(errors)}"
+        )
+
+        if len(errors) > 0:
+            warning(
+                f" [Failure] Errors occurred while processing futures: {errors}, investigation is needed"
+            )
+
+        # output results to local file or terminal for local test only
+        if self.is_dry_run:
+            info(f" writing results to terminal/local file ...")
+            for snapshot in results:
+                time = datetime.fromtimestamp(snapshot["end_time"])
+                self.output_snapshot(snapshot["queued_jobs"], time)
+
+        # TODO(elainewy): writing result to s3
+        info(f" writing results to s3 bucket...")
+
+    def output_snapshot(
+        self,
+        snapshot: List[Dict[str, Any]],
+        time: datetime,
+    ) -> None:
+        """
+        print the snapshot to local file or terminal for local test only
+        """
+
+        time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+        file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
+        if self.local_output:
+            info(
+                f"[Dry Run Mode]: found {len(snapshot)} records, outputing to file: {file_name_with_time}   "
+            )
+            write_to_file(
+                json.dumps(snapshot),
+                file_name_with_time,
+                self.output_snapshot_file_path,
+            )
+            return
+
+        # otherwise, print to terminal
+        if len(snapshot) > 10:
+            info(
+                f"[Dry Run Mode]:[{time.isoformat()}]found {len(snapshot)} records, print first 2 in terminal. for full result, use local-output option"
+            )
+            info(json.dumps(snapshot[:2], indent=4))
+        else:
+            info(f"[Dry Run Mode]: found {len(snapshot)} records, print in terminal")
+            info(json.dumps(snapshot, indent=4))
+
+
+def get_latest_queue_time_histogram_table(
+    cc: clickhouse_connect.driver.client.Client,
+) -> str:
+    query = """
+    SELECT MAX(time) as latest FROM fortesting.oss_ci_queue_time_histogram
+    """
+    info("Getting last queue time from misc.oss_ci_queue_time_histogram....")
+    res = cc.query(query, {})
+
+    if res.row_count != 1:
+        raise ValueError(
+            f" [get_latest_queue_time_histogram_table] Expected 1 row, got {res.row_count}"
+        )
+    if len(res.column_names) != 1:
+        raise ValueError(
+            f" [get_latest_queue_time_histogram_table] Expected 1 column, got {str(len(res.column_names))}"
+        )
+    return res.result_rows[0][0]
+
+
+def get_latest_time_workflow_job_table(clickhouse_client) -> str:
+    query = """
+    SELECT GREATEST(MAX(created_at), MAX(started_at)) AS latest from default.workflow_job
+    """
+    res = clickhouse_client.query(query, {})
+
+    if res.row_count != 1:
+        raise ValueError(
+            f" [get_latest_time_workflow_job_table] Expected 1 row, got {res.row_count}"
+        )
+    if len(res.column_names) != 1:
+        raise ValueError(
+            f" [get_latest_time_workflow_job_table] Expected 1 column, got {str(len(res.column_names))}"
+        )
+
+    return res.result_rows[0][0]
+
+
 def lambda_handler(event: Any, context: Any) -> None:
     """
     Main method to run in aws lambda environment
     """
     db_client = get_clickhouse_client_environment()
     s3_client = get_aws_s3_resource()
-
-    QueueTimeProcessor(
-        db_client, s3_client, github_access_token=ENVS["GITHUB_ACCESS_TOKEN"]
-    ).process()
-
+    main(db_client, s3_client)
     return
 
 
@@ -798,7 +897,170 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def main() -> None:
+class TimeIntervalGenerator:
+    """
+    TimeIntervalGenerator:
+        calculates time intervals between the source table (workflow_job table) and the target table (histogram table).
+        It reads the latest time from both tables, and find the previous half-hour timestamp. if time gap exists, generate intervals.
+        currently the interval gap is 30 minutes. It is a necessary step since the data ingested into source table can be delayed
+        for the time range we want to calculate, due to the nature of github data pipeline.
+    Example:
+    source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
+    source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
+    source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
+    """
+
+    def __init__(self):
+        pass
+
+    def generate(self, clickhouse_client: Any):
+        """
+        calculates time intervals between the source table (workflow_job table) and the target table (histogram table).
+        By default, we assume everything stored in database is in UTC timezone.
+
+        It reads the latest time from both tables, and find the previous half-hour timestamp. if time gap exists, generate intervals.
+        currently the interval gap is 30 minutes. It is a necessary step since the data ingested into source table can be delayed
+        for the time range we want to calculate, due to the nature of github data pipeline.
+        Example:
+        source table: 2023-10-01 10:12, target table: 2023-10-01 9:00 ->  2 intervals: [[2023-10-01 9:00,  2023-10-01 9:30], [2023-10-01 9:30,  2023-10-01 10:00]]
+        source table: 2025-10-01 10:45, target table: 2023-10-01 10:00 -> 1 intervals: [[2023-10-01 10:00,  2023-10-01 10:30]]
+        source table: 2025-10-01 10:45, target table: 2023-10-01 10:30 -> 0 intervals: [] empty, since things are in sync for 10:30 0'clock
+
+        """
+        utc_now = datetime.now(timezone.utc)
+        info(f"current time (UTC) is{utc_now.isoformat}")
+
+        # get latest time from histogram table, and find the previous half-hour time stamp
+        # 8:45am -> 8:30am, 11:15pm -> 11:00pm
+        lastest_time_histogram = get_latest_queue_time_histogram_table(
+            clickhouse_client
+        )
+
+        exist_target_dt = self._round_down_to_previous_half_hour(lastest_time_histogram)
+        info(
+            f"  done parse lastest time from histogram table: {exist_target_dt}. Prevous half-hour time (UTC): {exist_target_dt}"
+        )
+        lastest_time_workflow_job = get_latest_time_workflow_job_table(
+            clickhouse_client
+        )
+        new_src_dt = self._round_down_to_previous_half_hour(lastest_time_workflow_job)
+        info(
+            f"  done parse lastest time from workflow_job table: {lastest_time_workflow_job}. Previous half-hour time (UTC): {new_src_dt}"
+        )
+
+        intervals = self._generate_half_hour_intervals(exist_target_dt, new_src_dt)
+
+        info(
+            f"  generates {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
+        )
+        return intervals
+
+    def _round_down_to_previous_half_hour(self, time: str | datetime) -> datetime:
+        if not isinstance(time, datetime):
+            time = parse(time)
+        time = time.replace(tzinfo=timezone.utc)
+        minutes = (time.minute // 30) * 30  # Round down to the nearest 30-minute mark
+        return time.replace(minute=minutes, second=0, microsecond=0)
+
+    def _generate_half_hour_intervals(
+        self, start_time: datetime, end_time: datetime, maximum_intervals: int = 150
+    ):
+        if self._is_unix_epoch(end_time):
+            raise Exception(
+                f"end_time {end_time} is unixstamp 0, please check the input time"
+            )
+
+        if end_time <= start_time:
+            info(
+                f"skip. end_time `{end_time}` is earlier than or equal to start_time `{start_time}`"
+            )
+            return []
+
+        if self._is_unix_epoch(start_time):
+            # find closest :00 and :30 time from source table
+            single_end_time = self._round_down_to_half_hour(end_time)
+            # then find previous half-hour closest to the end_time
+            single_start_time = self._round_down_to_half_hour(
+                single_end_time - timedelta(minutes=1)
+            )
+            info(
+                f"  [Initialization] start_time is unix timestamp 0. generating interval from workflow_job table: [{single_start_time.isoformat()}, {single_end_time.isoformat()}]"
+            )
+            return [[single_start_time, single_end_time]]
+
+        num_of_half_hours = int((end_time - start_time).total_seconds() / 1800)
+        if num_of_half_hours > maximum_intervals:
+            raise ValueError(
+                f"num_of_half_hours {num_of_half_hours} is greater than maximum_intervals {maximum_intervals}, investigation is needed and run generator manually"
+            )
+
+        return [
+            [
+                start_time + timedelta(minutes=30 * i),
+                start_time + timedelta(minutes=30 * (i + 1)),
+            ]
+            for i in range(num_of_half_hours)
+        ]
+
+    def _is_unix_epoch(self, dt: datetime):
+        return (
+            int(dt.timestamp()) == 0
+        )  # Compare against Unix epoch (1970-01-01 00:00:00 UTC)
+
+    def _round_down_to_half_hour(self, dt):
+        # If minutes are less than 30, set them to 0; if greater or equal, set to 30
+        if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+            # Go back to 12:30 of the previous day
+            return (dt - timedelta(days=1)).replace(
+                hour=12, minute=30, second=0, microsecond=0
+            )
+        elif dt.minute < 30:
+            # Round down to the start of the hour (00:00:00, 01:00:00, etc.)
+            return dt.replace(minute=0, second=0, microsecond=0)
+        else:
+            # Round down to the half-hour (00:30:00, 01:30:00, etc.)
+            return dt.replace(minute=30, second=0, microsecond=0)
+
+
+def main(
+    clickhouse_client: Any,
+    s3_client: Any,
+    github_access_token: str = "",
+    is_dry_run: bool = False,
+    local_output: bool = False,
+    output_snapshot_file_name: str = "job_queue_times_snapshot",
+    output_snapshot_file_path: str = "",
+):
+    """
+    Main method to run in both local environment and lambda handler
+    """
+    if not github_access_token:
+        raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
+
+    # gets config retrievers, this is used to generate runner labels for histgram
+    config_retrievers = get_config_retrievers(github_access_token)
+    queue_time_processor = QueueTimeProcessor(
+        clickhouse_client,
+        s3_client,
+        is_dry_run=is_dry_run,
+    )
+
+    # get time intervals.
+    time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
+
+    # get jobs in queue from clickhouse for list of time intervals, in parallel
+    handler = WorkerPoolHandler(
+        config_retrievers,
+        queue_time_processor,
+        is_dry_run=is_dry_run,
+        local_output=local_output,
+        output_snapshot_file_name=output_snapshot_file_name,
+        output_snapshot_file_path=output_snapshot_file_path,
+    )
+    handler.start(time_intervals)
+
+
+def local_run() -> None:
     """
     method to run in local test environment
     """
@@ -817,7 +1079,7 @@ def main() -> None:
     # always run in dry-run mode in local environment, unless it's disabled.
     is_dry_run = not arguments.not_dry_run
 
-    QueueTimeProcessor(
+    main(
         db_client,
         s3_client,
         arguments.github_access_token,
@@ -825,8 +1087,8 @@ def main() -> None:
         local_output=arguments.local_output,
         output_snapshot_file_name=arguments.output_file_name,
         output_snapshot_file_path=arguments.output_file_path,
-    ).process()
+    )
 
 
 if __name__ == "__main__":
-    main()
+    local_run()
