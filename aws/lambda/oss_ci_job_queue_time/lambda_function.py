@@ -34,6 +34,7 @@ logging.basicConfig(level=logging.INFO)
 _bucket_name = "ossci-raw-job-status"
 
 
+# lru_cache makes it able to be used in multithreads
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
@@ -43,7 +44,7 @@ def get_clickhouse_client(host: str, user: str, password: str) -> Any:
         host=host, user=user, password=password, secure=True
     )
 
-
+# lru_cache makes it able to be used in multithreads
 @lru_cache()
 def get_aws_s3_resource() -> Any:
     return boto3.resource("s3")
