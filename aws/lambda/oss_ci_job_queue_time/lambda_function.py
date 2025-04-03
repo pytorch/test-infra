@@ -75,7 +75,7 @@ def is_unix_timestamp(value: str) -> bool:
     return False
 
 
-def toTimestampStr(time: datetime) -> str:
+def to_timestap_str(time: datetime) -> str:
     return str(int(time.timestamp()))
 
 
@@ -434,8 +434,8 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         )
         return {
-            "start_time": toTimestampStr(start_time),
-            "end_time": toTimestampStr(end_time),
+            "start_time": to_timestap_str(start_time),
+            "end_time": to_timestap_str(end_time),
             "queued_jobs": queued_jobs,
         }
 
@@ -453,8 +453,8 @@ class QueueTimeProcessor:
             3. fetches jobs that were in-queue but completed WITHIN given time range [start_time, end_time]
         """
         # clickhouse does not accept iso format, using timestamp instead
-        start_timestamp = toTimestampStr(start_time)
-        end_timestamp = toTimestampStr(end_time)
+        start_timestamp = to_timestap_str(start_time)
+        end_timestamp = to_timestap_str(end_time)
 
         info(
             f" [Snapshot:{end_timestamp}] Logging interval info: [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]"
@@ -828,7 +828,7 @@ class WorkerPoolHandler:
         file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
         if self.local_output:
             info(
-                f"[Dry Run Mode][Snapshot {toTimestampStr(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
+                f"[Dry Run Mode][Snapshot {to_timestap_str(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
             )
             write_to_file(
                 json.dumps(data),
@@ -845,7 +845,7 @@ class WorkerPoolHandler:
             info(json.dumps(data[:2], indent=4))
         else:
             info(
-                f" [Dry Run Mode][Snapshot {toTimestampStr(time)}] Found {len(data)} records, print in terminal"
+                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
             )
             info(json.dumps(data, indent=4))
 
