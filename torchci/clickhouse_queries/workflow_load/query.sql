@@ -29,7 +29,7 @@ WHERE
         'inductor-A100-perf-nightly',
         'inductor-cu124',
         'rocm',
-        'inductor-rocm',
+        'inductor-rocm'
     )
     AND workflow.repository.'full_name' LIKE {repo: String}
 GROUP BY
