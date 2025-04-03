@@ -856,9 +856,9 @@ class TimeIntervalGenerator:
         pass
 
     def generate(self, clickhouse_client: Any):
-        info(" start to generate time intervals...")
+        info(" [TimeIntervalGenerator] Start to generate time intervals...")
         utc_now = datetime.now(timezone.utc)
-        info(f" Current time (UTC) is{utc_now}")
+        info(f" Current time (UTC) is {utc_now}")
 
         # get latest time from histogram table, and find the previous half-hour time stamp
         # Ex: 8:45am -> 8:30am, 11:15pm -> 11:00pm
@@ -872,7 +872,7 @@ class TimeIntervalGenerator:
             lastest_time_histogram_dt
         )
         info(
-            f"  [TimeIntervalGenerator] Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC format:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
+            f" Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
         )
 
         lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
@@ -885,7 +885,7 @@ class TimeIntervalGenerator:
             lastest_time_workflow_job_dt
         )
         info(
-            f" [TimeIntervalGenerator] Done. parse lastest time from workflow_job table: {lastest_time_workflow_job}, (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
+            f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
         )
 
         # generate intervals between exist_target_dt and new_src_dt
@@ -893,7 +893,7 @@ class TimeIntervalGenerator:
 
         # TODO(elainewy): add logic to investigate if any interval already existed in db, skip.
         info(
-            f"  [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
+            f" [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
         )
         return intervals
 
@@ -981,7 +981,7 @@ class TimeIntervalGenerator:
         query = """
         SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
         """
-        info(" Getting last queue time from misc.oss_ci_queue_time_histogram....")
+        info(" Getting lastest timestamp from misc.oss_ci_queue_time_histogram....")
         res = cc.query(query, {})
 
         if res.row_count != 1:
@@ -995,7 +995,7 @@ class TimeIntervalGenerator:
         return res.result_rows[0][0]
 
     def get_latest_time_workflow_job_table(self, clickhouse_client) -> str:
-        info(" Getting last queue time from default.workflow_job...")
+        info(" Getting lastest timestamp from default.workflow_job...")
         query = """
         SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
         """
@@ -1031,13 +1031,7 @@ def main(
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
 
     # gets config retrievers, this is used to generate runner labels for histgram
-
-    config_retrievers = get_config_retrievers(github_access_token)
-    queue_time_processor = QueueTimeProcessor(
-        clickhouse_client,
-        s3_client,
-        is_dry_run=is_dry_run,
-    )
+    info(f" [Main] generating time intervals ....")
 
     # get time intervals.
     time_intervals = TimeIntervalGenerator().generate(clickhouse_client)
@@ -1046,8 +1040,14 @@ def main(
         info(" [Main] No time intervals to process, exiting...")
         return
 
-    info(f" [Main] initiating worker pool for {len(time_intervals)} intervals")
+    info(f" [Main] initiating util methods and worker pool for {len(time_intervals)} intervals")
 
+    config_retrievers = get_config_retrievers(github_access_token)
+    queue_time_processor = QueueTimeProcessor(
+        clickhouse_client,
+        s3_client,
+        is_dry_run=is_dry_run,
+    )
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
         config_retrievers,
@@ -1058,7 +1058,7 @@ def main(
         output_snapshot_file_path=output_snapshot_file_path,
     )
     handler.start(time_intervals)
-
+    info(f" [Main] Done. work completed.")
 
 def lambda_handler(event: Any, context: Any) -> None:
     """
