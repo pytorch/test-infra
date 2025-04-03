@@ -393,10 +393,10 @@ def get_config_retrievers(github_access_token: str) -> Dict[str, LazyFileHistory
 
 class QueueTimeProcessor:
     """
-    generating histogram data for queue times. It performs the following tasks:
-        1. Retrieves jobs from the source table within a specified time range.
-        2. Generates histogram data categorized by job name.
-        3. Assigns runner labels to each histogram data based on machine type.
+    QueueTimeProcessor: generating histogram data for a single time range [start_time, end_time]. It performs the following tasks:
+        1. Retrieve queuend jobs from the source table within the single time range.
+        2. Generate histogram data group by job name.
+        3. Assign runner labels to each histogram data based on machine type.
 
     To run the main method:
        processor = QueueTimeProcessor(clickhouse_client,s3_client).process()
