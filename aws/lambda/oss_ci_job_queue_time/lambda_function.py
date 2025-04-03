@@ -37,7 +37,9 @@ _bucket_name = "ossci-raw-job-status"
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -403,8 +405,15 @@ class QueueTimeProcessor:
     def __init__(
         self,
         is_dry_run: bool = False,
+        local_output: bool = False,
+        output_snapshot_file_name: str = "job_queue_times_snapshot",
+        output_snapshot_file_path: str = "",
     ) -> None:
         self.is_dry_run = is_dry_run
+        self.is_dry_run = is_dry_run
+        self.output_snapshot_file_name = output_snapshot_file_name
+        self.output_snapshot_file_path = output_snapshot_file_path
+        self.local_output = local_output and is_dry_run
 
     def process(
         self,
@@ -417,6 +426,7 @@ class QueueTimeProcessor:
         args: Optional[argparse.Namespace] = None,
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
+
         # ensure each thread has its own clickhouse client. clickhouse client is not thread-safe.
         if cc is None:
             tlocal = threading.local()
@@ -445,12 +455,50 @@ class QueueTimeProcessor:
             lf_runner_config_retriever,
             old_lf_lf_runner_config_retriever,
         )
-        # TODO(elainewy): change to histogramß
+
+        if self.is_dry_run:
+            info(f" [Dry Run Mode] Writing results to terminal/local file ...")
+            self.output_snapshot(queued_jobs, end_time)
+            info(f" [Dry Run Mode] Done. Write results to terminal/local file .")
         return {
             "start_time": to_timestap_str(start_time),
             "end_time": to_timestap_str(end_time),
-            "queued_jobs": queued_jobs,
+            "count": len(queued_jobs),
         }
+
+    def output_snapshot(
+        self,
+        data: List[Dict[str, Any]],
+        time: datetime,
+    ) -> None:
+        """
+        print the snapshot to local file or terminal for local test only
+        """
+
+        time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+        file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
+        if self.local_output:
+            info(
+                f"[Dry Run Mode][Snapshot {to_timestap_str(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
+            )
+            write_to_file(
+                json.dumps(data),
+                file_name_with_time,
+                self.output_snapshot_file_path,
+            )
+            return
+
+        # otherwise, print to terminal
+        if len(data) > 10:
+            info(
+                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first 2 in terminal. for full result, use local-output option"
+            )
+            info(json.dumps(data[:2], indent=4))
+        else:
+            info(
+                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
+            )
+            info(json.dumps(data, indent=4))
 
     def _fetch_snapshot_from_db(
         self,
@@ -755,8 +803,7 @@ class WorkerPoolHandler:
     WorkerPoolHandler runs workers in parallel to generate queue time histograms and writes the results to the target destination.
     It performs the following tasks:
      1. Uses a thread pool to generate histogram data for specified intervals.
-     2. Collects the results for all intervals from the thread pool.
-     3. Writes all valid results to the target destination (e.g., an S3 bucket).
+     2. process the results for all intervals from the thread pool.
     """
 
     def __init__(
@@ -764,19 +811,10 @@ class WorkerPoolHandler:
         retrievers: Dict[str, LazyFileHistory],
         queue_time_processor: QueueTimeProcessor,
         max_workers: int = 4,
-        is_dry_run: bool = False,
-        local_output: bool = False,
-        output_snapshot_file_name: str = "job_queue_times_snapshot",
-        output_snapshot_file_path: str = "",
     ):
         self.retrievers = retrievers
         self.queue_time_processor = queue_time_processor
         self.max_workers = max_workers
-        self.is_dry_run = is_dry_run
-
-        self.output_snapshot_file_name = output_snapshot_file_name
-        self.output_snapshot_file_path = output_snapshot_file_path
-        self.local_output = local_output and is_dry_run
 
     def start(
         self,
@@ -803,7 +841,6 @@ class WorkerPoolHandler:
                     args=args,
                 )
                 futures.append(future)
-
         results = []
         errors = []
 
@@ -823,56 +860,6 @@ class WorkerPoolHandler:
             warning(
                 f" [Failure][WorkerPoolHandler] Errors occurred while processing futures: {errors}, investigation is needed"
             )
-
-        # output results to local file or terminal for local test only
-        if self.is_dry_run:
-            info(
-                f" [Dry Run Mode][WorkerPoolHandler] Writing results to terminal/local file ..."
-            )
-            for snapshot in results:
-                time = datetime.fromtimestamp(int(snapshot["end_time"]))
-                self.output_snapshot(snapshot["queued_jobs"], time)
-            info(
-                f" [Dry Run Mode][WorkerPoolHandler] Done. Write results to terminal/local file ."
-            )
-            return
-
-        # TODO(elainewy): writing result to s3
-        info(f" [WorkerPoolHandler] Writing results to s3 bucket...")
-
-    def output_snapshot(
-        self,
-        data: List[Dict[str, Any]],
-        time: datetime,
-    ) -> None:
-        """
-        print the snapshot to local file or terminal for local test only
-        """
-
-        time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
-        file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
-        if self.local_output:
-            info(
-                f"[Dry Run Mode][Snapshot {to_timestap_str(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
-            )
-            write_to_file(
-                json.dumps(data),
-                file_name_with_time,
-                self.output_snapshot_file_path,
-            )
-            return
-
-        # otherwise, print to terminal
-        if len(data) > 10:
-            info(
-                f" [Dry Run Mode]:[{time.isoformat()}]found {len(data)} records, print first 2 in terminal. for full result, use local-output option"
-            )
-            info(json.dumps(data[:2], indent=4))
-        else:
-            info(
-                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
-            )
-            info(json.dumps(data, indent=4))
 
 
 class TimeIntervalGenerator:
@@ -1060,20 +1047,10 @@ def main(
         info(" [Main] No time intervals to process, exiting...")
         return
 
-    info(
-        f" [Main] initiating util methods and worker pool for {len(time_intervals)} intervals"
-    )
-    queue_time_processor = QueueTimeProcessor(
-        is_dry_run=is_dry_run,
-    )
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
         config_retrievers,
-        queue_time_processor,
-        is_dry_run=is_dry_run,
-        local_output=local_output,
-        output_snapshot_file_name=output_snapshot_file_name,
-        output_snapshot_file_path=output_snapshot_file_path,
+        QueueTimeProcessor(is_dry_run=is_dry_run),
     )
     handler.start(time_intervals, args)
     info(f" [Main] Done. work completed.")
@@ -1127,7 +1104,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--not-dry-run",
         action="store_true",
-        help="when set, writing results to s3 from local environment. By default, we run in dry-run mode for local environment",
+        help="when set, writing results to destination from local environment. By default, we run in dry-run mode for local environment",
     )
     parser.add_argument(
         "--output-file-name",
