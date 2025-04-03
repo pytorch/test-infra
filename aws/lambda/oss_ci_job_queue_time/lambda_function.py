@@ -873,7 +873,7 @@ class TimeIntervalGenerator:
         utc_now = datetime.now(timezone.utc)
         info(f" Current time (UTC) is {utc_now}")
 
-        # get latest time from histogram table, and find the previous half-hour time stamp
+        # get latest time from histogram table, and find the half-hour mark
         # Ex: 8:45am -> 8:30am, 11:15pm -> 11:00pm
         lastest_time_histogram = self.get_latest_queue_time_histogram_table(
             clickhouse_client
@@ -881,32 +881,31 @@ class TimeIntervalGenerator:
         lastest_time_histogram_dt = self._to_date_time(
             lastest_time_histogram, timezone=timezone.utc
         )
-        exist_target_dt = self._round_down_to_previous_half_hour(
+        target_mark_datetime = self._to_half_hour_mark(
             lastest_time_histogram_dt
         )
         info(
-            f" Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC:{lastest_time_histogram_dt}). Prevous half-hour time (UTC): {exist_target_dt}"
+            f" Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC:{lastest_time_histogram_dt}). Half-hour time (UTC): {target_mark_datetime}"
         )
 
+
+        # get latest time from workflow_job table, and find the half-hour mark
         lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
             clickhouse_client
         )
-
-        # get latest time from workflow_job table, and find the previous half-hour time stamp
         lastest_time_workflow_job_dt = self._to_date_time(lastest_time_workflow_job)
-        new_src_dt = self._round_down_to_previous_half_hour(
+        src_mark_datetime = self._to_half_hour_mark(
             lastest_time_workflow_job_dt
         )
         info(
-            f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Previous half-hour time (UTC): {new_src_dt}"
+            f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Half-hour mark (UTC): {src_mark_datetime}"
         )
 
-        # generate intervals between exist_target_dt and new_src_dt
-        intervals = self._generate_half_hour_intervals(exist_target_dt, new_src_dt)
+        intervals = self._generate_intervals(target_mark_datetime, src_mark_datetime)
 
         # TODO(elainewy): add logic to investigate if any interval already existed in db, skip.
         info(
-            f" [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{exist_target_dt},{new_src_dt}]"
+            f" [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{target_mark_datetime},{src_mark_datetime}]"
         )
         return intervals
 
@@ -925,11 +924,11 @@ class TimeIntervalGenerator:
         time = time.replace(tzinfo=timezone.utc)
         return time
 
-    def _round_down_to_previous_half_hour(self, time: datetime) -> datetime:
+    def _to_half_hour_mark(self, time: datetime) -> datetime:
         minutes = (time.minute // 30) * 30  # Round down to the nearest 30-minute mark
         return time.replace(minute=minutes, second=0, microsecond=0)
 
-    def _generate_half_hour_intervals(
+    def _generate_intervals(
         self, start_time: datetime, end_time: datetime, maximum_intervals: int = 150
     ):
         if self._is_unix_epoch(end_time):
