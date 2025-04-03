@@ -13,6 +13,7 @@ from oss_ci_job_queue_time.lambda_function import (
     TimeIntervalGenerator,
 )
 
+# ------------------------ MOCKS START ----------------------------------
 _TEST_DATETIME1 = datetime(2025, 1, 1, 0, 30, 0)
 _TEST_DATETIME2 = datetime(2025, 1, 1, 1, 0, 0)
 _TEST_DATETIME3 = datetime(2025, 1, 1, 1, 30, 0)
@@ -217,6 +218,43 @@ def get_default_environment_variables():
     }
 
 
+class EnvironmentBaseTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # set up patchers since we are not passing in the s3 instance and clickhouse client instance in lambda_run()
+        patcher1 = patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
+        patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
+        patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
+        patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
+        envs_patcher = patch(
+            "oss_ci_job_queue_time.lambda_function.ENVS",
+            new=get_default_environment_variables(),
+        )
+
+        self.mock_s3_resource = patcher1.start()
+        self.mock_get_client = patcher2.start()
+        self.mock_get_runner_config = patcher3.start()
+        self.mock_get_config_retrievers = patcher4.start()
+        self.mock_envs = envs_patcher.start()
+
+        self.mock_get_runner_config.return_value = {"runner_types": {}}
+        self.mock_get_config_retrievers.return_value = {
+            "meta": MagicMock(),
+            "lf": MagicMock(),
+            "old_lf": MagicMock(),
+        }
+
+        self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
+        self.addCleanup(patcher2.stop)
+        self.addCleanup(patcher3.stop)
+        self.addCleanup(patcher4.stop)
+        self.addCleanup(envs_patcher.stop)
+
+
+# ------------------------ MOCKS ENDS ----------------------------------
+
+# ------------------------ UTILIZATION UNIT TESTS START ----------------------------------
+
+
 class TestTimeIntervalGenerator(unittest.TestCase):
     def test_time_interval_generator_happy_flow(self):
         mock = MagicMock()
@@ -324,7 +362,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
         ]
         for x in test_cases:
             with self.subTest(f"Test Environment {x[0]}", x=x):
-                print(f"Running subtest for {x[0]}")
+                print(f"[subTest] Running subtest for {x[0]}")
                 # prepare
                 mock = MagicMock()
                 start_time = x[1]
@@ -365,18 +403,21 @@ class TestQueueTimeProcessor(unittest.TestCase):
             "oss_ci_job_queue_time.lambda_function.get_runner_config"
         )
         self.mock_get_runner_config = runner_config_patch.start()
-        self.mock_s3_resource = MagicMock()
-        self.mock_db_client = MagicMock()
-        self.mock_get_config_retrievers = MagicMock()
-        self.mock_envs = envs_patcher.start()
-
         self.mock_get_runner_config.return_value = {"runner_types": {}}
+
+        # mock method get_config_retrievers
+        self.mock_get_config_retrievers = MagicMock()
         self.mock_get_config_retrievers.return_value = {
             "meta": MagicMock(),
             "lf": MagicMock(),
             "old_lf": MagicMock(),
         }
 
+        self.mock_s3_resource = MagicMock()
+        self.mock_db_client = MagicMock()
+        self.mock_envs = envs_patcher.start()
+
+        # clean up for each test
         self.addCleanup(runner_config_patch.stop)
 
     def test_queue_time_processor_when_happy_flow_then_success(self):
@@ -426,67 +467,6 @@ class TestQueueTimeProcessor(unittest.TestCase):
         get_mock_s3_resource_object(
             self.mock_s3_resource
         ).return_value.put.assert_not_called()
-
-
-class TestLambdaHanlder(unittest.TestCase):
-    def setUp(self):
-        # set up patchers since we are not passing in the s3 instance and clickhouse client instance in lambda_run()
-        patcher1 = patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
-        patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
-        patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
-        patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
-        envs_patcher = patch(
-            "oss_ci_job_queue_time.lambda_function.ENVS",
-            new=get_default_environment_variables(),
-        )
-
-        self.mock_s3_resource = patcher1.start()
-        self.mock_get_client = patcher2.start()
-        self.mock_get_runner_config = patcher3.start()
-        self.mock_get_config_retrievers = patcher4.start()
-        self.mock_envs = envs_patcher.start()
-
-        self.mock_get_runner_config.return_value = {"runner_types": {}}
-        self.mock_get_config_retrievers.return_value = {
-            "meta": MagicMock(),
-            "lf": MagicMock(),
-            "old_lf": MagicMock(),
-        }
-
-        self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
-        self.addCleanup(patcher2.stop)
-        self.addCleanup(patcher3.stop)
-        self.addCleanup(patcher4.stop)
-        self.addCleanup(envs_patcher.stop)
-
-    def test_lambda_handler_when_missing_required_env_vars_then_throws_error(self):
-        test_cases = [
-            ("CLICKHOUSE_ENDPOINT"),
-            ("CLICKHOUSE_USERNAME"),
-            ("CLICKHOUSE_PASSWORD"),
-            ("GITHUB_ACCESS_TOKEN"),
-        ]
-        for x in test_cases:
-            with self.subTest(f"Test Environment {x}", x=x):
-                # prepare
-                self.mock_get_client.reset_mock(return_value=True)
-                self.mock_s3_resource.reset_mock(return_value=True)
-                self.mock_envs[x] = ""
-
-                # execute
-                with self.assertRaises(ValueError) as context:
-                    _ = lambda_handler(None, None)
-
-                # assert
-                self.assertTrue(x in str(context.exception))
-                self.mock_get_client.return_value.query.assert_not_called()
-                get_mock_s3_resource_object(
-                    self.mock_s3_resource
-                ).return_value.put.assert_not_called()
-
-                # reset
-                # manually reset the envs, todo: find a better way to do this,maybe use parameterized
-                self.mock_envs[x] = get_default_environment_variables()[x]
 
 
 class TestWorkerPoolHandler(unittest.TestCase):
@@ -575,37 +555,42 @@ class TestWorkerPoolHandler(unittest.TestCase):
         mock_qtp_instance.process.assert_called()
 
 
-class TestLocalRun(unittest.TestCase):
-    def setUp(self):
-        # set up patchers since we are not passing in the s3 instance and clickhouse client instance in local_run()
-        patcher1 = patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
-        patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
-        patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
-        patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
-        envs_patcher = patch(
-            "oss_ci_job_queue_time.lambda_function.ENVS",
-            new=get_default_environment_variables(),
-        )
+# ------------------------ UTILIZATION UNIT TESTS END ----------------------------------
 
-        self.mock_s3_resource = patcher1.start()
-        self.mock_get_client = patcher2.start()
-        self.mock_get_runner_config = patcher3.start()
-        self.mock_get_config_retrievers = patcher4.start()
-        self.mock_envs = envs_patcher.start()
 
-        self.mock_get_runner_config.return_value = {"runner_types": {}}
-        self.mock_get_config_retrievers.return_value = {
-            "meta": MagicMock(),
-            "lf": MagicMock(),
-            "old_lf": MagicMock(),
-        }
+# ------------------------ ENVIRONMENT UNIT TESTS START ----------------------------------
+class TestLambdaHanlder(EnvironmentBaseTest):
+    def test_lambda_handler_when_missing_required_env_vars_then_throws_error(self):
+        test_cases = [
+            ("CLICKHOUSE_ENDPOINT"),
+            ("CLICKHOUSE_USERNAME"),
+            ("CLICKHOUSE_PASSWORD"),
+            ("GITHUB_ACCESS_TOKEN"),
+        ]
+        for x in test_cases:
+            with self.subTest(f"Test Environment {x}", x=x):
+                # prepare
+                self.mock_get_client.reset_mock(return_value=True)
+                self.mock_s3_resource.reset_mock(return_value=True)
+                self.mock_envs[x] = ""
 
-        self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
-        self.addCleanup(patcher2.stop)
-        self.addCleanup(patcher3.stop)
-        self.addCleanup(patcher4.stop)
-        self.addCleanup(envs_patcher.stop)
+                # execute
+                with self.assertRaises(ValueError) as context:
+                    _ = lambda_handler(None, None)
 
+                # assert
+                self.assertTrue(x in str(context.exception))
+                self.mock_get_client.return_value.query.assert_not_called()
+                get_mock_s3_resource_object(
+                    self.mock_s3_resource
+                ).return_value.put.assert_not_called()
+
+                # reset
+                # manually reset the envs, todo: find a better way to do this,maybe use parameterized
+                self.mock_envs[x] = get_default_environment_variables()[x]
+
+
+class TestLocalRun(EnvironmentBaseTest):
     def test_local_run_with_dry_run_when_lambda_happy_flow_then_success_without_s3_write(
         self,
     ):
@@ -627,6 +612,8 @@ class TestLocalRun(unittest.TestCase):
             self.mock_s3_resource
         ).return_value.put.assert_not_called()
 
+
+# ------------------------ ENVIRONMENT UNIT TESTS END ----------------------------------
 
 if __name__ == "__main__":
     unittest.main()
