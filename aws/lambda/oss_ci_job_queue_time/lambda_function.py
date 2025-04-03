@@ -33,7 +33,9 @@ _bucket_name = "ossci-raw-job-status"
 
 
 @lru_cache()
-def get_clickhouse_client(host: str, user: str, password: str) -> clickhouse_connect.driver.client.Client:
+def get_clickhouse_client(
+    host: str, user: str, password: str
+) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
     # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
@@ -422,7 +424,6 @@ class QueueTimeProcessor:
         args: Optional[argparse.Namespace] = None,
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
-
         # ensure each thread has its own clickhouse client. clickhouse client is not thread-safe.
         if cc is None:
             tlocal = threading.local()
@@ -1050,8 +1051,8 @@ def main(
             is_dry_run=is_dry_run,
             local_output=local_output,
             output_snapshot_file_name=output_snapshot_file_name,
-            output_snapshot_file_path=output_snapshot_file_path
-            ),
+            output_snapshot_file_path=output_snapshot_file_path,
+        ),
     )
     handler.start(time_intervals, args)
     info(f" [Main] Done. work completed.")
