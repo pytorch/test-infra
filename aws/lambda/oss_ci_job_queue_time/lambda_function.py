@@ -428,7 +428,7 @@ class QueueTimeProcessor:
         # ensure each thread has its own clickhouse client. clickhouse client is not thread-safe.
         if cc is None:
             tlocal = threading.local()
-            if not hasattr(tlocal, "cc"):
+            if not hasattr(tlocal, "cc") or tlocal.cc is None:
                 if args:
                     tlocal.cc = get_clickhouse_client(
                         args.clickhouse_endpoint,
