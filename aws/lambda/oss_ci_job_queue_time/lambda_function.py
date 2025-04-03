@@ -37,7 +37,7 @@ _bucket_name = "ossci-raw-job-status"
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     # for local testing only, disable SSL verification
-    #return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -60,6 +60,19 @@ def get_clickhouse_client_environment() -> Any:
         user=ENVS["CLICKHOUSE_USERNAME"],
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
+
+
+def is_unix_timestamp(value: str) -> bool:
+    """Check if the string is a valid Unix timestamp."""
+    if value.isdigit():  # Ensure it's numeric
+        try:
+            timestamp = int(value)
+            # Check if it's within a reasonable range (1970 to 2100)
+            datetime.fromtimestamp(timestamp)
+            return True
+        except (ValueError, OSError):
+            return False
+    return False
 
 
 def toTimestampStr(time: datetime) -> str:
@@ -135,7 +148,7 @@ class LazyFileHistory:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
-                    if timestamp.isdigit():
+                    if is_unix_timestamp(timestamp):
                         timestamp = datetime.fromtimestamp(
                             int(timestamp), tz=timezone.utc
                         )
@@ -905,7 +918,7 @@ class TimeIntervalGenerator:
         elif isinstance(time, float):
             time = datetime.fromtimestamp(int(time), timezone.utc)
         elif isinstance(time, str):
-            if time.isdigit():
+            if is_unix_timestamp(time):
                 time = datetime.fromtimestamp(int(time), timezone.utc)
             else:
                 time = parse(time)
@@ -1011,6 +1024,7 @@ class TimeIntervalGenerator:
             )
 
         return res.result_rows[0][0]
+
 
 def main(
     clickhouse_client: Any,
