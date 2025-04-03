@@ -22,6 +22,7 @@ from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
 from github import Github, Auth
 from dateutil.parser import parse
 
+logging.basicConfig(level=logging.INFO)
 
 ENVS = {
     "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
@@ -32,6 +33,7 @@ ENVS = {
 
 _bucket_name = "ossci-raw-job-status"
 
+
 # lru_cache makes it able to be used in multithreads
 @lru_cache()
 def get_clickhouse_client(host: str, user: str, password: str) -> Any:
@@ -41,6 +43,7 @@ def get_clickhouse_client(host: str, user: str, password: str) -> Any:
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
     )
+
 
 # lru_cache makes it able to be used in multithreads
 @lru_cache()
@@ -412,17 +415,22 @@ class QueueTimeProcessor:
         meta_runner_config_retriever,
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
+        cc: Optional[clickhouse_connect.driver.client.Client] = None,
         args: Optional[argparse.Namespace] = None,
         repo: str = "pytorch/pytorch",
     ) -> Dict[str, Any]:
-        if args:
-            cc = get_clickhouse_client(
-                args.clickhouse_endpoint,
-                args.clickhouse_username,
-                args.clickhouse_password,
-            )
-        else:
-            cc = get_clickhouse_client_environment()
+        if cc is None:
+            tlocal = threading.local()
+            if not hasattr(tlocal, "cc"):
+                if args:
+                    tlocal.cc = get_clickhouse_client(
+                        args.clickhouse_endpoint,
+                        args.clickhouse_username,
+                        args.clickhouse_password,
+                    )
+                else:
+                    tlocal.cc = get_clickhouse_client_environment()
+            cc = tlocal.cc
 
         # fetches queued jobs at given time interval from db
         queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
@@ -792,6 +800,7 @@ class WorkerPoolHandler:
                     self.retrievers["meta"],
                     self.retrievers["lf"],
                     self.retrievers["old_lf"],
+                    cc=None,
                     args=args,
                 )
                 futures.append(future)
