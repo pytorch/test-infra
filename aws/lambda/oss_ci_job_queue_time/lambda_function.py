@@ -881,22 +881,17 @@ class TimeIntervalGenerator:
         lastest_time_histogram_dt = self._to_date_time(
             lastest_time_histogram, timezone=timezone.utc
         )
-        target_mark_datetime = self._to_half_hour_mark(
-            lastest_time_histogram_dt
-        )
+        target_mark_datetime = self._to_half_hour_mark(lastest_time_histogram_dt)
         info(
             f" Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC:{lastest_time_histogram_dt}). Half-hour time (UTC): {target_mark_datetime}"
         )
-
 
         # get latest time from workflow_job table, and find the half-hour mark
         lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
             clickhouse_client
         )
         lastest_time_workflow_job_dt = self._to_date_time(lastest_time_workflow_job)
-        src_mark_datetime = self._to_half_hour_mark(
-            lastest_time_workflow_job_dt
-        )
+        src_mark_datetime = self._to_half_hour_mark(lastest_time_workflow_job_dt)
         info(
             f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Half-hour mark (UTC): {src_mark_datetime}"
         )
