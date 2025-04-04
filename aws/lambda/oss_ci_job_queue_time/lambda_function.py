@@ -31,7 +31,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -125,6 +125,7 @@ class LazyFileHistory:
                     return self._fetch_content_for_commit(commit)
 
                 if not self._fetched_all_commits:
+                    print("yang test config 1, not _fetched_all_commits \n")
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
@@ -139,6 +140,7 @@ class LazyFileHistory:
         commits_after = [
             c for c in self._commits_cache if c.commit.author.date > timestamp
         ]
+        print("yang test _find_earliest_after_in_cache", commits_after)
 
         if not commits_after:
             return None
@@ -164,7 +166,17 @@ class LazyFileHistory:
         if not newly_fetched:
             self._fetched_all_commits = True
 
-        return self._find_earliest_after_in_cache(timestamp)
+        res = self._find_earliest_after_in_cache(timestamp)
+        if not res:
+            return self._find_closest_before_or_equal(timestamp)
+
+    def _find_closest_before_or_equal(self, timestamp: datetime) -> Optional[str]:
+        commits_before_equal = [
+            c for c in self._commits_cache if c.commit.author.date <= timestamp
+        ]
+        return commits_before_equal[-1] if commits_before_equal else None
+
+
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
@@ -286,7 +298,7 @@ def create_runner_labels(
     )
 
     if len(all_runners_configs.keys()) == 0:
-        warning(
+        raise ValueError(
             " [method: create_runner_labels] No runner labels found in the github config files, something is wrong, please investigate."
         )
 
@@ -589,8 +601,8 @@ class QueueTimeProcessor:
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
     ) -> None:
-        # create dictionary of tags with set of targeting machine types
 
+        # create dictionary of tags with set of targeting machine types
         lf_runner_config = get_runner_config(lf_runner_config_retriever, start_time)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
