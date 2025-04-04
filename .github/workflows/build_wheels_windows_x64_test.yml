@@ -20,6 +20,7 @@ env:
   SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
   SRC_DIR: src\\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
+  EXTRACTED_REPO_NAME: ${{ endsWith(inputs.repository_name, 'audio') && 'audio' || endsWith(inputs.repository_name, 'vision') && 'vision' || '' }}
 
 permissions:
   id-token: write
@@ -65,18 +66,16 @@ jobs:
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
 
-          for /f "tokens=2 delims=/" %%A in ("%~1") do set "repository_name=%%A"
-
           cd %SCRIPTS_DIR%
           
-          if "%repository_name%"=="audio" (
+          if "${{ env.EXTRACTED_REPO_NAME }}"=="audio" (
               call "%VS_PATH%" x64
               "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh" 
-          ) else if "%repository_name%"=="vision" (
+          ) else if "${{ env.EXTRACTED_REPO_NAME }}"=="vision" (
               call "%VS_PATH%" x64
               "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh" 
           ) else (
-              echo Invalid repository name: %repository_name%
+              echo Invalid repository name: ${{ inputs.repository_name }}
               exit /b 1
           )
       - name: Install wheel
@@ -92,14 +91,12 @@ jobs:
           cd %SRC_DIR%
           call .venv/Scripts/activate
 
-          for /f "tokens=2 delims=/" %%A in ("%~1") do set "repository_name=%%A"
-
-          if "%repository_name%"=="audio" (
+          if "${{ env.EXTRACTED_REPO_NAME }}"=="audio" (
              python test/smoke_test/smoke_test.py
-          ) else if "%repository_name%"=="vision" (
+          ) else if "${{ env.EXTRACTED_REPO_NAME }}"=="vision" (
             python test/smoke_test.py
           ) else (
-              echo Invalid repository name: %repository_name%
+              echo Invalid repository name: ${{ inputs.repository_name }}
               exit /b 1
           )
       - name: Archive wheel
