@@ -224,7 +224,6 @@ def get_default_environment_variables():
 class EnvironmentBaseTest(unittest.TestCase):
     def setUp(self) -> None:
         # set up patchers since we are not passing in the s3 instance and clickhouse client instance in lambda_run()
-        patcher1 = patch("oss_ci_job_queue_time.lambda_function.get_aws_s3_resource")
         patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
         patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
         patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
@@ -233,7 +232,6 @@ class EnvironmentBaseTest(unittest.TestCase):
             new=get_default_environment_variables(),
         )
 
-        self.mock_s3_resource = patcher1.start()
         self.mock_get_client = patcher2.start()
         self.mock_get_runner_config = patcher3.start()
         self.mock_get_config_retrievers = patcher4.start()
@@ -246,7 +244,6 @@ class EnvironmentBaseTest(unittest.TestCase):
             "old_lf": MagicMock(),
         }
 
-        self.addCleanup(patcher1.stop)  # Ensure patchers stop after each test
         self.addCleanup(patcher2.stop)
         self.addCleanup(patcher3.stop)
         self.addCleanup(patcher4.stop)
@@ -322,7 +319,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
     def test_histogram_generator_empty_queued_job_then_success_returns_empty_list(self):
         histogram_generator = QueuedJobHistogramGenerator()
         res = histogram_generator.generate_histogram_records(
-            [], _TEST_DATETIME_1M1D0030, "test"
+            [], _TEST_DATETIME_1M1D0030, "test", _TEST_DATETIME_1M1D0030
         )
         self.assertEqual(res, [])
 
@@ -330,7 +327,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         histogram_generator = QueuedJobHistogramGenerator()
         jobs = get_default_test_queued_jobs()
         res = histogram_generator.generate_histogram_records(
-            jobs, _TEST_DATETIME_1M1D0030, "test"
+            jobs, _TEST_DATETIME_1M1D0030, "test", _TEST_DATETIME_1M1D0030
         )
 
         expect = {
@@ -367,7 +364,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
             get_test_record(queue_s=get_seconds(day=7), job_name="job_2"),
         ]
         res = histogram_generator.generate_histogram_records(
-            jobs, _TEST_DATETIME_1M1D0030, "test"
+            jobs, _TEST_DATETIME_1M1D0030, "test", _TEST_DATETIME_1M1D0030
         )
         self.assertEqual(len(res), 2)
         self.assertEqual(res[0]["histogram"][0], 1)
@@ -450,7 +447,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
                 histogram_generator = QueuedJobHistogramGenerator()
                 jobs = x[1]
                 res = histogram_generator.generate_histogram_records(
-                    jobs, _TEST_DATETIME_1M1D0030, "test"
+                    jobs, _TEST_DATETIME_1M1D0030, "test", _TEST_DATETIME_1M1D0030
                 )
                 result = find_first_count(res[0]["histogram"])
                 self.assertEqual(
@@ -667,14 +664,7 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
         self.mock_get_client.assert_called()  # Generic check
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
 
-        # assert s3 resource
-        # TODO(elainewy): add called check when introduce histogram logic
-        self.mock_s3_resource.Object.put.assert_not_called()
-
     def test_queue_time_processor_when_row_result_is_empty_then_success(self):
-        # prepare
-        mock_s3_resource_put(self.mock_s3_resource)
-
         mq = MockQuery(rows_in_queue=[], rows_picked=[])
         setup_mock_db_client(self.mock_get_client, mq)
 
@@ -691,10 +681,6 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
         # assert
         self.mock_get_client.assert_called()  # Generic check
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
-
-        get_mock_s3_resource_object(
-            self.mock_s3_resource
-        ).return_value.put.assert_not_called()
 
 
 class TestWorkerPoolHandler(unittest.TestCase):
@@ -802,7 +788,6 @@ class TestLambdaHanlder(EnvironmentBaseTest):
             with self.subTest(f"Test Environment {x}", x=x):
                 # prepare
                 self.mock_get_client.reset_mock(return_value=True)
-                self.mock_s3_resource.reset_mock(return_value=True)
                 self.mock_envs[x] = ""
 
                 # execute
@@ -812,9 +797,6 @@ class TestLambdaHanlder(EnvironmentBaseTest):
                 # assert
                 self.assertTrue(x in str(context.exception))
                 self.mock_get_client.return_value.query.assert_not_called()
-                get_mock_s3_resource_object(
-                    self.mock_s3_resource
-                ).return_value.put.assert_not_called()
 
                 # reset
                 # manually reset the envs, todo: find a better way to do this,maybe use parameterized
@@ -824,7 +806,6 @@ class TestLambdaHanlder(EnvironmentBaseTest):
         self,
     ):
         # prepare
-        mock_s3_resource_put(self.mock_s3_resource)
         setup_mock_db_client(self.mock_get_client)
 
         # execute
@@ -834,6 +815,7 @@ class TestLambdaHanlder(EnvironmentBaseTest):
         # assert clickhouse client
         self.assertEqual(self.mock_get_client.call_count, 2)
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
+        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 1)
 
 
 class TestLocalRun(EnvironmentBaseTest):
@@ -841,7 +823,6 @@ class TestLocalRun(EnvironmentBaseTest):
         self,
     ):
         # prepare
-        mock_s3_resource_put(self.mock_s3_resource)
         setup_mock_db_client(self.mock_get_client)
 
         # execute
@@ -851,6 +832,7 @@ class TestLocalRun(EnvironmentBaseTest):
         # assert clickhouse client
         self.assertEqual(self.mock_get_client.call_count, 2)
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
+        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 0)
 
 
 # ------------------------ ENVIRONMENT UNIT TESTS END ----------------------------------
