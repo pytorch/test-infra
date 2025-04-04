@@ -38,9 +38,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -422,7 +420,9 @@ class QueueTimeProcessor:
         queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
 
         if len(queued_jobs) == 0:
-            info(f" No jobs in queue in time range: [{start_time},{end_time}]")
+            info(
+                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No jobs in queue in time range: [{start_time},{end_time}]"
+            )
 
         # add runner labels to each job based on machine type
         self._add_runner_labels(
@@ -434,22 +434,31 @@ class QueueTimeProcessor:
         )
 
         if len(queued_jobs) == 0:
-            info(f" No queued jobs, skipping generating histogram records..")
+            info(
+                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No queued jobs, skipping generating histogram records.."
+            )
 
         records = QueuedJobHistogramGenerator().generate_histogram_records(
             queued_jobs,
             datetime.now(timezone.utc),
             "half-hour-mark-queue-time-histogram",
+            end_time,
         )
 
         if len(records) == 0:
-            info(f" No histogram records, skipping writing..")
+            info(
+                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No histogram records, skipping writing.."
+            )
 
         if self.is_dry_run:
-            info(f" [Dry Run Mode] Writing results to terminal/local file ...")
-            self.output_record(queued_jobs, end_time)
-            self.output_record(records, end_time)
-            info(f" [Dry Run Mode] Done. Write results to terminal/local file .")
+            info(
+                f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] Writing results to terminal/local file ..."
+            )
+            self._output_record(queued_jobs, end_time, type="queued_jobs")
+            self._output_record(records, end_time, type="records")
+            info(
+                f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] Done. Write results to terminal/local file ."
+            )
         else:
             self._write_to_db_table(cc, records)
 
@@ -480,18 +489,21 @@ class QueueTimeProcessor:
         )
         info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
 
-    def output_record(
+    def _output_record(
         self,
         data: List[Dict[str, Any]],
         time: datetime,
         indent: Optional[int] = None,
+        threshold: int = 10,
+        limit: int = 2,
+        type: str = "queued_job",
     ) -> None:
         """
         print the snapshot to local file or terminal for local test only
         """
 
         time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
-        file_name_with_time = f"{self.output_snapshot_file_name}_{time_str}.txt"
+        file_name_with_time = f"{self.output_snapshot_file_name}_{type}_{time_str}.txt"
         if self.local_output:
             info(
                 f"[Dry Run Mode][Snapshot {to_timestap_str(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
@@ -504,11 +516,11 @@ class QueueTimeProcessor:
             return
 
         # otherwise, print to terminal
-        if len(data) > 50:
+        if len(data) > threshold:
             info(
-                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first 20 in terminal. for full result, use local-output option"
+                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first {limit} in terminal. for full result, use local-output option"
             )
-            info(json.dumps(data[:20], indent=indent))
+            info(json.dumps(data[:limit], indent=indent))
         else:
             info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
@@ -832,21 +844,27 @@ class QueuedJobHistogramGenerator:
         self.secs_for_one_hour = 3600
 
     def generate_histogram_records(
-        self, queued_jobs: List[Dict[str, Any]], created_time: datetime, type: str
+        self,
+        queued_jobs: List[Dict[str, Any]],
+        created_time: datetime,
+        type: str,
+        snapshot_time: datetime,
     ) -> List[Dict[str, Any]]:
         info(
-            " [QueuedJobHistogramGenerator] start to generate histogram db records ......"
+            f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] start to generate histogram db records ......"
         )
         if len(queued_jobs) == 0:
             info(
-                " [QueuedJobHistogramGenerator] start to generate histogram db records ......"
+                f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] no records found, skipping histogram records generation......"
             )
+            return []
+
         dicts = self._group_by_job_name(queued_jobs)
         job_queue_map = dicts["job_queue"]
         metadata_map = dicts["metadata"]
 
         info(
-            " [QueuedJobHistogramGenerator] generating {len(job_queue_map.keys())}jobs ......"
+            f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] generating {len(list(job_queue_map.keys()))}jobs ......"
         )
         records = []
         for job_name, job_queues in job_queue_map.items():
@@ -857,7 +875,7 @@ class QueuedJobHistogramGenerator:
             )
             records.append(record)
         info(
-            f" [QueuedJobHistogramGenerator] Done. generated {len(records)} histogram db records ......"
+            f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] Done. generated {len(records)} histogram db records ......"
         )
         return records
 
