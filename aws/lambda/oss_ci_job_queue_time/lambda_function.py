@@ -31,9 +31,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -100,7 +98,7 @@ def write_to_file(data: Any, filename="", path=""):
 #  ---------  Github Config File Methods Start----
 class LazyFileHistory:
     """
-    Reads the content of a file from a GitHub repository on the version that it was on a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
+    Reads the content of a file from a GitHub repository on the version that it was closest to a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
     All public methods are thread-safe.
     """
 
@@ -126,7 +124,7 @@ class LazyFileHistory:
                         timestamp = parse(timestamp)
 
                 info(
-                    f" Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}"
+                    f" [LazyFileHistory]Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}"
                 )
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
@@ -134,17 +132,15 @@ class LazyFileHistory:
 
                 if not self._fetched_all_commits:
                     info(
-                        f" Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}"
+                        f" [LazyFileHistory]Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}"
                     )
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
-
         except Exception as e:
             warning(
-                f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
+                f" [LazyFileHistory] Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
             )
-
         return None
 
     def _find_earliest_after_in_cache(self, timestamp: datetime) -> Optional[str]:
@@ -180,7 +176,9 @@ class LazyFileHistory:
         res = self._find_earliest_after_in_cache(timestamp)
 
         if not res:
-            info(f" Nothing found, get equal/latest before {timestamp.isoformat()}  ")
+            info(
+                f" [LazyFileHistory] Nothing found, get latest commit before {timestamp.isoformat()}  "
+            )
             return self._find_closest_before_or_equal(timestamp)
         return res
 
