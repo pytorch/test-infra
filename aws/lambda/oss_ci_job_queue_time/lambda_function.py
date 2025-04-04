@@ -29,7 +29,6 @@ ENVS = {
 _bucket_name = "ossci-raw-job-status"
 
 
-@lru_cache()
 def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
