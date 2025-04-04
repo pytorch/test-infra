@@ -444,11 +444,12 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         ]
         for x in test_cases:
             with self.subTest(f"Test {x[0]}", x=x):
-                histogram_generator = QueuedJobHistogramGenerator()
                 jobs = x[1]
+                histogram_generator = QueuedJobHistogramGenerator()
                 res = histogram_generator.generate_histogram_records(
                     jobs, _TEST_DATETIME_1M1D0030, "test", _TEST_DATETIME_1M1D0030
                 )
+
                 result = find_first_count(res[0]["histogram"])
                 self.assertEqual(
                     sum(res[0]["histogram"]),
@@ -466,8 +467,10 @@ class TestTimeIntervalGenerator(unittest.TestCase):
     def test_time_interval_generator_happy_flow_then_success(self):
         mock = MagicMock()
         setup_mock_db_client(mock, is_patch=False)
+
         time_interval_generator = TimeIntervalGenerator()
         time_interval_generator.generate(mock)
+
         self.assertEqual(mock.query.call_count, 2)
 
     def test_time_interval_generator_when_empty_result_from_histogram_then_throws_error(
@@ -478,7 +481,9 @@ class TestTimeIntervalGenerator(unittest.TestCase):
             rows_max_historagram=[],
         )
         setup_mock_db_client(mock, mq, is_patch=False)
+
         time_interval_generator = TimeIntervalGenerator()
+
         with self.assertRaises(ValueError) as context:
             time_interval_generator.generate(mock)
         self.assertTrue("Expected 1 row, got 0" in str(context.exception))
