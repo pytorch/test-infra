@@ -6,6 +6,7 @@ const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 const GROUP_UNSTABLE = "Unstable";
 const GROUP_PERIODIC = "Periodic";
+const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
@@ -43,6 +44,10 @@ export const groups = [
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /inductor-periodic/,
+    name: GROUP_INDUCTOR_PERIODIC,
   },
   {
     regex: /periodic/,
@@ -155,6 +160,7 @@ const HUD_GROUP_SORTING = [
   GROUP_SLOW,
   GROUP_DOCS,
   GROUP_INDUCTOR,
+  GROUP_INDUCTOR_PERIODIC,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_OTHER,
   GROUP_BINARY_WINDOWS,
