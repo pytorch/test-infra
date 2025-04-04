@@ -650,6 +650,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
 class TestQueueTimeProcessor(EnvironmentBaseTest):
     def test_queue_time_processor_when_happy_flow_then_success(self):
         # execute
+        setup_mock_db_client(self.mock_get_client)
         processor = QueueTimeProcessor()
         processor.process(
             MagicMock(),
@@ -663,6 +664,7 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
         # assert clickhouse client
         self.mock_get_client.assert_called()  # Generic check
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
+        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 1)
 
     def test_queue_time_processor_when_row_result_is_empty_then_success(self):
         mq = MockQuery(rows_in_queue=[], rows_picked=[])
@@ -681,6 +683,7 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
         # assert
         self.mock_get_client.assert_called()  # Generic check
         self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
+        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 0)
 
 
 class TestWorkerPoolHandler(unittest.TestCase):
