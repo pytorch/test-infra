@@ -9,7 +9,7 @@ export VCVARSALL_PATH="$DEPENDENCIES_DIR/VSBuildTools/VC/Auxiliary/Build/vcvarsa
 export CONDA_PREFIX="$DEPENDENCIES_DIR"
 export PATH="$PATH:$CONDA_PREFIX/Library/bin"
 export DISTUTILS_USE_SDK=1
-export TRIPLET_FILE="triplets/x64-windows.cmake"
+# export TRIPLET_FILE="triplets/x64-windows.cmake"
 
 # Dependencies
 mkdir -p "$DOWNLOADS_DIR"
@@ -23,8 +23,8 @@ git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg || exit
 ./bootstrap-vcpkg.sh
 
-# Set vcpkg to only build release packages
-echo "set(VCPKG_BUILD_TYPE release)" >> "$TRIPLET_FILE"
+# # Set vcpkg to only build release packages
+# echo "set(VCPKG_BUILD_TYPE release)" >> "$TRIPLET_FILE"
 
 # Install dependencies using vcpkg
 ./vcpkg install libjpeg-turbo:x64-windows --x-install-root="$DEPENDENCIES_DIR"
@@ -53,7 +53,7 @@ source .venv/Scripts/activate
 
 # Install dependencies
 pip install numpy==2.2.3
-pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu
+pip3 install torch
 
 # Create wheel under dist folder
 python setup.py bdist_wheel
