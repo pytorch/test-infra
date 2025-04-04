@@ -332,7 +332,6 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         )
 
         expect = {
-            "created_time": 1735720200,
             "histogram_version": "1.0",
             "type": "test",
             "repo": "pytorch/pytorch",
@@ -358,18 +357,18 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
 
         # assert metadata
         self.assertIsNotNone(res[0]["created_time"])
-        self.assertEqual(res[0]["histogram_version"],expect["histogram_version"])
-        self.assertEqual(res[0]["type"],expect["type"])
-        self.assertEqual(res[0]["repo"],expect["repo"])
-        self.assertEqual(res[0]["time"],expect["time"])
-        self.assertEqual(res[0]["workflow_name"],expect["workflow_name"])
-        self.assertEqual(res[0]["job_name"],expect["job_name"])
-        self.assertEqual(res[0]["machine_type"],expect["machine_type"])
-        self.assertEqual(res[0]["total_count"],expect["total_count"])
-        self.assertEqual(res[0]["max_queue_time"],expect["max_queue_time"])
-        self.assertEqual(res[0]["avg_queue_time"],expect["avg_queue_time"])
-        self.assertEqual(res[0]["runner_labels"],expect["runner_labels"])
-        self.assertEqual(res[0]["extra_info"],expect["extra_info"])
+        self.assertEqual(res[0]["histogram_version"], expect["histogram_version"])
+        self.assertEqual(res[0]["type"], expect["type"])
+        self.assertEqual(res[0]["repo"], expect["repo"])
+        self.assertEqual(res[0]["time"], expect["time"])
+        self.assertEqual(res[0]["workflow_name"], expect["workflow_name"])
+        self.assertEqual(res[0]["job_name"], expect["job_name"])
+        self.assertEqual(res[0]["machine_type"], expect["machine_type"])
+        self.assertEqual(res[0]["total_count"], expect["total_count"])
+        self.assertEqual(res[0]["max_queue_time"], expect["max_queue_time"])
+        self.assertEqual(res[0]["avg_queue_time"], expect["avg_queue_time"])
+        self.assertEqual(res[0]["runner_labels"], expect["runner_labels"])
+        self.assertEqual(res[0]["extra_info"], expect["extra_info"])
 
     def test_histogram_generator_multi_records_same_job_name_happy_flow_successs(self):
         histogram_generator = QueuedJobHistogramGenerator()
