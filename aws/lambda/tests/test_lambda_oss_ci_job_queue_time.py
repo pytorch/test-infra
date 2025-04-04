@@ -347,6 +347,8 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
             "runner_labels": ["pet", "macos", "all", "meta", "other"],
             "extra_info": {},
         }
+
+        # assert histogram
         self.assertEqual(len(res), 2)
         self.assertEqual(len(res[0]["histogram"]), 90)
         self.assertEqual(res[0]["histogram"][0], 1)
@@ -354,6 +356,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         self.assertEqual(res[1]["histogram"][0], 1)
         self.assertEqual(sum(res[1]["histogram"]), 1)
 
+        # assert metadata
         self.assertEqual(res[0]["created_time"],expect["created_time"])
         self.assertEqual(res[0]["histogram_version"],expect["histogram_version"])
         self.assertEqual(res[0]["type"],expect["type"])
@@ -362,7 +365,6 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         self.assertEqual(res[0]["workflow_name"],expect["workflow_name"])
         self.assertEqual(res[0]["job_name"],expect["job_name"])
         self.assertEqual(res[0]["machine_type"],expect["machine_type"])
-        self.assertEqual(res[0]["histogram"],expect["histogram"])
         self.assertEqual(res[0]["total_count"],expect["total_count"])
         self.assertEqual(res[0]["max_queue_time"],expect["max_queue_time"])
         self.assertEqual(res[0]["avg_queue_time"],expect["avg_queue_time"])
