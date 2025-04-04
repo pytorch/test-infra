@@ -31,7 +31,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -110,7 +112,9 @@ class LazyFileHistory:
         self._fetched_all_commits = False
         self._lock = threading.RLock()
 
-    def get_version_close_to_timestamp(self, timestamp: str | datetime) -> Optional[str]:
+    def get_version_close_to_timestamp(
+        self, timestamp: str | datetime
+    ) -> Optional[str]:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
@@ -121,13 +125,17 @@ class LazyFileHistory:
                     else:
                         timestamp = parse(timestamp)
 
-                info(f" Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}")
+                info(
+                    f" Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}"
+                )
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
                     return self._fetch_content_for_commit(commit)
 
                 if not self._fetched_all_commits:
-                    info(f" Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}")
+                    info(
+                        f" Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}"
+                    )
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
@@ -148,7 +156,6 @@ class LazyFileHistory:
         return commits_after[-1]
 
     def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
-
         # call github api, with path parameter
         # Only commits containing this file path will be returned.
         all_commits = self.repo.get_commits(path=self.path)
@@ -182,7 +189,6 @@ class LazyFileHistory:
             c for c in self._commits_cache if c.commit.author.date <= timestamp
         ]
         return commits_before_equal[-1] if commits_before_equal else None
-
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
@@ -607,7 +613,6 @@ class QueueTimeProcessor:
         lf_runner_config_retriever,
         old_lf_lf_runner_config_retriever,
     ) -> None:
-
         # create dictionary of tags with set of targeting machine types
         lf_runner_config = get_runner_config(lf_runner_config_retriever, start_time)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
