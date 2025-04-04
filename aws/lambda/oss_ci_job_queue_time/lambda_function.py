@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+from collections import defaultdict
 import io
 import json
 import logging
@@ -37,7 +38,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -103,29 +106,6 @@ def write_to_file(data: Any, filename="", path=""):
     with open(file_path, "w", encoding="utf-8") as file:
         file.write(data)
     info(f"File written to: {os.path.abspath(file_path)}")
-
-
-def upload_to_s3_txt(
-    s3_client: Any,
-    bucket_name: str,
-    key: str,
-    records: list[dict[str, Any]],
-) -> None:
-    info(f"Writing {len(records)} documents to S3 {bucket_name}/{key}")
-    body = io.StringIO()
-    for record in records:
-        json.dump(record, body)
-        body.write("\n")
-
-    s3_client.Object(
-        f"{bucket_name}",
-        f"{key}",
-    ).put(
-        Body=gzip.compress(body.getvalue().encode()),
-        ContentEncoding="gzip",
-        ContentType="text/plain",
-    )
-    info(f"Done! Finish writing document to S3 {bucket_name}/{key} ")
 
 
 # TODO(elainewy): Move this into seperate files
@@ -453,20 +433,58 @@ class QueueTimeProcessor:
             old_lf_lf_runner_config_retriever,
         )
 
+        if len(queued_jobs) == 0:
+            info(f" No queued jobs, skipping generating histogram records..")
+
+        records = QueuedJobHistogramGenerator().generate_histogram_records(
+            queued_jobs,
+            datetime.now(timezone.utc),
+            "half-hour-mark-queue-time-histogram",
+        )
+
+        if len(records) == 0:
+            info(f" No histogram records, skipping writing..")
+
         if self.is_dry_run:
             info(f" [Dry Run Mode] Writing results to terminal/local file ...")
-            self.output_snapshot(queued_jobs, end_time)
+            self.output_record(queued_jobs, end_time)
+            self.output_record(records, end_time)
             info(f" [Dry Run Mode] Done. Write results to terminal/local file .")
+        else:
+            self._write_to_db_table(cc, records)
+
         return {
             "start_time": to_timestap_str(start_time),
             "end_time": to_timestap_str(end_time),
-            "count": len(queued_jobs),
+            "jobs_count": len(queued_jobs),
+            "records_count": len(records),
         }
 
-    def output_snapshot(
+    def _write_to_db_table(
+        self, cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]
+    ):
+        # TODO(elainewy): Change to misc.oss_ci_queue_time_histogram after testing is completed
+        db_name = "fortesting"
+        db_table_name = "oss_ci_queue_time_histogram"
+        info(f" Insert data to db table: {db_name}.{db_table_name}")
+        if len(records) == 0:
+            info(f" No histogram records, skipping writing..")
+            return
+        columns = list(records[0].keys())
+        data = [list(record.values()) for record in records]
+        cc.insert(
+            table="fortesting.oss_ci_queue_time_histogram",
+            data=data,
+            column_names=columns,
+            database="fortesting",
+        )
+        info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
+
+    def output_record(
         self,
         data: List[Dict[str, Any]],
         time: datetime,
+        indent: Optional[int] = None,
     ) -> None:
         """
         print the snapshot to local file or terminal for local test only
@@ -486,16 +504,16 @@ class QueueTimeProcessor:
             return
 
         # otherwise, print to terminal
-        if len(data) > 10:
+        if len(data) > 50:
             info(
-                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first 2 in terminal. for full result, use local-output option"
+                f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first 20 in terminal. for full result, use local-output option"
             )
-            info(json.dumps(data[:2], indent=4))
+            info(json.dumps(data[:20], indent=indent))
         else:
             info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
             )
-            info(json.dumps(data, indent=4))
+            info(json.dumps(data, indent=indent))
 
     def _fetch_snapshot_from_db(
         self,
@@ -795,6 +813,160 @@ class QueueTimeProcessor:
         }
 
 
+class QueuedJobHistogramGenerator:
+    def __init__(self) -> None:
+        self.metadata_field_list = [
+            "repo",
+            "time",
+            "workflow_name",
+            "job_name",
+            "machine_type",
+            "runner_labels",
+        ]
+        self.metrics_field_list = [
+            "histogram",
+            "total_count",
+            "max_queue_time",
+            "avg_queue_time",
+        ]
+        self.secs_for_one_hour = 3600
+
+    def generate_histogram_records(
+        self, queued_jobs: List[Dict[str, Any]], created_time: datetime, type: str
+    ) -> List[Dict[str, Any]]:
+        info(
+            " [QueuedJobHistogramGenerator] start to generate histogram db records ......"
+        )
+        if len(queued_jobs) == 0:
+            info(
+                " [QueuedJobHistogramGenerator] start to generate histogram db records ......"
+            )
+        dicts = self._group_by_job_name(queued_jobs)
+        job_queue_map = dicts["job_queue"]
+        metadata_map = dicts["metadata"]
+
+        info(
+            " [QueuedJobHistogramGenerator] generating {len(job_queue_map.keys())}jobs ......"
+        )
+        records = []
+        for job_name, job_queues in job_queue_map.items():
+            metrics = self._get_metrics(job_queues)
+            metadata = metadata_map[job_name]
+            record = self._form_database_record_v1_0(
+                created_time, type, metadata, metrics
+            )
+            records.append(record)
+        info(
+            f" [QueuedJobHistogramGenerator] Done. generated {len(records)} histogram db records ......"
+        )
+        return records
+
+    def _get_metrics(self, job_queues: List[Dict[str, Any]]) -> Dict[str, Any]:
+        histogram = self._to_job_exponential_histgram(job_queues)
+        qs_list = [job["queue_s"] for job in job_queues]
+        max_queue_time = max(qs_list)
+        total_queue_time = sum(qs_list)
+        total_count = len(job_queues)
+        avg_queue_time = total_queue_time // total_count
+
+        return {
+            "histogram": histogram,
+            "total_count": total_count,
+            "max_queue_time": max_queue_time,
+            "avg_queue_time": avg_queue_time,
+        }
+
+    def _form_database_record_v1_0(
+        self,
+        created_time: datetime,
+        type: str,
+        metadata: Dict[str, Any],
+        metrics: Dict[str, Any],
+    ):
+        histogram_version = "1.0"
+        return {
+            "created_time": int(created_time.timestamp()),
+            "histogram_version": histogram_version,
+            "type": type,
+            "repo": metadata["repo"],
+            "time": metadata["time"],
+            "workflow_name": metadata["workflow_name"],
+            "job_name": metadata["job_name"],
+            "machine_type": metadata["machine_type"],
+            "histogram": metrics["histogram"],
+            "total_count": metrics["total_count"],
+            "max_queue_time": metrics["max_queue_time"],
+            "avg_queue_time": metrics["avg_queue_time"],
+            "runner_labels": metadata.get("runner_labels", []),
+            "extra_info": {},
+        }
+
+    def _to_job_exponential_histgram(self, job_queue: List[Dict[str, Any]]):
+        """
+        generate exponential histogram, it contains queue time:
+                - 1 min - 60 min:[60 buckets]  queue time location rule: [qt<=1min, 1min<qt<=2mins, .... 58<qt<=59mins, 59mins<qt<=60mins]
+                - 1 hr - 24 hrs  [23 buckets]  queue time location rule: [1hr< qt<=2hrs, 2hrs< qt <=3hrs,..., 22hrs< qt <=23hrs, 23hrs< qt <=24hrs]
+                - 1 day - 7days[7 buckets] queue time location rule:     [1day< qt <=2days, 2days< qt <=3days,..., 6days< qt <=7days, qt > 7days]
+        """
+        minutes_bucket = [0 for i in range(60)]
+        hours_bucket = [0 for i in range(23)]
+        days_bucket = [0 for i in range(7)]
+
+        one_hour_divider = self.secs_for_one_hour
+        one_day_divider = self.secs_for_one_hour * 24
+        seven_days_divider = self.secs_for_one_hour * 24 * 7
+
+        for qj in job_queue:
+            qs = qj["queue_s"]
+            if qs <= one_hour_divider:
+                if qs == 0:
+                    url = qj["html_url"]
+                    warning(
+                        f"expect queue time at least 1 secs, but found 0 for queue_s {url}, please investigate"
+                    )
+                    continue
+                bucket_index = (qs - 1) // 60
+                minutes_bucket[bucket_index] += 1
+            elif qs <= one_day_divider:
+                bucket_index = (qs - one_hour_divider - 1) // self.secs_for_one_hour
+                hours_bucket[bucket_index] += 1
+            elif qs <= seven_days_divider:
+                bucket_index = (qs - one_day_divider - 1) // (
+                    self.secs_for_one_hour * 24
+                )
+                days_bucket[bucket_index] += 1
+            else:
+                bucket_index = 6
+                days_bucket[bucket_index] += 1
+        return minutes_bucket + hours_bucket + days_bucket
+
+    def _group_by_job_name(self, queued_jobs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        job_queue_s = defaultdict(list)
+        metadata = defaultdict(dict)
+        for qj in queued_jobs:
+            job_name = qj["job_name"]
+            job_queue_s[qj["job_name"]].append(
+                {
+                    "html_url": qj["html_url"],
+                    "queue_s": qj["queue_s"],
+                }
+            )
+            if job_name not in metadata:
+                metadata[job_name] = self._to_histogram_metadata(qj)
+        return {"job_queue": job_queue_s, "metadata": metadata}
+
+    def _to_histogram_metadata(self, qj: Dict[str, Any]):
+        metadata = {}
+        for field in self.metadata_field_list:
+            if field not in qj:
+                warning(
+                    f"required field `{field}` is missing in queued job data, please investigate"
+                )
+                continue
+            metadata[field] = qj[field]
+        return metadata
+
+
 class WorkerPoolHandler:
     """
     WorkerPoolHandler runs workers in parallel to generate queue time histograms and writes the results to the target destination.
@@ -899,7 +1071,9 @@ class TimeIntervalGenerator:
         lastest_time_workflow_job = self.get_latest_time_workflow_job_table(
             clickhouse_client
         )
-        lastest_time_workflow_job_dt = self._to_date_time(lastest_time_workflow_job)
+        lastest_time_workflow_job_dt = self._to_date_time(
+            lastest_time_workflow_job, timezone=timezone.utc
+        )
         src_mark_datetime = self._to_half_hour_mark(lastest_time_workflow_job_dt)
         info(
             f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Half-hour mark (UTC): {src_mark_datetime}"
@@ -916,20 +1090,29 @@ class TimeIntervalGenerator:
     def _to_date_time(
         self, time: str | datetime | int | float, timezone=timezone.utc
     ) -> datetime:
+        """
+        convert time item to datetime with specified timezone.
+        accept:
+           - unix timestamp (int | float | str)
+           - datetime (datetime | str)
+        """
         if isinstance(time, int):
-            time = datetime.fromtimestamp(time, timezone.utc)
+            time = datetime.fromtimestamp(time, timezone)
         elif isinstance(time, float):
-            time = datetime.fromtimestamp(int(time), timezone.utc)
+            time = datetime.fromtimestamp(int(time), timezone)
         elif isinstance(time, str):
             if is_unix_timestamp(time):
-                time = datetime.fromtimestamp(int(time), timezone.utc)
+                time = datetime.fromtimestamp(int(time), timezone)
             else:
                 time = parse(time)
-        time = time.replace(tzinfo=timezone.utc)
+        time = time.replace(tzinfo=timezone)
         return time
 
     def _to_half_hour_mark(self, time: datetime) -> datetime:
-        minutes = (time.minute // 30) * 30  # Round down to the nearest 30-minute mark
+        """
+        convert datetime to its previous half-hour mark. Either 00:00 or 30:00
+        """
+        minutes = (time.minute // 30) * 30
         return time.replace(minute=minutes, second=0, microsecond=0)
 
     def _generate_intervals(
@@ -993,12 +1176,14 @@ class TimeIntervalGenerator:
             )
         return res.result_rows[0][0]
 
-    def get_latest_time_workflow_job_table(self, clickhouse_client) -> str:
+    def get_latest_time_workflow_job_table(
+        self, cc: clickhouse_connect.driver.client.Client
+    ) -> str:
         info(" Getting lastest timestamp from default.workflow_job...")
         query = """
         SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
         """
-        res = clickhouse_client.query(query, {})
+        res = cc.query(query, {})
 
         if res.row_count != 1:
             raise ValueError(

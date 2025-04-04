@@ -4,9 +4,10 @@ import gzip
 
 from typing import Any, List, Tuple, Dict
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timedelta
 from oss_ci_job_queue_time.lambda_function import (
     QueueTimeProcessor,
+    QueuedJobHistogramGenerator,
     WorkerPoolHandler,
     lambda_handler,
     local_run,
@@ -252,9 +253,216 @@ class EnvironmentBaseTest(unittest.TestCase):
         self.addCleanup(envs_patcher.stop)
 
 
+def get_seconds(day: int = 0, hour: int = 0, minute: int = 0, second: int = 0) -> int:
+    return int(
+        timedelta(days=day, hours=hour, minutes=minute, seconds=second).total_seconds()
+    )
+
+
+def get_default_test_queued_jobs():
+    return [
+        {
+            "queue_s": get_seconds(second=10),
+            "repo": "pytorch/pytorch",
+            "workflow_name": "trunk",
+            "job_name": "test_job_1",
+            "html_url": "https://github.com/pytorch/pytorch/actions/runs/1/job/1",
+            "machine_type": "macos-m2-15",
+            "time": int(_TEST_DATETIME_1M1D0030.timestamp()),
+            "tags": ["queued"],
+            "runner_labels": ["pet", "macos", "all", "meta", "other"],
+        },
+        {
+            "queue_s": get_seconds(minute=1),
+            "repo": "pytorch/pytorch",
+            "workflow_name": "trunk",
+            "job_name": "test_job_2",
+            "html_url": "https://github.com/pytorch/pytorch/actions/runs/1/job/2",
+            "queue_start_at": 1743729489,
+            "queue_stop_at": 1743729489,
+            "machine_type": "macos-m2-15",
+            "time": int(_TEST_DATETIME_1M1D0030.timestamp()),
+            "tags": ["queued"],
+            "runner_labels": ["pet", "macos", "all", "meta", "other"],
+        },
+    ]
+
+
+def get_test_record(
+    queue_s: int = 0,
+    job_name: str = "job_1",
+    machine_type: str = "linux",
+    runner_labels: List[str] = ["pet", "linux", "all", "meta", "other"],
+):
+    return {
+        "queue_s": queue_s,
+        "repo": "pytorch/pytorch",
+        "workflow_name": "trunk",
+        "job_name": job_name,
+        "html_url": "runs/1/job/1",
+        "machine_type": "macos-m2-15",
+        "time": int(_TEST_DATETIME_1M1D0030.timestamp()),
+        "tags": ["queued"],
+        "runner_labels": runner_labels,
+    }
+
+
+def find_first_count(li: list[int]):
+    for index, value in enumerate(li):
+        if value != 0:
+            return index
+    return -1  # Return -1 if no non-zero item is found
+
+
 # ------------------------ MOCKS ENDS ----------------------------------
 
+
 # ------------------------ UTILIZATION UNIT TESTS START ----------------------------------
+class TestQueuedJobHistogramGenerator(unittest.TestCase):
+    def test_histogram_generator_empty_queued_job_then_success_returns_empty_list(self):
+        histogram_generator = QueuedJobHistogramGenerator()
+        res = histogram_generator.generate_histogram_records(
+            [], _TEST_DATETIME_1M1D0030, "test"
+        )
+        self.assertEqual(res, [])
+
+    def test_histogram_generator_multi_records_happy_flow_successs(self):
+        histogram_generator = QueuedJobHistogramGenerator()
+        jobs = get_default_test_queued_jobs()
+        res = histogram_generator.generate_histogram_records(
+            jobs, _TEST_DATETIME_1M1D0030, "test"
+        )
+
+        expect = {
+            "created_time": 1735720200,
+            "histogram_version": "1.0",
+            "type": "test",
+            "repo": "pytorch/pytorch",
+            "time": 1735720200,
+            "workflow_name": "trunk",
+            "job_name": "test_job_1",
+            "machine_type": "macos-m2-15",
+            "histogram": [1] + [0] * 89,
+            "total_count": 1,
+            "max_queue_time": 10,
+            "avg_queue_time": 10,
+            "runner_labels": ["pet", "macos", "all", "meta", "other"],
+            "extra_info": {},
+        }
+        self.assertEqual(len(res), 2)
+        self.assertEqual(len(res[0]["histogram"]), 90)
+        self.assertEqual(res[0]["histogram"][0], 1)
+        self.assertEqual(sum(res[0]["histogram"]), 1)
+        self.assertEqual(res[1]["histogram"][0], 1)
+        self.assertEqual(sum(res[1]["histogram"]), 1)
+        self.assertEqual(
+            res[0], expect, f"expected {expect} \n dict but found {res[0]} \n"
+        )
+
+    def test_histogram_generator_multi_records_same_job_name_happy_flow_successs(self):
+        histogram_generator = QueuedJobHistogramGenerator()
+        jobs = [
+            get_test_record(queue_s=get_seconds(second=1), job_name="job_1"),
+            get_test_record(queue_s=get_seconds(minute=60), job_name="job_1"),
+            get_test_record(queue_s=get_seconds(day=7), job_name="job_2"),
+        ]
+        res = histogram_generator.generate_histogram_records(
+            jobs, _TEST_DATETIME_1M1D0030, "test"
+        )
+        self.assertEqual(len(res), 2)
+        self.assertEqual(res[0]["histogram"][0], 1)
+        self.assertEqual(res[0]["histogram"][59], 1)
+        self.assertEqual(sum(res[0]["histogram"]), 2)
+
+        self.assertEqual(res[1]["histogram"][88], 1)
+        self.assertEqual(sum(res[1]["histogram"]), 1)
+
+    def test_histogram_generator_single_record_happy_flows_successs(self):
+        test_cases = [
+            (
+                "test bucket location 1 second",
+                [get_test_record(queue_s=get_seconds(second=1))],
+                0,
+            ),
+            (
+                "test bucket location 20mins",
+                [get_test_record(queue_s=get_seconds(minute=20))],
+                19,
+            ),
+            (
+                "test bucket location 43mins 12secs",
+                [get_test_record(queue_s=get_seconds(minute=43, second=12))],
+                43,
+            ),
+            (
+                "test bucket location 59mins 59secs",
+                [get_test_record(queue_s=get_seconds(minute=59, second=59))],
+                59,
+            ),
+            (
+                "test bucket location 1hr",
+                [get_test_record(queue_s=get_seconds(hour=1))],
+                59,
+            ),
+            (
+                "test bucket location 1hr 24mins ",
+                [get_test_record(queue_s=get_seconds(hour=1, minute=24))],
+                60,
+            ),
+            (
+                "test bucket location 2hrs",
+                [get_test_record(queue_s=get_seconds(hour=1, minute=24))],
+                60,
+            ),
+            (
+                "test bucket location 8hr 30mins",
+                [get_test_record(queue_s=get_seconds(hour=8, minute=24))],
+                67,
+            ),
+            (
+                "test bucket location 24hr ",
+                [get_test_record(queue_s=get_seconds(day=1))],
+                82,
+            ),
+            (
+                "test bucket location 1day 1sec",
+                [get_test_record(queue_s=get_seconds(day=1, second=1))],
+                83,
+            ),
+            (
+                "test bucket location 5day 13hr 2sec",
+                [get_test_record(queue_s=get_seconds(day=5, hour=13, second=2))],
+                87,
+            ),
+            (
+                "test bucket location 7day",
+                [get_test_record(queue_s=get_seconds(day=7))],
+                88,
+            ),
+            (
+                "test bucket location 12 day",
+                [get_test_record(queue_s=get_seconds(day=12))],
+                89,
+            ),
+        ]
+        for x in test_cases:
+            with self.subTest(f"Test {x[0]}", x=x):
+                histogram_generator = QueuedJobHistogramGenerator()
+                jobs = x[1]
+                res = histogram_generator.generate_histogram_records(
+                    jobs, _TEST_DATETIME_1M1D0030, "test"
+                )
+                result = find_first_count(res[0]["histogram"])
+                self.assertEqual(
+                    sum(res[0]["histogram"]),
+                    1,
+                    f"[{x[0]}]:expected only one record found {sum(res[0]['histogram'])}",
+                )
+                self.assertEqual(
+                    result,
+                    x[2],
+                    f"[{x[0]}]: expected bucket location is {x[2]} but found {result}",
+                )
 
 
 class TestTimeIntervalGenerator(unittest.TestCase):
