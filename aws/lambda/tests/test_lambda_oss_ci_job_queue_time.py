@@ -335,7 +335,6 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
             "histogram_version": "1.0",
             "type": "test",
             "repo": "pytorch/pytorch",
-            "time": 1735720200,
             "workflow_name": "trunk",
             "job_name": "test_job_1",
             "machine_type": "macos-m2-15",
@@ -356,11 +355,11 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         self.assertEqual(sum(res[1]["histogram"]), 1)
 
         # assert metadata
-        self.assertIsNotNone(res[0]["created_time"])
+        self.assertEqual(res[0]["created_time"], int(_TEST_DATETIME_1M1D0030.timestamp()))
         self.assertEqual(res[0]["histogram_version"], expect["histogram_version"])
         self.assertEqual(res[0]["type"], expect["type"])
         self.assertEqual(res[0]["repo"], expect["repo"])
-        self.assertEqual(res[0]["time"], expect["time"])
+        self.assertEqual(res[0]["time"], int(_TEST_DATETIME_1M1D0030.timestamp()))
         self.assertEqual(res[0]["workflow_name"], expect["workflow_name"])
         self.assertEqual(res[0]["job_name"], expect["job_name"])
         self.assertEqual(res[0]["machine_type"], expect["machine_type"])
