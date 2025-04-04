@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import argparse
 from collections import defaultdict
-import io
 import json
 import logging
 import os
-import gzip
 import threading
 import yaml
-
-import boto3  # type: ignore[import]
 import clickhouse_connect
 
 # Local imports
@@ -43,11 +39,6 @@ def get_clickhouse_client(
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
     )
-
-
-@lru_cache()
-def get_aws_s3_resource() -> Any:
-    return boto3.resource("s3")
 
 
 def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Client:
