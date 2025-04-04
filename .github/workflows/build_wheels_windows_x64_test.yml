@@ -17,7 +17,7 @@ on:
 env:
   DOWNLOADS_DIR: c:\temp\downloads\
   DEPENDENCIES_DIR: c:\temp\dependencies\
-  SCRIPTS_DIR: test-infra\\.github\\scripts\\winarm64
+  SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
   SRC_DIR: src\\${{ inputs.repository_name }}
   PYTHON_VERSION: ${{ inputs.python_version }}
 
@@ -30,6 +30,8 @@ jobs:
     runs-on: windows-latest
     name: Build wheel
     steps:
+      - name: Print inputs
+        run: echo "${{ toJSON(github.event.inputs) }}"
       - name: Checkout test-infra repository
         uses: actions/checkout@v4
         with:
@@ -48,13 +50,13 @@ jobs:
       - name: Setup Git for Windows' minimal SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          architecture: aarch64
+          architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Bootstrap python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python_version }}
-          architecture: 'arm64'
+          architecture: x64
       - name: Bootstrap Build Tools
         shell: bash
         run: |
@@ -70,10 +72,10 @@ jobs:
           cd %SCRIPTS_DIR%
           
           if "%repository_name%"=="audio" (
-              call "%VS_PATH%" arm64
+              call "%VS_PATH%" x64
               "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh" 
           ) else if "%repository_name%"=="vision" (
-              call "%VS_PATH%" arm64
+              call "%VS_PATH%" x64
               "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh" 
           ) else (
               echo Invalid repository name: %repository_name%
