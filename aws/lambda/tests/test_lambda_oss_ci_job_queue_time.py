@@ -1,3 +1,4 @@
+from math import exp
 import unittest
 import os
 import gzip
@@ -352,9 +353,21 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         self.assertEqual(sum(res[0]["histogram"]), 1)
         self.assertEqual(res[1]["histogram"][0], 1)
         self.assertEqual(sum(res[1]["histogram"]), 1)
-        self.assertEqual(
-            res[0], expect, f"expected {expect} \n dict but found {res[0]} \n"
-        )
+
+        self.assertEqual(res[0]["created_time"],expect["created_time"])
+        self.assertEqual(res[0]["histogram_version"],expect["histogram_version"])
+        self.assertEqual(res[0]["type"],expect["type"])
+        self.assertEqual(res[0]["repo"],expect["repo"])
+        self.assertEqual(res[0]["time"],expect["time"])
+        self.assertEqual(res[0]["workflow_name"],expect["workflow_name"])
+        self.assertEqual(res[0]["job_name"],expect["job_name"])
+        self.assertEqual(res[0]["machine_type"],expect["machine_type"])
+        self.assertEqual(res[0]["histogram"],expect["histogram"])
+        self.assertEqual(res[0]["total_count"],expect["total_count"])
+        self.assertEqual(res[0]["max_queue_time"],expect["max_queue_time"])
+        self.assertEqual(res[0]["avg_queue_time"],expect["avg_queue_time"])
+        self.assertEqual(res[0]["runner_labels"],expect["runner_labels"])
+        self.assertEqual(res[0]["extra_info"],expect["extra_info"])
 
     def test_histogram_generator_multi_records_same_job_name_happy_flow_successs(self):
         histogram_generator = QueuedJobHistogramGenerator()
