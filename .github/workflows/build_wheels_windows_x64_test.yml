@@ -31,7 +31,12 @@ jobs:
     name: Build wheel
     steps:
       - name: Print inputs
-        run: echo "${{ toJSON(github.event.inputs) }}"
+        run: echo "${{ toJSON(github.action.inputs) }}"
+      - name: Setup Git for Windows' minimal SDK
+        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          architecture: x86_64
+          path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Checkout test-infra repository
         uses: actions/checkout@v4
         with:
@@ -45,13 +50,6 @@ jobs:
             ref: ${{ inputs.repository_branch }}
             path: src/${{ inputs.repository_name }}
             submodules: recursive
-      - name: Git checkout workflow
-        uses: actions/checkout@v4
-      - name: Setup Git for Windows' minimal SDK
-        uses: git-for-windows/setup-git-for-windows-sdk@v1
-        with:
-          architecture: x86_64
-          path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Bootstrap python
         uses: actions/setup-python@v5
         with:
