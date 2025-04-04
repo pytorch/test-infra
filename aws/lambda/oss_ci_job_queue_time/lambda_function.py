@@ -110,7 +110,7 @@ class LazyFileHistory:
         self._fetched_all_commits = False
         self._lock = threading.RLock()
 
-    def get_version_after_timestamp(self, timestamp: str | datetime) -> Optional[str]:
+    def get_version_close_to_timestamp(self, timestamp: str | datetime) -> Optional[str]:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
@@ -120,15 +120,18 @@ class LazyFileHistory:
                         )
                     else:
                         timestamp = parse(timestamp)
+
+                info(f" Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}")
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
                     return self._fetch_content_for_commit(commit)
 
                 if not self._fetched_all_commits:
-                    print("yang test config 1, not _fetched_all_commits \n")
+                    info(f" Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}")
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
+
         except Exception as e:
             warning(
                 f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
@@ -140,13 +143,14 @@ class LazyFileHistory:
         commits_after = [
             c for c in self._commits_cache if c.commit.author.date > timestamp
         ]
-        print("yang test _find_earliest_after_in_cache", commits_after)
-
         if not commits_after:
             return None
         return commits_after[-1]
 
     def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
+
+        # call github api, with path parameter
+        # Only commits containing this file path will be returned.
         all_commits = self.repo.get_commits(path=self.path)
         known_shas = {c.sha for c in self._commits_cache}
 
@@ -167,15 +171,17 @@ class LazyFileHistory:
             self._fetched_all_commits = True
 
         res = self._find_earliest_after_in_cache(timestamp)
+
         if not res:
+            info(f" Nothing found, get equal/latest before {timestamp.isoformat()}  ")
             return self._find_closest_before_or_equal(timestamp)
+        return res
 
     def _find_closest_before_or_equal(self, timestamp: datetime) -> Optional[str]:
         commits_before_equal = [
             c for c in self._commits_cache if c.commit.author.date <= timestamp
         ]
         return commits_before_equal[-1] if commits_before_equal else None
-
 
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
@@ -336,7 +342,7 @@ def create_runner_labels(
 def get_runner_config(
     retriever: LazyFileHistory, start_time: str | datetime
 ) -> Dict[str, Dict[str, Any]]:
-    contents = retriever.get_version_after_timestamp(start_time)
+    contents = retriever.get_version_close_to_timestamp(start_time)
     if contents:
         return explode_runner_variants(yaml.safe_load(contents))
     return {"runner_types": {}}
