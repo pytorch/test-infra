@@ -355,7 +355,9 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
         self.assertEqual(sum(res[1]["histogram"]), 1)
 
         # assert metadata
-        self.assertEqual(res[0]["created_time"], int(_TEST_DATETIME_1M1D0030.timestamp()))
+        self.assertEqual(
+            res[0]["created_time"], int(_TEST_DATETIME_1M1D0030.timestamp())
+        )
         self.assertEqual(res[0]["histogram_version"], expect["histogram_version"])
         self.assertEqual(res[0]["type"], expect["type"])
         self.assertEqual(res[0]["repo"], expect["repo"])

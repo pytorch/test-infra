@@ -11,7 +11,7 @@ import clickhouse_connect
 # Local imports
 from functools import lru_cache
 from logging import info, warning
-from typing import Any, Optional, Dict, Set, Iterable, List
+from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
 from github import Github, Auth
 from dateutil.parser import parse
 from datetime import datetime, timezone, timedelta
@@ -34,7 +34,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -473,10 +475,10 @@ class QueueTimeProcessor:
         columns = list(records[0].keys())
         data = [list(record.values()) for record in records]
         cc.insert(
-            table="fortesting.oss_ci_queue_time_histogram",
+            table=db_table_name,
             data=data,
             column_names=columns,
-            database="fortesting",
+            database=db_name,
         )
         info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
 
@@ -862,7 +864,7 @@ class QueuedJobHistogramGenerator:
             metrics = self._get_metrics(job_queues)
             metadata = metadata_map[job_name]
             record = self._form_database_record_v1_0(
-                created_time, type, metadata, metrics
+                created_time, snapshot_time, type, metadata, metrics
             )
             records.append(record)
         info(
@@ -888,6 +890,7 @@ class QueuedJobHistogramGenerator:
     def _form_database_record_v1_0(
         self,
         created_time: datetime,
+        snapshot_time: datetime,
         type: str,
         metadata: Dict[str, Any],
         metrics: Dict[str, Any],
