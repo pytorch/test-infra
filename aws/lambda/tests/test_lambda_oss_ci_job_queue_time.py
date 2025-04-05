@@ -238,13 +238,14 @@ class EnvironmentBaseTest(unittest.TestCase):
         self.mock_get_config_retrievers = patcher4.start()
         self.mock_envs = envs_patcher.start()
 
-        self.mock_get_runner_config.return_value = {"runner_types": {}}
+        self.mock_get_runner_config.return_value = {
+            "runner_types": {"pet": {"os": "linux", "is_ephemeral": "false"}}
+        }
         self.mock_get_config_retrievers.return_value = {
             "meta": MagicMock(),
             "lf": MagicMock(),
             "old_lf": MagicMock(),
         }
-
         self.addCleanup(patcher2.stop)
         self.addCleanup(patcher3.stop)
         self.addCleanup(patcher4.stop)

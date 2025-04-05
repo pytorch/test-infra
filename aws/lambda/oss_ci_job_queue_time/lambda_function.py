@@ -98,7 +98,7 @@ def write_to_file(data: Any, filename="", path=""):
 #  ---------  Github Config File Methods Start----
 class LazyFileHistory:
     """
-    Reads the content of a file from a GitHub repository on the version that it was on a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
+    Reads the content of a file from a GitHub repository on the version that it was closest to a specific time and date provided. It then caches the commits and file contents avoiding unnecessary requests to the GitHub API.
     All public methods are thread-safe.
     """
 
@@ -110,7 +110,9 @@ class LazyFileHistory:
         self._fetched_all_commits = False
         self._lock = threading.RLock()
 
-    def get_version_after_timestamp(self, timestamp: str | datetime) -> Optional[str]:
+    def get_version_close_to_timestamp(
+        self, timestamp: str | datetime
+    ) -> Optional[str]:
         try:
             with self._lock:
                 if not isinstance(timestamp, datetime):
@@ -120,31 +122,38 @@ class LazyFileHistory:
                         )
                     else:
                         timestamp = parse(timestamp)
+
+                info(
+                    f" [LazyFileHistory]Getting earliest commit with file changes {self.repo}/{self.path} at time {timestamp.isoformat()}"
+                )
                 commit = self._find_earliest_after_in_cache(timestamp)
                 if commit:
                     return self._fetch_content_for_commit(commit)
 
                 if not self._fetched_all_commits:
+                    info(
+                        f" [LazyFileHistory]Nothing found in cache, fetching all commit includes {self.path} in {self.path} close/equal to {timestamp.isoformat()}"
+                    )
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
         except Exception as e:
             warning(
-                f"Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
+                f" [LazyFileHistory] Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
             )
-
         return None
 
     def _find_earliest_after_in_cache(self, timestamp: datetime) -> Optional[str]:
         commits_after = [
             c for c in self._commits_cache if c.commit.author.date > timestamp
         ]
-
         if not commits_after:
             return None
         return commits_after[-1]
 
     def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
+        # call github api, with path parameter
+        # Only commits containing this file path will be returned.
         all_commits = self.repo.get_commits(path=self.path)
         known_shas = {c.sha for c in self._commits_cache}
 
@@ -164,7 +173,20 @@ class LazyFileHistory:
         if not newly_fetched:
             self._fetched_all_commits = True
 
-        return self._find_earliest_after_in_cache(timestamp)
+        res = self._find_earliest_after_in_cache(timestamp)
+
+        if not res:
+            info(
+                f" [LazyFileHistory] Nothing found, get latest commit before {timestamp.isoformat()}  "
+            )
+            return self._find_closest_before_or_equal(timestamp)
+        return res
+
+    def _find_closest_before_or_equal(self, timestamp: datetime) -> Optional[str]:
+        commits_before_equal = [
+            c for c in self._commits_cache if c.commit.author.date <= timestamp
+        ]
+        return commits_before_equal[-1] if commits_before_equal else None
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
@@ -286,7 +308,7 @@ def create_runner_labels(
     )
 
     if len(all_runners_configs.keys()) == 0:
-        warning(
+        raise ValueError(
             " [method: create_runner_labels] No runner labels found in the github config files, something is wrong, please investigate."
         )
 
@@ -324,7 +346,7 @@ def create_runner_labels(
 def get_runner_config(
     retriever: LazyFileHistory, start_time: str | datetime
 ) -> Dict[str, Dict[str, Any]]:
-    contents = retriever.get_version_after_timestamp(start_time)
+    contents = retriever.get_version_close_to_timestamp(start_time)
     if contents:
         return explode_runner_variants(yaml.safe_load(contents))
     return {"runner_types": {}}
@@ -590,7 +612,6 @@ class QueueTimeProcessor:
         old_lf_lf_runner_config_retriever,
     ) -> None:
         # create dictionary of tags with set of targeting machine types
-
         lf_runner_config = get_runner_config(lf_runner_config_retriever, start_time)
         if not lf_runner_config or not lf_runner_config["runner_types"]:
             lf_runner_config = get_runner_config(
