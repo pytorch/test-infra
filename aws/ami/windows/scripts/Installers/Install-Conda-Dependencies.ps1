@@ -15,5 +15,5 @@ conda activate base
 Write-Output "Installing conda packages for building and testing PyTorch"
 # The list of dependencies is copied from the current PyTorch miniconda installation script
 conda install -y mkl protobuf numba scipy=1.6.2 typing_extensions dataclasses `
-conda==22.9.0 numpy"<1.23" ninja pyyaml setuptools cmake=3.22.* cffi typing_extensions `
+conda==22.9.0 numpy"<1.23" ninja pyyaml setuptools cmake>=3.25.* cffi typing_extensions `
 future six requests dataclasses boto3 libuv

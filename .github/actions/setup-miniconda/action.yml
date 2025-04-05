@@ -28,7 +28,7 @@ inputs:
     description: Default packages to install
     required: false
     type: string
-    default: "cmake=3.22 ninja=1.10 pkg-config=0.29 wheel=0.37"
+    default: "cmake>=3.25 ninja=1.10 pkg-config=0.29 wheel=0.37"
 
 runs:
   using: composite
