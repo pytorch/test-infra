@@ -31,7 +31,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -160,9 +162,11 @@ class LazyFileHistory:
                 break
 
         info(f" [LazyFileHistory] Fetched new commits {len(newly_fetched)}")
-        if len(newly_fetched)>0:
+        if len(newly_fetched) > 0:
             newly_fetched.sort(key=lambda c: c.commit.author.date)
-            info(f" [LazyFileHistory] Fetched new commits with latest: {newly_fetched[-1].commit.author.date}, oldest:{newly_fetched[-1].commit.author.date}")
+            info(
+                f" [LazyFileHistory] Fetched new commits with latest: {newly_fetched[-1].commit.author.date}, oldest:{newly_fetched[-1].commit.author.date}"
+            )
 
         self._commits_cache.extend(newly_fetched)
         self._commits_cache.sort(key=lambda c: c.commit.author.date)
@@ -172,8 +176,9 @@ class LazyFileHistory:
 
         return self._find_closest_before_or_equal_in_cache(timestamp)
 
-
-    def _find_closest_before_or_equal_in_cache(self, timestamp: datetime) -> Optional[str]:
+    def _find_closest_before_or_equal_in_cache(
+        self, timestamp: datetime
+    ) -> Optional[str]:
         commits_before_equal = [
             c for c in self._commits_cache if c.commit.author.date <= timestamp
         ]
@@ -1183,7 +1188,9 @@ class TimeIntervalGenerator:
         query = """
         SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
         """
-        info(" Getting lastest timestamp from fortesting.oss_ci_queue_time_histogram....")
+        info(
+            " Getting lastest timestamp from fortesting.oss_ci_queue_time_histogram...."
+        )
         res = cc.query(query, {})
 
         if res.row_count != 1:
