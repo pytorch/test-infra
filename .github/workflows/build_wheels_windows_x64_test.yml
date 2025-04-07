@@ -3,23 +3,24 @@ name: Build Windows X64 Wheels - test
 on:
   workflow_call:
     inputs:
-      python_version:
-        required: false
-        default: "3.12"
-        type: string
-      repository_name:
+      # python_version:
+      #   required: false
+      #   default: "3.12"
+      #   type: string
+      repository_name: # change NAME
         required: true
         type: string
-      repository_branch:
+      repository_branch: # rename with ref + default value change
         required: true
         type: string
+# add choice input
 
 env:
   DOWNLOADS_DIR: c:\temp\downloads\
   DEPENDENCIES_DIR: c:\temp\dependencies\
   SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
   SRC_DIR: src\\${{ inputs.repository_name }}
-  PYTHON_VERSION: ${{ inputs.python_version }}
+  PYTHON_VERSION: 3.12 ## update here ${{ inputs.python_version }} 
   EXTRACTED_REPO_NAME: ${{ endsWith(inputs.repository_name, 'audio') && 'audio' || endsWith(inputs.repository_name, 'vision') && 'vision' || '' }}
 
 permissions:

@@ -68,6 +68,10 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 60
         type: number
+      aarch:
+        description: 'Architecture to build for'
+        default: ""
+        type: string
 
 permissions:
   id-token: write
@@ -75,6 +79,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ inputs.aarch == '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -231,6 +236,85 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
+
+  build_x64_test:
+    if: ${{ inputs.aarch == 'arm64' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    env:
+      DOWNLOADS_DIR: c:\temp\downloads\
+      DEPENDENCIES_DIR: c:\temp\dependencies\
+      SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+      SRC_DIR: src\\${{ inputs.repository }}
+      PYTHON_VERSION: ${{ matrix.python_version }}
+      PACKAGE_NAME: ${{ inputs.package-name }}
+    runs-on: "windows-latest"
+    steps:
+    - name: Setup Git for Windows' minimal SDK
+      uses: git-for-windows/setup-git-for-windows-sdk@v1
+      with:
+        architecture: x86_64
+        path: "${{env.DEPENDENCIES_DIR}}\\git"
+    - name: Checkout test-infra repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{inputs.test-infra-repository}}
+        ref: ${{inputs.test-infra-ref}}
+        path: test-infra
+    - name: Checkout Target Repository (${{ inputs.repository }})
+      uses: actions/checkout@v4
+      with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          path: src/${{ inputs.repository }}
+          submodules: recursive
+    - name: Bootstrap python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        architecture: x64
+    - name: Bootstrap Build Tools
+      shell: bash
+      run: |
+        "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
+    - name: Call Build Script
+      shell: cmd
+      run: |
+        set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+        set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+        cd %SCRIPTS_DIR%
+        
+        if "${{ env.PACKAGE_NAME }}"=="torchaudio" (
+            call "%VS_PATH%" x64
+            "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh" 
+        ) else if "${{ env.PACKAGE_NAME }}"=="torchvision" (
+            call "%VS_PATH%" x64
+            "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh" 
+        ) else (
+            echo Invalid repository name: ${{ inputs.repository }}
+            exit /b 1
+        )
+    - name: Install wheel
+      shell: bash
+      run: |
+        cd $SRC_DIR
+        source .venv/Scripts/activate
+        whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
+        pip install $whl
+    - name: Run smoke test
+      shell: cmd
+      run: |
+        cd %SRC_DIR%
+        call .venv/Scripts/activate
+        python ${{ inputs.smoke-test-script}}
+    - name: Archive wheel
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        path: ${{ env.SRC_DIR }}/dist/*
+        compression-level: 0
+        retention-days: 3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
