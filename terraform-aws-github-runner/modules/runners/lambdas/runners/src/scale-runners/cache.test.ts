@@ -1,4 +1,11 @@
-import { locallyCached, redisCached, clearLocalCache, shutdownRedisPool, redisClearCacheKeyPattern } from './cache';
+import {
+  locallyCached,
+  redisCached,
+  clearLocalCache,
+  shutdownRedisPool,
+  redisClearCacheKeyPattern,
+  getExperimentValue,
+} from './cache';
 import { mocked } from 'ts-jest/utils';
 import { v4 as uuidv4 } from 'uuid';
 import nock from 'nock';
@@ -128,6 +135,65 @@ describe('locallyCached', () => {
     expect(await req2).toEqual(returnValue);
 
     expect(fn).toBeCalledTimes(1);
+  });
+});
+
+describe('experiment functions', () => {
+  beforeEach(async () => {
+    await shutdownRedisPool();
+  });
+
+  describe('getExperimentValue', () => {
+    it('returns the value from redis when it exists', async () => {
+      const experimentKey = 'test-experiment';
+      const experimentValue = '42';
+      const defaultValue = 10;
+
+      mockedRedisClient.get.mockResolvedValueOnce(experimentValue);
+
+      const result = await getExperimentValue(experimentKey, defaultValue);
+
+      expect(result).toBe(42);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.test-experiment');
+    });
+
+    it('returns default value when key does not exist', async () => {
+      const experimentKey = 'missing-experiment';
+      const defaultValue = 10;
+
+      mockedRedisClient.get.mockResolvedValueOnce(null);
+
+      const result = await getExperimentValue(experimentKey, defaultValue);
+
+      expect(result).toBe(defaultValue);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.missing-experiment');
+    });
+
+    it('returns default value when redis throws an error', async () => {
+      const experimentKey = 'error-experiment';
+      const defaultValue = 10;
+
+      mockedRedisClient.get.mockRejectedValueOnce(new Error('Redis error'));
+
+      const result = await getExperimentValue(experimentKey, defaultValue);
+
+      expect(result).toBe(defaultValue);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+    });
+
+    it('returns default value when value is not a valid number', async () => {
+      const experimentKey = 'invalid-experiment';
+      const defaultValue = 10;
+
+      mockedRedisClient.get.mockResolvedValueOnce('not-a-number');
+
+      const result = await getExperimentValue(experimentKey, defaultValue);
+
+      expect(result).toBe(defaultValue);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+    });
   });
 });
 

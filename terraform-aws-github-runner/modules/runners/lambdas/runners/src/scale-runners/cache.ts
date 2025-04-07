@@ -278,6 +278,36 @@ export async function redisLocked<T>(
   throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 
+export async function getExperimentValue(experimentKey: string, defaultValue: number): Promise<number> {
+  await startupRedisPool();
+  if (!redisPool) throw Error('Redis should be initialized!');
+
+  const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
+
+  console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
+  try {
+    const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+      return await client.get(queryKey);
+    });
+
+    if (experimentValue !== undefined && experimentValue !== null) {
+      const numValue = Number(experimentValue);
+      if (!isNaN(numValue)) {
+        console.debug(`Found experiment ${queryKey} with value ${numValue}`);
+        return numValue;
+      } else {
+        console.warn(`Experiment ${queryKey} found but value is not a valid number: ${experimentValue}`);
+      }
+    } else {
+      console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
+    }
+  } catch (e) {
+    console.error(`Error retrieving experiment ${queryKey}: ${e}`);
+  }
+
+  return defaultValue;
+}
+
 export async function redisCached<T>(
   nameSpace: string,
   key: string,
