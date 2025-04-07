@@ -238,7 +238,7 @@ jobs:
       trigger-event: ${{ inputs.trigger-event }}
 
   build_x64_test:
-    if: ${{ inputs.aarch == 'arm64' }}
+    if: ${{ inputs.aarch == 'x64' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -259,8 +259,8 @@ jobs:
     - name: Checkout test-infra repository
       uses: actions/checkout@v4
       with:
-        repository: ${{inputs.test-infra-repository}}
-        ref: ${{inputs.test-infra-ref}}
+        repository: alinpahontu2912/test-infra
+        ref: x64windows_test
         path: test-infra
     - name: Checkout Target Repository (${{ inputs.repository }})
       uses: actions/checkout@v4
