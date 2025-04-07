@@ -143,6 +143,7 @@ class LazyFileHistory:
             warning(
                 f" [LazyFileHistory] Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
             )
+            return None
         return None
 
     def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
