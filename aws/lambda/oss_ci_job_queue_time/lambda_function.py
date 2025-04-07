@@ -139,12 +139,12 @@ class LazyFileHistory:
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
+                return None
         except Exception as e:
             warning(
                 f" [LazyFileHistory] Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
             )
             return None
-        return None
 
     def _fetch_until_timestamp(self, timestamp: datetime) -> Optional[str]:
         # call github api, with path parameter
