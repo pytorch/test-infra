@@ -139,6 +139,9 @@ class LazyFileHistory:
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
+                info(
+                    f" [LazyFileHistory] No config file found in cache and in commits for {self.repo}/{self.path}."
+                )
                 return None
         except Exception as e:
             warning(
