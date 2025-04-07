@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
-
-import copy
-import datetime
 import json
 import logging
 import os
-import random
-import string
-import sys
-import time
 from argparse import ArgumentParser
 from logging import info
 from re import A
@@ -25,6 +18,7 @@ def parse_args() -> Any:
     parser = ArgumentParser(
         "Run Android and iOS tests on AWS Device Farm via github actions workflow run"
     )
+
     parser.add_argument(
         "--branch",
         type=str,
@@ -54,6 +48,7 @@ def parse_args() -> Any:
         default="llama",
         help="the model to run on. Default is llama. See https://github.com/pytorch/executorch/blob/0342babc505bcb90244874e9ed9218d90dd67b87/examples/models/__init__.py#L53 for more model options",
     )
+
     parser.add_argument(
         "--devices",
         type=str,
@@ -68,6 +63,7 @@ def parse_args() -> Any:
         ],
         help="specific devices to run on. Default is s22 for android and iphone 15 for ios.",
     )
+    
     parser.add_argument(
         "--benchmark_configs",
         type=str,
@@ -77,7 +73,6 @@ def parse_args() -> Any:
         help="The list of configs used in the benchmark",
     )
 
-    # in case when removing the flag, the mobile jobs does not failed due to unrecognized flag.
     args, unknown = parser.parse_known_args()
     if len(unknown) > 0:
         info(f"detected unknown flags: {unknown}")
@@ -123,13 +118,10 @@ def run_workflow(app_type, branch, models, devices, benchmark_configs):
 
 def main() -> None:
     args = parse_args()
-    if args.android:
+    app_type = args.android ? "android" : args.ios ? "ios" : null
+    if app_type:
         resp = run_workflow(
-            "android", args.branch, args.models, args.devices, args.benchmark_configs
-        )
-    elif args.ios:
-        resp = run_workflow(
-            "ios", args.branch, args.models, args.devices, args.benchmark_configs
+            app_type, args.branch, args.models, args.devices, args.benchmark_configs
         )
     else:
         raise Exception(
