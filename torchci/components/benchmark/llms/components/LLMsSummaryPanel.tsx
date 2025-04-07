@@ -1,3 +1,4 @@
+import { Co2Sharp } from "@mui/icons-material";
 import { Grid2 } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import styles from "components/metrics.module.css";
@@ -62,6 +63,8 @@ export default function LLMsSummaryPanel({
     lPerfData,
     rPerfData
   );
+
+
   const columns: any[] = [
     {
       field: "metadata",
@@ -187,6 +190,45 @@ export default function LLMsSummaryPanel({
     });
   }
 
+  const handleModelBackendFailure = (
+    field: string,
+    unit: string,
+    showTarget: string,
+    isLFailure: boolean,
+    isRFailure: boolean,
+    lactual: number,
+    ractual:number,
+    lPercent:string,
+    rPercent:string) => {
+      if (field === "FAILURE_REPORT"){
+        if (lCommit === rCommit){
+          return `Detected Failure on commit`;
+        }
+
+        if (isLFailure && isRFailure){
+          return `Detected Failure on both base commit and new commit`;
+        }
+        if (isLFailure){
+          return `Detected Failure on base commit`;
+        }
+        if (isRFailure){
+          return `Detected Failure on new commit`;
+        }
+      }
+
+      if (isLFailure && isRFailure){
+        if (lCommit === rCommit){
+          return `Failure`;
+        }
+        return `Failure -> Fialure`;
+      } else if (isLFailure){
+        return `Failure ->${ractual}${unit} ${rPercent} ${showTarget}`;
+      } else if (isRFailure){
+        return `${lactual}${unit} ${lPercent} -> Failure`;
+      }
+    }
+
+
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
   if (hasBackend && benchmarkName !== "TorchCache Benchmark") {
     columns.push({
@@ -233,6 +275,7 @@ export default function LLMsSummaryPanel({
           return params.value;
         },
       },
+      // add all other metrics as columns
       ...metricNames
         .filter((metric: string) => {
           // TODO (huydhn): Just a temp fix, remove this after a few weeks
@@ -254,6 +297,10 @@ export default function LLMsSummaryPanel({
               const v = params.value;
               if (v === undefined) {
                 return "";
+              }
+
+              if(metric === "FAILURE_REPORT"){
+                return styles.error;
               }
 
               // l is the old (base) value, r is the new value
@@ -328,6 +375,17 @@ export default function LLMsSummaryPanel({
                   : "";
               const showTarget =
                 target && target != 0 ? `[target = ${target}]` : "";
+
+              if (params.field == "FAILURE_REPORT"){
+                console.log(params);
+              }
+
+              // A Failure is detected for a model and backend
+              if (params.row.FAILURE_REPORT){
+                const isLFailure = params.row.FAILURE_REPORT?.l.actual == -1? false : true;
+                const isRFailure = params.row.FAILURE_REPORT?.r.actual == -1? false : true;
+                return handleModelBackendFailure(params.field, unit, showTarget, isLFailure, isRFailure, l, r, lPercent, rPercent);
+              }
 
               if (lCommit === rCommit || !v.highlight) {
                 return `${r}${unit} ${rPercent} ${showTarget}`;
