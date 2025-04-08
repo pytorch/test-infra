@@ -239,24 +239,23 @@ jobs:
   build_x64_test:
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
       DOWNLOADS_DIR: c:\temp\downloads\
       DEPENDENCIES_DIR: c:\temp\dependencies\
       SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
       SRC_DIR: src\\${{ inputs.repository }}
-      PYTHON_VERSION: ${{ matrix.python_version }}
+      PYTHON_VERSION: '3.12'
       PACKAGE_NAME: ${{ inputs.package-name }}
     runs-on: "windows-latest"
     steps:
     - name: Echo matrix input
       shell: cmd
       run: |
-        echo "Python version: ${{ matrix.python_version }}"
+        echo "Python version: ${{ inputs.python_version }}"
         echo "Package name: ${{ inputs.package-name }}"
         echo "Repository: ${{ inputs.repository }}"
-        echo "Ref: ${{ matrix.ref }}"
-        echo "aarch: ${{ matrix.aarch }}"
+        echo "Ref: ${{ inputs.ref }}"
+        echo "aarch: ${{ inputs.aarch }}"
     - name: Setup Git for Windows' minimal SDK
       uses: git-for-windows/setup-git-for-windows-sdk@v1
       with:
