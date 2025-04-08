@@ -21,6 +21,7 @@ const IssueAndPRRegexToLabel: [RegExp, string][] = [
 // List of regex patterns for assigning labels to Pull Requests
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
+  [/revert/gi, "ci-no-td"],
   [/rocm/gi, "ciflow/rocm"],
   ...IssueAndPRRegexToLabel,
 ];

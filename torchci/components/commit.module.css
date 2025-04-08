@@ -1,5 +1,5 @@
 .commitMessage {
-  background-color: whitesmoke;
+  background-color: var(--commit-message-bg);
   white-space: pre;
   max-height: 13em;
   overflow: scroll;
@@ -16,14 +16,14 @@
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: mistyrose;
+  background-color: var(--workflow-box-fail-bg);
 }
 
 .workflowBoxSuccess {
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: azure;
+  background-color: var(--workflow-box-success-bg);
 }
 
 .buttonBorder {
@@ -31,5 +31,5 @@
 }
 
 .buttonBorder:hover {
-  background-color: lightgrey;
+  background-color: var(--button-hover-bg);
 }

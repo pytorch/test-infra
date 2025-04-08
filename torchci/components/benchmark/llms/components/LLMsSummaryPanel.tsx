@@ -13,9 +13,6 @@ import {
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 
-const ROW_GAP = 100;
-const ROW_HEIGHT = 38;
-
 const getDeviceArch = (
   device: string | undefined,
   arch: string | undefined
@@ -345,21 +342,18 @@ export default function LLMsSummaryPanel({
 
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
-    <Grid2 container spacing={2} style={{ height: "100%" }}>
-      <Grid2
-        size={{ xs: 12, lg: 12 }}
-        height={
-          data.length > 90
-            ? 90 * ROW_HEIGHT
-            : (data.length + 1) * ROW_HEIGHT + ROW_GAP
-        }
-      >
+    <Grid2 container spacing={10}>
+      <Grid2 size={{ xs: 12, lg: 11.8 }}>
         <TablePanelWithData
           title={"Models"}
           data={data}
           columns={columns}
           dataGridProps={{ getRowId: (el: any) => el.name }}
           showFooter={true}
+          disableAutoPageSize={true}
+          customStyle={{
+            maxHeight: 1200,
+          }}
         />
       </Grid2>
     </Grid2>

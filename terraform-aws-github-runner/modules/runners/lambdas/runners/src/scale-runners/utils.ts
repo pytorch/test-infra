@@ -8,15 +8,17 @@ export interface Repo {
 export interface RunnerInfo {
   applicationDeployDatetime?: string;
   awsRegion: string;
+  az?: string;
+  ebsVolumeReplacementRequestTimestamp?: number;
   environment?: string;
+  ephemeralRunnerFinished?: number;
   ghRunnerId?: string;
   instanceId: string;
+  instanceManagement?: string;
   launchTime?: Date;
   org?: string;
   repo?: string;
   runnerType?: string;
-  instanceManagement?: string;
-  az?: string;
 }
 
 export function getRepoKey(repo: Repo): string {

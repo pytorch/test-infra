@@ -94,10 +94,16 @@ variable "scale_down_schedule_expression" {
   default     = "cron(*/5 * * * ? *)"
 }
 
+variable "scale_up_chron_schedule_expression" {
+  description = "Scheduler expression to check every x for scale down."
+  type        = string
+  default     = "cron(*/30 * * * ? *)" # every 30 minutes
+}
+
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
-  default     = 5
+  default     = 45
 }
 
 variable "lambda_timeout_scale_down" {
@@ -110,6 +116,12 @@ variable "lambda_timeout_scale_up" {
   description = "Time out for the scale up lambda in seconds."
   type        = number
   default     = 60
+}
+
+variable "lambda_timeout_scale_up_chron" {
+  description = "Time out for the scale up chron lambda in seconds."
+  type        = number
+  default     = 900
 }
 
 variable "role_permissions_boundary" {
@@ -285,6 +297,11 @@ variable "role_runner_arn" {
   type        = string
 }
 
+variable "scale_config_org" {
+  description = "Organization to fetch scale config from."
+  type        = string
+}
+
 variable "scale_config_repo" {
   description = "Repository to fetch scale config from."
   default     = ""
@@ -300,4 +317,9 @@ variable "scale_config_repo_path" {
 variable "min_available_runners" {
   description = "Minimum number of runners to keep available."
   type        = number
+}
+
+variable "retry_scale_up_chron_hud_query_url" {
+  description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
+  type        = string
 }

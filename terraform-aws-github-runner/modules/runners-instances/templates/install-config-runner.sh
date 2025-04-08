@@ -247,6 +247,13 @@ fi
 
 get_labels_from_config $CONFIG > /home/$USER_NAME/runner-labels
 
+# We add a tag to the instance to signal that the ephemeral runner has finished
+# this is useful to hint the scale up lambda that this instance might be reused
+if grep "ephemeral" <<< $CONFIG; then
+  echo "Ephemeral runner detected"
+  echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
+fi
+
 export RUNNER_ALLOW_RUNASROOT=1
 os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)
 if [[ "$os_id" =~ ^ubuntu.* ]]; then

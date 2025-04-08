@@ -46,10 +46,12 @@ describe("webhookToDynamo tests", () => {
    * "workflow_job".  This is the X-GitHub-Event header.  Files that take the
    * form {"name": something, "id": something, "payload": something} should not
    * include this.
+   * @param dynamo_call_count Number of times to call the dynamo client. Defaults to 1.
    */
   async function helper(
     filename: string,
-    name: string | undefined = undefined
+    name: string | undefined = undefined,
+    dynamo_call_count: number = 1
   ) {
     const event = requireDeepCopy(filename);
     const mockedPut = jest.fn();
@@ -61,7 +63,7 @@ describe("webhookToDynamo tests", () => {
     } else {
       await probot.receive(event);
     }
-    expect(mockedPut.mock.calls.length).toBe(1);
+    expect(mockedPut.mock.calls.length).toBe(dynamo_call_count);
     const body = mockedPut.mock.calls[0];
     saveResult(filename, body);
     expect(body).toEqual(expectedResults[filename]);
@@ -93,5 +95,10 @@ describe("webhookToDynamo tests", () => {
 
   test("pull_request_comment", async () => {
     await helper("./fixtures/pull_request_comment.json");
+  });
+
+  test("issue_labeled", async () => {
+    // expecting 2 calls, one for updating the issue and one for the labeled event
+    await helper("./fixtures/issues.labeled.json", "issues", 2);
   });
 });

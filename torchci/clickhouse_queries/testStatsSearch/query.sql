@@ -1,23 +1,23 @@
-select
+SELECT
     t.name,
     t.classname,
     t.file,
     t.invoking_file,
-    maxMerge(t.last_run) as last_run
-from
+    maxMerge(t.last_run) AS last_run
+FROM
     tests.distinct_names t
-where
-    t.name like {name: String}
-    and t.classname like {suite: String}
-    and t.file like {file: String}
-group by
+WHERE
+    t.name LIKE {name: String}
+    AND t.classname LIKE {suite: String}
+    AND t.file LIKE {file: String}
+GROUP BY
     t.name,
     t.classname,
     t.file,
     t.invoking_file
-order by
+ORDER BY
     t.name, t.classname, t.file, t.invoking_file
-limit
+LIMIT
     {per_page: Int}
-    offset
+    OFFSET
     {offset: Int}

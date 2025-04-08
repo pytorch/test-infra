@@ -91,11 +91,20 @@ def fetch_unstable_issues() -> List[str]:
     ]
 
 
+UNSTABLE_REGEX = re.compile(r"(.*) \(([^,]*),.*\)")
+
+
 def is_unstable(job: dict[str, Any]) -> bool:
     # Check if the job is an unstable job, either by name or by issue
-    if "unstable" in job["jobName"]:
+    unstable_issues = fetch_unstable_issues()
+    job_name = job["name"]
+    if "unstable" in job_name or job_name in unstable_issues:
         return True
-    return job["name"] in fetch_unstable_issues()
+    # Go from something like pull / something / test (config, 1, 2, 3) to pull / something / test (config)
+    match = UNSTABLE_REGEX.match(job_name)
+    if match:
+        return f"{match.group(1)} ({match.group(2)})" in unstable_issues
+    return False
 
 
 def is_green(
@@ -108,7 +117,7 @@ def is_green(
     for check in workflow_checks:
         jobName = check["name"]
         # Ignore result from unstable job, be it success or failure
-        if "unstable" in jobName or jobName in fetch_unstable_issues():
+        if is_unstable(check):
             continue
 
         workflow_name = check["workflowName"]
@@ -116,7 +125,10 @@ def is_green(
         for required_check in regex:
             if re.match(required_check, workflow_name, flags=re.IGNORECASE):
                 if conclusion not in ["success", "skipped"]:
-                    return False, workflow_name + " checks were not successful"
+                    return (
+                        False,
+                        f"{workflow_name} was not successful, {jobName} failed",
+                    )
                 else:
                     regex[required_check] = True
 

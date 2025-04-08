@@ -113,10 +113,44 @@ jobs:
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
 
+  release-oss-ci-job-queue-time:
+    name:  Upload Release for oss-ci-job-queue-time lambda
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build deployment.zip
+        working-directory: aws/lambda/oss_ci_job_queue_time
+        run: make deployment.zip
+
+      - name: Copy deployment.zip to root
+        run: cp aws/lambda/oss_ci_job_queue_time/deployment.zip oss-ci-job-queue-time.zip
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "oss-ci-job-queue-time.zip"
+          allowUpdates: true
+          draft: true
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+          updateOnlyUnreleased: true
+
   finish-release:
     needs:
       - release-lambdas
       - release-ci-queue-pct
+      - release-oss-ci-job-queue-time
     name: Mark the release as final and publish it
     runs-on: ubuntu-latest
     permissions:

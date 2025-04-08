@@ -756,6 +756,102 @@ export class Metrics {
   }
 
   /* istanbul ignore next */
+  ec2DeleteTagsAWSCallSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.deleteTags.count`, 1);
+    this.countEntry(`aws.ec2.deleteTags.success`, 1);
+    this.addEntry(`aws.ec2.deleteTags.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.deleteTags.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.deleteTags.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.deleteTags.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2DeleteTagsAWSCallFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.deleteTags.count`, 1);
+    this.countEntry(`aws.ec2.deleteTags.failure`, 1);
+    this.addEntry(`aws.ec2.deleteTags.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.deleteTags.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.deleteTags.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.deleteTags.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2CreateTagsAWSCallSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.createTags.count`, 1);
+    this.countEntry(`aws.ec2.createTags.success`, 1);
+    this.addEntry(`aws.ec2.createTags.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createTags.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createTags.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.createTags.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2CreateTagsAWSCallFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.createTags.count`, 1);
+    this.countEntry(`aws.ec2.createTags.failure`, 1);
+    this.addEntry(`aws.ec2.createTags.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createTags.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createTags.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.createTags.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2CreateReplaceRootVolumeTaskSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.createReplaceRootVolumeTask.count`, 1);
+    this.countEntry(`aws.ec2.createReplaceRootVolumeTask.success`, 1);
+    this.addEntry(`aws.ec2.createReplaceRootVolumeTask.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2CreateReplaceRootVolumeTaskFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.createReplaceRootVolumeTask.count`, 1);
+    this.countEntry(`aws.ec2.createReplaceRootVolumeTask.failure`, 1);
+    this.addEntry(`aws.ec2.createReplaceRootVolumeTask.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.createReplaceRootVolumeTask.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
   ec2RunInstancesAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
@@ -817,8 +913,8 @@ export class Metrics {
 }
 
 export class ScaleUpMetrics extends Metrics {
-  constructor() {
-    super('scaleUp');
+  constructor(lambdaName: string | undefined = undefined) {
+    super(lambdaName || 'scaleUp');
   }
 
   /* istanbul ignore next */
@@ -979,6 +1075,116 @@ export class ScaleUpMetrics extends Metrics {
     dimensions.set('RunnerType', runnerType);
     this.countEntry('run.runners.perOrg.perRunnerType.create.total', 1, dimensions);
     this.countEntry('run.runners.perOrg.perRunnerType.create.fail', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseFoundOrg(count: number, org: string, runnerType: string) {
+    this.countEntry('run.runners.reuse.found', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.reuse.found', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.reuse.found', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseFoundRepo(count: number, repo: Repo, runnerType: string) {
+    this.countEntry('run.runners.reuse.found', 1);
+
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.reuse.found', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.reuse.found', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseTryOrg(count: number, org: string, runnerType: string) {
+    this.countEntry('run.runners.reuse.try', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.reuse.try', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.reuse.try', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseTryRepo(count: number, repo: Repo, runnerType: string) {
+    this.countEntry('run.runners.reuse.try', 1);
+
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.reuse.try', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.reuse.try', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseSuccessOrg(count: number, org: string, runnerType: string) {
+    this.countEntry('run.runners.reuse.success', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.reuse.success', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.reuse.success', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseSuccessRepo(count: number, repo: Repo, runnerType: string) {
+    this.countEntry('run.runners.reuse.success', 1);
+
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.reuse.success', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.reuse.success', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseFailureOrg(count: number, org: string, runnerType: string) {
+    this.countEntry('run.runners.reuse.failure', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.reuse.failure', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.reuse.failure', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseFailureRepo(count: number, repo: Repo, runnerType: string) {
+    this.countEntry('run.runners.reuse.failure', 1);
+
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.reuse.failure', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.reuse.failure', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseGiveUpOrg(count: number, org: string, runnerType: string) {
+    this.countEntry('run.runners.reuse.failure', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.reuse.failure', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.reuse.failure', count, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnersReuseGiveUpRepo(count: number, repo: Repo, runnerType: string) {
+    this.countEntry('run.runners.reuse.failure', 1);
+
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.reuse.failure', count, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.reuse.failure', count, dimensions);
   }
 }
 
@@ -1421,6 +1627,64 @@ export class ScaleDownMetrics extends Metrics {
         this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.skipped', 1, repoDim);
       }
     }
+  }
+}
+
+export class ScaleUpChronMetrics extends ScaleUpMetrics {
+  constructor() {
+    super('scaleUpChron');
+  }
+
+  queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
+    const dimensions = new Map([
+      ['Org', org],
+      ['RunnerType', runnerType],
+      ['numQueuedJobs', numQueuedJobs.toString()],
+    ]);
+    this.addEntry('gh.scaleupchron.queuedRunners', 3, dimensions);
+  }
+
+  queuedRunnerFailure(error: string) {
+    const dimensions = new Map([['error', error]]);
+    this.countEntry('gh.scaleupchron.queuedRunners.failure', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  getQueuedJobsEndpointSuccess(ms: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.success`, 1);
+    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  getQueuedJobsEndpointFailure(ms: number) {
+    this.countEntry(`gh.calls.total`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`gh.calls.getQueuedJobsEndpoint.failure`, 1);
+    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+  }
+
+  scaleUpInstanceSuccess() {
+    this.scaleUpSuccess();
+    this.countEntry('run.scaleupchron.success');
+  }
+
+  scaleUpInstanceFailureNonRetryable(error: string) {
+    const dimensions = new Map([['error', error]]);
+    // should we add more information about this or do we not care since  it'll be requeued?
+    this.countEntry('run.scaleupchron.failure.nonRetryable', 1, dimensions);
+  }
+
+  scaleUpInstanceFailureRetryable(error: string) {
+    const dimensions = new Map([['error', error]]);
+
+    // should we add more information about this or do we not care since  it'll be requeued?
+    this.countEntry('run.scaleupchron.failure.retryable', 1, dimensions);
+  }
+
+  scaleUpInstanceNoOp() {
+    this.countEntry('run.scaleupchron.noop');
   }
 }
 

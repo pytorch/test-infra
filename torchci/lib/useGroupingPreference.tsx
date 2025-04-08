@@ -65,3 +65,15 @@ export function useMonsterFailuresPreference(): [
   );
   return [state, setState];
 }
+
+export function useHideGreenColumnsPreference(): [
+  boolean,
+  (_hideGreenColumnsValue: boolean) => void
+] {
+  const [state, setState] = usePreference(
+    "hideGreenColumns",
+    /*override*/ undefined,
+    /*default*/ false
+  );
+  return [state, setState];
+}

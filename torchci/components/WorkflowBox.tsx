@@ -9,7 +9,7 @@ import {
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWRImmutable from "swr/immutable";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import { TestInfo } from "./additionalTestInfo/TestInfo";
 import JobArtifact from "./JobArtifact";
@@ -167,7 +167,7 @@ export default function WorkflowBox({
   const { utilMetadataList } = useUtilMetadata(workflowId);
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
-  const { artifacts, error } = useArtifacts(workflowId);
+  const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
   const [searchString, setSearchString] = useState("");
@@ -280,16 +280,11 @@ function useUtilMetadata(workflowId: string | undefined): {
   utilMetadataList: UtilizationMetadataInfo[];
   metaError: any;
 } {
-  const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
-    `/api/list_utilization_metadata_info/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
+  const { data, error } =
+    useSWRImmutable<ListUtilizationMetadataInfoAPIResponse>(
+      `/api/list_utilization_metadata_info/${workflowId}`,
+      fetcher
+    );
 
   if (!workflowId) {
     return { utilMetadataList: [], metaError: "No workflow ID" };
@@ -313,21 +308,18 @@ function useUtilMetadata(workflowId: string | undefined): {
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
-function useArtifacts(workflowId: string | undefined): {
+function useArtifacts(workflowIds: (string | number | undefined)[]): {
   artifacts: Artifact[];
   error: any;
 } {
-  const { data, error } = useSWR<Artifact[]>(
-    `/api/artifacts/s3/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000,
-      refreshWhenHidden: true,
-    }
+  const uniqueWorkflowIds = Array.from(new Set(workflowIds)).filter(
+    (id) => id !== undefined
   );
-  if (workflowId === undefined) {
-    return { artifacts: [], error: "No workflow ID" };
-  }
+  // Get all artifacts for these ids
+  const { data, error } = useSWRImmutable<Artifact[]>(
+    `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,
+    fetcher
+  );
   if (data == null) {
     return { artifacts: [], error: "Loading..." };
   }
@@ -384,6 +376,7 @@ function groupArtifacts(jobs: JobData[], artifacts: Artifact[]) {
         key = id;
       }
     } finally {
+      key = key.toString();
       if (!grouping.has(key)) {
         grouping.set(key, []);
       }

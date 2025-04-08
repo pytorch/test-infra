@@ -131,7 +131,7 @@ class TestPrintCommits(TestCase):
         workflow_checks = set_workflow_job_status(workflow_checks, "Lint", "failed")
         result = is_green("sha", requires, workflow_checks)
         self.assertFalse(result[0])
-        self.assertEqual(result[1], "Lint checks were not successful")
+        self.assertEqual(result[1], "Lint was not successful, test/job failed")
 
     @mock.patch(
         "tools.scripts.fetch_latest_green_commit.get_commit_results",
