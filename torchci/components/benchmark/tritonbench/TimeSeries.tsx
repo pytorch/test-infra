@@ -109,7 +109,7 @@ function SingleGraphPanel({
     let { data, error } = useSWR(url, fetcher, {
         refreshInterval: 60 * 60 * 1000, // refresh every hour
       });
-    
+
       if (error !== undefined) {
         return (
           <div>
@@ -118,7 +118,7 @@ function SingleGraphPanel({
           </div>
         );
       }
-    
+
       if (data === undefined || data.length === 0) {
         return <Skeleton variant={"rectangular"} height={"100%"} />;
       }
@@ -127,7 +127,7 @@ function SingleGraphPanel({
     // Only show records between these twos
     const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
     const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
-    
+
     const compileTime = computeCompileTime(data).filter((r: any) => {
       const id = r.workflow_id;
       return (
