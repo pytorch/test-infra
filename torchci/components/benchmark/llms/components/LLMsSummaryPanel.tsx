@@ -224,7 +224,7 @@ export default function LLMsSummaryPanel({
       }
       return `Failure -> Fialure`;
     } else if (isLFailure) {
-      return `Failure ->${ractual}${unit} ${rPercent} ${showTarget}`;
+      return `Failure → ${ractual}${unit} ${rPercent} ${showTarget}`;
     } else if (isRFailure) {
       return `${lactual}${unit} ${lPercent} → Failure`;
     }
