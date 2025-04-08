@@ -1,3 +1,4 @@
+wheel
 setuptools==70.0.0
 requests
 boto3==1.19.12
