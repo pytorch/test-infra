@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { geomean } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
-import { cloneDeep } from "lodash";
+import _ from "lodash";
 import useSWR from "swr";
 import {
   BranchAndCommitPerfData,
@@ -425,7 +425,7 @@ const processJobLevelFailureRows = (
     jobLevelFailureKeys.forEach((failureKey: string) => {
       // add FAILURE_REPORT related to job level failure in dataGroupedByModel
       if (jobLevelFailureConfig["is_included"](key, failureKey)) {
-        dataGroupedByModel[key]["FAILURE_REPORT"] = cloneDeep(
+        dataGroupedByModel[key]["FAILURE_REPORT"] = _.cloneDeep(
           dataGroupedByModel[failureKey]["FAILURE_REPORT"]
         );
         console.log("add failure report", dataGroupedByModel[key], key);
