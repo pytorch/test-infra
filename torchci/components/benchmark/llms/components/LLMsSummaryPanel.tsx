@@ -371,7 +371,6 @@ export default function LLMsSummaryPanel({
 
               // A Failure is detected for a model and backend
               if (params.row.FAILURE_REPORT) {
-                console.log("yang here");
                 return handleModelBackendFailure(
                   params.row,
                   lCommit,
