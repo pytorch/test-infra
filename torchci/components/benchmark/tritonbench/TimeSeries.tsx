@@ -156,7 +156,7 @@ function SingleGraphPanel({
           <TimeSeriesPanelWithData
             data={compileTime}
             series={compileTimeSeries}
-            title={`Average Compile Time}`}
+            title={`Average Compile Time`}
             groupByFieldName={groupByFieldName}
             yAxisRenderer={(unit) => {
               return `${(unit * 1).toFixed(0)}`;
