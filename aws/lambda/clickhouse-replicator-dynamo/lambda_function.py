@@ -23,6 +23,7 @@ SUPPORTED_TABLES = {
     "torchci-pull-request": "default.pull_request",
     "torchci-issues": "default.issues",
     "torchci-issue-comment": "default.issue_comment",
+    "torchci-issues-label-event": "default.issues_label_event",
     "torchci-job-annotation": "default.job_annotation",
     "torchci-pull-request-review": "default.pull_request_review",
     "torchci-pull-request-review-comment": "default.pull_request_review_comment",

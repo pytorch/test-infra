@@ -207,9 +207,16 @@ class GitRepo:
     def _run_git_cmd(self, *args) -> str:
         return _check_output(["git", "-C", self.repo_dir] + list(args))
 
-    def _run_git_log(self, revision_range) -> List[GitCommit]:
+    def _run_git_log(self, revision_range, additional_args=[]) -> List[GitCommit]:
         log = self._run_git_cmd(
-            "log", "--format=fuller", "--date=unix", revision_range, "--", "."
+            "log",
+            "--format=fuller",
+            "--date=unix",
+            revision_range,
+            *additional_args,
+            "--",
+            ".",
+            *additional_args,
         ).split("\n")
         rc: List[GitCommit] = []
         cur_msg: List[str] = []

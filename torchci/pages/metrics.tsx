@@ -22,6 +22,7 @@ import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
@@ -31,6 +32,9 @@ function MasterCommitRedPanel({
 }: {
   params: { [key: string]: string };
 }) {
+  // Use the dark mode context to determine whether to use the dark theme
+  const { darkMode } = useDarkMode();
+
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
       ...params,
@@ -103,6 +107,7 @@ function MasterCommitRedPanel({
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
+        theme={darkMode ? "dark-hud" : undefined}
         style={{ height: "100%", width: "100%" }}
         option={options}
       />
@@ -331,6 +336,37 @@ export function TtsPercentilePicker({
   );
 }
 
+/**
+ * Allows the user to pick the experiment metrics.
+ */
+export function ExperimentPicker({
+  experimentName,
+  setExperimentName,
+}: {
+  experimentName: string;
+  setExperimentName: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setExperimentName(e.target.value as string);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="experiment-picker-select-label">Experiment</InputLabel>
+        <Select
+          defaultValue={experimentName}
+          label="Experiment Name"
+          labelId="experiment-picker-select-label"
+          onChange={handleChange}
+        >
+          <MenuItem value={"ephemeral"}>ephemeral</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
 function WorkflowDuration({
   percentile,
   timeParams,
@@ -420,6 +456,7 @@ export default function Page() {
   };
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
+  const [experimentName, setExperimentName] = useState<string>("ephemeral");
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
@@ -903,50 +940,42 @@ export default function Page() {
 
         <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"LF vs Meta: Success rate delta"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel={"rate delta"}
-            yAxisFieldName={"success_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"LF vs Meta: Cancelled rate delta"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel={"rate delta"}
-            yAxisFieldName={"cancelled_rate_delta"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"LF vs Meta: Duration increase ratio"}
-            queryName={"lf_rollover_health"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"day"}
-            timeFieldName={"bucket"}
-            yAxisLabel="increase ratio"
-            yAxisFieldName={"success_duration_increase_ratio"}
-            yAxisRenderer={(value) => value}
-            groupByFieldName={"job_name"}
-          />
-        </Grid2>
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
             queryParams={{ ...timeParams, days_ago: timeRange }}
+            granularity={"hour"}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
+          />
+        </Grid2>
+
+        <Grid2 size={{ xs: 12 }}>
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Typography variant="h3" gutterBottom>
+              Percentage of jobs running on experiment
+            </Typography>
+            <ExperimentPicker
+              experimentName={experimentName}
+              setExperimentName={setExperimentName}
+            />
+          </Stack>
+          <p>
+            This pannel shows the % of jobs that are running the selected
+            experiment in the dropbox.
+          </p>
+        </Grid2>
+
+        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Percentage of jobs running on experiment"}
+            queryName={"experiment_rollover_percentage"}
+            queryParams={{
+              ...timeParams,
+              days_ago: timeRange,
+              experiment_name: experimentName,
+            }}
             granularity={"hour"}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}

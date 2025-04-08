@@ -6,6 +6,7 @@ const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 const GROUP_UNSTABLE = "Unstable";
 const GROUP_PERIODIC = "Periodic";
+const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
@@ -43,6 +44,10 @@ export const groups = [
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /inductor-periodic/,
+    name: GROUP_INDUCTOR_PERIODIC,
   },
   {
     regex: /periodic/,
@@ -155,6 +160,7 @@ const HUD_GROUP_SORTING = [
   GROUP_SLOW,
   GROUP_DOCS,
   GROUP_INDUCTOR,
+  GROUP_INDUCTOR_PERIODIC,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_OTHER,
   GROUP_BINARY_WINDOWS,
@@ -330,13 +336,45 @@ export function getGroupingData(
 ) {
   // Construct Job Groupping Mapping
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
+
+  // Track which jobs have failures
+  const jobsWithFailures = new Set<string>();
+
+  // First pass: check failures for each job across all commits
+  for (const name of jobNames) {
+    // Check if this job has failures in any commit
+    const hasFailure = shaGrid.some((row) => {
+      const job = row.nameToJobs.get(name);
+      return job && isFailure(job.conclusion);
+    });
+
+    if (hasFailure) {
+      jobsWithFailures.add(name);
+    }
+  }
+
+  // Second pass: group jobs
   for (const name of jobNames) {
     const groupName = classifyGroup(name, showUnstableGroup, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
   }
-  return { shaGrid, groupNameMapping };
+
+  // Calculate which groups have failures
+  const groupsWithFailures = new Set<string>();
+  for (const [groupName, jobs] of groupNameMapping.entries()) {
+    if (jobs.some((jobName) => jobsWithFailures.has(jobName))) {
+      groupsWithFailures.add(groupName);
+    }
+  }
+
+  return {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+  };
 }
 
 export function isPersistentGroup(name: string) {
@@ -355,6 +393,8 @@ export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
 }
 
 export function getNameWithoutLF(name: string) {
-  const lfRegex = /, lf\.(linux|windows)/g;
-  return name.replace(lfRegex, ", $1");
+  const lfRegex = /, lf\.(ephemeral|linux|windows)/g;
+  name = name.replace(lfRegex, ", $1");
+  const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
+  return name.replace(ephemeralRegex, ", $1");
 }

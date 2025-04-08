@@ -1,33 +1,54 @@
 .target {
-  cursor: pointer;
+  cursor: help;
+  position: relative;
+  display: inline-block;
+}
+
+.targetContent {
+  display: inline-block;
+  padding: 2px 0;
 }
 
 .container {
-  position: relative;
+  position: absolute;
+  left: 0;
+  top: -5px;
+  transform: translateY(-100%);
+  display: inline-flex;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.content,
+.contentPinned {
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: default;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  position: absolute;
+  z-index: 1;
+  max-width: 95vw;
+  margin-bottom: 10px;
+  width: max-content;
+  top: 15px;
+  left: 15px;
 }
 
 .content {
-  background-color: lightgray;
-  padding: 5px 0;
-  border-radius: 6px;
-  cursor: default;
-
-  position: absolute;
-  z-index: 1;
-  top: calc(100% + 5px);
-  left: calc(100% + 5px);
-  white-space: nowrap;
+  background-color: var(--tooltip-bg);
 }
 
 .contentPinned {
-  background-color: lightblue;
-  padding: 5px 0;
-  border-radius: 6px;
-  cursor: default;
+  background-color: var(--tooltip-pinned-bg);
+}
 
-  position: absolute;
-  z-index: 1;
-  top: calc(100% + 5px);
-  left: calc(100% + 5px);
-  white-space: nowrap;
+.content pre {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.contentPinned pre {
+  white-space: pre-wrap;
+  margin: 0;
 }

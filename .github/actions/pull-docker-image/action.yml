@@ -32,6 +32,9 @@ runs:
 
         retry login "${DOCKER_REGISTRY}"
 
+        IMAGE_SIZE=$(docker manifest inspect "${DOCKER_IMAGE}" | jq '[.layers[].size, .config.size] | add / 1024 / 1024')
+        echo "Compressed size of image in MB: ${IMAGE_SIZE}"
+
         set -e
         # ignore output since only exit code is used for conditional
         # only pull docker image if it's not available locally

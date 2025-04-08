@@ -172,7 +172,8 @@ def upload_to_dynamodb(
     """
     Copied from upload stats script
     """
-    info(f"Writing {len(docs)} documents to DynamoDB {dynamodb_table}")
+    msg = f"Writing {len(docs)} documents to DynamoDB {dynamodb_table}"
+    info(msg)
     if not dry_run:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#batch-writing
         with boto3.resource("dynamodb").Table(dynamodb_table).batch_writer() as batch:
@@ -187,7 +188,15 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
     benchmark_results = []
     with open(filepath) as f:
         try:
-            benchmark_results = json.load(f)
+            r = json.load(f)
+            # Handle the JSONEachRow case where there is only one record in the
+            # JSON file, it can still be loaded normally, but will need to be
+            # added into the list of benchmark results with the length of 1
+            if isinstance(r, dict):
+                benchmark_results.append(r)
+            elif isinstance(r, list):
+                benchmark_results = r
+
         except JSONDecodeError:
             f.seek(0)
 
@@ -195,11 +204,15 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
             for line in f:
                 try:
                     r = json.loads(line)
-                    # Each row needs to be a dictionary in JSON format
-                    if not isinstance(r, dict):
-                        warn(f"Not a JSON dict {line}, skipping")
+                    # Each row needs to be a dictionary in JSON format or a list
+                    if isinstance(r, dict):
+                        benchmark_results.append(r)
+                    elif isinstance(r, list):
+                        benchmark_results.extend(r)
+                    else:
+                        warn(f"Not a JSON dict or list {line}, skipping")
                         continue
-                    benchmark_results.append(r)
+
                 except JSONDecodeError:
                     warn(f"Invalid JSON {line}, skipping")
 
@@ -220,7 +233,7 @@ def process_benchmark_results(
     for result in benchmark_results:
         # This is a required field
         if "metric" not in result:
-            warn(f"{result} is not a benchmark record, skipping")
+            warn(f"{result} from {filepath} is not a benchmark record, skipping")
             continue
 
         record: Dict[str, Any] = {**metadata, **result}
@@ -284,10 +297,12 @@ def upload_to_s3(
     """
     s3_path = generate_s3_path(benchmark_results, filepath, schema_version)
     if not s3_path:
-        info(f"Could not generate an S3 path for {filepath}, skipping...")
+        msg = f"Could not generate an S3 path for {filepath}, skipping..."
+        info(msg)
         return
 
-    info(f"Upload {filepath} to s3://{s3_bucket}/{s3_path}")
+    msg = f"Upload {filepath} to s3://{s3_bucket}/{s3_path}"
+    info(msg)
     if not dry_run:
         # Write in JSONEachRow format
         data = "\n".join([json.dumps(result) for result in benchmark_results])
@@ -314,7 +329,8 @@ def main() -> None:
         # NB: This is for backward compatibility before we move to schema v3
         if schema_version == "v2":
             with open(filepath) as f:
-                info(f"Uploading {filepath} to dynamoDB ({schema_version})")
+                msg = f"Uploading {filepath} to dynamoDB ({schema_version})"
+                info(msg)
                 upload_to_dynamodb(
                     dynamodb_table=args.dynamodb_table,
                     # NB: DynamoDB only accepts decimal number, not float
@@ -331,7 +347,7 @@ def main() -> None:
         )
 
         if not benchmark_results:
-            return
+            continue
 
         upload_to_s3(
             s3_bucket=OSSCI_BENCHMARKS_BUCKET,

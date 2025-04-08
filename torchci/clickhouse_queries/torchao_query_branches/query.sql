@@ -12,19 +12,21 @@ WITH benchmarks AS (
         o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
         AND o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
         AND o.repo = {repo: String }
-        AND tupleElement(o.benchmark, 'extra_info') [ 'performance' ] = 'true'
+        AND tupleElement(o.benchmark, 'extra_info')['performance'] = 'true'
         AND (
             has(
                 {dtypes: Array(String) },
-                tupleElement(o.benchmark, 'extra_info') [ 'quantization' ]
+                tupleElement(o.benchmark, 'extra_info')['quantization']
             )
             OR empty({dtypes: Array(String) })
         )
         AND tupleElement(o.benchmark, 'mode') = {mode: String }
-        AND tupleElement(o.benchmark, 'extra_info') [ 'device' ] = {device: String }
+        AND tupleElement(o.benchmark, 'extra_info')['device']
+        = {device: String }
 )
-SELECT
-    DISTINCT replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
+
+SELECT DISTINCT
+    replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
     head_sha,
     id,
     event_time
