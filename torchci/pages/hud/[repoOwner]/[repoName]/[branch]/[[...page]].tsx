@@ -5,6 +5,7 @@ import {
   GroupHudTableHeader,
   passesGroupFilter,
 } from "components/GroupHudTableHeaders";
+import SettingsPanel from "components/SettingsPanel";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
@@ -306,39 +307,55 @@ function GroupFilterableHudTable({
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const headerNames = groupNames;
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+
   return (
     <>
       <div style={{ position: "relative", clear: "both" }}>
-        <div className={styles.controlsContainer}>
+        <div className={styles.hudControlsRow}>
           <JobFilterInput
             currentFilter={jobFilter}
             handleSubmit={handleSubmit}
           />
-          <CheckBoxSelector
-            value={useGrouping}
-            setValue={(value) => setUseGrouping(value)}
-            checkBoxName="groupView"
-            labelText={"Use grouped view"}
+          <SettingsPanel
+            settingGroups={{
+              "View Options": [
+                <CheckBoxSelector
+                  key="groupView"
+                  value={useGrouping}
+                  setValue={(value) => setUseGrouping(value)}
+                  checkBoxName="groupView"
+                  labelText={"Use grouped view"}
+                />,
+                <MonsterFailuresCheckbox key="monsterFailures" />
+              ],
+              "Filter Options": [
+                <CheckBoxSelector
+                  key="hideUnstable"
+                  value={hideUnstable}
+                  setValue={(value) => setHideUnstable(value)}
+                  checkBoxName="hideUnstable"
+                  labelText={"Hide unstable jobs"}
+                />,
+                <CheckBoxSelector
+                  key="hideGreenColumns"
+                  value={hideGreenColumns}
+                  setValue={(value) => setHideGreenColumns(value)}
+                  checkBoxName="hideGreenColumns"
+                  labelText={"Hide green columns"}
+                />,
+                <CheckBoxSelector
+                  key="mergeEphemeralLF"
+                  value={mergeEphemeralLF}
+                  setValue={setMergeEphemeralLF}
+                  checkBoxName="mergeEphemeralLF"
+                  labelText={"Condense LF, ephemeral jobs"}
+                />
+              ]
+            }}
+            isOpen={settingsPanelOpen}
+            onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
           />
-          <CheckBoxSelector
-            value={hideUnstable}
-            setValue={(value) => setHideUnstable(value)}
-            checkBoxName="hideUnstable"
-            labelText={"Hide unstable jobs"}
-          />
-          <CheckBoxSelector
-            value={hideGreenColumns}
-            setValue={(value) => setHideGreenColumns(value)}
-            checkBoxName="hideGreenColumns"
-            labelText={"Hide green columns"}
-          />
-          <CheckBoxSelector
-            value={mergeEphemeralLF}
-            setValue={setMergeEphemeralLF}
-            checkBoxName="mergeEphemeralLF"
-            labelText={"Condense LF, ephemeral jobs"}
-          />
-          <MonsterFailuresCheckbox />
         </div>
         <table className={styles.hudTable} style={{ overflow: "auto" }}>
           <GroupHudTableColumns names={headerNames} />
