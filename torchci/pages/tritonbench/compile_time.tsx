@@ -2,7 +2,6 @@ import { Divider, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { DEFAULT_HIGHLIGHT_KEY } from "components/benchmark/compilers/common";
-import { SUITES } from "components/benchmark/tritonbench/SuitePicker";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
@@ -74,7 +73,6 @@ export default function Page() {
     benchmark_name: "compile_time",
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    suites: Object.keys(SUITES),
     workflowId: 0,
   };
 

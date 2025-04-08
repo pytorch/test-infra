@@ -159,7 +159,7 @@ function SingleGraphPanel({
             title={`Average Compile Time}`}
             groupByFieldName={groupByFieldName}
             yAxisRenderer={(unit) => {
-              return `${(unit * 1).toFixed(0)} ms`;
+              return `${(unit * 1).toFixed(0)}`;
             }}
             yAxisLabel={"ms"}
             additionalOptions={{

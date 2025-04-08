@@ -22,8 +22,9 @@ WITH results AS (
         AND metric_name = {metric_name: String}
         AND head_branch = {branch: String}
 )
-SELECT
-    DISTINCT results.workflow_id,
+
+SELECT DISTINCT
+    results.workflow_id,
     results.head_branch,
     results.name,
     results.operator,
@@ -34,8 +35,8 @@ SELECT
     results.metric_name,
     results.metric_value,
     DATE_TRUNC(
-       {granularity: String },
-       fromUnixTimestamp(results.timestamp)
+        {granularity: String },
+        fromUnixTimestamp(results.timestamp)
     ) AS granularity_bucket
 FROM
     results
