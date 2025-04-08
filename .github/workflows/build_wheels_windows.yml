@@ -239,12 +239,13 @@ jobs:
   build_x64_test:
     strategy:
       fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
       DOWNLOADS_DIR: c:\temp\downloads\
       DEPENDENCIES_DIR: c:\temp\dependencies\
       SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
       SRC_DIR: src\\${{ inputs.repository }}
-      PYTHON_VERSION: '3.12'
+      PYTHON_VERSION: ${{ matrix.python-version }}
       PACKAGE_NAME: ${{ inputs.package-name }}
     runs-on: "windows-latest"
     steps:
