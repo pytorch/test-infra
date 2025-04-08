@@ -17,6 +17,9 @@ import {
 } from "../common";
 import { LLMsBenchmarkProps } from "../types/dashboardProps";
 import { TORCHAO_BASELINE } from "./aoUtils";
+import { startsWith } from "lodash";
+import JobArtifact from "components/JobArtifact";
+import { map } from "d3";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
@@ -95,6 +98,7 @@ export function combineLeftAndRight(
   const rData = rPerfData.data;
 
   const dataGroupedByModel: { [k: string]: any } = {};
+
   rData.forEach((record: LLMsBenchmarkData) => {
     const model = record.model;
     const backend = record.backend;
@@ -155,13 +159,14 @@ export function combineLeftAndRight(
 
     for (const metric in dataGroupedByModel[key]) {
       const record = dataGroupedByModel[key][metric];
+
       const hasL = "l" in record;
       const hasR = "r" in record;
 
       if (!("metadata" in row)) {
         row["metadata"] = {
           model: model,
-          origins: hasR ? record["r"].origins : [],
+          origins: hasR? record["r"].origins : [],
           backend: backend,
           mode: mode,
           dtype: dtype,
@@ -239,8 +244,7 @@ export function combineLeftAndRight(
         const extraInfo = JSON.parse(extra);
         row["is_dynamic"] = extraInfo["is_dynamic"];
       }
-
-      if (metric == "FAILURE_REPORT") {
+      if (metric == "FAILURE_REPORT"){
         row[metric] = {
           l: hasL
             ? {
@@ -257,34 +261,38 @@ export function combineLeftAndRight(
                 target: record["r"].target,
               }
             : {
-                actual: -1, // indicate the failure on right side
+                actual: -1,// indicate the failure on right side
                 target: 0,
               },
-          highlight: hasL && hasR,
+          highlight:
+            hasL &&
+            hasR,
         };
-      } else {
-        row[metric] = {
-          l: hasL
-            ? {
-                actual: record["l"].actual,
-                target: record["l"].target,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          r: hasR
-            ? {
-                actual: record["r"].actual,
-                target: record["r"].target,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          highlight: hasL && hasR,
-        };
-      }
+     } else{
+      row[metric] = {
+        l: hasL
+          ? {
+              actual: record["l"].actual,
+              target: record["l"].target,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        r: hasR
+          ? {
+              actual: record["r"].actual,
+              target: record["r"].target,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        highlight:
+          hasL &&
+          hasR,
+      };
+    }
     }
 
     if ("metadata" in row) {
@@ -346,4 +354,102 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
   });
 
   return returnedGeomean;
+}
+
+function processDateGroupedByModel(repoName:string, dataGroupedByModel: { [k: string]: any }){
+  const {failure_rows, failure_mapping} = mapDevicesForFailureReport(repoName, dataGroupedByModel);
+
+  failure_mapping.forEach((key: string) => {
+    const obj =  dataGroupedByModel[key]
+    obj["FAILURE_REPORT"] = {
+      l: {
+      }
+    }
+  })
+
+
+
+}
+
+ function mapDevicesForFailureReport(repo:string, maps: { [k: string]: any }){
+  let prefixSet: Set<string> = new Set()
+  let failureIndicatorRows: { [k: string]: any } = {}
+  let failureMapping = new Set<string>()
+
+
+  if(!(repo in GIT_JOB_FAILURE_MAPPING_CONFIG)){
+    return {
+      failure_rows:failureIndicatorRows,
+      failure_mapping:failureMapping
+    }
+  }
+
+  const device_pools = GIT_JOB_FAILURE_MAPPING_CONFIG[repo]["device_pools"]
+  const device_names = device_pools.map((d:any) => d.name)
+
+
+
+  Object.keys(maps).forEach((key: string) => {
+    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
+    const extraInfo = JSON.parse(extra);
+
+    const metrics = maps[key]
+    if ("FAILURE_REPORT" in metrics && extraInfo["failure_type"]=='GIT_JOB' && device in device_names){
+      if (!(key in failureIndicatorRows)) {
+        const record =  metrics["FAILURE_REPORT"]
+        const hasLFailure = "l" in record;
+        const hasRFailure= "r" in record;
+        failureIndicatorRows[key] = {
+          "l": hasLFailure,
+          "r": hasRFailure
+        }
+      }
+      const prefix = device_pools.find((item:any) => item.name === device).prefix
+      const res_key = `${model};${backend};${mode};${dtype};${prefix};`;
+      if (!(device in prefixSet)) {
+        prefixSet.add(res_key)
+      }
+    }
+  })
+
+ Object.keys(maps).forEach((key: string) => {
+  for (const prefix of prefixSet) {
+    if (key.startsWith(prefix)) {
+      failureMapping.add(key)
+    }
+  }
+})
+
+return {
+  failure_rows:failureIndicatorRows,
+  failure_mapping:failureMapping
+}
+
+}
+
+const GIT_JOB_FAILURE_MAPPING_CONFIG:{ [k: string]: any } = {
+  "pytorch/excutorch":{
+    "device_pools":[{
+      name:"apple_iphone_15",
+      prefix: "Apple iPhone 15"
+    },
+    {
+      name:"samsung_galaxy_s22",
+      prefix:"Samsung Galaxy S22"
+    },
+    {
+       name: "samsung_galaxy_s24",
+       prefix: "Samsung Galaxy S24"
+    },
+    {
+      name: "google_pixel_8_pro",
+      prefix: "Google Pixel 8"
+
+    }],
+  }
+}
+
+function removeFieldsByKey<T extends object, K extends keyof T>(obj: T, keysToRemove: K[]): Omit<T, K> {
+  const filteredEntries = Object.entries(obj).filter(([key]) => !keysToRemove.includes(key as K));
+  return Object.fromEntries(filteredEntries) as Omit<T, K>;
 }
