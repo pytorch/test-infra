@@ -23,21 +23,21 @@ export function computeCompileTime(data: TritonBenchPerformanceData[]) {
   });
 
   Object.keys(compTime).forEach((key: string) => {
-      const l = compTime[key].length;
-      const m =
-        l !== 0
-          ? compTime[key].reduce((total: number, v: number) => total + v, 0) / l
-          : 0;
+    const l = compTime[key].length;
+    const m =
+      l !== 0
+        ? compTime[key].reduce((total: number, v: number) => total + v, 0) / l
+        : 0;
 
-      const [bucket, workflowId, operator, suite, backend] = key.split("+");
-      returnedCompTime.push({
-        granularity_bucket: bucket,
-        workflow_id: workflowId,
-        operator: operator,
-        suite: suite,
-        backend: backend,
-        compilation_latency: m.toFixed(SCALE),
-      });
+    const [bucket, workflowId, operator, suite, backend] = key.split("+");
+    returnedCompTime.push({
+      granularity_bucket: bucket,
+      workflow_id: workflowId,
+      operator: operator,
+      suite: suite,
+      backend: backend,
+      compilation_latency: m.toFixed(SCALE),
+    });
   });
 
   return returnedCompTime;

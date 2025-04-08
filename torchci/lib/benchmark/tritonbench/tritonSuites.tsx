@@ -1,8 +1,8 @@
 export interface SuiteConfig {
-    name: string;
-    id: string;
-    description?: string;
-    showGraph: boolean;
+  name: string;
+  id: string;
+  description?: string;
+  showGraph: boolean;
 }
 
 /**
