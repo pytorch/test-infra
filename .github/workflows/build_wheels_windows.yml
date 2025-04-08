@@ -248,14 +248,6 @@ jobs:
       PACKAGE_NAME: ${{ inputs.package-name }}
     runs-on: "windows-latest"
     steps:
-    - name: Echo matrix input
-      shell: cmd
-      run: |
-        echo "Python version: ${{ inputs.python_version }}"
-        echo "Package name: ${{ inputs.package-name }}"
-        echo "Repository: ${{ inputs.repository }}"
-        echo "Ref: ${{ inputs.ref }}"
-        echo "aarch: ${{ inputs.aarch }}"
     - name: Setup Git for Windows' minimal SDK
       uses: git-for-windows/setup-git-for-windows-sdk@v1
       with:
@@ -322,5 +314,5 @@ jobs:
         retention-days: 3
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ inputs.aarch }}-${{ github.event_name == 'workflow_dispatch' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
   cancel-in-progress: true

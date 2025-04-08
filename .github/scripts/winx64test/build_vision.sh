@@ -9,7 +9,7 @@ export VCVARSALL_PATH="$DEPENDENCIES_DIR/VSBuildTools/VC/Auxiliary/Build/vcvarsa
 export CONDA_PREFIX="$DEPENDENCIES_DIR"
 export PATH="$PATH:$CONDA_PREFIX/Library/bin"
 export DISTUTILS_USE_SDK=1
-# export TRIPLET_FILE="triplets/x64-windows.cmake"
+export TRIPLET_FILE="triplets/x64-windows.cmake"
 
 # Dependencies
 mkdir -p "$DOWNLOADS_DIR"
@@ -24,14 +24,12 @@ cd vcpkg || exit
 ./bootstrap-vcpkg.sh
 
 # # Set vcpkg to only build release packages
-# echo "set(VCPKG_BUILD_TYPE release)" >> "$TRIPLET_FILE"
+echo "set(VCPKG_BUILD_TYPE release)" >> "$TRIPLET_FILE"
 
 # Install dependencies using vcpkg
 ./vcpkg install libjpeg-turbo:x64-windows --x-install-root="$DEPENDENCIES_DIR"
 ./vcpkg install libwebp:x64-windows --x-install-root="$DEPENDENCIES_DIR"
 ./vcpkg install libpng[tools]:x64-windows --x-install-root="$DEPENDENCIES_DIR"
-# Building with FFMPEG is disabled by default
-# ./vcpkg install ffmpeg[ffmpeg]:x64-windows --x-install-root="$DEPENDENCIES_DIR"
 
 # Copy files using cp (replace robocopy)
 cp "$DEPENDENCIES_DIR/x64-windows/lib/libpng16.lib" "$DEPENDENCIES_DIR/x64-windows/lib/libpng.lib"
