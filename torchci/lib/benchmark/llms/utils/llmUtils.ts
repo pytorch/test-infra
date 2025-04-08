@@ -91,13 +91,15 @@ export function combineLeftAndRight(
     rPerfData
   );
 
-  // get job level failure rows
+  // process git job level failure rows
   const jobFailureKeySet = processJobLevelFailureRows(
     dataGroupedByModel,
     repoName
   );
 
-  console.log("detect job level failure keys: ", jobFailureKeySet);
+  if (jobFailureKeySet.size != 0) {
+    console.log("detect job level failure keys: ", jobFailureKeySet);
+  }
 
   const data: { [k: string]: any }[] = [];
 
@@ -428,7 +430,6 @@ const processJobLevelFailureRows = (
         dataGroupedByModel[key]["FAILURE_REPORT"] = _.cloneDeep(
           dataGroupedByModel[failureKey]["FAILURE_REPORT"]
         );
-        console.log("add failure report", dataGroupedByModel[key], key);
       }
     });
   });
