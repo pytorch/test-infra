@@ -148,7 +148,7 @@ function SingleGraphPanel({
         granularity,
         groupByFieldName,
         TIME_FIELD_NAME,
-        "compile_time",
+        "compilation_latency",
         false
     );
 
@@ -162,7 +162,7 @@ function SingleGraphPanel({
           title={`Average Compile Time}`}
           groupByFieldName={groupByFieldName}
           yAxisRenderer={(unit) => {
-            return `${(unit * 100).toFixed(0)} ms`;
+            return `${(unit * 1).toFixed(0)} ms`;
           }}
           yAxisLabel={"ms"}
           additionalOptions={{
@@ -173,7 +173,7 @@ function SingleGraphPanel({
               show: true,
               align: "left",
               formatter: (r: any) => {
-                return (r.value[1] * 100).toFixed(0);
+                return (r.value[1] * 1).toFixed(0);
               },
             },
           }}
@@ -199,7 +199,7 @@ export function TimeSeriesGraphReport({
   return (
     <>
     <TimeSeriesGraphPanel
-      queryName="tritonbench_compile_time"
+      queryName="tritonbench_benchmark"
       queryParams={queryParams}
       granularity={granularity}
       repo={"pytorch-labs/tritonbench"}

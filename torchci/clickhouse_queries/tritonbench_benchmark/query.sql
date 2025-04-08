@@ -10,9 +10,9 @@ WITH results AS (
 		workflow_id,
 		replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
 		metric.name AS metric_name,
-		arrayAvg(metric.benchmark_values) AS metric_values
+		arrayAvg(metric.benchmark_values) AS metric_value
 	FROM
-		oss_ci_benchmark_v3
+		benchmark.oss_ci_benchmark_v3
 	WHERE
 		timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
 		AND timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
@@ -32,7 +32,7 @@ SELECT
 	results.dtype,
 	results.backend,
 	results.metric_name,
-	results.metric_values,
+	results.metric_value,
 	DATE_TRUNC(
 	   {granularity: String },
 	   fromUnixTimestamp(results.timestamp)

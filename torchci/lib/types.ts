@@ -206,13 +206,16 @@ export interface CompilerPerformanceData {
 
 export interface TritonBenchPerformanceData {
   metric_name: string;
-  metric_value: string;
-  backend: string;
+  metric_value: number;
   granularity_bucket: string;
   name: string;
-  suite: string;
   workflow_id: number;
-  job_id?: number;
+  head_branch: string;
+  operator: string;
+  suite: string;
+  mode: string;
+  dtype: string;
+  backend: string;
 }
 
 export interface BenchmarkData {
