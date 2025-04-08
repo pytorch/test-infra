@@ -1,4 +1,4 @@
-import { Grid2 } from "@mui/material";
+import { Grid2, styled, Tooltip } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -12,6 +12,23 @@ import {
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
+import { RiAlarmWarningFill } from "react-icons/ri";
+import { VscError } from "react-icons/vsc";
+
+const FlexDiv = styled("div")({
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "flex-start",
+  alignItems: "center",
+});
+
+const FlexDivCenter = styled("div")({
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  margin: "3px",
+});
 
 const getDeviceArch = (
   device: string | undefined,
@@ -188,48 +205,6 @@ export default function LLMsSummaryPanel({
     });
   }
 
-  // handle failure report for a row.
-  const handleModelBackendFailure = (
-    field: string,
-    unit: string,
-    showTarget: string,
-    isLFailure: boolean,
-    isRFailure: boolean,
-    lactual: number,
-    ractual: number,
-    lPercent: string,
-    rPercent: string
-  ) => {
-    // Indicate the failure details in Failure Report column
-    if (field === "FAILURE_REPORT") {
-      if (lCommit === rCommit) {
-        return `Detected Failure on commit`;
-      }
-
-      if (isLFailure && isRFailure) {
-        return `Detected Failure on both base commit and new commit`;
-      }
-      if (isLFailure) {
-        return `Detected Failure on base commit`;
-      }
-      if (isRFailure) {
-        return `Detected Failure on new commit`;
-      }
-    }
-
-    // render the row's value in other metric columns
-    if (isLFailure && isRFailure) {
-      if (lCommit === rCommit) {
-        return `Failure`;
-      }
-      return `Failure -> Fialure`;
-    } else if (isLFailure) {
-      return `Failure → ${ractual}${unit} ${rPercent} ${showTarget}`;
-    } else if (isRFailure) {
-      return `${lactual}${unit} ${lPercent} → Failure`;
-    }
-  };
-
   const hasBackend = data.length > 0 && "backend" in data[0] ? true : false;
   if (hasBackend && benchmarkName !== "TorchCache Benchmark") {
     columns.push({
@@ -389,6 +364,8 @@ export default function LLMsSummaryPanel({
                 const isRFailure =
                   params.row.FAILURE_REPORT?.r.actual == 1 ? true : false;
                 return handleModelBackendFailure(
+                  lCommit,
+                  rCommit,
                   params.field,
                   unit,
                   showTarget,
@@ -431,3 +408,100 @@ export default function LLMsSummaryPanel({
     </Grid2>
   );
 }
+
+// handle failure report for a row.
+const handleModelBackendFailure = (
+  lCommit: string,
+  rCommit: string,
+  field: string,
+  unit: string,
+  showTarget: string,
+  isLFailure: boolean,
+  isRFailure: boolean,
+  lactual: number,
+  ractual: number,
+  lPercent: string,
+  rPercent: string
+) => {
+  // Indicate the failure details in Failure Report column
+  if (field === "FAILURE_REPORT") {
+    if (lCommit === rCommit) {
+      return (
+        <WarningElementWithTooltip message="Detected Failure on commit"></WarningElementWithTooltip>
+      );
+    }
+
+    if (isLFailure && isRFailure) {
+      return (
+        <WarningElementWithTooltip message="Detected Failure on both base commit and new commit"></WarningElementWithTooltip>
+      );
+    }
+    if (isLFailure) {
+      return (
+        <WarningElementWithTooltip message="Detected Failure on base commit"></WarningElementWithTooltip>
+      );
+    }
+    if (isRFailure) {
+      return (
+        <WarningElementWithTooltip message="Detected Failure on new commit"></WarningElementWithTooltip>
+      );
+    }
+  }
+
+  // render the row's value in other metric columns
+  if (isLFailure && isRFailure) {
+    if (lCommit === rCommit) {
+      return (
+        <FailureElementWithTooltip message="device job failed on commit"></FailureElementWithTooltip>
+      );
+    }
+    return (
+      <div>
+        <FailureElementWithTooltip message="device job failed on both commit" />
+        ;
+      </div>
+    );
+  } else if (isLFailure) {
+    return (
+      <FlexDiv>
+        <FailureElementWithTooltip message="device job failed on base commit"></FailureElementWithTooltip>
+        <span> → </span>
+        <span>
+          {ractual}
+          {unit}
+          {rPercent} {showTarget}
+        </span>
+      </FlexDiv>
+    );
+  } else if (isRFailure) {
+    return (
+      <FlexDiv>
+        <span>
+          {lactual}
+          {unit}
+          {lPercent}
+        </span>
+        <span> → </span>
+        <FailureElementWithTooltip message="device job failed on new commit"></FailureElementWithTooltip>
+      </FlexDiv>
+    );
+  }
+};
+
+const FailureElementWithTooltip = ({ message = "" }) => (
+  <Tooltip title={message}>
+    <div style={{ display: "flex", alignItems: "center", color: "red" }}>
+      <VscError />
+    </div>
+  </Tooltip>
+);
+
+const WarningElementWithTooltip = ({ message = "" }) => (
+  <FlexDivCenter>
+    <Tooltip title={message}>
+      <div style={{ display: "flex", alignItems: "center", color: "red" }}>
+        <RiAlarmWarningFill size={20} />
+      </div>
+    </Tooltip>
+  </FlexDivCenter>
+);
