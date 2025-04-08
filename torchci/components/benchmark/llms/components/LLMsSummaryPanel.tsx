@@ -271,7 +271,7 @@ export default function LLMsSummaryPanel({
           );
         })
         .filter((metric: string) => {
-          return metric !== "FAILURE_REPORT";
+          return metric !== "FAILURE_REPO";
         })
         .map((metric: string) => {
           return {
@@ -427,8 +427,8 @@ const handleModelBackendFailure = (
   lPercent: string,
   rPercent: string
 ) => {
-  const isLFailure = row.FAILURE_REPORT?.l.actual == 1 ? true : false;
-  const isRFailure = row.FAILURE_REPORT?.r.actual == 1 ? true : false;
+  const isLFailure = row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure = row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
 
   // render the row's value in other metric columns
   if (isLFailure && isRFailure) {
@@ -479,8 +479,8 @@ const RenderWarningOnNameForFailure = ({
   rCommit: string;
   row: any;
 }) => {
-  const isLFailure = row.FAILURE_REPORT?.l.actual == 1 ? true : false;
-  const isRFailure = row.FAILURE_REPORT?.r.actual == 1 ? true : false;
+  const isLFailure = row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure = row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
   // Indicate the failure details in Failure Report column
   if (lCommit === rCommit) {
     return (

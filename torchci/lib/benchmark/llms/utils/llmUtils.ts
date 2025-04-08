@@ -245,7 +245,7 @@ export function combineLeftAndRight(
         row[metric] = {
           l: hasL
             ? {
-                actual: 1, // indicate the failure on left side
+                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
                 target: 0,
               }
             : {
@@ -254,7 +254,7 @@ export function combineLeftAndRight(
               },
           r: hasR
             ? {
-                actual: 1, // indicate the failure on right side
+                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
                 target: 0,
               }
             : {
