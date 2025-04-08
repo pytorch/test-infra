@@ -245,20 +245,20 @@ export function combineLeftAndRight(
         row[metric] = {
           l: hasL
             ? {
-                actual: 1,
+                actual: 1, // indicate the failure on left side
                 target: 0,
               }
             : {
-                actual: 0, // indicate the failure on left side
+                actual: 0,
                 target: 0,
               },
           r: hasR
             ? {
-                actual: 1,
+                actual: 1, // indicate the failure on right side
                 target: 0,
               }
             : {
-                actual: 0, // indicate the failure on right side
+                actual: 0,
                 target: 0,
               },
           highlight: hasL && hasR,
