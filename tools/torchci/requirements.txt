@@ -1,4 +1,5 @@
 setuptools==70.0.0
+wheel
 requests
 boto3==1.19.12
 pytest==7.2.0
