@@ -3,7 +3,7 @@ name = "torchci"
 dynamic = ["version"]
 
 [build-system]
-requires = ["setuptools==68.2.2", "wheel"]
+requires = ["setuptools==70.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-dir]
