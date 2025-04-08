@@ -63,7 +63,7 @@ def parse_args() -> Any:
         ],
         help="specific devices to run on. Default is s22 for android and iphone 15 for ios.",
     )
-    
+
     parser.add_argument(
         "--benchmark_configs",
         type=str,
@@ -118,7 +118,11 @@ def run_workflow(app_type, branch, models, devices, benchmark_configs):
 
 def main() -> None:
     args = parse_args()
-    app_type = args.android ? "android" : args.ios ? "ios" : null
+    app_type = None
+    if args.android:
+        app_type = "android"
+    elif args.ios:
+        app_type = "ios"
     if app_type:
         resp = run_workflow(
             app_type, args.branch, args.models, args.devices, args.benchmark_configs
