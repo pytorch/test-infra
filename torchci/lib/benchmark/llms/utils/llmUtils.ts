@@ -35,7 +35,7 @@ export function useBenchmark(
   )}`;
 
   return useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
+    refreshInterval: 60 * 60 * 1000, // refresh every hour yang test dsf
   });
 }
 
