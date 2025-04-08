@@ -385,9 +385,9 @@ export default function LLMsSummaryPanel({
               // A Failure is detected for a model and backend
               if (params.row.FAILURE_REPORT) {
                 const isLFailure =
-                  params.row.FAILURE_REPORT?.l.actual == -1 ? false : true;
+                  params.row.FAILURE_REPORT?.l.actual == 1 ? true : false;
                 const isRFailure =
-                  params.row.FAILURE_REPORT?.r.actual == -1 ? false : true;
+                  params.row.FAILURE_REPORT?.r.actual == 1 ? true : false;
                 return handleModelBackendFailure(
                   params.field,
                   unit,
