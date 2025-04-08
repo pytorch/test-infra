@@ -333,7 +333,7 @@ function GroupFilterableHudTable({
                   key="groupView"
                   labelText={"Use grouped view"}
                 />,
-                <MonsterFailuresCheckbox key="monsterFailures"/>,
+                <MonsterFailuresCheckbox key="monsterFailures" />,
               ],
               "Filter Options": [
                 <CheckBoxSelector
