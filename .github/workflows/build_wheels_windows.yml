@@ -79,6 +79,7 @@ permissions:
 
 jobs:
   build:
+    if : ${{ inputs.aarch == '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -237,6 +238,7 @@ jobs:
       trigger-event: ${{ inputs.trigger-event }}
 
   build_x64_test:
+    if : ${{ inputs.aarch == 'x64' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
