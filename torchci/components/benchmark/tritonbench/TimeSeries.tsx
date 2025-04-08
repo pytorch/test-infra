@@ -26,7 +26,9 @@ function TimeSeriesGraphPanel({
   queryName,
   queryParams,
   granularity,
+  repo,
   suite,
+  metric_name,
   branch,
   lCommit,
   rCommit,
@@ -34,7 +36,9 @@ function TimeSeriesGraphPanel({
   queryName: string;
   queryParams: { [key: string]: any };
   granularity: Granularity;
+  repo: string;
   suite: string;
+  metric_name: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -48,7 +52,9 @@ function TimeSeriesGraphPanel({
             queryName={queryName}
             queryParams={queryParams}
             granularity={granularity}
+            repo={repo}
             suite={suite}
+            metric_name={metric_name}
             branch={branch}
             lCommit={lCommit}
             rCommit={rCommit}
@@ -65,7 +71,9 @@ function SingleGraphPanel({
     queryName,
     queryParams,
     granularity,
+    repo,
     suite,
+    metric_name,
     branch,
     lCommit,
     rCommit,
@@ -73,15 +81,19 @@ function SingleGraphPanel({
     queryName: string;
     queryParams: { [key: string]: any };
     granularity: Granularity;
+    repo: string;
     suite: string;
+    metric_name: string;
     branch: string;
     lCommit: string;
     rCommit: string;
 }) {
     const queryParamsWithSuite: { [key: string]: any } = {
       ...queryParams,
-      branches: [branch],
-      suites: [suite],
+      repo: repo,
+      suite: suite,
+      metric_name: metric_name,
+      branch: branch,
     };
     // NB: Querying data for all the suites blows up the response from the database
     // over the lambda reponse body limit of 6MB. So I need to split up the query
@@ -116,32 +128,33 @@ function SingleGraphPanel({
     const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
     const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
     
-    // const compileTime = computeCompileTime(data).filter((r: any) => {
-    //   const id = r.workflow_id;
-    //   return (
-    //     (id >= lWorkflowId && id <= rWorkflowId) ||
-    //     (id <= lWorkflowId && id >= rWorkflowId)
-    //   );
-    // });
-    // // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-    // // align with the data we get from the database
-    // const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
-    // const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
+    const compileTime = computeCompileTime(data).filter((r: any) => {
+      const id = r.workflow_id;
+      return (
+        (id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)
+      );
+    });
 
-    // const compileTimeSeries = seriesWithInterpolatedTimes(
-    //     compileTime,
-    //     startTime,
-    //     stopTime,
-    //     granularity,
-    //     groupByFieldName,
-    //     TIME_FIELD_NAME,
-    //     "compile_time",
-    //     false
-    // );
+    // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
+    // align with the data we get from the database
+    const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+    const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
+
+    const compileTimeSeries = seriesWithInterpolatedTimes(
+        compileTime,
+        startTime,
+        stopTime,
+        granularity,
+        groupByFieldName,
+        TIME_FIELD_NAME,
+        "compile_time",
+        false
+    );
 
   return (
     <>
-    {/* <Grid2 container spacing={2}>
+    <Grid2 container spacing={2}>
       <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={compileTime}
@@ -167,7 +180,7 @@ function SingleGraphPanel({
           legendPadding={310}
         />
       </Grid2>
-      </Grid2> */}
+      </Grid2>
     </>
     )
 }
@@ -189,7 +202,9 @@ export function TimeSeriesGraphReport({
       queryName="tritonbench_compile_time"
       queryParams={queryParams}
       granularity={granularity}
-      suite={"tritonbench"}
+      repo={"pytorch-labs/tritonbench"}
+      suite={"tritonbench-oss"}
+      metric_name={"compile_time-avg"}
       branch={lBranchAndCommit.branch}
       lCommit={lBranchAndCommit.commit}
       rCommit={rBranchAndCommit.commit}
