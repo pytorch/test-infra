@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { geomean } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
+import { cloneDeep } from "lodash";
 import useSWR from "swr";
 import {
   BranchAndCommitPerfData,
@@ -85,17 +86,122 @@ export function combineLeftAndRight(
   lPerfData: BranchAndCommitPerfData,
   rPerfData: BranchAndCommitPerfData
 ): { [k: string]: any }[] {
-  // The left (base commit)
-  const lBranch = lPerfData.branch;
+  const dataGroupedByModel: { [k: string]: any } = getDataGroupedByModel(
+    lPerfData,
+    rPerfData
+  );
+
+  // get job level failure rows
+  const jobFailureKeySet = processJobLevelFailureRows(
+    dataGroupedByModel,
+    repoName
+  );
+
+  console.log("detect job level failure keys: ", jobFailureKeySet);
+
+  const data: { [k: string]: any }[] = [];
+
+  for (const key of Object.keys(dataGroupedByModel)) {
+    if (jobFailureKeySet.has(key)) {
+      continue;
+    }
+
+    const row = toRowData(dataGroupedByModel, key, repoName, benchmarkName);
+    if ("metadata" in row) {
+      data.push(row);
+    }
+  }
+
+  return data;
+}
+
+export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
+  const metricValues: { [key: string]: number[] } = {};
+  const returnedGeomean: LLMsBenchmarkData[] = [];
+
+  data.forEach((r: LLMsBenchmarkData) => {
+    if (r.metric !== metricName) {
+      return;
+    }
+
+    const origins = r.origins.join(",");
+    const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${origins}+${r.device}+${r.arch}+${r.metric}`;
+    if (!(k in metricValues)) {
+      metricValues[k] = [];
+    }
+
+    if (r.actual !== 0) {
+      metricValues[k].push(r.actual);
+    }
+  });
+
+  Object.keys(metricValues).forEach((k: string) => {
+    const gm = geomean(metricValues[k]);
+    const [
+      bucket,
+      workflowId,
+      jobId,
+      backend,
+      dtype,
+      origins,
+      device,
+      arch,
+      metric,
+    ] = k.split("+");
+    returnedGeomean.push({
+      granularity_bucket: bucket,
+      model: "",
+      backend: backend,
+      origins: origins.split(","),
+      workflow_id: Number(workflowId),
+      job_id: Number(jobId),
+      metric: `${metric} (geomean)`,
+      actual: Number(gm),
+      target: 0,
+      dtype: dtype,
+      device: device,
+      arch: arch,
+    });
+  });
+  return returnedGeomean;
+}
+
+const getDataGroupedByModel = (
+  lPerfData: BranchAndCommitPerfData,
+  rPerfData: BranchAndCommitPerfData
+) => {
   const lCommit = lPerfData.commit;
   const lData = lPerfData.data;
   // and the right (new commit)
-  const rBranch = rPerfData.branch;
   const rCommit = rPerfData.commit;
   const rData = rPerfData.data;
 
   const dataGroupedByModel: { [k: string]: any } = {};
 
+  const testData: LLMsBenchmarkData = {
+    arch: "",
+    actual: 0,
+    target: 0,
+    granularity_bucket: "2024-03-01",
+    model: "edsr",
+    backend: "qnn_q8",
+    mode: "inference",
+    device: "samsung_galaxy_s22",
+    extra: {
+      failure_type: "GIT_JOB",
+      is_dynamic: "false",
+      yang_test: "true",
+    },
+    origins: [],
+    workflow_id: 0,
+    job_id: 0,
+    metric: "FAILURE_REPORT",
+    dtype: "",
+  };
+
+  rData.push(testData);
+
+  // The right (base commit)
   rData.forEach((record: LLMsBenchmarkData) => {
     const model = record.model;
     const backend = record.backend;
@@ -145,206 +251,282 @@ export function combineLeftAndRight(
     });
   }
 
-  // Transform the data into a displayable format
-  const data: { [k: string]: any }[] = [];
-  Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
-    const row: { [k: string]: any } = {
-      // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch} / ${extra})`,
-    };
+  return dataGroupedByModel;
+};
 
-    for (const metric in dataGroupedByModel[key]) {
-      const record = dataGroupedByModel[key][metric];
+const toRowData = (
+  dataGroupedByModel: { [k: string]: any },
+  key: string,
+  repoName: string,
+  benchmarkName: string
+) => {
+  const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
+  const row: { [k: string]: any } = {
+    // Keep the name as as the row ID as DataGrid requires it
+    name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch} / ${extra})`,
+  };
 
-      const hasL = "l" in record;
-      const hasR = "r" in record;
+  for (const metric in dataGroupedByModel[key]) {
+    const record = dataGroupedByModel[key][metric];
 
-      if (!("metadata" in row)) {
-        row["metadata"] = {
-          model: model,
-          origins: hasR ? record["r"].origins : [],
-          backend: backend,
-          mode: mode,
-          dtype: dtype,
-          device: device,
-          arch: arch,
-          l: hasL ? record["l"]["job_id"] : undefined,
-          r: hasR ? record["r"]["job_id"] : undefined,
-        };
-      } else {
-        row["metadata"]["l"] =
-          row["metadata"]["l"] ?? (hasL ? record["l"]["job_id"] : undefined);
-        row["metadata"]["r"] =
-          row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
-      }
+    const hasL = "l" in record;
+    const hasR = "r" in record;
 
-      if (mode !== "") {
-        row["mode"] = mode;
-      }
-
-      if (dtype !== "") {
-        row["dtype"] = dtype;
-      }
-
-      if (backend !== "") {
-        row["backend"] = backend;
-      }
-
-      row["device_arch"] = {
+    if (!("metadata" in row)) {
+      row["metadata"] = {
+        model: model,
+        origins: hasR ? record["r"].origins : [],
+        backend: backend,
+        mode: mode,
+        dtype: dtype,
         device: device,
         arch: arch,
+        l: hasL ? record["l"]["job_id"] : undefined,
+        r: hasR ? record["r"]["job_id"] : undefined,
       };
-
-      if (repoName === "vllm-project/vllm") {
-        // These fields are only available on vLLM benchmark
-        const extraInfo = JSON.parse(extra);
-        // TODO (huydhn): Fix the invalid JSON on vLLM side
-        if (
-          metric.includes("itl") ||
-          metric.includes("tpot") ||
-          metric.includes("ttft")
-        ) {
-          extraInfo["request_rate"] =
-            extraInfo["request_rate"] !== ""
-              ? extraInfo["request_rate"]
-              : "Inf";
-        }
-        // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
-        // script on vLLM side
-        if (model.includes("8B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 1;
-        } else if (model.includes("70B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 4;
-        } else if (model.includes("8x7B")) {
-          extraInfo["tensor_parallel_size"] =
-            extraInfo["tensor_parallel_size"] !== ""
-              ? extraInfo["tensor_parallel_size"]
-              : 2;
-        }
-
-        row["extra"] = extraInfo;
-        row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
-        row["request_rate"] = extraInfo["request_rate"];
-      }
-
-      if (
-        repoName === "pytorch/pytorch" &&
-        benchmarkName === "TorchCache Benchmark"
-      ) {
-        const extraInfo = JSON.parse(extra);
-        row["is_dynamic"] = extraInfo["is_dynamic"];
-      }
-      if (metric == "FAILURE_REPORT") {
-        row[metric] = {
-          l: hasL
-            ? {
-                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
-                target: 0,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          r: hasR
-            ? {
-                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
-                target: 0,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          highlight: hasL && hasR,
-        };
-      } else {
-        row[metric] = {
-          l: hasL
-            ? {
-                actual: record["l"].actual,
-                target: record["l"].target,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          r: hasR
-            ? {
-                actual: record["r"].actual,
-                target: record["r"].target,
-              }
-            : {
-                actual: 0,
-                target: 0,
-              },
-          highlight: hasL && hasR,
-        };
-      }
+    } else {
+      row["metadata"]["l"] =
+        row["metadata"]["l"] ?? (hasL ? record["l"]["job_id"] : undefined);
+      row["metadata"]["r"] =
+        row["metadata"]["r"] ?? (hasR ? record["r"]["job_id"] : undefined);
     }
 
-    if ("metadata" in row) {
-      data.push(row);
-    }
-  });
-
-  return data;
-}
-
-export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
-  const metricValues: { [key: string]: number[] } = {};
-  const returnedGeomean: LLMsBenchmarkData[] = [];
-
-  data.forEach((r: LLMsBenchmarkData) => {
-    if (r.metric !== metricName) {
-      return;
+    if (mode !== "") {
+      row["mode"] = mode;
     }
 
-    const origins = r.origins.join(",");
-    const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${origins}+${r.device}+${r.arch}+${r.metric}`;
-    if (!(k in metricValues)) {
-      metricValues[k] = [];
+    if (dtype !== "") {
+      row["dtype"] = dtype;
     }
 
-    if (r.actual !== 0) {
-      metricValues[k].push(r.actual);
+    if (backend !== "") {
+      row["backend"] = backend;
     }
-  });
 
-  Object.keys(metricValues).forEach((k: string) => {
-    const gm = geomean(metricValues[k]);
-
-    const [
-      bucket,
-      workflowId,
-      jobId,
-      backend,
-      dtype,
-      origins,
-      device,
-      arch,
-      metric,
-    ] = k.split("+");
-    returnedGeomean.push({
-      granularity_bucket: bucket,
-      model: "",
-      backend: backend,
-      origins: origins.split(","),
-      workflow_id: Number(workflowId),
-      job_id: Number(jobId),
-      metric: `${metric} (geomean)`,
-      actual: Number(gm),
-      target: 0,
-      dtype: dtype,
+    row["device_arch"] = {
       device: device,
       arch: arch,
+    };
+
+    if (repoName === "vllm-project/vllm") {
+      // These fields are only available on vLLM benchmark
+      const extraInfo = JSON.parse(extra);
+      // TODO (huydhn): Fix the invalid JSON on vLLM side
+      if (
+        metric.includes("itl") ||
+        metric.includes("tpot") ||
+        metric.includes("ttft")
+      ) {
+        extraInfo["request_rate"] =
+          extraInfo["request_rate"] !== "" ? extraInfo["request_rate"] : "Inf";
+      }
+      // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
+      // script on vLLM side
+      if (model.includes("8B")) {
+        extraInfo["tensor_parallel_size"] =
+          extraInfo["tensor_parallel_size"] !== ""
+            ? extraInfo["tensor_parallel_size"]
+            : 1;
+      } else if (model.includes("70B")) {
+        extraInfo["tensor_parallel_size"] =
+          extraInfo["tensor_parallel_size"] !== ""
+            ? extraInfo["tensor_parallel_size"]
+            : 4;
+      } else if (model.includes("8x7B")) {
+        extraInfo["tensor_parallel_size"] =
+          extraInfo["tensor_parallel_size"] !== ""
+            ? extraInfo["tensor_parallel_size"]
+            : 2;
+      }
+
+      row["extra"] = extraInfo;
+      row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
+      row["request_rate"] = extraInfo["request_rate"];
+    }
+
+    if (
+      repoName === "pytorch/pytorch" &&
+      benchmarkName === "TorchCache Benchmark"
+    ) {
+      const extraInfo = JSON.parse(extra);
+      row["is_dynamic"] = extraInfo["is_dynamic"];
+    }
+
+    if (metric == "FAILURE_REPORT") {
+      row[metric] = {
+        l: hasL
+          ? {
+              actual: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
+              target: 0,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        r: hasR
+          ? {
+              actual: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
+              target: 0,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        highlight: hasL && hasR,
+      };
+    } else {
+      row[metric] = {
+        l: hasL
+          ? {
+              actual: record["l"].actual,
+              target: record["l"].target,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        r: hasR
+          ? {
+              actual: record["r"].actual,
+              target: record["r"].target,
+            }
+          : {
+              actual: 0,
+              target: 0,
+            },
+        highlight: hasL && hasR,
+      };
+    }
+  }
+  return row;
+};
+
+const processJobLevelFailureRows = (
+  dataGroupedByModel: { [k: string]: any },
+  repoName: string
+): Set<string> => {
+  console.log("process job level failure rows", dataGroupedByModel);
+
+  console.log(repoName);
+
+  // see if a repo need special handling for job level failure
+  const config = getJobReportFailureConfigs();
+  if (!(repoName in config)) {
+    return new Set();
+  }
+
+  const repoSpecificConfig: any = config[repoName];
+  const jobLevelFailureConfig = repoSpecificConfig["job_level_failure"];
+
+  // find rows that related to the job level failure
+  const jobLevelFailureKeys = Object.keys(dataGroupedByModel).filter(
+    (key: string) => {
+      if (key.includes("apple_iphone_15")) {
+        console.log("yang test", key);
+      }
+
+      const identifier = jobLevelFailureConfig["key_name"];
+      const val = getGroupKeyItem(key, identifier);
+      const extra = getGroupKeyItem(key, "extra");
+      const extraInfo = JSON.parse(extra);
+
+      const isJobLevelFailure = extraInfo["failure_type"] === "GIT_JOB";
+      if (!val) {
+        return false;
+      }
+      if (jobLevelFailureConfig["content"].includes(val) && isJobLevelFailure) {
+        return true;
+      }
+    }
+  );
+
+  // process data to add Failure Report
+  Object.keys(dataGroupedByModel).forEach((key: string) => {
+    if (jobLevelFailureKeys.includes(key)) {
+      return;
+    }
+    jobLevelFailureKeys.forEach((failureKey: string) => {
+      // add FAILURE_REPORT related to job level failure in dataGroupedByModel
+      if (jobLevelFailureConfig["is_included"](key, failureKey)) {
+        dataGroupedByModel[key]["FAILURE_REPORT"] = cloneDeep(
+          dataGroupedByModel[failureKey]["FAILURE_REPORT"]
+        );
+        console.log("add failure report", dataGroupedByModel[key], key);
+      }
     });
   });
 
-  return returnedGeomean;
+  const jobLevelFailureRowSet = new Set(jobLevelFailureKeys);
+  return jobLevelFailureRowSet;
+};
+
+function getJobReportFailureConfigs() {
+  const JobReportFailureConfig: { [key: string]: any } = {
+    "pytorch/executorch": {
+      job_level_failure: {
+        key_name: "device",
+        content: [
+          "apple_iphone_15",
+          "samsung_galaxy_s22",
+          "samsung_galaxy_s24",
+          "google_pixel_8_pro",
+        ],
+        is_included: (key: string, failureRowKey: string) => {
+          const model = getGroupKeyItem(key, "model");
+          const backend = getGroupKeyItem(key, "backend");
+          const device = getGroupKeyItem(key, "device");
+          const failure_model = getGroupKeyItem(failureRowKey, "model");
+          const failure_backend = getGroupKeyItem(failureRowKey, "backend");
+          const failure_device = getGroupKeyItem(failureRowKey, "device");
+
+          // form prefix for device name
+          const prefix = failure_device.split("_").join(" ").toLowerCase();
+
+          if (
+            model === failure_model &&
+            backend === failure_backend &&
+            device.toLocaleLowerCase().startsWith(prefix)
+          ) {
+            return true;
+          }
+          return false;
+        },
+      },
+    },
+    "pytorch/pytorch": {
+      job_level_failure: {
+        key_name: "device",
+        content: [
+          "apple_iphone_15",
+          "samsung_galaxy_s22",
+          "samsung_galaxy_s24",
+          "google_pixel_8_pro",
+        ],
+        is_included: (key: string, failureRowKey: string) => {},
+      },
+    },
+  };
+  return JobReportFailureConfig;
+}
+
+function getGroupKeyItem(key: string, type: string) {
+  const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
+  switch (type) {
+    case "model":
+      return model;
+    case "backend":
+      return backend;
+    case "mode":
+      return mode;
+    case "dtype":
+      return dtype;
+    case "device":
+      return device;
+    case "arch":
+      return arch;
+    case "extra":
+      return extra;
+    default:
+      return "";
+  }
 }
