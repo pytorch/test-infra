@@ -10,7 +10,7 @@ export default function CheckBoxSelector({
   labelText: string;
 }) {
   return (
-    <div style={{ margin: 0 }}>
+    <div style={{ margin: 0 }} key={checkBoxName}>
       <span
         onClick={() => {
           setValue(!value);
