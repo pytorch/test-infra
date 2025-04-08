@@ -3,7 +3,7 @@ import styles from "./hud.module.css";
 
 interface SettingsPanelProps {
   settingGroups: {
-    [groupName: string]: React.ReactNode[]
+    [groupName: string]: React.ReactNode[];
   };
   isOpen: boolean;
   onToggle: () => void;
@@ -20,11 +20,13 @@ export default function SettingsPanel({
   // Setup click outside handler
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (isOpen && 
-          panelRef.current && 
-          buttonRef.current && 
-          !panelRef.current.contains(event.target as Node) &&
-          !buttonRef.current.contains(event.target as Node)) {
+      if (
+        isOpen &&
+        panelRef.current &&
+        buttonRef.current &&
+        !panelRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
         onToggle();
       }
     }
@@ -33,32 +35,27 @@ export default function SettingsPanel({
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    
+
     // Clean up
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, onToggle]);
-  
+
   return (
-    // position:relative is required here to establish a positioning context 
+    // position:relative is required here to establish a positioning context
     // for the absolutely positioned dropdown panel
     <div style={{ position: "relative" }}>
-      <button 
+      <button
         ref={buttonRef}
-        onClick={onToggle} 
+        onClick={onToggle}
         className={styles.settingsButton}
       >
         Settings
-        <span style={{ fontSize: "0.8rem" }}>
-          {isOpen ? "▲" : "▼"}
-        </span>
+        <span style={{ fontSize: "0.8rem" }}>{isOpen ? "▲" : "▼"}</span>
       </button>
       {isOpen && (
-        <div 
-          ref={panelRef}
-          className={styles.settingsPanel}
-        >
+        <div ref={panelRef} className={styles.settingsPanel}>
           <div className={styles.settingsCategoryContainer}>
             {Object.entries(settingGroups).map(([groupName, settings]) => (
               <div key={groupName}>

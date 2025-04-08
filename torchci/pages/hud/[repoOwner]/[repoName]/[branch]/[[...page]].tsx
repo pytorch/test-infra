@@ -5,7 +5,6 @@ import {
   GroupHudTableHeader,
   passesGroupFilter,
 } from "components/GroupHudTableHeaders";
-import SettingsPanel from "components/SettingsPanel";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
@@ -13,6 +12,7 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
+import SettingsPanel from "components/SettingsPanel";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
 import { fetcher } from "lib/GeneralUtils";
@@ -326,7 +326,7 @@ function GroupFilterableHudTable({
                   checkBoxName="groupView"
                   labelText={"Use grouped view"}
                 />,
-                <MonsterFailuresCheckbox />
+                <MonsterFailuresCheckbox />,
               ],
               "Filter Options": [
                 <CheckBoxSelector
@@ -346,8 +346,8 @@ function GroupFilterableHudTable({
                   setValue={setMergeEphemeralLF}
                   checkBoxName="mergeEphemeralLF"
                   labelText={"Condense LF, ephemeral jobs"}
-                />
-              ]
+                />,
+              ],
             }}
             isOpen={settingsPanelOpen}
             onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
