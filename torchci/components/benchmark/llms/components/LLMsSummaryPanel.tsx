@@ -12,6 +12,7 @@ import {
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
+import _ from "lodash";
 import { MdError } from "react-icons/md";
 import { VscError } from "react-icons/vsc";
 
@@ -572,7 +573,7 @@ const processJobLevelFailureRows = (
 
       // add FAILURE_REPORT related to job level failure in dataGroupedByModel
       if (jobLevelFailureConfig["is_included"](key, failureKey)) {
-        dataGroupedByModel[key]["FAILURE_REPORT"] = cloneDeep(
+        dataGroupedByModel[key]["FAILURE_REPORT"] = _.cloneDeep(
           dataGroupedByModel[failureKey]["FAILURE_REPORT"]
         );
       }
