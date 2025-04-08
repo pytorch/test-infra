@@ -271,7 +271,7 @@ export default function LLMsSummaryPanel({
           );
         })
         .filter((metric: string) => {
-          return metric !== "FAILURE_REPO";
+          return metric !== "FAILURE_REPORT";
         })
         .map((metric: string) => {
           return {
@@ -371,6 +371,7 @@ export default function LLMsSummaryPanel({
 
               // A Failure is detected for a model and backend
               if (params.row.FAILURE_REPORT) {
+                console.log("yang here");
                 return handleModelBackendFailure(
                   params.row,
                   lCommit,
@@ -427,8 +428,10 @@ const handleModelBackendFailure = (
   lPercent: string,
   rPercent: string
 ) => {
-  const isLFailure = row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
-  const isRFailure = row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isLFailure =
+    row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure =
+    row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
 
   // render the row's value in other metric columns
   if (isLFailure && isRFailure) {
@@ -479,8 +482,10 @@ const RenderWarningOnNameForFailure = ({
   rCommit: string;
   row: any;
 }) => {
-  const isLFailure = row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
-  const isRFailure = row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isLFailure =
+    row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure =
+    row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
   // Indicate the failure details in Failure Report column
   if (lCommit === rCommit) {
     return (
