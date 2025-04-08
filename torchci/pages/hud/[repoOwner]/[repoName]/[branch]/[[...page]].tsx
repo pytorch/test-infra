@@ -321,31 +321,27 @@ function GroupFilterableHudTable({
             settingGroups={{
               "View Options": [
                 <CheckBoxSelector
-                  key="groupView"
                   value={useGrouping}
                   setValue={(value) => setUseGrouping(value)}
                   checkBoxName="groupView"
                   labelText={"Use grouped view"}
                 />,
-                <MonsterFailuresCheckbox key="monsterFailures" />
+                <MonsterFailuresCheckbox />
               ],
               "Filter Options": [
                 <CheckBoxSelector
-                  key="hideUnstable"
                   value={hideUnstable}
                   setValue={(value) => setHideUnstable(value)}
                   checkBoxName="hideUnstable"
                   labelText={"Hide unstable jobs"}
                 />,
                 <CheckBoxSelector
-                  key="hideGreenColumns"
                   value={hideGreenColumns}
                   setValue={(value) => setHideGreenColumns(value)}
                   checkBoxName="hideGreenColumns"
                   labelText={"Hide green columns"}
                 />,
                 <CheckBoxSelector
-                  key="mergeEphemeralLF"
                   value={mergeEphemeralLF}
                   setValue={setMergeEphemeralLF}
                   checkBoxName="mergeEphemeralLF"
