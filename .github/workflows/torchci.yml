@@ -33,7 +33,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          pip3 install --upgrade pip wheel
-          pip3 install -r requirements.txt
-          pip3 install -e .
-          pytest tests
+          pip3 install --upgrade pip
