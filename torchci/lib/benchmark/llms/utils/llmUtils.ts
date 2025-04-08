@@ -143,15 +143,6 @@ export function combineLeftAndRight(
       dataGroupedByModel[key][metric]["l"] = record;
     });
   }
-  // First round to get all the valid devices
-  Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
-    const row: { [k: string]: any } = {
-      // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch})`,
-    };
-
-  });
 
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
@@ -170,7 +161,7 @@ export function combineLeftAndRight(
       if (!("metadata" in row)) {
         row["metadata"] = {
           model: model,
-          origins: hasR? record["r"].origins : [],
+          origins: hasR ? record["r"].origins : [],
           backend: backend,
           mode: mode,
           dtype: dtype,
@@ -249,7 +240,7 @@ export function combineLeftAndRight(
         row["is_dynamic"] = extraInfo["is_dynamic"];
       }
 
-      if (metric == "FAILURE_REPORT"){
+      if (metric == "FAILURE_REPORT") {
         row[metric] = {
           l: hasL
             ? {
@@ -266,39 +257,34 @@ export function combineLeftAndRight(
                 target: record["r"].target,
               }
             : {
-                actual: -1,// indicate the failure on right side
+                actual: -1, // indicate the failure on right side
                 target: 0,
               },
-          highlight:
-            hasL &&
-            hasR,
+          highlight: hasL && hasR,
         };
-     } else{
-      row[metric] = {
-        l: hasL
-          ? {
-              actual: record["l"].actual,
-              target: record["l"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        r: hasR
-          ? {
-              actual: record["r"].actual,
-              target: record["r"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        highlight:
-          hasL &&
-          hasR,
-      };
-    }
-
+      } else {
+        row[metric] = {
+          l: hasL
+            ? {
+                actual: record["l"].actual,
+                target: record["l"].target,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          r: hasR
+            ? {
+                actual: record["r"].actual,
+                target: record["r"].target,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          highlight: hasL && hasR,
+        };
+      }
     }
 
     if ("metadata" in row) {
