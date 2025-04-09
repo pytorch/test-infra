@@ -232,7 +232,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
-    if: needs.build.result == 'success' && inputs.aarch != 'x64'
+    if: ${{ needs.build.result != 'skipped' && needs.build.result == 'success' && inputs.aarch != 'x64'}}
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
@@ -243,9 +243,6 @@ jobs:
 
   build_x64_test:
     if : ${{ inputs.aarch == 'x64' }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
       DOWNLOADS_DIR: c:\temp\downloads\
       DEPENDENCIES_DIR: c:\temp\dependencies\
