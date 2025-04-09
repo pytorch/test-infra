@@ -56,6 +56,13 @@ WITH benchmarks AS (
                 'false',
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['is_dynamic']
+            ),
+            'failure_type',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
+                '',
+                -- Default to false
+                tupleElement(o.benchmark, 'extra_info')['failure_type']
             )
         ) AS extra
     FROM
