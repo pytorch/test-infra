@@ -15,9 +15,7 @@ else
         fi
     fi
 
-    if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-        conda update -y -n base -c defaults conda
-    elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
+    if [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
         # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
         conda install -y conda=23.11.0
     fi
@@ -32,7 +30,7 @@ else
         conda activate ${ENV_NAME}
     fi
 
-    pip3 install numpy --force-reinstall
+    pip3 install numpy==1.24.1 --force-reinstall
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
