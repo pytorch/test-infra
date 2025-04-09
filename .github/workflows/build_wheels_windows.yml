@@ -72,6 +72,10 @@ on:
         description: 'Architecture to build for'
         default: ""
         type: string
+      python-version:
+        description: 'Python version to use'
+        default: ""
+        type: string
 
 permissions:
   id-token: write
@@ -247,7 +251,7 @@ jobs:
       DEPENDENCIES_DIR: c:\temp\dependencies\
       SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
       SRC_DIR: src\\${{ inputs.repository }}
-      PYTHON_VERSION: ${{ matrix.python-version }}
+      PYTHON_VERSION: ${{ inputs.python-version }}
       PACKAGE_NAME: ${{ inputs.package-name }}
     runs-on: "windows-latest"
     steps:
