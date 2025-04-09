@@ -228,7 +228,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
-    if: always()
+    if: needs.build.result == 'success' && inputs.aarch != 'x64'
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
@@ -324,5 +324,5 @@ jobs:
         retention-days: 3
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ inputs.aarch }}-${{ github.event_name == 'workflow_dispatch' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
   cancel-in-progress: true
