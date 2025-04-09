@@ -79,7 +79,7 @@ permissions:
 
 jobs:
   build:
-    if : ${{ inputs.aarch == '' }}
+    if : ${{ inputs.aarch != 'x64' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -251,6 +251,13 @@ jobs:
       PACKAGE_NAME: ${{ inputs.package-name }}
     runs-on: "windows-latest"
     steps:
+    - name: echo inputs
+      run: |
+        echo "repository: ${{ inputs.repository }}"
+        echo "ref: ${{ inputs.ref }}"
+        echo "test-infra-repository: ${{ inputs.test-infra-repository }}"
+        echo "test-infra-ref: ${{ inputs.test-infra-ref }}"
+        echo "build-matrix: ${{ inputs.build-matrix }}"
     - name: Setup Git for Windows' minimal SDK
       uses: git-for-windows/setup-git-for-windows-sdk@v1
       with:
