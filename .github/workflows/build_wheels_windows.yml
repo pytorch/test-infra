@@ -238,7 +238,7 @@ jobs:
       trigger-event: ${{ inputs.trigger-event }}
 
   build_x64_test:
-    if : ${{ inputs.aarch == 'x64' }}
+    if : ${{ inputs.iswinarm64 == true }}
     env:
       DOWNLOADS_DIR: c:\temp\downloads\
       DEPENDENCIES_DIR: c:\temp\dependencies\
