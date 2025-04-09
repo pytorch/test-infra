@@ -1,4 +1,4 @@
-// TypeScript defaults error type to unknown, this file is to handle error messages and types
+// TypeScript defaults error type to unknown, this file is to handle error messages and types.
 
 type ErrorWithMessage = {
   message: string;
