@@ -460,18 +460,6 @@ function getJobReportFailureConfigs() {
         },
       },
     },
-    "pytorch/pytorch": {
-      job_level_failure: {
-        key_name: "device",
-        content: [
-          "apple_iphone_15",
-          "samsung_galaxy_s22",
-          "samsung_galaxy_s24",
-          "google_pixel_8_pro",
-        ],
-        is_included: (key: string, failureRowKey: string) => {},
-      },
-    },
   };
   return JobReportFailureConfig;
 }
