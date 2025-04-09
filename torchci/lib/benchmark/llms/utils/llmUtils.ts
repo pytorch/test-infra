@@ -96,11 +96,6 @@ export function combineLeftAndRight(
     dataGroupedByModel,
     repoName
   );
-
-  if (jobFailureKeySet.size != 0) {
-    console.log("detect job level failure keys: ", jobFailureKeySet);
-  }
-
   const data: { [k: string]: any }[] = [];
 
   for (const key of Object.keys(dataGroupedByModel)) {
@@ -384,9 +379,7 @@ const processJobLevelFailureRows = (
   dataGroupedByModel: { [k: string]: any },
   repoName: string
 ): Set<string> => {
-  console.log("process job level failure rows", dataGroupedByModel);
 
-  console.log(repoName);
 
   // see if a repo need special handling for job level failure
   const config = getJobReportFailureConfigs();
@@ -400,10 +393,6 @@ const processJobLevelFailureRows = (
   // find rows that related to the job level failure
   const jobLevelFailureKeys = Object.keys(dataGroupedByModel).filter(
     (key: string) => {
-      if (key.includes("apple_iphone_15")) {
-        console.log("yang test", key);
-      }
-
       const identifier = jobLevelFailureConfig["key_name"];
       const val = getGroupKeyItem(key, identifier);
       const extra = getGroupKeyItem(key, "extra");
