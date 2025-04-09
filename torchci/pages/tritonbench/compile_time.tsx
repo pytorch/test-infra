@@ -1,5 +1,6 @@
 import { Divider, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { RepositoryPicker } from "components/benchmark/RepositoryPicker";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { DEFAULT_HIGHLIGHT_KEY } from "components/benchmark/compilers/common";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
@@ -99,6 +100,11 @@ export default function Page() {
             granularity={granularity}
             setGranularity={setGranularity}
           />
+          <RepositoryPicker
+            queryName={"tritonbench_benchmark_branches"}
+            queryParams={queryParams}
+            timeRange={timeRange}
+          />
           <BranchAndCommitPicker
             queryName={"tritonbench_benchmark_branches"}
             queryParams={queryParams}
@@ -118,6 +124,9 @@ export default function Page() {
           <Divider orientation="vertical" flexItem>
             &mdash;Diff→
           </Divider>
+          <RepositoryPicker
+            timeRange={timeRange}
+          />
           <BranchAndCommitPicker
             queryName={"tritonbench_benchmark_branches"}
             queryParams={queryParams}
