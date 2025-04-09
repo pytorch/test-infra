@@ -68,10 +68,10 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 60
         type: number
-      iswinarm64:
-        description: 'Is the build for winarm64?'
-        default: false
-        type: boolean
+      architecture:
+        description: 'CPU architecture to build for'
+        default: "x64"
+        type: string
 
 permissions:
   id-token: write
@@ -79,7 +79,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.iswinarm64 != true }}
+    if: ${{ inputs.architecture == 'x64' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -228,7 +228,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
-    if: ${{ needs.build.result != 'skipped' && needs.build.result == 'success' && inputs.iswinarm64 != true }}
+    if: ${{ needs.build.result != 'skipped' && needs.build.result == 'success' && inputs.architecture == 'x64' }}
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
@@ -238,7 +238,7 @@ jobs:
       trigger-event: ${{ inputs.trigger-event }}
 
   build_x64_test:
-    if : ${{ inputs.iswinarm64 == true }}
+    if : ${{ inputs.architecture == 'arm64' }}
     env:
       DOWNLOADS_DIR: c:\temp\downloads\
       DEPENDENCIES_DIR: c:\temp\dependencies\
