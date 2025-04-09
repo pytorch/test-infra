@@ -8,6 +8,11 @@
   color: var(--text-color);
 }
 
+.failure {
+  background-color: var(--workflow-box-none-bg, lightgray);
+  color: var(--text-color);
+}
+
 .error {
   background-color: var(--workflow-box-fail-bg, lightpink);
   color: var(--text-color);
