@@ -56,7 +56,10 @@ WITH benchmarks AS (
                 'false',
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['is_dynamic']
-            ),
+            )
+        ) AS extra,
+         map(
+            -- Used by Cachebench
             'failure_type',
             IF(
                 tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
@@ -64,7 +67,7 @@ WITH benchmarks AS (
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['failure_type']
             )
-        ) AS extra
+        ) AS addtional_info
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
@@ -116,7 +119,8 @@ SELECT DISTINCT
     device,
     arch,
     granularity_bucket,
-    extra
+    extra,
+    addtional_info
 FROM
     benchmarks
 WHERE

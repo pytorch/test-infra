@@ -96,8 +96,8 @@ export function combineLeftAndRight(
     dataGroupedByModel,
     repoName
   );
-  const data: { [k: string]: any }[] = [];
 
+  const data: { [k: string]: any }[] = [];
   for (const key of Object.keys(dataGroupedByModel)) {
     if (jobFailureKeySet.has(key)) {
       continue;
@@ -174,6 +174,30 @@ const getDataGroupedByModel = (
   const rData = rPerfData.data;
 
   const dataGroupedByModel: { [k: string]: any } = {};
+
+  const testData = {
+    arch: "",
+    actual: 0,
+    target: 0,
+    granularity_bucket: "2024-03-01",
+    model: "edsr",
+    backend: "qnn_q8",
+    mode: "inference",
+    device: "samsung_galaxy_s22",
+    extra: {
+      is_dynamic: "false",
+    },
+    additional_info: {
+      failure_type: "GIT_JOB",
+    },
+    origins: [],
+    workflow_id: 0,
+    job_id: 0,
+    metric: "FAILURE_REPORT",
+    dtype: "",
+  };
+
+  rData.push(testData);
 
   // The right (base commit)
   rData.forEach((record: LLMsBenchmarkData) => {
@@ -379,8 +403,6 @@ const processJobLevelFailureRows = (
   dataGroupedByModel: { [k: string]: any },
   repoName: string
 ): Set<string> => {
-
-
   // see if a repo need special handling for job level failure
   const config = getJobReportFailureConfigs();
   if (!(repoName in config)) {
@@ -395,10 +417,24 @@ const processJobLevelFailureRows = (
     (key: string) => {
       const identifier = jobLevelFailureConfig["key_name"];
       const val = getGroupKeyItem(key, identifier);
-      const extra = getGroupKeyItem(key, "extra");
-      const extraInfo = JSON.parse(extra);
+      const record = dataGroupedByModel[key];
 
-      const isJobLevelFailure = extraInfo["failure_type"] === "GIT_JOB";
+      let isJobLevelFailure = false;
+
+      // check if the row is a git job level failure
+      if ("FAILURE_REPORT" in record) {
+        const failure_record = record["FAILURE_REPORT"];
+        const hasrFailure =
+          "r" in failure_record && failure_record["r"].additional_info
+            ? failure_record["r"].additional_info["failure_type"] === "GIT_JOB"
+            : false;
+        const haslFailure =
+          "l" in failure_record && failure_record["l"].additional_info
+            ? failure_record["l"].additional_info["failure_type"] === "GIT_JOB"
+            : false;
+        isJobLevelFailure = hasrFailure || haslFailure;
+      }
+
       if (!val) {
         return false;
       }
@@ -438,7 +474,7 @@ function getJobReportFailureConfigs() {
           "samsung_galaxy_s24",
           "google_pixel_8_pro",
         ],
-        is_included: (key: string, failureRowKey: string) => {
+        is_included: (key: string, failureRowKey: string, field: string) => {
           const model = getGroupKeyItem(key, "model");
           const backend = getGroupKeyItem(key, "backend");
           const device = getGroupKeyItem(key, "device");
