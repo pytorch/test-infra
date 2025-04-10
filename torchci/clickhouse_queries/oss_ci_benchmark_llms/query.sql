@@ -57,9 +57,8 @@ WITH benchmarks AS (
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['is_dynamic']
             )
-        ) AS extra,
+        ) AS extra, --  extra key for a record, used in group model logic.
          map(
-            -- Used by Cachebench
             'failure_type',
             IF(
                 tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
@@ -67,7 +66,7 @@ WITH benchmarks AS (
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['failure_type']
             )
-        ) AS addtional_info
+        ) AS addtional_info --  additional_info for a record
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
