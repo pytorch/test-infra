@@ -39,7 +39,6 @@ WITH
             j.bucket,
             j.label,
             j.job_name,
-            -- Remove shard number and label from job names
             j.workflow_name
         FROM
             normalized_jobs AS j
@@ -57,22 +56,36 @@ WITH
         GROUP BY
             bucket, label_ref, is_experiment
     ),
+    experiment_success_stats AS (
+        SELECT
+            *
+        FROM
+            success_stats
+        WHERE
+            is_experiment = True
+    ),
+    non_experiment_success_stats AS (
+        SELECT
+            *
+        FROM
+            success_stats
+        WHERE
+            is_experiment = False
+    ),
     comparison_stats AS (
         SELECT
-            experiment.bucket,
+            greatest(experiment.bucket, m.bucket) AS bucket,
             CAST(SUM(experiment.group_size) AS Float32) / SUM(experiment.group_size + m.group_size) * 100 AS percentage,
-            IF(experiment.is_experiment, 'On experiment', 'Not on experiment') AS fleet
+            'On experiment' AS fleet
         FROM
-            success_stats AS experiment
+            experiment_success_stats AS experiment
         FULL OUTER JOIN
-            success_stats AS m
+            non_experiment_success_stats AS m
         ON
             experiment.label_ref = m.label_ref
             AND experiment.bucket = m.bucket
-        WHERE
-            experiment.is_experiment = 1 AND m.is_experiment = 0
         GROUP BY
-            experiment.bucket, experiment.is_experiment, m.is_experiment
+            bucket
     )
 SELECT
     bucket,
