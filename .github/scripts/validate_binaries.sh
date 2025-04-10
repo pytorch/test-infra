@@ -103,7 +103,7 @@ else
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         # test with latest numpy 2.x
-        pip3 install numpy --force-reinstall
+        pip3 install numpy --upgrade --force-reinstall
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
 
