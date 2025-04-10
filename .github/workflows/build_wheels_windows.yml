@@ -79,7 +79,6 @@ permissions:
 
 jobs:
   build:
-    if: inputs.architecture == 'x64'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
@@ -90,9 +89,10 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
-    name: build-${{ matrix.build_name }}
+    name: build-${{ matrix.build_name }}-${{ matrix.gpu_arch_type }}-
     runs-on: ${{ matrix.validation_runner }}
     defaults:
+
       run:
         shell: bash -l {0}
     # If a build is taking longer than 60 minutes on these runners we need
@@ -107,21 +107,24 @@ jobs:
           path: test-infra
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
+        if: inputs.architecture == 'x64'
         with:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
           instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
       - name: Add Conda scripts to GitHub path
+        if: inputs.architecture == 'x64'
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/set-channel
-      - name: Set PYTORCH_VERSION
-        if: ${{ env.CHANNEL == 'test' }}
+      - name: Set PYTORCH_VERSION  
+        if: env.CHANNEL == 'test' && inputs.architecture == 'x64'
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
           echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-binary-builds
+        if: inputs.architecture == 'x64'
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -136,13 +139,31 @@ jobs:
           XPU_VERSION: '2025.0'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
+      - name: Setup Git for Windows' minimal SDK
+        if: inputs.architecture == 'arm64'
+        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          architecture: x86_64
+          path: "${{env.DEPENDENCIES_DIR}}\\git"
+      - name: Bootstrap python
+        if: inputs.architecture == 'arm64'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          architecture: x64
+      - name: Bootstrap Build Tools
+        if: inputs.architecture == 'arm64'
+        shell: bash
+        run: |
+          "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
       - name: Install torch dependency
+        if: inputs.architecture == 'x64'
         run: |
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run Pre-Script with Caching
-        if: ${{ inputs.pre-script != '' }}
+        if: ${{ inputs.pre-script != '' && inputs.architecture == 'x64' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
         with:
           cache-path: ${{ inputs.cache-path }}
@@ -151,6 +172,7 @@ jobs:
           script: ${{ inputs.pre-script }}
           is_windows: 'enabled'
       - name: Build clean
+        if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
         env:
           ENV_SCRIPT: ${{ inputs.env-script }}
@@ -166,7 +188,8 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py clean
             fi
           fi
-      - name: Build the wheel (bdist_wheel)
+      - name: Build the wheel (bdist_wheel) X64
+        if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
         env:
           ENV_SCRIPT: ${{ inputs.env-script }}
@@ -187,17 +210,38 @@ jobs:
           else
             ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
           fi
+      - name: Build the wheel (bdist_wheel) Arm64
+        if: inputs.architecture == 'arm64'
+        shell: cmd
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+        run: |
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+          cd %SCRIPTS_DIR%
+
+          if "${{ env.PACKAGE_NAME }}"=="torchaudio" (
+          call "%VS_PATH%" x64
+          "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
+          ) else if "${{ env.PACKAGE_NAME }}"=="torchvision" (
+          call "%VS_PATH%" x64
+          "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
+          ) else (
+          echo Invalid repository name: ${{ inputs.repository }}
+          exit /b 1
+          )
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
           POST_SCRIPT: ${{ inputs.post-script }}
           ENV_SCRIPT: ${{ inputs.env-script }}
-        if: ${{ inputs.post-script != '' }}
+        if: ${{ inputs.post-script != '' && inputs.architecture == 'x64'}}
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
-      - name: Smoke Test
+      - name: Smoke Test X64
+        if: inputs.architecture == 'x64'
         env:
           ENV_SCRIPT: ${{ inputs.env-script }}
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -215,18 +259,34 @@ jobs:
             ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
+      - name: Install wheel ARM64
+        if: inputs.architecture == 'arm64'
+        shell: bash
+        run: |
+          cd $SRC_DIR
+          source .venv/Scripts/activate
+          whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
+          pip install $whl
+      - name: Smoke Test arm64
+        if: inputs.architecture == 'arm64'
+        shell: cmd
+        run: |
+          cd %SRC_DIR%
+          call .venv/Scripts/activate
+          python ${{ inputs.smoke-test-script}}
       - name: Upload wheel to GitHub
         continue-on-error: true
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          # name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
       - uses: ./test-infra/.github/actions/teardown-windows
-        if: always()
+        if: inputs.architecture == 'x64'
         name: Teardown Windows
 
   upload:
-    if: needs.build.result != 'skipped' && needs.build.result == 'success' && inputs.architecture == 'x64'
+    if: always()
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
     with:
@@ -237,82 +297,89 @@ jobs:
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
 
-  build_x64_test:
-    if : ${{ inputs.architecture == 'arm64' }}
-    env:
-      DOWNLOADS_DIR: c:\temp\downloads\
-      DEPENDENCIES_DIR: c:\temp\dependencies\
-      SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-      SRC_DIR: src\\${{ inputs.repository }}
-      PYTHON_VERSION: 3.12
-      PACKAGE_NAME: ${{ inputs.package-name }}
-    name: Build and Test ${{ inputs.repository }}
-    runs-on: "windows-latest"
-    steps:
-      - name: Setup Git for Windows' minimal SDK
-        uses: git-for-windows/setup-git-for-windows-sdk@v1
-        with:
-          architecture: x86_64
-          path: "${{env.DEPENDENCIES_DIR}}\\git"
-      - name: Checkout test-infra repository
-        uses: actions/checkout@v4
-        with:
-          repository: alinpahontu2912/test-infra
-          ref: x64windows_test
-          path: test-infra
-      - name: Checkout Target Repository (${{ inputs.repository }})
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repository }}
-          ref: ${{ inputs.ref }}
-          path: src/${{ inputs.repository }}
-          submodules: recursive
-      - name: Bootstrap python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - name: Bootstrap Build Tools
-        shell: bash
-        run: |
-          "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
-          - name: Call Build Script
-          shell: cmd
-          run: |
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
-          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
-          cd %SCRIPTS_DIR%
+  # build_x64_test:
+  #   if: inputs.architecture == 'arm64'
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: ${{ fromJSON(inputs.build-matrix) }}
+  #   env:
+  #     DOWNLOADS_DIR: c:\temp\downloads\
+  #     DEPENDENCIES_DIR: c:\temp\dependencies\
+  #     SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+  #     SRC_DIR: src\\${{ inputs.repository }}
+  #     PYTHON_VERSION: ${{ matrix.python_version }}
+  #     PACKAGE_NAME: ${{ inputs.package-name }}
+  #   name: ${{ inputs.repository }}
+  #   runs-on: "windows-latest"
+  #   steps:
+  #     - name: Setup Git for Windows' minimal SDK
+  #       uses: git-for-windows/setup-git-for-windows-sdk@v1
+  #       with:
+  #         architecture: x86_64
+  #         path: "${{env.DEPENDENCIES_DIR}}\\git"
+  #     - name: Checkout test-infra repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: alinpahontu2912/test-infra
+  #         ref: x64windows_test
+  #         path: test-infra
+  #     - name: Checkout Target Repository (${{ inputs.repository }})
+  #       if: inputs.architecture == 'x64'
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ inputs.repository }}
+  #         ref: ${{ inputs.ref }}
+  #         path: src/${{ inputs.repository }}
+  #         submodules: recursive
+  #     - name: Bootstrap python
+  #       if: inputs.architecture == 'x64'
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+  #         architecture: x64
+  #     - name: Bootstrap Build Tools
+  #       if: inputs.architecture == 'x64'
+  #       shell: bash
+  #       run: |
+  #         "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
+  #     - name: Call Build Script
+  #       if: inputs.architecture == 'x64'
+  #       shell: cmd
+  #       run: |
+  #         set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+  #         set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+  #         cd %SCRIPTS_DIR%
 
-          if "${{ env.PACKAGE_NAME }}"=="torchaudio" (
-          call "%VS_PATH%" x64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
-          ) else if "${{ env.PACKAGE_NAME }}"=="torchvision" (
-          call "%VS_PATH%" x64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
-          ) else (
-          echo Invalid repository name: ${{ inputs.repository }}
-          exit /b 1
-          )
-      - name: Install wheel
-        shell: bash
-        run: |
-          cd $SRC_DIR
-          source .venv/Scripts/activate
-          whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
-          pip install $whl
-          - name: Run smoke test
-          shell: cmd
-          run: |
-          cd %SRC_DIR%
-          call .venv/Scripts/activate
-          python ${{ inputs.smoke-test-script}}
-      - name: Archive wheel      
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ env.SRC_DIR }}/dist/*
-          compression-level: 0
-          retention-days: 3
+  #         if "${{ env.PACKAGE_NAME }}"=="torchaudio" (
+  #         call "%VS_PATH%" x64
+  #         "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
+  #         ) else if "${{ env.PACKAGE_NAME }}"=="torchvision" (
+  #         call "%VS_PATH%" x64
+  #         "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
+  #         ) else (
+  #         echo Invalid repository name: ${{ inputs.repository }}
+  #         exit /b 1
+  #         )
+  #     - name: Install wheel
+  #       shell: bash
+  #       run: |
+  #         cd $SRC_DIR
+  #         source .venv/Scripts/activate
+  #         whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
+  #         pip install $whl
+  #         - name: Run smoke test
+  #         shell: cmd
+  #         run: |
+  #         cd %SRC_DIR%
+  #         call .venv/Scripts/activate
+  #         python ${{ inputs.smoke-test-script}}
+  #     - name: Archive wheel      
+  #       if: success()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         path: ${{ env.SRC_DIR }}/dist/*
+  #         compression-level: 0
+  #         retention-days: 3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
