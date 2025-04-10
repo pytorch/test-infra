@@ -12,8 +12,6 @@ export DISTUTILS_USE_SDK=1
 export TRIPLET_FILE="triplets/x64-windows.cmake"
 export PYTORCH_VERSION="$PYTORCH_VERSION"
 
-echo "Pytorch version: $PYTORCH_VERSION"
-
 # Dependencies
 mkdir -p "$DOWNLOADS_DIR"
 mkdir -p "$DEPENDENCIES_DIR"
@@ -54,7 +52,12 @@ source .venv/Scripts/activate
 
 # Install dependencies
 pip install numpy==2.2.3
-pip3 install torch=="$PYTORCH_VERSION"
+if [ -z "$PYTORCH_VERSION" ]; then
+  echo "PYTORCH_VERSION is not set, installing the latest version of PyTorch."
+  pip3 install torch
+else
+  pip3 install torch=="$PYTORCH_VERSION"
+fi
 
 # Create wheel under dist folder
 python setup.py bdist_wheel

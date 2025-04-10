@@ -131,11 +131,11 @@ jobs:
           architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Set PYTORCH_VERSION  
-        if: env.CHANNEL == 'test' || inputs.architecture == 'arm64'
+        if: env.CHANNEL == 'test'
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
-          echo "PYTORCH_VERSION=2.7" >> "${GITHUB_ENV}"
+          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         if: inputs.architecture == 'x64'
         with:
