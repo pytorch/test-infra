@@ -32,7 +32,7 @@ else
     fi
 
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
-    if [[ ${MINOR_PYTHON_VERSION} <= "12" ]]; then
+    if [[ ${MINOR_PYTHON_VERSION} < 13 ]]; then
         pip3 install numpy==1.26.4 --force-reinstall
     else
         pip3 install numpy --force-reinstall
