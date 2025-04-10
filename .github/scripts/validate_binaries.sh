@@ -77,7 +77,7 @@ else
     # test with numpy 1.x installation needs to happen after torch install
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
     if [[ ${MINOR_PYTHON_VERSION} < 13 ]]; then
-        pip3 install numpy==1.26.4 --force-reinstall
+        pip3 install numpy==1.26.4 --force-reinstall # the latest 1.x release
     fi
 
     pushd ${PWD}/.ci/pytorch/
