@@ -11,6 +11,9 @@ export PATH="$PATH:$CONDA_PREFIX/Library/bin"
 export DISTUTILS_USE_SDK=1
 export TRIPLET_FILE="triplets/x64-windows.cmake"
 export PYTORCH_VERSION="$PYTORCH_VERSION"
+export CHANNEL="$CHANNEL"
+
+echo "channel: $CHANNEL"
 
 # Dependencies
 mkdir -p "$DOWNLOADS_DIR"
@@ -52,11 +55,16 @@ source .venv/Scripts/activate
 
 # Install dependencies
 pip install numpy==2.2.3
-if [ -z "$PYTORCH_VERSION" ]; then
-  echo "PYTORCH_VERSION is not set, installing the latest version of PyTorch."
+
+if [ "$CHANNEL" = "release" ]; then
+  echo "Installing latest stable version of PyTorch."
   pip3 install torch
-else
+elif [ "$CHANNEL" = "test" ]; then
+  echo "Installing PyTorch version $PYTORCH_VERSION."
   pip3 install torch=="$PYTORCH_VERSION"
+else
+  echo "CHANNEL is not set, installing PyTorch from nightly."
+  pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu
 fi
 
 # Create wheel under dist folder

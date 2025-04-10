@@ -123,7 +123,6 @@ jobs:
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/set-channel
-        if: inputs.architecture == 'x64'
       - name: Setup Git for Windows' minimal SDK
         if: inputs.architecture == 'arm64'
         uses: git-for-windows/setup-git-for-windows-sdk@v1
