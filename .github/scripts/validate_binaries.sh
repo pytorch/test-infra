@@ -15,7 +15,9 @@ else
         fi
     fi
 
-    if [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
+    if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
+        conda update -y -n base -c defaults conda
+    elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
         # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
         conda install -y conda=23.11.0
     fi
@@ -25,12 +27,17 @@ else
         conda activate ${ENV_NAME}
         TORCH_ONLY='true'
     else
-        # Please note ffmpeg is required for torchaudio, see https://github.com/pytorch/pytorch/issues/96159
-        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} ffmpeg
+        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
         conda activate ${ENV_NAME}
     fi
 
-    pip3 install numpy==1.24.1 --force-reinstall
+    MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
+    if [[ ${MINOR_PYTHON_VERSION} <= "12" ]]; then
+        pip3 install numpy==1.26.4 --force-reinstall
+    else
+        pip3 install numpy --force-reinstall
+    fi
+    
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
@@ -38,6 +45,7 @@ else
     if [[ ${USE_FORCE_REINSTALL} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"pip3 install"/"pip3 install --force-reinstall"}
     fi
+    
     # extra-index-url: extra dependencies are downloaded from pypi
     if [[ ${USE_EXTRA_INDEX_URL} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"--index-url"/"--extra-index-url"}
@@ -100,6 +108,7 @@ else
     ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
+        # test with latest numpy 2.x
         pip3 install numpy --force-reinstall
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
