@@ -30,13 +30,6 @@ else
         conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
         conda activate ${ENV_NAME}
     fi
-
-    MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
-    if [[ ${MINOR_PYTHON_VERSION} < 13 ]]; then
-        pip3 install numpy==1.26.4 --force-reinstall
-    else
-        pip3 install numpy --force-reinstall
-    fi
     
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
@@ -85,6 +78,12 @@ else
         pip3 uninstall -y torch torchaudio torchvision
     fi
     eval $INSTALLATION
+
+    # test with numpy 1.x installation needs to happen after torch install
+    MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
+    if [[ ${MINOR_PYTHON_VERSION} < 13 ]]; then
+        pip3 install numpy==1.26.4 --force-reinstall
+    fi
 
     pushd ${PWD}/.ci/pytorch/
 
