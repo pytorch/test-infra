@@ -111,22 +111,6 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
-      - name: Debug echo
-        run: |
-          echo "Shell: Git Bash"
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          echo "Current directory:"
-          pwd
-          echo "Contents of GITHUB_WORKSPACE:"
-          ls -la "$GITHUB_WORKSPACE"
-          cd ..
-          echo "one directory up:"
-          pwd
-          ls -la
-          cd ..
-          echo "another directory up:"
-          pwd
-          ls -la
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
         if: inputs.architecture == 'x64'
@@ -140,8 +124,14 @@ jobs:
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/set-channel
         if: inputs.architecture == 'x64'
+      - name: Setup Git for Windows' minimal SDK
+        if: inputs.architecture == 'arm64'
+        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          architecture: x86_64
+          path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Set PYTORCH_VERSION  
-        if: env.CHANNEL == 'test' && inputs.architecture == 'x64'
+        if: env.CHANNEL == 'test'
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
@@ -162,18 +152,12 @@ jobs:
           XPU_VERSION: '2025.0'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
-      - name: Setup Git for Windows' minimal SDK
-        if: inputs.architecture == 'arm64'
-        uses: git-for-windows/setup-git-for-windows-sdk@v1
-        with:
-          architecture: x86_64
-          path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Checkout Target Repository (${{ env.REPOSITORY }})
         if: inputs.architecture == 'arm64'
         uses: actions/checkout@v4
         with:
             repository: ${{ env.REPOSITORY }}
-            ref: ${{ env.REf }}
+            ref: ${{ env.REF }}
             path: src/${{ env.REPOSITORY }}
             submodules: recursive
       - name: Bootstrap python
@@ -250,10 +234,10 @@ jobs:
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
           cd %SCRIPTS_DIR%
 
-          if "${{ env.PACKAGE_NAME }}"=="torchaudio" (
+          if "${{ env.PACKAGE_NAME }}" == "torchaudio" (
           call "%VS_PATH%" x64
           "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
-          ) else if "${{ env.PACKAGE_NAME }}"=="torchvision" (
+          ) else if "${{ env.PACKAGE_NAME }}" == "torchvision" (
           call "%VS_PATH%" x64
           "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
           ) else (
@@ -298,11 +282,18 @@ jobs:
           source .venv/Scripts/activate
           whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
           pip install $whl
-          python "$SMOKE_TEST_SCRIPT"
+
+          if [[ ! -f ${SMOKE_TEST_SCRIPT} ]]; then
+            echo "${SMOKE_TEST_SCRIPT} not found"
+            python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          else
+            echo "${SMOKE_TEST_SCRIPT} found"
+            python "$SMOKE_TEST_SCRIPT"
+          fi
       # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
         continue-on-error: true
-        if: success()
+
         uses: actions/upload-artifact@v4
         with:
           # name: ${{ env.ARTIFACT_NAME }}
