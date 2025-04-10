@@ -112,7 +112,6 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - name: Debug echo
-        shell: bash
         run: |
           echo "Shell: Git Bash"
           echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
@@ -120,6 +119,14 @@ jobs:
           pwd
           echo "Contents of GITHUB_WORKSPACE:"
           ls -la "$GITHUB_WORKSPACE"
+          cd ..
+          echo "one directory up:"
+          pwd
+          ls -la
+          cd ..
+          echo "another directory up:"
+          pwd
+          ls -la
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
         if: inputs.architecture == 'x64'
@@ -162,12 +169,13 @@ jobs:
           architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Checkout Target Repository (${{ env.REPOSITORY }})
+        if: inputs.architecture == 'arm64'
         uses: actions/checkout@v4
         with:
             repository: ${{ env.REPOSITORY }}
             ref: ${{ env.REf }}
             path: src/${{ env.REPOSITORY }}
-            submodules: recursive      
+            submodules: recursive
       - name: Bootstrap python
         if: inputs.architecture == 'arm64'
         uses: actions/setup-python@v5
@@ -176,7 +184,6 @@ jobs:
           architecture: x64
       - name: Bootstrap Build Tools
         if: inputs.architecture == 'arm64'
-        shell: bash
         run: |
           "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
       - name: Install torch dependency
@@ -235,9 +242,9 @@ jobs:
           fi
       - name: Build the wheel (bdist_wheel) Arm64
         if: inputs.architecture == 'arm64'
-        shell: cmd
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
+        shell: cmd
         run: |
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
@@ -281,26 +288,18 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      # NB: Only upload to GitHub after passing smoke tests
-      - name: Install wheel ARM64
+      - name: Smoke Test ARM64
         if: inputs.architecture == 'arm64'
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
-        shell: bash
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate
           whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
           pip install $whl
-      - name: Smoke Test arm64
-        if: inputs.architecture == 'arm64'
-        env:
-          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
-        shell: cmd
-        run: |
-          cd %SRC_DIR%
-          call .venv/Scripts/activate
-          python ${{ inputs.smoke-test-script}}
+          python "$SMOKE_TEST_SCRIPT"
+      # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
         continue-on-error: true
         if: success()
