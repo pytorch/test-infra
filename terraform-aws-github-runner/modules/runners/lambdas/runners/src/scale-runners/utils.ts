@@ -164,3 +164,7 @@ export function shuffleArrayInPlace<T>(arr: T[]): T[] {
   }
   return arr;
 }
+
+export function sleep(time: number | undefined) {
+  return new Promise((resolve) => setTimeout(resolve, time));
+}
