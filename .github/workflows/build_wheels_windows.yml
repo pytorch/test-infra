@@ -131,11 +131,11 @@ jobs:
           architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
       - name: Set PYTORCH_VERSION  
-        if: env.CHANNEL == 'test'
+        if: env.CHANNEL == 'test' || inputs.architecture == 'arm64'
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
-          echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
+          echo "PYTORCH_VERSION=2.7" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         if: inputs.architecture == 'x64'
         with:
@@ -293,7 +293,6 @@ jobs:
       # NB: Only upload to GitHub after passing smoke tests
       - name: Upload wheel to GitHub
         continue-on-error: true
-
         uses: actions/upload-artifact@v4
         with:
           # name: ${{ env.ARTIFACT_NAME }}

@@ -10,6 +10,9 @@ export CONDA_PREFIX="$DEPENDENCIES_DIR"
 export PATH="$PATH:$CONDA_PREFIX/Library/bin"
 export DISTUTILS_USE_SDK=1
 export TRIPLET_FILE="triplets/x64-windows.cmake"
+export PYTORCH_VERSION="$PYTORCH_VERSION"
+
+echo "Pytorch version: $PYTORCH_VERSION"
 
 # Dependencies
 mkdir -p "$DOWNLOADS_DIR"
@@ -51,7 +54,7 @@ source .venv/Scripts/activate
 
 # Install dependencies
 pip install numpy==2.2.3
-pip3 install torch
+pip3 install torch=="$PYTORCH_VERSION"
 
 # Create wheel under dist folder
 python setup.py bdist_wheel
