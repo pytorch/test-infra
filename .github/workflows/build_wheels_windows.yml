@@ -152,18 +152,18 @@ jobs:
         with:
           architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
-      - name: Checkout Target Repository (${{ inputs.repository_name }})
+      - name: Checkout Target Repository (${{ inputs.repository }})
         uses: actions/checkout@v4
         with:
-            repository: ${{ inputs.repository_name }}
-            ref: ${{ inputs.repository_branch }}
-            path: src/${{ inputs.repository_name }}
+            repository: ${{ inputs.repository }}
+            ref: ${{ inputs.ref }}
+            path: src/${{ inputs.repository }}
             submodules: recursive      
       - name: Bootstrap python
         if: inputs.architecture == 'arm64'
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python_version }}
+          python-version: ${{ matrix.python_version }}
           architecture: x64
       - name: Bootstrap Build Tools
         if: inputs.architecture == 'arm64'
