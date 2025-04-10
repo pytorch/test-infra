@@ -111,6 +111,15 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: Debug echo
+        shell: bash
+        run: |
+          echo "Shell: Git Bash"
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Current directory:"
+          pwd
+          echo "Contents of GITHUB_WORKSPACE:"
+          ls -la "$GITHUB_WORKSPACE"
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
         if: inputs.architecture == 'x64'
@@ -152,12 +161,12 @@ jobs:
         with:
           architecture: x86_64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
-      - name: Checkout Target Repository (${{ inputs.repository }})
+      - name: Checkout Target Repository (${{ env.REPOSITORY }})
         uses: actions/checkout@v4
         with:
-            repository: ${{ inputs.repository }}
-            ref: ${{ inputs.ref }}
-            path: src/${{ inputs.repository }}
+            repository: ${{ env.REPOSITORY }}
+            ref: ${{ env.REf }}
+            path: src/${{ env.REPOSITORY }}
             submodules: recursive      
       - name: Bootstrap python
         if: inputs.architecture == 'arm64'
@@ -275,6 +284,8 @@ jobs:
       # NB: Only upload to GitHub after passing smoke tests
       - name: Install wheel ARM64
         if: inputs.architecture == 'arm64'
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
         shell: bash
         run: |
           cd $SRC_DIR
@@ -283,6 +294,8 @@ jobs:
           pip install $whl
       - name: Smoke Test arm64
         if: inputs.architecture == 'arm64'
+        env:
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         shell: cmd
         run: |
           cd %SRC_DIR%
@@ -302,7 +315,7 @@ jobs:
   upload:
     needs: build
     uses: ./.github/workflows/_binary_upload.yml
-    if: always() && needs.build.outputs == 'true'
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
