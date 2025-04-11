@@ -279,8 +279,8 @@ jobs:
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate
-          WHEEL_NAME=$(ls "/dist/")
-          pip install $WHEEL_NAME
+          whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
+          pip install $whl
 
           if [[ ! -f ${SMOKE_TEST_SCRIPT} ]]; then
             echo "${SMOKE_TEST_SCRIPT} not found"
