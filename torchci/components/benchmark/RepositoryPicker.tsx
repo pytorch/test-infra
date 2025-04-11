@@ -10,7 +10,7 @@ import {
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { DEFAULT_TRITON_REPOSITORY, MAIN_BRANCH } from "./common";
+import { DEFAULT_TRITON_REPOSITORY, MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "./common";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -21,6 +21,7 @@ export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
 function getRepositories(data: any) {
+  const dedups: { [k: string]: Set<string> } = {};
   const repositories: { [k: string]: any } = {};
 
   data.forEach((r: any) => {
@@ -33,14 +34,29 @@ function getRepositories(data: any) {
     }
     if (!(b in repositories[repo])) {
       repositories[repo][b] = [];
+      const dedup_key = repo + "-" + b;
+      dedups[dedup_key] = new Set<string>();
+    }
+
+    const dedup_key = repo + "-" + b;
+    if (dedups[dedup_key].has(sha)) {
+      return;
+    }
+
+    let display_priority = 1;
+    if (repo === DEFAULT_TRITON_REPOSITORY && b === MAIN_BRANCH) {
+      display_priority = 99;
+    } else if (repo == DEFAULT_TRITON_REPOSITORY) {
+      display_priority = 98;
     }
 
     repositories[repo][b].push({
       head_sha: sha,
       event_time: r.event_time,
-      display_priority: r.head_branch == MAIN_BRANCH ? 99 : 1,
+      display_priority: display_priority,
       id: r.id,
     });
+    dedups[dedup_key].add(sha);
   });
   return repositories;
 }
@@ -124,13 +140,15 @@ export function RepositoryBranchCommitPicker({
         </div>
       );
     }
-  
+
+
     if (data === undefined || data.length === 0) {
       return <Skeleton variant={"rectangular"} height={"100%"} />;
     }
 
 
     const repositories = getRepositories(data);
+
     // The main branch could have no commit which happens when people are experimenting
     // on their own branches
     if (repositories[repository] === undefined || 
@@ -158,25 +176,28 @@ export function RepositoryBranchCommitPicker({
     }
   
     // Sort it so that the main branch comes first
+    const displayRepositories = Object.keys(repositories).sort(
+      (x, y) => repositories[x][0][0].display_priority - repositories[y][x][0].display_priority
+    );
     const displayBranches = Object.keys(repositories[repository]).sort(
       (x, y) => repositories[repository][y][0].display_priority - repositories[repository][x][0].display_priority
     );
     return (
       <div>
         <FormControl>
-          <InputLabel id={`repository-picker-input-label-${commit}`}>
+          <InputLabel id={`repositories-picker-input-label-${commit}`}>
             Repository
           </InputLabel>
           <Select
-            value={branch}
+            value={repository}
             label="Repository"
-            labelId={`repository-picker-select-label-${commit}`}
+            labelId={`repositories-picker-select-label-${commit}`}
             onChange={handleRepositoryChange}
-            id={`repository-picker-select-${commit}`}
+            id={`repositories-picker-select-${commit}`}
           >
-            {displayBranches.map((b: string) => (
-              <MenuItem key={`${b}-${commit}`} value={b}>
-                {b}
+            {displayRepositories.map((r: string) => (
+              <MenuItem key={`${r}-${branch}-${commit}`} value={r}>
+                {r}
               </MenuItem>
             ))}
           </Select>
@@ -193,7 +214,7 @@ export function RepositoryBranchCommitPicker({
             id={`branch-picker-select-${commit}`}
           >
             {displayBranches.map((b: string) => (
-              <MenuItem key={`${b}-${commit}`} value={b}>
+              <MenuItem key={`${repository}-${b}-${commit}`} value={b}>
                 {b}
               </MenuItem>
             ))}
@@ -209,7 +230,13 @@ export function RepositoryBranchCommitPicker({
             labelId={`commit-picker-select-label-${commit}`}
             onChange={handleCommitChange}
             id={`commit-picker-select-${commit}`}
-          />
+          >
+          {repositories[repository][branch].map((c: any) => (
+              <MenuItem key={c.head_sha} value={c.head_sha}>
+                {c.head_sha.substring(0, SHA_DISPLAY_LENGTH)} 
+              </MenuItem>
+          ))}
+          </Select>
         </FormControl>
       </div>
     );

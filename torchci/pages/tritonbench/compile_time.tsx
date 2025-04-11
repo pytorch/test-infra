@@ -27,9 +27,6 @@ export default function Page() {
   const [rRepository, setRRepository] = useState<string>(DEFAULT_TRITON_REPOSITORY);
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
-  const [highlightKey, setHighlightKey] = useState<string>(
-    DEFAULT_HIGHLIGHT_KEY
-  );
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -68,7 +65,6 @@ export default function Page() {
 
   const queryParams: { [key: string]: any } = {
     commits: [],
-    compilers: [],
     getJobId: false,
     granularity: granularity,
     benchmark_name: "compile_time",
@@ -86,7 +82,7 @@ export default function Page() {
           </Typography>
           <CopyLink textToCopy={`${baseUrl}`} />
         </Stack>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={2} sx={{ mb: 10 }}>
           <TimeRangePicker
             startTime={startTime}
             setStartTime={setStartTime}
