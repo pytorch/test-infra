@@ -112,11 +112,6 @@ export default function Page() {
             titlePrefix={"Base"}
             fallbackIndex={-1} // Default to the next to latest in the window
             timeRange={timeRange}
-            highlightConfig={{
-              keys:
-                highlightKey === DEFAULT_HIGHLIGHT_KEY ? [] : [highlightKey],
-              highlightColor: "yellow",
-            }}
           />
           <Divider orientation="vertical" flexItem>
             &mdash;Diff→
@@ -133,11 +128,6 @@ export default function Page() {
             titlePrefix={"New"}
             fallbackIndex={-1} // Default to the next to latest in the window
             timeRange={timeRange}
-            highlightConfig={{
-              keys:
-                highlightKey === DEFAULT_HIGHLIGHT_KEY ? [] : [highlightKey],
-              highlightColor: "yellow",
-            }}
           />
         </Stack>
         <TimeSeriesGraphReport

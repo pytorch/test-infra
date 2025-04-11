@@ -3,6 +3,7 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  Skeleton,
   SelectChangeEvent,
 } from "@mui/material";
 
@@ -19,13 +20,7 @@ import { DEFAULT_TRITON_REPOSITORY, MAIN_BRANCH } from "./common";
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
-interface HighlightConfig {
-  keys?: string[];
-  highlightColor?: string;
-}
-
 function getRepositories(data: any) {
-  const dedups: { [k: string]: Set<string> } = {};
   const repositories: { [k: string]: any } = {};
 
   data.forEach((r: any) => {
@@ -35,32 +30,17 @@ function getRepositories(data: any) {
 
     if (!(repo in repositories)) {
       repositories[repo] = {};
-      dedups[repo] = new Set<string>();
     }
-    if (dedups[repo].has(sha)) {
-
-    }
-
-
-    if (dedups[b].has(r.head_sha)) {
-      if (r.filename) {
-        branches[b]
-          ?.find((c: any) => c.head_sha === r.head_sha)
-          .filenames.push(r.filename);
-      }
-      return;
+    if (!(b in repositories[repo])) {
+      repositories[repo][b] = [];
     }
 
-    branches[b].push({
-      head_sha: r.head_sha,
+    repositories[repo][b].push({
+      head_sha: sha,
       event_time: r.event_time,
-      // This is used to sort the list of branches to show the main branch first
-      display_priority: r.head_branch === MAIN_BRANCH ? 99 : 1,
-      // store list of config files for the commit, this is used to highlight
-      filenames: r.filename ? [r.filename] : [],
+      display_priority: r.head_branch == MAIN_BRANCH ? 99 : 1,
       id: r.id,
     });
-    dedups[b].add(r.head_sha);
   });
   return repositories;
 }
@@ -77,7 +57,6 @@ export function RepositoryBranchCommitPicker({
   titlePrefix,
   fallbackIndex,
   timeRange,
-  highlightConfig,
 }: {
   queryName: string;
   queryParams:  { [k: string]: any };
@@ -90,7 +69,6 @@ export function RepositoryBranchCommitPicker({
   titlePrefix: string;
   fallbackIndex: number;
   timeRange: any;
-  highlightConfig?: HighlightConfig;
 }) {
 
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
@@ -156,8 +134,8 @@ export function RepositoryBranchCommitPicker({
     // The main branch could have no commit which happens when people are experimenting
     // on their own branches
     if (repositories[repository] === undefined || 
-        repositories[repository][branch] == undefined || 
-        repositories[repository][branch].length == 0) {
+        repositories[repository][branch] === undefined || 
+        repositories[repository][branch].length === 0) {
       return <div>Found no commit for this configurations.</div>;
     }
   
@@ -180,8 +158,8 @@ export function RepositoryBranchCommitPicker({
     }
   
     // Sort it so that the main branch comes first
-    const displayBranches = Object.keys(branches).sort(
-      (x, y) => branches[y][0].display_priority - branches[x][0].display_priority
+    const displayBranches = Object.keys(repositories[repository]).sort(
+      (x, y) => repositories[repository][y][0].display_priority - repositories[repository][x][0].display_priority
     );
     return (
       <div>
@@ -189,9 +167,21 @@ export function RepositoryBranchCommitPicker({
           <InputLabel id={`repository-picker-input-label-${commit}`}>
             Repository
           </InputLabel>
+          <Select
+            value={branch}
+            label="Repository"
+            labelId={`repository-picker-select-label-${commit}`}
+            onChange={handleRepositoryChange}
+            id={`repository-picker-select-${commit}`}
+          >
+            {displayBranches.map((b: string) => (
+              <MenuItem key={`${b}-${commit}`} value={b}>
+                {b}
+              </MenuItem>
+            ))}
+          </Select>
         </FormControl>
         <FormControl>
-
           <InputLabel id={`branch-picker-input-label-${commit}`}>
             Branch
           </InputLabel>
@@ -219,34 +209,7 @@ export function RepositoryBranchCommitPicker({
             labelId={`commit-picker-select-label-${commit}`}
             onChange={handleCommitChange}
             id={`commit-picker-select-${commit}`}
-            sx={{
-              ...(isCommitStringHighlight(
-                commit,
-                branches[branch],
-                highlightConfig?.keys
-              ) && { backgroundColor: DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR }),
-            }}
-          >
-            {branches[branch].map((r: any) => (
-              <HighlightMenuItem
-                key={r.head_sha}
-                value={r.head_sha}
-                condition={isCommitHighlight(highlightConfig?.keys, r)}
-                customColor={highlightConfig?.highlightColor}
-              >
-                {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
-                {dayjs(r.event_time).format("YYYY/MM/DD")})
-                {isCommitHighlight(highlightConfig?.keys, r) && (
-                  <Tooltip
-                    id="button-report"
-                    title={getMatchedFilters(highlightConfig?.keys, r).join(",")}
-                  >
-                    <InfoOutlinedIcon />
-                  </Tooltip>
-                )}
-              </HighlightMenuItem>
-            ))}
-          </Select>
+          />
         </FormControl>
       </div>
     );
