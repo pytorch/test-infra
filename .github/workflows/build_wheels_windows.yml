@@ -279,8 +279,8 @@ jobs:
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate
-          whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
-          pip install $whl
+          WHEEL_NAME=$(ls "/dist/")
+          pip install $WHEEL_NAME
 
           if [[ ! -f ${SMOKE_TEST_SCRIPT} ]]; then
             echo "${SMOKE_TEST_SCRIPT} not found"
@@ -311,7 +311,7 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
-
+      architecture: ${{ inputs.architecture }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
