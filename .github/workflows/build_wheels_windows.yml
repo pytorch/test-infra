@@ -152,7 +152,7 @@ jobs:
         with:
             repository: ${{ env.REPOSITORY }}
             ref: ${{ env.REF }}
-            path: src/${{ env.REPOSITORY }}
+            path: ${{ env.REPOSITORY }}
             submodules: recursive
       - name: Bootstrap python
         if: inputs.architecture == 'arm64'
@@ -229,7 +229,7 @@ jobs:
           DOWNLOADS_DIR: c:\temp\downloads\
           DEPENDENCIES_DIR: c:\temp\dependencies\
           SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-          SRC_DIR: src\\${{ inputs.repository }} 
+          SRC_DIR: ${{ inputs.repository }} 
         shell: cmd
         run: |
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
@@ -279,7 +279,7 @@ jobs:
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
-          SRC_DIR: src\\${{ inputs.repository }}
+          SRC_DIR: ${{ inputs.repository }}
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate
@@ -299,7 +299,7 @@ jobs:
         env:
           REPOSITORY: ${{ inputs.repository }}
           REF: ${{ inputs.ref }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
+          PYTHON_VERSION: ${{ matrix.python_version }}
           CU_VERSION: ${{ env.CU_VERSION }}
           ARCH: ${{ inputs.architecture }}
         run: |
