@@ -7,6 +7,7 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
+import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
@@ -58,6 +59,16 @@ function getRepositories(data: any) {
     });
     dedups[dedup_key].add(sha);
   });
+  // sort repositories by event_time
+  Object.keys(repositories).forEach((r: string) => {
+    Object.keys(repositories[r]).forEach((b: string) => {
+      const entries = repositories[r][b].sort((x: any, y: any) => {
+        return x.event_time.localeCompare(y.event_time);
+      });
+      repositories[r][b]= entries;
+    })
+  });
+  console.log(repositories);
   return repositories;
 }
 
@@ -182,6 +193,7 @@ export function RepositoryBranchCommitPicker({
     const displayBranches = Object.keys(repositories[repository]).sort(
       (x, y) => repositories[repository][y][0].display_priority - repositories[repository][x][0].display_priority
     );
+
     return (
       <div>
         <FormControl>
@@ -233,7 +245,8 @@ export function RepositoryBranchCommitPicker({
           >
           {repositories[repository][branch].map((c: any) => (
               <MenuItem key={c.head_sha} value={c.head_sha}>
-                {c.head_sha.substring(0, SHA_DISPLAY_LENGTH)} 
+                {c.head_sha.substring(0, SHA_DISPLAY_LENGTH)}
+                ({dayjs(c.event_time).format("YYYYMMDD")})
               </MenuItem>
           ))}
           </Select>
