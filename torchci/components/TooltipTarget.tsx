@@ -19,6 +19,7 @@ export default function TooltipTarget({
 }) {
   const [visible, setVisible] = useState(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
+  const targetRef = useRef<HTMLDivElement>(null);
   const isPinned = pinnedId.sha == sha && pinnedId.name == name;
 
   function handleMouseOver() {
@@ -30,6 +31,7 @@ export default function TooltipTarget({
       setVisible(true);
     }, 5);
   }
+
   function handleMouseLeave() {
     setVisible(false);
     if (timeoutId.current !== null) {
@@ -60,15 +62,16 @@ export default function TooltipTarget({
     ) : null;
 
   return (
-    <div className={styles.target}>
-      {content}
+    <div className={styles.target} ref={targetRef}>
       <div
         onMouseOver={handleMouseOver}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
+        className={styles.targetContent}
       >
         {children}
       </div>
+      {content}
     </div>
   );
 }

@@ -52,6 +52,7 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   "compilation_time(s)": false,
   speedup: true,
   "avg_inference_latency(ms)": false,
+  "trimmean_inference_latency(ms)": false,
   "model_load_time(ms)": false,
   "peak_inference_mem_usage(mb)": false,
   "peak_load_mem_usuage(mb)": false,
@@ -86,6 +87,7 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 export const UNIT_FOR_METRIC: { [k: string]: string } = {
   "Speedup (%)": "%",
 };
+
 export const DEFAULT_DEVICE_NAME = "All Devices";
 export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";

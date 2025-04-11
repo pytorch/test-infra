@@ -8,7 +8,7 @@
 /* Fix the width of these columns to avoid layout shift when loading the HUD
  table. */
 .colTime {
-  width: 12ch;
+  width: 14ch;
 }
 .colSha {
   width: 8ch;
@@ -20,7 +20,8 @@
   width: 8ch;
 }
 .colJob {
-  width: 1.3ch;
+  width: 1.2ch;
+  min-width: 14px;
 }
 .colAuthor {
   width: 12ch;
@@ -29,17 +30,38 @@
   cursor: default;
 }
 
-/* code to roatate the workflow name headers */
+/* Define column widths */
+.jobColumnThin {
+  width: 100px;
+}
+
+.jobColumnMedium {
+  width: 150px;
+}
+
+.jobColumnWide {
+  width: 200px;
+}
+
+.jobColumnXWide {
+  width: 250px;
+}
+
+.jobColumnFlex {
+  flex: 1;
+}
+
+/* code to rotate the workflow name headers */
 .jobHeader {
   font-family: sans-serif;
-  height: 220px;
+  height: 150px;
   white-space: nowrap;
   font-family: sans-serif;
   padding-right: 4px;
 }
 
 .jobHeaderName {
-  transform: translate(10px, 100px) rotate(315deg);
+  transform: translate(5px, 60px) rotate(315deg);
   width: 12px;
   font-weight: 400;
   font-size: 0.8em;
@@ -51,7 +73,7 @@
 
 .jobMetadata a {
   text-decoration: none;
-  color: #0064cf;
+  color: var(--link-color);
 }
 
 .jobMetadataTruncated {
@@ -61,9 +83,11 @@
   min-width: 0;
   max-width: 37ch;
   display: inline-block;
-  overflow: clip;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 .jobMetadataTruncatedAuthor {
@@ -73,9 +97,11 @@
   min-width: 0;
   max-width: 12ch;
   display: inline-block;
-  overflow: clip;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 .branchForm {
@@ -85,7 +111,7 @@
 .branchFormInput {
   font-weight: bold;
   font-family: monospace;
-  background-color: aliceblue;
+  background-color: var(--code-bg);
   font-size: 1em;
   border: 0px;
   padding: 0px;
@@ -99,15 +125,15 @@
 }
 
 .forcedMerge {
-  background-color: lightyellow;
+  background-color: var(--forced-merge-bg);
 }
 
 .forcedMergeWithFailure {
-  background-color: #ffe0b3;
+  background-color: var(--forced-merge-failure-bg);
 }
 
 .selectedRow {
-  background-color: lightblue;
+  background-color: var(--selected-row-bg);
   font-weight: bold;
 }
 
@@ -115,6 +141,78 @@
   text-align: center;
 }
 
+.centered {
+  text-align: center;
+}
+
 .highlight {
-  background-color: #ffa;
+  background-color: var(--highlight-bg);
+}
+
+.controlsContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.controlsContainer > div {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hudControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.settingsPanel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.75rem;
+  background-color: var(
+    --dropdown-bg
+  ); /* Use dropdown-bg for better consistency */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  min-width: 250px;
+  color: var(--text-color);
+}
+
+.settingsCategoryContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settingsCategory {
+  margin: 0 0 0.5rem 0;
+}
+
+.settingsOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

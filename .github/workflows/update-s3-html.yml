@@ -2,8 +2,8 @@ name: Update S3 HTML indices for download.pytorch.org
 
 on:
   schedule:
-    # Update the indices every 30 minutes
-    - cron: "*/30 * * * *"
+    # Update the indices every hour
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:

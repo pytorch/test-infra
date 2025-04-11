@@ -436,10 +436,9 @@ export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
 ): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
-  let baseShas = [];
-  for (const [_, pr_info] of workflowsByPR) {
-    baseShas.push(pr_info.merge_base);
-  }
+  const baseShas = _.uniq(
+    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
+  );
 
   // fetch failing jobs on those shas
   const commitFailedJobsQueryResult = await fetchFailedJobsFromCommits(
@@ -1110,69 +1109,63 @@ export async function reorganizeWorkflows(
       workflow.name,
     ])
   );
-  const workflowsByPR: Map<number, PRandJobs> = new Map();
-  const headShaTimestamps: Map<string, string> = new Map();
+  const workflowsByPR: PRandJobs[] = await Promise.all(
+    _(dedupedRecentWorkflows)
+      .groupBy("pr_number")
+      .map(async (workflows, prNumber) => {
+        // NB: The head SHA timestamp is currently used as the end date when
+        // searching for similar failures.  However, it's not available on CH for
+        // commits from forked PRs before a ciflow ref is pushed.  In such case,
+        // the head SHA timestamp will be undefined and we will make an additional
+        // query to GitHub to get the value
+        let headShaTimestamp = workflows.find(
+          (workflow) => !isTime0(workflow.head_sha_timestamp)
+        )?.head_sha_timestamp;
+        if (octokit && headShaTimestamp === undefined) {
+          headShaTimestamp = await fetchCommitTimestamp(
+            octokit,
+            owner,
+            repo,
+            workflows[0].head_sha
+          );
+        }
+        workflows.forEach((workflow) => {
+          if (isTime0(workflow.head_sha_timestamp) && headShaTimestamp) {
+            workflow.head_sha_timestamp = headShaTimestamp;
+          }
+        });
 
-  for (const workflow of dedupedRecentWorkflows) {
-    const prNumber = workflow.pr_number;
-    if (!workflowsByPR.has(prNumber)) {
-      let headShaTimestamp = workflow.head_sha_timestamp;
-      // NB: The head SHA timestamp is currently used as the end date when
-      // searching for similar failures.  However, it's not available on CH for
-      // commits from forked PRs before a ciflow ref is pushed.  In such case,
-      // the head SHA timestamp will be undefined and we will make an additional
-      // query to GitHub to get the value
-      if (octokit && isTime0(headShaTimestamp)) {
-        headShaTimestamp = await fetchCommitTimestamp(
-          octokit,
-          owner,
-          repo,
-          workflow.head_sha
-        );
-        headShaTimestamps.set(workflow.head_sha, headShaTimestamp);
-      }
+        let prTitle = "";
+        let prBody = "";
+        let prShas: { sha: string; title: string }[] = [];
+        // Gate this to PyTorch as disabled tests feature is only available there
+        if (octokit && repo === "pytorch") {
+          const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
+          prTitle = prData.title;
+          prBody = prData.body;
+          prShas = prData.shas;
+        }
 
-      let prTitle = "";
-      let prBody = "";
-      let prShas: { sha: string; title: string }[] = [];
-      // Gate this to PyTorch as disabled tests feature is only available there
-      if (octokit && repo === "pytorch") {
-        const prData = await fetchPR(owner, repo, `${prNumber}`, octokit);
-        prTitle = prData.title;
-        prBody = prData.body;
-        prShas = prData.shas;
-      }
-
-      workflowsByPR.set(prNumber, {
-        pr_number: prNumber,
-        head_sha: workflow.head_sha,
-        head_sha_timestamp: headShaTimestamp,
-        jobs: [],
-        merge_base: "",
-        merge_base_date: "",
-        owner: owner,
-        repo: repo,
-        title: prTitle,
-        body: prBody,
-        shas: prShas,
-      });
-    }
-
-    const headShaTimestamp = headShaTimestamps.get(workflow.head_sha);
-    if (
-      isTime0(workflow.head_sha_timestamp) &&
-      headShaTimestamp &&
-      !isTime0(headShaTimestamp)
-    ) {
-      workflow.head_sha_timestamp = headShaTimestamp;
-    }
-
-    workflowsByPR.get(prNumber)!.jobs.push(workflow);
-  }
+        return {
+          pr_number: parseInt(prNumber),
+          head_sha: workflows[0].head_sha,
+          head_sha_timestamp: headShaTimestamp ?? "",
+          jobs: workflows,
+          merge_base: "",
+          merge_base_date: "",
+          owner: owner,
+          repo: repo,
+          title: prTitle,
+          body: prBody,
+          shas: prShas,
+        };
+      })
+      .value()
+  );
 
   // clean up the workflows - remove retries, remove workflows that have jobs,
   // remove cancelled jobs with weird names
-  for (const [, prInfo] of workflowsByPR) {
+  for (const prInfo of workflowsByPR) {
     const [workflows, jobs] = _.partition(
       prInfo.jobs,
       (job) => job.workflowId === 0
@@ -1220,5 +1213,8 @@ export async function reorganizeWorkflows(
     // Remove cancelled jobs with weird names
     prInfo.jobs = removeCancelledJobAfterRetry<RecentWorkflowsData>(allJobs);
   }
-  return workflowsByPR;
+  return workflowsByPR.reduce((acc, prInfo) => {
+    acc.set(prInfo.pr_number, prInfo);
+    return acc;
+  }, new Map<number, PRandJobs>());
 }

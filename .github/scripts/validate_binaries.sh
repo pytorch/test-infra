@@ -27,12 +27,9 @@ else
         conda activate ${ENV_NAME}
         TORCH_ONLY='true'
     else
-        # Please note ffmpeg is required for torchaudio, see https://github.com/pytorch/pytorch/issues/96159
-        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} ffmpeg
+        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
         conda activate ${ENV_NAME}
     fi
-
-    pip3 install numpy --force-reinstall
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
@@ -44,18 +41,15 @@ else
     if [[ ${USE_EXTRA_INDEX_URL} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"--index-url"/"--extra-index-url"}
     fi
-
     # use-meta-cdn: use meta cdn for pypi download
     if [[ ${USE_META_CDN} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"download.pytorch.org"/"d3kup0pazkvub8.cloudfront.net"}
     fi
-
-
+    # torch-only option: remove vision and audio
     if [[ ${TORCH_ONLY} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"torchvision torchaudio"/""}
         TEST_SUFFIX=" --package torchonly"
     fi
-
     # if RELESE version is passed as parameter - install speific version
     if [[ ! -z ${RELEASE_VERSION} ]]; then
           INSTALLATION=${INSTALLATION/"torch "/"torch==${RELEASE_VERSION} "}
@@ -80,6 +74,12 @@ else
     fi
     eval $INSTALLATION
 
+    # test with numpy 1.x installation needs to happen after torch install
+    MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
+    if [[ ${MINOR_PYTHON_VERSION} < 13 ]]; then
+        pip3 install numpy==1.26.4 --force-reinstall # the latest 1.x release
+    fi
+
     pushd ${PWD}/.ci/pytorch/
 
     # TODO: enable torch-compile on ROCM and on 3.13t
@@ -102,7 +102,8 @@ else
     ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
-        pip3 install numpy --force-reinstall
+        # test with latest numpy 2.x
+        pip3 install numpy --upgrade --force-reinstall
         ${PYTHON_RUN}  ./smoke_test/smoke_test.py ${TEST_SUFFIX}
     fi
 

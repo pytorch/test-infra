@@ -2,5 +2,42 @@
   "params": {
     "label": "String"
   },
-  "tests": []
+  "tests": [
+    {
+      "label": "skipped"
+    },
+    {
+      "label": "unstable"
+    },
+    {
+      "label": "ci: sev"
+    },
+    {
+      "label": "bug"
+    },
+    {
+      "label": "feature"
+    },
+    {
+      "label": "enhancement"
+    },
+    {
+      "label": "high-priority"
+    },
+    {
+      "label": "flaky"
+    },
+    {
+      "label": "documentation"
+    },
+    {
+      "label": "help wanted"
+    },
+    {
+      "label": "CUDA"
+    },
+    {
+      "label": "Mobile"
+    }
+  ]
 }

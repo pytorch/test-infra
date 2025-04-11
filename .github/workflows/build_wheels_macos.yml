@@ -104,7 +104,7 @@ jobs:
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
-    name: ${{ matrix.build_name }}
+    name: build-${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation

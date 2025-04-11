@@ -22,6 +22,7 @@ jobs:
       os: windows
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      with-xpu: enable
   test:
     needs: generate-matrix
     strategy:

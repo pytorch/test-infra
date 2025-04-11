@@ -155,7 +155,7 @@ const cherryPick = commands.add_parser("cherry-pick", {
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
-cherryPick.add_argument("--onto", {
+cherryPick.add_argument("--onto", "--into", {
   required: true,
   help: "Branch you would like to cherry pick onto (Example: release/2.1)",
 });

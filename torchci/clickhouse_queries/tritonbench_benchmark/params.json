@@ -1,0 +1,13 @@
+{
+    "params": {
+      "branch": "String",
+      "repo": "String",
+      "suite": "String",
+      "benchmark_name": "String",
+      "metric_name": "String",
+      "startTime": "DateTime64(3)",
+      "stopTime": "DateTime64(3)",
+      "granularity": "String"
+    },
+    "tests": []
+  }

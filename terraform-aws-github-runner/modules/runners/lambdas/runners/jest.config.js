@@ -7,9 +7,12 @@ module.exports = {
   coverageThreshold: {
     global: {
       branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
+      functions: 90,
+      lines: 93,
+      statements: 94
     }
-  }
+  },
+  moduleNameMapper: {
+    axios: 'axios/dist/node/axios.cjs', // Allow axios to work in tests
+  },
 };

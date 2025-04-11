@@ -1,4 +1,4 @@
-import { createRunner } from './runners';
+import { createRunner, tryReuseRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -895,7 +895,7 @@ describe('scaleUp', () => {
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
 
-  it('max runners reached, but new is ephemeral', async () => {
+  it('max runners reached, but new is ephemeral, and there is none to reuse', async () => {
     const token = 'AGDGADUWG113';
     const config = {
       ...baseCfg,
@@ -904,13 +904,6 @@ describe('scaleUp', () => {
       minAvailableRunners: 1,
     };
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    const payload = {
-      id: 10,
-      eventType: 'event',
-      repositoryName: 'repo',
-      repositoryOwner: 'owner',
-      installationId: 0,
-    };
     const runnerType1 = {
       instance_type: 'instance_type',
       os: 'os',
@@ -919,8 +912,16 @@ describe('scaleUp', () => {
       runnerTypeName: 'linux.2xlarge',
       is_ephemeral: true,
     };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 0,
+      runnerLabels: [runnerType1.runnerTypeName],
+    };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
@@ -931,13 +932,14 @@ describe('scaleUp', () => {
         labels: [
           {
             id: 113,
-            name: 'linux.2xlarge',
+            name: runnerType1.runnerTypeName,
             type: 'read-only',
           },
         ],
       },
     ]);
     mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    mocked(tryReuseRunner).mockRejectedValue(new Error('No runners available'));
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
@@ -954,13 +956,73 @@ describe('scaleUp', () => {
     );
 
     expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
-      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge` +
-        ` --ephemeral`,
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},` +
+        `${runnerType1.runnerTypeName} --ephemeral`,
     );
     expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, true)).toEqual(
-      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
-        `experimental.ami --ephemeral`,
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},` +
+        `${runnerType1.runnerTypeName},experimental.ami --ephemeral`,
     );
+  });
+
+  it('max runners reached, but new is ephemeral, and there is one to reuse', async () => {
+    const token = 'AGDGADUWG113';
+    const config = {
+      ...baseCfg,
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 1,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: true,
+    };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 0,
+      runnerLabels: [runnerType1.runnerTypeName],
+    };
+
+    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
+    mocked(listGithubRunnersRepo).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: runnerType1.runnerTypeName,
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    mocked(tryReuseRunner).mockResolvedValue({
+      awsRegion: 'us-east-1',
+      az: 'us-east-1a',
+      ephemeralRunnerFinished: 113,
+      ghRunnerId: '1234',
+      instanceId: 'i-0113',
+      launchTime: new Date(),
+      repo: 'jeanschmidt/regularizationTheory',
+    });
+    const mockedCreateRunner = mocked(createRunner);
+
+    await scaleUp('aws:sqs', payload, metrics);
+
+    expect(mockedCreateRunner).not.toBeCalled();
   });
 
   it('dont have mustHaveIssuesLabels', async () => {

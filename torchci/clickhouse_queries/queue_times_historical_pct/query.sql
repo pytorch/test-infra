@@ -13,8 +13,14 @@ SELECT
 FROM
     misc.queue_times_24h_stats q
 WHERE
-    q.time >= toStartOfHour(toDateTime({startTime: DateTime64(3)}, {timezone: String}))
-    AND q.time < toStartOfHour(toDateTime({stopTime: DateTime64(3)}, {timezone: String}))
+    q.time
+    >= toStartOfHour(
+        toDateTime({startTime: DateTime64(3)}, {timezone: String})
+    )
+    AND q.time
+    < toStartOfHour(
+        toDateTime({stopTime: DateTime64(3)}, {timezone: String})
+    )
     AND has({workersTypes: Array(String)}, q.machine_type)
 ORDER BY
     granularity_bucket, machine_type ASC

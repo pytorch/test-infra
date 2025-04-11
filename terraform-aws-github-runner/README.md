@@ -2,6 +2,18 @@
 
 This is a terraform module that sets up self hosted github runners on AWS along with the infra needed to autoscale them
 
+# Testing your changes
+In order to verify if your changes will pass CI testing, you can simply run from this directory:
+
+```
+$ make tflint
+```
+
+This depends on Tofu, CMake and TFLint being installed.
+
+# Checking plan changes of your changes
+This module is not stand alone. It is a reusable module designed to be imported, configured, and used in your project.
+
 # Release
 Terraform code that uses this module specify the tag (version of test-infra) that they use via a file called `Terrafile`.  We need to create a new tag for any changes here that we want to deploy and update the `Terrafile` to refer to that tag:
 

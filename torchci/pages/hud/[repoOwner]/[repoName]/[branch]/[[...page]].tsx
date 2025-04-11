@@ -12,6 +12,7 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
+import SettingsPanel from "components/SettingsPanel";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
 import { fetcher } from "lib/GeneralUtils";
@@ -39,6 +40,7 @@ import {
 } from "lib/types";
 import {
   useGroupingPreference,
+  useHideGreenColumnsPreference,
   useMonsterFailuresPreference,
   usePreference,
 } from "lib/useGroupingPreference";
@@ -289,6 +291,8 @@ function GroupFilterableHudTable({
   setUseGrouping,
   hideUnstable,
   setHideUnstable,
+  hideGreenColumns,
+  setHideGreenColumns,
 }: {
   params: HudParams;
   children: React.ReactNode;
@@ -297,37 +301,74 @@ function GroupFilterableHudTable({
   setUseGrouping: any;
   hideUnstable: boolean;
   setHideUnstable: any;
+  hideGreenColumns: boolean;
+  setHideGreenColumns: any;
 }) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const headerNames = groupNames;
-  const [mergeLF, setMergeLF] = useContext(MergeLFContext);
+  const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+
   return (
     <>
-      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
-      <CheckBoxSelector
-        value={useGrouping}
-        setValue={(value) => setUseGrouping(value)}
-        checkBoxName="groupView"
-        labelText={"Use grouped view"}
-      />
-      <CheckBoxSelector
-        value={hideUnstable}
-        setValue={(value) => setHideUnstable(value)}
-        checkBoxName="hideUnstable"
-        labelText={"Hide unstable jobs"}
-      />
-      <CheckBoxSelector
-        value={mergeLF}
-        setValue={setMergeLF}
-        checkBoxName="mergeLF"
-        labelText={"Condense LF jobs"}
-      />
-      <MonsterFailuresCheckbox />
-      <table className={styles.hudTable}>
-        <GroupHudTableColumns names={headerNames} />
-        <GroupHudTableHeader names={headerNames} />
-        {children}
-      </table>
+      <div style={{ position: "relative", clear: "both" }}>
+        <div className={styles.hudControlsRow}>
+          <JobFilterInput
+            currentFilter={jobFilter}
+            handleSubmit={handleSubmit}
+          />
+          <SettingsPanel
+            settingGroups={{
+              // You need to specify both checkBoxName and key for each setting.
+              // `checkbox name` is used by CheckBoxSelector while `key` is
+              // used to uniquely identify the component in the settings panel.
+              // As far as I can CheckBoxSelector cannot read or write `key` but
+              // React requires us to set key since it's a list element, so we
+              // end up with some unfortunate duplication.
+              "View Options": [
+                <CheckBoxSelector
+                  value={useGrouping}
+                  setValue={(value) => setUseGrouping(value)}
+                  checkBoxName="groupView"
+                  key="groupView"
+                  labelText={"Use grouped view"}
+                />,
+                <MonsterFailuresCheckbox key="monsterFailures" />,
+              ],
+              "Filter Options": [
+                <CheckBoxSelector
+                  value={hideUnstable}
+                  setValue={(value) => setHideUnstable(value)}
+                  checkBoxName="hideUnstable"
+                  key="hideUnstable"
+                  labelText={"Hide unstable jobs"}
+                />,
+                <CheckBoxSelector
+                  value={hideGreenColumns}
+                  setValue={(value) => setHideGreenColumns(value)}
+                  checkBoxName="hideGreenColumns"
+                  key="hideGreenColumns"
+                  labelText={"Hide green columns"}
+                />,
+                <CheckBoxSelector
+                  value={mergeEphemeralLF}
+                  setValue={setMergeEphemeralLF}
+                  checkBoxName="mergeEphemeralLF"
+                  key="mergeEphemeralLF"
+                  labelText={"Condense LF, ephemeral jobs"}
+                />,
+              ],
+            }}
+            isOpen={settingsPanelOpen}
+            onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
+          />
+        </div>
+        <table className={styles.hudTable} style={{ overflow: "auto" }}>
+          <GroupHudTableColumns names={headerNames} />
+          <GroupHudTableHeader names={headerNames} />
+          {children}
+        </table>
+      </div>
     </>
   );
 }
@@ -366,14 +407,12 @@ export function MonsterFailuresCheckbox() {
     MonsterFailuresContext
   );
   return (
-    <div title="Replace `X` with a monster icon based on the error line.">
-      <CheckBoxSelector
-        value={monsterFailures}
-        setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
-        checkBoxName="monsterFailures"
-        labelText={"Monsterize failures"}
-      />
-    </div>
+    <CheckBoxSelector
+      value={monsterFailures}
+      setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
+      checkBoxName="monsterFailures"
+      labelText={"Monsterize failures"}
+    />
   );
 }
 
@@ -426,8 +465,11 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
 
 export default function Hud() {
   const router = useRouter();
-  const [mergeLF, setMergeLF] = usePreference("mergeLF");
-  const params = packHudParams({ ...router.query, mergeLF: mergeLF });
+  const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  const params = packHudParams({
+    ...router.query,
+    mergeEphemeralLF: mergeEphemeralLF,
+  });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -471,7 +513,9 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          <MergeLFContext.Provider value={[mergeLF, setMergeLF]}>
+          <MergeLFContext.Provider
+            value={[mergeEphemeralLF, setMergeEphemeralLF]}
+          >
             {params.branch !== undefined && (
               <div onClick={handleClick}>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
@@ -552,16 +596,19 @@ function GroupedHudTable({
   );
 
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
+  const [hideGreenColumns, setHideGreenColumns] =
+    useHideGreenColumnsPreference();
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter
   );
 
-  const { shaGrid, groupNameMapping } = getGroupingData(
-    data,
-    jobNames,
-    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-    unstableIssuesData ?? []
-  );
+  const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
+    getGroupingData(
+      data,
+      jobNames,
+      (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+      unstableIssuesData ?? []
+    );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
@@ -612,9 +659,27 @@ function GroupedHudTable({
       }
     });
   }
-  names = names.filter((name) =>
-    passesGroupFilter(jobFilter, name, groupNameMapping)
-  );
+
+  names = names.filter((name) => {
+    // Filter by job filter text first
+    if (!passesGroupFilter(jobFilter, name, groupNameMapping)) {
+      return false;
+    }
+
+    // If hiding green columns, filter out names that don't have any failed jobs
+    if (hideGreenColumns) {
+      // For group names, check if any job in the group has failures
+      if (groupNameMapping.has(name)) {
+        return groupsWithFailures.has(name);
+      }
+      // For individual job names, check if this job has failures
+      else {
+        return jobsWithFailures.has(name);
+      }
+    }
+
+    return true;
+  });
 
   return (
     <GroupingContext.Provider
@@ -627,6 +692,8 @@ function GroupedHudTable({
         setUseGrouping={setUseGrouping}
         hideUnstable={hideUnstable}
         setHideUnstable={setHideUnstable}
+        hideGreenColumns={hideGreenColumns}
+        setHideGreenColumns={setHideGreenColumns}
       >
         <HudTableBody
           shaGrid={shaGrid}

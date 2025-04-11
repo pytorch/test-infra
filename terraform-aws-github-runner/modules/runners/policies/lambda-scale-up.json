@@ -10,7 +10,10 @@
         "ec2:CreateNetworkInterface",
         "ec2:DescribeNetworkInterfaces",
         "ec2:DeleteNetworkInterface",
-        "ec2:DescribeImages"
+        "ec2:DescribeImages",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:CreateReplaceRootVolumeTask"
       ],
       "Resource": ["*"]
     },

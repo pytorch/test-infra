@@ -1,11 +1,22 @@
-import {
-  BranchAndCommitPerfData,
-  LLMsBenchmarkData,
-} from "components/benchmark/llms/components/common";
+import dayjs from "dayjs";
 import { geomean } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit } from "lib/types";
 import useSWR from "swr";
+import {
+  BranchAndCommitPerfData,
+  DEFAULT_ARCH_NAME,
+  DEFAULT_BACKEND_NAME,
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_DTYPE_NAME,
+  DEFAULT_MODE_NAME,
+  DEFAULT_MODEL_NAME,
+  EXCLUDED_METRICS,
+  LLMsBenchmarkData,
+  REPO_TO_BENCHMARKS,
+} from "../common";
+import { LLMsBenchmarkProps } from "../types/dashboardProps";
+import { TORCHAO_BASELINE } from "./aoUtils";
 
 export function useBenchmark(
   queryParams: { [key: string]: any },
@@ -28,6 +39,46 @@ export function useBenchmark(
   });
 }
 
+/**
+ * generate query params for benchmark page.
+ * @param props LLMsBenchmarkProps
+ */
+export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
+  const queryParams = {
+    arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
+    device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
+    mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
+    dtypes:
+      props.dtypeName === DEFAULT_DTYPE_NAME
+        ? []
+        : props.repoName !== "pytorch/ao" // TODO(elainewy): add config to handle repos-specific logics
+        ? [props.dtypeName]
+        : [props.dtypeName, TORCHAO_BASELINE],
+    excludedMetrics: EXCLUDED_METRICS,
+    benchmarks: props.benchmarkName
+      ? [props.benchmarkName]
+      : REPO_TO_BENCHMARKS[props.repoName],
+    granularity: props.granularity,
+    models: props.modelName === DEFAULT_MODEL_NAME ? [] : [props.modelName],
+    backends:
+      props.backendName === DEFAULT_BACKEND_NAME ? [] : [props.backendName],
+    repo: props.repoName,
+    startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+  return queryParams;
+}
+
+export const useBenchmarkPropsData = (queryParams: any) => {
+  const queryName = "oss_ci_benchmark_names";
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  return useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every
+  });
+};
+
 export function combineLeftAndRight(
   repoName: string,
   benchmarkName: string,
@@ -44,6 +95,7 @@ export function combineLeftAndRight(
   const rData = rPerfData.data;
 
   const dataGroupedByModel: { [k: string]: any } = {};
+
   rData.forEach((record: LLMsBenchmarkData) => {
     const model = record.model;
     const backend = record.backend;
@@ -93,33 +145,6 @@ export function combineLeftAndRight(
     });
   }
 
-  // NB: This is a hack to keep track of valid devices. The problem is that the records
-  // in the benchmark database alone don't have the information to differentiate between
-  // benchmarks that are failed to run and benchmarks that are not run. Both show up as
-  // 0 on the dashboard. Note that we can do a join with workflow_job table to get this
-  // information, but it's a rather slow and expensive route
-  const validDevices = new Set<string>();
-  const validBackends = new Set<string>();
-  // First round to get all the valid devices
-  Object.keys(dataGroupedByModel).forEach((key: string) => {
-    const [model, backend, mode, dtype, device, arch, extra] = key.split(";");
-    const row: { [k: string]: any } = {
-      // Keep the name as as the row ID as DataGrid requires it
-      name: `${model} ${backend} (${mode} / ${dtype} / ${device} / ${arch})`,
-    };
-
-    for (const metric in dataGroupedByModel[key]) {
-      const record = dataGroupedByModel[key][metric];
-      const hasL = "l" in record;
-      const hasR = "r" in record;
-
-      if (hasL && hasR) {
-        validDevices.add(device);
-        validBackends.add(`${model} ${backend}`);
-      }
-    }
-  });
-
   // Transform the data into a displayable format
   const data: { [k: string]: any }[] = [];
   Object.keys(dataGroupedByModel).forEach((key: string) => {
@@ -131,27 +156,14 @@ export function combineLeftAndRight(
 
     for (const metric in dataGroupedByModel[key]) {
       const record = dataGroupedByModel[key][metric];
+
       const hasL = "l" in record;
       const hasR = "r" in record;
-
-      // Skip devices and models that weren't run in this commit
-      if (
-        (validDevices.size !== 0 && !validDevices.has(device)) ||
-        (validBackends.size !== 0 && !validBackends.has(`${model} ${backend}`))
-      ) {
-        continue;
-      }
-
-      // No overlapping between left and right commits, just show what it's on the
-      // right commit instead of showing a blank page
-      if (!hasR) {
-        continue;
-      }
 
       if (!("metadata" in row)) {
         row["metadata"] = {
           model: model,
-          origins: record["r"].origins,
+          origins: hasR ? record["r"].origins : [],
           backend: backend,
           mode: mode,
           dtype: dtype,
@@ -229,32 +241,51 @@ export function combineLeftAndRight(
         const extraInfo = JSON.parse(extra);
         row["is_dynamic"] = extraInfo["is_dynamic"];
       }
-
-      row[metric] = {
-        l: hasL
-          ? {
-              actual: record["l"].actual,
-              target: record["l"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        r: hasR
-          ? {
-              actual: record["r"].actual,
-              target: record["r"].target,
-            }
-          : {
-              actual: 0,
-              target: 0,
-            },
-        highlight:
-          validDevices.size !== 0 &&
-          validBackends.has(`${model} ${backend}`) &&
-          hasL &&
-          hasR,
-      };
+      if (metric == "FAILURE_REPORT") {
+        row[metric] = {
+          l: hasL
+            ? {
+                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
+                target: 0,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          r: hasR
+            ? {
+                actual: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
+                target: 0,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          highlight: hasL && hasR,
+        };
+      } else {
+        row[metric] = {
+          l: hasL
+            ? {
+                actual: record["l"].actual,
+                target: record["l"].target,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          r: hasR
+            ? {
+                actual: record["r"].actual,
+                target: record["r"].target,
+              }
+            : {
+                actual: 0,
+                target: 0,
+              },
+          highlight: hasL && hasR,
+        };
+      }
     }
 
     if ("metadata" in row) {

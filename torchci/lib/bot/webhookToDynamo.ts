@@ -35,16 +35,37 @@ async function handleWorkflowJob(
 }
 
 async function handleIssues(event: Context<"issues">) {
-  const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
+
+  const issue_number = event.payload.issue.number;
+  const repo_name = event.payload.repository.full_name;
 
   await client.put({
     TableName: "torchci-issues",
     Item: {
-      dynamoKey: `${key_prefix}${event.payload.issue.number}`,
+      dynamoKey: `${repo_name}/${event.payload.issue.number}`,
       ...event.payload.issue,
     },
   });
+
+  if (
+    event.payload.action === "labeled" ||
+    event.payload.action === "unlabeled"
+  ) {
+    const datetime = event.payload.issue.updated_at;
+    const label_name = event.payload.label?.name;
+    await client.put({
+      TableName: "torchci-issues-label-event",
+      Item: {
+        dynamoKey: `${repo_name}/${issue_number}-${label_name}`,
+        repo_name: repo_name,
+        issue_number: issue_number,
+        event_time: datetime,
+        label_name: label_name,
+        action: event.payload.action,
+      },
+    });
+  }
 }
 
 async function handleIssueComment(event: Context<"issue_comment">) {

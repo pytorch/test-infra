@@ -6,9 +6,13 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { IssueData, JobData } from "lib/types";
-import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import {
+  MonsterFailuresContext,
+  PinnedTooltipContext,
+} from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { useContext } from "react";
 import hudStyles from "./hud.module.css";
+import { getFailureEl } from "./JobConclusion";
 import styles from "./JobConclusion.module.css";
 import { SingleWorkflowDispatcher } from "./WorkflowDispatcher";
 
@@ -65,6 +69,94 @@ function isJobViableStrictBlocking(
   return false;
 }
 
+// React component to render either a group conclusion character or monsterized icons for failures
+function GroupConclusionContent({
+  conclusion,
+  isClassified,
+  erroredJobs,
+  toggleExpanded,
+  monsterFailures,
+}: {
+  conclusion: GroupedJobStatus;
+  isClassified: boolean;
+  erroredJobs: JobData[];
+  toggleExpanded: () => void;
+  monsterFailures: boolean;
+}) {
+  // Only show monsters for failures and when monsterized failures is enabled
+  if (conclusion !== GroupedJobStatus.Failure || !monsterFailures) {
+    return (
+      <span
+        className={`${styles.conclusion} ${
+          isClassified ? styles["classified"] : styles[conclusion ?? "none"]
+        }`}
+        onDoubleClick={toggleExpanded}
+        style={{
+          border: "1px solid gainsboro",
+          padding: "0 1px",
+        }}
+      >
+        {getGroupConclusionChar(conclusion)}
+      </span>
+    );
+  }
+
+  // Get only unique monster icons based on their sprite index
+  const seenMonsterSprites = new Set();
+  const allMonsters = [];
+
+  for (const job of erroredJobs) {
+    if (job.failureLines && job.failureLines[0]) {
+      const monsterEl = getFailureEl(JobStatus.Failure, job);
+      if (monsterEl) {
+        // Get the sprite index from the data attribute
+        const spriteIdx = monsterEl.props["data-monster-hash"];
+
+        if (!seenMonsterSprites.has(spriteIdx)) {
+          seenMonsterSprites.add(spriteIdx);
+          allMonsters.push(monsterEl);
+        }
+      }
+    }
+  }
+
+  if (allMonsters.length === 0) {
+    // Fallback to X if no monsters could be generated
+    return (
+      <span
+        className={
+          isClassified ? styles["classified"] : styles[conclusion ?? "none"]
+        }
+        onDoubleClick={toggleExpanded}
+        style={{
+          border: "1px solid gainsboro",
+          padding: "0 1px",
+        }}
+      >
+        {getGroupConclusionChar(conclusion)}
+      </span>
+    );
+  }
+
+  // Show the first monster icon with a count in bottom right
+  const firstMonster = allMonsters[0];
+
+  return (
+    <span
+      className={`${styles.monster_with_count} ${styles.conclusion}`}
+      onDoubleClick={toggleExpanded}
+      title={`${allMonsters.length} unique failure ${
+        allMonsters.length === 1 ? "type" : "types"
+      }`}
+    >
+      {firstMonster}
+      {allMonsters.length > 1 && (
+        <span className={styles.monster_count}>{allMonsters.length}</span>
+      )}
+    </span>
+  );
+}
+
 export default function HudGroupedCell({
   sha,
   groupName,
@@ -87,6 +179,7 @@ export default function HudGroupedCell({
   repoName: string;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const [monsterFailures] = useContext(MonsterFailuresContext);
   const style = pinnedId.name == groupName ? hudStyles.highlight : "";
 
   const erroredJobs = [];
@@ -153,26 +246,38 @@ export default function HudGroupedCell({
             />
           }
         >
-          <span
-            className={`${styles.conclusion} ${
-              viableStrictBlocking ? styles.viablestrict_blocking : ""
-            }`}
-          >
-            <span
-              className={
-                isClassified
-                  ? styles["classified"]
-                  : styles[conclusion ?? "none"]
-              }
-              onDoubleClick={toggleExpanded}
-              style={{
-                border: "1px solid gainsboro",
-                padding: "0 1px",
-              }}
-            >
-              {getGroupConclusionChar(conclusion)}
+          {monsterFailures && conclusion === GroupedJobStatus.Failure ? (
+            <span className={styles.conclusion}>
+              <span
+                className={
+                  viableStrictBlocking ? styles.viablestrict_blocking : ""
+                }
+                style={{ padding: "0 1px" }}
+              >
+                <GroupConclusionContent
+                  conclusion={conclusion}
+                  isClassified={isClassified}
+                  erroredJobs={erroredJobs}
+                  toggleExpanded={toggleExpanded}
+                  monsterFailures={monsterFailures}
+                />
+              </span>
             </span>
-          </span>
+          ) : (
+            <span
+              className={`${styles.conclusion} ${
+                viableStrictBlocking ? styles.viablestrict_blocking : ""
+              }`}
+            >
+              <GroupConclusionContent
+                conclusion={conclusion}
+                isClassified={isClassified}
+                erroredJobs={erroredJobs}
+                toggleExpanded={toggleExpanded}
+                monsterFailures={monsterFailures}
+              />
+            </span>
+          )}
         </TooltipTarget>
       </td>
     </>
@@ -196,7 +301,64 @@ function GroupTooltip({
   failedPreviousRunJobs: JobData[];
   sha?: string;
 }) {
+  const [monsterFailures] = useContext(MonsterFailuresContext);
+
   if (conclusion === GroupedJobStatus.Failure) {
+    // Show monster icons in the tooltip if monsterFailures is enabled
+    if (monsterFailures) {
+      // Group jobs by monster sprite index
+      const monsterGroups = new Map(); // Map of spriteIdx -> {monsterEl, jobs[]}
+
+      for (const job of erroredJobs) {
+        if (job.failureLines && job.failureLines[0]) {
+          const monsterEl = getFailureEl(JobStatus.Failure, job);
+          if (monsterEl) {
+            // Get the sprite index from the data attribute
+            const spriteIdx = monsterEl.props["data-monster-hash"];
+
+            if (!monsterGroups.has(spriteIdx)) {
+              monsterGroups.set(spriteIdx, { monsterEl, jobs: [] });
+            }
+
+            // Add this job to the group with this monster
+            monsterGroups.get(spriteIdx).jobs.push(job);
+          }
+        }
+      }
+
+      // Convert the map to an array for rendering
+      const monsterGroupsArray = Array.from(monsterGroups.values());
+
+      return (
+        <div>
+          {`[${conclusion}] ${groupName}`}
+          <div>The following jobs errored out:</div>
+          {monsterGroupsArray.map((group, groupIndex) => (
+            <div key={groupIndex} style={{ margin: "10px 0" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {group.monsterEl}
+                <span style={{ marginLeft: "8px", fontWeight: "bold" }}>
+                  {group.jobs.length > 1
+                    ? `${group.jobs.length} jobs with this error type:`
+                    : "1 job with this error type:"}
+                </span>
+              </div>
+              {group.jobs.map((job: JobData, jobIndex: number) => (
+                <div
+                  key={jobIndex}
+                  style={{ marginLeft: "24px", marginTop: "4px" }}
+                >
+                  <a href={job.htmlUrl} target="_blank" rel="noreferrer">
+                    {job.name}
+                  </a>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     return (
       <ToolTip
         conclusion={conclusion}

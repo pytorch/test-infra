@@ -1,13 +1,21 @@
 .ok {
-  background-color: lightgreen;
+  background-color: var(--workflow-box-success-bg, lightgreen);
+  color: var(--text-color);
 }
 
 .warning {
-  background-color: lightyellow;
+  background-color: var(--workflow-box-pending-bg, lightyellow);
+  color: var(--text-color);
+}
+
+.failure {
+  background-color: var(--workflow-box-none-bg, lightgray);
+  color: var(--text-color);
 }
 
 .error {
-  background-color: lightpink;
+  background-color: var(--workflow-box-fail-bg, lightpink);
+  color: var(--text-color);
 }
 
 .name {
@@ -15,5 +23,6 @@
 }
 
 .selectedRow {
-  background-color: lightblue;
+  background-color: var(--selected-row-bg, lightblue);
+  color: var(--text-color);
 }

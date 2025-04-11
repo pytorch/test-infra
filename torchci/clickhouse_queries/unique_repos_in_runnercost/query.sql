@@ -1,12 +1,11 @@
-select
-    distinct(rc.group_repo) as repo
-    -- count(rc.group_repo) as count
-from
+SELECT DISTINCT rc.group_repo AS repo
+-- count(rc.group_repo) as count
+FROM
     misc.runner_cost rc
-where
+WHERE
     rc.date > {startTime: DateTime64(9)}
-    and rc.date < {stopTime: DateTime64(9)}
-group by
+    AND rc.date < {stopTime: DateTime64(9)}
+GROUP BY
     repo
-order by
-    count(rc.group_repo) desc
+ORDER BY
+    count(rc.group_repo) DESC

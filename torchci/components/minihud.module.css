@@ -2,42 +2,52 @@
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: lightgray;
+  background-color: var(--workflow-box-none-bg);
 }
 
 .workflowBoxFail {
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: mistyrose;
+  background-color: var(--workflow-box-fail-bg);
 }
 
 .workflowBoxPending {
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: azure;
+  background-color: var(--workflow-box-pending-bg);
 }
 
 .workflowBoxSuccess {
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: lightgreen;
+  background-color: var(--workflow-box-success-bg);
 }
 
 .workflowBoxClassified {
   border: 1px solid gray;
   padding: 10px;
   border-radius: 5px;
-  background-color: linen;
+  background-color: var(--workflow-box-classified-bg);
 }
 
 .workflowBoxHighlight {
-  border: 15px solid #5eced4;
+  border: 15px solid var(--workflow-box-highlight-border);
   padding: 10px;
-  box-shadow: 0 0 10px rgba(81, 203, 238, 1);
+  box-shadow: 0 0 10px var(--workflow-box-highlight-shadow);
   border-radius: 25px;
+}
+
+.ttsAlert {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0) 80px,
+    rgba(125, 125, 125, 0.1) 80px,
+    rgba(125, 125, 125, 0.1) 160px
+  );
 }
 
 .workflowBoxTTSAlert {
@@ -75,9 +85,9 @@
 }
 
 .failedJobHighlighted {
-  border: 5px solid #5eced4;
+  border: 5px solid var(--failed-job-highlight-border);
   padding: 10px;
-  box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+  box-shadow: 0 0 5px var(--workflow-box-highlight-shadow);
   border-radius: 5px;
 }
 
@@ -91,7 +101,31 @@
 }
 
 .revertButton {
-  background-color: #dc3545;
-  border-color: #dc3545;
-  color: white;
+  background-color: var(--revert-button-bg);
+  border-color: var(--revert-button-border);
+  color: var(--revert-button-text);
+}
+
+/* Table wrapper class to properly scope table styles */
+.tableWrapper {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.tableWrapper :global(table) {
+  width: 100%;
+}
+
+.tableWrapper :global(a) {
+  color: var(--link-color);
+}
+
+/* Add even/odd row styling for better readability in tables */
+.tableWrapper :global(tbody tr:nth-child(odd)) {
+  background-color: var(--table-row-odd-bg);
+}
+
+.tableWrapper :global(tbody tr:nth-child(even)) {
+  background-color: var(--table-row-even-bg);
 }

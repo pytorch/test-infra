@@ -37,6 +37,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 result! Any edits you make to the code will be reflected immediately in the
 browser. You can also run our test suite with `yarn test`.
 
+You can find additional yarn commands in `package.json` under the `scripts`
+section, such as `yarn test` to run the test suite.
+
 We use Next.js as our framework. To learn more about Next.js, take a look at the
 following resources:
 
