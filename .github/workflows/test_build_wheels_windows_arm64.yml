@@ -1,4 +1,4 @@
-name: Test Build Windows Wheels without CUDA
+name: Test Build Windows Wheels ARM64
 
 on:
   pull_request:
