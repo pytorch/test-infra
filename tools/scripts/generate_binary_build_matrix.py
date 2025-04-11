@@ -25,7 +25,6 @@ PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
     "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
-    "win_arm64": ["3.12"]
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.6", "12.8"],
@@ -303,7 +302,7 @@ def get_wheel_install_command(
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
         whl_install_command = ""
-        if os == WINDOWS_ARM64:
+        if os == WINDOWS_ARM64: # winarm64 only has torch package, only nightly version for now
             whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"
         elif channel == "nightly":
             whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
@@ -442,7 +441,7 @@ def generate_wheels_matrix(
         python_versions = list(PYTHON_ARCHES)
     
     if os == WINDOWS_ARM64:
-        python_versions = list(PYTHON_ARCHES_DICT["win_arm64"])
+        python_versions = ["3.12"] # only winarm64 verson supported for now
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux

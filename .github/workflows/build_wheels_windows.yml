@@ -77,12 +77,6 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  DOWNLOADS_DIR: c:\temp\downloads\
-  DEPENDENCIES_DIR: c:\temp\dependencies\
-  SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-  SRC_DIR: src\\${{ inputs.repository }}
-
 jobs:
   build:
     strategy:
@@ -113,7 +107,6 @@ jobs:
           path: test-infra
       - uses: ./test-infra/.github/actions/setup-ssh
         name: Setup SSH
-        if: inputs.architecture == 'x64'
         with:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
@@ -167,6 +160,9 @@ jobs:
           architecture: x64
       - name: Bootstrap Build Tools
         if: inputs.architecture == 'arm64'
+        env:
+          DOWNLOADS_DIR: c:\temp\downloads\
+          DEPENDENCIES_DIR: c:\temp\dependencies\
         run: |
           "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
       - name: Install torch dependency
@@ -227,6 +223,10 @@ jobs:
         if: inputs.architecture == 'arm64'
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
+          DOWNLOADS_DIR: c:\temp\downloads\
+          DEPENDENCIES_DIR: c:\temp\dependencies\
+          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+          SRC_DIR: src\\${{ inputs.repository }} 
         shell: cmd
         run: |
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
@@ -276,10 +276,12 @@ jobs:
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+          SRC_DIR: src\\${{ inputs.repository }}
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate
           whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
+          echo "ARTIFACT_NAME=$whl" >> $GITHUB_ENV
           pip install $whl
 
           if [[ ! -f ${SMOKE_TEST_SCRIPT} ]]; then
@@ -294,7 +296,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          # name: ${{ env.ARTIFACT_NAME }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
       - uses: ./test-infra/.github/actions/teardown-windows
         if: inputs.architecture == 'x64'
@@ -311,7 +313,6 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
-      architecture: ${{ inputs.architecture }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
