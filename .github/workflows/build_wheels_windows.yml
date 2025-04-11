@@ -284,7 +284,6 @@ jobs:
           cd $SRC_DIR
           source .venv/Scripts/activate
           whl=$(find dist -name "${{env.PACKAGE_NAME}}-*.whl" | head -n 1)
-          echo "ARTIFACT_NAME=$whl" >> $GITHUB_ENV
           pip install $whl
 
           if [[ ! -f ${SMOKE_TEST_SCRIPT} ]]; then
@@ -295,11 +294,21 @@ jobs:
             python "$SMOKE_TEST_SCRIPT"
           fi
       # NB: Only upload to GitHub after passing smoke tests
+      - name: Get Artifact name
+        if: inputs.architecture == 'arm64'
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          REF: ${{ inputs.ref }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          CU_VERSION: ${{ env.CU_VERSION }}
+          ARCH: ${{ inputs.architecture }}
+        run: |
+          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Upload wheel to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: ${{inputs.package-name}}
           path: ${{ inputs.repository }}/dist/
       - uses: ./test-infra/.github/actions/teardown-windows
         if: inputs.architecture == 'x64'
@@ -316,6 +325,7 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
+      architecture: ${{ inputs.architecture }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
