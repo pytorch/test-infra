@@ -163,6 +163,7 @@ jobs:
         env:
           DOWNLOADS_DIR: c:\temp\downloads\
           DEPENDENCIES_DIR: c:\temp\dependencies\
+          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
         run: |
           "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
       - name: Install torch dependency
@@ -272,7 +273,7 @@ jobs:
             ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Smoke Test ARM64
-        if: inputs.architecture == 'arm64'
+        if: inputs.architecture == 'x64'
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
