@@ -308,7 +308,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: ${{inputs.package-name}}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
       - uses: ./test-infra/.github/actions/teardown-windows
         if: inputs.architecture == 'x64'
