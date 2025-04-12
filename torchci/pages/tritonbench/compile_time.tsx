@@ -127,8 +127,8 @@ export default function Page() {
         <TimeSeriesGraphReport
           queryParams={queryParams}
           granularity={granularity}
-          lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
-          rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
+          lRepoBranchAndCommit={{ repo: lRepository, branch: lBranch, commit: lCommit }}
+          rRepoBranchAndCommit={{ repo: rRepository, branch: rBranch, commit: rCommit }}
         />
       </div>
     </>

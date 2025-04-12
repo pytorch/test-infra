@@ -68,7 +68,6 @@ function getRepositories(data: any) {
       repositories[r][b]= entries;
     })
   });
-  console.log(repositories);
   return repositories;
 }
 

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, Grid2, Skeleton } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
+import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/RepositoryPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import {
   Granularity,
@@ -10,7 +10,7 @@ import {
 import dayjs from "dayjs";
 import { computeCompileTime } from "lib/benchmark/tritonbench/compileTimeUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { BranchAndCommit } from "lib/types";
+import { RepoBranchAndCommit } from "lib/types";
 import useSWR from "swr";
 
 /** Mui Styles */
@@ -185,13 +185,13 @@ function SingleGraphPanel({
 export function TimeSeriesGraphReport({
   queryParams,
   granularity,
-  lBranchAndCommit,
-  rBranchAndCommit,
+  lRepoBranchAndCommit,
+  rRepoBranchAndCommit,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
-  lBranchAndCommit: BranchAndCommit;
-  rBranchAndCommit: BranchAndCommit;
+  lRepoBranchAndCommit: RepoBranchAndCommit;
+  rRepoBranchAndCommit: RepoBranchAndCommit;
 }) {
   return (
     <>
@@ -199,12 +199,12 @@ export function TimeSeriesGraphReport({
         queryName="tritonbench_benchmark"
         queryParams={queryParams}
         granularity={granularity}
-        repo={"pytorch-labs/tritonbench"}
+        repo={lRepoBranchAndCommit.repo}
         suite={"tritonbench-oss"}
         metric_name={"compile_time-avg"}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
+        branch={lRepoBranchAndCommit.branch}
+        lCommit={lRepoBranchAndCommit.commit}
+        rCommit={rRepoBranchAndCommit.commit}
       />
     </>
   );
