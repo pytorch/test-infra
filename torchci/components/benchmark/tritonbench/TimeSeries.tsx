@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, Grid2, Skeleton } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/RepositoryPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/RepositoryPicker";
 import {
   Granularity,
   seriesWithInterpolatedTimes,

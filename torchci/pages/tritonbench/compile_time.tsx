@@ -1,7 +1,10 @@
 import { Divider, Stack, Typography } from "@mui/material";
+import {
+  DEFAULT_TRITON_REPOSITORY,
+  LAST_N_DAYS,
+  MAIN_BRANCH,
+} from "components/benchmark/common";
 import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
-import { DEFAULT_TRITON_REPOSITORY, LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
-import { DEFAULT_HIGHLIGHT_KEY } from "components/benchmark/compilers/common";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
@@ -21,10 +24,14 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [lRepository, setLRepository] = useState<string>(DEFAULT_TRITON_REPOSITORY);
+  const [lRepository, setLRepository] = useState<string>(
+    DEFAULT_TRITON_REPOSITORY
+  );
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
-  const [rRepository, setRRepository] = useState<string>(DEFAULT_TRITON_REPOSITORY);
+  const [rRepository, setRRepository] = useState<string>(
+    DEFAULT_TRITON_REPOSITORY
+  );
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
 
@@ -127,8 +134,16 @@ export default function Page() {
         <TimeSeriesGraphReport
           queryParams={queryParams}
           granularity={granularity}
-          lRepoBranchAndCommit={{ repo: lRepository, branch: lBranch, commit: lCommit }}
-          rRepoBranchAndCommit={{ repo: rRepository, branch: rBranch, commit: rCommit }}
+          lRepoBranchAndCommit={{
+            repo: lRepository,
+            branch: lBranch,
+            commit: lCommit,
+          }}
+          rRepoBranchAndCommit={{
+            repo: rRepository,
+            branch: rBranch,
+            commit: rCommit,
+          }}
         />
       </div>
     </>
