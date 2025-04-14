@@ -5,6 +5,7 @@ import {
   shutdownRedisPool,
   redisClearCacheKeyPattern,
   getExperimentValue,
+  getJoinedStressTestExperiment,
 } from './cache';
 import { mocked } from 'ts-jest/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -141,6 +142,13 @@ describe('locallyCached', () => {
 describe('experiment functions', () => {
   beforeEach(async () => {
     await shutdownRedisPool();
+    clearLocalCache();
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await shutdownRedisPool();
   });
 
   describe('getExperimentValue', () => {
@@ -193,6 +201,105 @@ describe('experiment functions', () => {
 
       expect(result).toBe(defaultValue);
       expect(mockedRedisClient.get).toBeCalledTimes(1);
+    });
+  });
+
+  describe('getJoinedStressTestExperiment', () => {
+    it('returns false when RUNNER_NAME_SUFFIX is not set', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce(null);
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+    });
+
+    it('returns false when runner name does not match suffix', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-without-match');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+    });
+
+    it('returns false when probability is less than random value', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6);
+
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockResolvedValueOnce('50');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(2, 'gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns true when probability is greater than random value', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.4);
+
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockResolvedValueOnce('50');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(true);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(2, 'gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment value is zero', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockResolvedValueOnce('0');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(2, 'gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns true when experiment value is 100', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.99);
+
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockResolvedValueOnce('100');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(true);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(2, 'gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment value is not a valid number', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockResolvedValueOnce('not-a-number');
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(2, 'gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment query throws an error', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+      mockedRedisClient.get.mockRejectedValueOnce(new Error('Redis error'));
+
+      const result = await getJoinedStressTestExperiment('TEST_EXPERIMENT', 'runner-name-suffix');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(2);
+      expect(mockedRedisClient.get).toHaveBeenNthCalledWith(1, 'gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
     });
   });
 });

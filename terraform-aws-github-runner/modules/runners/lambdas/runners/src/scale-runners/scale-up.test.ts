@@ -14,7 +14,7 @@ import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
-import { getExperimentValue } from './cache';
+import { getJoinedStressTestExperiment } from './cache';
 import { sleep } from './utils';
 
 jest.mock('./cache');
@@ -52,9 +52,7 @@ describe('scaleUp', () => {
     jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
       return;
     });
-    mocked(getExperimentValue).mockImplementation(async (experimentKey: string, defaultValue: number) => {
-      return defaultValue;
-    });
+    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(false);
   });
   it('does not accept sources that are not aws:sqs', async () => {
     const payload = {
@@ -1122,13 +1120,14 @@ describe('scaleUp', () => {
     mocked(createRegistrationTokenOrg).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    mocked(getExperimentValue)
+    mocked(getJoinedStressTestExperiment)
       .mockClear()
-      .mockImplementation(async (experimentKey: string, defaultValue: number) => {
+      /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+      .mockImplementation(async (experimentKey: string, runnerName: string) => {
         if (experimentKey === 'stresstest_ghapislow') {
-          return 1;
+          return true;
         }
-        return defaultValue;
+        return false;
       });
 
     await scaleUp('aws:sqs', payload, metrics);
@@ -1141,6 +1140,8 @@ describe('scaleUp', () => {
     );
 
     expect(sleep).toHaveBeenCalledWith(60 * 1000);
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ignorereq', 'linux.2xlarge');
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ghapislow', 'linux.2xlarge');
   });
 
   it('ignore requests when stresstest_ignorereq is triggered', async () => {
@@ -1174,13 +1175,11 @@ describe('scaleUp', () => {
     mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     // Make Math.random return a small value to trigger the stresstest_ignorereq condition
     jest.spyOn(global.Math, 'random').mockReturnValue(0.01);
-    mocked(getExperimentValue).mockImplementation(async (key) => {
-      if (key === 'stresstest_ignorereq') return 50;
-      return 0;
-    });
+    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(true);
 
     await scaleUp('aws:sqs', payload, metrics);
 
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ignorereq', 'linux.2xlarge');
     expect(tryReuseRunner).not.toBeCalled();
     expect(createRunner).not.toBeCalled();
     expect(sleep).not.toBeCalled();

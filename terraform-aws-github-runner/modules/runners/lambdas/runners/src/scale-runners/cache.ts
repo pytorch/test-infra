@@ -315,6 +315,7 @@ export async function getExperimentValue(experimentKey: string, defaultValue: nu
       console.warn(`Experiment ${experimentKey} found but value is not a valid number: ${experimentValue}`);
     }
   } catch (e) {
+    /* istanbul ignore next */
     console.error(`Error retrieving experiment ${experimentKey}: ${e}`);
   }
   return defaultValue;
