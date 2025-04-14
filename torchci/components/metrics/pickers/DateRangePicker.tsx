@@ -44,6 +44,8 @@ import dayjs from "dayjs";
         case 1:
         case 3:
         case 7:
+          setGranularity("hour");
+          break;
         case 14:
           setGranularity("day");
           break;
