@@ -285,7 +285,7 @@ export async function getExperimentValueStr(experimentKey: string, defaultValue:
 
     const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
 
-    console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
+    console.debug(`Checking redis entry for experiment ${experimentKey} (${queryKey})`);
     try {
       const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
         return await client.get(queryKey);
@@ -297,7 +297,7 @@ export async function getExperimentValueStr(experimentKey: string, defaultValue:
         console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
       }
     } catch (e) {
-      console.error(`Error retrieving experiment ${queryKey}: ${e}`);
+      console.error(`Error retrieving experiment ${queryKey}, using default value ${defaultValue}: ${e}`);
     }
 
     return defaultValue;
@@ -312,11 +312,14 @@ export async function getExperimentValue(experimentKey: string, defaultValue: nu
       console.debug(`Found experiment ${experimentKey} with value ${numValue}`);
       return numValue;
     } else {
-      console.warn(`Experiment ${experimentKey} found but value is not a valid number: ${experimentValue}`);
+      console.warn(
+        `Experiment ${experimentKey} found but value is not a valid number:` +
+          ` ${experimentValue} - returning default value ${defaultValue}`,
+      );
     }
   } catch (e) {
     /* istanbul ignore next */
-    console.error(`Error retrieving experiment ${experimentKey}: ${e}`);
+    console.error(`Error retrieving experiment ${experimentKey} - returning default value ${defaultValue}: ${e}`);
   }
   return defaultValue;
 }
@@ -329,7 +332,9 @@ export async function getJoinedStressTestExperiment(experimentKey: string, runne
   }
 
   if (!runnerName.endsWith(runnerNameSuffix)) {
-    console.debug(`Runner name ${runnerName} does not match suffix ${runnerNameSuffix}`);
+    console.debug(
+      `Runner name ${runnerName} does not match suffix ${runnerNameSuffix} when checking experiment ${experimentKey}`,
+    );
     return false;
   }
 
