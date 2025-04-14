@@ -12,7 +12,7 @@ import {
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel } from './gh-issues';
-import { getExperimentValue } from './cache';
+import { getJoinedStressTestExperiment } from './cache';
 
 export interface ActionRequestMessage {
   id: number;
@@ -85,11 +85,9 @@ export async function scaleUp(
       continue;
     }
 
-    if (runnerType.runnerTypeName.includes('linux.2xlarge')) {
-      if ((await getExperimentValue('stresstest_ignorereq', 0)) > Math.random() * 100) {
-        console.warn(`Stresstest ignore request for scale ${runnerType.runnerTypeName}`);
-        continue;
-      }
+    if (await getJoinedStressTestExperiment('stresstest_ignorereq', runnerType.runnerTypeName)) {
+      console.warn(`Stresstest stresstest_ignorereq: ignore request for scale ${runnerType.runnerTypeName}`);
+      continue;
     }
 
     const runnersRequested = 1;
@@ -173,14 +171,12 @@ async function createRunnerConfigArgument(
   awsRegion: string,
   experimentalRunner: boolean,
 ): Promise<string> {
-  if (runnerType.runnerTypeName.includes('linux.2xlarge')) {
-    if ((await getExperimentValue('stresstest_ghapislow', 0)) !== 0) {
-      console.warn(
-        `Stress test slow gh api response, sleeping before reaching GH ` +
-          `API for token creation for ${runnerType.runnerTypeName}`,
-      );
-      await sleep(60 * 1000);
-    }
+  if (await getJoinedStressTestExperiment('stresstest_ghapislow', runnerType.runnerTypeName)) {
+    console.warn(
+      `Stress test slow gh api response, sleeping before reaching GH ` +
+        `API for token creation for ${runnerType.runnerTypeName}`,
+    );
+    await sleep(60 * 1000);
   }
 
   const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';

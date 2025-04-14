@@ -5,7 +5,7 @@ import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { getExperimentValue, redisCached, redisLocked } from './cache';
+import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache';
 import moment from 'moment';
 import { RetryableScalingError } from './scale-up';
 
@@ -473,11 +473,9 @@ export async function tryReuseRunner(
     repoName: runnerParameters.repoName,
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
-  if (runnerParameters.runnerType.runnerTypeName.includes('linux.4xlarge')) {
-    if ((await getExperimentValue('stresstest_awsfail', 0)) > Math.random() * 100) {
-      console.warn(`Stress test aws fail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`);
-      throw new RetryableScalingError('Stress test stockout');
-    }
+  if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+    console.warn(`Joining stress test stresstest_awsfail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`);
+    throw new RetryableScalingError('Stress test stockout');
   }
 
   const runners = shuffleArrayInPlace(await listRunners(metrics, filters));
@@ -674,19 +672,13 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
-    if (runnerParameters.runnerType.runnerTypeName.includes('linux.4xlarge')) {
-      if ((await getExperimentValue('stresstest_stockout', 0)) > 0) {
-        console.warn(
-          `Stress test stockout, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`,
-        );
-        throw new RetryableScalingError('Stress test stockout');
-      }
-      if ((await getExperimentValue('stresstest_awsfail', 0)) > Math.random() * 100) {
-        console.warn(
-          `Stress test aws fail, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`,
-        );
-        throw new RetryableScalingError('Stress test aws fail');
-      }
+    if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(`Joining stress test stresstest_awsfail, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`);
+      throw new RetryableScalingError('Stress test stresstest_awsfail');
+    }
+    if (await getJoinedStressTestExperiment('stresstest_stockout', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(`Joining stress test stresstest_stockout, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`);
+      throw new RetryableScalingError('Stress test stresstest_stockout');
     }
 
     const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';

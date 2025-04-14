@@ -278,34 +278,74 @@ export async function redisLocked<T>(
   throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 
-export async function getExperimentValue(experimentKey: string, defaultValue: number): Promise<number> {
-  await startupRedisPool();
-  if (!redisPool) throw Error('Redis should be initialized!');
+export async function getExperimentValueStr(experimentKey: string, defaultValue: string): Promise<string> {
+  return await locallyCached(
+    'EXPERIMENT',
+    experimentKey,
+    60,
+    async (): Promise<string> => {
+      await startupRedisPool();
+      if (!redisPool) throw Error('Redis should be initialized!');
 
-  const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
+      const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
 
-  console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
-  try {
-    const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-      return await client.get(queryKey);
-    });
+      console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
+      try {
+        const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+          return await client.get(queryKey);
+        });
 
-    if (experimentValue !== undefined && experimentValue !== null) {
-      const numValue = Number(experimentValue);
-      if (!isNaN(numValue)) {
-        console.debug(`Found experiment ${queryKey} with value ${numValue}`);
-        return numValue;
-      } else {
-        console.warn(`Experiment ${queryKey} found but value is not a valid number: ${experimentValue}`);
+        if (experimentValue !== undefined && experimentValue !== null) {
+          return experimentValue;
+        } else {
+          console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
+        }
+      } catch (e) {
+        console.error(`Error retrieving experiment ${queryKey}: ${e}`);
       }
+
+      return defaultValue;
+    }
+  );
+}
+
+export async function getExperimentValue(experimentKey: string, defaultValue: number): Promise<number> {
+  try {
+    const experimentValue = await getExperimentValueStr(experimentKey, defaultValue.toString());
+    const numValue = Number(experimentValue);
+    if (!isNaN(numValue)) {
+      console.debug(`Found experiment ${experimentKey} with value ${numValue}`);
+      return numValue;
     } else {
-      console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
+      console.warn(`Experiment ${experimentKey} found but value is not a valid number: ${experimentValue}`);
     }
   } catch (e) {
-    console.error(`Error retrieving experiment ${queryKey}: ${e}`);
+    console.error(`Error retrieving experiment ${experimentKey}: ${e}`);
+  }
+  return defaultValue;
+}
+
+export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
+  const runnerNameSuffix = await getExperimentValueStr('RUNNER_NAME_SUFFIX', '');
+  if (runnerNameSuffix === undefined || runnerNameSuffix === null || runnerNameSuffix === '') {
+    console.debug(`Experiment ${experimentKey} check ignored, as RUNNER_NAME_SUFFIX is not set`);
+    return false;
   }
 
-  return defaultValue;
+  if (!runnerName.endsWith(runnerNameSuffix)) {
+    console.debug(`Runner name ${runnerName} does not match suffix ${runnerNameSuffix}`);
+    return false;
+  }
+
+  const experimentValue = await getExperimentValue(experimentKey, 0);
+
+  if ((Math.random() * 100) < experimentValue) {
+    console.debug(`Joining experiment ${experimentKey} for runner ${runnerName} with probability ${experimentValue}`);
+    return true;
+  }
+
+  console.debug(`Skipping experiment ${experimentKey} for runner ${runnerName} with probability ${experimentValue}`);
+  return false;
 }
 
 export async function redisCached<T>(
