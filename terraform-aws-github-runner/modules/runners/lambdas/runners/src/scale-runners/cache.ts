@@ -279,34 +279,29 @@ export async function redisLocked<T>(
 }
 
 export async function getExperimentValueStr(experimentKey: string, defaultValue: string): Promise<string> {
-  return await locallyCached(
-    'EXPERIMENT',
-    experimentKey,
-    60,
-    async (): Promise<string> => {
-      await startupRedisPool();
-      if (!redisPool) throw Error('Redis should be initialized!');
+  return locallyCached('EXPERIMENT', experimentKey, 60, async (): Promise<string> => {
+    await startupRedisPool();
+    if (!redisPool) throw Error('Redis should be initialized!');
 
-      const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
+    const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
 
-      console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
-      try {
-        const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-          return await client.get(queryKey);
-        });
+    console.debug(`Checking for experiment ${experimentKey} (${queryKey})`);
+    try {
+      const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+        return await client.get(queryKey);
+      });
 
-        if (experimentValue !== undefined && experimentValue !== null) {
-          return experimentValue;
-        } else {
-          console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
-        }
-      } catch (e) {
-        console.error(`Error retrieving experiment ${queryKey}: ${e}`);
+      if (experimentValue !== undefined && experimentValue !== null) {
+        return experimentValue;
+      } else {
+        console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
       }
-
-      return defaultValue;
+    } catch (e) {
+      console.error(`Error retrieving experiment ${queryKey}: ${e}`);
     }
-  );
+
+    return defaultValue;
+  });
 }
 
 export async function getExperimentValue(experimentKey: string, defaultValue: number): Promise<number> {
@@ -339,7 +334,7 @@ export async function getJoinedStressTestExperiment(experimentKey: string, runne
 
   const experimentValue = await getExperimentValue(experimentKey, 0);
 
-  if ((Math.random() * 100) < experimentValue) {
+  if (Math.random() * 100 < experimentValue) {
     console.debug(`Joining experiment ${experimentKey} for runner ${runnerName} with probability ${experimentValue}`);
     return true;
   }

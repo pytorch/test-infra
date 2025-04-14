@@ -474,7 +474,9 @@ export async function tryReuseRunner(
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
   if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
-    console.warn(`Joining stress test stresstest_awsfail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`);
+    console.warn(
+      `Joining stress test stresstest_awsfail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`,
+    );
     throw new RetryableScalingError('Stress test stockout');
   }
 
@@ -673,11 +675,17 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
     if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
-      console.warn(`Joining stress test stresstest_awsfail, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`);
+      console.warn(
+        `Joining stress test stresstest_awsfail, failing instance creation` +
+          ` for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
       throw new RetryableScalingError('Stress test stresstest_awsfail');
     }
     if (await getJoinedStressTestExperiment('stresstest_stockout', runnerParameters.runnerType.runnerTypeName)) {
-      console.warn(`Joining stress test stresstest_stockout, failing instance creation for ${runnerParameters.runnerType.runnerTypeName}`);
+      console.warn(
+        `Joining stress test stresstest_stockout, failing instance ` +
+          `creation for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
       throw new RetryableScalingError('Stress test stresstest_stockout');
     }
 
