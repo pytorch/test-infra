@@ -12,6 +12,7 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import LoadingPage from "components/LoadingPage";
 import PageSelector from "components/PageSelector";
+import SettingsPanel from "components/SettingsPanel";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
 import { fetcher } from "lib/GeneralUtils";
@@ -306,39 +307,61 @@ function GroupFilterableHudTable({
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const headerNames = groupNames;
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+
   return (
     <>
       <div style={{ position: "relative", clear: "both" }}>
-        <div className={styles.controlsContainer}>
+        <div className={styles.hudControlsRow}>
           <JobFilterInput
             currentFilter={jobFilter}
             handleSubmit={handleSubmit}
           />
-          <CheckBoxSelector
-            value={useGrouping}
-            setValue={(value) => setUseGrouping(value)}
-            checkBoxName="groupView"
-            labelText={"Use grouped view"}
+          <SettingsPanel
+            settingGroups={{
+              // You need to specify both checkBoxName and key for each setting.
+              // `checkbox name` is used by CheckBoxSelector while `key` is
+              // used to uniquely identify the component in the settings panel.
+              // As far as I can CheckBoxSelector cannot read or write `key` but
+              // React requires us to set key since it's a list element, so we
+              // end up with some unfortunate duplication.
+              "View Options": [
+                <CheckBoxSelector
+                  value={useGrouping}
+                  setValue={(value) => setUseGrouping(value)}
+                  checkBoxName="groupView"
+                  key="groupView"
+                  labelText={"Use grouped view"}
+                />,
+                <MonsterFailuresCheckbox key="monsterFailures" />,
+              ],
+              "Filter Options": [
+                <CheckBoxSelector
+                  value={hideUnstable}
+                  setValue={(value) => setHideUnstable(value)}
+                  checkBoxName="hideUnstable"
+                  key="hideUnstable"
+                  labelText={"Hide unstable jobs"}
+                />,
+                <CheckBoxSelector
+                  value={hideGreenColumns}
+                  setValue={(value) => setHideGreenColumns(value)}
+                  checkBoxName="hideGreenColumns"
+                  key="hideGreenColumns"
+                  labelText={"Hide green columns"}
+                />,
+                <CheckBoxSelector
+                  value={mergeEphemeralLF}
+                  setValue={setMergeEphemeralLF}
+                  checkBoxName="mergeEphemeralLF"
+                  key="mergeEphemeralLF"
+                  labelText={"Condense LF, ephemeral jobs"}
+                />,
+              ],
+            }}
+            isOpen={settingsPanelOpen}
+            onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
           />
-          <CheckBoxSelector
-            value={hideUnstable}
-            setValue={(value) => setHideUnstable(value)}
-            checkBoxName="hideUnstable"
-            labelText={"Hide unstable jobs"}
-          />
-          <CheckBoxSelector
-            value={hideGreenColumns}
-            setValue={(value) => setHideGreenColumns(value)}
-            checkBoxName="hideGreenColumns"
-            labelText={"Hide green columns"}
-          />
-          <CheckBoxSelector
-            value={mergeEphemeralLF}
-            setValue={setMergeEphemeralLF}
-            checkBoxName="mergeEphemeralLF"
-            labelText={"Condense LF, ephemeral jobs"}
-          />
-          <MonsterFailuresCheckbox />
         </div>
         <table className={styles.hudTable} style={{ overflow: "auto" }}>
           <GroupHudTableColumns names={headerNames} />

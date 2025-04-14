@@ -204,6 +204,20 @@ export interface CompilerPerformanceData {
   job_id?: number;
 }
 
+export interface TritonBenchPerformanceData {
+  metric_name: string;
+  metric_value: number;
+  granularity_bucket: string;
+  name: string;
+  workflow_id: number;
+  head_branch: string;
+  operator: string;
+  suite: string;
+  mode: string;
+  dtype: string;
+  backend: string;
+}
+
 export interface BenchmarkData {
   extra_info: { [key: string]: string };
   granularity_bucket: string;

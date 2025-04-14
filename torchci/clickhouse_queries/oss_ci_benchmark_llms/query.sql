@@ -57,7 +57,16 @@ WITH benchmarks AS (
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['is_dynamic']
             )
-        ) AS extra
+        ) AS extra, --  extra key for a record, used in group model logic.
+         map(
+            'failure_type',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
+                '',
+                -- Default to false
+                tupleElement(o.benchmark, 'extra_info')['failure_type']
+            )
+        ) AS addtional_info --  additional_info for a record
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
@@ -109,7 +118,8 @@ SELECT DISTINCT
     device,
     arch,
     granularity_bucket,
-    extra
+    extra,
+    addtional_info
 FROM
     benchmarks
 WHERE

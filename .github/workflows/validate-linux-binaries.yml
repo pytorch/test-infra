@@ -191,6 +191,7 @@ jobs:
 
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
+        export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}"
 
         DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu${CUDA_VERSION_NODOT}"
         if [[ ${{ inputs.channel }} == 'test' ]]; then
@@ -199,5 +200,5 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
         fi
 
-        python3 -m pip install torch --index-url ${DWN_PYTORCH_ORG}
+        python3 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
         python3 .ci/pytorch/smoke_test/smoke_test.py --package torchonly

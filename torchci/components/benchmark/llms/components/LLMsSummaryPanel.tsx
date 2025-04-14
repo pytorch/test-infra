@@ -1,4 +1,4 @@
-import { Grid2 } from "@mui/material";
+import { Grid2, styled, Tooltip } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -12,6 +12,23 @@ import {
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
+import { MdError } from "react-icons/md";
+import { VscError } from "react-icons/vsc";
+
+const FlexDiv = styled("div")({
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "flex-start",
+  alignItems: "center",
+});
+
+const FlexDivCenter = styled("div")({
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  margin: "3px",
+});
 
 const getDeviceArch = (
   device: string | undefined,
@@ -62,6 +79,7 @@ export default function LLMsSummaryPanel({
     lPerfData,
     rPerfData
   );
+
   const columns: any[] = [
     {
       field: "metadata",
@@ -121,9 +139,18 @@ export default function LLMsSummaryPanel({
             ? `${model} (${metadata.origins.join(",")})`
             : model;
         return (
-          <a href={url}>
-            <b>{displayName}</b>
-          </a>
+          <FlexDiv>
+            {params.row.FAILURE_REPORT && (
+              <RenderWarningOnNameForFailure
+                lCommit={lCommit}
+                rCommit={rCommit}
+                row={params.row}
+              ></RenderWarningOnNameForFailure>
+            )}
+            <a href={url}>
+              <b>{displayName}</b>
+            </a>
+          </FlexDiv>
         );
       },
     },
@@ -233,6 +260,7 @@ export default function LLMsSummaryPanel({
           return params.value;
         },
       },
+      // add all other metrics as columns
       ...metricNames
         .filter((metric: string) => {
           // TODO (huydhn): Just a temp fix, remove this after a few weeks
@@ -241,6 +269,9 @@ export default function LLMsSummaryPanel({
             benchmarkName !== "TorchCache Benchmark" ||
             (metric !== "speedup" && metric !== "Speedup")
           );
+        })
+        .filter((metric: string) => {
+          return metric !== "FAILURE_REPORT";
         })
         .map((metric: string) => {
           return {
@@ -252,6 +283,12 @@ export default function LLMsSummaryPanel({
             flex: 1,
             cellClassName: (params: GridCellParams<any, any>) => {
               const v = params.value;
+
+              // If the row data has failure, we render it in grey color
+              if (params.row.FAILURE_REPORT) {
+                return styles.failure;
+              }
+
               if (v === undefined) {
                 return "";
               }
@@ -307,6 +344,9 @@ export default function LLMsSummaryPanel({
             renderCell: (params: GridRenderCellParams<any>) => {
               const v = params.value;
               if (v === undefined) {
+                if (params.row.FAILURE_REPORT) {
+                  return "N/A";
+                }
                 return "";
               }
 
@@ -328,6 +368,21 @@ export default function LLMsSummaryPanel({
                   : "";
               const showTarget =
                 target && target != 0 ? `[target = ${target}]` : "";
+
+              // A Failure is detected for a model and backend
+              if (params.row.FAILURE_REPORT) {
+                return handleModelBackendFailure(
+                  params.row,
+                  lCommit,
+                  rCommit,
+                  unit,
+                  showTarget,
+                  l,
+                  r,
+                  lPercent,
+                  rPercent
+                );
+              }
 
               if (lCommit === rCommit || !v.highlight) {
                 return `${r}${unit} ${rPercent} ${showTarget}`;
@@ -359,3 +414,115 @@ export default function LLMsSummaryPanel({
     </Grid2>
   );
 }
+
+// handle failure report for a row.
+const handleModelBackendFailure = (
+  row: any,
+  lCommit: string,
+  rCommit: string,
+  unit: string,
+  showTarget: string,
+  lactual: number,
+  ractual: number,
+  lPercent: string,
+  rPercent: string
+) => {
+  const isLFailure =
+    row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure =
+    row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
+
+  // render the row's value in other metric columns
+  if (isLFailure && isRFailure) {
+    if (lCommit === rCommit) {
+      return (
+        <FailureElementWithTooltip message="device job failed on commit"></FailureElementWithTooltip>
+      );
+    }
+    return (
+      <div>
+        <FailureElementWithTooltip message="device job failed on both commit" />
+        ;
+      </div>
+    );
+  } else if (isLFailure) {
+    return (
+      <FlexDiv>
+        <FailureElementWithTooltip message="device job failed on base commit"></FailureElementWithTooltip>
+        <span> → </span>
+        <span>
+          {ractual}
+          {unit}
+          {rPercent} {showTarget}
+        </span>
+      </FlexDiv>
+    );
+  } else if (isRFailure) {
+    return (
+      <FlexDiv>
+        <span>
+          {lactual}
+          {unit}
+          {lPercent}
+        </span>
+        <span> → </span>
+        <FailureElementWithTooltip message="device job failed on new commit"></FailureElementWithTooltip>
+      </FlexDiv>
+    );
+  }
+};
+
+const RenderWarningOnNameForFailure = ({
+  lCommit,
+  rCommit,
+  row,
+}: {
+  lCommit: string;
+  rCommit: string;
+  row: any;
+}) => {
+  const isLFailure =
+    row.FAILURE_REPORT?.l.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  const isRFailure =
+    row.FAILURE_REPORT?.r.actual == Number.MAX_SAFE_INTEGER ? true : false;
+  // Indicate the failure details in Failure Report column
+  if (lCommit === rCommit) {
+    return (
+      <WarningElementWithTooltip message="Detected Failure on commit"></WarningElementWithTooltip>
+    );
+  }
+  if (isLFailure && isRFailure) {
+    return (
+      <WarningElementWithTooltip message="Detected Failure on both base commit and new commit"></WarningElementWithTooltip>
+    );
+  }
+  if (isLFailure) {
+    return (
+      <WarningElementWithTooltip message="Detected Failure on base commit"></WarningElementWithTooltip>
+    );
+  }
+  if (isRFailure) {
+    return (
+      <WarningElementWithTooltip message="Detected Failure on new commit"></WarningElementWithTooltip>
+    );
+  }
+  return <></>;
+};
+
+const FailureElementWithTooltip = ({ message = "" }) => (
+  <Tooltip title={message}>
+    <div style={{ display: "flex", alignItems: "center", color: "red" }}>
+      <VscError />
+    </div>
+  </Tooltip>
+);
+
+const WarningElementWithTooltip = ({ message = "" }) => (
+  <FlexDivCenter>
+    <Tooltip title={message}>
+      <div style={{ display: "flex", alignItems: "center", color: "red" }}>
+        <MdError size={20} />
+      </div>
+    </Tooltip>
+  </FlexDivCenter>
+);
