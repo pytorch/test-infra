@@ -230,6 +230,13 @@ export interface BenchmarkData {
   workflow_id: number;
 }
 
+export interface RepoBranchAndCommit {
+  repo: string;
+  branch: string;
+  commit: string;
+  date?: string;
+}
+
 export interface BranchAndCommit {
   branch: string;
   commit: string;
