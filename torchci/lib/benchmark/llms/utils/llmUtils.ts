@@ -175,30 +175,6 @@ const getDataGroupedByModel = (
 
   const dataGroupedByModel: { [k: string]: any } = {};
 
-  const testData = {
-    arch: "",
-    actual: 0,
-    target: 0,
-    granularity_bucket: "2024-03-01",
-    model: "edsr",
-    backend: "qnn_q8",
-    mode: "inference",
-    device: "samsung_galaxy_s22",
-    extra: {
-      is_dynamic: "false",
-    },
-    additional_info: {
-      failure_type: "GIT_JOB",
-    },
-    origins: [],
-    workflow_id: 0,
-    job_id: 0,
-    metric: "FAILURE_REPORT",
-    dtype: "",
-  };
-
-  rData.push(testData);
-
   // The right (base commit)
   rData.forEach((record: LLMsBenchmarkData) => {
     const model = record.model;
