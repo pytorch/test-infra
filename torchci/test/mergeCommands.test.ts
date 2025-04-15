@@ -1409,7 +1409,9 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
-        expect(JSON.stringify(body)).toContain("This PR needs to be approved");
+        expect(JSON.stringify(body)).toContain(
+          "This PR has pending changes requested"
+        );
         return true;
       })
       .reply(200);
@@ -1418,7 +1420,7 @@ some other text lol
     handleScope(scope);
   });
 
-  test("An approval is prioritized over a PR rejection in pytorch org", async () => {
+  test("An approval is with changes requested doesn't trigger the merge workflow in pytorch org", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1439,18 +1441,18 @@ some other text lol
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
-          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
           return true;
         }
       )
       .reply(200, {})
-      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+          "This PR has pending changes requested"
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200);
     await probot.receive(event);
 
     handleScope(scope);
