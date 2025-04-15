@@ -1420,7 +1420,7 @@ some other text lol
     handleScope(scope);
   });
 
-  test("An approval is with changes requested doesn't trigger the merge workflow in pytorch org", async () => {
+  test("An approval with changes requested doesn't trigger the merge workflow in pytorch org", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1453,6 +1453,51 @@ some other text lol
         return true;
       })
       .reply(200);
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("A PR with an approval and a dismissed changes requested does trigger the merge workflow in pytorch org", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+
+    const pull_requests = requireDeepCopy(
+      "./fixtures/pull_request_reviews.json"
+    );
+    // First review requests changes
+    pull_requests[0].state = "CHANGES_REQUESTED";
+    pull_requests[0].submitted_at = "2024-01-01T00:00:00Z";
+    // Later review approves
+    pull_requests[1].state = "APPROVED";
+    pull_requests[1].submitted_at = "2024-01-02T00:00:00Z";
+    // First review is dismissed
+    pull_requests[0].state = "DISMISSED";
+    pull_requests[0].submitted_at = "2024-01-03T00:00:00Z";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, pull_requests)
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+        );
+        return true;
+      })
+      .reply(200, {});
     await probot.receive(event);
 
     handleScope(scope);
