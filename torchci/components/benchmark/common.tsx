@@ -1,4 +1,5 @@
 export const SHA_DISPLAY_LENGTH = 10;
+export const DEFAULT_TRITON_REPOSITORY = "triton-lang/triton";
 export const MAIN_BRANCH = "main";
 export const LOG_PREFIX = "https://ossci-raw-job-status.s3.amazonaws.com/log";
 export const DEFAULT_REPO_NAME = "pytorch/pytorch";
