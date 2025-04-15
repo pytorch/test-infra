@@ -173,7 +173,7 @@ async function createRunnerConfigArgument(
 ): Promise<string> {
   if (await getJoinedStressTestExperiment('stresstest_ghapislow', runnerType.runnerTypeName)) {
     console.warn(
-      `Stress test slow gh api response, sleeping before reaching GH ` +
+      `Stress test slow gh api response active: Sleeping before reaching GH ` +
         `API for token creation for ${runnerType.runnerTypeName}`,
     );
     await sleep(60 * 1000);
