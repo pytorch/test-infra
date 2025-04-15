@@ -17,7 +17,7 @@ inputs:
   docker-build-script:
     description: |
       The script to build the docker image. Should be relative to the docker-build-dir.
-    default: build.sh
+    default: ./build.sh
   custom-tag-prefix:
     description: |
       The prefix to use for the docker image tag.
