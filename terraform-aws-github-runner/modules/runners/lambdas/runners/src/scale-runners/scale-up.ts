@@ -86,7 +86,7 @@ export async function scaleUp(
     }
 
     if (await getJoinedStressTestExperiment('stresstest_ignorereq', runnerType.runnerTypeName)) {
-      console.warn(`Stresstest stresstest_ignorereq: ignore request for scale ${runnerType.runnerTypeName}`);
+      console.warn(`Stresstest stresstest_ignorereq active: ignoring request for scale ${runnerType.runnerTypeName}`);
       continue;
     }
 
