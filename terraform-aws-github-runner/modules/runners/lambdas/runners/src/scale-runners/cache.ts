@@ -341,7 +341,7 @@ export async function getJoinedStressTestExperiment(experimentKey: string, runne
   const experimentValue = await getExperimentValue(experimentKey, 0);
 
   if (Math.random() * 100 < experimentValue) {
-    console.debug(`Joining experiment ${experimentKey} for runner ${runnerName} with probability ${experimentValue}`);
+    console.debug(`Enabling experiment ${experimentKey} for runner ${runnerName}. Reached probability threshold of ${experimentValue}%`);
     return true;
   }
 
