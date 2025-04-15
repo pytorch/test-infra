@@ -345,7 +345,7 @@ export async function getJoinedStressTestExperiment(experimentKey: string, runne
     return true;
   }
 
-  console.debug(`Skipping experiment ${experimentKey} for runner ${runnerName} with probability ${experimentValue}`);
+  console.debug(`Skipping experiment ${experimentKey} for runner ${runnerName}. Didn't reach probability threshold of ${experimentValue}%`);
   return false;
 }
 
