@@ -66,7 +66,7 @@ export default function CheckBoxList({
       </Stack>
       <List dense sx={listSx}>
         {filteredItems.map((item) => (
-          <ListItem key={item} >
+          <ListItem key={item}>
             <FormControlLabel
               control={<Checkbox checked={items[item]} />}
               label={item}

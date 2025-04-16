@@ -1,6 +1,5 @@
-import QueueTimeChart from "./components/QueueTimeChartPage"
+import QueueTimeChart from "./components/QueueTimeChartPage";
 
-export const QueueTimeAnalysisPage = () =>{
-    return <QueueTimeChart />
-
-}
+export const QueueTimeAnalysisPage = () => {
+  return <QueueTimeChart />;
+};
