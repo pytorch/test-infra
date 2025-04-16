@@ -7,7 +7,7 @@ inputs:
     description: which driver version to install
     required: false
     type: string
-    default: "550.54.15"   # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-550-54-15/index.html
+    default: "570.133.07"   # https://www.nvidia.com/en-us/drivers/details/242273
 
 runs:
   using: composite
@@ -85,6 +85,9 @@ runs:
                           echo "Failed to get NVIDIA driver version ($INSTALLED_DRIVER_VERSION). Continuing"
                       elif [ "$INSTALLED_DRIVER_VERSION" != "$DRIVER_VERSION" ]; then
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has been installed, but we expect to have $DRIVER_VERSION instead. Continuing"
+
+                          # Turn off persistent mode so that the installation script can unload the kernel module
+                          sudo killall nvidia-persistenced || true
                       else
                           HAS_NVIDIA_DRIVER=1
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
