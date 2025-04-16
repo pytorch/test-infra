@@ -278,8 +278,8 @@ export async function redisLocked<T>(
   throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 
-export async function getExperimentValueStr(experimentKey: string, defaultValue: string): Promise<string> {
-  return locallyCached('EXPERIMENT', experimentKey, 60, async (): Promise<string> => {
+export async function getExperimentValue<T>(experimentKey: string, defaultValue: T): Promise<T> {
+  return locallyCached('EXPERIMENT', experimentKey, 60, async (): Promise<T> => {
     await startupRedisPool();
     if (!redisPool) throw Error('Redis should be initialized!');
 
@@ -287,45 +287,47 @@ export async function getExperimentValueStr(experimentKey: string, defaultValue:
 
     console.debug(`Checking redis entry for experiment ${experimentKey} (${queryKey})`);
     try {
-      const experimentValue: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const experimentValue: any = await redisPool.use(async (client: RedisClientType) => {
         return await client.get(queryKey);
       });
 
-      if (experimentValue !== undefined && experimentValue !== null) {
+      if (experimentValue === undefined || experimentValue === null) {
+        console.debug(`Experiment ${queryKey} not found, returning default value ${defaultValue}`);
+        return defaultValue;
+      }
+
+      if (typeof defaultValue === 'number' && typeof experimentValue === 'string') {
+        const numValue = Number(experimentValue);
+        if (!isNaN(numValue)) {
+          console.debug(`Experiment ${queryKey} found and converted to number, returning experiment value ${numValue}`);
+          return numValue as T;
+        } else {
+          console.warn(
+            `Experiment ${queryKey} found but value is not a valid number: ` +
+              `${experimentValue}, returning default value ${defaultValue}`,
+          );
+          return defaultValue;
+        }
+      }
+
+      if (typeof defaultValue === typeof experimentValue) {
+        console.debug(
+          `Experiment ${queryKey} found and with the correct type (${typeof experimentValue}),` +
+            ` returning experiment value ${experimentValue}`,
+        );
         return experimentValue;
-      } else {
-        console.debug(`Experiment ${queryKey} not found, using default value ${defaultValue}`);
       }
     } catch (e) {
-      console.error(`Error retrieving experiment ${queryKey}, using default value ${defaultValue}: ${e}`);
+      console.error(`Error retrieving experiment ${queryKey}, returning default value ${defaultValue}: ${e}`);
     }
 
     return defaultValue;
   });
 }
 
-export async function getExperimentValue(experimentKey: string, defaultValue: number): Promise<number> {
-  try {
-    const experimentValue = await getExperimentValueStr(experimentKey, defaultValue.toString());
-    const numValue = Number(experimentValue);
-    if (!isNaN(numValue)) {
-      console.debug(`Found experiment ${experimentKey} with value ${numValue}`);
-      return numValue;
-    } else {
-      console.warn(
-        `Experiment ${experimentKey} found but value is not a valid number:` +
-          ` ${experimentValue} - returning default value ${defaultValue}`,
-      );
-    }
-  } catch (e) {
-    /* istanbul ignore next */
-    console.error(`Error retrieving experiment ${experimentKey} - returning default value ${defaultValue}: ${e}`);
-  }
-  return defaultValue;
-}
-
 export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
-  const runnerNameSuffix = await getExperimentValueStr('RUNNER_NAME_SUFFIX', '');
+  const runnerNameSuffix = await getExperimentValue('RUNNER_NAME_SUFFIX', '');
   if (runnerNameSuffix === undefined || runnerNameSuffix === null || runnerNameSuffix === '') {
     console.debug(`Experiment ${experimentKey} check ignored, as RUNNER_NAME_SUFFIX is not set`);
     return false;
@@ -341,11 +343,17 @@ export async function getJoinedStressTestExperiment(experimentKey: string, runne
   const experimentValue = await getExperimentValue(experimentKey, 0);
 
   if (Math.random() * 100 < experimentValue) {
-    console.debug(`Enabling experiment ${experimentKey} for runner ${runnerName}. Reached probability threshold of ${experimentValue}%`);
+    console.debug(
+      `Enabling experiment ${experimentKey} for runner ${runnerName}. ` +
+        `Reached probability threshold of ${experimentValue}%`,
+    );
     return true;
   }
 
-  console.debug(`Skipping experiment ${experimentKey} for runner ${runnerName}. Didn't reach probability threshold of ${experimentValue}%`);
+  console.debug(
+    `Skipping experiment ${experimentKey} for runner ${runnerName}. ` +
+      `Didn't reach probability threshold of ${experimentValue}%`,
+  );
   return false;
 }
 
