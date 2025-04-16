@@ -157,7 +157,6 @@ function QueueTimeCategoryPicker({
         <MenuItem value={"workflow_name"}>workflow name</MenuItem>
         <MenuItem value={"job_name"}>job name</MenuItem>
         <MenuItem value={"machine_type"}>machine type</MenuItem>
-        <MenuItem value={"runner_label"}>runner_label</MenuItem>
       </Select>
       <FormHelperText>With label + helper text</FormHelperText>
     </FormControl>

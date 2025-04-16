@@ -4,11 +4,9 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 export function TimeGranuityPicker({
   granularity,
   setGranularity,
-  enableHalfHour = false,
 }: {
   granularity: any;
   setGranularity: (granularity: any) => void;
-  enableHalfHour?: boolean;
 }) {
   return (
     <FormControl style={{ marginLeft: 10, minWidth: 100 }}>
@@ -19,7 +17,7 @@ export function TimeGranuityPicker({
         labelId="granularity-select-label"
         onChange={(e) => setGranularity(e.target.value as Granularity)}
       >
-        {enableHalfHour && <MenuItem value={"half_hour"}>Half Hour</MenuItem>}
+         <MenuItem value={"half_hour"}>Half Hour</MenuItem>
         <MenuItem value={"hour"}>Hour</MenuItem>
         <MenuItem value={"day"}>Daily</MenuItem>
         <MenuItem value={"week"}>Weekly</MenuItem>

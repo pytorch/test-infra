@@ -1,6 +1,9 @@
 import dayjs from "dayjs";
+import isoWeek from 'dayjs/plugin/isoWeek';
 import * as echarts from "echarts";
 import { useEffect, useRef, useState } from "react";
+
+dayjs.extend(isoWeek);
 
 type DataPoint = {
   time: string;
@@ -20,15 +23,13 @@ export function QueueTimeChartUI({
   chartGroup?: string;
   width?: string;
 }) {
+
   const chartRef = useRef(null); // Create a ref for the chart container
   const [chartInstance, setChartInstance] = useState<any>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [chartXAxisLabels, setChartXAxisLabels] = useState<string[]>([]);
-  const [barData, setBarData] = useState<any[]>([]);
-  const [lineData, setLineData] = useState<any[]>([]);
   const [maxQueueTime, setMaxQueueTime] = useState<any[]>([]);
+  const [rawData, setRawData] =  useState<any>(null);
 
-  const exponential_time_labels = generateExponential();
+  const queue_axis_value = generateExponential();
 
   useEffect(() => {
     if (!data) {
@@ -37,43 +38,14 @@ export function QueueTimeChartUI({
     if (data.length == 0) {
       return;
     }
-
-    const startTime = getTruncTime(dayjs(data[0].time), granularity);
-    const endTime = getTruncTime(
-      dayjs(data[data.length - 1].time),
-      granularity
-    );
-    const item = generateFilledTimeSeries(
-      startTime,
-      endTime,
-      data,
-      granularity
-    );
-    setChartXAxisLabels(generateTimePoints(startTime, endTime, granularity));
-    setChartData(item);
-
-    const lineData = generateFilledTimeSeriesLine(
-      startTime,
-      endTime,
-      data,
-      granularity,
-      "total_count"
-    );
-    const maxQueueTimeData = generateFilledTimeSeriesLine(
-      startTime,
-      endTime,
-      data,
-      granularity,
-      "max_queue_time"
-    );
-    setMaxQueueTime(maxQueueTimeData);
-    setLineData(lineData);
-
-    const barData = sumArrayValues(data);
-    setBarData(barData);
+    setRawData(data);
   }, [data, granularity]);
 
   useEffect(() => {
+    if (!rawData) {
+      return;
+    }
+
     let instance = chartInstance;
     if (!instance) {
       instance = echarts.init(chartRef.current);
@@ -83,22 +55,64 @@ export function QueueTimeChartUI({
       setChartInstance(chartInstance);
     }
 
-    const options: echarts.EChartOption = getOptions(
-      chartType,
-      chartData,
-      barData,
-      lineData,
-      maxQueueTime,
-      exponential_time_labels,
-      chartXAxisLabels
+    if (rawData.length == 0) {
+      return;
+    }
+
+    const startTime = getTruncTime(dayjs(rawData[0].time), granularity);
+    const endTime = getTruncTime(
+      dayjs(rawData[rawData.length - 1].time),
+      granularity
     );
-    instance.setOption(options, { notMerge: true });
+    const chartData = generateFilledTimeSeries(
+      startTime,
+      endTime,
+      rawData,
+      granularity
+    );
+    const timeDates = generateTimePoints(startTime, endTime, granularity);
+    const jobCountData = generateFilledTimeSeriesLine(
+      startTime,
+      endTime,
+      rawData,
+      granularity,
+      "total_count"
+    );
+    const maxQueueTimeData = generateFilledTimeSeriesLine(
+      startTime,
+      endTime,
+      rawData,
+      granularity,
+      "max_queue_time"
+    );
+    setMaxQueueTime(maxQueueTimeData);
+    const aggre_hist_bar = sumArrayValues(rawData);
+
+    let chartRenderOptions = {}
+    switch (chartType) {
+      case "heatmap":
+        chartRenderOptions = getHeatMapOptions(chartData, queue_axis_value, timeDates);
+        break;
+      case "histogram_bar_vertical":
+        chartRenderOptions = getBarOptions(aggre_hist_bar, queue_axis_value);
+        break;
+      case "histogram_bar_horizontal":
+        chartRenderOptions = getBarChartHorizontal(aggre_hist_bar, queue_axis_value);
+        break;
+      case "count_job_line":
+        chartRenderOptions = getLineChart(jobCountData, timeDates);
+        break;
+      case "max_queue_time_line":
+        chartRenderOptions = getLineChart(maxQueueTime, timeDates);
+        break;
+    }
+    instance.setOption(chartRenderOptions);
     return () => {
       instance.dispose();
     };
-  }, [chartData, chartType]);
+  }, [rawData, chartType]);
 
-  const height = exponential_time_labels.length * 10;
+  const height = queue_axis_value.length * 10;
 
   const chartWidth = width ? width : "1000px";
   return (
@@ -297,7 +311,6 @@ function generateExponential() {
     ...Array.from({ length: 6 }, (_, i) => `${i + 2}d`),
     ">7d",
   ];
-  console.log(days);
   const durations: string[] = [...minutes, ...hours, ...days];
   return durations;
 }
@@ -330,7 +343,7 @@ const getNextDayjs = (
     case "day":
       return time.add(1, "day");
     case "week":
-      return time.add(1, "week");
+      return time.add(1,"week");
     case "month":
       return time.add(1, "month");
     default:
@@ -348,7 +361,7 @@ const getTruncTime = (time: dayjs.Dayjs, granularity: string): dayjs.Dayjs => {
     case "day":
       return time.startOf("day");
     case "week":
-      return time.startOf("week");
+      return time.startOf("isoWeek");
     case "month":
       return time.startOf("month");
     default:
@@ -370,8 +383,11 @@ const generateFilledTimeSeries = (
   const timeMap = new Map(
     inputData.map((item) => [dayjs(item.time).utc().format(), item.data])
   );
+
   const result = [];
+
   let current = getTruncTime(start, granularity); // normalize
+
   let rowIdx = 0;
   while (current.isBefore(end) || current.isSame(end)) {
     const key = current.format(); // default format is ISO

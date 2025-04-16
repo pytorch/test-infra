@@ -1,7 +1,7 @@
 import { Button, styled } from "@mui/material";
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
-import { DateRangePicker } from "components/metrics/pickers/DateRangePicker";
-import { TimeGranuityPicker } from "components/metrics/pickers/TimeGranuityPicker";
+import { DateRangePicker } from "components/queueTimeAnalysis/components/pickers/DateRangePicker";
+import { TimeGranuityPicker } from "components/queueTimeAnalysis/components/pickers/TimeGranuityPicker";
 import dayjs from "dayjs";
 import { cloneDeep } from "lodash";
 import { NextRouter } from "next/router";
@@ -129,7 +129,6 @@ export default function QueueTimeSearchBar({
           }}
         />
         <TimeGranuityPicker
-          enableHalfHour={true}
           granularity={props.granularity}
           setGranularity={(val: any) => {
             dispatch({

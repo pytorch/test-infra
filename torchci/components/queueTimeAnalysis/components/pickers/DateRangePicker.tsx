@@ -48,6 +48,8 @@ export function DateRangePicker({
     switch (e.target.value as number) {
       case 1:
       case 3:
+        setGranularity("half_hour");
+        break;
       case 7:
         setGranularity("hour");
         break;
