@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import isoWeek from 'dayjs/plugin/isoWeek';
+import isoWeek from "dayjs/plugin/isoWeek";
 import * as echarts from "echarts";
 import { useEffect, useRef, useState } from "react";
 
@@ -23,11 +23,10 @@ export function QueueTimeChartUI({
   chartGroup?: string;
   width?: string;
 }) {
-
   const chartRef = useRef(null); // Create a ref for the chart container
   const [chartInstance, setChartInstance] = useState<any>(null);
   const [maxQueueTime, setMaxQueueTime] = useState<any[]>([]);
-  const [rawData, setRawData] =  useState<any>(null);
+  const [rawData, setRawData] = useState<any>(null);
 
   const queue_axis_value = generateExponential();
 
@@ -88,16 +87,23 @@ export function QueueTimeChartUI({
     setMaxQueueTime(maxQueueTimeData);
     const aggre_hist_bar = sumArrayValues(rawData);
 
-    let chartRenderOptions = {}
+    let chartRenderOptions = {};
     switch (chartType) {
       case "heatmap":
-        chartRenderOptions = getHeatMapOptions(chartData, queue_axis_value, timeDates);
+        chartRenderOptions = getHeatMapOptions(
+          chartData,
+          queue_axis_value,
+          timeDates
+        );
         break;
       case "histogram_bar_vertical":
         chartRenderOptions = getBarOptions(aggre_hist_bar, queue_axis_value);
         break;
       case "histogram_bar_horizontal":
-        chartRenderOptions = getBarChartHorizontal(aggre_hist_bar, queue_axis_value);
+        chartRenderOptions = getBarChartHorizontal(
+          aggre_hist_bar,
+          queue_axis_value
+        );
         break;
       case "count_job_line":
         chartRenderOptions = getLineChart(jobCountData, timeDates);
@@ -343,7 +349,7 @@ const getNextDayjs = (
     case "day":
       return time.add(1, "day");
     case "week":
-      return time.add(1,"week");
+      return time.add(1, "week");
     case "month":
       return time.add(1, "month");
     default:

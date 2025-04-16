@@ -17,7 +17,7 @@ export function TimeGranuityPicker({
         labelId="granularity-select-label"
         onChange={(e) => setGranularity(e.target.value as Granularity)}
       >
-         <MenuItem value={"half_hour"}>Half Hour</MenuItem>
+        <MenuItem value={"half_hour"}>Half Hour</MenuItem>
         <MenuItem value={"hour"}>Hour</MenuItem>
         <MenuItem value={"day"}>Daily</MenuItem>
         <MenuItem value={"week"}>Weekly</MenuItem>
