@@ -14,10 +14,18 @@ import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
+import { getJoinedStressTestExperiment } from './cache';
+import { sleep } from './utils';
 
-jest.mock('./runners');
-jest.mock('./gh-runners');
+jest.mock('./cache');
 jest.mock('./gh-issues');
+jest.mock('./gh-runners');
+jest.mock('./runners');
+jest.mock('./utils', () => ({
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ...(jest.requireActual('./utils') as any),
+  sleep: jest.fn().mockResolvedValue(undefined),
+}));
 
 beforeEach(() => {
   jest.resetModules();
@@ -26,6 +34,7 @@ beforeEach(() => {
   nock.disableNetConnect();
 
   mocked(getGitHubRateLimit).mockResolvedValue({ limit: 5000, remaining: 4999, used: 1 });
+  mocked(sleep).mockClear().mockResolvedValue(undefined);
 });
 
 const baseCfg = {
@@ -43,6 +52,7 @@ describe('scaleUp', () => {
     jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
       return;
     });
+    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(false);
   });
   it('does not accept sources that are not aws:sqs', async () => {
     const payload = {
@@ -84,7 +94,6 @@ describe('scaleUp', () => {
     const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
     expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' }, metrics);
     expect(mockedListGithubRunners).not.toBeCalled();
@@ -125,7 +134,6 @@ describe('scaleUp', () => {
     const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
     expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'scale-config-repo', owner: 'owner' }, metrics);
     expect(mockedListGithubRunners).not.toBeCalled();
@@ -234,7 +242,6 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
     expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
     expect(mockedListGithubRunners).toBeCalledTimes(2);
@@ -306,7 +313,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
@@ -393,7 +399,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -479,7 +484,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -564,7 +568,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -650,7 +653,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -736,7 +738,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -822,7 +823,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -891,7 +891,6 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
 
@@ -943,7 +942,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
@@ -1021,7 +1019,6 @@ describe('scaleUp', () => {
     const mockedCreateRunner = mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
-
     expect(mockedCreateRunner).not.toBeCalled();
   });
 
@@ -1089,6 +1086,103 @@ describe('scaleUp', () => {
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0], metrics);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[1], metrics);
+  });
+
+  it('delays with sleep when stresstest_ghapislow is set', async () => {
+    const config = {
+      ...baseCfg,
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 10,
+      runnerGroupName: 'group_one',
+      runnersExtraLabels: 'extra-label',
+      enableOrganizationRunners: 'yes',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const token = 'AGDGADUWG113';
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 33,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
+
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(createRegistrationTokenOrg).mockResolvedValue(token);
+    const mockedCreateRunner = mocked(createRunner);
+
+    mocked(getJoinedStressTestExperiment)
+      .mockClear()
+      /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+      .mockImplementation(async (experimentKey: string, runnerName: string) => {
+        if (experimentKey === 'stresstest_ghapislow') {
+          return true;
+        }
+        return false;
+      });
+
+    await scaleUp('aws:sqs', payload, metrics);
+
+    expect(mockedCreateRunner).toBeCalledTimes(1);
+
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion, false)).toEqual(
+      `--url ${config.ghesUrlHost}/owner --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `extra-label  --runnergroup group_one`,
+    );
+
+    expect(sleep).toHaveBeenCalledWith(60 * 1000);
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ignorereq', 'linux.2xlarge');
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ghapislow', 'linux.2xlarge');
+  });
+
+  it('ignore requests when stresstest_ignorereq is triggered', async () => {
+    const config = {
+      ...baseCfg,
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+      runnersExtraLabels: 'extra-label',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 0,
+    };
+    const token = 'AGDGADUWG113';
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 33,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
+
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunnersRepo).mockResolvedValue([]);
+    mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    // Make Math.random return a small value to trigger the stresstest_ignorereq condition
+    jest.spyOn(global.Math, 'random').mockReturnValue(0.01);
+    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(true);
+
+    await scaleUp('aws:sqs', payload, metrics);
+
+    expect(getJoinedStressTestExperiment).toBeCalledWith('stresstest_ignorereq', 'linux.2xlarge');
+    expect(tryReuseRunner).not.toBeCalled();
+    expect(createRunner).not.toBeCalled();
+    expect(sleep).not.toBeCalled();
   });
 });
 

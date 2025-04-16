@@ -9,6 +9,7 @@ import {
   groupBy,
   shuffleArrayInPlace,
   stochaticRunOvershoot,
+  sleep,
 } from './utils';
 import nock from 'nock';
 
@@ -275,41 +276,69 @@ describe('shuffleArrayInPlace', () => {
       expect(arr).toContain(number);
     }
   });
+});
 
-  describe('stochaticRunOvershoot', () => {
-    afterEach(() => {
-      jest.spyOn(global.Math, 'random').mockRestore();
-    });
+describe('stochaticRunOvershoot', () => {
+  afterEach(() => {
+    jest.spyOn(global.Math, 'random').mockRestore();
+  });
 
-    it('test some values', () => {
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
-      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
-      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
-      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+  it('test some values', () => {
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+    expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+    expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+    expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
 
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
-      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
-      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6249);
-      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6251);
-      expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
-      expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+    expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+    expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6249);
+    expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6251);
+    expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+    expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
 
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
-      expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244139);
-      expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244141);
-      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
-      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
-      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
-      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
-    });
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+    expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244139);
+    expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244141);
+    expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+    expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+    expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+  });
+});
+
+describe('sleep', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should resolve after the specified time', async () => {
+    const sleepPromise = sleep(1000);
+
+    // Advance timers
+    jest.advanceTimersByTime(1000);
+
+    await expect(sleepPromise).resolves.toBeUndefined();
+  });
+
+  it('should handle undefined time value', async () => {
+    const sleepPromise = sleep(undefined);
+
+    // Since undefined should default to 0 or minimum time
+    jest.advanceTimersByTime(1);
+
+    await expect(sleepPromise).resolves.toBeUndefined();
   });
 });

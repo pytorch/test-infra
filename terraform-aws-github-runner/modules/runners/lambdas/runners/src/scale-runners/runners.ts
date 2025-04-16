@@ -5,8 +5,9 @@ import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { redisCached, redisLocked } from './cache';
+import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache';
 import moment from 'moment';
+import { RetryableScalingError } from './scale-up';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
@@ -472,6 +473,13 @@ export async function tryReuseRunner(
     repoName: runnerParameters.repoName,
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
+  if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+    console.warn(
+      `Joining stress test stresstest_awsfail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`,
+    );
+    throw new RetryableScalingError('Stress test stockout');
+  }
+
   const runners = shuffleArrayInPlace(await listRunners(metrics, filters));
 
   /* istanbul ignore next */
@@ -666,6 +674,21 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
+    if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(
+        `Joining stress test stresstest_awsfail, failing instance creation` +
+          ` for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
+      throw new RetryableScalingError('Stress test stresstest_awsfail');
+    }
+    if (await getJoinedStressTestExperiment('stresstest_stockout', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(
+        `Joining stress test stresstest_stockout, failing instance ` +
+          `creation for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
+      throw new RetryableScalingError('Stress test stresstest_stockout');
+    }
+
     const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';
     const tags = [
       { Key: 'Application', Value: 'github-action-runner' },
@@ -739,6 +762,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
             `[${awsRegion}] [${vpcId}] [${subnet}] Attempting to create ` +
               `instance ${runnerParameters.runnerType.instance_type}${labelsStrLog}`,
           );
+
           const runInstancesResponse = await expBackOff(() => {
             return metrics.trackRequestRegion(
               awsRegion,
