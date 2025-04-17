@@ -57,7 +57,7 @@ export default function QueueTimeChartGroup({ props }: { props: any }) {
           setChartType(val);
         }}
       />
-      {error && error.status === 431 && (
+      {error && (error.status === 431 || error.status === 414) && (
         <Alert severity="error">
           {" "}
           Search Request failed with code: 431 Request header fields too large,
