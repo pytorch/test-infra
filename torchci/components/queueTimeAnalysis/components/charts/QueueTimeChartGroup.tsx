@@ -61,7 +61,7 @@ export default function QueueTimeChartGroup({ props }: { props: any }) {
         <Alert severity="error">
           {" "}
           Search Request failed with code: 431 Request header fields too large,
-          please select less items in search
+          please select less items in search.
         </Alert>
       )}
       <FlexNoWrap>
