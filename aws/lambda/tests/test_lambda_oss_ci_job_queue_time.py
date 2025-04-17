@@ -228,10 +228,7 @@ class EnvironmentBaseTest(unittest.TestCase):
         patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
         patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
         patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
-        envs_patcher = patch(
-            "oss_ci_job_queue_time.lambda_function.ENVS",
-            new=get_default_environment_variables(),
-        )
+        envs_patcher = patch("oss_ci_job_queue_time.lambda_function.get_env")
 
         self.mock_get_client = patcher2.start()
         self.mock_get_runner_config = patcher3.start()
@@ -246,9 +243,13 @@ class EnvironmentBaseTest(unittest.TestCase):
             "lf": MagicMock(),
             "old_lf": MagicMock(),
         }
+
+        self.mock_envs.return_value = get_default_environment_variables()
+
         self.addCleanup(patcher2.stop)
         self.addCleanup(patcher3.stop)
         self.addCleanup(patcher4.stop)
+        self.addCleanup(self.mock_envs.stop)
         self.addCleanup(envs_patcher.stop)
 
 
@@ -812,7 +813,10 @@ class TestLambdaHanlder(EnvironmentBaseTest):
             with self.subTest(f"Test Environment {x}", x=x):
                 # prepare
                 self.mock_get_client.reset_mock(return_value=True)
-                self.mock_envs[x] = ""
+
+                envs = get_default_environment_variables()
+                envs[x] = ""
+                self.mock_envs.return_value = envs
 
                 # execute
                 with self.assertRaises(ValueError) as context:

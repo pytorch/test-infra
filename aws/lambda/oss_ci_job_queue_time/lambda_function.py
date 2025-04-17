@@ -19,12 +19,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO)
 
-ENVS = {
-    "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
-    "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
-    "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
-    "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
-}
+
+def get_env():
+    return {
+        "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
+        "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
+        "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
+        "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
+    }
 
 
 def get_clickhouse_client(
@@ -39,15 +41,16 @@ def get_clickhouse_client(
 
 
 def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Client:
-    info(f"Getting environment variables {ENVS}")
-    for name, env_val in ENVS.items():
+    envs = get_env()
+    info(f"Getting environment variables {envs}")
+    for name, env_val in envs.items():
         if not env_val:
             raise ValueError(f"Missing environment variable {name}")
 
     return get_clickhouse_client(
-        host=ENVS["CLICKHOUSE_ENDPOINT"],
-        user=ENVS["CLICKHOUSE_USERNAME"],
-        password=ENVS["CLICKHOUSE_PASSWORD"],
+        host=envs["CLICKHOUSE_ENDPOINT"],
+        user=envs["CLICKHOUSE_USERNAME"],
+        password=envs["CLICKHOUSE_PASSWORD"],
     )
 
 
@@ -1276,9 +1279,11 @@ def lambda_handler(event: Any, context: Any) -> None:
     """
     Main method to run in aws lambda environment
     """
+
+    envs = get_env()
     main(
         None,
-        github_access_token=ENVS["GITHUB_ACCESS_TOKEN"],
+        github_access_token=envs["GITHUB_ACCESS_TOKEN"],
     )
     return
 
@@ -1288,28 +1293,30 @@ def parse_args() -> argparse.Namespace:
     Parse command line args, this is mainly used for local test environment.
     """
     parser = argparse.ArgumentParser()
+
+    envs = get_env()
     parser.add_argument(
         "--clickhouse-endpoint",
-        default=ENVS["CLICKHOUSE_ENDPOINT"],
+        default=envs["CLICKHOUSE_ENDPOINT"],
         type=str,
         help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
     )
     parser.add_argument(
         "--clickhouse-username",
         type=str,
-        default=ENVS["CLICKHOUSE_USERNAME"],
+        default=envs["CLICKHOUSE_USERNAME"],
         help="the clickhouse username",
     )
     parser.add_argument(
         "--clickhouse-password",
         type=str,
-        default=ENVS["CLICKHOUSE_PASSWORD"],
+        default=envs["CLICKHOUSE_PASSWORD"],
         help="the clickhouse password for the user name",
     )
     parser.add_argument(
         "--github-access-token",
         type=str,
-        default=ENVS["GITHUB_ACCESS_TOKEN"],
+        default=envs["GITHUB_ACCESS_TOKEN"],
         help="the github access token to access github api",
     )
     parser.add_argument(
