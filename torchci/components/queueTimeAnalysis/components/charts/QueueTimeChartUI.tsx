@@ -161,9 +161,16 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
     tooltip: {
       position: "top",
       formatter: function (params: any) {
+        const idx = params.dataIndex;
         const xLabel = params.name;
         const value = params.value;
-        return `${xLabel}<br/> In Queue: ${value} %`;
+        if (idx == 0) {
+          return `detect ${value}% jobs were in queue in range: < ${xLabel}`;
+        } else if (idx == xAxisLabels.length - 1) {
+          return `detect ${value}% jobs were in queue within time range: ${xLabel}`;
+        }
+        const nextName = xAxisLabels[idx - 1] || "N/A";
+        return `detect ${value}% jobs were in queue within time range: ${nextName}- ${xLabel}`;
       },
     },
     grid: {
@@ -193,9 +200,16 @@ const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
     tooltip: {
       position: "top",
       formatter: function (params: any) {
+        const idx = params.dataIndex;
         const xLabel = params.name;
         const value = params.value;
-        return `${xLabel}<br/> In Queue ${value} %`;
+        if (idx == 0) {
+          return `detect ${value}% jobs were in queue in range: < ${xLabel}`;
+        } else if (idx == xAxisLabels.length - 1) {
+          return `detect ${value}% jobs were in queue within time range: ${xLabel}`;
+        }
+        const nextName = xAxisLabels[idx - 1] || "N/A";
+        return `detect ${value}% jobs were in queue within time range: ${nextName}- ${xLabel}`;
       },
     },
     grid: {

@@ -5,12 +5,13 @@ import {
   MenuItem,
   Select,
   SelectChangeEvent,
+  styled,
 } from "@mui/material";
 import CheckBoxList from "components/common/CheckBoxList";
 import dayjs from "dayjs";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import { cloneDeep } from "lodash";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   workflow_names: string[];
@@ -26,6 +27,10 @@ enum Category {
   machine_type = "machine_type",
   runner_label = "runner_label",
 }
+
+const HelperContent = styled("div")(({}) => ({
+  margin: "5px",
+}));
 
 const dynamicStyles = {
   height: "800px",
@@ -59,6 +64,7 @@ export default function QueueTimeCheckBoxList({
   const [selectedItem, setSelectedItem] = useState<{ [key: string]: boolean }>(
     {}
   );
+
   const [category, setCategory] = useState<string>(
     inputCategory ? inputCategory : Category.workflow_name
   );
@@ -66,6 +72,8 @@ export default function QueueTimeCheckBoxList({
     startTime: startDate.utc().format("YYYY-MM-DDTHH:mm:ss"),
     endTime: endDate.utc().format("YYYY-MM-DDTHH:mm:ss"),
   };
+
+  const prevCategory = useRef<string | null>(null);
 
   const { data, isLoading } = useClickHouseAPIImmutable(
     "queue_time_analysis/queue_time_search_items",
@@ -76,6 +84,7 @@ export default function QueueTimeCheckBoxList({
     if (!data) {
       return;
     }
+
     let items = [];
     switch (category) {
       case "workflow_name":
@@ -93,27 +102,54 @@ export default function QueueTimeCheckBoxList({
       default:
         break;
     }
+
     let newSelectedItem: { [x: string]: boolean } = {};
 
-    const inputSet = new Set(inputItems);
-    newSelectedItem = items.reduce(
-      (acc: { [x: string]: boolean }, item: string) => {
-        acc[item] = inputSet.has(item);
-        return acc;
-      },
-      {}
-    );
+    // initial category, set all items based on inputItems
+    if (!prevCategory.current) {
+      const inputSet = new Set(inputItems);
+      newSelectedItem = items.reduce(
+        (acc: { [x: string]: boolean }, item: string) => {
+          acc[item] = inputSet.size > 0 ? inputSet.has(item) : false;
+          return acc;
+        },
+        {}
+      );
+    } else {
+      // if category is changed, set all items to true by default
+      newSelectedItem = items.reduce(
+        (acc: { [x: string]: boolean }, item: string) => {
+          acc[item] = false;
+          return acc;
+        },
+        {}
+      );
+    }
 
-    const selected = Object.keys(newSelectedItem).filter(
-      (key) => newSelectedItem[key]
-    );
-    updateFields({ category, items: selected });
+    if (prevCategory.current && prevCategory.current !== category) {
+      const allSelected = Object.keys(items).every((key) => items[key]);
+
+      let selected: any = [];
+      if (!allSelected) {
+        selected = Object.keys(newSelectedItem).filter(
+          (key) => newSelectedItem[key]
+        );
+      }
+      updateFields({ category, items: selected });
+    }
     setSelectedItem(newSelectedItem);
+
+    prevCategory.current = category;
   }, [data, category]);
 
   function setItems(items: { [x: string]: boolean }) {
+    const allSelected = Object.keys(items).every((key) => items[key]);
+    let selected: any = [];
+    if (!allSelected) {
+      selected = Object.keys(items).filter((key) => items[key]);
+    }
+
     setSelectedItem(items);
-    const selected = Object.keys(items).filter((key) => items[key]);
     updateFields({ items: selected });
   }
 
@@ -124,6 +160,7 @@ export default function QueueTimeCheckBoxList({
   return (
     <div>
       <QueueTimeCategoryPicker setCategory={setCategory} category={category} />
+      <HelperContent> Select items: </HelperContent>
       <CheckBoxList
         items={selectedItem}
         onChange={(items) => setItems(items)}
@@ -158,7 +195,11 @@ function QueueTimeCategoryPicker({
         <MenuItem value={"job_name"}>job name</MenuItem>
         <MenuItem value={"machine_type"}>machine type</MenuItem>
       </Select>
-      <FormHelperText>With label + helper text</FormHelperText>
+      <FormHelperText>
+        {" "}
+        By default, shows data for all queued jobs. Using filter and checkbox
+        below for specifc items
+      </FormHelperText>
     </FormControl>
   );
 }

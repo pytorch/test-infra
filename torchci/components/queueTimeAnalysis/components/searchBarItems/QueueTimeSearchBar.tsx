@@ -7,6 +7,7 @@ import { cloneDeep } from "lodash";
 import { NextRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
 import { useEffect, useReducer } from "react";
+import DebugToggle from "../DebugToggle";
 import QueueTimeCheckBoxList from "./QueueTimeCheckBoxList";
 
 export const HorizontalDiv = styled("div")({
@@ -150,6 +151,7 @@ export default function QueueTimeSearchBar({
           }}
         />
       </div>
+      <DebugToggle info={props} />
     </>
   );
 }

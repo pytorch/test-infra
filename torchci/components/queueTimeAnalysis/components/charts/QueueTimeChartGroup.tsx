@@ -45,7 +45,7 @@ export default function QueueTimeChartGroup({ props }: { props: any }) {
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {
-    return <LoadingPage height={1000} width={1800} />;
+    return <LoadingPage height={1000} width={1600} />;
   }
 
   return (
@@ -70,6 +70,7 @@ export default function QueueTimeChartGroup({ props }: { props: any }) {
           granularity={props.granularity}
           chartType={chartType}
           chartGroup="test1"
+          width={chartType === "heatmap" ? "1000px" : "1600px"}
         />
         {data && chartType === "heatmap" && (
           <QueueTimeChartUI

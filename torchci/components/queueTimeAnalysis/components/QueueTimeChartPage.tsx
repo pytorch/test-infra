@@ -4,27 +4,18 @@ import { useReducer, useState } from "react";
 
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import LoadingPage from "components/LoadingPage";
-import { ParsedUrlQuery } from "querystring";
 import QueueTimeChartGroup from "./charts/QueueTimeChartGroup";
-import QueueTimeSearchBar from "./QueueTimeSearchBar";
+import QueueTimeSearchBar from "./searchBarItems/QueueTimeSearchBar";
 
 const FlexNoWrap = styled("div")({
   display: "flex",
   flexWrap: "nowrap",
 });
 
-export default function QueueTimeChart(urlQuery: ParsedUrlQuery) {
+export default function QueueTimeChartPage() {
   const router = useRouter();
   const [routerReady, setRouterReady] = useState(false);
   const [props, dispatch] = useReducer(propsReducer, {});
-
-  const params = {
-    startTime: props.startDate?.utc().format("YYYY-MM-DDTHH:mm:ss"),
-    endTime: props.endDate?.utc().format("YYYY-MM-DDTHH:mm:ss"),
-    items: props.items ? props.items : [],
-    repos: props.repos,
-    granularity: props.granularity ? props.granularity : "",
-  };
 
   if (!routerReady && router.isReady) {
     setRouterReady(true);
@@ -41,9 +32,6 @@ export default function QueueTimeChart(urlQuery: ParsedUrlQuery) {
         </Typography>
       </Stack>
       <Grid2 container spacing={2}>
-        <div>
-          <pre>{JSON.stringify(props, null)}</pre>
-        </div>
         <FlexNoWrap>
           <div>
             <QueueTimeChartGroup props={props} />
