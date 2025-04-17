@@ -25,7 +25,6 @@ export function QueueTimeChartUI({
 }) {
   const chartRef = useRef(null); // Create a ref for the chart container
   const [chartInstance, setChartInstance] = useState<any>(null);
-  const [maxQueueTime, setMaxQueueTime] = useState<any[]>([]);
   const [rawData, setRawData] = useState<any>(null);
 
   const queue_axis_value = generateExponential();
@@ -70,22 +69,6 @@ export function QueueTimeChartUI({
       granularity
     );
     const timeDates = generateTimePoints(startTime, endTime, granularity);
-    const jobCountData = generateFilledTimeSeriesLine(
-      startTime,
-      endTime,
-      rawData,
-      granularity,
-      "total_count"
-    );
-    const maxQueueTimeData = generateFilledTimeSeriesLine(
-      startTime,
-      endTime,
-      rawData,
-      granularity,
-      "max_queue_time"
-    );
-    setMaxQueueTime(maxQueueTimeData);
-    const aggre_hist_bar = sumArrayValues(rawData);
 
     let chartRenderOptions = {};
     switch (chartType) {
@@ -97,19 +80,35 @@ export function QueueTimeChartUI({
         );
         break;
       case "histogram_bar_vertical":
-        chartRenderOptions = getBarOptions(aggre_hist_bar, queue_axis_value);
+        const aggre_hist = sumArrayValues(rawData);
+        chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
         break;
       case "histogram_bar_horizontal":
+        const aggre_hist_bar = sumArrayValues(rawData);
         chartRenderOptions = getBarChartHorizontal(
           aggre_hist_bar,
           queue_axis_value
         );
         break;
       case "count_job_line":
+        const jobCountData = generateFilledTimeSeriesLine(
+          startTime,
+          endTime,
+          rawData,
+          granularity,
+          "total_count"
+        );
         chartRenderOptions = getLineChart(jobCountData, timeDates);
         break;
       case "max_queue_time_line":
-        chartRenderOptions = getLineChart(maxQueueTime, timeDates);
+        const maxQueueTimeData = generateFilledTimeSeriesLine(
+          startTime,
+          endTime,
+          rawData,
+          granularity,
+          "max_queue_time"
+        );
+        chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
         break;
     }
     instance.setOption(chartRenderOptions);
@@ -136,34 +135,36 @@ export function QueueTimeChartUI({
   );
 }
 
-const getOptions = (
-  chartType: string,
-  heatmapData: any[],
-  barData: any[],
-  lineData: any[],
-  maxQueueTime: any[],
-  yaxislabels: string[],
-  xAxisLabels: string[]
-) => {
-  switch (chartType) {
-    case "heatmap":
-      return getHeatMapOptions(heatmapData, yaxislabels, xAxisLabels);
-    case "histogram_bar_vertical":
-      return getBarOptions(barData, yaxislabels);
-    case "histogram_bar_horizontal":
-      return getBarChartHorizontal(barData, yaxislabels);
-    case "count_job_line":
-      return getLineChart(lineData, xAxisLabels);
-    case "max_queue_time_line":
-      return getLineChart(maxQueueTime, xAxisLabels);
-    default:
-      return {};
-  }
+const getLineChart = (data: any[], xAxisLabels: string[]) => {
+  return {
+    tooltip: {
+      trigger: "axis",
+    },
+    xAxis: {
+      type: "category",
+      data: xAxisLabels,
+    },
+    yAxis: {
+      type: "value",
+    },
+    series: [
+      {
+        data: data,
+        type: "line",
+      },
+    ],
+  };
 };
+
 const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
   return {
     tooltip: {
       position: "top",
+      formatter: function (params: any) {
+        const xLabel = params.name;
+        const value = params.value;
+        return `${xLabel}<br/> In Queue: ${value} %`;
+      },
     },
     grid: {
       top: "50px",
@@ -187,31 +188,15 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
   };
 };
 
-const getLineChart = (data: any[], xAxisLabels: string[]) => {
-  return {
-    tooltip: {
-      position: "top",
-    },
-    xAxis: {
-      type: "category",
-      data: xAxisLabels,
-    },
-    yAxis: {
-      type: "value",
-    },
-    series: [
-      {
-        data: data,
-        type: "line",
-      },
-    ],
-  };
-};
-
 const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
   return {
     tooltip: {
       position: "top",
+      formatter: function (params: any) {
+        const xLabel = params.name;
+        const value = params.value;
+        return `${xLabel}<br/> In Queue ${value} %`;
+      },
     },
     grid: {
       top: "50px",
@@ -228,7 +213,7 @@ const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
       {
         data: data,
         type: "bar",
-        barMinHeight: 5,
+        barMinHeight: 1,
       },
     ],
   };
@@ -442,14 +427,16 @@ const generateFilledTimeSeriesLine = (
 
 const sumArrayValues = (data: any[]) => {
   if (data.length === 0) return [];
-
   const length = data[0].data.length;
   const result = new Array(length).fill(0);
-
+  const total = data
+    .map((obj) => obj.data)
+    .flat()
+    .reduce((sum, val) => sum + val, 0);
   for (const item of data) {
     for (let i = 0; i < length; i++) {
-      result[i] += item.data[i];
+      result[i] += item.data[i] / total;
     }
   }
-  return result;
+  return result.map((value) => (value * 100).toFixed(3));
 };

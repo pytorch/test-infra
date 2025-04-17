@@ -60,7 +60,7 @@ export default function QueueTimeCheckBoxList({
     {}
   );
   const [category, setCategory] = useState<string>(
-    inputCategory ? inputCategory : "workflow_name"
+    inputCategory ? inputCategory : Category.workflow_name
   );
   const timeParams = {
     startTime: startDate.utc().format("YYYY-MM-DDTHH:mm:ss"),
