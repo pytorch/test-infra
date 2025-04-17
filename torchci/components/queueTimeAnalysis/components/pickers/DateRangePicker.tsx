@@ -32,9 +32,11 @@ export function DateRangePicker({
   function handleChange(e: SelectChangeEvent<number>) {
     setDateRange(e.target.value as number);
     if (e.target.value !== -1) {
-      const startDate = dayjs().subtract(e.target.value as number, "day");
+      const startDate = dayjs()
+        .utc()
+        .subtract(e.target.value as number, "day");
       setStartDate(startDate);
-      const stopDate = dayjs();
+      const stopDate = dayjs().utc();
       setStopDate(stopDate);
     }
 
