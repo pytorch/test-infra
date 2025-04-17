@@ -68,7 +68,7 @@ export default function QueueTimeSearchBar({
         ? parseInt(rQuery.dateRange as string)
         : rQuery.startDate || rQuery.endDate
         ? -1
-        : 7,
+        : 3,
       startDate: rQuery.startDate
         ? toHalfHourDayJs(rQuery.startDate as string)
         : rQuery.dateRange
@@ -76,7 +76,7 @@ export default function QueueTimeSearchBar({
             parseInt(rQuery.dateRange as string),
             "day"
           )
-        : toHalfHourDayJs(dayjs().format()).subtract(7, "day"),
+        : toHalfHourDayJs(dayjs().format()).subtract(3, "day"),
       endDate: rQuery.endDate
         ? toHalfHourDayJs(rQuery.endDate as string)
         : toHalfHourDayJs(dayjs().format()),
