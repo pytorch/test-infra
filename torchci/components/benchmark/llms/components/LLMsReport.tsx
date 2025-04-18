@@ -40,6 +40,10 @@ export default function LLMsReport({
     benchmarkPropsQueryParams,
     rBranchAndCommit
   );
+
+  console.log("lData", lData);
+  console.log("rData", rData);
+
   if (
     lData === undefined ||
     lData.length === 0 ||

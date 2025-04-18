@@ -25,7 +25,7 @@ def get_env():
         "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
         "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
         "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
-        "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME,"),
+        "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
     }
 
 

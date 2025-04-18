@@ -192,6 +192,7 @@ const MainPage = ({
   const options = data;
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
