@@ -1,40 +1,18 @@
+import { ListItemIcon, MenuItem } from "@mui/material";
 import { ThemeMode, useDarkMode } from "lib/DarkModeContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BsMoon, BsSun } from "react-icons/bs";
 import styles from "./ThemeModePicker.module.css";
+import { HoverDropDownMenu } from "./common/HoverDropDownMenu";
 
 export default function ThemeModePicker(): JSX.Element {
   const { themeMode, setThemeMode, darkMode } = useDarkMode();
   const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // This ensures hydration mismatch is avoided
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-
-    // Add event listener when dropdown is open
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Clean up event listener
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
 
   // Don't render anything until client-side
   if (!isMounted) return <div className={styles.togglePlaceholder} />;
@@ -52,52 +30,46 @@ export default function ThemeModePicker(): JSX.Element {
 
   const handleThemeChange = (mode: ThemeMode) => {
     setThemeMode(mode);
-    setIsOpen(false);
   };
 
   return (
-    <div className={styles.container} ref={containerRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={styles.toggleButton}
-        title="Change theme"
-        aria-label="Change theme"
+    <HoverDropDownMenu title={getIconComponent()}>
+      <MenuItem
+        className={`${styles.option} ${
+          themeMode === "light" ? styles.active : ""
+        }`}
+        onClick={() => handleThemeChange("light")}
       >
-        {getIconComponent()}
-      </button>
-
-      {isOpen && (
-        <div className={styles.dropdown}>
-          <button
-            className={`${styles.option} ${
-              themeMode === "light" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("light")}
-          >
-            <BsSun size={16} /> <span>Light</span>
-          </button>
-          <button
-            className={`${styles.option} ${
-              themeMode === "dark" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("dark")}
-          >
-            <BsMoon size={16} /> <span>Dark</span>
-          </button>
-          <button
-            className={`${styles.option} ${
-              themeMode === "system" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("system")}
-          >
-            <div className={styles.iconGroup}>
-              <BsSun size={12} className={styles.sunIcon} />
-              <BsMoon size={12} className={styles.moonIcon} />
-            </div>
-            <span>Use system setting</span>
-          </button>
-        </div>
-      )}
-    </div>
+        <ListItemIcon>
+          <BsSun size={16} />
+        </ListItemIcon>
+        Light
+      </MenuItem>
+      <MenuItem
+        className={`${styles.option} ${
+          themeMode === "dark" ? styles.active : ""
+        }`}
+        onClick={() => handleThemeChange("dark")}
+      >
+        <ListItemIcon>
+          <BsMoon size={16} />
+        </ListItemIcon>
+        Dark
+      </MenuItem>
+      <MenuItem
+        className={`${styles.option} ${
+          themeMode === "system" ? styles.active : ""
+        }`}
+        onClick={() => handleThemeChange("system")}
+      >
+        <ListItemIcon>
+          <div className={styles.iconGroup}>
+            <BsSun size={12} className={styles.sunIcon} />
+            <BsMoon size={12} className={styles.moonIcon} />
+          </div>
+        </ListItemIcon>
+        Use system setting
+      </MenuItem>
+    </HoverDropDownMenu>
   );
 }
