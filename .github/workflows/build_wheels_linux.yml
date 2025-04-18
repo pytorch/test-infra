@@ -247,7 +247,7 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
-      - name: Run Rename Linux wheels
+      - name: Run Manylinux_2_28 rename command
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -255,11 +255,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
-          echo "renaming $WHEEL_NAME"
-          rename 's/-linux_/-manylinux_2_28_/' "${{ inputs.repository }}/dist/*.whl"
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
-          echo "new name $WHEEL_NAME"
+          for f in ${{ inputs.repository }}/dist/*.whl; do mv -v "$f" "${f/-linux_/-manylinux_2_28_}"; done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
