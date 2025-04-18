@@ -247,13 +247,13 @@ def main() -> None:
     for entry in tutorials_commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
-            item["repo"] = "tutorials"
+            item["filename"] = f"tutorials/{item['filename']}"
         filenames.extend(items)
 
     for entry in pytorch_docs_commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
-            item["repo"] = "pytorch"
+            item["filename"] = f"pytorch/{item['filename']}"
         filenames.extend(items)
 
     # Upload data to S3 as csv with gzip compression and no header line
