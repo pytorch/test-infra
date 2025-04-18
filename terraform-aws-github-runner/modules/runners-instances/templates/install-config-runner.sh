@@ -213,7 +213,7 @@ get_labels_from_config() {
   done
 
   set +e
-  # Masquerade an ephemeral runner as non-ephemeral one
+  # Masquerade an ephemeral runner as a non-ephemeral one
   for label in $(echo $target | sed 's/,/ /g')
   do
     echo $label
