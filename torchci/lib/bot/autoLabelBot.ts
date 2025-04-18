@@ -64,8 +64,6 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/(torch|test)\/quantization/gi, "release notes: quantization"],
   [/aten\/src\/ATen\/native\/quantized/gi, "release notes: quantization"],
   [/torch\/nn\/quantiz(ed|able)/gi, "release notes: quantization"],
-  // package
-  [/(torch|test)\/package/gi, "release notes: package/deploy"],
   // mobile
   [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
   [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],
