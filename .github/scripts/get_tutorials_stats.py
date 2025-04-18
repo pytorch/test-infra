@@ -220,9 +220,26 @@ def main() -> None:
             "number_of_changed_files": int(i[4]),
             "lines_added": int(i[5]),
             "lines_deleted": int(i[6]),
+            "repo": "tutorials",
         }
-        for i in tutorials_history_log + pytorch_docs_history_log
+        for i in tutorials_history_log
     ]
+
+    history_log.extend(
+        [
+            {
+                "commit_id": i[0],
+                "author": i[1],
+                "date": i[2],
+                "title": i[3],
+                "number_of_changed_files": int(i[4]),
+                "lines_added": int(i[5]),
+                "lines_deleted": int(i[6]),
+                "repo": "pytorch",
+            }
+            for i in pytorch_docs_history_log
+        ]
+    )
 
     # Combine the two commits to files
 
@@ -230,11 +247,13 @@ def main() -> None:
     for entry in tutorials_commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
-            item["filename"] = f"tutorials/{item['filename']}"
+            item["repo"] = "tutorials"
         filenames.extend(items)
 
     for entry in pytorch_docs_commits_to_files:
         items = convert_to_dict(entry)
+        for item in items:
+            item["repo"] = "pytorch"
         filenames.extend(items)
 
     # Upload data to S3 as csv with gzip compression and no header line
