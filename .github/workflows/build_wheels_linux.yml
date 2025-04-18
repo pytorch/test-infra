@@ -252,6 +252,15 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
+      - name: Run Manylinux_2_28 rename command
+        shell: bash -l {0}
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          for f in ${{ inputs.repository }}/dist/*.whl; do mv -nv "$f" "${f/-linux_/-manylinux_2_28_}"; done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
