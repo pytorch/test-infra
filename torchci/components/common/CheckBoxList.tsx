@@ -16,10 +16,12 @@ export default function CheckBoxList({
   items,
   onChange,
   onClick,
+  listSx = {},
 }: {
   items: { [key: string]: boolean };
   onChange: (value: { [key: string]: boolean }) => void;
   onClick: (value: string) => void;
+  listSx?: any;
 }) {
   // Creates a filter search box, two buttons to select all and unselect all,
   // and a list of checkboxes. Good for manual legends for charts
@@ -62,7 +64,7 @@ export default function CheckBoxList({
           Unselect All
         </Button>
       </Stack>
-      <List dense>
+      <List dense sx={listSx}>
         {filteredItems.map((item) => (
           <ListItem key={item}>
             <FormControlLabel

@@ -37,6 +37,16 @@ export const fetcherHandleError = async (url: string) => {
   return res.json();
 };
 
+export const fetcherCatchErrorStatus = async (url: string) => {
+  // Code that might throw
+  const res = await fetch(url);
+  if (!res.ok) {
+    const error = new ErrorWithStatusCode("", res.status, "");
+    throw error;
+  }
+  return res.json();
+};
+
 export const getMessage = (
   message: string,
   classification: string,
