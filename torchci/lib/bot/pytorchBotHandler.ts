@@ -102,7 +102,10 @@ class PytorchBotHandler {
 
   async addComment(comment: string) {
     const { ctx, owner, repo, prNum, url } = this;
-    ctx.log(`Commenting with "${comment}" for pull request ${url}`);
+    const wikiLink = "https://github.com/pytorch/pytorch/wiki";
+    const enhancedComment = `${comment}\n\nFor more information, please check the [PyTorch Wiki](${wikiLink})`;
+
+    ctx.log(`Commenting with "${enhancedComment}" for pull request ${url}`);
     await this.ctx.octokit.issues.createComment({
       issue_number: prNum,
       body: comment,
