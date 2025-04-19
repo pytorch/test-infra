@@ -1,0 +1,46 @@
+name: Test Build Windows Wheels without CUDA
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/setup-binary-builds/action.yml
+      - .github/workflows/test_build_wheels_windows_arm64.yml
+      - .github/workflows/build_wheels_windows_x64.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: windows
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
+      architecture: arm64
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/vision
+            smoke-test-script: test//smoke_test.py
+            package-name: torchvision
+    uses: ./.github/workflows/build_wheels_windows.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"
