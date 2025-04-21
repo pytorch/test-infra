@@ -21,28 +21,28 @@ upload_pypi_to_staging() {
 }
 
 # Uncomment these to promote to pypi
-LINUX_VERSION_SUFFIX="%2Bcu124"
+LINUX_VERSION_SUFFIX="%2Bcu126"
 CPU_VERSION_SUFFIX="%2Bcpu"
-MACOS_X86_64="macosx_.*_x86_64"
 MACOS_ARM64="macosx_.*_arm64"
 
-PLATFORM="linux_x86_64"          VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu124" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
-PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"               upload_pypi_to_staging torch "${PYTORCH_VERSION}"
-PLATFORM="win_amd64"             VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
-PLATFORM="${MACOS_ARM64}"        VERSION_SUFFIX=""                                     upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 
-PLATFORM="linux_x86_64"          VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu124" upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
-PLATFORM="linux_aarch64"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
-PLATFORM="win_amd64"             VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
-PLATFORM="${MACOS_ARM64}"        VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
 
-PLATFORM="linux_x86_64"          VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu124" upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
-PLATFORM="linux_aarch64"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
-PLATFORM="win_amd64"             VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
-PLATFORM="${MACOS_ARM64}"        VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
 
-#PLATFORM="manylinux2014_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" upload_pypi_to_staging torchao "${TORCHAO_VERSION}"
-#PLATFORM="" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging torchtune "${TORCHTUNE_VERSION}"
+#PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging torchao "${TORCHAO_VERSION}"
+#PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torchao "${TORCHAO_VERSION}"
+#PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging torchtune "${TORCHTUNE_VERSION}"
 
 #PLATFORM="linux_x86" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging executorch "${EXECUTORCH_VERSION}"
 #PLATFORM="${MACOS_ARM64}" VERSION_SUFFIX="" upload_pypi_to_staging executorch "${EXECUTORCH_VERSION}"
