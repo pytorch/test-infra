@@ -31,6 +31,7 @@ jobs:
       - name: Checkout the pytorch repo
         uses: actions/checkout@v4
         with:
+          repository: 'pytorch/pytorch'
           path: './pytorch'
           fetch-depth: 0
 
