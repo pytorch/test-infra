@@ -9,12 +9,10 @@ import yaml
 import clickhouse_connect
 
 # Local imports
-from functools import lru_cache
-from logging import info, warning
-from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
+from typing import Any, Optional, Dict, Set, Iterable, List
 from github import Github, Auth
 from dateutil.parser import parse
-from datetime import date, datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -166,13 +164,17 @@ class LazyFileHistory:
 
         logger.info(f" [LazyFileHistory] Fetched new commits {len(newly_fetched)}")
         if len(newly_fetched) > 0:
-            newly_fetched.sort(key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc))
+            newly_fetched.sort(
+                key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+            )
             logger.info(
                 f" [LazyFileHistory] Fetched new commits with latest: {newly_fetched[-1].commit.author.date}, oldest:{newly_fetched[-1].commit.author.date}"
             )
 
         self._commits_cache.extend(newly_fetched)
-        self._commits_cache.sort(key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc))
+        self._commits_cache.sort(
+            key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+        )
 
         if not newly_fetched:
             self._fetched_all_commits = True
@@ -183,9 +185,13 @@ class LazyFileHistory:
         self, timestamp: datetime
     ) -> Optional[str]:
         commits_before_equal = [
-            c for c in self._commits_cache if c.commit.author.date.replace(tzinfo=timezone.utc)<= timestamp
+            c
+            for c in self._commits_cache
+            if c.commit.author.date.replace(tzinfo=timezone.utc) <= timestamp
         ]
-        commits_before_equal.sort(key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc))
+        commits_before_equal.sort(
+            key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+        )
         return commits_before_equal[-1] if commits_before_equal else None
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
@@ -1359,6 +1365,7 @@ def local_run() -> None:
         output_snapshot_file_name=args.output_file_name,
         output_snapshot_file_path=args.output_file_path,
     )
+
 
 if __name__ == "__main__":
     local_run()
