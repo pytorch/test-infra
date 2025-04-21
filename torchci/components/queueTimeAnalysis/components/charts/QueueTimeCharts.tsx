@@ -9,7 +9,7 @@ import { BiLineChart } from "react-icons/bi";
 import { FcHeatMap } from "react-icons/fc";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWRImmutable from "swr/immutable";
-import { QueueTimeChartUI } from "./QueueTimeChartUI";
+import { QueueTimeEchartElement } from "./QueueTimeEchartElement";
 
 const FlexNoWrap = styled("div")({
   display: "flex",
@@ -40,12 +40,14 @@ const chartToggleList: ToggleIconPickerContent[] = [
   },
 ];
 
-export default function QueueTimeChartGroup({ props }: { props: any }) {
+export default function QueueTimeCharts({ props }: { props: any }) {
   const [chartType, setChartType] = useState<any>("heatmap");
+
+  const width = 1000;
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {
-    return <LoadingPage height={1000} width={1600} />;
+    return <LoadingPage height={700} width={width} />;
   }
 
   return (
@@ -65,20 +67,18 @@ export default function QueueTimeChartGroup({ props }: { props: any }) {
         </Alert>
       )}
       <FlexNoWrap>
-        <QueueTimeChartUI
+        <QueueTimeEchartElement
           data={data}
           granularity={props.granularity}
           chartType={chartType}
-          chartGroup="test1"
-          width={chartType === "heatmap" ? "1000px" : "1600px"}
+          width={chartType === "heatmap" ? `${width*0.7}px` : `${width}px`}
         />
         {data && chartType === "heatmap" && (
-          <QueueTimeChartUI
+          <QueueTimeEchartElement
             data={data}
             granularity={props.granularity}
             chartType={"histogram_bar_vertical"}
-            chartGroup="test1"
-            width="600px"
+            width={`${width*0.3}px`}
           />
         )}
       </FlexNoWrap>

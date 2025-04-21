@@ -10,7 +10,7 @@ type DataPoint = {
   data: number[];
 };
 
-export function QueueTimeChartUI({
+export function QueueTimeEchartElement({
   data,
   granularity,
   chartType = "heatmap",
@@ -47,9 +47,6 @@ export function QueueTimeChartUI({
     let instance = chartInstance;
     if (!instance) {
       instance = echarts.init(chartRef.current);
-      if (chartGroup) {
-        instance.group = chartGroup;
-      }
       setChartInstance(chartInstance);
     }
 

@@ -5,7 +5,7 @@ import { useEffect, useReducer, useState } from "react";
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import LoadingPage from "components/LoadingPage";
 import dayjs from "dayjs";
-import QueueTimeChartGroup from "./charts/QueueTimeChartGroup";
+import QueueTimeCharts from "./charts/QueueTimeCharts";
 import QueueTimeSearchBar from "./searchBarItems/QueueTimeSearchBar";
 
 const FlexNoWrap = styled("div")({
@@ -26,7 +26,7 @@ export default function QueueTimeChartPage() {
   }
 
   return (
-    <div style={{ width: "2000px" }}>
+    <div>
       <Stack spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch Queue Time Analysis
@@ -40,7 +40,7 @@ export default function QueueTimeChartPage() {
       <Grid2 container spacing={2}>
         <FlexNoWrap>
           <div>
-            <QueueTimeChartGroup props={props} />
+            <QueueTimeCharts props={props} />
           </div>
           <div>
             <QueueTimeSearchBar router={router} updateSearch={dispatch} />
