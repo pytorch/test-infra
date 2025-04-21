@@ -20,22 +20,22 @@ const FlexNoWrap = styled("div")({
 const chartToggleList: ToggleIconPickerContent[] = [
   {
     icon: <FcHeatMap size={"2em"} />,
-    tooltipContent: "heatmap chart",
+    tooltipContent: "Heatmap chart",
     value: "heatmap",
   },
   {
     icon: <MdOutlineStackedBarChart size={"2em"} />,
-    tooltipContent: "histogram chart",
+    tooltipContent: "Histogram chart",
     value: "histogram_bar_horizontal",
   },
   {
     icon: <BiLineChart size={"2em"} />,
-    tooltipContent: "count chart",
+    tooltipContent: "Count chart",
     value: "count_job_line",
   },
   {
     icon: <BiLineChart size={"2em"} />,
-    tooltipContent: "max queue time chart",
+    tooltipContent: "Max queue time chart",
     value: "max_queue_time_line",
   },
 ];
@@ -71,14 +71,14 @@ export default function QueueTimeCharts({ props }: { props: any }) {
           data={data}
           granularity={props.granularity}
           chartType={chartType}
-          width={chartType === "heatmap" ? `${width*0.7}px` : `${width}px`}
+          width={chartType === "heatmap" ? `${width * 0.7}px` : `${width}px`}
         />
         {data && chartType === "heatmap" && (
           <QueueTimeEchartElement
             data={data}
             granularity={props.granularity}
             chartType={"histogram_bar_vertical"}
-            width={`${width*0.3}px`}
+            width={`${width * 0.3}px`}
           />
         )}
       </FlexNoWrap>
