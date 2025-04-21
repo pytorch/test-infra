@@ -9,15 +9,18 @@ import yaml
 import clickhouse_connect
 
 # Local imports
-from functools import lru_cache
-from logging import info, warning
-from typing import Any, Optional, Dict, Set, Iterable, List, Tuple
+from typing import Any, Optional, Dict, Set, Iterable, List
 from github import Github, Auth
 from dateutil.parser import parse
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-logging.basicConfig(level=logging.INFO)
+
+logging.basicConfig(
+    level=logging.INFO,
+)
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 ENVS = {
     "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
@@ -39,11 +42,9 @@ def get_clickhouse_client(
 
 
 def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Client:
-    info(f"Getting environment variables {ENVS}")
     for name, env_val in ENVS.items():
         if not env_val:
             raise ValueError(f"Missing environment variable {name}")
-
     return get_clickhouse_client(
         host=ENVS["CLICKHOUSE_ENDPOINT"],
         user=ENVS["CLICKHOUSE_USERNAME"],
@@ -91,7 +92,7 @@ def write_to_file(data: Any, filename="", path=""):
     # Write data to file
     with open(file_path, "w", encoding="utf-8") as file:
         file.write(data)
-    info(f"File written to: {os.path.abspath(file_path)}")
+    logger.info(f"File written to: {os.path.abspath(file_path)}")
 
 
 # TODO(elainewy): Move this into seperate files
@@ -117,13 +118,10 @@ class LazyFileHistory:
             with self._lock:
                 if not isinstance(timestamp, datetime):
                     if is_unix_timestamp(timestamp):
-                        timestamp = datetime.fromtimestamp(
-                            int(timestamp), tz=timezone.utc
-                        )
+                        timestamp = datetime.fromtimestamp(int(timestamp), timezone.utc)
                     else:
                         timestamp = parse(timestamp)
-
-                info(
+                logger.info(
                     f" [LazyFileHistory] Try fetch cached content for {self.repo} : {self.path} at {timestamp.isoformat()}"
                 )
                 commit = self._find_closest_before_or_equal_in_cache(timestamp)
@@ -131,18 +129,18 @@ class LazyFileHistory:
                     return self._fetch_content_for_commit(commit)
 
                 if not self._fetched_all_commits:
-                    info(
+                    logger.info(
                         f" [LazyFileHistory] Nothing found in cache, fetching all commit includes {self.repo}/{self.path} close/equal to {timestamp.isoformat()}"
                     )
                     commit = self._fetch_until_timestamp(timestamp)
                     if commit:
                         return self._fetch_content_for_commit(commit)
-                info(
+                logger.info(
                     f" [LazyFileHistory] No config file found in cache and in commits for {self.repo}/{self.path}."
                 )
                 return None
         except Exception as e:
-            warning(
+            logger.warning(
                 f" [LazyFileHistory] Error fetching content for {self.repo} : {self.path} at {timestamp}: {e}"
             )
             return None
@@ -151,6 +149,7 @@ class LazyFileHistory:
         # call github api, with path parameter
         # Only commits containing this file path will be returned.
         all_commits = self.repo.get_commits(path=self.path)
+
         known_shas = {c.sha for c in self._commits_cache}
 
         newly_fetched = []
@@ -160,18 +159,22 @@ class LazyFileHistory:
                 break
             newly_fetched.append(commit)
 
-            if commit.commit.author.date <= timestamp:
+            if commit.commit.author.date.replace(tzinfo=timezone.utc) <= timestamp:
                 break
 
-        info(f" [LazyFileHistory] Fetched new commits {len(newly_fetched)}")
+        logger.info(f" [LazyFileHistory] Fetched new commits {len(newly_fetched)}")
         if len(newly_fetched) > 0:
-            newly_fetched.sort(key=lambda c: c.commit.author.date)
-            info(
+            newly_fetched.sort(
+                key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+            )
+            logger.info(
                 f" [LazyFileHistory] Fetched new commits with latest: {newly_fetched[-1].commit.author.date}, oldest:{newly_fetched[-1].commit.author.date}"
             )
 
         self._commits_cache.extend(newly_fetched)
-        self._commits_cache.sort(key=lambda c: c.commit.author.date)
+        self._commits_cache.sort(
+            key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+        )
 
         if not newly_fetched:
             self._fetched_all_commits = True
@@ -182,14 +185,18 @@ class LazyFileHistory:
         self, timestamp: datetime
     ) -> Optional[str]:
         commits_before_equal = [
-            c for c in self._commits_cache if c.commit.author.date <= timestamp
+            c
+            for c in self._commits_cache
+            if c.commit.author.date.replace(tzinfo=timezone.utc) <= timestamp
         ]
-        commits_before_equal.sort(key=lambda c: c.commit.author.date)
+        commits_before_equal.sort(
+            key=lambda c: c.commit.author.date.replace(tzinfo=timezone.utc)
+        )
         return commits_before_equal[-1] if commits_before_equal else None
 
     def _fetch_content_for_commit(self, commit: Any) -> str:
         if commit.sha not in self._content_cache:
-            info(
+            logger.info(
                 f"Fetching content for {self.repo} : {self.path} at {commit.commit.author.date} - {commit.sha}"
             )
             # We can retrieve the file content at a specific commit
@@ -429,7 +436,7 @@ class QueueTimeProcessor:
         queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
 
         if len(queued_jobs) == 0:
-            info(
+            logger.info(
                 f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No jobs in queue in time range: [{start_time},{end_time}]"
             )
 
@@ -443,7 +450,7 @@ class QueueTimeProcessor:
         )
 
         if len(queued_jobs) == 0:
-            info(
+            logger.info(
                 f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No queued jobs, skipping generating histogram records.."
             )
 
@@ -455,17 +462,17 @@ class QueueTimeProcessor:
         )
 
         if len(records) == 0:
-            info(
+            logger.info(
                 f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] No histogram records, skipping writing.."
             )
 
         if self.is_dry_run:
-            info(
+            logger.info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] Writing results to terminal/local file ..."
             )
             self._output_record(queued_jobs, end_time, type="queued_jobs")
             self._output_record(records, end_time, type="records")
-            info(
+            logger.info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] Done. Write results to terminal/local file ."
             )
         else:
@@ -484,9 +491,9 @@ class QueueTimeProcessor:
         # TODO(elainewy): Change to misc.oss_ci_queue_time_histogram after testing is completed
         db_name = "fortesting"
         db_table_name = "oss_ci_queue_time_histogram"
-        info(f" Insert data to db table: {db_name}.{db_table_name}")
+        logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
         if len(records) == 0:
-            info(f" No histogram records, skipping writing..")
+            logger.info(f" No histogram records, skipping writing..")
             return
         columns = list(records[0].keys())
         data = [list(record.values()) for record in records]
@@ -496,7 +503,7 @@ class QueueTimeProcessor:
             column_names=columns,
             database=db_name,
         )
-        info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
+        logger.info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
 
     def _output_record(
         self,
@@ -514,7 +521,7 @@ class QueueTimeProcessor:
         time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
         file_name_with_time = f"{self.output_snapshot_file_name}_{type}_{time_str}.txt"
         if self.local_output:
-            info(
+            logger.info(
                 f"[Dry Run Mode][Snapshot {to_timestap_str(time)}]: found {len(data)} records, outputing to file: {file_name_with_time}   "
             )
             write_to_file(
@@ -526,15 +533,15 @@ class QueueTimeProcessor:
 
         # otherwise, print to terminal
         if len(data) > threshold:
-            info(
+            logger.info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(time)}]found {len(data)} records, print first {limit} in terminal. for full result, use local-output option"
             )
-            info(json.dumps(data[:limit], indent=indent))
+            logger.info(json.dumps(data[:limit], indent=indent))
         else:
-            info(
+            logger.info(
                 f" [Dry Run Mode][Snapshot {to_timestap_str(time)}] Found {len(data)} records, print in terminal"
             )
-            info(json.dumps(data, indent=indent))
+            logger.info(json.dumps(data, indent=indent))
 
     def _fetch_snapshot_from_db(
         self,
@@ -554,16 +561,16 @@ class QueueTimeProcessor:
         start_timestamp = to_timestap_str(start_time)
         end_timestamp = to_timestap_str(end_time)
 
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}] Logging interval info: [start_time: {start_time.isoformat()}({start_timestamp}), end_time: {end_time.isoformat()} ({end_timestamp})]"
         )
 
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}] Start to fetch queued jobs in default.workflow_run ...."
         )
 
         # in given snapshot time, fetches jobs that were in queue but not being picked up by workers
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}] Start to fetch jobs with `queued` status in default.workflow_run ...."
         )
         queued_query = self.get_query_statement_for_queueing_jobs(end_timestamp, repo)
@@ -573,7 +580,7 @@ class QueueTimeProcessor:
 
         # in given snapshot end_timestamp, fetches jobs that were in queue but were picked up by workers later of given snapshot time
         # this happens when the snapshot time is not in latest timestamp
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}] Start to fetch jobs with `completed` status but was in `queue` in default.workflow_run ...."
         )
         picked_query = self.get_query_statement_for_picked_up_job(end_timestamp, repo)
@@ -582,7 +589,7 @@ class QueueTimeProcessor:
         )
 
         # in given time range (start_timestamp, end_timestamp), fetches jobs that were in-queue but completed WITHIN given time range
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}] Start to fetch jobs was in queueu and `completed` in [star_time, end_time] ...."
         )
         completed_within_interval_sql = self.get_query_statement_for_completed_jobs(
@@ -595,7 +602,7 @@ class QueueTimeProcessor:
             ["completed"],
         )
 
-        info(
+        logger.info(
             f" [Snapshot:{end_timestamp}].done. Time Range[`{start_time.isoformat()}` to `{end_time.isoformat()}`] Found {len(queued_jobs)} jobs still has queued status, and {len(picked_jobs)} jobs was has queue status but picked up by runners later, and  {len(job_completed_within_interval)} jobs completed within given time range"
         )
         result = queued_jobs + picked_jobs + job_completed_within_interval
@@ -624,7 +631,7 @@ class QueueTimeProcessor:
 
         # for debugging
         #  serialized_data = {k: list(v) for k, v in runner_labels.items()}
-        # info(f"list runner_labels\n {json.dumps(serialized_data, indent=4)}")
+        # logger.info(f"list runner_labels\n {json.dumps(serialized_data, indent=4)}")
 
         # iterates throught jobs, and update tags for each job
         for job in jobs:
@@ -858,11 +865,11 @@ class QueuedJobHistogramGenerator:
         type: str,
         snapshot_time: datetime,
     ) -> List[Dict[str, Any]]:
-        info(
+        logger.info(
             f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] start to generate histogram db records ......"
         )
         if len(queued_jobs) == 0:
-            info(
+            logger.info(
                 f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] no records found, skipping histogram records generation......"
             )
             return []
@@ -871,7 +878,7 @@ class QueuedJobHistogramGenerator:
         job_queue_map = dicts["job_queue"]
         metadata_map = dicts["metadata"]
 
-        info(
+        logger.info(
             f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] generating {len(list(job_queue_map.keys()))}jobs ......"
         )
         records = []
@@ -882,7 +889,7 @@ class QueuedJobHistogramGenerator:
                 created_time, snapshot_time, type, metadata, metrics
             )
             records.append(record)
-        info(
+        logger.info(
             f" [QueuedJobHistogramGenerator][Snapshot{to_timestap_str(snapshot_time)}] Done. generated {len(records)} histogram db records ......"
         )
         return records
@@ -948,7 +955,7 @@ class QueuedJobHistogramGenerator:
             if qs <= one_hour_divider:
                 if qs == 0:
                     url = qj["html_url"]
-                    warning(
+                    logger.warning(
                         f"expect queue time at least 1 secs, but found 0 for queue_s {url}, please investigate"
                     )
                     continue
@@ -986,7 +993,7 @@ class QueuedJobHistogramGenerator:
         metadata = {}
         for field in self.metadata_field_list:
             if field not in qj:
-                warning(
+                logger.warning(
                     f"required field `{field}` is missing in queued job data, please investigate"
                 )
                 continue
@@ -1017,11 +1024,11 @@ class WorkerPoolHandler:
         time_intervals: List[List[datetime]],
         args: Optional[argparse.Namespace] = None,
     ) -> None:
-        info(
+        logger.info(
             f" [WorkerPoolHandler] start to process queue time data with {len(time_intervals)} jobs and {self.max_workers} max num of workers..."
         )
         if len(time_intervals) == 0:
-            info(" no time intervals to process, exiting...")
+            logger.info(" no time intervals to process, exiting...")
             return
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
@@ -1046,14 +1053,14 @@ class WorkerPoolHandler:
                 result = future.result()  # This will raise an exception if one occurred
                 results.append(result)
             except Exception as e:
-                warning(f"Error processing future: {e}")
+                logger.warning(f"Error processing future: {e}")
                 errors.append({"error": str(e)})
-        info(
+        logger.info(
             f" [WorkerPoolHandler] done. total works: {len(time_intervals)}, success: {len(results)}, failure:{len(errors)}"
         )
 
         if len(errors) > 0:
-            warning(
+            logger.warning(
                 f" [Failure][WorkerPoolHandler] Errors occurred while processing futures: {errors}, investigation is needed"
             )
 
@@ -1077,9 +1084,9 @@ class TimeIntervalGenerator:
         pass
 
     def generate(self, clickhouse_client: clickhouse_connect.driver.client.Client):
-        info(" [TimeIntervalGenerator] Start to generate time intervals...")
+        logger.info(" [TimeIntervalGenerator] Start to generate time intervals...")
         utc_now = datetime.now(timezone.utc)
-        info(f" Current time (UTC) is {utc_now}")
+        logger.info(f" Current time (UTC) is {utc_now}")
 
         # get latest time from histogram table, and find the half-hour mark
         # Ex: 8:45am -> 8:30am, 11:15pm -> 11:00pm
@@ -1090,7 +1097,7 @@ class TimeIntervalGenerator:
             lastest_time_histogram, timezone=timezone.utc
         )
         target_mark_datetime = self._to_half_hour_mark(lastest_time_histogram_dt)
-        info(
+        logger.info(
             f" Done. parse lastest time from histogram table: {lastest_time_histogram} (UTC:{lastest_time_histogram_dt}). Half-hour time (UTC): {target_mark_datetime}"
         )
 
@@ -1102,14 +1109,14 @@ class TimeIntervalGenerator:
             lastest_time_workflow_job, timezone=timezone.utc
         )
         src_mark_datetime = self._to_half_hour_mark(lastest_time_workflow_job_dt)
-        info(
+        logger.info(
             f" Done. parse lastest time from workflow_job table: {lastest_time_workflow_job} (UTC format:{lastest_time_workflow_job_dt}). Half-hour mark (UTC): {src_mark_datetime}"
         )
 
         intervals = self._generate_intervals(target_mark_datetime, src_mark_datetime)
 
         # TODO(elainewy): add logic to investigate if any interval already existed in db, skip.
-        info(
+        logger.info(
             f" [TimeIntervalGenerator] Done. generate {len(intervals)} intervals between [{target_mark_datetime},{src_mark_datetime}]"
         )
         return intervals
@@ -1151,7 +1158,7 @@ class TimeIntervalGenerator:
             )
 
         if end_time <= start_time:
-            info(
+            logger.info(
                 f" skip generating intervals. end_time `{end_time}` is earlier than or equal to start_time `{start_time}`"
             )
             return []
@@ -1160,7 +1167,7 @@ class TimeIntervalGenerator:
             # find closest :00 and :30 time from source table
             # then find previous half-hour closest to the end_time
             generated_start_time = end_time - timedelta(minutes=30)
-            info(
+            logger.info(
                 f"  [Initialization] start_time is unix timestamp 0. Generating interval from workflow_job table: [{generated_start_time}, {end_time}]"
             )
             return [[generated_start_time, end_time]]
@@ -1190,7 +1197,7 @@ class TimeIntervalGenerator:
         query = """
         SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
         """
-        info(
+        logger.info(
             " Getting lastest timestamp from fortesting.oss_ci_queue_time_histogram...."
         )
         res = cc.query(query, {})
@@ -1208,7 +1215,7 @@ class TimeIntervalGenerator:
     def get_latest_time_workflow_job_table(
         self, cc: clickhouse_connect.driver.client.Client
     ) -> str:
-        info(" Getting lastest timestamp from default.workflow_job...")
+        logger.info(" Getting lastest timestamp from default.workflow_job...")
         query = """
         SELECT toUnixTimestamp(GREATEST(MAX(created_at), MAX(started_at))) AS latest from default.workflow_job
         """
@@ -1245,7 +1252,7 @@ def main(
     config_retrievers = get_config_retrievers(github_access_token)
 
     # get time intervals.
-    info(f" [Main] generating time intervals ....")
+    logger.info(f" [Main] generating time intervals ....")
     if args:
         cc = get_clickhouse_client(
             args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
@@ -1255,7 +1262,7 @@ def main(
     time_intervals = TimeIntervalGenerator().generate(cc)
 
     if len(time_intervals) == 0:
-        info(" [Main] No time intervals to process, exiting...")
+        logger.info(" [Main] No time intervals to process, exiting...")
         return
 
     # get jobs in queue from clickhouse for list of time intervals, in parallel
@@ -1269,7 +1276,7 @@ def main(
         ),
     )
     handler.start(time_intervals, args)
-    info(f" [Main] Done. work completed.")
+    logger.info(f" [Main] Done. work completed.")
 
 
 def lambda_handler(event: Any, context: Any) -> None:
