@@ -1,9 +1,10 @@
-import { Box, Grid2, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Grid2, IconButton, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import {
   Granularity,
@@ -267,6 +268,35 @@ export default function LLMsGraphPanel({
   );
 }
 
+export const InfoTooltip = ({ title }: { title: string }) => (
+  <Tooltip title={title} arrow placement="top">
+    <IconButton size="small">
+      <InfoOutlinedIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
+);
+
+const MetricCell = ({
+  children,
+  tooltipText = "",
+}: {
+  children: any;
+  tooltipText: string;
+}) => {
+  return (
+    <TableCell>
+      {tooltipText === "" ? (
+        children
+      ) : (
+        <>
+          {children}
+          <InfoTooltip title={tooltipText} />
+        </>
+      )}
+    </TableCell>
+  );
+};
+
 const MetricTable = ({
   chartData,
   metricNames,
@@ -289,9 +319,9 @@ const MetricTable = ({
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ py: 0.5 }}>Date</TableCell>
-            <TableCell sx={{ py: 0.5 }}>Commit</TableCell>
-            <TableCell sx={{ py: 0.5 }}>Workflow Id</TableCell>
+            <MetricCell tooltipText="the date when data inserted in db">Date</MetricCell>
+            <MetricCell tooltipText="the latest commit associted with the git job">Commit</MetricCell>
+            <MetricCell  tooltipText="the workflow job that generates the value">Workflow Info</MetricCell>
             {metricNames.map((metric: string) => (
               <TableCell key={metric} sx={{ py: 0.5 }}>
                 {chartData[metric]?.length
@@ -306,7 +336,7 @@ const MetricTable = ({
             const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
             return (
               <TableRow key={index}>
-                <TableCell sx={{ py: 0.25 }}>{entry.granularity_bucket}</TableCell>
+                <TableCell><span>{entry.granularity_bucket} </span></TableCell>
                 <TableCell sx={{ py: 0.25 }}>
                   <code>
                     <Link
