@@ -269,7 +269,6 @@ export default function LLMsGraphPanel({
       </div>
       {modelName !== DEFAULT_MODEL_NAME && (
         <Box mt={4} px={2}>
-          {/* Section Title */}
           <Typography variant="h5" gutterBottom>
             {" "}
             Data details{" "}
