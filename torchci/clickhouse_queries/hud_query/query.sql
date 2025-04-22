@@ -29,8 +29,7 @@ WITH job AS (
         job.torchci_classification.'line' as line,
         job.torchci_classification.'captures' as captures,
         job.torchci_classification.'line_num' as line_num,
-        annotation.annotation as annotation,
-        job._inserted_at as job_inserted_at
+        annotation.annotation as annotation
     FROM
         workflow_job job final
         LEFT JOIN job_annotation annotation final ON job.id = annotation.jobID
@@ -39,7 +38,7 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND job.workflow_event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND job.workflow_event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND job.id in (select distinct id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
+        AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         AND job.repository_full_name = {repo: String}
         AND job.workflow_name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
     -- Removed CircleCI query
