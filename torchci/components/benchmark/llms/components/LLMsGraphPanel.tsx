@@ -274,7 +274,8 @@ export default function LLMsGraphPanel({
             Data details{" "}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            shows raw benchmark values along with metadata details for each entry.
+            shows raw benchmark values along with metadata details for each
+            entry.
           </Typography>
           <div>
             <MetricTable
