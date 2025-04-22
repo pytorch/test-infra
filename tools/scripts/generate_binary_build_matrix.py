@@ -24,17 +24,17 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
     "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
-    "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
+    "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.6", "12.8"],
     "test": ["11.8", "12.6", "12.8"],
-    "release": ["11.8", "12.4", "12.6"],
+    "release": ["11.8", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.2.4", "6.3"],
     "test": ["6.2.4", "6.3"],
-    "release": ["6.1", "6.2.4"],
+    "release": ["6.2.4", "6.3"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -47,7 +47,7 @@ CUDA_CUDNN_VERSIONS = {
 STABLE_CUDA_VERSIONS = {
     "nightly": "12.6",
     "test": "12.6",
-    "release": "12.4",
+    "release": "12.6",
 }
 
 CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
@@ -76,7 +76,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
 CURRENT_CANDIDATE_VERSION = "2.7.0"
-CURRENT_STABLE_VERSION = "2.6.0"
+CURRENT_STABLE_VERSION = "2.7.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches

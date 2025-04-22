@@ -12,7 +12,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     },
     {
@@ -27,7 +27,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     },
     {
@@ -42,7 +42,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     },
     {
@@ -57,7 +57,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     },
     {
@@ -72,7 +72,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     },
     {
@@ -87,7 +87,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.6.0",
+      "stable_version": "2.7.0",
       "use_split_build": false
     }
   ]
