@@ -1,10 +1,25 @@
-import { Box, Grid2, IconButton, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import {
+  Box,
+  Grid2,
+  IconButton,
+  Link,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import {
   Granularity,
@@ -254,13 +269,23 @@ export default function LLMsGraphPanel({
       </div>
       {modelName !== DEFAULT_MODEL_NAME && (
         <Box mt={4} px={2}>
-        {/* Section Title */}
-        <Typography variant="h5" gutterBottom> Data details </Typography>
+          {/* Section Title */}
+          <Typography variant="h5" gutterBottom>
+            {" "}
+            Data details{" "}
+          </Typography>
           <Typography variant="body2" color="text.secondary">
             The table displays metrics value between the range you selected.
           </Typography>
           <div>
-          <MetricTable chartData={chartData} metricNames={metricNames} availableMetric={availableMetric} METRIC_DISPLAY_SHORT_HEADERS={METRIC_DISPLAY_SHORT_HEADERS} WORKFLOW_ID_TO_COMMIT={WORKFLOW_ID_TO_COMMIT} repo={repoName}/>
+            <MetricTable
+              chartData={chartData}
+              metricNames={metricNames}
+              availableMetric={availableMetric}
+              METRIC_DISPLAY_SHORT_HEADERS={METRIC_DISPLAY_SHORT_HEADERS}
+              WORKFLOW_ID_TO_COMMIT={WORKFLOW_ID_TO_COMMIT}
+              repo={repoName}
+            />
           </div>
         </Box>
       )}
@@ -315,13 +340,22 @@ const MetricTable = ({
   const repoUrl = "https://github.com/" + repo;
 
   return (
-    <TableContainer component={Paper} sx={{ maxHeight: 440, margin: "10px 0", tableLayout:"auto"}}>
+    <TableContainer
+      component={Paper}
+      sx={{ maxHeight: 440, margin: "10px 0", tableLayout: "auto" }}
+    >
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <MetricCell tooltipText="the date when data inserted in db">Date</MetricCell>
-            <MetricCell tooltipText="the latest commit associted with the git job">Commit</MetricCell>
-            <MetricCell  tooltipText="the workflow job that generates the value">Workflow Info</MetricCell>
+            <MetricCell tooltipText="the date when data inserted in db">
+              Date
+            </MetricCell>
+            <MetricCell tooltipText="the latest commit associted with the git job">
+              Commit
+            </MetricCell>
+            <MetricCell tooltipText="the workflow job that generates the value">
+              Workflow Info
+            </MetricCell>
             {metricNames.map((metric: string) => (
               <TableCell key={metric} sx={{ py: 0.5 }}>
                 {chartData[metric]?.length
@@ -336,7 +370,9 @@ const MetricTable = ({
             const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
             return (
               <TableRow key={index}>
-                <TableCell><span>{entry.granularity_bucket} </span></TableCell>
+                <TableCell>
+                  <span>{entry.granularity_bucket} </span>
+                </TableCell>
                 <TableCell sx={{ py: 0.25 }}>
                   <code>
                     <Link
@@ -350,10 +386,13 @@ const MetricTable = ({
                   </code>
                 </TableCell>
                 <TableCell sx={{ py: 0.25 }}>
-                  <Link href={`${repoUrl}/actions/runs/${entry.workflow_id}/job/${entry.job_id}`} target="_blank">
-                  {entry.workflow_id}/{entry.job_id}
+                  <Link
+                    href={`${repoUrl}/actions/runs/${entry.workflow_id}/job/${entry.job_id}`}
+                    target="_blank"
+                  >
+                    {entry.workflow_id}/{entry.job_id}
                   </Link>
-                  </TableCell>
+                </TableCell>
                 {metricNames
                   .filter((metric) => chartData[metric]?.length)
                   .map((metric) => (
