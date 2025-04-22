@@ -260,7 +260,8 @@ jobs:
             if [[ ! -e $pkg ]]; then
                 continue
             fi
-            ./test-infra/.github/scripts/repair_manylinux_2_28.sh $pkg
+            abs_pkg=$(realpath $pkg)
+            ./test-infra/.github/scripts/repair_manylinux_2_28.sh $abs_pkg
           done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
