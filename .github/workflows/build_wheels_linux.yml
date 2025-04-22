@@ -255,7 +255,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do ./test-infra/.github/scripts/repair_manylinux_2_28_wheel.sh $pkg; done
+          for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do ./test-infra/.github/scripts/repair_manylinux_2_28.sh $pkg; done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
