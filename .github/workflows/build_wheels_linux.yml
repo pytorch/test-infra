@@ -252,7 +252,7 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
-      - name: Run Manylinux_2_28 rename command
+      - name: Repair Manylinux_2_28 Wheel
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -260,7 +260,14 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          for f in ${{ inputs.repository }}/dist/*.whl; do mv -nv "$f" "${f/-linux_/-manylinux_2_28_}"; done
+          for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
+            # if the glob didn't match anything
+            if [[ ! -e $pkg ]]; then
+                continue
+            fi
+            abs_pkg=$(realpath $pkg)
+            ./test-infra/.github/scripts/repair_manylinux_2_28.sh $abs_pkg
+          done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
