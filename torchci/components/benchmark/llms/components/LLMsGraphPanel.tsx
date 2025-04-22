@@ -1,4 +1,4 @@
-import { Grid2, Stack, Typography } from "@mui/material";
+import { Box, Grid2, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -252,55 +252,90 @@ export default function LLMsGraphPanel({
         </Grid2>
       </div>
       {modelName !== DEFAULT_MODEL_NAME && (
-        <div>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Commit</th>
-                {metricNames.map((metric: string) => (
-                  <th key={metric}>
-                    {chartData[metric].length !== 0
-                      ? metric in METRIC_DISPLAY_SHORT_HEADERS
-                        ? METRIC_DISPLAY_SHORT_HEADERS[metric]
-                        : metric
-                      : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {chartData[availableMetric].map((entry: any, index: number) => {
-                let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
-                return (
-                  <tr key={index}>
-                    <td>{entry.granularity_bucket}</td>
-                    <td>
-                      <code>
-                        <a
-                          onClick={() => navigator.clipboard.writeText(commit)}
-                          className="animate-on-click"
-                        >
-                          {commit}
-                        </a>
-                      </code>
-                    </td>
-                    {metricNames
-                      .filter((metric) => chartData[metric].length !== 0)
-                      .map((metric: string) => (
-                        <td key={`${metric}-${index}`}>
-                          {chartData[metric][index] !== undefined
-                            ? chartData[metric][index].actual
-                            : ""}
-                        </td>
-                      ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Box mt={4} px={2}>
+        {/* Section Title */}
+        <Typography variant="h5" gutterBottom> Data details </Typography>
+          <Typography variant="body2" color="text.secondary">
+            The table displays metrics value between the range you selected.
+          </Typography>
+          <div>
+          <MetricTable chartData={chartData} metricNames={metricNames} availableMetric={availableMetric} METRIC_DISPLAY_SHORT_HEADERS={METRIC_DISPLAY_SHORT_HEADERS} WORKFLOW_ID_TO_COMMIT={WORKFLOW_ID_TO_COMMIT} repo={repoName}/>
+          </div>
+        </Box>
       )}
     </>
   );
 }
+
+const MetricTable = ({
+  chartData,
+  metricNames,
+  availableMetric,
+  METRIC_DISPLAY_SHORT_HEADERS,
+  WORKFLOW_ID_TO_COMMIT,
+  repo,
+}: {
+  chartData: Record<string, any[]>;
+  metricNames: string[];
+  availableMetric: string;
+  METRIC_DISPLAY_SHORT_HEADERS: Record<string, string>;
+  WORKFLOW_ID_TO_COMMIT: Record<string, string>;
+  repo: string;
+}) => {
+  const repoUrl = "https://github.com/" + repo;
+
+  return (
+    <TableContainer component={Paper} sx={{ maxHeight: 440, margin: "10px 0", tableLayout:"auto"}}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ py: 0.5 }}>Date</TableCell>
+            <TableCell sx={{ py: 0.5 }}>Commit</TableCell>
+            <TableCell sx={{ py: 0.5 }}>Workflow Id</TableCell>
+            {metricNames.map((metric: string) => (
+              <TableCell key={metric} sx={{ py: 0.5 }}>
+                {chartData[metric]?.length
+                  ? METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric
+                  : ""}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {chartData[availableMetric].map((entry: any, index: number) => {
+            const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+            return (
+              <TableRow key={index}>
+                <TableCell sx={{ py: 0.25 }}>{entry.granularity_bucket}</TableCell>
+                <TableCell sx={{ py: 0.25 }}>
+                  <code>
+                    <Link
+                      component="button"
+                      underline="hover"
+                      onClick={() => navigator.clipboard.writeText(commit)}
+                      sx={{ cursor: "pointer", fontSize: "0.75rem" }}
+                    >
+                      {commit}
+                    </Link>
+                  </code>
+                </TableCell>
+                <TableCell sx={{ py: 0.25 }}>
+                  <Link href={`${repoUrl}/actions/runs/${entry.workflow_id}/job/${entry.job_id}`} target="_blank">
+                  {entry.workflow_id}/{entry.job_id}
+                  </Link>
+                  </TableCell>
+                {metricNames
+                  .filter((metric) => chartData[metric]?.length)
+                  .map((metric) => (
+                    <TableCell key={`${metric}-${index}`} sx={{ py: 0.25 }}>
+                      {chartData[metric][index]?.actual ?? ""}
+                    </TableCell>
+                  ))}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
