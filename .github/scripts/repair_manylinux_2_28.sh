@@ -43,7 +43,8 @@ if [[ -e $record_file ]]; then
     done
 fi
 
+
 pkg_name=$(echo $(basename $pkg) | sed -e s#-linux_#-manylinux_2_28_#)
-zip -rq $pkg_name
+zip -qr9 $pkg_name .
 rm -f $pkg
 mv $pkg_name $(dirname $pkg)/$pkg_name
