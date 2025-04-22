@@ -255,7 +255,6 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          cd ${{ inputs.repository }}/dist/
           for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
             # if the glob didn't match anything
             if [[ ! -e $pkg ]]; then
