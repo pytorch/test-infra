@@ -15,6 +15,10 @@ else
     pip3 install torch${RELEASE_SUFFIX} torchvision torchaudio
 fi
 
+pushd ${PWD}/.ci/pytorch/
+
 python ./test/smoke_test/smoke_test.py ${TEST_SUFFIX} --runtime-error-check disabled
+
+popd
 conda deactivate
 conda env remove -p ${ENV_NAME}_pypi
