@@ -31,7 +31,7 @@ export function QueueTimeEchartElement({
   const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
   const [rawData, setRawData] = useState<any>(null);
   const { darkMode } = useDarkMode();
-  
+
   const queue_axis_value = generateExponential();
 
   useEffect(() => {
@@ -48,11 +48,11 @@ export function QueueTimeEchartElement({
   useEffect(() => {
     if (!chartRef.current) return;
 
-    // Dispose of any existing chart instance 
+    // Dispose of any existing chart instance
     if (chartInstanceRef.current) {
       chartInstanceRef.current.dispose();
     }
-    
+
     // Create new chart with appropriate theme
     const instance = echarts.init(chartRef.current, darkMode ? darkThemeHud : undefined);
     chartInstanceRef.current = instance;
@@ -83,7 +83,7 @@ export function QueueTimeEchartElement({
   // Update chart options when data or chart type changes
   useEffect(() => {
     if (!rawData || rawData.length === 0 || !chartInstanceRef.current) return;
-    
+
     updateChart(chartInstanceRef.current, rawData, chartType, granularity, queue_axis_value);
   }, [rawData, chartType, granularity]);
 
