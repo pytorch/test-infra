@@ -1,9 +1,9 @@
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import * as echarts from "echarts";
-import { useEffect, useRef, useState } from "react";
 import { useDarkMode } from "lib/DarkModeContext";
 import darkThemeHud from "lib/chartTheme";
+import { useEffect, useRef, useState } from "react";
 
 dayjs.extend(isoWeek);
 
@@ -54,7 +54,10 @@ export function QueueTimeEchartElement({
     }
 
     // Create new chart with appropriate theme
-    const instance = echarts.init(chartRef.current, darkMode ? darkThemeHud : undefined);
+    const instance = echarts.init(
+      chartRef.current,
+      darkMode ? darkThemeHud : undefined
+    );
     chartInstanceRef.current = instance;
 
     // Set up resize handlers
@@ -84,7 +87,13 @@ export function QueueTimeEchartElement({
   useEffect(() => {
     if (!rawData || rawData.length === 0 || !chartInstanceRef.current) return;
 
-    updateChart(chartInstanceRef.current, rawData, chartType, granularity, queue_axis_value);
+    updateChart(
+      chartInstanceRef.current,
+      rawData,
+      chartType,
+      granularity,
+      queue_axis_value
+    );
   }, [rawData, chartType, granularity]);
 
   const height = queue_axis_value.length * 10;

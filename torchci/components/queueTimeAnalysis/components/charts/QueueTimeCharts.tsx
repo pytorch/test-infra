@@ -3,6 +3,7 @@ import LoadingPage from "components/LoadingPage";
 import ToggleIconPicker, {
   ToggleIconPickerContent,
 } from "components/metrics/pickers/ToggleIconPicker";
+import { useDarkMode } from "lib/DarkModeContext";
 import { encodeParams, fetcherCatchErrorStatus } from "lib/GeneralUtils";
 import { useState } from "react";
 import { BiLineChart } from "react-icons/bi";
@@ -10,7 +11,6 @@ import { FcHeatMap } from "react-icons/fc";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWRImmutable from "swr/immutable";
 import { QueueTimeEchartElement } from "./QueueTimeEchartElement";
-import { useDarkMode } from "lib/DarkModeContext";
 
 const FlexNoWrap = styled("div")({
   display: "flex",
