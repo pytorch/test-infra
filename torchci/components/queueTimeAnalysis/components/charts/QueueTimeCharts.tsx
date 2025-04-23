@@ -85,9 +85,8 @@ export default function QueueTimeCharts({
             granularity={props.granularity}
             chartType={"histogram_bar_vertical"}
             width={`20%`}
-            minWidth='100px'
+            minWidth="100px"
           />
-
         )}
       </FlexNoWrap>
     </div>

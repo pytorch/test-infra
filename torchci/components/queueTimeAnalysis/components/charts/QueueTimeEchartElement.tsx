@@ -16,7 +16,7 @@ export function QueueTimeEchartElement({
   chartType = "heatmap",
   chartGroup,
   width,
-  minWidth = '200px',
+  minWidth = "200px",
 }: {
   chartType: string;
   data?: any[];
