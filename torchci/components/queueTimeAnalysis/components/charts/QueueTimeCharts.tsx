@@ -2,7 +2,7 @@ import { Alert, styled } from "@mui/material";
 import LoadingPage from "components/LoadingPage";
 import ToggleIconPicker, {
   ToggleIconPickerContent,
-} from "components/metrics/pickers/ToogleIconPicker";
+} from "components/metrics/pickers/ToggleIconPicker";
 import { encodeParams, fetcherCatchErrorStatus } from "lib/GeneralUtils";
 import { useState } from "react";
 import { BiLineChart } from "react-icons/bi";
