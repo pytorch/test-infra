@@ -85,6 +85,10 @@ function NavBar() {
       href: "/tts",
     },
     {
+      name: "Queue Time Analysis",
+      href: "/queue_time_analysis"
+    },
+    {
       name: "Nightly Branch",
       href: "/hud/pytorch/pytorch/nightly",
     },

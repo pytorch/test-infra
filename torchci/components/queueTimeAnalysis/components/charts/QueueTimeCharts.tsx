@@ -43,7 +43,6 @@ const chartToggleList: ToggleIconPickerContent[] = [
 
 export default function QueueTimeCharts({
   props,
-  width = 2000,
 }: {
   props: any;
   width?: number;
@@ -52,7 +51,7 @@ export default function QueueTimeCharts({
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {
-    return <LoadingPage height={700} width={width} />;
+    return <LoadingPage height={700} width={"70vw"} />;
   }
 
   return (
