@@ -485,8 +485,8 @@ export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   if (minTimeExceeded) {
     console.debug(
       `[runnerMinimumTimeExceeded] Instance ${runner.instanceId} ${reason} and has ` +
-      `exceeded the minimum running time of ${Config.Instance.minimumRunningTimeInMinutes} mins ` +
-      `by ${maxTime.diff(baseTime, 'minutes')} mins.`
+        `exceeded the minimum running time of ${Config.Instance.minimumRunningTimeInMinutes} mins ` +
+        `by ${maxTime.diff(baseTime, 'minutes')} mins.`,
     );
   }
 
