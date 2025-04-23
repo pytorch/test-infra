@@ -15,6 +15,7 @@ const FlexNoWrap = styled("div")({
   display: "flex",
   margin: "0",
   padding: "0",
+  width: "70vw",
 });
 
 const chartToggleList: ToggleIconPickerContent[] = [
@@ -40,10 +41,14 @@ const chartToggleList: ToggleIconPickerContent[] = [
   },
 ];
 
-export default function QueueTimeCharts({ props }: { props: any }) {
+export default function QueueTimeCharts({
+  props,
+  width = 2000,
+}: {
+  props: any;
+  width?: number;
+}) {
   const [chartType, setChartType] = useState<any>("heatmap");
-
-  const width = 1000;
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {
@@ -51,7 +56,7 @@ export default function QueueTimeCharts({ props }: { props: any }) {
   }
 
   return (
-    <>
+    <div>
       <ToggleIconPicker
         toggleList={chartToggleList}
         type={chartType}
@@ -71,18 +76,18 @@ export default function QueueTimeCharts({ props }: { props: any }) {
           data={data}
           granularity={props.granularity}
           chartType={chartType}
-          width={chartType === "heatmap" ? `${width * 0.7}px` : `${width}px`}
+          width={chartType === "heatmap" ? `70%` : `100%`}
         />
         {data && chartType === "heatmap" && (
           <QueueTimeEchartElement
             data={data}
             granularity={props.granularity}
             chartType={"histogram_bar_vertical"}
-            width={`${width * 0.3}px`}
+            width={`20%`}
           />
         )}
       </FlexNoWrap>
-    </>
+    </div>
   );
 }
 
