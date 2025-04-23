@@ -1,0 +1,10 @@
+{
+    "params": {
+        "startTime": "DateTime64",
+        "endTime": "DateTime64",
+        "granularity": "String",
+        "items": "Array<String>",
+        "repos": "Array<String>"
+    },
+    "tests": []
+  }
