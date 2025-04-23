@@ -64,7 +64,8 @@ on:
         type: string
       custom-tag-prefix:
         description: |
-          Custom tag prefix to use for the docker image.
+          Custom tag prefix to use for the docker image.  This can be used with docker-build-dir
+          to get an image name like imagename:customtagprefix-shaoffolder
         type: string
       docker-build-dir:
         description: |
