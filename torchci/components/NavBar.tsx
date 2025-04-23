@@ -86,7 +86,7 @@ function NavBar() {
     },
     {
       name: "Queue Time Analysis",
-      href: "/queue_time_analysis"
+      href: "/queue_time_analysis",
     },
     {
       name: "Nightly Branch",
