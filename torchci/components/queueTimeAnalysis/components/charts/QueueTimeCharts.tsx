@@ -3,6 +3,7 @@ import LoadingPage from "components/LoadingPage";
 import ToggleIconPicker, {
   ToggleIconPickerContent,
 } from "components/metrics/pickers/ToggleIconPicker";
+import { useDarkMode } from "lib/DarkModeContext";
 import { encodeParams, fetcherCatchErrorStatus } from "lib/GeneralUtils";
 import { useState } from "react";
 import { BiLineChart } from "react-icons/bi";
@@ -48,6 +49,7 @@ export default function QueueTimeCharts({
   width?: number;
 }) {
   const [chartType, setChartType] = useState<any>("heatmap");
+  const { darkMode } = useDarkMode();
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {

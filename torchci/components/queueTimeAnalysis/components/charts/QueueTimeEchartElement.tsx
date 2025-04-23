@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import * as echarts from "echarts";
+import { useDarkMode } from "lib/DarkModeContext";
+import darkThemeHud from "lib/chartTheme";
 import { useEffect, useRef, useState } from "react";
 
 dayjs.extend(isoWeek);
@@ -28,6 +30,7 @@ export function QueueTimeEchartElement({
   const chartRef = useRef(null); // Create a ref for the chart container
   const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
   const [rawData, setRawData] = useState<any>(null);
+  const { darkMode } = useDarkMode();
 
   const queue_axis_value = generateExponential();
 
@@ -41,14 +44,23 @@ export function QueueTimeEchartElement({
     setRawData(data);
   }, [data, granularity]);
 
+  // Initialize chart instance and handle resize events
   useEffect(() => {
     if (!chartRef.current) return;
 
-    // Prevent duplicate init
-    echarts.dispose(chartRef.current);
-    const instance = echarts.init(chartRef.current);
+    // Dispose of any existing chart instance
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.dispose();
+    }
+
+    // Create new chart with appropriate theme
+    const instance = echarts.init(
+      chartRef.current,
+      darkMode ? darkThemeHud : undefined
+    );
     chartInstanceRef.current = instance;
 
+    // Set up resize handlers
     const handleResize = () => {
       instance.resize();
     };
@@ -59,77 +71,30 @@ export function QueueTimeEchartElement({
     });
     resizeObserver.observe(chartRef.current);
 
+    // If we have data already, update the chart
+    if (rawData && rawData.length > 0) {
+      updateChart(instance, rawData, chartType, granularity, queue_axis_value);
+    }
+
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       instance.dispose();
     };
-  }, []);
+  }, [darkMode]);
 
+  // Update chart options when data or chart type changes
   useEffect(() => {
     if (!rawData || rawData.length === 0 || !chartInstanceRef.current) return;
-    const instance = chartInstanceRef.current;
 
-    if (rawData.length == 0) {
-      return;
-    }
-
-    const startTime = getTruncTime(dayjs(rawData[0].time), granularity);
-    const endTime = getTruncTime(
-      dayjs(rawData[rawData.length - 1].time),
-      granularity
-    );
-    const chartData = generateFilledTimeSeries(
-      startTime,
-      endTime,
+    updateChart(
+      chartInstanceRef.current,
       rawData,
-      granularity
+      chartType,
+      granularity,
+      queue_axis_value
     );
-    const timeDates = generateTimePoints(startTime, endTime, granularity);
-
-    let chartRenderOptions = {};
-    switch (chartType) {
-      case "heatmap":
-        chartRenderOptions = getHeatMapOptions(
-          chartData,
-          queue_axis_value,
-          timeDates
-        );
-        break;
-      case "histogram_bar_vertical":
-        const aggre_hist = sumArrayValues(rawData);
-        chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
-        break;
-      case "histogram_bar_horizontal":
-        const aggre_hist_bar = sumArrayValues(rawData);
-        chartRenderOptions = getBarChartHorizontal(
-          aggre_hist_bar,
-          queue_axis_value
-        );
-        break;
-      case "count_job_line":
-        const jobCountData = generateFilledTimeSeriesLine(
-          startTime,
-          endTime,
-          rawData,
-          granularity,
-          "total_count"
-        );
-        chartRenderOptions = getLineChart(jobCountData, timeDates);
-        break;
-      case "max_queue_time_line":
-        const maxQueueTimeData = generateFilledTimeSeriesLine(
-          startTime,
-          endTime,
-          rawData,
-          granularity,
-          "max_queue_time"
-        );
-        chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
-        break;
-    }
-    instance.setOption(chartRenderOptions, true);
-  }, [rawData, chartType]);
+  }, [rawData, chartType, granularity]);
 
   const height = queue_axis_value.length * 10;
   return (
@@ -142,6 +107,73 @@ export function QueueTimeEchartElement({
       }}
     />
   );
+}
+
+// Extracted chart update logic to avoid code duplication
+function updateChart(
+  instance: echarts.EChartsType,
+  rawData: any[],
+  chartType: string,
+  granularity: string,
+  queue_axis_value: string[]
+) {
+  if (rawData.length === 0) return;
+
+  const startTime = getTruncTime(dayjs(rawData[0].time), granularity);
+  const endTime = getTruncTime(
+    dayjs(rawData[rawData.length - 1].time),
+    granularity
+  );
+  const chartData = generateFilledTimeSeries(
+    startTime,
+    endTime,
+    rawData,
+    granularity
+  );
+  const timeDates = generateTimePoints(startTime, endTime, granularity);
+
+  let chartRenderOptions = {};
+  switch (chartType) {
+    case "heatmap":
+      chartRenderOptions = getHeatMapOptions(
+        chartData,
+        queue_axis_value,
+        timeDates
+      );
+      break;
+    case "histogram_bar_vertical":
+      const aggre_hist = sumArrayValues(rawData);
+      chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
+      break;
+    case "histogram_bar_horizontal":
+      const aggre_hist_bar = sumArrayValues(rawData);
+      chartRenderOptions = getBarChartHorizontal(
+        aggre_hist_bar,
+        queue_axis_value
+      );
+      break;
+    case "count_job_line":
+      const jobCountData = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "total_count"
+      );
+      chartRenderOptions = getLineChart(jobCountData, timeDates);
+      break;
+    case "max_queue_time_line":
+      const maxQueueTimeData = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "max_queue_time"
+      );
+      chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
+      break;
+  }
+  instance.setOption(chartRenderOptions, true);
 }
 
 const getLineChart = (data: any[], xAxisLabels: string[]) => {
