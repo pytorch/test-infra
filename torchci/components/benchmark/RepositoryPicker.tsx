@@ -11,10 +11,7 @@ import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
-import {
-  MAIN_BRANCH,
-  SHA_DISPLAY_LENGTH,
-} from "./common";
+import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "./common";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -121,7 +118,7 @@ export function RepositoryBranchCommitPicker({
         repositories[repository][branch].length == 0
       ) {
         repository =
-        default_repository in repositories
+          default_repository in repositories
             ? default_repository
             : Object.keys(repositories)[0];
         const branches = repositories[repository];

@@ -1,19 +1,16 @@
 import { Divider, Stack, Typography } from "@mui/material";
-import {
-  LAST_N_DAYS,
-  MAIN_BRANCH,
-} from "components/benchmark/common";
+import { BenchmarkPicker } from "components/benchmark/BenchmarkPicker";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
+import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
+import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
+import CopyLink from "components/CopyLink";
+import GranularityPicker from "components/GranularityPicker";
+import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import {
   DEFAULT_DEVICE_NAME,
   DEFAULT_TRITON_BENCHMARK_NAME,
   DEFAULT_TRITON_REPOSITORY,
 } from "components/tritonbench/common";
-import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
-import { BenchmarkAndDevicePicker } from "components/benchmark/BenchmarkAndDevicePicker";
-import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
-import CopyLink from "components/CopyLink";
-import GranularityPicker from "components/GranularityPicker";
-import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -30,7 +27,9 @@ export default function Page() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("hour");
 
-  const [benchmarkName, setBenchmarkName] = useState<string>(DEFAULT_TRITON_BENCHMARK_NAME);
+  const [benchmarkName, setBenchmarkName] = useState<string>(
+    DEFAULT_TRITON_BENCHMARK_NAME
+  );
   const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
 
   const [lRepository, setLRepository] = useState<string>(
@@ -70,14 +69,16 @@ export default function Page() {
       setGranularity(granularity);
     }
 
-    const benchmarkName: string = (router.query.benchmarkName as string) ?? DEFAULT_TRITON_BENCHMARK_NAME;
+    const benchmarkName: string =
+      (router.query.benchmarkName as string) ?? DEFAULT_TRITON_BENCHMARK_NAME;
     if (benchmarkName !== undefined) {
       setBenchmarkName(benchmarkName);
     }
 
-    const deviceName: string = (router.query.deviceName as string) ?? DEFAULT_DEVICE_NAME;
+    const deviceName: string =
+      (router.query.deviceName as string) ?? DEFAULT_DEVICE_NAME;
     if (deviceName !== undefined) {
-       setDeviceName(deviceName);
+      setDeviceName(deviceName);
     }
 
     setBaseUrl(
@@ -91,7 +92,7 @@ export default function Page() {
     commits: [],
     getJobId: false,
     granularity: granularity,
-    benchmarkName: benchmarkName,
+    benchmark_name: benchmarkName,
     deviceName: deviceName,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -121,14 +122,11 @@ export default function Page() {
             granularity={granularity}
             setGranularity={setGranularity}
           />
-          <BenchmarkAndDevicePicker
-            queryName={"tritonbench_benchmark_devices"}
+          <BenchmarkPicker
+            queryName={"tritonbench_list_benchmarks"}
             queryParams={queryParams}
             benchmarkName={benchmarkName}
             setBenchmarkName={setBenchmarkName}
-            deviceName={deviceName}
-            setDeviceName={setDeviceName}
-            timeRange={timeRange}
           />
           <RepositoryBranchCommitPicker
             queryName={"tritonbench_benchmark_branches"}
@@ -165,6 +163,7 @@ export default function Page() {
         <TimeSeriesGraphReport
           queryParams={queryParams}
           granularity={granularity}
+          benchmarkName={benchmarkName}
           lRepoBranchAndCommit={{
             repo: lRepository,
             branch: lBranch,
