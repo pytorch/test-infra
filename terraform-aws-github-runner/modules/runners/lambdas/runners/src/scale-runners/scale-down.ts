@@ -350,7 +350,7 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
   }
 
   if (ghRunner === undefined) {
-    if (ec2runner.ghRunnerId == undefined) {
+    if (ec2runner.ghRunnerId === undefined) {
       console.warn(
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
           `listGithubRunnersRepo call, and it did not have the GithubRunnerId EC2 tag set.  This ` +
