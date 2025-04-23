@@ -289,7 +289,7 @@ def get_wheel_install_command(
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
         and (
-            (gpu_arch_version == "12.4" and os == LINUX)
+            (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
             or (os == LINUX_AARCH64)
         )
