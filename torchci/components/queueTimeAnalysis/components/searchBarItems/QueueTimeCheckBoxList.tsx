@@ -35,7 +35,7 @@ const HelperContent = styled("div")(({}) => ({
 const dynamicStyles = {
   height: "800px",
   overflowY: "auto", // Dynamically set overflow
-  backgroundColor: "#f0f0f0",
+  backgroundColor: "var(--dropdown-bg)",
   "&::-webkit-scrollbar": {
     width: "8px",
   },
@@ -44,7 +44,7 @@ const dynamicStyles = {
     borderRadius: "10px",
   },
   "&::-webkit-scrollbar-track": {
-    background: "#ccc",
+    background: "var(--border-color)",
   },
 };
 
