@@ -352,9 +352,9 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
   if (ghRunner === undefined) {
     if (ec2runner.ghRunnerId === undefined) {
       console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
-          `listGithubRunnersRepo call, and it did not have the GithubRunnerId EC2 tag set.  This ` +
-          `can happen if there's no runner running on the instance.`,
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) was neither found in ` +
+          `the list of runners returned by the listGithubRunnersRepo api call, nor did it have the ` +
+          `GithubRunnerId EC2 tag set.  This can happen if there's no runner running on the instance.`,
       );
     } else {
       console.warn(
@@ -432,8 +432,6 @@ export function isRunnerRemovable(
   ec2runner: RunnerInfo,
   metrics: ScaleDownMetrics,
 ): boolean {
-  console.debug(`Evaluating removability for runner: ${ec2runner.instanceId}`);
-
   /* istanbul ignore next */
   if (ec2runner.instanceManagement?.toLowerCase() === 'pet') {
     console.debug(`Runner ${ec2runner.instanceId} is a pet instance and cannot be removed.`);
@@ -468,7 +466,7 @@ export function isRunnerRemovable(
  */
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   let baseTime: moment.Moment;
-  let reason = '';
+  let reason: string;
   if (runner.ephemeralRunnerFinished !== undefined) {
     baseTime = moment.unix(runner.ephemeralRunnerFinished);
     reason = `is an ephemeral runner that finished at ${baseTime}`;
