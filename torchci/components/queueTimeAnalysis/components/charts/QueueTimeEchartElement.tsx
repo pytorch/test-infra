@@ -16,15 +16,17 @@ export function QueueTimeEchartElement({
   chartType = "heatmap",
   chartGroup,
   width,
+  minWidth = "200px",
 }: {
   chartType: string;
   data?: any[];
   granularity: string;
   chartGroup?: string;
   width?: string;
+  minWidth?: string;
 }) {
   const chartRef = useRef(null); // Create a ref for the chart container
-  const [chartInstance, setChartInstance] = useState<any>(null);
+  const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
   const [rawData, setRawData] = useState<any>(null);
 
   const queue_axis_value = generateExponential();
@@ -40,15 +42,33 @@ export function QueueTimeEchartElement({
   }, [data, granularity]);
 
   useEffect(() => {
-    if (!rawData) {
-      return;
-    }
+    if (!chartRef.current) return;
 
-    let instance = chartInstance;
-    if (!instance) {
-      instance = echarts.init(chartRef.current);
-      setChartInstance(chartInstance);
-    }
+    // Prevent duplicate init
+    echarts.dispose(chartRef.current);
+    const instance = echarts.init(chartRef.current);
+    chartInstanceRef.current = instance;
+
+    const handleResize = () => {
+      instance.resize();
+    };
+    window.addEventListener("resize", handleResize);
+
+    const resizeObserver = new ResizeObserver(() => {
+      instance.resize();
+    });
+    resizeObserver.observe(chartRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleResize);
+      instance.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!rawData || rawData.length === 0 || !chartInstanceRef.current) return;
+    const instance = chartInstanceRef.current;
 
     if (rawData.length == 0) {
       return;
@@ -108,27 +128,19 @@ export function QueueTimeEchartElement({
         chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
         break;
     }
-    instance.setOption(chartRenderOptions);
-    return () => {
-      instance.dispose();
-    };
+    instance.setOption(chartRenderOptions, true);
   }, [rawData, chartType]);
 
   const height = queue_axis_value.length * 10;
-
-  const chartWidth = width ? width : "1000px";
   return (
-    <div>
-      <div>
-        <div
-          ref={chartRef}
-          style={{
-            height: `${height}px`,
-            width: chartWidth,
-          }}
-        />
-      </div>
-    </div>
+    <div
+      ref={chartRef}
+      style={{
+        height: `${height}px`,
+        width: width ?? "100%",
+        minWidth: minWidth,
+      }}
+    />
   );
 }
 

@@ -12,7 +12,13 @@ const LoadingItem = styled("div")(({}) => ({
   margin: "10px",
 }));
 
-function LoadingPage({ height, width }: { height?: number; width?: number }) {
+function LoadingPage({
+  height,
+  width,
+}: {
+  height?: number;
+  width?: number | string;
+}) {
   const style = {
     height: height ? height : "100%",
     width: width ? width : "100%",
