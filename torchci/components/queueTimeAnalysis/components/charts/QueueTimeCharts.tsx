@@ -10,6 +10,7 @@ import { FcHeatMap } from "react-icons/fc";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWRImmutable from "swr/immutable";
 import { QueueTimeEchartElement } from "./QueueTimeEchartElement";
+import { useDarkMode } from "lib/DarkModeContext";
 
 const FlexNoWrap = styled("div")({
   display: "flex",
@@ -48,6 +49,7 @@ export default function QueueTimeCharts({
   width?: number;
 }) {
   const [chartType, setChartType] = useState<any>("heatmap");
+  const { darkMode } = useDarkMode();
 
   const { data, error, isLoading } = useQueryWithError(props);
   if (isLoading) {

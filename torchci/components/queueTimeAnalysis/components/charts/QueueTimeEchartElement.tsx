@@ -2,6 +2,8 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import * as echarts from "echarts";
 import { useEffect, useRef, useState } from "react";
+import { useDarkMode } from "lib/DarkModeContext";
+import darkThemeHud from "lib/chartTheme";
 
 dayjs.extend(isoWeek);
 
@@ -28,7 +30,8 @@ export function QueueTimeEchartElement({
   const chartRef = useRef(null); // Create a ref for the chart container
   const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
   const [rawData, setRawData] = useState<any>(null);
-
+  const { darkMode } = useDarkMode();
+  
   const queue_axis_value = generateExponential();
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export function QueueTimeEchartElement({
 
     // Prevent duplicate init
     echarts.dispose(chartRef.current);
-    const instance = echarts.init(chartRef.current);
+    const instance = echarts.init(chartRef.current, darkMode ? darkThemeHud : undefined);
     chartInstanceRef.current = instance;
 
     const handleResize = () => {
@@ -64,7 +67,7 @@ export function QueueTimeEchartElement({
       window.removeEventListener("resize", handleResize);
       instance.dispose();
     };
-  }, []);
+  }, [darkMode]);
 
   useEffect(() => {
     if (!rawData || rawData.length === 0 || !chartInstanceRef.current) return;
@@ -73,63 +76,66 @@ export function QueueTimeEchartElement({
     if (rawData.length == 0) {
       return;
     }
+    
+    // Only set options if we have data
+    if (rawData && rawData.length > 0) {
+      const startTime = getTruncTime(dayjs(rawData[0].time), granularity);
+      const endTime = getTruncTime(
+        dayjs(rawData[rawData.length - 1].time),
+        granularity
+      );
+      const chartData = generateFilledTimeSeries(
+        startTime,
+        endTime,
+        rawData,
+        granularity
+      );
+      const timeDates = generateTimePoints(startTime, endTime, granularity);
 
-    const startTime = getTruncTime(dayjs(rawData[0].time), granularity);
-    const endTime = getTruncTime(
-      dayjs(rawData[rawData.length - 1].time),
-      granularity
-    );
-    const chartData = generateFilledTimeSeries(
-      startTime,
-      endTime,
-      rawData,
-      granularity
-    );
-    const timeDates = generateTimePoints(startTime, endTime, granularity);
-
-    let chartRenderOptions = {};
-    switch (chartType) {
-      case "heatmap":
-        chartRenderOptions = getHeatMapOptions(
-          chartData,
-          queue_axis_value,
-          timeDates
-        );
-        break;
-      case "histogram_bar_vertical":
-        const aggre_hist = sumArrayValues(rawData);
-        chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
-        break;
-      case "histogram_bar_horizontal":
-        const aggre_hist_bar = sumArrayValues(rawData);
-        chartRenderOptions = getBarChartHorizontal(
-          aggre_hist_bar,
-          queue_axis_value
-        );
-        break;
-      case "count_job_line":
-        const jobCountData = generateFilledTimeSeriesLine(
-          startTime,
-          endTime,
-          rawData,
-          granularity,
-          "total_count"
-        );
-        chartRenderOptions = getLineChart(jobCountData, timeDates);
-        break;
-      case "max_queue_time_line":
-        const maxQueueTimeData = generateFilledTimeSeriesLine(
-          startTime,
-          endTime,
-          rawData,
-          granularity,
-          "max_queue_time"
-        );
-        chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
-        break;
+      let chartRenderOptions = {};
+      switch (chartType) {
+        case "heatmap":
+          chartRenderOptions = getHeatMapOptions(
+            chartData,
+            queue_axis_value,
+            timeDates
+          );
+          break;
+        case "histogram_bar_vertical":
+          const aggre_hist = sumArrayValues(rawData);
+          chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
+          break;
+        case "histogram_bar_horizontal":
+          const aggre_hist_bar = sumArrayValues(rawData);
+          chartRenderOptions = getBarChartHorizontal(
+            aggre_hist_bar,
+            queue_axis_value
+          );
+          break;
+        case "count_job_line":
+          const jobCountData = generateFilledTimeSeriesLine(
+            startTime,
+            endTime,
+            rawData,
+            granularity,
+            "total_count"
+          );
+          chartRenderOptions = getLineChart(jobCountData, timeDates);
+          break;
+        case "max_queue_time_line":
+          const maxQueueTimeData = generateFilledTimeSeriesLine(
+            startTime,
+            endTime,
+            rawData,
+            granularity,
+            "max_queue_time"
+          );
+          chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
+          break;
+      }
+      instance.setOption(chartRenderOptions, true);
     }
-    instance.setOption(chartRenderOptions, true);
-  }, [rawData, chartType]);
+  }, [rawData, chartType, granularity]);
 
   const height = queue_axis_value.length * 10;
   return (
