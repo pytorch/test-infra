@@ -62,6 +62,10 @@ on:
         description: Identifies the Docker image by name.
         default: "pytorch/almalinux-builder"
         type: string
+      custom-tag-prefix:
+        description: |
+          Custom tag prefix to use for the docker image.
+        type: string
       docker-build-dir:
         description: |
           The directory containing the build.sh shell script to build the docker image.
@@ -190,6 +194,7 @@ jobs:
         uses: ./test-infra/.github/actions/calculate-docker-image
         with:
           docker-image-name: ${{ env.DOCKER_IMAGE }}
+          custom-tag-prefix: ${{ inputs.custom-tag-prefix }}
           docker-build-dir: ${{ inputs.docker-build-dir }}
           # This needs to be where the repository is checked out
           working-directory: ${{ inputs.repository || github.repository }}
