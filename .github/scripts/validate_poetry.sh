@@ -6,7 +6,7 @@ export PATH="/root/.local/bin:$PATH"
 
 poetry --version
 poetry new test_poetry
-cd test_poetry
+pushd test_poetry
 
 TEST_SUFFIX=""
 if [[ ${TORCH_ONLY} == 'true' ]]; then
@@ -25,7 +25,7 @@ else
     poetry --quiet add torch${RELEASE_SUFFIX} torchaudio torchvision
 fi
 
-pushd ${PWD}/.ci/pytorch/
+pushd ${PWD}/../.ci/pytorch/
 python ./smoke_test/smoke_test.py ${TEST_SUFFIX} --runtime-error-check disabled
 popd
 conda deactivate
