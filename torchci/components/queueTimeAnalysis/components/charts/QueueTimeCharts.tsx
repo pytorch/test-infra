@@ -78,6 +78,7 @@ export default function QueueTimeCharts({
           granularity={props.granularity}
           chartType={chartType}
           width={chartType === "heatmap" ? `70%` : `100%`}
+          height={"60vh"}
           minWidth={chartType === "heatmap" ? `200px` : `300px`}
         />
         {data && chartType === "heatmap" && (
@@ -85,7 +86,8 @@ export default function QueueTimeCharts({
             data={data}
             granularity={props.granularity}
             chartType={"histogram_bar_vertical"}
-            width={`20%`}
+            width={"20%"}
+            height={"60vh"}
             minWidth="100px"
           />
         )}

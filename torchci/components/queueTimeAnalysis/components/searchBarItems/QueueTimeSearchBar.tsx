@@ -1,6 +1,6 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Box, IconButton, Paper, styled } from "@mui/material";
+import { Box, FormHelperText, IconButton, Paper, styled } from "@mui/material";
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import { DateRangePicker } from "components/queueTimeAnalysis/components/pickers/DateRangePicker";
 import { TimeGranuityPicker } from "components/queueTimeAnalysis/components/pickers/TimeGranuityPicker";
@@ -9,9 +9,13 @@ import { cloneDeep } from "lodash";
 import { NextRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
 import { useEffect, useReducer, useState } from "react";
-import DebugToggle from "../DebugToggle";
 import QueueTimeCheckBoxList from "./QueueTimeCheckBoxList";
-import { RainbowScrollStyle } from "./SharedUIElements";
+import {
+  DropboxSelectDense,
+  FlexDiv,
+  FontSizeStyles,
+  RainbowScrollStyle,
+} from "./SharedUIElements";
 
 function splitString(input: string | string[]): string[] {
   if (Array.isArray(input)) {
@@ -35,22 +39,22 @@ export interface QueueTimeSearchBarOptions {
 
 export const HorizontalDiv = styled("div")({
   display: "flex",
-  margin: "5px",
   padding: "10px 0",
   overflowX: "hidden",
+  justifyContent: "fl",
+  margin: "0 0 5px 0",
 });
 
 const SearchConfiguration = styled(Paper)({
   position: "fixed",
   top: 70,
   right: 0,
-  height: "95vh",
+  height: "100%",
   boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
   zIndex: 1000,
   borderTopLeftRadius: 8,
   borderBottomLeftRadius: 8,
   display: "flex",
-  flexDirection: "row",
 });
 
 const ToggleButtonBox = styled(Box, {
@@ -65,16 +69,15 @@ const ToggleButtonBox = styled(Box, {
   borderBottomLeftRadius: open ? 8 : 0,
 }));
 
-const ScrollBarLeft = styled(Box)(({ theme }) => ({
+const ScrollBar = styled(Box)(({ theme }) => ({
   ...RainbowScrollStyle,
   overflowX: "hidden",
   overflowY: "auto",
-  direction: "rtl",
-  height: "90vh",
+  height: "auto",
   width: "20vw",
   minWidth: "200px",
-  margin: "0 20px",
-  padding: "0 10px",
+  margin: "40px",
+  padding: "0 0 80px 0",
 }));
 
 const SearchFilters = styled(Box)(({ theme }) => ({
@@ -85,11 +88,14 @@ const SearchFilters = styled(Box)(({ theme }) => ({
 }));
 
 export const SearchButton = styled(Paper)(({ theme }) => ({
+  flex: 1,
+  flexShrink: 0,
   border: "none",
-  padding: "10px",
+  padding: "0",
+  margin: "0",
   boxShadow: "none",
   position: "sticky",
-  top: 0,
+  bottom: 0,
   zIndex: 10,
   textAlign: "left",
   width: "100%",
@@ -99,6 +105,8 @@ const RainbowButton = styled(Box)(() => ({
   background: "linear-gradient(90deg, #ffb6c1, #add8e6)", // light pink to light blue
   color: "#333", // soft dark for readability
   fontWeight: 600,
+  width: "60%",
+  margin: "5px",
   textTransform: "none",
   padding: "10px 20px",
   borderRadius: "12px",
@@ -108,6 +116,8 @@ const RainbowButton = styled(Box)(() => ({
     background: "linear-gradient(90deg, #ff9eb6, #9dd3f3)",
     boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
   },
+  display: "flex",
+  justifyContent: "center",
 }));
 
 export default function QueueTimeSearchBar({
@@ -188,71 +198,84 @@ export default function QueueTimeSearchBar({
         </IconButton>
       </ToggleButtonBox>
       {open && (
-        <ScrollBarLeft>
+        <FlexDiv>
+          <ScrollBar>
+            <SearchFilters>
+              <HorizontalDiv>
+                <DateRangePicker
+                  sx={{
+                    ...DropboxSelectDense,
+                    ...FontSizeStyles,
+                  }}
+                  startDate={props.startDate}
+                  setStartDate={(val: any) => {
+                    dispatch({
+                      type: "UPDATE_FIELD",
+                      field: "startDate",
+                      value: val,
+                    });
+                  }}
+                  stopDate={props.endDate}
+                  setStopDate={(val: any) => {
+                    dispatch({
+                      type: "UPDATE_FIELD",
+                      field: "stopDate",
+                      value: val,
+                    });
+                  }}
+                  dateRange={props.dateRange}
+                  setDateRange={(val: any) => {
+                    dispatch({
+                      type: "UPDATE_FIELD",
+                      field: "dateRange",
+                      value: val,
+                    });
+                  }}
+                  setGranularity={(val: any) => {
+                    dispatch({
+                      type: "UPDATE_FIELD",
+                      field: "granularity",
+                      value: val,
+                    });
+                  }}
+                />
+                <TimeGranuityPicker
+                  sx={{
+                    ...DropboxSelectDense,
+                    ...FontSizeStyles,
+                  }}
+                  granularity={props.granularity}
+                  setGranularity={(val: any) => {
+                    dispatch({
+                      type: "UPDATE_FIELD",
+                      field: "granularity",
+                      value: val,
+                    });
+                  }}
+                />
+              </HorizontalDiv>
+              <div>
+                <QueueTimeCheckBoxList
+                  inputCategory={props.category}
+                  inputItems={props.items}
+                  startDate={props.startDate}
+                  endDate={props.endDate}
+                  updateFields={(val: any) => {
+                    dispatch({ type: "UPDATE_FIELDS", payload: val });
+                  }}
+                />
+              </div>
+            </SearchFilters>
+          </ScrollBar>
           <SearchButton>
+            <Box sx={{ borderBottom: "1px solid #eee", padding: "0 0" }} />
             <RainbowButton onClick={onSearch}>Search</RainbowButton>
-            <Box sx={{ borderBottom: "1px solid #eee", padding: "10px 0" }} />
+            <FormHelperText>
+              <span style={{ color: "red" }}>*</span> Click to apply filter
+              changes
+            </FormHelperText>
           </SearchButton>
-          <SearchFilters>
-            <HorizontalDiv>
-              <DateRangePicker
-                startDate={props.startDate}
-                setStartDate={(val: any) => {
-                  dispatch({
-                    type: "UPDATE_FIELD",
-                    field: "startDate",
-                    value: val,
-                  });
-                }}
-                stopDate={props.endDate}
-                setStopDate={(val: any) => {
-                  dispatch({
-                    type: "UPDATE_FIELD",
-                    field: "stopDate",
-                    value: val,
-                  });
-                }}
-                dateRange={props.dateRange}
-                setDateRange={(val: any) => {
-                  dispatch({
-                    type: "UPDATE_FIELD",
-                    field: "dateRange",
-                    value: val,
-                  });
-                }}
-                setGranularity={(val: any) => {
-                  dispatch({
-                    type: "UPDATE_FIELD",
-                    field: "granularity",
-                    value: val,
-                  });
-                }}
-              />
-              <TimeGranuityPicker
-                granularity={props.granularity}
-                setGranularity={(val: any) => {
-                  dispatch({
-                    type: "UPDATE_FIELD",
-                    field: "granularity",
-                    value: val,
-                  });
-                }}
-              />
-            </HorizontalDiv>
-            <div>
-              <QueueTimeCheckBoxList
-                inputCategory={props.category}
-                inputItems={props.items}
-                startDate={props.startDate}
-                endDate={props.endDate}
-                updateFields={(val: any) => {
-                  dispatch({ type: "UPDATE_FIELDS", payload: val });
-                }}
-              />
-            </div>
-            <DebugToggle info={props} />
-          </SearchFilters>
-        </ScrollBarLeft>
+        </FlexDiv>
       )}
     </SearchConfiguration>
   );

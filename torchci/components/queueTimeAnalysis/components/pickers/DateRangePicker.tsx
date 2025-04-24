@@ -8,6 +8,7 @@ import {
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import { InputLabelSx } from "./Shared";
 
 /**
  * Allows the user to pick from common time ranges, or manually set their own.
@@ -20,6 +21,7 @@ export function DateRangePicker({
   dateRange,
   setDateRange,
   setGranularity,
+  sx,
 }: {
   startDate: dayjs.Dayjs;
   setStartDate: any;
@@ -28,6 +30,7 @@ export function DateRangePicker({
   dateRange: any;
   setDateRange: any;
   setGranularity?: any;
+  sx?: any;
 }) {
   function handleChange(e: SelectChangeEvent<number>) {
     setDateRange(e.target.value as number);
@@ -73,23 +76,46 @@ export function DateRangePicker({
   return (
     <>
       <FormControl>
-        <InputLabel id="time-picker-select-label">Time Range</InputLabel>
+        <InputLabel id="time-picker-select-label" sx={InputLabelSx}>
+          Time Range
+        </InputLabel>
         <Select
           value={dateRange}
           label="Time Range"
           labelId="time-picker-select-label"
           onChange={handleChange}
+          sx={sx}
         >
-          <MenuItem value={1}>Last 1 Day</MenuItem>
-          <MenuItem value={3}>Last 3 Days</MenuItem>
-          <MenuItem value={7}>Last 7 Days</MenuItem>
-          <MenuItem value={14}>Last 14 Days</MenuItem>
-          <MenuItem value={30}>Last Month</MenuItem>
-          <MenuItem value={60}>Last 2 Months</MenuItem>
-          <MenuItem value={90}>Last 3 Months</MenuItem>
-          <MenuItem value={180}>Last 6 Months</MenuItem>
-          <MenuItem value={365}>Last Year</MenuItem>
-          <MenuItem value={-1}>Custom</MenuItem>
+          <MenuItem sx={sx} value={1}>
+            Last 1 Day
+          </MenuItem>
+          <MenuItem sx={sx} value={3}>
+            Last 3 Days
+          </MenuItem>
+          <MenuItem sx={sx} value={7}>
+            Last 7 Days
+          </MenuItem>
+          <MenuItem sx={sx} value={14}>
+            Last 14 Days
+          </MenuItem>
+          <MenuItem sx={sx} value={30}>
+            Last Month
+          </MenuItem>
+          <MenuItem sx={sx} value={60}>
+            Last 2 Months
+          </MenuItem>
+          <MenuItem sx={sx} value={90}>
+            Last 3 Months
+          </MenuItem>
+          <MenuItem sx={sx} value={180}>
+            Last 6 Months
+          </MenuItem>
+          <MenuItem sx={sx} value={365}>
+            Last Year
+          </MenuItem>
+          <MenuItem sx={sx} value={-1}>
+            Custom
+          </MenuItem>
         </Select>
       </FormControl>
       {dateRange === -1 && (

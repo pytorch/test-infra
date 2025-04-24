@@ -6,6 +6,7 @@ import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import LoadingPage from "components/LoadingPage";
 import dayjs from "dayjs";
 import QueueTimeCharts from "./charts/QueueTimeCharts";
+import DebugToggle from "./DebugToggle";
 import QueueTimeSearchBar from "./searchBarItems/QueueTimeSearchBar";
 
 const FlexNoWrap = styled("div")({
@@ -46,6 +47,7 @@ export default function QueueTimeChartPage() {
               props={props}
               width={searchBarOpen ? "80vw" : "100vw"}
             />
+            <DebugToggle info={props} sx={{ width: "30vw" }} />
           </div>
           <div>
             <QueueTimeSearchBar
