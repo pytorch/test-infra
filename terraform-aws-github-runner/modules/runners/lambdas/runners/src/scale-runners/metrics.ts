@@ -1635,56 +1635,58 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     super('scaleUpChron');
   }
 
-  queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
-    const dimensions = new Map([
-      ['Org', org],
-      ['RunnerType', runnerType],
-      ['numQueuedJobs', numQueuedJobs.toString()],
-    ]);
-    this.addEntry('gh.scaleupchron.queuedRunners', 3, dimensions);
+  queuedRunnerStats(org: string, runnerType: string) {
+    this.countEntry('run.scaleupchron.queuedRunners', 1);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners', 1, dimensions);
+
+    const dimensions_runner_only = new Map([['RunnerType', runnerType]]);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners', 1, dimensions_runner_only);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners', 1, dimensions);
   }
 
-  queuedRunnerFailure(error: string) {
-    const dimensions = new Map([['error', error]]);
-    this.countEntry('gh.scaleupchron.queuedRunners.failure', 1, dimensions);
+  queuedRunnerFailure(reason: string) {
+    const dimensions = new Map([['Reason', reason]]);
+    this.countEntry('run.scaleupchron.queuedRunnerFailure', 1, dimensions);
   }
 
   /* istanbul ignore next */
   getQueuedJobsEndpointSuccess(ms: number) {
-    this.countEntry(`gh.calls.total`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.success`, 1);
-    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+    this.countEntry(`hud.calls.total`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.success`, 1);
+    this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
   }
 
   /* istanbul ignore next */
   getQueuedJobsEndpointFailure(ms: number) {
-    this.countEntry(`gh.calls.total`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.failure`, 1);
-    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+    this.countEntry(`hud.calls.total`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.failure`, 1);
+    this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
+  }
+  scaleUpChronInitiated() {
+    this.countEntry('run.scaleupchron.initiated', 1);
   }
 
   scaleUpInstanceSuccess() {
     this.scaleUpSuccess();
-    this.countEntry('run.scaleupchron.success');
+    this.countEntry('run.scaleupchron.success', 1);
   }
 
-  scaleUpInstanceFailureNonRetryable(error: string) {
-    const dimensions = new Map([['error', error]]);
-    // should we add more information about this or do we not care since  it'll be requeued?
-    this.countEntry('run.scaleupchron.failure.nonRetryable', 1, dimensions);
+  scaleUpChronInstanceFailureNonRetryable() {
+    this.countEntry('run.scaleupchron.failure.nonRetryable', 1);
   }
 
-  scaleUpInstanceFailureRetryable(error: string) {
-    const dimensions = new Map([['error', error]]);
-
-    // should we add more information about this or do we not care since  it'll be requeued?
-    this.countEntry('run.scaleupchron.failure.retryable', 1, dimensions);
+  scaleUpChronInstanceFailureRetryable() {
+    this.countEntry('run.scaleupchron.failure.retryable', 1);
   }
 
-  scaleUpInstanceNoOp() {
-    this.countEntry('run.scaleupchron.noop');
+  scaleUpChronInstanceNoOp() {
+    this.countEntry('run.scaleupchron.noop', 1);
   }
 }
 

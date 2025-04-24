@@ -5,6 +5,7 @@ import { getRepo, shuffleArrayInPlace, expBackOff } from './utils';
 import { ScaleUpChronMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
 import { ActionRequestMessage, scaleUp } from './scale-up';
+import { error } from 'console';
 
 export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> {
   // This function does the following:
@@ -19,16 +20,17 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
 
   const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
   if (!Config.Instance.scaleUpChronRecordQueueUrl) {
-    metrics.scaleUpInstanceFailureNonRetryable(
-      'scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests',
-    );
-    throw new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests');
+    metrics.scaleUpChronInstanceFailureNonRetryable();
+    const err = 'scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests';
+    console.error(err);
+    throw new Error(err);
   }
   const scaleUpChronRecordQueueUrl = Config.Instance.scaleUpChronRecordQueueUrl;
   // Only proactively scale up the jobs that have been queued for longer than normal
   // Filter out the queued jobs that are do not correspond to a valid runner type
   const queuedJobs = (await getQueuedJobs(metrics, scaleUpChronRecordQueueUrl))
     .filter((runner) => {
+      metrics.queuedRunnerStats(runner.org, runner.runner_label);
       return (
         runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes && runner.org === Config.Instance.scaleConfigOrg
       );
@@ -40,7 +42,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
     });
 
   if (queuedJobs.length === 0) {
-    metrics.scaleUpInstanceNoOp();
+    metrics.scaleUpChronInstanceNoOp();
     return;
   }
 
@@ -60,7 +62,8 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
       await scaleUp('aws:sqs', request, metrics);
       metrics.scaleUpInstanceSuccess();
     } catch (error) {
-      metrics.scaleUpInstanceFailureRetryable((error as Error).message);
+      console.error('Error scaling up in scaleUpChron:', error);
+      metrics.scaleUpChronInstanceFailureRetryable();
     }
   }
 }
@@ -106,14 +109,16 @@ export async function getQueuedJobs(
             typeof runner.max_queue_time_minutes == 'number',
         );
       } else {
+        metrics.queuedRunnerFailure('invalid_data');
         /* istanbul ignore next */
         throw new Error(`Invalid data returned from axios get request with url: ${url} - Not an array`);
       }
     } else {
+      metrics.queuedRunnerFailure('no_data');
       throw new Error(`No data returned from axios get request with url: ${url}`);
     }
   } catch (error) {
-    metrics.queuedRunnerFailure((error as Error).message);
+    metrics.queuedRunnerFailure('no_response');
     console.error('Error fetching queued runners:', error);
     return [];
   }
