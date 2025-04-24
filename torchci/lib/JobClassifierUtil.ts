@@ -32,12 +32,13 @@ const GROUP_OTHER = "other";
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
   {
-    regex: /mem_leak_check/,
+    // Weird regex because some names are too long and getting cut off
+    regex: /, mem_leak/,
     name: GROUP_MEMORY_LEAK_CHECK,
     persistent: true,
   },
   {
-    regex: /rerun_disabled_tests/,
+    regex: /, rerun_/,
     name: GROUP_RERUN_DISABLED_TESTS,
     persistent: true,
   },
