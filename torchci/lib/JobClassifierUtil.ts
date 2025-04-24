@@ -33,6 +33,7 @@ const GROUP_OTHER = "other";
 export const groups = [
   {
     // Weird regex because some names are too long and getting cut off
+    // TODO: figure out a better way to name the job or filter them
     regex: /, mem_leak/,
     name: GROUP_MEMORY_LEAK_CHECK,
     persistent: true,
