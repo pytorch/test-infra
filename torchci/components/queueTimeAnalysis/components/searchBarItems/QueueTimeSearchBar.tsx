@@ -1,6 +1,6 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Box, IconButton, styled } from "@mui/material";
+import { Box, IconButton, Paper, styled } from "@mui/material";
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import { DateRangePicker } from "components/queueTimeAnalysis/components/pickers/DateRangePicker";
 import { TimeGranuityPicker } from "components/queueTimeAnalysis/components/pickers/TimeGranuityPicker";
@@ -40,12 +40,12 @@ export const HorizontalDiv = styled("div")({
   overflowX: "hidden",
 });
 
-const SearchConfiguration = styled(Box)({
+const SearchConfiguration = styled(Paper)({
   position: "fixed",
   top: 70,
   right: 0,
-  height: "100vh",
-  boxShadow: "0px 2px 8px rgba(0,0,0,0.1)", // replace boxShadow: 4
+  height: "95vh",
+  boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
   zIndex: 1000,
   borderTopLeftRadius: 8,
   borderBottomLeftRadius: 8,
@@ -56,7 +56,7 @@ const SearchConfiguration = styled(Box)({
 const ToggleButtonBox = styled(Box, {
   shouldForwardProp: (prop) => prop !== "open",
 })(({ theme, open }: { theme: any; open: boolean }) => ({
-  width: 40,
+  width: 30,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -67,11 +67,14 @@ const ToggleButtonBox = styled(Box, {
 
 const ScrollBarLeft = styled(Box)(({ theme }) => ({
   ...RainbowScrollStyle,
+  overflowX: "hidden",
   overflowY: "auto",
   direction: "rtl",
+  height: "90vh",
   width: "20vw",
   minWidth: "200px",
-  padding: "0  20px",
+  margin: "0 20px",
+  padding: "0 10px",
 }));
 
 const SearchFilters = styled(Box)(({ theme }) => ({
@@ -81,9 +84,10 @@ const SearchFilters = styled(Box)(({ theme }) => ({
   zIndex: 2000,
 }));
 
-export const SearchButton = styled("div")(({ theme }) => ({
-  margin: "10px",
-  padding: "2px",
+export const SearchButton = styled(Paper)(({ theme }) => ({
+  border: "none",
+  padding: "10px",
+  boxShadow: "none",
   position: "sticky",
   top: 0,
   zIndex: 10,

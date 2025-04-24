@@ -34,8 +34,10 @@ const HelperContent = styled("div")(({}) => ({
 }));
 
 const dynamicStyles = {
-  height: "400px",
-  overflowY: "auto", // Dynamically set overflow
+  maxHeight: "600px",
+  height: "40vh",
+  overflowY: "auto",
+  border: "1px solid #e0e0e0",
   ...RainbowScrollStyle,
 };
 
