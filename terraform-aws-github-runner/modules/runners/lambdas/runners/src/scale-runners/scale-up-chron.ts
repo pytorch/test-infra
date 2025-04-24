@@ -4,7 +4,12 @@ import { Config } from './config';
 import { getRepo, shuffleArrayInPlace, expBackOff } from './utils';
 import { ScaleUpChronMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
+<<<<<<< HEAD
 import { ActionRequestMessage, RetryableScalingError, scaleUp } from './scale-up';
+=======
+import { ActionRequestMessage, scaleUp } from './scale-up';
+import { error } from 'console';
+>>>>>>> f0b6386d4 (initial)
 
 export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> {
   // This function does the following:
@@ -21,6 +26,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
       throw new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests');
     }
 
+<<<<<<< HEAD
     // Only proactively scale up the jobs that have been queued for longer than normal
     // Filter out the queued jobs that are do not correspond to a valid runner type
     const queuedJobs = (await getQueuedJobs(metrics, Config.Instance.scaleUpChronRecordQueueUrl))
@@ -52,6 +58,22 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
         runner.num_queued_jobs,
         runner.min_queue_time_minutes,
         runner.max_queue_time_minutes,
+=======
+  const minAutoScaleupDelayMinutes = Config.Instance.scaleUpMinQueueTimeMinutes;
+  if (!Config.Instance.scaleUpChronRecordQueueUrl) {
+    metrics.scaleUpChronInstanceFailureNonRetryable();
+    const err = 'scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests';
+    console.error(err);
+    throw new Error(err);
+  }
+  // Only proactively scale up the jobs that have been queued for longer than normal
+  // Filter out the queued jobs that are do not correspond to a valid runner type
+  const queuedJobs = (await getQueuedJobs(metrics, Config.Instance.scaleUpChronRecordQueueUrl))
+    .filter((runner) => {
+      metrics.queuedRunnerStats(runner.org, runner.runner_label);
+      return (
+        runner.min_queue_time_minutes >= minAutoScaleupDelayMinutes && runner.org === Config.Instance.scaleConfigOrg
+>>>>>>> f0b6386d4 (initial)
       );
     });
 
@@ -71,6 +93,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
       });
     });
 
+<<<<<<< HEAD
     const nonRetryableErrors = [];
 
     for (const request of shuffleArrayInPlace(scaleUpRequests)) {
@@ -87,6 +110,31 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
           nonRetryableErrors.push(error);
         }
       }
+=======
+  if (queuedJobs.length === 0) {
+    metrics.scaleUpChronInstanceNoOp();
+    return;
+  }
+
+  // Send a message to the SQS queue to scale up the runners
+  const scaleUpRequests: Array<ActionRequestMessage> = queuedJobs.flatMap((runner) => {
+    return new Array(runner.num_queued_jobs).fill({
+      id: Math.floor(Math.random() * 100000000000000),
+      eventType: 'workflow_job',
+      repositoryName: runner.repo,
+      repositoryOwner: runner.org,
+      runnerLabels: [runner.runner_label],
+    });
+  });
+
+  for (const request of shuffleArrayInPlace(scaleUpRequests)) {
+    try {
+      await scaleUp('aws:sqs', request, metrics);
+      metrics.scaleUpInstanceSuccess();
+    } catch (error) {
+      console.error('Error scaling up in scaleUpChron:', error);
+      metrics.scaleUpChronInstanceFailureRetryable();
+>>>>>>> f0b6386d4 (initial)
     }
 
     if (nonRetryableErrors.length > 0) {
@@ -139,16 +187,28 @@ export async function getQueuedJobs(
             typeof runner.max_queue_time_minutes == 'number',
         );
       } else {
+<<<<<<< HEAD
         metrics.hudQueuedRunnerFailureInvalidData();
+=======
+        metrics.queuedRunnerFailure('invalid_data');
+>>>>>>> f0b6386d4 (initial)
         /* istanbul ignore next */
         throw new Error(`Invalid data returned from axios get request with url: ${url} - Not an array`);
       }
     } else {
+<<<<<<< HEAD
       metrics.hudQueuedRunnerFailureNoData();
       throw new Error(`No data returned from axios get request with url: ${url}`);
     }
   } catch (error) {
     metrics.hudQueuedRunnerFailure();
+=======
+      metrics.queuedRunnerFailure('no_data');
+      throw new Error(`No data returned from axios get request with url: ${url}`);
+    }
+  } catch (error) {
+    metrics.queuedRunnerFailure('no_response');
+>>>>>>> f0b6386d4 (initial)
     console.error('Error fetching queued runners:', error);
     return [];
   }

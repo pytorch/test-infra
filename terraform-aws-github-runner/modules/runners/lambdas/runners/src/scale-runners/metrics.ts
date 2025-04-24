@@ -1745,6 +1745,12 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.countEntry(`hud.calls.getQueuedJobsEndpoint.count`, 1);
     this.countEntry(`hud.calls.getQueuedJobsEndpoint.failure`, 1);
     this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
+<<<<<<< HEAD
+=======
+  }
+  scaleUpChronInitiated() {
+    this.countEntry('run.scaleupchron.initiated', 1);
+>>>>>>> f0b6386d4 (initial)
   }
 
   hudQueuedRunnerFailureInvalidData() {
@@ -1768,6 +1774,7 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.countEntry('run.scaleupchron.success', 1);
   }
 
+<<<<<<< HEAD
   scaleUpChronFailure() {
     this.countEntry('run.scaleupchron.failure', 1);
   }
@@ -1789,6 +1796,16 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.countEntry('run.scaleupchron.failure.retryable', 1);
   }
 
+=======
+  scaleUpChronInstanceFailureNonRetryable() {
+    this.countEntry('run.scaleupchron.failure.nonRetryable', 1);
+  }
+
+  scaleUpChronInstanceFailureRetryable() {
+    this.countEntry('run.scaleupchron.failure.retryable', 1);
+  }
+
+>>>>>>> f0b6386d4 (initial)
   scaleUpChronInstanceNoOp() {
     this.countEntry('run.scaleupchron.noop', 1);
   }
