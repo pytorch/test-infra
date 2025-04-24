@@ -12,6 +12,7 @@ import dayjs from "dayjs";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
+import { RainbowScrollStyle } from "./SharedUIElements";
 
 interface Props {
   workflow_names: string[];
@@ -33,19 +34,10 @@ const HelperContent = styled("div")(({}) => ({
 }));
 
 const dynamicStyles = {
-  height: "800px",
+  height: "400px",
   overflowY: "auto", // Dynamically set overflow
-  backgroundColor: "#f0f0f0",
-  "&::-webkit-scrollbar": {
-    width: "8px",
-  },
-  "&::-webkit-scrollbar-thumb": {
-    backgroundColor: "#888",
-    borderRadius: "10px",
-  },
-  "&::-webkit-scrollbar-track": {
-    background: "#ccc",
-  },
+  backgroundColor: "#f7fcff	",
+  ...RainbowScrollStyle,
 };
 
 export default function QueueTimeCheckBoxList({

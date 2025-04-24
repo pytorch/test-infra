@@ -18,6 +18,8 @@ export default function QueueTimeChartPage() {
   const [routerReady, setRouterReady] = useState(false);
   const [props, dispatch] = useReducer(propsReducer, {});
 
+  const [searchBarOpen, setSearchBarOpen] = useState(true);
+
   if (!routerReady && router.isReady) {
     setRouterReady(true);
   }
@@ -40,10 +42,17 @@ export default function QueueTimeChartPage() {
       <Grid2 container spacing={2}>
         <FlexNoWrap>
           <div>
-            <QueueTimeCharts props={props} />
+            <QueueTimeCharts
+              props={props}
+              width={searchBarOpen ? "80vw" : "100vw"}
+            />
           </div>
           <div>
-            <QueueTimeSearchBar router={router} updateSearch={dispatch} />
+            <QueueTimeSearchBar
+              router={router}
+              updateSearch={dispatch}
+              setToggle={setSearchBarOpen}
+            />
           </div>
         </FlexNoWrap>
       </Grid2>

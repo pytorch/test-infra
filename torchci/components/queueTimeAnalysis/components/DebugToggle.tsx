@@ -20,9 +20,19 @@ export default function DebugToggle(info: any) {
       {showDebug && (
         <Paper elevation={2} sx={{ mt: 2, p: 2 }}>
           <Typography variant="subtitle1">Debug Details:</Typography>
-          <pre style={{ fontSize: "0.85rem" }}>
-            {JSON.stringify(info, null, 2)}
-          </pre>
+          <div>
+            <pre
+              style={{
+                fontSize: "0.85rem",
+                overflow: "auto",
+                maxHeight: "300px",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {JSON.stringify(info, null, 2)}
+            </pre>
+          </div>
         </Paper>
       )}
     </Box>
