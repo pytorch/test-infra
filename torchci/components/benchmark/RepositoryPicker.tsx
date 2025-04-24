@@ -11,11 +11,7 @@ import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect } from "react";
 import useSWR from "swr";
-import {
-  DEFAULT_TRITON_REPOSITORY,
-  MAIN_BRANCH,
-  SHA_DISPLAY_LENGTH,
-} from "./common";
+import { MAIN_BRANCH, SHA_DISPLAY_LENGTH } from "./common";
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
 // zoom in and out of the graph. NB: this is to avoid sending commit sha
@@ -25,7 +21,7 @@ import {
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
-function getRepositories(data: any) {
+function getRepositories(default_repository: string, data: any) {
   const dedups: { [k: string]: Set<string> } = {};
   const repositories: { [k: string]: any } = {};
 
@@ -49,9 +45,9 @@ function getRepositories(data: any) {
     }
 
     let display_priority = 1;
-    if (repo === DEFAULT_TRITON_REPOSITORY && b === MAIN_BRANCH) {
+    if (repo === default_repository && b === MAIN_BRANCH) {
       display_priority = 99;
-    } else if (repo == DEFAULT_TRITON_REPOSITORY) {
+    } else if (repo == default_repository) {
       display_priority = 98;
     }
 
@@ -78,6 +74,7 @@ function getRepositories(data: any) {
 export function RepositoryBranchCommitPicker({
   queryName,
   queryParams,
+  default_repository,
   repository,
   setRepository,
   branch,
@@ -90,6 +87,7 @@ export function RepositoryBranchCommitPicker({
 }: {
   queryName: string;
   queryParams: { [k: string]: any };
+  default_repository: string;
   repository: string;
   setRepository: any;
   branch: string;
@@ -110,7 +108,7 @@ export function RepositoryBranchCommitPicker({
 
   useEffect(() => {
     if (data !== undefined && data.length !== 0) {
-      const repositories = getRepositories(data);
+      const repositories = getRepositories(default_repository, data);
 
       // The selected branch could have no commit which happens when people are experimenting
       // on their own branches or switching around to different configuration
@@ -120,8 +118,8 @@ export function RepositoryBranchCommitPicker({
         repositories[repository][branch].length == 0
       ) {
         repository =
-          DEFAULT_TRITON_REPOSITORY in repositories
-            ? DEFAULT_TRITON_REPOSITORY
+          default_repository in repositories
+            ? default_repository
             : Object.keys(repositories)[0];
         const branches = repositories[repository];
         branch =
@@ -164,7 +162,7 @@ export function RepositoryBranchCommitPicker({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const repositories = getRepositories(data);
+  const repositories = getRepositories(default_repository, data);
 
   // The main branch could have no commit which happens when people are experimenting
   // on their own branches

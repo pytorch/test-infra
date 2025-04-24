@@ -1,14 +1,16 @@
 import { Divider, Stack, Typography } from "@mui/material";
-import {
-  DEFAULT_TRITON_REPOSITORY,
-  LAST_N_DAYS,
-  MAIN_BRANCH,
-} from "components/benchmark/common";
+import { BenchmarkPicker } from "components/benchmark/BenchmarkPicker";
+import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_TRITON_BENCHMARK_NAME,
+  DEFAULT_TRITON_REPOSITORY,
+} from "components/tritonbench/common";
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -24,6 +26,12 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("hour");
+
+  const [benchmarkName, setBenchmarkName] = useState<string>(
+    DEFAULT_TRITON_BENCHMARK_NAME
+  );
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+
   const [lRepository, setLRepository] = useState<string>(
     DEFAULT_TRITON_REPOSITORY
   );
@@ -61,6 +69,18 @@ export default function Page() {
       setGranularity(granularity);
     }
 
+    const benchmarkName: string =
+      (router.query.benchmarkName as string) ?? DEFAULT_TRITON_BENCHMARK_NAME;
+    if (benchmarkName !== undefined) {
+      setBenchmarkName(benchmarkName);
+    }
+
+    const deviceName: string =
+      (router.query.deviceName as string) ?? DEFAULT_DEVICE_NAME;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
+    }
+
     setBaseUrl(
       `${window.location.protocol}//${
         window.location.host
@@ -72,7 +92,8 @@ export default function Page() {
     commits: [],
     getJobId: false,
     granularity: granularity,
-    benchmark_name: "compile_time",
+    benchmark_name: benchmarkName,
+    deviceName: deviceName,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     workflowId: 0,
@@ -83,7 +104,7 @@ export default function Page() {
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            Triton Compile Time DashBoard
+            Triton Benchmark
           </Typography>
           <CopyLink textToCopy={`${baseUrl}`} />
         </Stack>
@@ -101,9 +122,16 @@ export default function Page() {
             granularity={granularity}
             setGranularity={setGranularity}
           />
+          <BenchmarkPicker
+            queryName={"tritonbench_list_benchmarks"}
+            queryParams={queryParams}
+            benchmarkName={benchmarkName}
+            setBenchmarkName={setBenchmarkName}
+          />
           <RepositoryBranchCommitPicker
             queryName={"tritonbench_benchmark_branches"}
             queryParams={queryParams}
+            default_repository={DEFAULT_TRITON_REPOSITORY}
             repository={lRepository}
             setRepository={setLRepository}
             branch={lBranch}
@@ -120,6 +148,7 @@ export default function Page() {
           <RepositoryBranchCommitPicker
             queryName={"tritonbench_benchmark_branches"}
             queryParams={queryParams}
+            default_repository={DEFAULT_TRITON_REPOSITORY}
             repository={rRepository}
             setRepository={setRRepository}
             branch={rBranch}
@@ -134,6 +163,7 @@ export default function Page() {
         <TimeSeriesGraphReport
           queryParams={queryParams}
           granularity={granularity}
+          benchmarkName={benchmarkName}
           lRepoBranchAndCommit={{
             repo: lRepository,
             branch: lBranch,
