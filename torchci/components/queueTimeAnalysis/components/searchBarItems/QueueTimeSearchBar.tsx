@@ -1,6 +1,6 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Box, Button, IconButton, styled } from "@mui/material";
+import { Box, IconButton, styled } from "@mui/material";
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import { DateRangePicker } from "components/queueTimeAnalysis/components/pickers/DateRangePicker";
 import { TimeGranuityPicker } from "components/queueTimeAnalysis/components/pickers/TimeGranuityPicker";
@@ -45,7 +45,6 @@ const SearchConfiguration = styled(Box)({
   top: 70,
   right: 0,
   height: "100vh",
-  backgroundColor: "#ffffff", // replace "background.paper"
   boxShadow: "0px 2px 8px rgba(0,0,0,0.1)", // replace boxShadow: 4
   zIndex: 1000,
   borderTopLeftRadius: 8,
@@ -55,17 +54,16 @@ const SearchConfiguration = styled(Box)({
 });
 
 const ToggleButtonBox = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "open",
-  })(({ theme, open }: { theme: any; open: boolean }) => ({
-    width: 40,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.palette.background.paper,
-    borderLeft: open ? "1px solid #ccc" : "none",
-    borderTopLeftRadius: open ? 8 : 0,
-    borderBottomLeftRadius: open ? 8 : 0,
-  }));
+  shouldForwardProp: (prop) => prop !== "open",
+})(({ theme, open }: { theme: any; open: boolean }) => ({
+  width: 40,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderLeft: open ? "1px solid #ccc" : "none",
+  borderTopLeftRadius: open ? 8 : 0,
+  borderBottomLeftRadius: open ? 8 : 0,
+}));
 
 const ScrollBarLeft = styled(Box)(({ theme }) => ({
   ...RainbowScrollStyle,
@@ -88,7 +86,6 @@ export const SearchButton = styled("div")(({ theme }) => ({
   padding: "2px",
   position: "sticky",
   top: 0,
-  backgroundColor: theme.palette.background.paper, // ✅ correct usage
   zIndex: 10,
   textAlign: "left",
   width: "100%",
@@ -106,7 +103,7 @@ const RainbowButton = styled(Box)(() => ({
   "&:hover": {
     background: "linear-gradient(90deg, #ff9eb6, #9dd3f3)",
     boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-  }
+  },
 }));
 
 export default function QueueTimeSearchBar({
@@ -118,7 +115,6 @@ export default function QueueTimeSearchBar({
   updateSearch: React.Dispatch<any>;
   setToggle: any;
 }) {
-
   const toHalfHourDayJs = (dateString: string) => {
     const date = dayjs(dateString as string).utc();
     const minutes = date.minute();
@@ -190,9 +186,7 @@ export default function QueueTimeSearchBar({
       {open && (
         <ScrollBarLeft>
           <SearchButton>
-            <RainbowButton onClick={onSearch}>
-              Search
-            </RainbowButton>
+            <RainbowButton onClick={onSearch}>Search</RainbowButton>
             <Box sx={{ borderBottom: "1px solid #eee", padding: "10px 0" }} />
           </SearchButton>
           <SearchFilters>
