@@ -2,6 +2,7 @@ import moment from 'moment';
 import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import {
+  getGitHubRateLimit,
   getRunnerOrg,
   getRunnerRepo,
   getRunnerTypes,
@@ -66,7 +67,7 @@ export async function scaleDown(): Promise<void> {
         // REPO assigned runners
         if (ec2runner.repo !== undefined) {
           foundRepos.add(ec2runner.repo);
-          const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
+          const ghRunner = await getGHRunnerRepo(ec2runner, metrics, true);
           // if configured to repo, don't mess with organization runners
           if (!Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
@@ -81,7 +82,7 @@ export async function scaleDown(): Promise<void> {
           // ORG assigned runners
         } else if (ec2runner.org !== undefined) {
           foundOrgs.add(ec2runner.org);
-          const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
+          const ghRunner = await getGHRunnerOrg(ec2runner, metrics, true);
           // if configured to org, don't mess with repo runners
           if (Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
@@ -290,7 +291,11 @@ export async function cleanupOldSSMParameters(runnersRegions: Set<string>, metri
   }
 }
 
-export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
+export async function getGHRunnerOrg(
+  ec2runner: RunnerInfo,
+  metrics: ScaleDownMetrics,
+  dontTrustIdleFromList = true,
+): Promise<GhRunner | undefined> {
   const org = ec2runner.org as string;
   let ghRunner: GhRunner | undefined = undefined;
 
@@ -304,25 +309,97 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
     }
   }
 
-  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
-    console.warn(
-      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
-        `listGithubRunnersOrg call, attempting to grab directly`,
-    );
-    try {
-      ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId, metrics);
-    } catch (e) {
+  if (ghRunner === undefined) {
+    if (ec2runner.ghRunnerId === undefined) {
       console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
-          `listGithubRunnersOrg call: ${e}`,
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) was neither found in ` +
+          `the list of runners returned by the listGithubRunnersOrg api call, nor did it have the ` +
+          `GithubRunnerId EC2 tag set.  This can happen if there's no runner running on the instance.`,
       );
-      /* istanbul ignore next */
-      if (isGHRateLimitError(e)) {
-        throw e;
+    } else {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
+          `listGithubRunnersOrg call, attempting to grab directly`,
+      );
+      try {
+        ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId, metrics);
+      } catch (e) {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when getRunnerOrg call: ${e}`,
+        );
+        /* istanbul ignore next */
+        if (isGHRateLimitError(e)) {
+          throw e;
+        }
       }
     }
+  } else if (dontTrustIdleFromList && !ghRunner.busy && ec2runner.ghRunnerId !== undefined) {
+    console.debug(
+      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) was found in the list of runners,` +
+        ` it should not be busy, but the flag dontTrustIdleFromList is set to true, so we will not trust it ` +
+        `and try to grab it directly if we have GHA quotas for it.`,
+    );
+
+    let safeToCallGHApi = false;
+    try {
+      const ghLimitInfo = await getGitHubRateLimit({ owner: org, repo: '' }, metrics);
+      metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
+      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.3) {
+        console.debug(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - We have enough GHA API quotas` +
+            ` to call the API and double-check runner status by grabbing it directly. ` +
+            `Remaning: ${ghLimitInfo.remaining} / Limit: ${ghLimitInfo.limit} / Used: ${ghLimitInfo.used}`,
+        );
+        safeToCallGHApi = true;
+      } else {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - We DON'T have enough GHA API quotas` +
+            ` to call the API and double-check runner status by grabbing it directly. Assuming it is busy. Remaning: ` +
+            `${ghLimitInfo.remaining} / Limit: ${ghLimitInfo.limit} / Used: ${ghLimitInfo.used}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      console.error(`Error getting GitHub rate limit: ${e}`);
+    }
+
+    if (safeToCallGHApi) {
+      try {
+        const ghRunnerDirect = await getRunnerOrg(org, ec2runner.ghRunnerId, metrics);
+        if (ghRunnerDirect !== undefined) {
+          ghRunner = ghRunnerDirect;
+          console.warn(
+            `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - ` +
+              `Information grabbed directly. New status is: ${ghRunner.status} - ` +
+              `Busy: ${ghRunner.busy} - Labels: ${ghRunner.labels}`,
+          );
+        } else {
+          console.error(
+            `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - Information grabbed directly. ` +
+              `But it was not found in GHA API. This should NOT happen in a healthy GHA API status!. ` +
+              `Considering the runner busy, for now`,
+          );
+          ghRunner.busy = true;
+        }
+      } catch (e) {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when getRunnerOrg call: ${e}`,
+        );
+        /* istanbul ignore next */
+        if (isGHRateLimitError(e)) {
+          throw e;
+        }
+      }
+    } else {
+      console.error(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - Not safe to call GHA API due to lack ` +
+          `of quotas to retrieve runner information directly. We will consider the runner busy.`,
+      );
+      ghRunner.busy = true;
+    }
   }
-  if (ghRunner) {
+
+  if (ghRunner !== undefined) {
     if (ghRunner.busy) {
       metrics.runnerGhFoundBusyOrg(org, ec2runner);
     } else {
@@ -334,7 +411,11 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
   return ghRunner;
 }
 
-export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
+export async function getGHRunnerRepo(
+  ec2runner: RunnerInfo,
+  metrics: ScaleDownMetrics,
+  dontTrustIdleFromList = true,
+): Promise<GhRunner | undefined> {
   const repo = getRepo(ec2runner.repo as string);
   let ghRunner: GhRunner | undefined = undefined;
 
@@ -373,7 +454,72 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
         }
       }
     }
+  } else if (dontTrustIdleFromList && !ghRunner.busy && ec2runner.ghRunnerId !== undefined) {
+    console.debug(
+      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) was found in the list of runners,` +
+        ` it should not be busy, but the flag dontTrustIdleFromList is set to true, so we will not trust it ` +
+        `and try to grab it directly if we have GHA quotas for it.`,
+    );
+
+    let safeToCallGHApi = false;
+    try {
+      const ghLimitInfo = await getGitHubRateLimit(repo, metrics);
+      metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
+      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.3) {
+        console.debug(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - We have enough GHA API quotas` +
+            ` to call the API and double-check runner status by grabbing it directly. ` +
+            `Remaning: ${ghLimitInfo.remaining} / Limit: ${ghLimitInfo.limit} / Used: ${ghLimitInfo.used}`,
+        );
+        safeToCallGHApi = true;
+      } else {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - We DON'T have enough GHA API quotas` +
+            ` to call the API and double-check runner status by grabbing it directly. Assuming it is busy. Remaning: ` +
+            `${ghLimitInfo.remaining} / Limit: ${ghLimitInfo.limit} / Used: ${ghLimitInfo.used}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      console.error(`Error getting GitHub rate limit: ${e}`);
+    }
+
+    if (safeToCallGHApi) {
+      try {
+        const ghRunnerDirect = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
+        if (ghRunnerDirect !== undefined) {
+          ghRunner = ghRunnerDirect;
+          console.warn(
+            `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - ` +
+              `Information grabbed directly. New status is: ${ghRunner.status} - ` +
+              `Busy: ${ghRunner.busy} - Labels: ${ghRunner.labels}`,
+          );
+        } else {
+          console.error(
+            `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - Information grabbed directly. ` +
+              `But it was not found in GHA API. This should NOT happen in a healthy GHA API status!. ` +
+              `Considering the runner busy, for now`,
+          );
+          ghRunner.busy = true;
+        }
+      } catch (e) {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
+        );
+        /* istanbul ignore next */
+        if (isGHRateLimitError(e)) {
+          throw e;
+        }
+      }
+    } else {
+      console.error(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - Not safe to call GHA API due to lack ` +
+          `of quotas to retrieve runner information directly. We will consider the runner busy.`,
+      );
+      ghRunner.busy = true;
+    }
   }
+
   if (ghRunner !== undefined) {
     if (ghRunner.busy) {
       metrics.runnerGhFoundBusyRepo(repo, ec2runner);
