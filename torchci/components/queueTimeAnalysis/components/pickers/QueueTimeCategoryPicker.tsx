@@ -35,6 +35,7 @@ export default function QueueTimeCategoryPicker({
         onChange={handleChange}
         sx={sx}
         MenuProps={{
+          disableScrollLock: true,
           PaperProps: {
             fontSize: "0.85rem", // this affects all dropdown options
           },

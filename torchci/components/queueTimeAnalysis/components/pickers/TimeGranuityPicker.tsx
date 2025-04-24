@@ -21,6 +21,9 @@ export function TimeGranuityPicker({
         label="Granularity"
         labelId="granularity-select-label"
         onChange={(e) => setGranularity(e.target.value as Granularity)}
+        MenuProps={{
+          disableScrollLock: true,
+        }}
         sx={sx}
       >
         <MenuItem sx={sx} value={"half_hour"}>

@@ -85,6 +85,9 @@ export function DateRangePicker({
           labelId="time-picker-select-label"
           onChange={handleChange}
           sx={sx}
+          MenuProps={{
+            disableScrollLock: true,
+          }}
         >
           <MenuItem sx={sx} value={1}>
             Last 1 Day

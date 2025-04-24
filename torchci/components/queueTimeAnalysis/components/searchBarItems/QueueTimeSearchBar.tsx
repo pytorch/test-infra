@@ -162,7 +162,7 @@ export default function QueueTimeSearchBar({
       endDate: rQuery.endDate
         ? toHalfHourDayJs(rQuery.endDate as string)
         : toHalfHourDayJs(dayjs().format()),
-      granularity: (rQuery.granularity as string) || "hour",
+      granularity: (rQuery.granularity as string) || "half_hour",
       chartType: (rQuery.chartType as string) || "bar",
       repos: rQuery.repos
         ? splitString(rQuery.repos as string)
