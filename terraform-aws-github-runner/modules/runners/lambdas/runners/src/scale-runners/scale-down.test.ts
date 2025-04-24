@@ -15,6 +15,7 @@ import {
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
   resetGHRunnersCaches,
+  getGitHubRateLimit,
 } from './gh-runners';
 import * as MetricsModule from './metrics';
 import {
@@ -51,6 +52,7 @@ jest.mock('./gh-runners', () => ({
   removeGithubRunnerOrg: jest.fn(),
   removeGithubRunnerRepo: jest.fn(),
   resetGHRunnersCaches: jest.fn(),
+  getGitHubRateLimit: jest.fn(),
 }));
 
 jest.mock('./runners', () => ({
@@ -1433,9 +1435,9 @@ describe('scale-down', () => {
 
   describe('getGHRunnerRepo', () => {
     const ghRunners = [
-      { name: 'instance-id-01', busy: true },
-      { name: 'instance-id-02', busy: false },
-    ] as GhRunners;
+      mockRunner({ id: 101, name: 'instance-id-01', busy: true, status: 'online', os: 'linux', labels: [] }),
+      mockRunner({ id: 102, name: 'instance-id-02', busy: false, status: 'online', os: 'linux', labels: [] }),
+    ];
     const repo: Repo = {
       owner: 'the-org',
       repo: 'a-repo',
@@ -1503,6 +1505,110 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
       expect(mockedGetRunnerRepo).toBeCalledTimes(1);
       expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
+    });
+
+    it('finds idle runner in listGithubRunnersRepo and double checks with enough API quota', async () => {
+      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
+      const mockedGetRunnerRepo = mocked(getRunnerRepo);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        repo: repoKey,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+      const directGhRunner = mockRunner({
+        id: 202,
+        name: 'instance-id-02',
+        busy: true,
+        status: 'busy',
+        os: 'linux',
+        labels: [],
+      });
+
+      mockedListGithubRunnersRepo.mockResolvedValueOnce(ghRunners);
+      mockedGetGitHubRateLimit.mockResolvedValueOnce({ limit: 5000, remaining: 4000, used: 1000 });
+      mockedGetRunnerRepo.mockResolvedValueOnce(directGhRunner);
+
+      const result = await getGHRunnerRepo(ec2runner, metrics, true);
+      expect(result).toEqual(directGhRunner);
+      expect(result?.busy).toBe(true);
+
+      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
+      expect(mockedGetGitHubRateLimit).toBeCalledTimes(1);
+      expect(mockedGetGitHubRateLimit).toBeCalledWith(repo, metrics);
+      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
+      expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
+    });
+
+    it('finds idle runner in listGithubRunnersRepo but cannot double check due to low API quota', async () => {
+      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
+      const mockedGetRunnerRepo = mocked(getRunnerRepo);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        repo: repoKey,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+
+      mockedListGithubRunnersRepo.mockResolvedValueOnce(ghRunners);
+      mockedGetGitHubRateLimit.mockResolvedValueOnce({ limit: 5000, remaining: 500, used: 4500 });
+
+      const result = await getGHRunnerRepo(ec2runner, metrics, true);
+      expect(result).toEqual({ ...ghRunners[1], busy: true });
+
+      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
+      expect(mockedGetGitHubRateLimit).toBeCalledTimes(1);
+      expect(mockedGetGitHubRateLimit).toBeCalledWith(repo, metrics);
+      expect(mockedGetRunnerRepo).not.toBeCalled();
+    });
+
+    it('finds idle runner in listGithubRunnersRepo and no double check with dontTrustIdleFromList=false', async () => {
+      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
+      const mockedGetRunnerRepo = mocked(getRunnerRepo);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        repo: repoKey,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+
+      // Create special test runner list with a runner we know is not busy
+      const specialTestRunner = mockRunner({
+        id: 102,
+        name: 'instance-id-02',
+        busy: false,
+        status: 'online',
+        os: 'linux',
+        labels: [],
+      });
+      const testGhRunners = [
+        mockRunner({ id: 101, name: 'instance-id-01', busy: true, status: 'online', os: 'linux', labels: [] }),
+        specialTestRunner,
+      ];
+
+      mockedListGithubRunnersRepo.mockResolvedValueOnce(testGhRunners);
+
+      // Override the mock implementation directly
+      mockedListGithubRunnersRepo.mockImplementationOnce(() => {
+        return Promise.resolve(testGhRunners);
+      });
+
+      const result = await getGHRunnerRepo(ec2runner, metrics, false);
+      // Make sure the runner stayed not busy
+      expect(result?.busy).toBe(false);
+
+      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
+      expect(mockedGetGitHubRateLimit).not.toBeCalled();
+      expect(mockedGetRunnerRepo).not.toBeCalled();
     });
   });
 
@@ -1624,9 +1730,9 @@ describe('scale-down', () => {
 
   describe('getGHRunnerOrg', () => {
     const ghRunners = [
-      { name: 'instance-id-01', busy: true },
-      { name: 'instance-id-02', busy: false },
-    ] as GhRunners;
+      mockRunner({ id: 201, name: 'instance-id-01', busy: true, status: 'online', os: 'linux', labels: [] }),
+      mockRunner({ id: 202, name: 'instance-id-02', busy: false, status: 'online', os: 'linux', labels: [] }),
+    ];
     const org = 'the-org';
 
     it('finds on listGithubRunnersOrg, busy === true', async () => {
@@ -1725,6 +1831,110 @@ describe('scale-down', () => {
       };
 
       await expect(getGHRunnerOrg(ec2runner, metrics)).rejects.toThrow(RequestError);
+    });
+
+    it('finds idle runner in listGithubRunnersOrg and double checks with enough API quota', async () => {
+      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedGetRunnerOrg = mocked(getRunnerOrg);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        org: org,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+      const directGhRunner = mockRunner({
+        id: 202,
+        name: 'instance-id-02',
+        busy: true,
+        status: 'busy',
+        os: 'linux',
+        labels: [],
+      });
+
+      mockedListGithubRunnersOrg.mockResolvedValueOnce(ghRunners);
+      mockedGetGitHubRateLimit.mockResolvedValueOnce({ limit: 5000, remaining: 4000, used: 1000 });
+      mockedGetRunnerOrg.mockResolvedValueOnce(directGhRunner);
+
+      const result = await getGHRunnerOrg(ec2runner, metrics, true);
+      expect(result).toEqual(directGhRunner);
+      expect(result?.busy).toBe(true);
+
+      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
+      expect(mockedGetGitHubRateLimit).toBeCalledTimes(1);
+      expect(mockedGetGitHubRateLimit).toBeCalledWith({ owner: org, repo: '' }, metrics);
+      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
+      expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
+    });
+
+    it('finds idle runner in listGithubRunnersOrg but cannot double check due to low API quota', async () => {
+      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedGetRunnerOrg = mocked(getRunnerOrg);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        org: org,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+
+      mockedListGithubRunnersOrg.mockResolvedValueOnce(ghRunners);
+      mockedGetGitHubRateLimit.mockResolvedValueOnce({ limit: 5000, remaining: 500, used: 4500 });
+
+      const result = await getGHRunnerOrg(ec2runner, metrics, true);
+      expect(result).toEqual({ ...ghRunners[1], busy: true });
+
+      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
+      expect(mockedGetGitHubRateLimit).toBeCalledTimes(1);
+      expect(mockedGetGitHubRateLimit).toBeCalledWith({ owner: org, repo: '' }, metrics);
+      expect(mockedGetRunnerOrg).not.toBeCalled();
+    });
+
+    it('finds idle runner in listGithubRunnersOrg and no double check with dontTrustIdleFromList=false', async () => {
+      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedGetRunnerOrg = mocked(getRunnerOrg);
+      const mockedGetGitHubRateLimit = mocked(getGitHubRateLimit);
+      const ec2runner: RunnerInfo = {
+        awsRegion: baseConfig.awsRegion,
+        org: org,
+        instanceId: 'instance-id-02',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-02',
+      };
+
+      // Create special test runner list with a runner we know is not busy
+      const specialTestRunner = mockRunner({
+        id: 202,
+        name: 'instance-id-02',
+        busy: false,
+        status: 'online',
+        os: 'linux',
+        labels: [],
+      });
+      const testGhRunners = [
+        mockRunner({ id: 201, name: 'instance-id-01', busy: true, status: 'online', os: 'linux', labels: [] }),
+        specialTestRunner,
+      ];
+
+      mockedListGithubRunnersOrg.mockResolvedValueOnce(testGhRunners);
+
+      // Override the mock implementation directly
+      mockedListGithubRunnersOrg.mockImplementationOnce(() => {
+        return Promise.resolve(testGhRunners);
+      });
+
+      const result = await getGHRunnerOrg(ec2runner, metrics, false);
+      // Make sure the runner stayed not busy
+      expect(result?.busy).toBe(false);
+
+      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
+      expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
+      expect(mockedGetGitHubRateLimit).not.toBeCalled();
+      expect(mockedGetRunnerOrg).not.toBeCalled();
     });
   });
 });

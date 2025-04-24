@@ -344,7 +344,7 @@ export async function getGHRunnerOrg(
     try {
       const ghLimitInfo = await getGitHubRateLimit({ owner: org, repo: '' }, metrics);
       metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
-      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.3) {
+      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.4) {
         console.debug(
           `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) - We have enough GHA API quotas` +
             ` to call the API and double-check runner status by grabbing it directly. ` +
@@ -465,7 +465,7 @@ export async function getGHRunnerRepo(
     try {
       const ghLimitInfo = await getGitHubRateLimit(repo, metrics);
       metrics.gitHubRateLimitStats(ghLimitInfo.limit, ghLimitInfo.remaining, ghLimitInfo.used);
-      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.3) {
+      if (ghLimitInfo.remaining > ghLimitInfo.limit * 0.4) {
         console.debug(
           `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) - We have enough GHA API quotas` +
             ` to call the API and double-check runner status by grabbing it directly. ` +
