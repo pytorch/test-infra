@@ -37,27 +37,6 @@ promote_s3() {
     echo
 }
 
-promote_conda() {
-    local package_name
-    package_name=$1
-    local package_type
-    package_type=$2
-    local promote_version
-    promote_version=$3
-    echo "=-=-=-= Promoting ${package_name}'s v${promote_version} ${package_type} packages' =-=-=-="
-    (
-        ANACONDA="echo + anaconda"
-        if [[ "${DRY_RUN:-enabled}" = "disabled" ]]; then
-            ANACONDA="anaconda"
-            set -x
-        else
-            echo "DRY_RUN enabled not actually doing work"
-        fi
-        ${ANACONDA} copy --to-owner ${PYTORCH_CONDA_TO:-pytorch} ${PYTORCH_CONDA_FROM:-pytorch-test}/${package_name}/${promote_version}
-    )
-    echo
-}
-
 promote_pypi() {
     local package_name
     package_name=$1
@@ -106,7 +85,8 @@ promote_pypi() {
 # promote_s3 "pytorch_triton_xpu" whl "${TRITON_VERSION}"
 # promote_s3 torchtext whl "${TORCHTEXT_VERSION}"
 # promote_s3 torchrec whl "${TORCHREC_VERSION}"
-# promote_s3 fbgemm-gpu whl "${FBGEMMGPU_VERSION}"
+# promote_s3 fbgemm_gpu whl "${FBGEMMGPU_VERSION}"
+# promote_s3 fbgemm_gpu_genai whl "${FBGEMMGPU_VERSION}"
 # promote_s3 "libtorch-*" libtorch "${PYTORCH_VERSION}"
 # promote_s3 "torch_tensorrt" whl "${TENSORRT_VERSION}"
 # promote_s3 "torchao" whl "${TORCHAO_VERSION}"
