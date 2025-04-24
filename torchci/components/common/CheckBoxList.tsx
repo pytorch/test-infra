@@ -6,22 +6,31 @@ import {
   List,
   ListItem,
   TextField,
+  Typography,
 } from "@mui/material";
 import { useState } from "react";
 
 const Button = (props: any) => <_Button variant="contained" {...props} />;
 const Stack = (props: any) => <_Stack spacing={2} {...props} />;
 
+interface CheckBoxListSx {
+  filter?: any;
+  button?: any;
+  list?: any;
+  itemCheckbox?: any;
+  itemLabel?: any;
+}
+
 export default function CheckBoxList({
   items,
   onChange,
   onClick,
-  listSx = {},
+  sxConfig = {},
 }: {
   items: { [key: string]: boolean };
   onChange: (value: { [key: string]: boolean }) => void;
   onClick: (value: string) => void;
-  listSx?: any;
+  sxConfig?: CheckBoxListSx;
 }) {
   // Creates a filter search box, two buttons to select all and unselect all,
   // and a list of checkboxes. Good for manual legends for charts
@@ -44,6 +53,7 @@ export default function CheckBoxList({
     <Stack>
       <TextField
         label="Filter"
+        sx={sxConfig?.filter}
         onChange={(e) => {
           setFilter(e.target.value);
         }}
@@ -53,6 +63,7 @@ export default function CheckBoxList({
           onClick={() => {
             toggleAllfilteredItems(true);
           }}
+          sx={sxConfig?.button}
         >
           Select All
         </Button>
@@ -60,16 +71,25 @@ export default function CheckBoxList({
           onClick={() => {
             toggleAllfilteredItems(false);
           }}
+          sx={sxConfig?.button}
         >
           Unselect All
         </Button>
       </Stack>
-      <List dense sx={listSx}>
+      <List dense sx={sxConfig?.list}>
         {filteredItems.map((item) => (
           <ListItem key={item}>
             <FormControlLabel
-              control={<Checkbox checked={items[item]} />}
-              label={item}
+              sx={{
+                alignItems: "flex-start", // Align checkbox to top
+                display: "flex",
+                gap: "8px", // Control space between checkbox and label
+                width: "100%", // Ensure label can wrap fully
+              }}
+              control={
+                <Checkbox sx={sxConfig?.itemCheckbox} checked={items[item]} />
+              }
+              label={<Typography sx={sxConfig?.itemLabel}>{item}</Typography>}
               onChange={(e) => {
                 onClick(item);
                 onChange({

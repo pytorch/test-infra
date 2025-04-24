@@ -6,6 +6,7 @@ import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import LoadingPage from "components/LoadingPage";
 import dayjs from "dayjs";
 import QueueTimeCharts from "./charts/QueueTimeCharts";
+import DebugToggle from "./DebugToggle";
 import QueueTimeSearchBar from "./searchBarItems/QueueTimeSearchBar";
 
 const FlexNoWrap = styled("div")({
@@ -17,6 +18,8 @@ export default function QueueTimeChartPage() {
   const router = useRouter();
   const [routerReady, setRouterReady] = useState(false);
   const [props, dispatch] = useReducer(propsReducer, {});
+
+  const [searchBarOpen, setSearchBarOpen] = useState(true);
 
   if (!routerReady && router.isReady) {
     setRouterReady(true);
@@ -40,10 +43,18 @@ export default function QueueTimeChartPage() {
       <Grid2 container spacing={2}>
         <FlexNoWrap>
           <div>
-            <QueueTimeCharts props={props} />
+            <QueueTimeCharts
+              props={props}
+              width={searchBarOpen ? "80vw" : "100vw"}
+            />
+            <DebugToggle info={props} sx={{ width: "30vw" }} />
           </div>
           <div>
-            <QueueTimeSearchBar router={router} updateSearch={dispatch} />
+            <QueueTimeSearchBar
+              router={router}
+              updateSearch={dispatch}
+              setToggle={setSearchBarOpen}
+            />
           </div>
         </FlexNoWrap>
       </Grid2>

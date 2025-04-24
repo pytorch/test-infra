@@ -1,8 +1,16 @@
+import styled from "@emotion/styled";
 import { FormControlLabel, Paper, Switch, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import { useState } from "react";
+const DebugDetailBox = styled("pre")({
+  fontSize: "0.85rem",
+  overflow: "auto",
+  maxHeight: "300px",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+});
 
-export default function DebugToggle(info: any) {
+export default function DebugToggle({ info, sx }: { info: any; sx?: any }) {
   const [showDebug, setShowDebug] = useState(false);
 
   return (
@@ -18,11 +26,16 @@ export default function DebugToggle(info: any) {
         label="Show Search Debug"
       />
       {showDebug && (
-        <Paper elevation={2} sx={{ mt: 2, p: 2 }}>
+        <Paper
+          elevation={2}
+          sx={{
+            ...sx,
+          }}
+        >
           <Typography variant="subtitle1">Debug Details:</Typography>
-          <pre style={{ fontSize: "0.85rem" }}>
-            {JSON.stringify(info, null, 2)}
-          </pre>
+          <div>
+            <DebugDetailBox>{JSON.stringify(info, null, 2)}</DebugDetailBox>
+          </div>
         </Paper>
       )}
     </Box>

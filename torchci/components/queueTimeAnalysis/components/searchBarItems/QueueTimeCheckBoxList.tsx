@@ -1,17 +1,17 @@
-import {
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-  styled,
-} from "@mui/material";
+import { styled } from "@mui/material";
 import CheckBoxList from "components/common/CheckBoxList";
 import dayjs from "dayjs";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
+import QueueTimeCategoryPicker from "../pickers/QueueTimeCategoryPicker";
+import {
+  DenseCheckbox,
+  DenseTextField,
+  DropboxSelectDense,
+  FontSizeStyles,
+  RainbowScrollStyle,
+} from "./SharedUIElements";
 
 interface Props {
   workflow_names: string[];
@@ -32,20 +32,12 @@ const HelperContent = styled("div")(({}) => ({
   margin: "5px",
 }));
 
-const dynamicStyles = {
-  height: "800px",
-  overflowY: "auto", // Dynamically set overflow
-  backgroundColor: "var(--dropdown-bg)",
-  "&::-webkit-scrollbar": {
-    width: "8px",
-  },
-  "&::-webkit-scrollbar-thumb": {
-    backgroundColor: "#888",
-    borderRadius: "10px",
-  },
-  "&::-webkit-scrollbar-track": {
-    background: "var(--border-color)",
-  },
+const CheckListStyle = {
+  minHeight: "200px",
+  height: "40vh",
+  overflowY: "auto",
+  border: "1px solid #e0e0e0",
+  ...RainbowScrollStyle,
 };
 
 export default function QueueTimeCheckBoxList({
@@ -159,47 +151,40 @@ export default function QueueTimeCheckBoxList({
 
   return (
     <div>
-      <QueueTimeCategoryPicker setCategory={setCategory} category={category} />
-      <HelperContent> Select items: </HelperContent>
+      <QueueTimeCategoryPicker
+        setCategory={setCategory}
+        category={category}
+        sx={{
+          ...DropboxSelectDense,
+          ...FontSizeStyles,
+        }}
+      />
+      <HelperContent sx={FontSizeStyles}> Select items: </HelperContent>
       <CheckBoxList
         items={selectedItem}
         onChange={(items) => setItems(items)}
         onClick={() => {}}
-        listSx={dynamicStyles}
+        sxConfig={{
+          filter: {
+            ...DenseTextField,
+          },
+          button: {
+            textTransform: "none",
+            padding: "4px 10px",
+            ...FontSizeStyles,
+          },
+          list: { ...CheckListStyle },
+          itemCheckbox: {
+            ...DenseCheckbox,
+            ...FontSizeStyles,
+          },
+          itemLabel: {
+            whiteSpace: "normal", // allow wrapping
+            wordBreak: "break-word",
+            ...FontSizeStyles,
+          },
+        }}
       ></CheckBoxList>
     </div>
-  );
-}
-
-function QueueTimeCategoryPicker({
-  setCategory,
-  category,
-}: {
-  setCategory: any;
-  category: string;
-}) {
-  const handleChange = (event: SelectChangeEvent) => {
-    setCategory(event.target.value);
-  };
-  return (
-    <FormControl sx={{ m: 1, minWidth: 120 }}>
-      <InputLabel id="category-picker-label">Search Category</InputLabel>
-      <Select
-        labelId="category-picker-select"
-        id="category-picker-select"
-        value={category}
-        label="Category"
-        onChange={handleChange}
-      >
-        <MenuItem value={"workflow_name"}>workflow name</MenuItem>
-        <MenuItem value={"job_name"}>job name</MenuItem>
-        <MenuItem value={"machine_type"}>machine type</MenuItem>
-      </Select>
-      <FormHelperText>
-        {" "}
-        By default, shows data for all queued jobs. Using filter and checkbox
-        below for specifc items
-      </FormHelperText>
-    </FormControl>
   );
 }

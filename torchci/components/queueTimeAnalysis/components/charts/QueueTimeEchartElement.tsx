@@ -18,14 +18,18 @@ export function QueueTimeEchartElement({
   chartType = "heatmap",
   chartGroup,
   width,
+  height,
   minWidth = "200px",
+  minHeight = "300px",
 }: {
   chartType: string;
   data?: any[];
   granularity: string;
   chartGroup?: string;
   width?: string;
+  height?: string;
   minWidth?: string;
+  minHeight?: string;
 }) {
   const chartRef = useRef(null); // Create a ref for the chart container
   const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
@@ -96,13 +100,13 @@ export function QueueTimeEchartElement({
     );
   }, [rawData, chartType, granularity]);
 
-  const height = queue_axis_value.length * 10;
   return (
     <div
       ref={chartRef}
       style={{
-        height: `${height}px`,
+        height: height ?? queue_axis_value.length * 5 + "px",
         width: width ?? "100%",
+        minHeight: minHeight,
         minWidth: minWidth,
       }}
     />
