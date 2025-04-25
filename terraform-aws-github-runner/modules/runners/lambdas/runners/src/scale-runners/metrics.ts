@@ -1635,7 +1635,14 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     super('scaleUpChron');
   }
 
-  queuedRunnerStats(org: string, runnerType: string, repo: string, numQueuedJobs: number, minQueueTimeMinutes: number, maxQueueTimeMinutes: number) {
+  queuedRunnerStats(
+    org: string,
+    runnerType: string,
+    repo: string,
+    numQueuedJobs: number,
+    minQueueTimeMinutes: number,
+    maxQueueTimeMinutes: number,
+  ) {
     this.countEntry('run.scaleupchron.queuedRunners', 1);
     this.countEntry('run.scaleupchron.queuedRunners.numJobs', numQueuedJobs);
     this.addEntry('run.scaleupchron.queuedRunners.minMinutes', minQueueTimeMinutes);
@@ -1659,11 +1666,21 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.minMinutes', minQueueTimeMinutes, dimensions);
     this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensions);
 
-    const dimensionsRepo = new Map([['Repo', repo], ['Org', org]]);
+    const dimensionsRepo = new Map([
+      ['Repo', repo],
+      ['Org', org],
+    ]);
     this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners', 1, dimensionsRepo);
   }
 
-  queuedRunnerWillScaleStats(org: string, runnerType: string, repo: string, numQueuedJobs: number, minQueueTimeMinutes: number, maxQueueTimeMinutes: number) {
+  queuedRunnerWillScaleStats(
+    org: string,
+    runnerType: string,
+    repo: string,
+    numQueuedJobs: number,
+    minQueueTimeMinutes: number,
+    maxQueueTimeMinutes: number,
+  ) {
     this.countEntry('run.scaleupchron.queuedRunners.willScale', 1);
     this.countEntry('run.scaleupchron.queuedRunners.willScale.numJobs', numQueuedJobs);
     this.addEntry('run.scaleupchron.queuedRunners.willScale.minMinutes', minQueueTimeMinutes);
@@ -1677,17 +1694,40 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
 
     const dimensionsRunnerOnly = new Map([['RunnerType', runnerType]]);
     this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale', 1, dimensionsRunnerOnly);
-    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.numJobs', numQueuedJobs, dimensionsRunnerOnly);
-    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensionsRunnerOnly);
-    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensionsRunnerOnly);
+    this.countEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.numJobs',
+      numQueuedJobs,
+      dimensionsRunnerOnly,
+    );
+    this.addEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.minMinutes',
+      minQueueTimeMinutes,
+      dimensionsRunnerOnly,
+    );
+    this.addEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.maxMinutes',
+      maxQueueTimeMinutes,
+      dimensionsRunnerOnly,
+    );
 
     dimensions.set('RunnerType', runnerType);
     this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale', 1, dimensions);
     this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.numJobs', numQueuedJobs, dimensions);
-    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensions);
-    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensions);
+    this.addEntry(
+      'run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.minMinutes',
+      minQueueTimeMinutes,
+      dimensions,
+    );
+    this.addEntry(
+      'run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.maxMinutes',
+      maxQueueTimeMinutes,
+      dimensions,
+    );
 
-    const dimensionsRepo = new Map([['Repo', repo], ['Org', org]]);
+    const dimensionsRepo = new Map([
+      ['Repo', repo],
+      ['Org', org],
+    ]);
     this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners.willScale', 1, dimensionsRepo);
   }
 

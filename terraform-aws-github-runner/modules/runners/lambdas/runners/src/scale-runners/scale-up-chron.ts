@@ -5,7 +5,6 @@ import { getRepo, shuffleArrayInPlace, expBackOff } from './utils';
 import { ScaleUpChronMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
 import { ActionRequestMessage, RetryableScalingError, scaleUp } from './scale-up';
-import { error } from 'console';
 
 export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> {
   // This function does the following:
@@ -26,9 +25,17 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
     // Filter out the queued jobs that are do not correspond to a valid runner type
     const queuedJobs = (await getQueuedJobs(metrics, Config.Instance.scaleUpChronRecordQueueUrl))
       .filter((runner) => {
-        metrics.queuedRunnerStats(runner.org, runner.runner_label, runner.repo, runner.num_queued_jobs, runner.min_queue_time_minutes, runner.max_queue_time_minutes);
+        metrics.queuedRunnerStats(
+          runner.org,
+          runner.runner_label,
+          runner.repo,
+          runner.num_queued_jobs,
+          runner.min_queue_time_minutes,
+          runner.max_queue_time_minutes,
+        );
         return (
-          runner.min_queue_time_minutes >= Config.Instance.scaleUpMinQueueTimeMinutes && runner.org === Config.Instance.scaleConfigOrg
+          runner.min_queue_time_minutes >= Config.Instance.scaleUpMinQueueTimeMinutes &&
+          runner.org === Config.Instance.scaleConfigOrg
         );
       })
       .filter((requested_runner) => {
@@ -38,7 +45,14 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
       });
 
     queuedJobs.forEach((runner) => {
-      metrics.queuedRunnerWillScaleStats(runner.org, runner.runner_label, runner.repo, runner.num_queued_jobs, runner.min_queue_time_minutes, runner.max_queue_time_minutes);
+      metrics.queuedRunnerWillScaleStats(
+        runner.org,
+        runner.runner_label,
+        runner.repo,
+        runner.num_queued_jobs,
+        runner.min_queue_time_minutes,
+        runner.max_queue_time_minutes,
+      );
     });
 
     if (queuedJobs.length === 0) {
