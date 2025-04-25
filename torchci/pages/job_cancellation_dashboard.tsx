@@ -4,7 +4,7 @@ import { useDarkMode } from "../lib/DarkModeContext";
 
 const JobCancellationDashboard: React.FC = () => {
   const { themeMode, darkMode } = useDarkMode();
-  
+
   // Set theme parameter based on dark mode context
   let theme = "light";
   if (themeMode === "system") {
@@ -12,9 +12,8 @@ const JobCancellationDashboard: React.FC = () => {
   } else {
     theme = themeMode;
   }
-  
-  const dashboardUrl =
-    `https://disz2yd9jqnwc.cloudfront.net/public-dashboards/c540578db0b741168e1a94e80e21f6f7?theme=${theme}`;
+
+  const dashboardUrl = `https://disz2yd9jqnwc.cloudfront.net/public-dashboards/c540578db0b741168e1a94e80e21f6f7?theme=${theme}`;
 
   return (
     <>
