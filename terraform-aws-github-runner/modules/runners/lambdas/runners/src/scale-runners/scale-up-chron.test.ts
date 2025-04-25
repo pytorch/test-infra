@@ -113,7 +113,7 @@ describe('scaleUpChron', () => {
   });
 
   it('queued jobs do not match available runners', async () => {
-    const scaleUpInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
+    const scaleUpChronInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpChronInstanceNoOp');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
@@ -123,11 +123,11 @@ describe('scaleUpChron', () => {
     mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidRunnerLabelResponse });
 
     await scaleUpChron(metrics);
-    expect(scaleUpInstanceNoOpSpy).toBeCalledTimes(1);
+    expect(scaleUpChronInstanceNoOpSpy).toBeCalledTimes(1);
   });
 
   it('queued jobs do not match scale config org', async () => {
-    const scaleUpInstanceNoOp = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
+    const scaleUpChronInstanceNoOp = jest.spyOn(metrics, 'scaleUpChronInstanceNoOp');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
@@ -137,12 +137,12 @@ describe('scaleUpChron', () => {
     mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
 
     await scaleUpChron(metrics);
-    expect(scaleUpInstanceNoOp).toBeCalledTimes(1);
+    expect(scaleUpChronInstanceNoOp).toBeCalledTimes(1);
   });
 
   it('queued jobs match available runners and scale config org and scaled up completes', async () => {
     const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
-    const scaleUpInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpInstanceNoOp');
+    const scaleUpChronInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpChronInstanceNoOp');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
@@ -155,13 +155,13 @@ describe('scaleUpChron', () => {
     mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
     await scaleUpChron(metrics);
-    expect(scaleUpInstanceNoOpSpy).toBeCalledTimes(0);
+    expect(scaleUpChronInstanceNoOpSpy).toBeCalledTimes(0);
     expect(mockedScaleUp).toBeCalledTimes(1);
   });
 
   it('scaled up throws error', async () => {
     const mockedScaleUp = mocked(scaleUp).mockRejectedValue(Error('error'));
-    const scaleUpInstanceFailureRetryableSpy = jest.spyOn(metrics, 'scaleUpInstanceFailureRetryable');
+    const scaleUpChronInstanceFailureNonRetryableSpy = jest.spyOn(metrics, 'scaleUpChronInstanceFailureNonRetryable');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
@@ -173,8 +173,8 @@ describe('scaleUpChron', () => {
     );
     mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
-    await scaleUpChron(metrics);
-    expect(scaleUpInstanceFailureRetryableSpy).toBeCalledTimes(1);
+    await expect(scaleUpChron(metrics)).rejects.toThrow('Non-retryable errors occurred while scaling up: 1');
+    expect(scaleUpChronInstanceFailureNonRetryableSpy).toBeCalledTimes(1);
     expect(mockedScaleUp).toBeCalledTimes(1);
   });
 });
@@ -213,11 +213,14 @@ describe('getQueuedJobs', () => {
 
   it('get queue data from url request with empty response', async () => {
     const errorResponse = '';
-    const queuedRunnerFailureSpy = jest.spyOn(metrics, 'queuedRunnerFailure');
+    const hudNoDataspy = jest.spyOn(metrics, 'hudQueuedRunnerFailureNoData');
+    const hudFailureSpy = jest.spyOn(metrics, 'hudQueuedRunnerFailure');
+
 
     mocked(expBackOff).mockResolvedValue({ data: errorResponse });
 
     expect(await getQueuedJobs(metrics, 'url')).toEqual([]);
-    expect(queuedRunnerFailureSpy).toBeCalledTimes(1);
+    expect(hudNoDataspy).toBeCalledTimes(1);
+    expect(hudFailureSpy).toBeCalledTimes(1);
   });
 });
