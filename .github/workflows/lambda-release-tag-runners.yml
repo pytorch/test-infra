@@ -17,7 +17,7 @@ jobs:
       date: ${{ steps.date.outputs.date }}
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Get current date
         id: date
@@ -25,7 +25,7 @@ jobs:
           echo "date=$(date +'%Y%m%d-%H%M%S')" >> "${GITHUB_OUTPUT}"
 
       - name: Tag snapshot
-        uses: tvdias/github-tagger@v0.0.1
+        uses: tvdias/github-tagger@a570476cc87352c1655c606b29590df6014535e0 # v0.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.TAG_RELEASE }}
         with:
