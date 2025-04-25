@@ -101,7 +101,7 @@ describe('scaleUpChron', () => {
         ({
           ...baseCfg,
           scaleUpChronRecordQueueUrl: null,
-        } as unknown as Config),
+        }) as unknown as Config,
     );
 
     mocked(getRepo).mockReturnValue({ owner: 'owner', repo: 'repo' });
@@ -215,7 +215,6 @@ describe('getQueuedJobs', () => {
     const errorResponse = '';
     const hudNoDataspy = jest.spyOn(metrics, 'hudQueuedRunnerFailureNoData');
     const hudFailureSpy = jest.spyOn(metrics, 'hudQueuedRunnerFailure');
-
 
     mocked(expBackOff).mockResolvedValue({ data: errorResponse });
 
