@@ -204,7 +204,9 @@ export async function upsertDrCiComment(
   );
   const existingDrciID = existingDrciData.id;
   const existingDrciComment = existingDrciData.body;
-  const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev", /*cache*/true));
+  const sev = getActiveSEVs(
+    await fetchIssuesByLabel("ci: sev", /*cache*/ true)
+  );
   const drciComment = formDrciComment(
     prNum,
     owner,

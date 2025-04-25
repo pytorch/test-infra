@@ -136,10 +136,18 @@ export async function updateDrciComments(
   );
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
-  const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev", /*cache*/ true));
+  const sevs = getActiveSEVs(
+    await fetchIssuesByLabel("ci: sev", /*cache*/ true)
+  );
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
-  const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable", /*cache*/ true);
-  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel("skipped", /*cache*/ true);
+  const unstableIssues: IssueData[] = await fetchIssuesByLabel(
+    "unstable",
+    /*cache*/ true
+  );
+  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel(
+    "skipped",
+    /*cache*/ true
+  );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
