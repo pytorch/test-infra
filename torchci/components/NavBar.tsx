@@ -97,6 +97,10 @@ function NavBar() {
       href: "/nightlies",
     },
     {
+      name: "Cancelled Jobs",
+      href: "/job_cancellation_dashboard",
+    },
+    {
       name: "Failures Metric",
       href: "/reliability",
     },
