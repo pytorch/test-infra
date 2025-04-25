@@ -9,6 +9,7 @@ from torchci.clickhouse import (
     query_clickhouse_saved,
 )
 
+
 # This test is intended to run locally against a real ClickHouse instance
 # Provide the necessary environment variables (e.g., in a .env file)
 class TestClickhouseQueries(unittest.TestCase):
@@ -129,16 +130,12 @@ class TestClickhouseQueries(unittest.TestCase):
 
         # First call with timing
         start_time = time.time()
-        results1 = query_clickhouse_saved(
-            "issue_query", params, useChQueryCache=True
-        )
+        results1 = query_clickhouse_saved("issue_query", params, useChQueryCache=True)
         first_call_time = time.time() - start_time
 
         # Second call with timing
         start_time = time.time()
-        results2 = query_clickhouse_saved(
-            "issue_query", params, useChQueryCache=True
-        )
+        results2 = query_clickhouse_saved("issue_query", params, useChQueryCache=True)
         second_call_time = time.time() - start_time
 
         # Print timing information

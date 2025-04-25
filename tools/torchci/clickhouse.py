@@ -42,9 +42,7 @@ def query_clickhouse_saved(
         paramsText = json.load(f).get("params", {})
 
     queryParams = {name: inputParams[name] for name in paramsText}
-    return query_clickhouse(
-        queryText, queryParams, use_ch_query_cache=useChQueryCache
-    )
+    return query_clickhouse(queryText, queryParams, use_ch_query_cache=useChQueryCache)
 
 
 def query_clickhouse(
