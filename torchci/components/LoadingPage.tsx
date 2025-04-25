@@ -20,8 +20,8 @@ function LoadingPage({
   width?: number | string;
 }) {
   const style = {
-    height: height ? height : "100%",
-    width: width ? width : "100%",
+    height: height ? height : "100vh",
+    width: width ? width : "100vw",
   };
   return (
     <>
