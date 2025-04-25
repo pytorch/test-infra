@@ -1635,56 +1635,162 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     super('scaleUpChron');
   }
 
-  queuedRunnerStats(org: string, runnerType: string, numQueuedJobs: number) {
-    const dimensions = new Map([
+  queuedRunnerStats(
+    org: string,
+    runnerType: string,
+    repo: string,
+    numQueuedJobs: number,
+    minQueueTimeMinutes: number,
+    maxQueueTimeMinutes: number,
+  ) {
+    this.countEntry('run.scaleupchron.queuedRunners', 1);
+    this.countEntry('run.scaleupchron.queuedRunners.numJobs', numQueuedJobs);
+    this.addEntry('run.scaleupchron.queuedRunners.minMinutes', minQueueTimeMinutes);
+    this.addEntry('run.scaleupchron.queuedRunners.maxMinutes', maxQueueTimeMinutes);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRunnerOnly = new Map([['RunnerType', runnerType]]);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners', 1, dimensionsRunnerOnly);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.numJobs', numQueuedJobs, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.minMinutes', minQueueTimeMinutes, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensionsRunnerOnly);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRepo = new Map([
+      ['Repo', repo],
       ['Org', org],
-      ['RunnerType', runnerType],
-      ['numQueuedJobs', numQueuedJobs.toString()],
     ]);
-    this.addEntry('gh.scaleupchron.queuedRunners', 3, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners', 1, dimensionsRepo);
   }
 
-  queuedRunnerFailure(error: string) {
-    const dimensions = new Map([['error', error]]);
-    this.countEntry('gh.scaleupchron.queuedRunners.failure', 1, dimensions);
+  queuedRunnerWillScaleStats(
+    org: string,
+    runnerType: string,
+    repo: string,
+    numQueuedJobs: number,
+    minQueueTimeMinutes: number,
+    maxQueueTimeMinutes: number,
+  ) {
+    this.countEntry('run.scaleupchron.queuedRunners.willScale', 1);
+    this.countEntry('run.scaleupchron.queuedRunners.willScale.numJobs', numQueuedJobs);
+    this.addEntry('run.scaleupchron.queuedRunners.willScale.minMinutes', minQueueTimeMinutes);
+    this.addEntry('run.scaleupchron.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.willScale', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.willScale.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRunnerOnly = new Map([['RunnerType', runnerType]]);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale', 1, dimensionsRunnerOnly);
+    this.countEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.numJobs',
+      numQueuedJobs,
+      dimensionsRunnerOnly,
+    );
+    this.addEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.minMinutes',
+      minQueueTimeMinutes,
+      dimensionsRunnerOnly,
+    );
+    this.addEntry(
+      'run.scaleupchron.perRunnerType.queuedRunners.willScale.maxMinutes',
+      maxQueueTimeMinutes,
+      dimensionsRunnerOnly,
+    );
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.numJobs', numQueuedJobs, dimensions);
+    this.addEntry(
+      'run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.minMinutes',
+      minQueueTimeMinutes,
+      dimensions,
+    );
+    this.addEntry(
+      'run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.maxMinutes',
+      maxQueueTimeMinutes,
+      dimensions,
+    );
+
+    const dimensionsRepo = new Map([
+      ['Repo', repo],
+      ['Org', org],
+    ]);
+    this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners.willScale', 1, dimensionsRepo);
   }
 
   /* istanbul ignore next */
   getQueuedJobsEndpointSuccess(ms: number) {
-    this.countEntry(`gh.calls.total`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.success`, 1);
-    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+    this.countEntry(`hud.calls.total`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.success`, 1);
+    this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
   }
 
   /* istanbul ignore next */
   getQueuedJobsEndpointFailure(ms: number) {
-    this.countEntry(`gh.calls.total`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.count`, 1);
-    this.countEntry(`gh.calls.getQueuedJobsEndpoint.failure`, 1);
-    this.addEntry(`gh.calls.getQueuedJobsEndpoint.wallclock`, ms);
+    this.countEntry(`hud.calls.total`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.count`, 1);
+    this.countEntry(`hud.calls.getQueuedJobsEndpoint.failure`, 1);
+    this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
   }
 
-  scaleUpInstanceSuccess() {
+  hudQueuedRunnerFailureInvalidData() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure.invalidData', 1);
+  }
+
+  hudQueuedRunnerFailureNoData() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure.noData', 1);
+  }
+
+  hudQueuedRunnerFailure() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure', 1);
+  }
+
+  scaleUpChronInitiated() {
+    this.countEntry('run.scaleupchron.initiated', 1);
+  }
+
+  scaleUpChronSuccess() {
     this.scaleUpSuccess();
-    this.countEntry('run.scaleupchron.success');
+    this.countEntry('run.scaleupchron.success', 1);
   }
 
-  scaleUpInstanceFailureNonRetryable(error: string) {
-    const dimensions = new Map([['error', error]]);
-    // should we add more information about this or do we not care since  it'll be requeued?
-    this.countEntry('run.scaleupchron.failure.nonRetryable', 1, dimensions);
+  scaleUpChronFailure() {
+    this.countEntry('run.scaleupchron.failure', 1);
   }
 
-  scaleUpInstanceFailureRetryable(error: string) {
-    const dimensions = new Map([['error', error]]);
-
-    // should we add more information about this or do we not care since  it'll be requeued?
-    this.countEntry('run.scaleupchron.failure.retryable', 1, dimensions);
+  scaleUpChronInstanceSuccess() {
+    this.scaleUpSuccess();
+    this.countEntry('run.scaleupchron.instance.success', 1);
   }
 
-  scaleUpInstanceNoOp() {
-    this.countEntry('run.scaleupchron.noop');
+  scaleUpChronInstanceFailure() {
+    this.countEntry('run.scaleupchron.instance.failure', 1);
+  }
+
+  scaleUpChronInstanceFailureNonRetryable() {
+    this.countEntry('run.scaleupchron.failure.nonRetryable', 1);
+  }
+
+  scaleUpChronInstanceFailureRetryable() {
+    this.countEntry('run.scaleupchron.failure.retryable', 1);
+  }
+
+  scaleUpChronInstanceNoOp() {
+    this.countEntry('run.scaleupchron.noop', 1);
   }
 }
 
