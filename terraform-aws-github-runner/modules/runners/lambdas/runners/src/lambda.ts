@@ -179,8 +179,10 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
   try {
     metrics.scaleUpChronInitiated();
     await scaleUpChronR(metrics);
+    metrics.scaleUpChronSuccess();
     return callback(null);
   } catch (e) {
+    metrics.scaleUpChronFailure();
     console.error(e);
     return callback('Failed');
   } finally {

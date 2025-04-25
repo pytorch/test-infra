@@ -1635,22 +1635,60 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     super('scaleUpChron');
   }
 
-  queuedRunnerStats(org: string, runnerType: string) {
+  queuedRunnerStats(org: string, runnerType: string, repo: string, numQueuedJobs: number, minQueueTimeMinutes: number, maxQueueTimeMinutes: number) {
     this.countEntry('run.scaleupchron.queuedRunners', 1);
+    this.countEntry('run.scaleupchron.queuedRunners.numJobs', numQueuedJobs);
+    this.addEntry('run.scaleupchron.queuedRunners.minMinutes', minQueueTimeMinutes);
+    this.addEntry('run.scaleupchron.queuedRunners.maxMinutes', maxQueueTimeMinutes);
 
     const dimensions = new Map([['Org', org]]);
     this.countEntry('run.scaleupchron.perOrg.queuedRunners', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensions);
 
-    const dimensions_runner_only = new Map([['RunnerType', runnerType]]);
-    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners', 1, dimensions_runner_only);
+    const dimensionsRunnerOnly = new Map([['RunnerType', runnerType]]);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners', 1, dimensionsRunnerOnly);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.numJobs', numQueuedJobs, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.minMinutes', minQueueTimeMinutes, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensionsRunnerOnly);
 
     dimensions.set('RunnerType', runnerType);
     this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRepo = new Map([['Repo', repo], ['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners', 1, dimensionsRepo);
   }
 
-  queuedRunnerFailure(reason: string) {
-    const dimensions = new Map([['Reason', reason]]);
-    this.countEntry('run.scaleupchron.queuedRunnerFailure', 1, dimensions);
+  queuedRunnerWillScaleStats(org: string, runnerType: string, repo: string, numQueuedJobs: number, minQueueTimeMinutes: number, maxQueueTimeMinutes: number) {
+    this.countEntry('run.scaleupchron.queuedRunners.willScale', 1);
+    this.countEntry('run.scaleupchron.queuedRunners.willScale.numJobs', numQueuedJobs);
+    this.addEntry('run.scaleupchron.queuedRunners.willScale.minMinutes', minQueueTimeMinutes);
+    this.addEntry('run.scaleupchron.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes);
+
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.willScale', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.queuedRunners.willScale.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRunnerOnly = new Map([['RunnerType', runnerType]]);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale', 1, dimensionsRunnerOnly);
+    this.countEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.numJobs', numQueuedJobs, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensionsRunnerOnly);
+    this.addEntry('run.scaleupchron.perRunnerType.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensionsRunnerOnly);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale', 1, dimensions);
+    this.countEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.numJobs', numQueuedJobs, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.minMinutes', minQueueTimeMinutes, dimensions);
+    this.addEntry('run.scaleupchron.perOrg.perRunnerType.queuedRunners.willScale.maxMinutes', maxQueueTimeMinutes, dimensions);
+
+    const dimensionsRepo = new Map([['Repo', repo], ['Org', org]]);
+    this.countEntry('run.scaleupchron.perOrg.peRepo.queuedRunners.willScale', 1, dimensionsRepo);
   }
 
   /* istanbul ignore next */
@@ -1668,13 +1706,39 @@ export class ScaleUpChronMetrics extends ScaleUpMetrics {
     this.countEntry(`hud.calls.getQueuedJobsEndpoint.failure`, 1);
     this.addEntry(`hud.calls.getQueuedJobsEndpoint.wallclock`, ms);
   }
+
+  hudQueuedRunnerFailureInvalidData() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure.invalidData', 1);
+  }
+
+  hudQueuedRunnerFailureNoData() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure.noData', 1);
+  }
+
+  hudQueuedRunnerFailure() {
+    this.countEntry('hud.scaleupchron.queuedRunnerFailure', 1);
+  }
+
   scaleUpChronInitiated() {
     this.countEntry('run.scaleupchron.initiated', 1);
   }
 
-  scaleUpInstanceSuccess() {
+  scaleUpChronSuccess() {
     this.scaleUpSuccess();
     this.countEntry('run.scaleupchron.success', 1);
+  }
+
+  scaleUpChronFailure() {
+    this.countEntry('run.scaleupchron.failure', 1);
+  }
+
+  scaleUpChronInstanceSuccess() {
+    this.scaleUpSuccess();
+    this.countEntry('run.scaleupchron.instance.success', 1);
+  }
+
+  scaleUpChronInstanceFailure() {
+    this.countEntry('run.scaleupchron.instance.failure', 1);
   }
 
   scaleUpChronInstanceFailureNonRetryable() {
