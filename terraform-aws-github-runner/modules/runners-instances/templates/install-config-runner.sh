@@ -211,18 +211,7 @@ get_labels_from_config() {
     esac
     shift
   done
-
-  set +e
-  # Masquerade an ephemeral runner as non-ephemeral one
-  for label in $(echo $target | sed 's/,/ /g')
-  do
-    echo $label
-    if [[ $label == *ephemeral.* ]]; then
-      label_wo_ephemeral=$(echo $label | sed 's/ephemeral.//g')
-      echo $label_wo_ephemeral
-    fi
-  done
-  set -e
+  echo $target | sed 's/,/\n/g'
 }
 
 cd /home/$USER_NAME
