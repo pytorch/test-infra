@@ -48,6 +48,7 @@ aws_promote() {
     (
         set -x
         ${AWS} s3 cp ${DRY_RUN_FLAG} \
+            --only-show-errors \
             --acl public-read \
             --recursive \
             --exclude '*' \
