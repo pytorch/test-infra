@@ -106,8 +106,8 @@ describe('scaleUp', () => {
           ...baseCfg,
           enableOrganizationRunners: false,
           scaleConfigRepo: 'scale-config-repo',
-        }) as unknown as Config,
-    );
+        } as unknown as Config),
+      );
     const payload = {
       id: 10,
       eventType: 'event',
@@ -145,8 +145,8 @@ describe('scaleUp', () => {
         ({
           ...baseCfg,
           minAvailableRunners: 1,
-        }) as unknown as Config,
-    );
+        } as unknown as Config),
+      );
     const repo = { repo: 'repo', owner: 'owner' };
     const payload = {
       id: 10,
