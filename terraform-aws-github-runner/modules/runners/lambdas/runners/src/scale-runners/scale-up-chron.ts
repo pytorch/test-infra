@@ -25,10 +25,9 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
     console.error(err);
     throw new Error(err);
   }
-  const scaleUpChronRecordQueueUrl = Config.Instance.scaleUpChronRecordQueueUrl;
   // Only proactively scale up the jobs that have been queued for longer than normal
   // Filter out the queued jobs that are do not correspond to a valid runner type
-  const queuedJobs = (await getQueuedJobs(metrics, scaleUpChronRecordQueueUrl))
+  const queuedJobs = (await getQueuedJobs(metrics, Config.Instance.scaleUpChronRecordQueueUrl))
     .filter((runner) => {
       metrics.queuedRunnerStats(runner.org, runner.runner_label);
       return (

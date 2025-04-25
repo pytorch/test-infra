@@ -50,8 +50,8 @@ function NavBar() {
       href: "/torchbench/userbenchmark",
     },
     {
-      name: "Triton Compile",
-      href: "/tritonbench/compile_time",
+      name: "Triton",
+      href: "/tritonbench/commit_view",
     },
     {
       name: "PyTorch LLMs",
@@ -83,6 +83,10 @@ function NavBar() {
     {
       name: "TTS",
       href: "/tts",
+    },
+    {
+      name: "Queue Time Analysis",
+      href: "/queue_time_analysis",
     },
     {
       name: "Nightly Branch",

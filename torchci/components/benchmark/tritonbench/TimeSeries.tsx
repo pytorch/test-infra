@@ -1,16 +1,21 @@
 import { Card, CardContent, CardHeader, Grid2, Skeleton } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/RepositoryPicker";
 import {
   Granularity,
   seriesWithInterpolatedTimes,
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
+import {
+  BENCHMARK_METRIC_DASHBOARD_MAPPING,
+  BENCHMARK_METRIC_DASHBOARD_Y_LABEL,
+  BENCHMARK_NAME_METRICS_MAPPING,
+} from "components/tritonbench/common";
 import dayjs from "dayjs";
-import { computeCompileTime } from "lib/benchmark/tritonbench/compileTimeUtils";
+import { computeMetric } from "lib/benchmark/tritonbench/metricUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { BranchAndCommit } from "lib/types";
+import { RepoBranchAndCommit } from "lib/types";
 import useSWR from "swr";
 
 /** Mui Styles */
@@ -25,7 +30,7 @@ function TimeSeriesGraphPanel({
   granularity,
   repo,
   suite,
-  metric_name,
+  metricName,
   branch,
   lCommit,
   rCommit,
@@ -35,7 +40,7 @@ function TimeSeriesGraphPanel({
   granularity: Granularity;
   repo: string;
   suite: string;
-  metric_name: string;
+  metricName: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -51,7 +56,7 @@ function TimeSeriesGraphPanel({
             granularity={granularity}
             repo={repo}
             suite={suite}
-            metric_name={metric_name}
+            metricName={metricName}
             branch={branch}
             lCommit={lCommit}
             rCommit={rCommit}
@@ -70,7 +75,7 @@ function SingleGraphPanel({
   granularity,
   repo,
   suite,
-  metric_name,
+  metricName,
   branch,
   lCommit,
   rCommit,
@@ -80,7 +85,7 @@ function SingleGraphPanel({
   granularity: Granularity;
   repo: string;
   suite: string;
-  metric_name: string;
+  metricName: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -89,7 +94,7 @@ function SingleGraphPanel({
     ...queryParams,
     repo: repo,
     suite: suite,
-    metric_name: metric_name,
+    metric_name: metricName,
     branch: branch,
   };
   // NB: Querying data for all the suites blows up the response from the database
@@ -125,7 +130,7 @@ function SingleGraphPanel({
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
 
-  const compileTime = computeCompileTime(data).filter((r: any) => {
+  const metricData = computeMetric(data).filter((r: any) => {
     const id = r.workflow_id;
     return (
       (id >= lWorkflowId && id <= rWorkflowId) ||
@@ -138,14 +143,14 @@ function SingleGraphPanel({
   const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
   const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
-  const compileTimeSeries = seriesWithInterpolatedTimes(
-    compileTime,
+  const metricTimeSeries = seriesWithInterpolatedTimes(
+    metricData,
     startTime,
     stopTime,
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    "compilation_latency",
+    "metric_value",
     false
   );
 
@@ -154,14 +159,14 @@ function SingleGraphPanel({
       <Grid2 container spacing={2}>
         <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
           <TimeSeriesPanelWithData
-            data={compileTime}
-            series={compileTimeSeries}
-            title={`Average Compile Time`}
+            data={metricData}
+            series={metricTimeSeries}
+            title={BENCHMARK_METRIC_DASHBOARD_MAPPING[metricName]}
             groupByFieldName={groupByFieldName}
             yAxisRenderer={(unit) => {
               return `${(unit * 1).toFixed(0)}`;
             }}
-            yAxisLabel={"ms"}
+            yAxisLabel={BENCHMARK_METRIC_DASHBOARD_Y_LABEL[metricName]}
             additionalOptions={{
               yAxis: {
                 scale: true,
@@ -185,13 +190,15 @@ function SingleGraphPanel({
 export function TimeSeriesGraphReport({
   queryParams,
   granularity,
-  lBranchAndCommit,
-  rBranchAndCommit,
+  benchmarkName,
+  lRepoBranchAndCommit,
+  rRepoBranchAndCommit,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
-  lBranchAndCommit: BranchAndCommit;
-  rBranchAndCommit: BranchAndCommit;
+  benchmarkName: string;
+  lRepoBranchAndCommit: RepoBranchAndCommit;
+  rRepoBranchAndCommit: RepoBranchAndCommit;
 }) {
   return (
     <>
@@ -199,12 +206,12 @@ export function TimeSeriesGraphReport({
         queryName="tritonbench_benchmark"
         queryParams={queryParams}
         granularity={granularity}
-        repo={"pytorch-labs/tritonbench"}
+        repo={lRepoBranchAndCommit.repo}
         suite={"tritonbench-oss"}
-        metric_name={"compile_time-avg"}
-        branch={lBranchAndCommit.branch}
-        lCommit={lBranchAndCommit.commit}
-        rCommit={rBranchAndCommit.commit}
+        metricName={BENCHMARK_NAME_METRICS_MAPPING[benchmarkName][0]}
+        branch={lRepoBranchAndCommit.branch}
+        lCommit={lRepoBranchAndCommit.commit}
+        rCommit={rRepoBranchAndCommit.commit}
       />
     </>
   );

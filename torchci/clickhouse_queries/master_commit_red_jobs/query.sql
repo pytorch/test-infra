@@ -3,42 +3,54 @@ WITH all_jobs AS (
     SELECT
         p.head_commit. 'timestamp' AS time,
         j.conclusion AS conclusion,
-        p.head_commit. 'id' AS sha,
+        j.head_sha AS sha,
         p.head_commit. 'author'.'username' AS author,
         CONCAT(
-            w.name,
-            ' / ',
-            arrayElement(splitByString(' / ', j.name), 1),
-            ' / ',
-            arrayElement(
-                splitByString(', ', arrayElement(splitByString(' / ', j.name), 2)),
-                1
-            )
+                j.workflow_name,
+                ' / ',
+                arrayElement(splitByString(' / ', j.name), 1),
+                ' / ',
+                arrayElement(
+                        splitByString(', ', arrayElement(splitByString(' / ', j.name), 2)),
+                        1
+                )
         ) AS name,
         (
             CASE
                 WHEN p.head_commit. 'author'.'username' = 'pytorchmergebot' THEN p.head_commit. 'message'
                 ELSE ''
-            END
-        ) AS body
+                END
+            ) AS body
     FROM
         default .workflow_job j FINAL
-        JOIN default .workflow_run w FINAL ON w.id = j.run_id
-        JOIN default .push p FINAL on w.head_commit. 'id' = p.head_commit. 'id'
+            JOIN default .push p FINAL on j.head_sha = p.head_commit. 'id'
     WHERE
-        j.name != 'ciflow_should_run'
-        AND j.name != 'generate-test-matrix'
-        AND j.name NOT LIKE '%rerun_disabled_tests%'
-        AND j.name NOT LIKE '%filter%'
-        AND j.name NOT LIKE '%unstable%'
-        AND j.name LIKE '%/%'
-        AND has({workflowNames: Array(String) }, lower(w.name))
-        AND w.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND p.ref = 'refs/heads/main'
-        AND p.repository. 'owner'.'name' = 'pytorch'
-        AND p.repository. 'name' = 'pytorch'
-        AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
-        AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
+        j.id in (
+            SELECT id FROM materialized_views.workflow_job_by_head_sha
+            WHERE head_sha in (SELECT distinct  p.head_commit. 'id'
+                               FROM default.push p
+                               WHERE
+                                   p.ref = 'refs/heads/main'
+                                 AND p.repository. 'owner'.'name' = 'pytorch'
+                                 AND p.repository. 'name' = 'pytorch'
+                                 AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
+                                 AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
+            )
+        )
+      AND j.name != 'ciflow_should_run'
+      AND j.name != 'generate-test-matrix'
+      AND j.name NOT LIKE '%rerun_disabled_tests%'
+      AND j.name NOT LIKE '%filter%'
+      AND j.name NOT LIKE '%unstable%'
+      AND j.name LIKE '%/%'
+      AND has({workflowNames: Array(String) }, lower(j.workflow_name))
+      AND j.workflow_event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+      AND p.ref = 'refs/heads/main'
+      AND p.repository. 'owner'.'name' = 'pytorch'
+      AND p.repository. 'name' = 'pytorch'
+      AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
+      AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
+
 ),
 filtered_jobs AS (
     SELECT
