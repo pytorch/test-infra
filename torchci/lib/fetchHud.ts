@@ -83,7 +83,7 @@ export default async function fetchHud(
     results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));
   }
   if (params.filter_unstable) {
-    const unstableIssues = await fetchIssuesByLabel("unstable");
+    const unstableIssues = await fetchIssuesByLabel("unstable", /*cache*/ true);
     results = results?.filter(
       (job: JobData) => !isUnstableJob(job, unstableIssues ?? [])
     );

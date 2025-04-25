@@ -83,7 +83,7 @@ def get_commit_results(
 
 @lru_cache
 def fetch_unstable_issues() -> List[str]:
-    issues = query_clickhouse_saved("issue_query", {"label": "unstable"})
+    issues = query_clickhouse_saved("issue_query", {"label": "unstable"}, useChQueryCache=True)
     return [
         issue["title"][len("UNSTABLE") :].strip()
         for issue in issues
