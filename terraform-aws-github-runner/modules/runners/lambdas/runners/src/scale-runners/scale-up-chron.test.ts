@@ -5,11 +5,12 @@ import { getRunnerTypes } from './gh-runners';
 
 // import * as ScaleUpChronModule from './scale-up-chron';
 import { scaleUpChron, getQueuedJobs } from './scale-up-chron';
-import { scaleUp } from './scale-up';
+import { RetryableScalingError, scaleUp } from './scale-up';
 
 import * as MetricsModule from './metrics';
 import { RunnerType } from './runners';
 import nock from 'nock';
+import axios from 'axios';
 
 jest.mock('./runners');
 jest.mock('./gh-runners');
@@ -177,6 +178,29 @@ describe('scaleUpChron', () => {
     expect(scaleUpChronInstanceFailureNonRetryableSpy).toBeCalledTimes(1);
     expect(mockedScaleUp).toBeCalledTimes(1);
   });
+
+  it('handles RetryableScalingError', async () => {
+    // Test for the RetryableScalingError case (lines 82-83)
+    const retryableError = new RetryableScalingError('Retryable error');
+    const mockedScaleUp = mocked(scaleUp).mockRejectedValue(retryableError);
+    const scaleUpChronInstanceFailureRetryableSpy = jest.spyOn(metrics, 'scaleUpChronInstanceFailureRetryable');
+
+    jest.clearAllMocks();
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
+
+    mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
+    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    mocked(getRunnerTypes).mockResolvedValue(
+      new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
+    );
+    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+
+    // This should not throw since RetryableScalingError is handled differently
+    await scaleUpChron(metrics);
+
+    expect(scaleUpChronInstanceFailureRetryableSpy).toBeCalledTimes(1);
+    expect(mockedScaleUp).toBeCalledTimes(1);
+  });
 });
 
 describe('getQueuedJobs', () => {
@@ -221,5 +245,46 @@ describe('getQueuedJobs', () => {
     expect(await getQueuedJobs(metrics, 'url')).toEqual([]);
     expect(hudNoDataspy).toBeCalledTimes(1);
     expect(hudFailureSpy).toBeCalledTimes(1);
+  });
+
+  it('handles successful response with metrics trackRequest', async () => {
+    // Test for lines 121-123
+    const trackRequestSpy = jest.spyOn(metrics, 'trackRequest');
+    jest.spyOn(metrics, 'getQueuedJobsEndpointSuccess');
+
+    // Create a spy on axios.get
+    const axiosGetSpy = jest.spyOn(axios, 'get');
+
+    // Setup the trackRequest to call its callback function
+    trackRequestSpy.mockImplementation((success, failure, callback) => {
+      return callback();
+    });
+
+    // Setup the expBackOff to call its callback function which uses trackRequest
+    mocked(expBackOff).mockImplementation((callback) => {
+      return callback();
+    });
+
+    axiosGetSpy.mockResolvedValue({ data: hudQueryValidResponse });
+
+    await getQueuedJobs(metrics, 'url');
+
+    expect(trackRequestSpy).toHaveBeenCalled();
+    expect(axiosGetSpy).toHaveBeenCalledWith('url');
+  });
+
+  it('handles invalid data (not an array) from response', async () => {
+    // Test for line 142
+    const hudQueuedRunnerFailureInvalidDataSpy = jest.spyOn(metrics, 'hudQueuedRunnerFailureInvalidData');
+
+    mocked(expBackOff).mockResolvedValue({ data: { notAnArray: true } });
+
+    try {
+      await getQueuedJobs(metrics, 'url');
+    } catch (error) {
+      // The function will throw an error, but we want to verify the metric was called
+    }
+
+    expect(hudQueuedRunnerFailureInvalidDataSpy).toHaveBeenCalled();
   });
 });
