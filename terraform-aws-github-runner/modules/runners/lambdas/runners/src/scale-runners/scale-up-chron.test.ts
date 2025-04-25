@@ -101,7 +101,7 @@ describe('scaleUpChron', () => {
         ({
           ...baseCfg,
           scaleUpChronRecordQueueUrl: null,
-        }) as unknown as Config,
+        } as unknown as Config),
     );
 
     mocked(getRepo).mockReturnValue({ owner: 'owner', repo: 'repo' });
