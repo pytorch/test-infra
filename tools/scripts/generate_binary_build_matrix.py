@@ -443,17 +443,14 @@ def generate_wheels_matrix(
         arches = []
 
         if with_cpu == ENABLE:
-            arches += [CPU]
-
-        if os == LINUX_AARCH64:
-            # Only want the one arch as the CPU type is different and
-            # uses different build/test scripts
-            arches = [CPU_AARCH64] + CUDA_AARCH64_ARCHES
+            arches += [CPU_AARCH64] if os == LINUX_AARCH64 else [CPU]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
+            elif os == LINUX_AARCH64:
+                arches += CUDA_AARCH64_ARCHES
 
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
