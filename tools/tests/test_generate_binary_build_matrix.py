@@ -71,7 +71,6 @@ class GenerateBuildMatrixTest(TestCase):
             reference_output_file="build_matrix_macos_wheel.json",
         )
 
-
     def test_windows_wheel_cuda(self):
         self.matrix_compare_helper(
             package_type="wheel",
@@ -82,7 +81,6 @@ class GenerateBuildMatrixTest(TestCase):
             xpu=True,
             reference_output_file="build_matrix_windows_wheel_cuda.json",
         )
-
 
     def test_windows_wheel_xpu(self):
         self.matrix_compare_helper(
