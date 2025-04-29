@@ -46,10 +46,6 @@ function NavBar() {
       href: "/benchmark/torchao",
     },
     {
-      name: "TorchBench",
-      href: "/torchbench/userbenchmark",
-    },
-    {
       name: "Triton",
       href: "/tritonbench/commit_view",
     },
