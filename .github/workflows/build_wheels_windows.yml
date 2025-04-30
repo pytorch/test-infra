@@ -276,7 +276,7 @@ jobs:
             ${CONDA_RUN} "${{ inputs.repository }}/${ENV_SCRIPT}" python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Smoke Test ARM64
-        if: inputs.architecture == 'x64'
+        if: inputs.architecture == 'arm64'
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
