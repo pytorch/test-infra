@@ -227,7 +227,6 @@ export default function LLMsGraphPanel({
       false
     );
 
-    console.log(graphSeries[metric])
   });
 
   const availableMetric =
@@ -417,7 +416,7 @@ const MetricTable = ({
 };
 
 
-// add chart group key for data to render
+// add chart group key for data to render in the graph, for data does not have group key, use display
 function formGraphItem(data: any[]){
   const res: any[] = []
   data.forEach((item) => {
