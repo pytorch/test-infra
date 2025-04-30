@@ -183,6 +183,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
           is_windows: 'enabled'
+          
       - name: Build clean
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
@@ -242,7 +243,7 @@ jobs:
 
           call "%VS_PATH%" x64
           "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
-
+          call .\.venv\Scripts\activate
           python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
@@ -298,10 +299,9 @@ jobs:
           REPOSITORY: ${{ inputs.repository }}
           REF: ${{ inputs.ref }}
           PYTHON_VERSION: ${{ matrix.python_version }}
-          CU_VERSION: ${{ env.CU_VERSION }}
           ARCH: ${{ inputs.architecture }}
         run: |
-          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Upload wheel to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v4
