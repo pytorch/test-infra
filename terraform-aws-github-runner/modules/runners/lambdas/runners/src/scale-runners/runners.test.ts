@@ -71,6 +71,10 @@ jest.mock('./cache', () => ({
     .mockImplementation(async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
       return await locallyCached(ns, k, t, fn);
     }),
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+  getJoinedStressTestExperiment: jest.fn().mockImplementation(async (experimentKey: string, defaultValue: string) => {
+    return false;
+  }),
 }));
 jest.mock('./gh-auth');
 
@@ -143,7 +147,7 @@ function createExpectedRunInstancesLinux(
 
 const metrics = new ScaleUpMetrics();
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();

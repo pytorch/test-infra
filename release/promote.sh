@@ -9,6 +9,7 @@ source "${DIR}/release_versions.sh"
 PYTORCH_VERSION=${PYTORCH_VERSION:-2.3.0}
 TORCHVISION_VERSION=${TORCHVISION_VERSION:-0.18.0}
 TORCHAUDIO_VERSION=${TORCHAUDIO_VERSION:-2.3.0}
+TRITON_VERSION=${TRITON_VERSION:-3.3.0}
 TORCHTEXT_VERSION=${TORCHTEXT_VERSION:-0.18.0}
 TORCHREC_VERSION=${TORCHREC_VERSION:-0.8.0}
 TENSORRT_VERSION=${TENSORRT_VERSION:-2.2.0}
@@ -36,27 +37,6 @@ promote_s3() {
     echo
 }
 
-promote_conda() {
-    local package_name
-    package_name=$1
-    local package_type
-    package_type=$2
-    local promote_version
-    promote_version=$3
-    echo "=-=-=-= Promoting ${package_name}'s v${promote_version} ${package_type} packages' =-=-=-="
-    (
-        ANACONDA="echo + anaconda"
-        if [[ "${DRY_RUN:-enabled}" = "disabled" ]]; then
-            ANACONDA="anaconda"
-            set -x
-        else
-            echo "DRY_RUN enabled not actually doing work"
-        fi
-        ${ANACONDA} copy --to-owner ${PYTORCH_CONDA_TO:-pytorch} ${PYTORCH_CONDA_FROM:-pytorch-test}/${package_name}/${promote_version}
-    )
-    echo
-}
-
 promote_pypi() {
     local package_name
     package_name=$1
@@ -78,8 +58,6 @@ promote_pypi() {
 # promote_s3 "charset_normalizer" whl "2.1.1"
 # promote_s3 "cmake" whl "3.25"
 # promote_s3 "colorama" whl "0.4.6"
-# promote_s3 "triton" whl "2.0.0"
-# promote_s3 "pytorch_triton_rocm" whl "2.0.1"
 # promote_s3 "tqdm" whl "4.64.1"
 # promote_s3 "Pillow" whl "9.3.0"
 # for python 3.8-3.11
@@ -102,21 +80,17 @@ promote_pypi() {
 # promote_s3 torch whl "${PYTORCH_VERSION}"
 # promote_s3 torchvision whl "${TORCHVISION_VERSION}"
 # promote_s3 torchaudio whl "${TORCHAUDIO_VERSION}"
+# promote_s3 triton whl "${TRITON_VERSION}"
+# promote_s3 "pytorch_triton_rocm" whl "${TRITON_VERSION}"
+# promote_s3 "pytorch_triton_xpu" whl "${TRITON_VERSION}"
 # promote_s3 torchtext whl "${TORCHTEXT_VERSION}"
 # promote_s3 torchrec whl "${TORCHREC_VERSION}"
-# promote_s3 fbgemm-gpu whl "${FBGEMMGPU_VERSION}"
+# promote_s3 fbgemm_gpu whl "${FBGEMMGPU_VERSION}"
+# promote_s3 fbgemm_gpu_genai whl "${FBGEMMGPU_VERSION}"
 # promote_s3 "libtorch-*" libtorch "${PYTORCH_VERSION}"
 # promote_s3 "torch_tensorrt" whl "${TENSORRT_VERSION}"
 # promote_s3 "torchao" whl "${TORCHAO_VERSION}"
 
-# promote_conda torchtriton conda "2.1.0"
-# promote_conda pytorch-cuda conda "11.8"
-# promote_conda pytorch-cuda conda "12.1"
-
-# promote_conda pytorch conda "${PYTORCH_VERSION}"
-# promote_conda torchvision conda "${TORCHVISION_VERSION}"
-# promote_conda torchaudio conda "${TORCHAUDIO_VERSION}"
-# promote_conda torchtext conda "${TORCHTEXT_VERSION}"
 
 # Uncomment these to promote to pypi
 LINUX_VERSION_SUFFIX="%2Bcu102"

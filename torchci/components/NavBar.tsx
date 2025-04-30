@@ -46,12 +46,8 @@ function NavBar() {
       href: "/benchmark/torchao",
     },
     {
-      name: "TorchBench",
-      href: "/torchbench/userbenchmark",
-    },
-    {
-      name: "Triton Compile",
-      href: "/tritonbench/compile_time",
+      name: "Triton",
+      href: "/tritonbench/commit_view",
     },
     {
       name: "PyTorch LLMs",
@@ -85,12 +81,20 @@ function NavBar() {
       href: "/tts",
     },
     {
+      name: "Queue Time Analysis",
+      href: "/queue_time_analysis",
+    },
+    {
       name: "Nightly Branch",
       href: "/hud/pytorch/pytorch/nightly",
     },
     {
       name: "Nightly Dashboard",
       href: "/nightlies",
+    },
+    {
+      name: "Cancelled Jobs",
+      href: "/job_cancellation_dashboard",
     },
     {
       name: "Failures Metric",

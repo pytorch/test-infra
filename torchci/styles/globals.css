@@ -64,6 +64,9 @@
 
   /* Scroll to highlight */
   --scroll-highlight-bg: lightyellow;
+
+  /* Sev banner */
+  --sev-banner-bg: #ffe1e1;
 }
 
 .dark-mode {
@@ -122,6 +125,9 @@
 
   /* Scroll to highlight */
   --scroll-highlight-bg: rgba(0, 22, 74, 0.7);
+
+  /* Sev banner */
+  --sev-banner-bg: #4b2c2c;
 }
 
 html {

@@ -429,6 +429,8 @@ class DeviceFarmReport:
 @dataclass
 class JobReport(DeviceFarmReport):
     os: str
+    instance_arn: Optional[str]
+    is_private_instance: bool
 
 
 class ReportProcessor:
@@ -555,6 +557,16 @@ class ReportProcessor:
         result = report.get("result", "")
         counters = report.get("counters", "{}")
         os = report.get("device", {}).get("os", "")
+
+        fleet_type = report.get("device", {}).get("fleetType", "")
+        is_private_instance = True if fleet_type == "PRIVATE" else False
+
+        # NB: When running on a private device, AWS set the field instanceArn pointing
+        # to that device
+        instance_arn = report.get(
+            "instanceArn", report.get("device", {}).get("arn", "")
+        )
+
         return JobReport(
             arn=arn,
             name=name,
@@ -566,6 +578,8 @@ class ReportProcessor:
             counters=counters,
             infos=infos,
             os=os,
+            instance_arn=instance_arn,
+            is_private_instance=is_private_instance,
         )
 
     def _to_run_report(self, report: Dict[str, Any], infos: Dict[str, str] = dict()):

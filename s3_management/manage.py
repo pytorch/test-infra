@@ -386,15 +386,19 @@ class S3Index:
             # Do not include checksum for nightly packages, see
             # https://github.com/pytorch/test-infra/pull/6307
             maybe_fragment = f"#sha256={obj.checksum}" if obj.checksum and not obj.orig_key.startswith("whl/nightly") else ""
-            pep658_attribute = ""
+            attributes = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
                 # pep714 renames the attribute to data-core-metadata
-                pep658_attribute = (
+                attributes = (
                     f' data-dist-info-metadata="{pep658_sha}" data-core-metadata="{pep658_sha}"'
                 )
+            # Ugly hack: mark networkx-3.3, 3.4.2 as Python-3.10+ only to unblock https://github.com/pytorch/pytorch/issues/152191
+            if any(obj.key.endswith(x) for x in ("networkx-3.3-py3-none-any.whl", "networkx-3.4.2-py3-none-any.whl")):
+                attributes += ' data-requires-python="&gt;=3.10"'
+
             out.append(
-                f'    <a href="/{obj.key}{maybe_fragment}"{pep658_attribute}>{path.basename(obj.key).replace("%2B","+")}</a><br/>'
+                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B","+")}</a><br/>'
             )
         # Adding html footer
         out.append('  </body>')

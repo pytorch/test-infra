@@ -1,13 +1,9 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Upload tutorials stat
 
-# Controls when the workflow will run
 on:
   schedule:
   # Run this once per day.
     - cron: "0 0 * * *"
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
@@ -30,6 +26,13 @@ jobs:
         with:
           repository: 'pytorch/tutorials'
           path: './tutorials'
+          fetch-depth: 0
+
+      - name: Checkout the pytorch repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'pytorch/pytorch'
+          path: './pytorch'
           fetch-depth: 0
 
       - name: Checkout the test-infra repo

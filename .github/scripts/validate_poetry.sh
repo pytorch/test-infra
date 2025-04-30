@@ -25,7 +25,9 @@ else
     poetry --quiet add torch${RELEASE_SUFFIX} torchaudio torchvision
 fi
 
-python ../test/smoke_test/smoke_test.py ${TEST_SUFFIX} --runtime-error-check disabled
+pushd ${PWD}/../.ci/pytorch/
+python ./smoke_test/smoke_test.py ${TEST_SUFFIX} --runtime-error-check disabled
+popd
 conda deactivate
 conda env remove -p ${ENV_NAME}_poetry
 cd ..

@@ -1372,12 +1372,17 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@clickhouse/client@^0.1.0":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@clickhouse/client/-/client-0.1.1.tgz#1a848438baf5deefadf7dcee40ad441c8666c398"
-  integrity sha512-oeALCAjNFEXHPxMHJgj0QERiLM2ZknOOavvHB1mxmztZLhTuj86HaQEfh9q8x7LgKnv3jep7lb/fhFgD71WTjA==
+"@clickhouse/client-common@1.11.1":
+  version "1.11.1"
+  resolved "https://registry.yarnpkg.com/@clickhouse/client-common/-/client-common-1.11.1.tgz#73a78165656f6e058e2d4eb09cce0f9cf6195255"
+  integrity sha512-bme0le2yhDSAh13d2fxhSW5ZrNoVqZ3LTyac8jK6hNH0qkksXnjYkLS6KQalPU6NMpffxHmpI4+/Gi2MnX0NCA==
+
+"@clickhouse/client@^1.11.1":
+  version "1.11.1"
+  resolved "https://registry.yarnpkg.com/@clickhouse/client/-/client-1.11.1.tgz#a8f7a7ff891bfc5181601d027c9b5230be5f0484"
+  integrity sha512-u9h++h72SmWystijNqfNvMkfA+5+Y1LNfmLL/odCL3VgI3oyAPP9ubSw/Yrt2zRZkLKehMMD1kuOej0QHbSoBA==
   dependencies:
-    uuid "^9.0.0"
+    "@clickhouse/client-common" "1.11.1"
 
 "@codemirror/autocomplete@^0.20.0":
   version "0.20.0"
@@ -8987,11 +8992,6 @@ uuid@^8.3.2:
   version "8.3.2"
   resolved "https://registry.npmjs.org/uuid/-/uuid-8.3.2.tgz"
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
-
-uuid@^9.0.0:
-  version "9.0.1"
-  resolved "https://registry.yarnpkg.com/uuid/-/uuid-9.0.1.tgz#e188d4c8853cc722220392c424cd637f32293f30"
-  integrity sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==
 
 uvu@^0.5.0:
   version "0.5.6"

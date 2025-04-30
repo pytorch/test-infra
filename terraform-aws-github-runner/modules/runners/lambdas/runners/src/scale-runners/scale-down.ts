@@ -349,20 +349,28 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
     }
   }
 
-  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
-    console.warn(
-      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
-        `listGithubRunnersRepo call, attempting to grab directly`,
-    );
-    try {
-      ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
-    } catch (e) {
+  if (ghRunner === undefined) {
+    if (ec2runner.ghRunnerId === undefined) {
       console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) was neither found in ` +
+          `the list of runners returned by the listGithubRunnersRepo api call, nor did it have the ` +
+          `GithubRunnerId EC2 tag set.  This can happen if there's no runner running on the instance.`,
       );
-      /* istanbul ignore next */
-      if (isGHRateLimitError(e)) {
-        throw e;
+    } else {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
+          `listGithubRunnersRepo call, attempting to grab directly`,
+      );
+      try {
+        ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
+      } catch (e) {
+        console.warn(
+          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
+        );
+        /* istanbul ignore next */
+        if (isGHRateLimitError(e)) {
+          throw e;
+        }
       }
     }
   }
@@ -426,30 +434,61 @@ export function isRunnerRemovable(
 ): boolean {
   /* istanbul ignore next */
   if (ec2runner.instanceManagement?.toLowerCase() === 'pet') {
+    console.debug(`Runner ${ec2runner.instanceId} is a pet instance and cannot be removed.`);
     return false;
   }
+
   if (ghRunner !== undefined && ghRunner.busy) {
+    console.debug(`Runner ${ec2runner.instanceId} is busy and cannot be removed.`);
     return false;
   }
+
   if (!runnerMinimumTimeExceeded(ec2runner)) {
+    console.debug(`Runner ${ec2runner.instanceId} has not exceeded the minimum running time.`);
     metrics.runnerLessMinimumTime(ec2runner);
     return false;
   }
+
+  if (ghRunner === undefined) {
+    console.debug(`Runner ${ec2runner.instanceId} was not found on GitHub. It might not be running an agent`);
+  }
+
+  console.debug(`Runner ${ec2runner.instanceId} is removable.`);
   metrics.runnerIsRemovable(ec2runner);
   return true;
 }
 
+/**
+ * Determines if the runner has been provisioned for at least the minimum running time configured.
+ * This is used to allow runners to stay idle for a certain amount of time in case they pick up
+ * extra jobs, and to avoid the case where a runner is provisioned and then immediately scaled down.
+ * The limit gives us some buffer room while avoiding unnecessary costs.
+ */
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   let baseTime: moment.Moment;
+  let reason: string;
   if (runner.ephemeralRunnerFinished !== undefined) {
     baseTime = moment.unix(runner.ephemeralRunnerFinished);
+    reason = `is an ephemeral runner that finished at ${baseTime}`;
   } else if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
     baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp);
+    reason = `had an EBS volume replacement request started at ${baseTime}`;
   } else {
     baseTime = moment(runner.launchTime || new Date()).utc();
+    reason = `was launched at ${baseTime}`;
   }
+
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
-  return baseTime < maxTime;
+  const minTimeExceeded = baseTime < maxTime;
+  if (minTimeExceeded) {
+    console.debug(
+      `[runnerMinimumTimeExceeded] Instance ${runner.instanceId} ${reason} and has ` +
+        `exceeded the minimum running time of ${Config.Instance.minimumRunningTimeInMinutes} mins ` +
+        `by ${maxTime.diff(baseTime, 'minutes')} mins.`,
+    );
+  }
+
+  return minTimeExceeded;
 }
 
 export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {

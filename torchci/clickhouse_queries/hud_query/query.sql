@@ -2,7 +2,7 @@ WITH job AS (
     SELECT
         job.head_sha as sha,
         job.name as job_name,
-        workflow.name as workflow_name,
+        job.workflow_name as workflow_name,
         job.id as id,
         job.status as status,
         job.conclusion as conclusion,
@@ -25,24 +25,22 @@ WITH job AS (
             null,
             DATE_DIFF('SECOND', job.started_at, job.completed_at)
         ) AS duration_s,
-        workflow.repository.'full_name' as repo,
+        job.repository_full_name as repo,
         job.torchci_classification.'line' as line,
         job.torchci_classification.'captures' as captures,
         job.torchci_classification.'line_num' as line_num,
         annotation.annotation as annotation
     FROM
         workflow_job job final
-        INNER JOIN workflow_run workflow final on workflow.id = job.run_id
         LEFT JOIN job_annotation annotation final ON job.id = annotation.jobID
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
-        AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
-        AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND job.workflow_event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+        AND job.workflow_event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
-        AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
-        AND workflow.repository.'full_name' = {repo: String}
-        AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
+        AND job.repository_full_name = {repo: String}
+        AND job.workflow_name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
     -- Removed CircleCI query
 )
 SELECT

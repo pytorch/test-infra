@@ -16,7 +16,7 @@ WITH results AS (
     WHERE
         timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
         AND timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
-        AND repo = {repo: String}
+        AND dependencies['triton'].repo = {repo: String}
         AND suite = {suite: String}
         AND name = {benchmark_name: String}
         AND metric_name = {metric_name: String}

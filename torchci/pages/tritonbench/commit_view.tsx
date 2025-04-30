@@ -1,11 +1,16 @@
 import { Divider, Stack, Typography } from "@mui/material";
-import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { BenchmarkPicker } from "components/benchmark/BenchmarkPicker";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
-import { DEFAULT_HIGHLIGHT_KEY } from "components/benchmark/compilers/common";
+import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
 import CopyLink from "components/CopyLink";
 import GranularityPicker from "components/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
+import {
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_TRITON_BENCHMARK_NAME,
+  DEFAULT_TRITON_REPOSITORY,
+} from "components/tritonbench/common";
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -21,13 +26,22 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("hour");
+
+  const [benchmarkName, setBenchmarkName] = useState<string>(
+    DEFAULT_TRITON_BENCHMARK_NAME
+  );
+  const [deviceName, setDeviceName] = useState<string>(DEFAULT_DEVICE_NAME);
+
+  const [lRepository, setLRepository] = useState<string>(
+    DEFAULT_TRITON_REPOSITORY
+  );
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
+  const [rRepository, setRRepository] = useState<string>(
+    DEFAULT_TRITON_REPOSITORY
+  );
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
-  const [highlightKey, setHighlightKey] = useState<string>(
-    DEFAULT_HIGHLIGHT_KEY
-  );
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -55,7 +69,17 @@ export default function Page() {
       setGranularity(granularity);
     }
 
-    const suite: string = (router.query.suite as string) ?? undefined;
+    const benchmarkName: string =
+      (router.query.benchmarkName as string) ?? DEFAULT_TRITON_BENCHMARK_NAME;
+    if (benchmarkName !== undefined) {
+      setBenchmarkName(benchmarkName);
+    }
+
+    const deviceName: string =
+      (router.query.deviceName as string) ?? DEFAULT_DEVICE_NAME;
+    if (deviceName !== undefined) {
+      setDeviceName(deviceName);
+    }
 
     setBaseUrl(
       `${window.location.protocol}//${
@@ -66,11 +90,10 @@ export default function Page() {
 
   const queryParams: { [key: string]: any } = {
     commits: [],
-    compilers: [],
     getJobId: false,
     granularity: granularity,
-    repo: "pytorch-labs/tritonbench",
-    benchmark_name: "compile_time",
+    benchmark_name: benchmarkName,
+    deviceName: deviceName,
     startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     workflowId: 0,
@@ -81,11 +104,11 @@ export default function Page() {
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            Triton Compile Time DashBoard
+            Triton Benchmark
           </Typography>
           <CopyLink textToCopy={`${baseUrl}`} />
         </Stack>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={2} sx={{ mb: 10 }}>
           <TimeRangePicker
             startTime={startTime}
             setStartTime={setStartTime}
@@ -99,47 +122,58 @@ export default function Page() {
             granularity={granularity}
             setGranularity={setGranularity}
           />
-          <BranchAndCommitPicker
-            queryName={"tritonbench_benchmark_branches"}
+          <BenchmarkPicker
+            queryName={"tritonbench_list_benchmarks"}
             queryParams={queryParams}
-            branch={rBranch}
-            setBranch={setRBranch}
-            commit={rCommit}
-            setCommit={setRCommit}
-            titlePrefix={"Base"}
-            fallbackIndex={-1} // Default to the next to latest in the window
-            timeRange={timeRange}
-            highlightConfig={{
-              keys:
-                highlightKey === DEFAULT_HIGHLIGHT_KEY ? [] : [highlightKey],
-              highlightColor: "yellow",
-            }}
+            benchmarkName={benchmarkName}
+            setBenchmarkName={setBenchmarkName}
           />
-          <Divider orientation="vertical" flexItem>
-            &mdash;Diff→
-          </Divider>
-          <BranchAndCommitPicker
+          <RepositoryBranchCommitPicker
             queryName={"tritonbench_benchmark_branches"}
             queryParams={queryParams}
+            default_repository={DEFAULT_TRITON_REPOSITORY}
+            repository={lRepository}
+            setRepository={setLRepository}
             branch={lBranch}
             setBranch={setLBranch}
             commit={lCommit}
             setCommit={setLCommit}
-            titlePrefix={"New"}
-            fallbackIndex={0} // Default to the latest commit
+            titlePrefix={"Base"}
+            fallbackIndex={0} // Default to the first
             timeRange={timeRange}
-            highlightConfig={{
-              keys:
-                highlightKey === DEFAULT_HIGHLIGHT_KEY ? [] : [highlightKey],
-              highlightColor: "yellow",
-            }}
+          />
+          <Divider orientation="vertical" flexItem>
+            &mdash;Diff→
+          </Divider>
+          <RepositoryBranchCommitPicker
+            queryName={"tritonbench_benchmark_branches"}
+            queryParams={queryParams}
+            default_repository={DEFAULT_TRITON_REPOSITORY}
+            repository={rRepository}
+            setRepository={setRRepository}
+            branch={rBranch}
+            setBranch={setRBranch}
+            commit={rCommit}
+            setCommit={setRCommit}
+            titlePrefix={"New"}
+            fallbackIndex={-1} // Default to latest
+            timeRange={timeRange}
           />
         </Stack>
         <TimeSeriesGraphReport
           queryParams={queryParams}
           granularity={granularity}
-          lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
-          rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
+          benchmarkName={benchmarkName}
+          lRepoBranchAndCommit={{
+            repo: lRepository,
+            branch: lBranch,
+            commit: lCommit,
+          }}
+          rRepoBranchAndCommit={{
+            repo: rRepository,
+            branch: rBranch,
+            commit: rCommit,
+          }}
         />
       </div>
     </>

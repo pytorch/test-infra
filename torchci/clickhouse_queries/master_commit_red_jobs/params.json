@@ -4,5 +4,16 @@
     "stopTime": "DateTime64(3)",
     "workflowNames": "Array(String)"
   },
-  "tests": []
+  "tests": [
+    {
+      "startTime": "2025-03-18T21:09:47.987",
+      "stopTime": "2025-03-25T21:09:47.987",
+      "workflowNames": ["pull"]
+    },
+    {
+      "startTime": "2025-03-18T21:09:47.987",
+      "stopTime": "2025-03-25T21:09:47.987",
+      "workflowNames": ["lint", "pull", "trunk"]
+    }
+  ]
 }

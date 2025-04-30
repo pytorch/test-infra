@@ -119,7 +119,7 @@ if [[ "$OS_ID" =~ ^amzn.* ]]; then
     echo Installing Development Tools
     sudo modprobe backlight
 fi
-retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-550.54.15.run'
+retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-570.133.07.run'
 retry sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
 if [[ "$OS_ID" =~ ^amzn.* ]]; then
