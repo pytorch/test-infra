@@ -110,8 +110,6 @@ export default function LLMsGraphPanel({
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
 
-
-
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
@@ -214,7 +212,7 @@ export default function LLMsGraphPanel({
 
               return record;
             });
-    const graphItems = formGraphItem(chartData[metric])
+    const graphItems = formGraphItem(chartData[metric]);
     // group by timestamp to identify devices with the same timestamp
     graphSeries[metric] = seriesWithInterpolatedTimes(
       graphItems,
@@ -226,7 +224,6 @@ export default function LLMsGraphPanel({
       "actual",
       false
     );
-
   });
 
   const availableMetric =
@@ -415,17 +412,17 @@ const MetricTable = ({
   );
 };
 
-
 // creates chart items to visualize in the series graph, group by device name and display name
-function formGraphItem(data: any[]){
-  const res: any[] = []
+function formGraphItem(data: any[]) {
+  const res: any[] = [];
   data.forEach((item) => {
-    const deviceId = item.metadata_info.device_id
-    const displayName = item.display
-    const group_key = deviceId !== ''? `${displayName} (${deviceId})`: displayName;
+    const deviceId = item.metadata_info.device_id;
+    const displayName = item.display;
+    const group_key =
+      deviceId !== "" ? `${displayName} (${deviceId})` : displayName;
     const seriesData = deepClone(item);
     seriesData.group_key = group_key;
-    res.push(seriesData)
-  })
+    res.push(seriesData);
+  });
   return res;
 }
