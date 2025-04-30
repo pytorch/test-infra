@@ -15,6 +15,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { deepClone } from "@mui/x-data-grid/internals";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -104,10 +105,13 @@ export default function LLMsGraphPanel({
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
-  const groupByFieldName = "display";
+  const groupByFieldName = "group_key";
 
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
+
+
+
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
@@ -210,9 +214,10 @@ export default function LLMsGraphPanel({
 
               return record;
             });
-
+    const graphItems = formGraphItem(chartData[metric])
+    // group by timestamp to identify devices with the same timestamp
     graphSeries[metric] = seriesWithInterpolatedTimes(
-      chartData[metric],
+      graphItems,
       startTime,
       stopTime,
       granularity,
@@ -221,6 +226,8 @@ export default function LLMsGraphPanel({
       "actual",
       false
     );
+
+    console.log(graphSeries[metric])
   });
 
   const availableMetric =
@@ -371,7 +378,7 @@ const MetricTable = ({
             return (
               <TableRow key={index}>
                 <TableCell>
-                  <span>{entry.granularity_bucket} </span>
+                  <span>{entry?.metadata_info.timestamp} </span>
                 </TableCell>
                 <TableCell sx={{ py: 0.25 }}>
                   <code>
@@ -408,3 +415,18 @@ const MetricTable = ({
     </TableContainer>
   );
 };
+
+
+// add chart group key for data to render
+function formGraphItem(data: any[]){
+  const res: any[] = []
+  data.forEach((item) => {
+    const deviceId = item.metadata_info.device_id
+    const displayName = item.display
+    const group_key = deviceId !== ''? `${displayName} (${deviceId})`: displayName;
+    const seriesData = deepClone(item);
+    seriesData.group_key = group_key;
+    res.push(seriesData)
+  })
+  return res;
+}
