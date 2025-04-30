@@ -229,23 +229,22 @@ jobs:
           DOWNLOADS_DIR: c:\temp\downloads\
           DEPENDENCIES_DIR: c:\temp\dependencies\
           SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-          SRC_DIR: ${{ inputs.repository }} 
+          SRC_DIR: ${{ inputs.repository }}
+          PRE_SCRIPT: ${{ inputs.pre-script }}
         shell: cmd
         run: |
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
-          cd %SCRIPTS_DIR%
+          
+          call "%VS_PATH%" x64
+          "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
 
-          if "${{ env.PACKAGE_NAME }}" == "torchaudio" (
-          call "%VS_PATH%" x64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
-          ) else if "${{ env.PACKAGE_NAME }}" == "torchvision" (
-          call "%VS_PATH%" x64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
-          ) else (
-          echo Invalid repository name: ${{ inputs.repository }}
-          exit /b 1
-          )
+          python setup.py bdist_wheel
+
+          if [[ $? -ne 0 ]]; then
+            echo "Build failed. (exit code = $?)"
+            exit 1
+          fi
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
