@@ -30,7 +30,8 @@ jobs:
       matrix:
         include:
           - repository: pytorch/vision
-            smoke-test-script: test//smoke_test.py
+            pre-script: packaging/pre_build_script_arm64.sh
+            smoke-test-script: test/smoke_test.py
             package-name: torchvision
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
@@ -39,6 +40,7 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      pre-script: ${{ matrix.pre-script }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}

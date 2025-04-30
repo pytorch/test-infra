@@ -123,7 +123,7 @@ jobs:
         with:
           architecture: arm64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
-      - name: Set PYTORCH_VERSION  
+      - name: Set PYTORCH_VERSION
         if: env.CHANNEL == 'test'
         run: |
           # When building RC, set the version to be the current candidate version,
@@ -182,6 +182,23 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
           is_windows: 'enabled'
+      - name: Run Pre-Script Arm64
+        if: ${{ inputs.pre-script != '' && inputs.architecture == 'arm64' }}
+        env:
+          DOWNLOADS_DIR: c:\temp\downloads\
+          DEPENDENCIES_DIR: c:\temp\dependencies\
+          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+          SRC_DIR: ${{ inputs.repository }}
+          PRE_SCRIPT: ${{ inputs.pre-script }}
+        shell: cmd
+        run: |
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+
+          cd %SRC_DIR%
+
+          call "%VS_PATH%" x64
+          "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
       - name: Build clean
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
@@ -224,27 +241,12 @@ jobs:
       - name: Build the wheel (bdist_wheel) Arm64
         if: inputs.architecture == 'arm64'
         env:
-          PACKAGE_NAME: ${{ inputs.package-name }}
-          DOWNLOADS_DIR: c:\temp\downloads\
-          DEPENDENCIES_DIR: c:\temp\dependencies\
-          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
-          SRC_DIR: ${{ inputs.repository }} 
-        shell: cmd
+          SRC_DIR: ${{ inputs.repository }}
+        shell: bash
         run: |
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
-          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
-          cd %SCRIPTS_DIR%
-
-          if "${{ env.PACKAGE_NAME }}" == "torchaudio" (
-          call "%VS_PATH%" arm64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh"
-          ) else if "${{ env.PACKAGE_NAME }}" == "torchvision" (
-          call "%VS_PATH%" arm64
-          "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh"
-          ) else (
-          echo Invalid repository name: ${{ inputs.repository }}
-          exit /b 1
-          )
+          cd $SRC_DIR
+          source .venv/Scripts/activate
+          python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
