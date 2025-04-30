@@ -41,6 +41,8 @@ PREFIXES = [
     "whl/test",
     "libtorch",
     "libtorch/nightly",
+    "source_code",
+    "source_code/test"
 ]
 
 # NOTE: This refers to the name on the wheels themselves and not the name of
@@ -346,27 +348,34 @@ class S3Index:
     def obj_to_package_name(self, obj: S3Object) -> str:
         return path.basename(obj.key).split('-', 1)[0].lower()
 
-    def to_libtorch_html(
+    def to_list_html(
         self,
-        subdir: Optional[str] = None
+        subdir: Optional[str] = None,
+        package_name: Optional[str] = None
     ) -> str:
         """Generates a string that can be used as the HTML index
 
         Takes our objects and transforms them into HTML that have historically
-        been used by pip for installing pytorch, but now only used to generate libtorch browseable folder.
+        been used by pip for installing pytorch, but now only used to generate browseable folders.
         """
         out: List[str] = []
+        out.append('<!DOCTYPE html>')
+        out.append('<html>')
+        out.append('  <body>')
         subdir = self._resolve_subdir(subdir)
         is_root = subdir == self.prefix
-        for obj in self.gen_file_list(subdir, "libtorch"):
-            # Skip root objs, as they are irrelevant for libtorch indexes
+        for obj in self.gen_file_list(subdir, package_name):
+            # Skip root objs, as they are irrelevant for list indexes
             if not is_root and self.is_obj_at_root(obj):
                 continue
             # Strip our prefix
             sanitized_obj = obj.key.replace(subdir, "", 1)
             if sanitized_obj.startswith('/'):
                 sanitized_obj = sanitized_obj.lstrip("/")
-            out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
+            out.append(f'    <a href="/{obj.key}">{sanitized_obj}</a><br/>')
+        out.append('  </body>')
+        out.append('</html>')
+        out.append(f'<!--TIMESTAMP {int(time.time())}-->')
         return "\n".join(sorted(out))
 
     def to_simple_package_html(
@@ -427,7 +436,21 @@ class S3Index:
 
     def upload_libtorch_html(self) -> None:
         for subdir in self.subdirs:
-            index_html = self.to_libtorch_html(subdir=subdir)
+            index_html = self.to_list_html(subdir=subdir, package_name="libtorch")
+            for bucket in INDEX_BUCKETS:
+                print(f"INFO Uploading {subdir}/{self.html_name} to {bucket.name}")
+                bucket.Object(
+                    key=f"{subdir}/{self.html_name}"
+                ).put(
+                    ACL='public-read',
+                    CacheControl='no-cache,no-store,must-revalidate',
+                    ContentType='text/html',
+                    Body=index_html
+                )
+
+    def upload_source_code_html(self) -> None:
+        for subdir in {None} | self.subdirs:
+            index_html = self.to_list_html(subdir=subdir, package_name="pytorch")
             for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/{self.html_name} to {bucket.name}")
                 bucket.Object(
@@ -471,7 +494,14 @@ class S3Index:
             print(f"INFO Saving {subdir}/{self.html_name}")
             makedirs(subdir, exist_ok=True)
             with open(path.join(subdir, self.html_name), mode="w", encoding="utf-8") as f:
-                f.write(self.to_libtorch_html(subdir=subdir))
+                f.write(self.to_list_html(subdir=subdir, package_name="libtorch"))
+
+    def save_source_code_html(self) -> None:
+        for subdir in self.subdirs:
+            print(f"INFO Saving {subdir}/{self.html_name}")
+            makedirs(subdir, exist_ok=True)
+            with open(path.join(subdir, self.html_name), mode="w", encoding="utf-8") as f:
+                f.write(self.to_list_html(subdir=subdir, package_name="pytorch"))
 
     def save_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
