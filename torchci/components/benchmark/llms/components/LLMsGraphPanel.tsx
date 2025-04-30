@@ -416,7 +416,7 @@ const MetricTable = ({
 };
 
 
-// add chart group key for data to render in the graph, for data does not have group key, use display
+// creates chart items to visualize in the series graph, group by device name and display name
 function formGraphItem(data: any[]){
   const res: any[] = []
   data.forEach((item) => {
