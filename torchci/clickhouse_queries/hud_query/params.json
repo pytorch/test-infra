@@ -1,7 +1,39 @@
 {
   "params": {
     "repo": "String",
-    "shas": "String"
+    "shas": "Array(String)"
   },
-  "tests": []
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "shas": ["dac34906abc21722537eee56f5f2430eb00c75fc"]
+    },
+    {
+      "repo": "pytorch/ao",
+      "shas": ["42e1345f0bc451383bcd27e39e93d4ae673eabe0"]
+    },
+    {
+      "repo": "pytorch/executorch",
+      "shas": ["ce74f8e28076517e00f2940bd57ed96e3f1b2f22"]
+    },
+    {
+      "repo": "pytorch/torchx",
+      "shas": ["f7ab10ac0b79b00193f7b6e3010bfa913e3c3fd2"]
+    },
+    {
+      "repo": "pytorch/ao",
+      "shas": [
+        "42e1345f0bc451383bcd27e39e93d4ae673eabe0",
+        "ce759d556be1e5bc6eeda41e7cb220aacdbe116a",
+        "59bf66613d54cca97d703752fdedaaa3b819c39d",
+        "7e3978cce243282990dc32953bec727f7b2ad04c",
+        "3766ed7f010f83bd93da56231fd2d8efcb1ceabc",
+        "09c276039e35d914be31484d39dc25ee3049e188",
+        "b948c4ef95ea2e87ec4b62f2832d638c71aa0a45",
+        "2d11289cc1d6fad2d872d069a1f113c80d43b152",
+        "e92c7216daaac9920f75fb7db1c5cefa6ebdab1b",
+        "7bb7f2387328ad7893b70d27113c0d538cf233d2"
+      ]
+    }
+  ]
 }

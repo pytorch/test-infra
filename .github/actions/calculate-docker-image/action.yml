@@ -14,6 +14,14 @@ inputs:
       The script parameters can be passed to docker build similar to how it is used
       in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
     default: .ci/docker
+  docker-build-script:
+    description: |
+      The script to build the docker image. Should be relative to the docker-build-dir.
+    default: ./build.sh
+  custom-tag-prefix:
+    description: |
+      The prefix to use for the docker image tag.
+    default: ""
   working-directory:
     description: The working directory where the repo is checked out.
     default: .
@@ -47,14 +55,16 @@ runs:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_IMAGE_NAME: ${{ inputs.docker-image-name }}
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
+        DOCKER_BUILD_SCRIPT: ${{ inputs.docker-build-script }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+        CUSTOM_TAG_PREFIX: ${{ inputs.custom-tag-prefix }}
       run: |
         set -ex
 
         # If the docker build directory or the build script doesn't exist, the action will
         # gracefully return the docker image name as it is.  Pulling docker image in Linux
         # job could then download the pre-built image as usual
-        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_BUILD_DIR}/build.sh" ]]; then
+        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_BUILD_DIR}/${DOCKER_BUILD_SCRIPT}" ]]; then
           echo "skip=true" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
 
@@ -71,7 +81,7 @@ runs:
           echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
         else
-          DOCKER_TAG=$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          DOCKER_TAG=${CUSTOM_TAG_PREFIX:+${CUSTOM_TAG_PREFIX}-}$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
           echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_REGISTRY}/${REPO_NAME}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
         fi
@@ -186,8 +196,10 @@ runs:
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
+        CUSTOM_TAG_PREFIX: ${{ inputs.custom-tag-prefix }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
+        DOCKER_BUILD_SCRIPT: ${{ inputs.docker-build-script }}
       # NB: Retry here as this step frequently fails with network error downloading various stuffs
       uses: nick-fields/retry@v3.0.0
       with:
@@ -203,7 +215,7 @@ runs:
 
           IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
           # Build new image
-          ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
+          ${DOCKER_BUILD_SCRIPT} "${IMAGE_NAME}${CUSTOM_TAG_PREFIX:+:${CUSTOM_TAG_PREFIX}}" -t "${DOCKER_IMAGE}"
 
           popd
 

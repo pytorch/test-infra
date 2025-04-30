@@ -1,5 +1,5 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { Repo, getRepoKey } from './utils';
+import { Repo, getRepoKey, sleep } from './utils';
 import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
 import {
   createRegistrationTokenOrg,
@@ -12,6 +12,7 @@ import {
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel } from './gh-issues';
+import { getJoinedStressTestExperiment } from './cache';
 
 export interface ActionRequestMessage {
   id: number;
@@ -75,6 +76,7 @@ export async function scaleUp(
   // if no labels are found this should just be a no-op
   for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
+
     if (runnerType === undefined) {
       console.info(
         `Runner label '${runnerLabel}' was not found in config at ` +
@@ -82,6 +84,12 @@ export async function scaleUp(
       );
       continue;
     }
+
+    if (await getJoinedStressTestExperiment('stresstest_ignorereq', runnerType.runnerTypeName)) {
+      console.warn(`Stresstest stresstest_ignorereq active: ignoring request for scale ${runnerType.runnerTypeName}`);
+      continue;
+    }
+
     const runnersRequested = 1;
     const runnersToCreate = await getCreatableRunnerCount(
       runnerType.runnerTypeName,
@@ -163,6 +171,14 @@ async function createRunnerConfigArgument(
   awsRegion: string,
   experimentalRunner: boolean,
 ): Promise<string> {
+  if (await getJoinedStressTestExperiment('stresstest_ghapislow', runnerType.runnerTypeName)) {
+    console.warn(
+      `Stress test slow gh api response active: Sleeping before reaching GH ` +
+        `API for token creation for ${runnerType.runnerTypeName}`,
+    );
+    await sleep(60 * 1000);
+  }
+
   const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';
   const labelsArgument = [
     `AWS:${awsRegion}`,

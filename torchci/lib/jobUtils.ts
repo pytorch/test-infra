@@ -32,6 +32,16 @@ export function isFailedJob(job: JobData) {
   );
 }
 
+export function isCancellationSuccessJob(job: JobData) {
+  // job was cancelled successfully
+  return (
+    job.conclusion === "cancelled" &&
+    (!job.failureLines ||
+      job.failureLines.length == 0 ||
+      job.failureLines[0]?.includes("was canceled"))
+  );
+}
+
 export function isSuccessJob(job: BasicJobData) {
   return job.conclusion === "success";
 }

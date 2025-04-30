@@ -5,5 +5,24 @@
     "stopTime": "DateTime64(3)",
     "workflowNames": "Array(String)"
   },
-  "tests": []
+  "tests": [
+    {
+      "granularity": "day",
+      "startTime": "2025-03-18T21:09:47.987",
+      "stopTime": "2025-03-25T21:09:47.987",
+      "workflowNames": ["lint", "pull", "trunk"]
+    },
+    {
+      "granularity": "day",
+      "startTime": "2025-03-18T21:09:47.987",
+      "stopTime": "2025-05-25T21:09:47.987",
+      "workflowNames": ["lint", "pull", "trunk"]
+    },
+    {
+      "granularity": "day",
+      "startTime": "2025-03-24T00:00:00.000",
+      "stopTime": "2025-03-25T00:00:00.000",
+      "workflowNames": ["pull"]
+    }
+  ]
 }

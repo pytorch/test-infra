@@ -43,3 +43,9 @@ Terraform code that uses this module specify the tag (version of test-infra) tha
 # Runner Architecture diagram
 This diagram shows how the runners function once deployed to AWS
 ![High level runner architecture diagram](architecture-diagram.png)
+
+
+# References
+
+* [Lambda Autoscaler Deep Dive Day 1](https://zoom.us/rec/share/Xob0_IiyV9u4t47Ljc-g0jNXXmmIpDdf7b9srIsPClsQOHw32FETX9TIB_2u25Or.AmVCbPNuelq7-1Lz)
+* [Lambda Autoscaler Deep Dive Day 2](https://zoom.us/rec/share/LuNSyI6E3FzT4Dl9jI15QFDyxK7RSmpFU0AFAo9Bh4BWgli5PVoDYG_qYmsJjiN7.m96Y4zEunU8IWgUk)
