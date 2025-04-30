@@ -183,7 +183,22 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
           is_windows: 'enabled'
-          
+      - name: Run Pre-Script arm64
+        if: ${{ inputs.pre-script != '' && inputs.architecture == 'arm64' }}
+        env:
+          DOWNLOADS_DIR: c:\temp\downloads\
+          DEPENDENCIES_DIR: c:\temp\dependencies\
+          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+          SRC_DIR: ${{ inputs.repository }}
+          PRE_SCRIPT: ${{ inputs.pre-script }}
+        shell: cmd
+        run: |
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+          cd %SRC_DIR%
+
+          call "%VS_PATH%" x64
+          "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
       - name: Build clean
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
@@ -224,26 +239,13 @@ jobs:
             ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
           fi
       - name: Build the wheel (bdist_wheel) Arm64
-        if: ${{ inputs.pre-script != '' && inputs.architecture == 'arm64' }}
+        if: inputs.architecture == 'arm64'
         env:
-          PACKAGE_NAME: ${{ inputs.package-name }}
-          DOWNLOADS_DIR: c:\temp\downloads\
-          DEPENDENCIES_DIR: c:\temp\dependencies\
-          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
           SRC_DIR: ${{ inputs.repository }}
-          PRE_SCRIPT: ${{ inputs.pre-script }}
-        shell: cmd
+        shell: bash
         run: |
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
-          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
-          cd %SRC_DIR%
-
-          echo SRC_DIR=%SRC_DIR%
-          echo PRE_SCRIPT=%PRE_SCRIPT%
-
-          call "%VS_PATH%" x64
-          "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
-          call .\.venv\Scripts\activate
+          cd $SRC_DIR
+          source .venv/Scripts/activate
           python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
