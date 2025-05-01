@@ -128,7 +128,12 @@ WHERE
         OR empty({branches: Array(String) })
     )
     AND (
-        startsWith({device: String }, device)
+        (startsWith({device: String }, device)
+        AND (
+            ({device: String } LIKE '%(private)%' AND device LIKE '%(private)%')
+            OR
+            ({device: String } NOT LIKE '%(private)%' AND device NOT LIKE '%(private)%')
+        ))
         OR {device: String } = ''
     )
     AND notEmpty(device)
