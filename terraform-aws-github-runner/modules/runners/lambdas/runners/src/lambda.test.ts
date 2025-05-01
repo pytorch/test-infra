@@ -256,6 +256,6 @@ describe('scaleUpChron', () => {
     await scaleUpChronL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleUpChron).toBeCalledTimes(1);
     expect(callback).toBeCalledTimes(1);
-    expect(callback).toBeCalledWith('Failed');
+    expect(callback).toBeCalledWith('Failed to scale up chron: Error: error');
   });
 });
