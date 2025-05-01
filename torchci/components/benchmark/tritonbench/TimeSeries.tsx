@@ -137,7 +137,8 @@ function SingleGraphPanel({
     // to avoid all zero numbers
     return (
       ((id >= lWorkflowId && id <= rWorkflowId) ||
-      (id <= lWorkflowId && id >= rWorkflowId)) && (op_name !== "low_mem_dropout")
+        (id <= lWorkflowId && id >= rWorkflowId)) &&
+      op_name !== "low_mem_dropout"
     );
   });
 
