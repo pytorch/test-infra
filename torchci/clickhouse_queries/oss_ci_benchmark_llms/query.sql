@@ -63,10 +63,19 @@ WITH benchmarks AS (
             IF(
                 tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
                 '',
-                -- Default to false
+                -- Default to empty
                 tupleElement(o.benchmark, 'extra_info')['failure_type']
-            )
-        ) AS addtional_info --  additional_info for a record
+            ),
+            'device_id',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['instance_arn'] = '',
+                '',
+                -- Default to empty
+                tupleElement(o.benchmark, 'extra_info')['instance_arn']
+            ),
+            'timestamp',
+            formatDateTime(fromUnixTimestamp(o.timestamp), '%Y-%m-%dT%H:%i:%sZ')
+        ) AS metadata_info --  metadata_info for a record
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
@@ -119,7 +128,7 @@ SELECT DISTINCT
     arch,
     granularity_bucket,
     extra,
-    addtional_info
+    metadata_info
 FROM
     benchmarks
 WHERE

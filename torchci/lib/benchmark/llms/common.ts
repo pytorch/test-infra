@@ -118,7 +118,7 @@ export interface LLMsBenchmarkData {
   arch: string;
   display?: string;
   extra?: { [key: string]: string };
-  additional_info?: { [key: string]: string };
+  metadata_info?: { [key: string]: string };
 }
 
 export interface BranchAndCommitPerfData extends BranchAndCommit {

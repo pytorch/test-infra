@@ -401,12 +401,12 @@ const processJobLevelFailureRows = (
       if ("FAILURE_REPORT" in record) {
         const failure_record = record["FAILURE_REPORT"];
         const hasrFailure =
-          "r" in failure_record && failure_record["r"].additional_info
-            ? failure_record["r"].additional_info["failure_type"] === "GIT_JOB"
+          "r" in failure_record && failure_record["r"].metadata_info
+            ? failure_record["r"].metadata_info["failure_type"] === "GIT_JOB"
             : false;
         const haslFailure =
-          "l" in failure_record && failure_record["l"].additional_info
-            ? failure_record["l"].additional_info["failure_type"] === "GIT_JOB"
+          "l" in failure_record && failure_record["l"].metadata_info
+            ? failure_record["l"].metadata_info["failure_type"] === "GIT_JOB"
             : false;
         isJobLevelFailure = hasrFailure || haslFailure;
       }
