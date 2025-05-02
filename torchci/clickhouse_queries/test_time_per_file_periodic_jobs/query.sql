@@ -2,13 +2,12 @@
 WITH good_periodic_sha AS (
     SELECT job.head_sha AS sha
     FROM
-        default.workflow_job job FINAL
-    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
-    JOIN default.push ON workflow.head_commit.'id' = push.head_commit.'id'
+        default.workflow_job job final
+    JOIN default.push ON job.head_sha = push.head_commit.'id'
     WHERE
-        workflow.name = 'periodic'
-        AND workflow.head_branch LIKE 'main'
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        job.workflow_name = 'periodic'
+        AND job.head_branch LIKE 'main'
+        AND job.repository_full_name = 'pytorch/pytorch'
     GROUP BY
         job.head_sha,
         push.head_commit.'timestamp'
