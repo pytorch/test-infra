@@ -139,7 +139,7 @@ jobs:
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
-          arch: ${{ env.ARCH }}
+          arch: ${{ inputs.architecture }}
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         env:
@@ -324,6 +324,7 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
+      architecture: ${{ inputs.architecture }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
