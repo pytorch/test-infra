@@ -23,8 +23,7 @@ WITH good_periodic_sha AS (
 ),
 
 job AS (
-    SELECT
-        distinct
+    SELECT DISTINCT
         j.name,
         j.id,
         j.run_id

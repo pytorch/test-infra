@@ -12,8 +12,7 @@ WITH most_recent_strict_commits AS (
 ),
 
 job AS (
-    SELECT
-        distinct
+    SELECT DISTINCT
         j.name,
         j.id,
         j.run_id
@@ -38,7 +37,7 @@ file_duration_per_job AS (
         /* cpp tests do not populate `file` for some reason. */
         /* Exclude them as we don't include them in our slow test infra */
         test_run.file != ''
-        AND test_run.workflow_id IN (SELECT run_id from job)
+        AND test_run.workflow_id IN (SELECT run_id FROM job)
     GROUP BY
         test_run.invoking_file,
         base_name,

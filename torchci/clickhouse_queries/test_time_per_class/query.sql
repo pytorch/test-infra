@@ -12,8 +12,7 @@ WITH most_recent_strict_commits AS (
 ),
 
 job AS (
-    SELECT
-        distinct
+    SELECT DISTINCT
         j.name,
         j.id,
         j.run_id
