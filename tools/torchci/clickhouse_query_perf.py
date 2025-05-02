@@ -327,7 +327,7 @@ def results_compare(args: argparse.Namespace) -> None:
             print("Results can be found in the _logs/query_results folder")
             print()
         else:
-            print(f"Results for test {i} match")
+            print(f"Results ({len(new_results)} rows) for test {i} match")
 
 
 if __name__ == "__main__":

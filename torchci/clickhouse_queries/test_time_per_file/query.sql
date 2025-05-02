@@ -1,7 +1,7 @@
 WITH most_recent_strict_commits AS (
     SELECT push.head_commit.id AS sha
     FROM
-        default.push FINAL
+        default.push
     WHERE
         push.ref = 'refs/heads/viable/strict'
         AND push.repository.full_name = 'pytorch/pytorch'
@@ -11,25 +11,17 @@ WITH most_recent_strict_commits AS (
         3
 ),
 
-workflow AS (
-    SELECT id
-    FROM
-        materialized_views.workflow_run_by_head_sha w
-    WHERE head_sha IN (SELECT sha FROM most_recent_strict_commits)
-),
-
 job AS (
-    SELECT
+    SELECT DISTINCT
         j.name,
         j.id,
         j.run_id
     FROM
-        default.workflow_job j FINAL
+        default.workflow_job j
     WHERE j.id IN (
         SELECT id FROM materialized_views.workflow_job_by_head_sha
         WHERE head_sha IN (SELECT sha FROM most_recent_strict_commits)
     )
-    AND j.run_id IN (SELECT id FROM workflow)
 ),
 
 file_duration_per_job AS (
@@ -45,7 +37,7 @@ file_duration_per_job AS (
         /* cpp tests do not populate `file` for some reason. */
         /* Exclude them as we don't include them in our slow test infra */
         test_run.file != ''
-        AND test_run.workflow_id IN (SELECT id FROM workflow)
+        AND test_run.workflow_id IN (SELECT run_id FROM job)
     GROUP BY
         test_run.invoking_file,
         base_name,

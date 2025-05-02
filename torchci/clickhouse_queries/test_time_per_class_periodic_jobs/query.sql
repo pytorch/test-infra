@@ -2,13 +2,12 @@
 WITH good_periodic_sha AS (
     SELECT job.head_sha AS sha
     FROM
-        default.workflow_job job FINAL
-    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
-    JOIN default.push ON workflow.head_commit.'id' = push.head_commit.'id'
+        default.workflow_job job
+    JOIN default.push ON job.head_sha = push.head_commit.'id'
     WHERE
-        workflow.name = 'periodic'
-        AND workflow.head_branch LIKE 'main'
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        job.workflow_name = 'periodic'
+        AND job.head_branch LIKE 'main'
+        AND job.repository_full_name = 'pytorch/pytorch'
     GROUP BY
         job.head_sha,
         push.head_commit.'timestamp'
@@ -23,30 +22,17 @@ WITH good_periodic_sha AS (
         3
 ),
 
-workflow AS (
-    SELECT id
-    FROM
-        default.workflow_run FINAL
-    WHERE
-        id IN (
-            SELECT id FROM materialized_views.workflow_run_by_head_sha w
-            WHERE head_sha IN (SELECT sha FROM good_periodic_sha)
-        )
-        AND name = 'periodic'
-),
-
 job AS (
-    SELECT
+    SELECT DISTINCT
         j.name,
         j.id,
         j.run_id
     FROM
-        default.workflow_job j FINAL
+        default.workflow_job j
     WHERE j.id IN (
         SELECT id FROM materialized_views.workflow_job_by_head_sha
         WHERE head_sha IN (SELECT sha FROM good_periodic_sha)
     )
-    AND j.run_id IN (SELECT id FROM workflow)
 ),
 
 class_duration_per_job AS (
@@ -63,7 +49,7 @@ class_duration_per_job AS (
         /* cpp tests do not populate `file` for some reason. */
         /* Exclude them as we don't include them in our slow test infra */
         test_run.file != ''
-        AND test_run.workflow_id IN (SELECT id FROM workflow)
+        AND test_run.workflow_id IN (SELECT run_id FROM job)
     GROUP BY
         test_run.invoking_file,
         test_run.classname,
