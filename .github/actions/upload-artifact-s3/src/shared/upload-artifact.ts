@@ -1,29 +1,82 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import artifact, {UploadArtifactOptions} from '@actions/artifact'
+import * as fs from 'fs'
+import mime from 'mime'
+import * as path from 'path'
+
+import {Upload} from '@aws-sdk/lib-storage'
+import {S3Client} from '@aws-sdk/client-s3'
+
+function getFileType(path: string | null): string | undefined {
+  if (path === null) {
+    return undefined
+  }
+  const fileType = mime.getType(path)
+  if (fileType) {
+    return fileType
+  }
+  return 'application/octet-stream'
+}
 
 export async function uploadArtifact(
   artifactName: string,
   filesToUpload: string[],
   rootDirectory: string,
-  options: UploadArtifactOptions
+  options: Record<string, any>
 ) {
-  const uploadResponse = await artifact.uploadArtifact(
-    artifactName,
-    filesToUpload,
-    rootDirectory,
-    options
-  )
+  if (options.s3Prefix !== '') {
+    core.info('NOTE: s3-prefix specified, ignoring name parameter')
+  }
+  // If s3Prefix is left blank then just use the actual default derived from the github context
+  const s3Prefix =
+    options.s3Prefix === ''
+      ? `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}/${artifactName}`
+      : options.s3Prefix
+  core.info(`Uploading to s3 prefix: ${s3Prefix}`)
+  core.debug(`Root artifact directory is ${rootDirectory} `)
 
-  core.info(
-    `Artifact ${artifactName} has been successfully uploaded! Final size is ${uploadResponse.size} bytes. Artifact ID is ${uploadResponse.id}`
-  )
-  core.setOutput('artifact-id', uploadResponse.id)
-  core.setOutput('artifact-digest', uploadResponse.digest)
+  const retentionDays = options.retentionDays ? options.retentionDays : 90
+  const today = new Date()
+  const expirationDate = new Date(today)
+  expirationDate.setDate(expirationDate.getDate() + retentionDays)
 
-  const repository = github.context.repo
-  const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
+  const s3Client = new S3Client({
+    region: options.region,
+    maxAttempts: 10
+  })
 
-  core.info(`Artifact download URL: ${artifactURL}`)
-  core.setOutput('artifact-url', artifactURL)
+  for await (const fileName of filesToUpload) {
+    core.debug(JSON.stringify({rootDirectory: rootDirectory, fileName}))
+    // Add trailing path.sep to root directory to solve issues where root directory doesn't
+    // look to be relative
+    const relativeName = fileName.replace(
+      String.raw`${rootDirectory}${path.sep}`,
+      ''
+    )
+    const uploadKey = `${s3Prefix}/${relativeName}`
+    const uploadParams = {
+      Body: fs.createReadStream(fileName),
+      Bucket: options.s3Bucket,
+      ContentType: getFileType(uploadKey),
+      Expires: expirationDate,
+      // conform windows paths to unix style paths
+      Key: uploadKey.replace(path.sep, '/')
+    }
+    const uploadOptions = {partSize: 10 * 1024 * 1024, queueSize: 5}
+    core.info(`Starting upload of ${relativeName}`)
+    try {
+      const parallelUpload = new Upload({
+        client: s3Client,
+        params: uploadParams,
+        queueSize: uploadOptions.queueSize,
+        partSize: uploadOptions.partSize
+      })
+      await parallelUpload.done()
+    } catch (err) {
+      core.error(`Error uploading ${relativeName}`)
+      throw err
+    } finally {
+      core.info(`Finished upload of ${relativeName}`)
+    }
+  }
 }

@@ -4,6 +4,9 @@ export enum Inputs {
   Path = 'path',
   IfNoFilesFound = 'if-no-files-found',
   RetentionDays = 'retention-days',
+  S3Bucket = 's3-bucket',
+  S3Prefix = 's3-prefix',
+  Region = 'region',
   CompressionLevel = 'compression-level',
   Overwrite = 'overwrite',
   IncludeHiddenFiles = 'include-hidden-files'
