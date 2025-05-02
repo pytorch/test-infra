@@ -99,6 +99,11 @@ jobs:
     # to have a conversation
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Echo variables
+        run: |
+          echo "ENV ARCHITECTURE=${{ env.ARCH }}"
+          echo "ARCHITECTURE=${{ inputs.architecture }}"
+          echo "CUDA VERSION=${{ ENV.CU_VERSION }}"
       - uses: actions/checkout@v4
         with:
           # Support the use case where we need to checkout someone's fork
@@ -300,9 +305,10 @@ jobs:
           REPOSITORY: ${{ inputs.repository }}
           REF: ${{ inputs.ref }}
           PYTHON_VERSION: ${{ matrix.python_version }}
+          CU_VERSION: ${{ env.CU_VERSION }}
           ARCH: ${{ inputs.architecture }}
         run: |
-          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
       - name: Upload wheel to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v4
