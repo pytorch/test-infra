@@ -4,6 +4,7 @@
   "description": "Upload an Actions Artifact in a workflow run",
   "main": "dist/upload/index.js",
   "scripts": {
+    "all": "npm run format && npm run build && npm run lint && npm run release",
     "build": "tsc",
     "release": "ncc build src/upload/index.ts -o dist/upload",
     "check-all": "concurrently \"npm:format-check\" \"npm:lint\" \"npm:test\" \"npm:build\"",
@@ -29,11 +30,13 @@
   },
   "homepage": "https://github.com/actions/upload-artifact#readme",
   "dependencies": {
-    "@actions/artifact": "^2.3.2",
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
     "@actions/glob": "^0.5.0",
     "@actions/io": "^1.1.2",
+    "@aws-sdk/client-s3": "^3.803.0",
+    "@aws-sdk/lib-storage": "^3.803.0",
+    "mime": "^4.0.7",
     "minimatch": "^9.0.3"
   },
   "devDependencies": {

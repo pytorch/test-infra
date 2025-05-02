@@ -1,6 +1,9 @@
-name: 'Upload a Build Artifact'
+name: 'Upload a Build Artifact to S3'
 description: 'Upload a build artifact that can be used by subsequent workflow steps'
-author: 'GitHub'
+author: '@seemethere'
+branding:
+  icon: upload-cloud
+  color: yellow
 inputs:
   name:
     description: 'Artifact name'
@@ -23,6 +26,20 @@ inputs:
 
       Minimum 1 day.
       Maximum 90 days unless changed from the repository settings page.
+  s3-bucket:
+    description: >
+      S3 Bucket to use to put your artifacts in, typically something like "gha-artifacts"
+    default: 'gha-artifacts'
+  s3-prefix:
+    description: >
+      S3 prefix to use to besides the default prefix, typically something like "${repo_owner}/${repo_name}/${run_id}/${artifact_name}"
+
+      NOTE: when using this parameter the name parameter is ignored
+    default: ''
+  region:
+    description: >
+      Region your s3 bucket is in
+    default: 'us-east-1'
   compression-level:
     description: >
       The level of compression for Zlib to be applied to the artifact archive.

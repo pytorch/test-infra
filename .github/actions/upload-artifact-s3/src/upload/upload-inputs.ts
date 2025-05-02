@@ -22,6 +22,21 @@ export interface UploadInputs {
   retentionDays: number
 
   /**
+   * S3 Bucket to uploads to
+   */
+  s3Bucket: string
+
+  /**
+   * S3 Prefix to upload to
+   */
+  s3Prefix: string
+
+  /**
+   * AWS region where your s3 bucket lives
+   */
+  region: string
+
+  /**
    * The level of compression for Zlib to be applied to the artifact archive.
    */
   compressionLevel?: number
