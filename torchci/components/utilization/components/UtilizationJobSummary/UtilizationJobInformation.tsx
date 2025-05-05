@@ -2,7 +2,7 @@ import {
   InfoCard,
   InfoSection,
   InfoTitle,
-} from "components/utilization/styles";
+} from "components/utilization/JobUtilizationPage/styles";
 
 export const UtilizationJobInformation = ({
   workflowId,

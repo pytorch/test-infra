@@ -52,6 +52,12 @@ export interface TimeSeriesDataPoint {
   value: number;
 }
 
+export interface ListUtilizationMetadataInfoParams {
+  workflow_id: string;
+  repo?: string;
+  include_stats?: boolean;
+}
+
 export interface UtilizationMetadataInfo {
   workflow_id: string;
   job_id: string;
@@ -59,13 +65,32 @@ export interface UtilizationMetadataInfo {
   workflow_name: string;
   job_name: string;
   repo: string;
+  stats?: UtilizationAggreStats;
 }
 
-export interface ListUtilizationMetadataInfoParams {
-  workflow_id: string;
-  repo?: string;
+export interface UtilizationAggreStats {
+  has_gpu: boolean;
+  cpu_max: number;
+  cpu_avg: number;
+  cpu_p90: number;
+  memory_max: number;
+  memory_avg: number;
+  memory_p90: number;
+  gpu_max?: number;
+  gpu_avg?: number;
+  gpu_memory_max?: number;
+  gpu_memory_avg?: number;
+  gpu_p90?: number;
+  gpu_memmory_p90?: number;
 }
 
+/**
+ * The response of the API call to list utilization metadata info.
+ * @param metadata_list The list of utilization metadata info.
+ *
+ */
 export interface ListUtilizationMetadataInfoAPIResponse {
+  workflow_id: string;
+  workflow_name: string;
   metadata_list: UtilizationMetadataInfo[];
 }

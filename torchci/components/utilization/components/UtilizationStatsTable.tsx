@@ -1,6 +1,6 @@
 import { Paper } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { StatType } from "../types";
+import { StatType } from "../JobUtilizationPage/types";
 
 export default function UtilizationStatsTable({ data }: { data: any[] }) {
   const rows = data.map((row) => {

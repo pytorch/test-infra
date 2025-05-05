@@ -7,8 +7,14 @@ import {
 } from "@mui/material";
 import LineRectChart from "components/charts/line_rect_chart/LineRectChart";
 import { ToggleGroup } from "components/common/ToggleGroup";
-import { formatSeconds, getDuration } from "components/utilization/helper";
-import { Description, FlexSection } from "components/utilization/styles";
+import {
+  formatSeconds,
+  getDuration,
+} from "components/utilization/JobUtilizationPage/helper";
+import {
+  Description,
+  FlexSection,
+} from "components/utilization/JobUtilizationPage/styles";
 import { Segment } from "lib/utilization/types";
 import { useState } from "react";
 import { RankTestView } from "./RankTestView/RankTestView";

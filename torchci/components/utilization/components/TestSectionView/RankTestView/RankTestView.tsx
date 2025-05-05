@@ -1,7 +1,7 @@
 import DropDownList from "components/common/DropDownList";
-import { getSegmentStatsAndTimeSeries } from "components/utilization/helper";
-import { FlexSection } from "components/utilization/styles";
-import { StatType } from "components/utilization/types";
+import { getSegmentStatsAndTimeSeries } from "components/utilization/JobUtilizationPage/helper";
+import { FlexSection } from "components/utilization/JobUtilizationPage/styles";
+import { StatType } from "components/utilization/JobUtilizationPage/types";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
 import { cloneDeep } from "lodash";
 import { useEffect, useState } from "react";

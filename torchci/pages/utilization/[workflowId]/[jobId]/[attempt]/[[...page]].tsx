@@ -1,11 +1,11 @@
 import LoadingPage from "components/LoadingPage";
-import { UtilizationPage } from "components/utilization/UtilizationPage";
+import { JobUtilizationPage } from "components/utilization/JobUtilizationPage/JobUtilizationPage";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { UtilizationAPIResponse } from "lib/utilization/types";
 import { useRouter } from "next/router";
 import useSWRImmutable from "swr/immutable";
 
-const Utilization = () => {
+const JobUtilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
@@ -28,13 +28,13 @@ const Utilization = () => {
 
   return (
     <div>
-      <UtilizationPage
+      <JobUtilizationPage
         workflowId={workflowId ? (workflowId as string) : ""}
         jobId={jobId ? (jobId as string) : ""}
         attempt={attempt ? (attempt as string) : ""}
         data={data as UtilizationAPIResponse}
-      ></UtilizationPage>
+      ></JobUtilizationPage>
     </div>
   );
 };
-export default Utilization;
+export default JobUtilization;

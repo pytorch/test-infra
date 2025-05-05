@@ -4,13 +4,13 @@ import {
   formatSeconds,
   getDuration,
   getSegmentStatsAndTimeSeries,
-} from "components/utilization/helper";
+} from "components/utilization/JobUtilizationPage/helper";
+import { lineFilters } from "components/utilization/JobUtilizationPage/JobUtilizationPage";
 import {
   InfoCard,
   InfoSection,
   InfoTitle,
-} from "components/utilization/styles";
-import { lineFilters } from "components/utilization/UtilizationPage";
+} from "components/utilization/JobUtilizationPage/styles";
 import { Segment, TimeSeriesWrapper } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import UtilizationJobMetricsTable from "../UtilizationStatsTable";
