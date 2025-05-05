@@ -1,3 +1,4 @@
+import { Link } from "@mui/material";
 import {
   InfoCard,
   InfoSection,
@@ -30,6 +31,10 @@ export const UtilizationJobInformation = ({
       <InfoSection>
         <InfoTitle>Workflow(run)Id:</InfoTitle>
         <span>{workflowId}</span>
+        <Link href={`/utilization/${workflowId}`}>
+          {" "}
+          (workflow level utilizaiton link)
+        </Link>
       </InfoSection>
       <InfoSection>
         <InfoTitle>Job Id:</InfoTitle>

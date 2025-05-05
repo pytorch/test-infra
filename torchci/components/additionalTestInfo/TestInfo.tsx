@@ -1,3 +1,5 @@
+import styled from "@emotion/styled";
+import { Link } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
 import { runWorkflow } from "lib/githubFunctions";
 import { IsJobInProgress } from "lib/JobClassifierUtil";
@@ -8,6 +10,10 @@ import useSWR from "swr";
 import { TestRerunsInfo } from "./RerunInfo";
 import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
+
+const WorkflowLevelUtilizationSection = styled("div")(({}) => ({
+  margin: "10px",
+}));
 
 export function genMessage({
   infoString,
@@ -289,6 +295,19 @@ export function TestInfo({
 
   return (
     <>
+      <WorkflowLevelUtilizationSection>
+        <div>
+          {" "}
+          See workflow level utilization summary for linux tests:
+          <span>
+            {" "}
+            <Link href={`/utilization/${workflowId}`}>
+              {" "}
+              utilization report
+            </Link>{" "}
+          </span>
+        </div>
+      </WorkflowLevelUtilizationSection>
       <div className={styles.tab}>
         <ButtonSelector name="Reruns Info" />
         <ButtonSelector name="TD Info" />
