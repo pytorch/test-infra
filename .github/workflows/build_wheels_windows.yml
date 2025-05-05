@@ -138,7 +138,7 @@ jobs:
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
-          arch: ${{ env.ARCH }}
+          arch: ${{ inputs.architecture }}
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         env:
@@ -242,7 +242,6 @@ jobs:
         if: inputs.architecture == 'arm64'
         env:
           SRC_DIR: ${{ inputs.repository }}
-        shell: bash
         run: |
           cd $SRC_DIR
           source .venv/Scripts/activate

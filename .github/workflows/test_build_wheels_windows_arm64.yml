@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel
-      os: windows
+      os: windows-arm64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
