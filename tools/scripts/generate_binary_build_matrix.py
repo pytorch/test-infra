@@ -425,7 +425,7 @@ def generate_wheels_matrix(
         python_versions = list(PYTHON_ARCHES)
 
     if os == WINDOWS_ARM64:
-        python_versions = ["3.12"] # only version available for now
+        python_versions = ["3.11", "3.12", "3.13"] # only versions for now
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
