@@ -1,12 +1,11 @@
 export const UTILIZATION_DEFAULT_REPO = "pytorch/pytorch";
 
-
-
-export const EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE: ListUtilizationMetadataInfoAPIResponse = {
-  workflow_id: "",
-  workflow_name: "",
-  metadata_list: [],
-};
+export const EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE: ListUtilizationMetadataInfoAPIResponse =
+  {
+    workflow_id: "",
+    workflow_name: "",
+    metadata_list: [],
+  };
 
 export interface UtilizationParams {
   workflow_id: string;

@@ -1,13 +1,10 @@
-import { queryClickhouseSaved } from "lib/clickhouse";
 import { getErrorMessage } from "lib/error_utils";
 import fetchListUtilizationMetadataInfo from "lib/utilization/fetchListUtilizationMetadataInfo";
 import {
   EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE,
-  ListUtilizationMetadataInfoAPIResponse,
   ListUtilizationMetadataInfoParams,
 } from "lib/utilization/types";
 import { NextApiRequest, NextApiResponse } from "next";
-
 
 // API list_utilization_metadata_info/[workflowId]
 export default async function handler(
@@ -18,7 +15,9 @@ export default async function handler(
 
   // swr hook will call this api with empty query, return empty object
   if (!workflowId) {
-    return res.status(200).json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
+    return res
+      .status(200)
+      .json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
   }
 
   const params: ListUtilizationMetadataInfoParams = {
@@ -29,7 +28,9 @@ export default async function handler(
   try {
     const resp = await fetchListUtilizationMetadataInfo(params);
     if (!resp) {
-      return res.status(200).json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
+      return res
+        .status(200)
+        .json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
     }
     return res.status(200).json(resp);
   } catch (error) {
