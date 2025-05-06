@@ -1,7 +1,12 @@
-import { getDuration } from "components/utilization/helper";
+import { getDuration } from "components/utilization/JobUtilizationPage/helper";
 import { Segment } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import { Blank, Description, Divider, InfoTitle } from "../../styles";
+import {
+  Blank,
+  Description,
+  Divider,
+  InfoTitle,
+} from "../../JobUtilizationPage/styles";
 import { SingleTestView } from "./SingleTestView";
 import ToggleTestsGroup from "./ToggleTestsGroup";
 

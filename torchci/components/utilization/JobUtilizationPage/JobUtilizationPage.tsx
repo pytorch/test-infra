@@ -6,8 +6,8 @@ import {
   UtilizationMetadata,
 } from "lib/utilization/types";
 import { useEffect, useState } from "react";
-import { TestSectionView } from "./components/TestSectionView/TestSectionView";
-import JobUtilizationSummary from "./components/UtilizationJobSummary/UtilizationJobSummary";
+import { TestSectionView } from "../components/TestSectionView/TestSectionView";
+import JobUtilizationSummary from "../components/UtilizationJobSummary/UtilizationJobSummary";
 import { getIgnoredSegmentName, processStatsData } from "./helper";
 import { Divider, MainPage, Section } from "./styles";
 import { StatsInfo } from "./types";
@@ -25,7 +25,7 @@ export const lineFilters: PickerConfig[] = [
   { category: "memory", types: [{ name: "memory", tags: ["memory"] }] },
 ];
 
-export const UtilizationPage = ({
+export const JobUtilizationPage = ({
   workflowId,
   jobId,
   attempt,
