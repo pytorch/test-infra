@@ -37,8 +37,20 @@ const WorkflowUtilization = () => {
     )
   );
 
+  const rows = data.utilMetadataList.map((job) => {
+    const stats = job?.stats || {};
+    return {
+      id: `${job.job_id}_${job.run_attempt}`,
+      name: job.job_name,
+      details: `/utilization/${job.workflow_id}/${job.job_id}/${job.run_attempt}`,
+      job_id: job.job_id,
+      ...stats,
+    };
+  });
+
   const columns: any[] = [
-    { field: "id", headerName: "Job Name", width: 400 },
+    { field: "name", headerName: "Job Name", width: 400 },
+    { field: "id", headerName: "Job id", width: 120 },
     {
       field: "details",
       headerName: "details",
@@ -83,17 +95,6 @@ const WorkflowUtilization = () => {
       },
     })),
   ];
-
-  // 3. Flatten stats into top-level fields for DataGrid
-  const rows = data.utilMetadataList.map((job) => {
-    const stats = job?.stats || {};
-    return {
-      id: job.job_name,
-      details: `/utilization/${job.workflow_id}/${job.job_id}/${job.run_attempt}`,
-      job_id: job.job_id,
-      ...stats,
-    };
-  });
 
   const metadataGroup = computeAverages(data.utilMetadataList);
   return (

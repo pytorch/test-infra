@@ -1,6 +1,7 @@
 WITH aggregate_data AS (
     SELECT
     job_id,
+    run_attempt,
     max(JSONExtractFloat(json_data, 'cpu','max')) as cpu_max,
     max(JSONExtractFloat(json_data, 'memory','max')) as memory_max,
     max(arrayMax(arrayMap(x->JSONExtractFloat(x,'util_percent','max'),JSONExtractArrayRaw(json_data,'gpu_usage')))) as gpu_max,
@@ -18,12 +19,15 @@ FROM
 WHERE
     workflow_id={ workflowId: UInt64}
     AND repo = { repo: String }
+    AND type = 'utilization'
 GROUP BY
-    job_id
+    job_id,
+    run_attempt
 )
 SELECT
     o.workflow_id,
     o.job_id,
+    o.run_attempt,
     o.workflow_name,
     o.job_name,
     o.run_attempt,
@@ -43,7 +47,7 @@ SELECT
     a.gpu_p90
 FROM
     misc.oss_ci_utilization_metadata o
-    JOIN aggregate_data a ON a.job_id = o.job_id
+    JOIN aggregate_data a ON a.job_id = o.job_id AND a.run_attempt = o.run_attempt
 WHERE
     o.workflow_id = { workflowId: UInt64}
     AND o.repo = { repo: String }
