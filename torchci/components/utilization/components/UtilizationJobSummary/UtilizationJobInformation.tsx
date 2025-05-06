@@ -33,7 +33,7 @@ export const UtilizationJobInformation = ({
         <span>{workflowId}</span>
         <Link href={`/utilization/${workflowId}`}>
           {" "}
-          (workflow level utilizaiton link)
+          (workflow level utilization link)
         </Link>
       </InfoSection>
       <InfoSection>

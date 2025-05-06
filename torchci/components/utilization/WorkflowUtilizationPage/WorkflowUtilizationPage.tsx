@@ -122,7 +122,7 @@ const WorkflowUtilization = () => {
         })}
       </MetadataGroupSection>
 
-      <h2> Job Utilizaiton Summary Table</h2>
+      <h2> Job Utilization Summary Table</h2>
       <span>Utilization metrics above 60% is highlighted</span>
       <div style={{ height: "1000px", width: "100%" }}>
         <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
@@ -140,7 +140,7 @@ function useUtilMetadata(workflowId: string | undefined): {
     `/api/list_utilization_metadata_info/${workflowId}?includes_stats=true`,
     fetcher,
     {
-      refreshInterval: 60 * 1000, // refresh every minute
+      refreshInterval: 20* 60 * 1000, // refresh every 20 minuts
       // Refresh even when the user isn't looking, so that switching to the tab
       // will always have fresh info.
       refreshWhenHidden: true,
