@@ -64,7 +64,7 @@ LINUX = "linux"
 LINUX_AARCH64 = "linux-aarch64"
 MACOS_ARM64 = "macos-arm64"
 WINDOWS = "windows"
-WINDOWS_ARM64= "windows-arm64"
+WINDOWS_ARM64 = "windows-arm64"
 
 # Accelerator architectures
 CPU = "cpu"
@@ -304,7 +304,7 @@ def get_wheel_install_command(
         whl_install_command = ""
         if os == WINDOWS_ARM64:
             # winarm64 has only nightly torch package for now
-            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"
+            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
         elif channel == "nightly":
             whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
         else:
@@ -425,7 +425,7 @@ def generate_wheels_matrix(
         python_versions = list(PYTHON_ARCHES)
 
     if os == WINDOWS_ARM64:
-        python_versions = ["3.11", "3.12", "3.13"] # only versions for now
+        python_versions = ["3.11", "3.12", "3.13"]# only versions for now
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
