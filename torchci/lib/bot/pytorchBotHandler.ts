@@ -2,10 +2,10 @@ import { PullRequestReview } from "@octokit/webhooks-types";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
+import { queryClickhouseSaved } from "../clickhouse";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
-import { queryClickhouseSaved } from "../clickhouse";
 import {
   hasWritePermissions as _hasWP,
   addLabels,
@@ -347,7 +347,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
       if (!(await this.hasCiFlowPull())) {
-        await addLabels(this.ctx, [CIFLOW_PULL_LABEL])
+        await addLabels(this.ctx, [CIFLOW_PULL_LABEL]);
       }
     }
 
@@ -619,7 +619,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async hasCiFlowPull(): Promise<boolean> {
     const workflow_names = await this.getWorkflowsLatest();
     if (workflow_names.length > 0) {
-      if (workflow_names.includes('pull')) {
+      if (workflow_names.includes("pull")) {
         return true;
       }
     }
