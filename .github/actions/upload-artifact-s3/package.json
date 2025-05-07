@@ -5,7 +5,7 @@
   "main": "dist/upload/index.js",
   "scripts": {
     "build": "tsc",
-    "release": "ncc build src/upload/index.ts -o dist/upload && ncc build src/merge/index.ts -o dist/merge",
+    "release": "ncc build src/upload/index.ts -o dist/upload",
     "check-all": "concurrently \"npm:format-check\" \"npm:lint\" \"npm:test\" \"npm:build\"",
     "format": "prettier --write **/*.ts",
     "format-check": "prettier --check **/*.ts",
