@@ -5,6 +5,7 @@ import shlex from "shlex";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
+import { queryClickhouseSaved } from "../clickhouse";
 import {
   hasWritePermissions as _hasWP,
   addLabels,
@@ -17,6 +18,7 @@ import {
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+export const CIFLOW_PULL_LABEL = "ciflow/pull";
 
 export interface PytorchbotParams {
   owner: string;
@@ -344,6 +346,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
+      if (!(await this.hasCiFlowPull())) {
+        await addLabels(this.ctx, [CIFLOW_PULL_LABEL])
+      }
     }
 
     await this.dispatchEvent("try-merge", {
@@ -609,6 +614,24 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       default:
         return await this.handleConfused(false);
     }
+  }
+
+  async hasCiFlowPull(): Promise<boolean> {
+    const workflow_names = await this.getWorkflowsLatest();
+    if (workflow_names.length > 0) {
+      if (workflow_names.includes('pull')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Returns the workflows attached to the PR only for the latest commit
+  async getWorkflowsLatest(): Promise<any> {
+    return await queryClickhouseSaved("get_workflows_for_commit", {
+      prNumber: this.prNum,
+      headSha: this.headSha,
+    });
   }
 }
 
