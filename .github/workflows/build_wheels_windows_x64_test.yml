@@ -1,0 +1,109 @@
+name: Build Windows X64 Wheels - test
+
+on:
+  workflow_call:
+    inputs:
+      # python_version:
+      #   required: false
+      #   default: "3.12"
+      #   type: string
+      repository_name: # change NAME
+        required: true
+        type: string
+      repository_branch: # rename with ref + default value change
+        required: true
+        type: string
+# add choice input
+
+env:
+  DOWNLOADS_DIR: c:\temp\downloads\
+  DEPENDENCIES_DIR: c:\temp\dependencies\
+  SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+  SRC_DIR: src\\${{ inputs.repository_name }}
+  PYTHON_VERSION: 3.12 ## update here ${{ inputs.python_version }} 
+  EXTRACTED_REPO_NAME: ${{ endsWith(inputs.repository_name, 'audio') && 'audio' || endsWith(inputs.repository_name, 'vision') && 'vision' || '' }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: Build wheel
+    steps:
+      - name: Print inputs
+        run: echo "${{ toJSON(github.action.inputs) }}"
+      - name: Setup Git for Windows' minimal SDK
+        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          architecture: x86_64
+          path: "${{env.DEPENDENCIES_DIR}}\\git"
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v4
+        with:
+          repository: alinpahontu2912/test-infra
+          ref: x64windows_test
+          path: test-infra
+      - name: Checkout Target Repository (${{ inputs.repository_name }})
+        uses: actions/checkout@v4
+        with:
+            repository: ${{ inputs.repository_name }}
+            ref: ${{ inputs.repository_branch }}
+            path: src/${{ inputs.repository_name }}
+            submodules: recursive
+      - name: Bootstrap python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          architecture: x64
+      - name: Bootstrap Build Tools
+        shell: bash
+        run: |
+          "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
+      - name: Call Build Script
+        shell: cmd
+        run: |
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
+
+          cd %SCRIPTS_DIR%
+          
+          if "${{ env.EXTRACTED_REPO_NAME }}"=="audio" (
+              call "%VS_PATH%" x64
+              "%GIT_BASH%" -c "bash --noprofile --norc build_audio.sh" 
+          ) else if "${{ env.EXTRACTED_REPO_NAME }}"=="vision" (
+              call "%VS_PATH%" x64
+              "%GIT_BASH%" -c "bash --noprofile --norc build_vision.sh" 
+          ) else (
+              echo Invalid repository name: ${{ inputs.repository_name }}
+              exit /b 1
+          )
+      - name: Install wheel
+        shell: bash
+        run: |
+          cd $SRC_DIR
+          source .venv/Scripts/activate
+          whl=$(find dist -name "torc*-*.whl" | head -n 1)
+          pip install $whl
+      - name: Run smoke test
+        shell: cmd
+        run: |
+          cd %SRC_DIR%
+          call .venv/Scripts/activate
+
+          if "${{ env.EXTRACTED_REPO_NAME }}"=="audio" (
+             python test/smoke_test/smoke_test.py
+          ) else if "${{ env.EXTRACTED_REPO_NAME }}"=="vision" (
+            python test/smoke_test.py
+          ) else (
+              echo Invalid repository name: ${{ inputs.repository_name }}
+              exit /b 1
+          )
+      - name: Archive wheel
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.SRC_DIR }}/dist/*
+          compression-level: 0
+          retention-days: 3
