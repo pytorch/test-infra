@@ -17,7 +17,7 @@ describe("merge-bot", () => {
     utils.mockConfig("pytorch-probot.yml", "mergebot: True");
     jest
       .spyOn(clickhouse, "queryClickhouseSaved")
-      .mockImplementation(() => Promise.resolve(["pull"]));
+      .mockImplementation(() => Promise.resolve([{"workflow_name": "pull"}]));
   });
 
   afterEach(() => {
