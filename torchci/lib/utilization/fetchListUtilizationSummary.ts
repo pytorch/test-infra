@@ -1,20 +1,20 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE,
-  ListUtilizationSummaryAPIResponse,
-  ListUtilizationSummaryParams,
+  ListUtilizationReportAPIResponse,
+  ListUtilizationReportParams,
   UTILIZATION_DEFAULT_REPO,
 } from "./types";
-const LIST_UTIL_SUMMARY = "oss_ci_util/oss_ci_list_util_summary";
+const LIST_UTIL_SUMMARY = "oss_ci_util/oss_ci_list_utilization_reports";
 
-export default async function fetchListUtilizationSummary(
-  params: ListUtilizationSummaryParams
-): Promise<ListUtilizationSummaryAPIResponse> {
+export default async function fetchListUtilizationReport(
+  params: ListUtilizationReportParams
+): Promise<ListUtilizationReportAPIResponse> {
   if (!params) {
     return EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE;
   }
 
-  const resp = await listUtilizationSummary(
+  const resp = await ListUtilizationReport(
     params.repo,
     params.groupBy,
     params.granularity,
@@ -32,7 +32,7 @@ export default async function fetchListUtilizationSummary(
   };
 }
 
-async function listUtilizationSummary(
+async function ListUtilizationReport(
   repo: string = UTILIZATION_DEFAULT_REPO,
   groupBy: string = "workflow_name",
   granularity: string = "day",

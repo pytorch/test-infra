@@ -1,36 +1,34 @@
-CREATE MATERIALIZED VIEW oss_ci_utilization_summary_report_mv
-TO oss_ci_utilization_summary_report
-AS
+DROP TABLE IF EXISTS oss_ci_utilization_job_report_mv
+
+CREATE MATERIALIZED VIEW oss_ci_utilization_job_report_mv
+TO oss_ci_utilization_summary_report_v1 AS
 SELECT
     js.job_start_day AS time,
-    job_name,
-    workflow_name,
-    repo,
-    count(DISTINCT job_id) AS job_run_counts,
+    t.job_name AS group_key,
+    concat(t.repo, '|', t.workflow_name) AS parent_group,
+    countDistinctState(t.job_id) AS run_counts,
+    groupArrayState(DISTINCT toString(t.job_id)) AS ids,
+    'daily_job' AS report_type,
+
+    avgState(JSONExtractFloat(t.json_data, 'cpu', 'max')) AS cpu_avg_state,
+    avgState(JSONExtractFloat(t.json_data, 'memory', 'max')) AS memory_avg_state,
+    avgState(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))) AS gpu_avg_state,
+    avgState(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))) AS gpu_mem_state,
+
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(JSONExtractFloat(t.json_data, 'cpu', 'max')) AS cpu_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(JSONExtractFloat(t.json_data, 'memory', 'max')) AS memory_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(
+        arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))
+    ) AS gpu_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(
+        arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))
+    ) AS gpu_mem_p_state,
     map(
-        'cpu_avg', avg(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'memory_avg', avg(JSONExtractFloat(json_data, 'memory', 'max')),
-        'gpu_avg', avg(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_avg', avg(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'cpu_p50', quantile(0.5)(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'cpu_p90', quantile(0.9)(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'cpu_p95', quantile(0.95)(JSONExtractFloat(json_data, 'cpu', 'max')),
-
-        'memory_p50', quantile(0.5)(JSONExtractFloat(json_data, 'memory', 'max')),
-        'memory_p90', quantile(0.9)(JSONExtractFloat(json_data, 'memory', 'max')),
-        'memory_p95', quantile(0.95)(JSONExtractFloat(json_data, 'memory', 'max')),
-
-        'gpu_p50', quantile(0.5)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_p90', quantile(0.9)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_p95', quantile(0.95)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-
-        'gpu_mem_p50', quantile(0.5)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_p90', quantile(0.9)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_p95', quantile(0.95)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage'))))
-    ) AS metrics,
-    toUnixTimestamp(now()) AS version,
-    'daily' AS report_type
-FROM misc.oss_ci_time_series
+        'workflow_name', t.workflow_name,
+        'repo', t.repo
+    ) AS extra_info,
+    toUnixTimestamp(now()) AS version
+FROM misc.oss_ci_time_series t
 INNER JOIN (
     SELECT
         job_id,
@@ -39,39 +37,38 @@ INNER JOIN (
     WHERE type = 'utilization'
     GROUP BY job_id
 ) js USING (job_id)
-GROUP BY js.job_start_day, job_name, workflow_name, repo;
-
-
+WHERE t.type = 'utilization'
+GROUP BY js.job_start_day, t.job_name, t.  workflow_name, t.repo;
 
  -- Below is the SQL query to backfill the view with data to date '2025-05-07'(utc)
-INSERT INTO oss_ci_utilization_summary_report
+INSERT INTO oss_ci_utilization_summary_report_v1
 SELECT
     js.job_start_day AS time,
-    job_name,
-    workflow_name,
-    repo,
-    count(DISTINCT job_id) AS job_run_counts,
+    t.job_name AS group_key,
+    concat(t.repo, '|', t.workflow_name) AS parent_group,
+    countDistinctState(t.job_id) AS run_counts,
+    groupArrayState(DISTINCT toString(t.job_id)) AS ids,
+    'daily_job' AS report_type,
+
+    avgState(JSONExtractFloat(t.json_data, 'cpu', 'max')) AS cpu_avg_state,
+    avgState(JSONExtractFloat(t.json_data, 'memory', 'max')) AS memory_avg_state,
+    avgState(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))) AS gpu_avg_state,
+    avgState(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))) AS gpu_mem_state,
+
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(JSONExtractFloat(t.json_data, 'cpu', 'max')) AS cpu_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(JSONExtractFloat(t.json_data, 'memory', 'max')) AS memory_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(
+        arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))
+    ) AS gpu_p_state,
+    quantilesTDigestState(0.1, 0.5, 0.9, 0.95, 0.98)(
+        arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(t.json_data, 'gpu_usage')))
+    ) AS gpu_mem_p_state,
     map(
-        'cpu_avg', avg(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'memory_avg', avg(JSONExtractFloat(json_data, 'memory', 'max')),
-        'gpu_avg', avg(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_avg', avg(arrayAvg(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'cpu_p50', quantile(0.5)(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'cpu_p90', quantile(0.9)(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'cpu_p95', quantile(0.95)(JSONExtractFloat(json_data, 'cpu', 'max')),
-        'memory_p50', quantile(0.5)(JSONExtractFloat(json_data, 'memory', 'max')),
-        'memory_p90', quantile(0.9)(JSONExtractFloat(json_data, 'memory', 'max')),
-        'memory_p95', quantile(0.95)(JSONExtractFloat(json_data, 'memory', 'max')),
-        'gpu_p50', quantile(0.5)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_p90', quantile(0.9)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_p95', quantile(0.95)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_p50', quantile(0.5)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_p90', quantile(0.9)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage')))),
-        'gpu_mem_p95', quantile(0.95)(arrayMax(arrayMap(x -> JSONExtractFloat(x, 'mem_util_percent', 'max'), JSONExtractArrayRaw(json_data, 'gpu_usage'))))
-    ) AS metrics,
-    toUnixTimestamp(now()) AS version,
-    'daily' AS report_type
-FROM misc.oss_ci_time_series
+        'workflow_name', t.workflow_name,
+        'repo', t.repo
+    ) AS extra_info,
+    toUnixTimestamp(now()) AS version
+FROM misc.oss_ci_time_series AS t
 INNER JOIN (
     SELECT
         job_id,
@@ -80,5 +77,5 @@ INNER JOIN (
     WHERE type='utilization'
     GROUP BY job_id
 ) js USING (job_id)
-WHERE js.job_start_day=toDate('2025-05-07')
+WHERE js.job_start_day BETWEEN toDate('2025-05-05') AND toDate('2025-05-07')
 GROUP BY js.job_start_day, job_name, workflow_name, repo;

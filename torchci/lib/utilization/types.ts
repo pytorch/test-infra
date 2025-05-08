@@ -102,12 +102,12 @@ export interface ListUtilizationMetadataInfoAPIResponse {
   metadata_list: UtilizationMetadataInfo[];
 }
 
-export interface ListUtilizationSummaryAPIResponse {
+export interface ListUtilizationReportAPIResponse {
   group_key?: string;
   metadata_list: any[];
 }
 
-export interface ListUtilizationSummaryParams {
+export interface ListUtilizationReportParams {
   repo?: string;
   groupBy?: string;
   granularity?: string;
@@ -115,7 +115,7 @@ export interface ListUtilizationSummaryParams {
   endTime?: string;
 }
 
-export const EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE: ListUtilizationSummaryAPIResponse =
+export const EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE: ListUtilizationReportAPIResponse =
   {
     group_key: "",
     metadata_list: [],

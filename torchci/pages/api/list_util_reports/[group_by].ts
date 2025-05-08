@@ -11,7 +11,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { repo, group_by, start_time, end_time } = req.query;
+  const { repo, group_by, start_time, granularity, end_time } = req.query;
 
   // swr hook will call this api with empty query, return empty object
   if (!repo || !group_by || !start_time || !end_time) {
@@ -25,6 +25,7 @@ export default async function handler(
     groupBy: group_by as string,
     startTime: start_time as string,
     endTime: end_time as string,
+    granularity: granularity as string
   };
 
   try {
