@@ -1,5 +1,5 @@
 import { PullRequestReview } from "@octokit/webhooks-types";
-import _, { Dictionary } from "lodash";
+import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
@@ -619,7 +619,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async hasCiFlowPull(): Promise<boolean> {
     try {
       const workflowNames = await this.getWorkflowsLatest();
-      return workflowNames?.some((workflow: any) => workflow.workflow_name === "pull") ?? false;
+      return (
+        workflowNames?.some(
+          (workflow: any) => workflow.workflow_name === "pull"
+        ) ?? false
+      );
     } catch (error) {
       return false;
     }
