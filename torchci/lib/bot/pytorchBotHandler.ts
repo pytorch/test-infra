@@ -617,11 +617,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async hasCiFlowPull(): Promise<boolean> {
-    const workflow_names = await this.getWorkflowsLatest();
-    if (workflow_names.length > 0) {
-      if (workflow_names.includes("pull")) {
-        return true;
-      }
+    const workflowNames = await this.getWorkflowsLatest();
+    if (workflowNames.length > 0 && workflowNames.includes("pull")) {
+      return true;
     }
     return false;
   }
