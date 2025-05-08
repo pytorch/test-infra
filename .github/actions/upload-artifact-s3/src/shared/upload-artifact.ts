@@ -55,6 +55,7 @@ export async function uploadArtifact(
     )
     const uploadKey = `${s3Prefix}/${relativeName}`
     const uploadParams = {
+      ACL: options.s3Acl,
       Body: fs.createReadStream(fileName),
       Bucket: options.s3Bucket,
       ContentType: getFileType(uploadKey),
