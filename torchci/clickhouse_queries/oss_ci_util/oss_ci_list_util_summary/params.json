@@ -1,0 +1,10 @@
+{
+  "params": {
+    "groupBy": "String",
+    "repo": "String",
+    "startTime":"Datetime",
+    "endTime":"Datetime",
+    "granularity":"String"
+  },
+  "tests":[]
+}

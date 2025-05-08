@@ -101,3 +101,22 @@ export interface ListUtilizationMetadataInfoAPIResponse {
   workflow_name?: string;
   metadata_list: UtilizationMetadataInfo[];
 }
+
+export interface ListUtilizationSummaryAPIResponse {
+  group_key?: string;
+  metadata_list: any[];
+}
+
+export interface ListUtilizationSummaryParams {
+  repo?: string;
+  groupBy?: string;
+  granularity?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+export const EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE: ListUtilizationSummaryAPIResponse =
+  {
+    group_key: "",
+    metadata_list: [],
+  };
