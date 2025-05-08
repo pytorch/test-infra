@@ -161,39 +161,6 @@ def is_config_valid_internally(
             # so the next part of the code might break
             continue
 
-        # Unecessary validations, that could be a simple onliner, but Code scanning / lintrunner
-        # is mercerless and will complain about it
-        if "variants" not in runner_config:
-            print(f"Runner type {runner_type} does not have a variants section defined")
-            invalid_runners.add(runner_type)
-            continue
-        if not isinstance(runner_config["variants"], dict):
-            print(
-                f"Runner type {runner_type} has a variants section that is not a dictionary"
-            )
-            invalid_runners.add(runner_type)
-            continue
-
-        ephemeral_variant: Union[None, dict] = runner_config["variants"].get(
-            "ephemeral", None
-        )
-
-        if ephemeral_variant is None:
-            print(
-                f"Runner type {runner_type} does not have an ephemeral variant defined"
-            )
-            invalid_runners.add(runner_type)
-            continue
-        else:
-            if not ephemeral_variant.get(
-                "is_ephemeral", False
-            ) and not runner_config.get("is_ephemeral", False):
-                print(
-                    f"Runner type {runner_type} has an ephemeral variant that is not ephemeral"
-                )
-                invalid_runners.add(runner_type)
-                continue
-
         # Ensure that the max_available is at least MAX_AVAILABLE_MINIMUM
         # this is a requirement as scale-up always keeps at minimum some spare runners live, and less than MAX_AVAILABLE_MINIMUM
         # will very easily trigger alerts of not enough runners
