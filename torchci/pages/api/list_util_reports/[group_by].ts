@@ -25,7 +25,7 @@ export default async function handler(
     groupBy: group_by as string,
     startTime: start_time as string,
     endTime: end_time as string,
-    granularity: granularity as string
+    granularity: granularity as string,
   };
 
   try {
