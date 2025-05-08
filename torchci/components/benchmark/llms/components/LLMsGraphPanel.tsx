@@ -419,7 +419,9 @@ function formGraphItem(data: any[]) {
     const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
     const group_key =
-      deviceId && deviceId!=="" ? `${displayName} (${deviceId})` : displayName;
+      deviceId && deviceId !== ""
+        ? `${displayName} (${deviceId})`
+        : displayName;
     const seriesData = deepClone(item);
     seriesData.group_key = group_key;
     res.push(seriesData);
