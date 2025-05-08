@@ -13,6 +13,7 @@ export function getInputs(): UploadInputs {
 
   const ifNoFilesFound = core.getInput(Inputs.IfNoFilesFound)
   const noFileBehavior: NoFileOptions = NoFileOptions[ifNoFilesFound]
+  const s3Acl = core.getInput(Inputs.S3Acl)
   const s3Bucket = core.getInput(Inputs.S3Bucket)
   const s3Prefix = core.getInput(Inputs.S3Prefix)
   const region = core.getInput(Inputs.Region)
@@ -31,6 +32,7 @@ export function getInputs(): UploadInputs {
     artifactName: name,
     searchPath: path,
     ifNoFilesFound: noFileBehavior,
+    s3Acl: s3Acl,
     s3Bucket: s3Bucket,
     s3Prefix: s3Prefix,
     region: region,

@@ -22,6 +22,11 @@ export interface UploadInputs {
   retentionDays: number
 
   /**
+   * The S3 ACL to use when uploading the artifact
+   */
+  s3Acl: string
+
+  /**
    * S3 Bucket to uploads to
    */
   s3Bucket: string

@@ -26,6 +26,18 @@ inputs:
 
       Minimum 1 day.
       Maximum 90 days unless changed from the repository settings page.
+  s3-acl:
+    description: >
+      The S3 ACL to use for the artifact. This is the same as the --acl parameter in the AWS CLI.
+      Available options are:
+        private
+        public-read
+        public-read-write
+        authenticated-read
+        bucket-owner-read
+        bucket-owner-full-control
+        aws-exec-read
+    default: 'private'
   s3-bucket:
     description: >
       S3 Bucket to use to put your artifacts in, typically something like "gha-artifacts"
