@@ -2,7 +2,7 @@ import { getErrorMessage } from "lib/error_utils";
 import fetchListUtilizationSummary from "lib/utilization/fetchListUtilizationSummary";
 import {
   EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE,
-  ListUtilizationSummaryParams,
+  ListUtilizationReportParams,
 } from "lib/utilization/types";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -20,7 +20,7 @@ export default async function handler(
       .json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
   }
 
-  const params: ListUtilizationSummaryParams = {
+  const params: ListUtilizationReportParams = {
     repo: repo as string,
     groupBy: group_by as string,
     startTime: start_time as string,
