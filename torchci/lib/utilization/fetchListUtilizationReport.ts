@@ -5,7 +5,7 @@ import {
   ListUtilizationReportParams,
   UTILIZATION_DEFAULT_REPO,
 } from "./types";
-const LIST_UTIL_SUMMARY = "oss_ci_util/oss_ci_list_utilization_reports";
+const LIST_UTIL_REPORTS = "oss_ci_util/oss_ci_list_utilization_reports";
 
 export default async function fetchListUtilizationReport(
   params: ListUtilizationReportParams
@@ -39,7 +39,7 @@ async function ListUtilizationReport(
   startTime?: string,
   endTime?: string
 ) {
-  const response = await queryClickhouseSaved(LIST_UTIL_SUMMARY, {
+  const response = await queryClickhouseSaved(LIST_UTIL_REPORTS, {
     repo,
     groupBy,
     granularity,

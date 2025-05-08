@@ -1,12 +1,12 @@
 import { getErrorMessage } from "lib/error_utils";
-import fetchListUtilizationSummary from "lib/utilization/fetchListUtilizationSummary";
+import fetchListUtilizationSummary from "lib/utilization/fetchListUtilizationReport";
 import {
   EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE,
   ListUtilizationReportParams,
 } from "lib/utilization/types";
 import { NextApiRequest, NextApiResponse } from "next";
 
-// API list_utilization_metadata_info/[workflowId]
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
