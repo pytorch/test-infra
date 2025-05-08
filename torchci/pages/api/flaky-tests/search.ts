@@ -37,7 +37,7 @@ async function listTests(
 
   return {
     count: (await count)[0].count,
-    tests: await result,
+    tests: (await result) as any,
   };
 }
 

@@ -82,7 +82,6 @@ export async function queryClickhouseSaved(
   inputParams: Record<string, unknown>,
   useQueryCache?: boolean
 ) {
-
   const query = readFileSync(
     // https://stackoverflow.com/questions/74924100/vercel-error-enoent-no-such-file-or-directory
     `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
