@@ -2,7 +2,6 @@ import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import nock from "nock";
 import * as probot from "probot";
 import pytorchBot from "../lib/bot/pytorchBot";
-import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
 
@@ -15,9 +14,6 @@ describe("merge-bot", () => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
     utils.mockConfig("pytorch-probot.yml", "mergebot: True");
-    jest
-      .spyOn(clickhouse, "queryClickhouseSaved")
-      .mockImplementation(() => Promise.resolve(["pull"]));
   });
 
   afterEach(() => {
