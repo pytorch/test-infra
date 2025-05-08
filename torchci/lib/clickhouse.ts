@@ -33,7 +33,7 @@ export async function queryClickhouse(
   params: Record<string, unknown>,
   query_id?: string,
   useQueryCache?: boolean
-): Promise<any[]> {
+): Promise<{ [key: string]: any }[]> {
   if (query_id === undefined) {
     query_id = "adhoc";
   }
@@ -62,23 +62,27 @@ export async function queryClickhouse(
   return (await res.json()) as any[];
 }
 
+/**
+ * Returns the result of a query from the clickhouse database.
+ *
+ * The format is an array of json dictionaries/objects ex [{name: "foo", age: 42}, {name: "bar", age: 43}]
+ *
+ * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
+ * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
+ * @param useQueryCache: boolean, if true, cache the query result on Ch side (1 minute TTL)
+ *
+ * This function will filter the inputParams to only include the parameters
+ * that are in the query params json file.
+ *
+ * During local development, if this fails due to "cannot find module ...
+ * params.json", delete the .next folder and try again.
+ */
 export async function queryClickhouseSaved(
   queryName: string,
   inputParams: Record<string, unknown>,
   useQueryCache?: boolean
 ) {
-  /**
-   * queryClickhouseSaved
-   * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
-   * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
-   * @param useQueryCache: boolean, if true, cache the query result on Ch side (1 minute TTL)
-   *
-   * This function will filter the inputParams to only include the parameters
-   * that are in the query params json file.
-   *
-   * During local development, if this fails due to "cannot find module ...
-   * params.json", delete the .next folder and try again.
-   */
+
   const query = readFileSync(
     // https://stackoverflow.com/questions/74924100/vercel-error-enoent-no-such-file-or-directory
     `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
