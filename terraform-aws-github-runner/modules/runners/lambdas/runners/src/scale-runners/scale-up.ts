@@ -385,7 +385,7 @@ export function _calculateScaleUpAmount(
   }
 
   console.info(
-    `Will provision a total of ${scaleUpAmount} runners to handle the requested amount of ${requestedCount} runners.`
+    `Will provision a total of ${scaleUpAmount} runners to handle the requested amount of ${requestedCount} runners.`,
   );
 
   return scaleUpAmount;
