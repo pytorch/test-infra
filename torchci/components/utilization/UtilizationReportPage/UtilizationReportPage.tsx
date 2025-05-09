@@ -40,6 +40,7 @@ const WorkflowUtilization = () => {
       id: `${group_key}|${parent_group}|${time_group}`,
       counts: total_runs,
       name: group_key,
+      parent: parent_group,
       time: time_group,
       ...metrics,
     };
@@ -47,6 +48,7 @@ const WorkflowUtilization = () => {
 
   const columns: any[] = [
     { field: "name", headerName: "Job Name", width: 400 },
+    { field: "parent", headerName: "prefix", width: 120 },
     { field: "counts", headerName: "Detected # of runs", width: 120 },
     { field: "time", headerName: "time", width: 120 },
     ...metricsKeys.map((key) => ({
