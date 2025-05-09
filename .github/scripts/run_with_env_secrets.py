@@ -81,6 +81,7 @@ def main():
             --tty \
             --ulimit stack=10485760:83886080 \
             --ulimit core=0 \
+            --detach \
             --rm \
             --network=host \
             -v ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw \
