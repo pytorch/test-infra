@@ -8,8 +8,9 @@ import {
   UtilizationMetadataInfo,
 } from "./types";
 const LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME =
-  "oss_ci_list_util_metadata_info";
-const LIST_UTIL_METADATA_WITH_STATS_QUERY = "oss_ci_list_util_stats";
+  "oss_ci_util/oss_ci_list_util_metadata_info";
+const LIST_UTIL_METADATA_WITH_STATS_QUERY =
+  "oss_ci_util/oss_ci_list_util_stats";
 
 export default async function fetchListUtilizationMetadataInfo(
   params: ListUtilizationMetadataInfoParams
