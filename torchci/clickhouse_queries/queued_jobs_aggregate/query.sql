@@ -14,7 +14,7 @@ WITH possible_queued_jobs AS (
         status = 'queued'
         AND created_at < (
         -- Only consider jobs that have been queued for a significant period of time
-            CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE
+            CURRENT_TIMESTAMP() - INTERVAL 30 MINUTE
         )
         AND created_at > (
         -- Queued jobs are automatically cancelled after this long. Any allegedly pending
