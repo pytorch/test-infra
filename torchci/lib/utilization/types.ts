@@ -109,10 +109,10 @@ export interface ListUtilizationReportAPIResponse {
 
 export interface ListUtilizationReportParams {
   repo?: string;
-  groupBy?: string;
+  group_by?: string;
   granularity?: string;
-  startTime?: string;
-  endTime?: string;
+  start_time?: string;
+  end_time?: string;
 }
 
 export const EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE: ListUtilizationReportAPIResponse =
