@@ -64,23 +64,33 @@ def main():
             run_cmd_or_die(
                 f"""
         docker run \
+            { os.environ.get('GPU_FLAG', '') } \
+            -e ACCEPT_EULA=Y \
+            -e PRIVACY_CONSENT=Y \
             -e PR_NUMBER \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
-            --env-file="{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }" \
-            `# It is unknown why the container sees a different value for this.` \
             -e GITHUB_STEP_SUMMARY \
             { ' '.join([ f'-e {v}' for v in secrets_u_names ]) } \
+            --env-file="{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }" \
             --cap-add=SYS_PTRACE \
-            --detach \
             --ipc=host \
             --security-opt seccomp=unconfined \
             --shm-size=2g \
             --tty \
             --ulimit stack=10485760:83886080 \
             --ulimit core=0 \
-            { os.environ.get('GPU_FLAG', '') } \
+            --rm \
+            --network=host \
+            -v ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw \
+            -v ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw \
+            -v ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw \
+            -v ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw \
+            -v ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw \
+            -v ~/docker/isaac-sim/logs:/root/.nvidia-omniverse/logs:rw \
+            -v ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw \
+            -v ~/docker/isaac-sim/documents:/root/Documents:rw \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/{ os.environ.get('REPOSITORY', '') }:/{ os.environ.get('REPOSITORY', 'work') }" \
             -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/test-infra:/test-infra" \
             -v "{ os.environ.get('RUNNER_ARTIFACT_DIR', '') }:/artifacts" \
