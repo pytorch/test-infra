@@ -120,8 +120,8 @@ jobs:
         if: inputs.architecture == 'arm64'
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          architecture: arm64
-          path: "${{env.DEPENDENCIES_DIR}}\\git"  
+          architecture: aarch64
+          path: "${{env.DEPENDENCIES_DIR}}\\git"
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: env.CHANNEL == 'test'
