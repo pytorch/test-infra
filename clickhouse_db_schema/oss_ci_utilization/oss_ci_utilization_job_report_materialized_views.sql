@@ -1,6 +1,5 @@
-DROP TABLE IF EXISTS oss_ci_utilization_job_report_mv
-
 CREATE MATERIALIZED VIEW oss_ci_utilization_job_report_mv
+
 TO oss_ci_utilization_summary_report_v1 AS
 SELECT
     js.job_start_day AS time,

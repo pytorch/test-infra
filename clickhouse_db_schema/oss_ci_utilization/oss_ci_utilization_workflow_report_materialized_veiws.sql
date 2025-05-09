@@ -1,6 +1,4 @@
-DROP TABLE oss_ci_utilization_workflow_report_mv
-
-CREATE MATERIALIZED VIEW misc.oss_ci_utilization_workflow_report_mv
+CREATE MATERIALIZED VIEW oss_ci_utilization_workflow_report_mv
 TO oss_ci_utilization_summary_report_v1
 AS
 SELECT

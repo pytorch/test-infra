@@ -10,25 +10,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { repo, group_by, start_time, granularity, end_time } = req.query;
+  const { repo, group_by, granularity, start_time, end_time } = req.query;
 
-  // swr hook will call this api with empty query, return empty object
-  if (!repo || !group_by || !start_time || !end_time) {
-    return res
-      .status(200)
-      .json(EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE);
-  }
-
-  const params: ListUtilizationReportParams = {
+  const p: ListUtilizationReportParams = {
     repo: repo as string,
-    groupBy: group_by as string,
-    startTime: start_time as string,
-    endTime: end_time as string,
+    group_by: group_by as string,
+    start_time: start_time as string,
+    end_time: end_time as string,
     granularity: granularity as string,
   };
 
   try {
-    const resp = await fetchListUtilizationSummary(params);
+    const resp = await fetchListUtilizationSummary(p);
     if (!resp) {
       return res
         .status(200)

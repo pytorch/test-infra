@@ -1,9 +1,9 @@
 {
   "params": {
-    "groupBy": "String",
+    "group_by": "String",
     "repo": "String",
-    "startTime":"Datetime",
-    "endTime":"Datetime",
+    "start_time":"Datetime",
+    "end_time":"Datetime",
     "granularity":"String"
   },
   "tests":[]
