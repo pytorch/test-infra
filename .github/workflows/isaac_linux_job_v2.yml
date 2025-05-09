@@ -243,7 +243,9 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-          python3 "vmoens/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+          echo "${{ github.workspace }}"
+          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+          # python3 "vmoens/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
