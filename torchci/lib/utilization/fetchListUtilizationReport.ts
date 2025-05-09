@@ -13,7 +13,13 @@ export default async function fetchListUtilizationReport(
     return EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE;
   }
 
+<<<<<<< HEAD
   const resp = await ListUtilizationReport(params);
+=======
+  const resp = await ListUtilizationReport(
+    params
+  );
+>>>>>>> 7950c7df4 (add model test1)
 
   if (!resp || resp.length == 0) {
     return EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE;
@@ -25,7 +31,13 @@ export default async function fetchListUtilizationReport(
   };
 }
 
+<<<<<<< HEAD
 async function ListUtilizationReport(params: any) {
+=======
+async function ListUtilizationReport(
+  params: any
+) {
+>>>>>>> 7950c7df4 (add model test1)
   const response = await queryClickhouseSaved(LIST_UTIL_REPORTS, params);
   return response;
 }
