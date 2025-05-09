@@ -82,7 +82,6 @@ def main():
             --ulimit stack=10485760:83886080 \
             --ulimit core=0 \
             --detach \
-            --rm \
             --network=host \
             -v ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw \
             -v ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw \
@@ -100,14 +99,13 @@ def main():
             -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
             -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
             -w /{ os.environ.get('REPOSITORY', 'work') } \
-            "{ os.environ.get('DOCKER_IMAGE', '') }"
+            "{ os.environ.get('DOCKER_IMAGE', '') }" tail -f /dev/null
         """  # noqa: E501
             )
             .replace("\n", "")
             .strip()
         )
         run_cmd_or_die(f"docker exec -t {container_name} /exec")
-
 
 if __name__ == "__main__":
     main()
