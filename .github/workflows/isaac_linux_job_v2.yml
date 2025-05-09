@@ -243,7 +243,7 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-          python3 "$vmoens/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+          python3 "vmoens/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
@@ -281,7 +281,7 @@ jobs:
         if: ${{ inputs.gpu-arch-type != 'rocm' }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
-          directory: $vmoens/${{ env.repository }}
+          directory: vmoens/${{ env.repository }}
           ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
