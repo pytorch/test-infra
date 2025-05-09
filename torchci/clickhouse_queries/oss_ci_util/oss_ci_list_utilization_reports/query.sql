@@ -23,34 +23,34 @@ SELECT
         'gpu_mem_avg', avgMerge(gpu_mem_state),
 
         'cpu_p50',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(cpu_p_state)[2],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (cpu_p_state)[2],
         'cpu_p90',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(cpu_p_state)[3],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (cpu_p_state)[3],
         'cpu_p95',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(cpu_p_state)[4],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (cpu_p_state)[4],
 
         'memory_p50',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(memory_p_state)[2],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (memory_p_state)[2],
         'memory_p90',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(memory_p_state)[3],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (memory_p_state)[3],
         'memory_p95',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(memory_p_state)[4],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (memory_p_state)[4],
 
         'gpu_p50',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_p_state)[2],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_p_state)[2],
         'gpu_p90',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_p_state)[3],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_p_state)[3],
         'gpu_p95',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_p_state)[4],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_p_state)[4],
 
         'gpu_mem_p50',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_mem_p_state)[2],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[2],
         'gpu_mem_p90',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_mem_p_state)[3],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[3],
         'gpu_mem_p95',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_mem_p_state)[4],
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[4],
         'gpu_mem_p98',
-        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98)(gpu_mem_p_state)[5]
+        quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[5]
     ) AS metrics
 
 FROM fortesting.oss_ci_utilization_summary_report_v1
