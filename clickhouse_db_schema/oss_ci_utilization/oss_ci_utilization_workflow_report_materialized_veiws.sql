@@ -77,5 +77,6 @@ INNER JOIN (
     WHERE type='utilization'
     GROUP BY job_id
 ) js USING (job_id)
-WHERE js.job_start_day BETWEEN toDate('2025-05-05') AND toDate('2025-05-07')
+WHERE js.job_start_day
+-- BETWEEN toDate('2025-05-05') AND toDate('2025-05-07')
 GROUP BY js.job_start_day, workflow_name, repo;
