@@ -9,7 +9,7 @@ import useSWR from "swr";
 
 dayjs.extend(utc);
 
-const WorkflowUtilization = () => {
+const UtilizationReport = () => {
   const router = useRouter();
   const {
     group_by,
@@ -47,7 +47,7 @@ const WorkflowUtilization = () => {
   });
 
   const columns: any[] = [
-    { field: "name", headerName: "Job Name", width: 400 },
+    { field: "name", headerName: "Name", width: 400 },
     { field: "parent", headerName: "prefix", width: 120 },
     { field: "counts", headerName: "Detected # of runs", width: 120 },
     { field: "time", headerName: "time", width: 120 },
@@ -85,8 +85,7 @@ const WorkflowUtilization = () => {
 
   return (
     <div>
-      <div>Utilization Reports: </div>
-      <h2> Utilization Summary Table</h2>
+      <h2> Utilization Report Table: {params.group_by}</h2>
       <span>Utilization metrics above 60% is highlighted</span>
       <div style={{ height: "1000px", width: "100%" }}>
         <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
@@ -94,7 +93,7 @@ const WorkflowUtilization = () => {
     </div>
   );
 };
-export default WorkflowUtilization;
+export default UtilizationReport;
 
 function useUtilReports(params: any): {
   list: any[];
@@ -112,8 +111,6 @@ function useUtilReports(params: any): {
     params.group_by
   }?${queryParams.toString()}`;
 
-  console.log(JSON.stringify(params));
-  console.log(url);
 
   const { data, error } = useSWR<ListUtilizationReportAPIResponse>(
     url,
