@@ -15,7 +15,6 @@ export default async function fetchListUtilizationReport(
 
   const resp = await ListUtilizationReport(params);
 
-
   if (!resp || resp.length == 0) {
     return EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE;
   }
@@ -25,7 +24,6 @@ export default async function fetchListUtilizationReport(
     metadata_list: resp ? resp : [],
   };
 }
-
 
 async function ListUtilizationReport(params: any) {
   const response = await queryClickhouseSaved(LIST_UTIL_REPORTS, params);

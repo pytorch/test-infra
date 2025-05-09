@@ -10,9 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-
-  const { repo, group_by, granularity , start_time , end_time  } = req.query;
-
+  const { repo, group_by, granularity, start_time, end_time } = req.query;
 
   const p: ListUtilizationReportParams = {
     repo: repo as string,

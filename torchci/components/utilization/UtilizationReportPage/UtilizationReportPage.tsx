@@ -111,7 +111,6 @@ function useUtilReports(params: any): {
     params.group_by
   }?${queryParams.toString()}`;
 
-
   const { data, error } = useSWR<ListUtilizationReportAPIResponse>(
     url,
     fetcher
