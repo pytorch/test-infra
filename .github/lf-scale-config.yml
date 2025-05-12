@@ -343,3 +343,27 @@ runner_types:
     os: linux
     variants:
       ephemeral: {}
+  lf.linux.8xlarge.amd:
+    disk_size: 200
+    instance_type: m7a.8xlarge
+    is_ephemeral: false
+    os: linux
+    variants:
+      ephemeral:
+        is_ephemeral: true
+  lf.linux.12xlarge.amd:
+    disk_size: 200
+    instance_type: m6a.12xlarge
+    is_ephemeral: false
+    os: linux
+    variants:
+      ephemeral:
+        is_ephemeral: true
+  lf.linux.24xl.amd:
+    disk_size: 200
+    instance_type: m7a.24xlarge
+    is_ephemeral: false
+    os: linux
+    variants:
+      ephemeral:
+        is_ephemeral: true
