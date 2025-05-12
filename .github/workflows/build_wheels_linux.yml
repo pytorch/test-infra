@@ -300,13 +300,13 @@ jobs:
               # Special case for torchrec temporarily since __version__ does not
               # work correctly on main in torchrec. This block will be
               # removed once we fix it.
-              uv python -c "import ${PACKAGE_NAME}"
+              python -c "import ${PACKAGE_NAME}"
             else
-              uv python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+              python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
             fi
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            uv python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+            python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
 
