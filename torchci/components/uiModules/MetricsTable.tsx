@@ -12,36 +12,37 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
       renderCell: (params: any) => {
         const value = params.value;
         const row = params.row;
-        if (conf.value_type === 'link' && conf.link_url){
-            const url = row.__links?.[field];
-            return (
-                <Link href={url} style={{ textDecoration: 'underline', color: '#007bff' }}>
-                  {value}
-                </Link>
-              );
+        if (conf.value_type === "link" && conf.link_url) {
+          const url = row.__links?.[field];
+          return (
+            <Link
+              href={url}
+              style={{ textDecoration: "underline", color: "#007bff" }}
+            >
+              {value}
+            </Link>
+          );
         }
         return <div>{params.formattedValue}</div>;
       },
     }));
-
 }
 
 function extractMetricKeys(dataList: any[]): string[] {
-    const metricKeys = new Set<string>();
-    dataList.map((d) => {
-        if (d.metrics && typeof d.metrics === "object") {
-        Object.keys(d.metrics).forEach((k) => metricKeys.add(k));
-        }
-    });
-    return Array.from(metricKeys);
+  const metricKeys = new Set<string>();
+  dataList.map((d) => {
+    if (d.metrics && typeof d.metrics === "object") {
+      Object.keys(d.metrics).forEach((k) => metricKeys.add(k));
+    }
+  });
+  return Array.from(metricKeys);
 }
 
 // Assume data.list is your raw data
 const resolveExpression = (expr: string, row: any): string =>
   expr.replace(/\${(.*?)}/g, (_, key) => row[key] ?? "");
 
-
-function getRows(data: any[], userMapping:{[key:string ]:any}){
+function getRows(data: any[], userMapping: { [key: string]: any }) {
   const rows = deepClone(data).map((item: any, index: number) => {
     const row: any = { id: index }; // fallback id
 
@@ -52,9 +53,9 @@ function getRows(data: any[], userMapping:{[key:string ]:any}){
         row[key] = item[conf.field];
       }
 
-      if (conf.value_type === 'link' && conf.link_url) {
+      if (conf.value_type === "link" && conf.link_url) {
         row.__links = row.__links || {};
-        row.__links[key] = safeLinkRoute(conf.link_url, item)
+        row.__links[key] = safeLinkRoute(conf.link_url, item);
       }
     }
 
@@ -104,23 +105,23 @@ function generateMetricColumns(metricKeys: string[]) {
 }
 
 function safeLinkRoute(template: string, row: any) {
-    const replaced = template.replace(/\$\{(\w+)\}/g, (_, key) => row[key] ?? '');
-    const url = new URL(replaced, 'http://dummy'); // dummy base for relative URL
-    const searchParams = new URLSearchParams();
+  const replaced = template.replace(/\$\{(\w+)\}/g, (_, key) => row[key] ?? "");
+  const url = new URL(replaced, "http://dummy"); // dummy base for relative URL
+  const searchParams = new URLSearchParams();
 
-    for (const [key, value] of url.searchParams.entries()) {
-      searchParams.set(key, value); // let URLSearchParams handle encoding
-    }
-    return `${url.pathname}?${searchParams.toString()}`;
+  for (const [key, value] of url.searchParams.entries()) {
+    searchParams.set(key, value); // let URLSearchParams handle encoding
   }
+  return `${url.pathname}?${searchParams.toString()}`;
+}
 
 export enum ValueType {
-    String = 'string',
-    Number = 'number',
-    Boolean = 'boolean',
-    List = 'list',
-    Link = 'link',
-  }
+  String = "string",
+  Number = "number",
+  Boolean = "boolean",
+  List = "list",
+  Link = "link",
+}
 
 export interface MetricsTableUserMappingEntry {
   /**
@@ -154,28 +155,25 @@ export interface MetricsTableUserMappingEntry {
   link_url?: string;
 }
 
-
 type Props = {
-    userMapping: { [key: string]: MetricsTableUserMappingEntry };
-    data: any[];
-  };
+  userMapping: { [key: string]: MetricsTableUserMappingEntry };
+  data: any[];
+};
 
- export default function MetricsTable({ userMapping, data }: Props){
+export default function MetricsTable({ userMapping, data }: Props) {
+  const staticColumns = generateStaticColumns(userMapping);
+  const metricKeys = extractMetricKeys(data);
+  const metricColumns = generateMetricColumns(metricKeys);
+  const columns = [...staticColumns, ...metricColumns];
+  const rows = getRows(data, userMapping);
 
-    const staticColumns = generateStaticColumns(userMapping);
-    const metricKeys = extractMetricKeys(data);
-    const metricColumns = generateMetricColumns(metricKeys);
-    const columns = [...staticColumns, ...metricColumns];
-    const rows = getRows(data,userMapping)
-
-    return (
-        <div style={{ height: "1000px", width: "100%" }}>
-            <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
-        </div>
-    )
+  return (
+    <div style={{ height: "1000px", width: "100%" }}>
+      <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
+    </div>
+  );
 }
 
-
 function isValidValueType(val: string): val is ValueType {
-    return Object.values(ValueType).includes(val as ValueType);
-  }
+  return Object.values(ValueType).includes(val as ValueType);
+}

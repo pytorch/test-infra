@@ -1,5 +1,7 @@
 import LoadingPage from "components/LoadingPage";
-import MetricsTable, { MetricsTableUserMappingEntry } from "components/uiModules/MetricsTable";
+import MetricsTable, {
+  MetricsTableUserMappingEntry,
+} from "components/uiModules/MetricsTable";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";
@@ -9,40 +11,38 @@ import useSWR from "swr";
 
 dayjs.extend(utc);
 
-
-const userMapping: {[key:string ]:MetricsTableUserMappingEntry} = {
-  "key": {
+const userMapping: { [key: string]: MetricsTableUserMappingEntry } = {
+  key: {
     custom_field_expression: "${group_key}|${parent_group}|${time_group}",
     value_type: "string",
-    visible: false
+    visible: false,
   },
-  "name":{
-    field:"group_key",
-    headerName:"name",
+  name: {
+    field: "group_key",
+    headerName: "name",
     value_type: "string",
   },
-  "counts": {
-    field:"total_runs",
-    headerName:"detected # of runs",
+  counts: {
+    field: "total_runs",
+    headerName: "detected # of runs",
     value_type: "number",
   },
-  "parent":{
-    field:"parent_group",
-    headerName:"parent",
+  parent: {
+    field: "parent_group",
+    headerName: "parent",
     value_type: "string",
   },
-  "time":{
-    field:"time_group",
+  time: {
+    field: "time_group",
     value_type: "string",
-    headerName:"date",
+    headerName: "date",
   },
-  "metrics":{
-    field:"metrics",
-    visible:false,
-    value_type:"list",
-  }
+  metrics: {
+    field: "metrics",
+    visible: false,
+    value_type: "list",
+  },
 };
-
 
 const UtilizationReport = () => {
   const router = useRouter();
@@ -59,38 +59,40 @@ const UtilizationReport = () => {
     granularity: granularity,
     start_time: start_time,
     end_time: end_time,
-    parent_group:parent_group,
+    parent_group: parent_group,
   };
 
-  console.log("params",params)
+  console.log("params", params);
 
   const data = useUtilReports(params);
 
-  let tableConfig = userMapping
+  let tableConfig = userMapping;
 
-  if (group_by == 'workflow_name'){
-    const url = `/utilization/report?group_by=job_name&${objectToQueryString(params, ["group_by"])}&parent_group=\$\{parent_group\}|\$\{group_key\}`
-    tableConfig= {
-        ...userMapping,
-      "link":{
-          custom_field_expression:"job report link",
-          headerName:"job report",
-          value_type: "link",
-          link_url: url,
-        },
-      }
+  if (group_by == "workflow_name") {
+    const url = `/utilization/report?group_by=job_name&${objectToQueryString(
+      params,
+      ["group_by"]
+    )}&parent_group=\$\{parent_group\}|\$\{group_key\}`;
+    tableConfig = {
+      ...userMapping,
+      link: {
+        custom_field_expression: "job report link",
+        headerName: "job report",
+        value_type: "link",
+        link_url: url,
+      },
+    };
   }
   if (!data) {
     return <LoadingPage />;
   }
-
 
   return (
     <div>
       <h2> Utilization Report Table: {params.group_by}</h2>
 
       <span>Utilization metrics above 60% is highlighted</span>
-      <MetricsTable userMapping={tableConfig} data={data.list}/>
+      <MetricsTable userMapping={tableConfig} data={data.list} />
     </div>
   );
 };
@@ -100,15 +102,14 @@ function useUtilReports(params: any): {
   list: any[];
   metaError: any;
 } {
-
-  const nowDateString =  dayjs.utc().format('YYYY-MM-DD')
+  const nowDateString = dayjs.utc().format("YYYY-MM-DD");
   const queryParams = new URLSearchParams({
     repo: params.repo,
     group_by: params.group_by,
     granularity: params.granularity || "day",
-    start_time: params.start_time ||  nowDateString,
+    start_time: params.start_time || nowDateString,
     end_time: params.end_time || nowDateString,
-    parent_group: params.parent_group || ''
+    parent_group: params.parent_group || "",
   });
 
   const url = `/api/list_util_reports/${
@@ -138,11 +139,15 @@ function useUtilReports(params: any): {
   return { list: data.metadata_list, metaError: null };
 }
 
-
-function objectToQueryString(obj: Record<string, any>, excludeKeys: string[] = []): string {
+function objectToQueryString(
+  obj: Record<string, any>,
+  excludeKeys: string[] = []
+): string {
   const excludeSet = new Set(excludeKeys);
   return new URLSearchParams(
-    Object.entries(obj)
-      .filter(([key, value]) => !excludeSet.has(key) && value !== undefined && value !== null)
+    Object.entries(obj).filter(
+      ([key, value]) =>
+        !excludeSet.has(key) && value !== undefined && value !== null
+    )
   ).toString();
 }
