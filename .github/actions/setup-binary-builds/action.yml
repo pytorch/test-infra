@@ -114,5 +114,5 @@ runs:
 
           uv venv py${PYTHON_VERSION} --python ${PYTHON_VERSION}
           source ./py${PYTHON_VERSION}/bin/activate
-          uv pip install cmake==3.31.2  ninja wheel==0.37
+          uv pip install cmake==3.31.2  ninja wheel==0.37 setuptools
           echo "VIRTUAL_ENV=${VIRTUAL_ENV}" >> "${GITHUB_ENV}"
