@@ -244,6 +244,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ./py${PYTHON_VERSION}/bin/activate
           export PYTORCH_VERSION="$(uv pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
           uv python setup.py clean
           echo "Successfully ran `python setup.py clean`"
@@ -256,6 +257,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ./py${PYTHON_VERSION}/bin/activate
           for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
             # if the glob didn't match anything
             if [[ ! -e $pkg ]]; then
@@ -278,6 +280,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ./py${PYTHON_VERSION}/bin/activate
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
