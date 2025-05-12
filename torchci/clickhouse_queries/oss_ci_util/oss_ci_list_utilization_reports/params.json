@@ -4,7 +4,8 @@
     "repo": "String",
     "start_time":"Datetime",
     "end_time":"Datetime",
-    "granularity":"String"
+    "granularity":"String",
+    "parent_group":"String"
   },
   "tests":[]
 }
