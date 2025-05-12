@@ -215,7 +215,7 @@ jobs:
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
-          source ./py${PYTHON_VERSION}/bin/activate
+          source ${VIRTUAL_ENV}/bin/activate
           # shellcheck disable=SC2086
           uv ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
@@ -233,8 +233,9 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ${VIRTUAL_ENV}/bin/activate
           export PYTORCH_VERSION="$(uv pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          uv python -m pip install build==1.2.2
+          uv pip install build==1.2.2
           echo "Successfully installed Python build package"
           ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Build the wheel (setup-py)
@@ -244,11 +245,11 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          source ./py${PYTHON_VERSION}/bin/activate
+          source ${VIRTUAL_ENV}/bin/activate
           export PYTORCH_VERSION="$(uv pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          uv python setup.py clean
+          python setup.py clean
           echo "Successfully ran `python setup.py clean`"
-          uv python setup.py bdist_wheel
+          python setup.py bdist_wheel
       - name: Repair Manylinux_2_28 Wheel
         shell: bash -l {0}
         env:
@@ -257,7 +258,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          source ./py${PYTHON_VERSION}/bin/activate
+          source ${VIRTUAL_ENV}/bin/activate
           for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
             # if the glob didn't match anything
             if [[ ! -e $pkg ]]; then
@@ -280,7 +281,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          source ./py${PYTHON_VERSION}/bin/activate
+          source ${VIRTUAL_ENV}/bin/activate
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
