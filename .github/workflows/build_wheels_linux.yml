@@ -215,6 +215,7 @@ jobs:
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
+          source ./py${PYTHON_VERSION}/bin/activate
           # shellcheck disable=SC2086
           uv ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
