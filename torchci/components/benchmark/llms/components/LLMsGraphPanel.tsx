@@ -416,10 +416,12 @@ const MetricTable = ({
 function formGraphItem(data: any[]) {
   const res: any[] = [];
   data.forEach((item) => {
-    const deviceId = item.metadata_info.device_id;
+    const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
     const group_key =
-      deviceId !== "" ? `${displayName} (${deviceId})` : displayName;
+      deviceId && deviceId !== ""
+        ? `${displayName} (${deviceId})`
+        : displayName;
     const seriesData = deepClone(item);
     seriesData.group_key = group_key;
     res.push(seriesData);

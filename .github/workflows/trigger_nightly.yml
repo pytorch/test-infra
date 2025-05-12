@@ -30,7 +30,7 @@ jobs:
     environment: trigger-nightly
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Trigger nightly audio build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly

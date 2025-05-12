@@ -140,8 +140,10 @@ runs:
               if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
                 conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
               fi
+              conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
+            else
+              conda install -y conda=24.7.1
             fi
-            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           conda create \

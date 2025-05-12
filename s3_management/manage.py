@@ -114,6 +114,14 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "tcmlib",
     "umf",
     "intel_pti",
+    "oneccl_devel",
+    "oneccl",
+    "impi_rt",
+    "onemkl_sycl_blas",
+    "onemkl_sycl_dft",
+    "onemkl_sycl_lapack",
+    "onemkl_sycl_sparse",
+    "onemkl_sycl_rng"
     # ----
     "Pillow",
     "certifi",

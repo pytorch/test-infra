@@ -17,11 +17,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_backfill-workflow-job
           aws-region: us-east-1
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - run: yarn install --frozen-lockfile
       - run: yarn node scripts/backfillJobs.mjs
         env:
