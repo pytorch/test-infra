@@ -1,5 +1,6 @@
 import { DataGrid } from "@mui/x-data-grid";
 import LoadingPage from "components/LoadingPage";
+import MetricsTable from "components/uiModules/MetricsTable";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";
@@ -8,6 +9,42 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 
 dayjs.extend(utc);
+
+
+const userMapping: {[key:string ]:any} = {
+  "key": {
+    custom_field_expression: "${group_key}|${parent_group}|${time_group}",
+    value_type: "string",
+    visible: false,
+  },
+  "name":{
+    field:"group_key",
+    headerName:"name",
+    value_type: "string",
+  },
+  "counts": {
+    field:"total_runs",
+    headerName:"detected # of runs",
+    value_type: "number",
+  },
+  "parent":{
+    field:"parent_group",
+    headerName:"prefix",
+    value_type: "string",
+  },
+  "time":{
+    field:"time_group",
+    value_type: "string",
+    headerName:"date",
+  },
+  "metrics":{
+    field:"metrics",
+    visible:false,
+    value_type:"list",
+  }
+};
+
+
 
 const UtilizationReport = () => {
   const router = useRouter();
@@ -30,66 +67,13 @@ const UtilizationReport = () => {
     return <LoadingPage />;
   }
 
-  const metricsKeys = Array.from(
-    new Set(data.list.flatMap((job) => Object.keys(job?.metrics || {})))
-  );
-
-  const rows = data.list.map((item) => {
-    const { group_key, parent_group, time_group, total_runs, metrics } = item;
-    return {
-      id: `${group_key}|${parent_group}|${time_group}`,
-      counts: total_runs,
-      name: group_key,
-      parent: parent_group,
-      time: time_group,
-      ...metrics,
-    };
-  });
-
-  const columns: any[] = [
-    { field: "name", headerName: "Name", width: 400 },
-    { field: "parent", headerName: "prefix", width: 120 },
-    { field: "counts", headerName: "Detected # of runs", width: 120 },
-    { field: "time", headerName: "time", width: 120 },
-    ...metricsKeys.map((key) => ({
-      field: key,
-      headerName: key,
-      width: 120,
-      renderCell: (params: any) => {
-        let bgColor = "";
-        if (typeof params.value === "number") {
-          bgColor = params.value > 60 ? "#ffdddd" : "";
-          return (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                backgroundColor: bgColor,
-                display: "flex",
-                alignItems: "center",
-                paddingLeft: 8,
-              }}
-            >
-              {Number(params.value).toFixed(2)}%
-            </div>
-          );
-        }
-
-        if (typeof params.value === "boolean") {
-          return <div>{params.value ? "Yes" : "No"}</div>;
-        }
-        return <div>{params.formattedValue}</div>;
-      },
-    })),
-  ];
+  console.log("data",data)
 
   return (
     <div>
       <h2> Utilization Report Table: {params.group_by}</h2>
       <span>Utilization metrics above 60% is highlighted</span>
-      <div style={{ height: "1000px", width: "100%" }}>
-        <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
-      </div>
+      <MetricsTable userMapping={userMapping} data={data.list}/>
     </div>
   );
 };
