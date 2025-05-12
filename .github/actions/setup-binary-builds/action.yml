@@ -141,7 +141,7 @@ runs:
                 conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
               fi
             fi
-            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
+            conda install -y conda=24.7.1
           fi
 
           conda create \
