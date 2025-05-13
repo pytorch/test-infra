@@ -62,6 +62,7 @@ export default function MetricsTable({ userMapping, data }: Props) {
         rows={rows}
         columns={columns}
         pageSizeOptions={[100]}
+        density="compact"
         pagination
       />
     </div>
