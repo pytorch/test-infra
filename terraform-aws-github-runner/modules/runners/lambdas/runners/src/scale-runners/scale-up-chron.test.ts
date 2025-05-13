@@ -79,7 +79,7 @@ const runnerTypeInvalid = 'runner_type_invalid';
 
 const baseCfg = {
   scaleConfigOrg: 'test_org1',
-  scaleUpMinQueueTimeMinutes: 30,
+  scaleUpMaxQueueTimeMinutes: 30,
   scaleUpChronRecordQueueUrl: 'url',
 } as unknown as Config;
 

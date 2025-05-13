@@ -366,10 +366,12 @@ export function _calculateScaleUpAmount(
     // Never proactively scale up above the minimum limit
     extraScaleUp = Math.min(extraScaleUp, minRunnersUnderprovisionCount);
 
-    console.info(
-      `Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
-        `Will provision ${extraScaleUp} extra runners`,
-    );
+    if (extraScaleUp > 0) {
+      console.info(
+        `Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
+          `Will provision ${extraScaleUp} additional runners above the requested amount to serve as a buffer.`,
+      );
+    }
   }
 
   let scaleUpAmount = extraNeededToAcceptRequests + extraScaleUp;
@@ -381,6 +383,10 @@ export function _calculateScaleUpAmount(
 
     scaleUpAmount = maxScaleUp;
   }
+
+  console.info(
+    `Will provision a total of ${scaleUpAmount} runners to handle the requested amount of ${requestedCount} runners.`,
+  );
 
   return scaleUpAmount;
 }
