@@ -232,3 +232,18 @@ runner_types:
     instance_type: r5.12xlarge
     is_ephemeral: true
     os: linux
+  c.linux.8xlarge.amd:
+    disk_size: 200
+    instance_type: m7a.8xlarge
+    is_ephemeral: true
+    os: linux
+  c.linux.12xlarge.amd:
+    disk_size: 200
+    instance_type: m6a.12xlarge
+    is_ephemeral: true
+    os: linux
+  c.linux.24xlarge.amd:
+    disk_size: 200
+    instance_type: m7a.24xlarge
+    is_ephemeral: true
+    os: linux
