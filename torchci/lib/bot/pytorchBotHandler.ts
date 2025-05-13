@@ -626,7 +626,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       );
     } catch (error: any) {
       // Return true if we cannot read workflow data so that we don't unneccisarily tag the PR
-      await this.logger.log("workflow-pull-error",  error);
+      await this.logger.log("workflow-pull-error", error);
       return true;
     }
   }
