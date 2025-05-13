@@ -625,7 +625,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         ) ?? false
       );
     } catch (error) {
-      return false;
+      return true;
     }
   }
 
