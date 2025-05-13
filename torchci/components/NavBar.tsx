@@ -123,7 +123,7 @@ function NavBar() {
     },
     {
       name: "Utilization Workflow Report",
-      href: "/localhost:3000/utilization/report?group_by=workflow_name",
+      href: "/utilization/report?group_by=workflow_name",
     },
   ];
 
