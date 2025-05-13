@@ -62,7 +62,7 @@ resource "aws_lambda_function" "scale_up_chron" {
       SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
       SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
       SCALE_UP_CHRON_HUD_QUERY_URL         = var.retry_scale_up_chron_hud_query_url
-      SCALE_UP_MIN_QUEUE_TIME_MINUTES      = 30
+      SCALE_UP_MAX_QUEUE_TIME_MINUTES      = 30
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
