@@ -624,7 +624,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           (workflow: any) => workflow.workflow_name === "pull"
         ) ?? false
       );
-    } catch (error) {
+    } catch (error: any) {
+      // Return true if we cannot read workflow data so that we don't unneccisarily tag the PR
+      await this.logger.log("workflow-pull-error",  error);
       return true;
     }
   }
