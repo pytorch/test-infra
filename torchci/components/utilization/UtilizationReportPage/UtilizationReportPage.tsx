@@ -41,6 +41,7 @@ const userMapping: { [key: string]: MetricsTableUserMappingEntry } = {
     field: "metrics",
     visible: false,
     value_type: "list",
+    unit:"%"
   },
 };
 
@@ -61,8 +62,6 @@ const UtilizationReport = () => {
     end_time: end_time,
     parent_group: parent_group,
   };
-
-  console.log("params", params);
 
   const data = useUtilReports(params);
 
@@ -90,8 +89,6 @@ const UtilizationReport = () => {
   return (
     <div>
       <h2> Utilization Report Table: {params.group_by}</h2>
-
-      <span>Utilization metrics above 60% is highlighted</span>
       <MetricsTable userMapping={tableConfig} data={data.list} />
     </div>
   );
