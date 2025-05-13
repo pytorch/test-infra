@@ -2,68 +2,71 @@ import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
 
-
 export enum ValueType {
-    String = "string",
-    Number = "number",
-    Boolean = "boolean",
-    List = "list",
-    Link = "link",
-  }
+  String = "string",
+  Number = "number",
+  Boolean = "boolean",
+  List = "list",
+  Link = "link",
+}
 
-  export interface MetricsTableUserMappingEntry {
-    /**
-     * Optional: field name from the data object (e.g. 'group_key', 'metrics')
-     */
-    field?: string;
+export interface MetricsTableUserMappingEntry {
+  /**
+   * Optional: field name from the data object (e.g. 'group_key', 'metrics')
+   */
+  field?: string;
 
-    /**
-     * Optional: template string to compute a custom field value (e.g. "${group_key}|${parent_group}")
-     */
-    custom_field_expression?: string;
+  /**
+   * Optional: template string to compute a custom field value (e.g. "${group_key}|${parent_group}")
+   */
+  custom_field_expression?: string;
 
-    /**
-     * Optional: the column header name to display in UI tables
-     */
-    headerName?: string;
+  /**
+   * Optional: the column header name to display in UI tables
+   */
+  headerName?: string;
 
-    /**
-     * Data type of the field; used for rendering and formatting
-     */
-    value_type: ValueType | string;
+  /**
+   * Data type of the field; used for rendering and formatting
+   */
+  value_type: ValueType | string;
 
-    /**
-     * Whether this field should be visible in the UI (default is true)
-     */
-    visible?: boolean;
+  /**
+   * Whether this field should be visible in the UI (default is true)
+   */
+  visible?: boolean;
 
-    /**
-     * linkurl template if value_type is "link", e.g. "/job/${job_id}"
-     */
-    link_url?: string;
+  /**
+   * linkurl template if value_type is "link", e.g. "/job/${job_id}"
+   */
+  link_url?: string;
 
-    unit?:string;
-  }
+  unit?: string;
+}
 
-  type Props = {
-    userMapping: { [key: string]: MetricsTableUserMappingEntry };
-    data: any[];
-  };
+type Props = {
+  userMapping: { [key: string]: MetricsTableUserMappingEntry };
+  data: any[];
+};
 
-  export default function MetricsTable({ userMapping, data }: Props) {
+export default function MetricsTable({ userMapping, data }: Props) {
+  const staticColumns = generateStaticColumns(userMapping);
+  const metricKeys = extractMetricKeys(data);
+  const metricColumns = generateMetricColumns(metricKeys, userMapping);
+  const columns = [...staticColumns, ...metricColumns];
+  const rows = getRows(data, userMapping);
 
-    const staticColumns = generateStaticColumns(userMapping);
-    const metricKeys = extractMetricKeys(data);
-    const metricColumns = generateMetricColumns(metricKeys, userMapping);
-    const columns = [...staticColumns, ...metricColumns];
-    const rows = getRows(data, userMapping);
-
-    return (
-      <div style={{ height: "1000px", width: "100%" }}>
-        <DataGrid rows={rows} columns={columns}  pageSizeOptions={[100]}  pagination/>
-      </div>
-    );
-  }
+  return (
+    <div style={{ height: "1000px", width: "100%" }}>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        pageSizeOptions={[100]}
+        pagination
+      />
+    </div>
+  );
+}
 
 function generateStaticColumns(userMapping: { [key: string]: any }) {
   return Object.entries(userMapping)
@@ -129,16 +132,19 @@ function getRows(data: any[], userMapping: { [key: string]: any }) {
   return rows;
 }
 
-function generateMetricColumns(metricKeys: string[], userMapping: { [key: string]: any } ) {
-  if (metricKeys.length == 0){
-    return []
+function generateMetricColumns(
+  metricKeys: string[],
+  userMapping: { [key: string]: any }
+) {
+  if (metricKeys.length == 0) {
+    return [];
   }
 
-  let config: any = {}
-  if ("metrics" in userMapping){
-    config = userMapping["metrics"]
-  } else{
-    return []
+  let config: any = {};
+  if ("metrics" in userMapping) {
+    config = userMapping["metrics"];
+  } else {
+    return [];
   }
 
   return metricKeys.map((key) => ({
@@ -159,7 +165,7 @@ function generateMetricColumns(metricKeys: string[], userMapping: { [key: string
               paddingLeft: 8,
             }}
           >
-            {Number(params.value).toFixed(2)} {config?.unit??""}
+            {Number(params.value).toFixed(2)} {config?.unit ?? ""}
           </div>
         );
       }
@@ -187,4 +193,4 @@ function isValidValueType(val: string): val is ValueType {
 }
 
 const resolveExpression = (expr: string, row: any): string =>
-    expr.replace(/\${(.*?)}/g, (_, key) => row[key] ?? "");
+  expr.replace(/\${(.*?)}/g, (_, key) => row[key] ?? "");

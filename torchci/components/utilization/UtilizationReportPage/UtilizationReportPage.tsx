@@ -41,7 +41,7 @@ const userMapping: { [key: string]: MetricsTableUserMappingEntry } = {
     field: "metrics",
     visible: false,
     value_type: "list",
-    unit:"%"
+    unit: "%",
   },
 };
 
