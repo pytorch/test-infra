@@ -121,7 +121,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "onemkl_sycl_dft",
     "onemkl_sycl_lapack",
     "onemkl_sycl_sparse",
-    "onemkl_sycl_rng"
+    "onemkl_sycl_rng",
     # ----
     "Pillow",
     "certifi",
