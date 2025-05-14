@@ -1,25 +1,19 @@
- -- This table is used to store queue time histogram
-CREATE TABLE misc.oss_ci_queue_time_histogram(
-     -- the type of histogram, currently we store two types of histogram:
-     -- 'in-queue-histogram','completed-queue-histogram'
-    `type` String,
+ -- This table is used to keep track of snapshots of in-queue jobs
+CREATE TABLE misc.oss_ci_job_queue_time_historical(
+    `queue_s` UInt64,
     `repo` String DEFAULT 'pytorch/pytorch',
     `workflow_name` String,
     `job_name` String,
+    `html_url` String,
     `machine_type` String,
-    `histogram_version` String,
-    `histogram` Array(UInt64),
-    `max_queue_time` UInt64,
-    `avg_queue_time` UInt64,
-    `total_count` UInt64,
     `time` DateTime64(9),
     `runner_labels` Array(String),
-    `extra_info` Map(String,String)
+    -- The raw records on S3, this is populated by the s3 replicator
+    `_meta` Tuple(bucket String, key String)
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(time)
 ORDER BY (
-    type,
     repo,
     time,
     machine_type,
