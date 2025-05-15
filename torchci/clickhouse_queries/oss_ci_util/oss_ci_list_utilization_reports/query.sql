@@ -63,13 +63,14 @@ WHERE
         {group_by:String} = 'workflow_name', 'daily_workflow',
         'unknown'
     )
-
+    AND (
+        {parent_group:String} = '' OR parent_group = {parent_group:String}
+    )
 GROUP BY
     time_group,
     group_key,
     group_field,
     parent_group
-
 ORDER BY
     time_group,
     group_key;

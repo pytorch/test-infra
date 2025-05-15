@@ -121,6 +121,10 @@ function NavBar() {
       name: "Build Time Metrics",
       href: "/build_time_metrics",
     },
+    {
+      name: "Utilization Workflow Report",
+      href: "/utilization/report?group_by=workflow_name",
+    },
   ];
 
   return (

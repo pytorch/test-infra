@@ -113,6 +113,7 @@ export interface ListUtilizationReportParams {
   granularity?: string;
   start_time?: string;
   end_time?: string;
+  parent_group?: string;
 }
 
 export const EMPTY_LIST_UTILIZATION_SUMMARY_API_RESPONSE: ListUtilizationReportAPIResponse =

@@ -123,7 +123,6 @@ const WorkflowUtilization = () => {
       </MetadataGroupSection>
 
       <h2> Job Utilization Summary Table</h2>
-      <span>Utilization metrics above 60% is highlighted</span>
       <div style={{ height: "1000px", width: "100%" }}>
         <DataGrid rows={rows} columns={columns} pageSizeOptions={[90]} />
       </div>
