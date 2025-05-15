@@ -4,5 +4,11 @@
     "prNumbers": "Array(Int64)",
     "repo": "String"
   },
-  "tests": []
+  "tests": [
+    {
+      "numMinutes": 30,
+      "prNumbers": [],
+      "repo": "pytorch/pytorch"
+    }
+  ]
 }
