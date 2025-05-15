@@ -388,7 +388,9 @@ ${numRedGreen}
 
 ${debuggingSteps}
 ${sampleTraceback}
-${fileInfo}`;
+${fileInfo}
+
+For all disabled tests (by GitHub issue), see https://hud.pytorch.org/disabled.`;
 }
 
 export async function getTestOwnerLabels(
