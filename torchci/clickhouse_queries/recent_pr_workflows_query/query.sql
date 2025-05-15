@@ -22,8 +22,8 @@ recent_prs AS (
     pull_request.number AS number,
     argMax(push.timestamp, pull_request.updated_at) AS timestamp
   FROM
-    default.pull_request pull_request
-    JOIN relevant_shas r ON r.head_sha = pull_request.head.'sha'
+    relevant_shas r
+    JOIN default.pull_request pull_request ON r.head_sha = pull_request.head.'sha'
     -- Do a left join here because the push table won't have any information about
     -- commits from forked repo
     LEFT JOIN relevant_pushes push ON r.head_sha = push.id
