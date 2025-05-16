@@ -262,4 +262,4 @@ runs:
           nvidia-smi
 
           # check if the container-toolkit is correctly installed and CUDA is available inside a container
-          docker run --rm -t --gpus=all python:3.13 nvidia-smi
+          docker run --rm -t --gpus=all public.ecr.aws/docker/library/python:3.13 nvidia-smi
