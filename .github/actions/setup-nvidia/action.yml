@@ -260,3 +260,7 @@ runs:
           sudo nvidia-persistenced || true
           # This should show persistence mode ON
           nvidia-smi
+
+          # check if the container-toolkit is correctly installed and CUDA is available inside a container:
+          docker run --rm -t --gpus=all python:3.13 nvidia-smi
+          
