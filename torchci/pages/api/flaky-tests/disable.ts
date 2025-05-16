@@ -163,7 +163,11 @@ export async function handleFlakyTest(
   if (matchingIssues.length !== 0) {
     // There is a matching issue
     const matchingIssue = matchingIssues[0];
-    if (!wasRecent(test)) {
+    if (
+      !wasRecent(test) ||
+      // Give a bit of leeway to the issue to take effect
+      issueWasUpdatedRecently(matchingIssue)
+    ) {
       return;
     }
     await updateExistingIssueForFlakyTest(octokit, matchingIssue, test);
@@ -465,6 +469,12 @@ export function wasRecent(test: FlakyTestData) {
     );
   }
   return true;
+}
+
+function issueWasUpdatedRecently(issue: IssueData): boolean {
+  return dayjs(issue.updated_at).isAfter(
+    dayjs().subtract(NUM_HOURS * 2, "hour")
+  );
 }
 
 export async function createIssueFromFlakyTest(

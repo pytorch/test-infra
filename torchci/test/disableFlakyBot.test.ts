@@ -26,6 +26,16 @@ const flakyTestA = {
   branches: ["master", "master", "master"],
 };
 
+const issueForA = utils.genIssueData({
+  title: "DISABLED test_a (__main__.suite_a)",
+  body: "random",
+  number: 1,
+  state: "open",
+  updated_at: dayjs().subtract(7, "hour").toString(),
+  author_association: "MEMBER",
+  labels: [],
+});
+
 const flakyTestB = {
   file: "file_b.py",
   invoking_file: "file_b",
@@ -164,7 +174,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -187,7 +197,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -223,7 +233,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -246,7 +256,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -332,7 +342,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -367,7 +377,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().toString(),
+        updated_at: dayjs().subtract(7, "hour").toString(),
         author_association: "MEMBER",
         labels: [],
       },
@@ -432,7 +442,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
     handleScope(scope);
   });
 
-  test("do not close non flaky test if it's manual updated recently", async () => {
+  test("do not close non flaky test if it was manually updated recently", async () => {
     const scope = nock("https://api.github.com")
       .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
         const comment = JSON.stringify(body.body);
@@ -471,6 +481,18 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
     );
 
     handleScope(scope);
+  });
+
+  test("do not comment on issue if it was updated recently", async () => {
+    const issues = [{ ...issueForA, updated_at: dayjs().toString() }];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
+    // Close the disabled issue if the test is not flaky anymore
+    await disableFlakyTestBot.handleNonFlakyTest(
+      nonFlakyTestA,
+      issues,
+      octokit
+    );
   });
 });
 
