@@ -187,7 +187,7 @@ jobs:
         env:
           DOWNLOADS_DIR: c:\temp\downloads\
           DEPENDENCIES_DIR: c:\temp\dependencies\
-          SCRIPTS_DIR: test-infra\\.github\\scripts\\winx64test
+          SCRIPTS_DIR: test-infra\\.github\\scripts\\winarm64
           SRC_DIR: ${{ inputs.repository }}
           PRE_SCRIPT: ${{ inputs.pre-script }}
         shell: cmd
@@ -197,7 +197,7 @@ jobs:
 
           cd %SRC_DIR%
 
-          call "%VS_PATH%" x64
+          call "%VS_PATH%" arm64
           "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
       - name: Build clean
         if: inputs.architecture == 'x64'
