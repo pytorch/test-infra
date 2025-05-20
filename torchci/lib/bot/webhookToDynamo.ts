@@ -85,6 +85,9 @@ async function handlePullRequest(event: Context<"pull_request">) {
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
+  const pr_number = event.payload.pull_request.number;
+  const repo_name = event.payload.repository.full_name;
+
   await client.put({
     TableName: "torchci-pull-request",
     Item: {
@@ -92,6 +95,25 @@ async function handlePullRequest(event: Context<"pull_request">) {
       ...event.payload.pull_request,
     },
   });
+
+  if (
+    event.payload.action === "labeled" ||
+    event.payload.action === "unlabeled"
+  ) {
+    const datetime = event.payload.pull_request.updated_at;
+    const label_name = event.payload.label?.name;
+    await client.put({
+      TableName: "torchci-pull-label-event",
+      Item: {
+        dynamoKey: `${repo_name}/${pr_number}-${label_name}`,
+        repo_name: repo_name,
+        pr_number: pr_number,
+        event_time: datetime,
+        label_name: label_name,
+        action: event.payload.action,
+      },
+    });
+  }
 }
 
 async function handlePush(event: Context<"push">) {
