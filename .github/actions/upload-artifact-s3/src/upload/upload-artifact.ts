@@ -44,10 +44,6 @@ export async function run(): Promise<void> {
       options.retentionDays = inputs.retentionDays
     }
 
-    if (typeof inputs.compressionLevel !== 'undefined') {
-      options.compressionLevel = inputs.compressionLevel
-    }
-
     await uploadArtifact(
       inputs.artifactName,
       searchResult.filesToUpload,
