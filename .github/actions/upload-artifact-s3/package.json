@@ -1,6 +1,6 @@
 {
-  "name": "upload-artifact",
-  "version": "4.6.2",
+  "name": "upload-artifact-s3",
+  "version": "6.0.0",
   "description": "Upload an Actions Artifact in a workflow run",
   "main": "dist/upload/index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/upload-artifact.git"
+    "url": "git+https://github.com/pytorch/test-infra.git"
   },
   "keywords": [
     "Actions",
@@ -23,12 +23,12 @@
     "Artifacts",
     "Upload"
   ],
-  "author": "GitHub",
+  "author": "The PyTorch Team",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/actions/upload-artifact/issues"
+    "url": "https://github.com/pytorch/test-infra/issues"
   },
-  "homepage": "https://github.com/actions/upload-artifact#readme",
+  "homepage": "https://github.com/pytorch/test-infra/tree/main/.github/actions/upload-artifact-s3#readme",
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
