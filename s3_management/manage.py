@@ -215,7 +215,7 @@ KEEP_THRESHOLD = 60
 # TODO (huydhn): Clean this up afte https://github.com/pytorch/pytorch/pull/152238
 # is in the release branch, be it via cherry picking to the next release branch
 # cut
-KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2025, 03, 10, 0, 0)}
+KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2025, 3, 10, 0, 0)}
 
 S3IndexType = TypeVar('S3IndexType', bound='S3Index')
 
