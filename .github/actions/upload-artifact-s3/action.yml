@@ -1,6 +1,5 @@
 name: 'Upload a Build Artifact to S3'
-description: 'Upload a build artifact that can be used by subsequent workflow steps'
-author: '@seemethere'
+description: 'Upload a build artifact that can be used by subsequent workflow steps to a S3 bucket'
 branding:
   icon: upload-cloud
   color: yellow
