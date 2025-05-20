@@ -78,7 +78,7 @@ describe("webhookToDynamo tests", () => {
   });
 
   test("pull_request.labeled", async () => {
-    await helper("./fixtures/pull_request.labeled.json", "pull_request");
+    await helper("./fixtures/pull_request.labeled.json", "pull_request", 2);
   });
 
   test("issue.opened", async () => {
