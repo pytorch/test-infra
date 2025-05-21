@@ -1,29 +1,15 @@
-import _ from "lodash";
-import { getPlatformLabels } from "pages/api/flaky-tests/disable";
+import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
 
-const validationCommentStart = "<!-- validation-comment-start -->";
-const validationCommentEnd = "<!-- validation-comment-end -->";
+export const validationCommentStart = "<!-- validation-comment-start -->";
+export const validationCommentEnd = "<!-- validation-comment-end -->";
 export const disabledKey = "DISABLED ";
 export const unstableKey = "UNSTABLE ";
 export const disabledTestIssueTitle = new RegExp(
   "DISABLED\\s*test.+\\s*\\(.+\\)"
 );
 export const pytorchBotId = 54816060;
-
-export const supportedPlatforms = new Map([
-  ["asan", []],
-  ["linux", []],
-  ["mac", ["module: macos"]],
-  ["macos", ["module: macos"]],
-  ["rocm", ["module: rocm"]],
-  ["slow", []],
-  ["win", ["module: windows"]],
-  ["windows", ["module: windows"]],
-  ["dynamo", ["oncall: pt2"]],
-  ["inductor", ["oncall: pt2"]],
-]);
 
 async function getValidationComment(
   context: Context,
@@ -45,160 +31,8 @@ async function getValidationComment(
   return [0, ""];
 }
 
-// Returns the platform module labels that are expected, and invalid labels that we do not expect to be there
-export function getExpectedPlatformModuleLabels(
-  platforms: string[],
-  labels: string[]
-): [string[], string[]] {
-  let supportedPlatformLabels = Array.from(supportedPlatforms.values())
-    .flat()
-    // Quick hack to make sure oncall: pt2 doesn't get deleted.
-    // TODO: figure out a better way to differentiate between labels that should
-    // stay and labels that shouldn't
-    .filter((label) => label.startsWith("module: "));
-  let existingPlatformLabels = labels.filter((label) =>
-    supportedPlatformLabels.includes(label)
-  );
-  let expectedPlatformLabels = getPlatformLabels(platforms);
-  // everything in labels that's not in expectedLabels is invalid
-  let invalidPlatformLabels = _.difference(
-    existingPlatformLabels,
-    expectedPlatformLabels
-  );
-  return [expectedPlatformLabels, invalidPlatformLabels];
-}
-
-export function parseBody(body: string) {
-  if (body === "") {
-    return {
-      platformsToSkip: [],
-      invalidPlatforms: [],
-      bodyWithoutPlatforms: "",
-    };
-  }
-  const lines = body.match(/([^\r\n]+)|(\r|\n)+/g);
-  const platformsToSkip = new Set<string>();
-  const invalidPlatforms = new Set<string>();
-  const bodyWithoutPlatforms = [];
-  const key = "platforms:";
-  for (let line of lines!) {
-    let lowerCaseLine = line.toLowerCase().trim();
-    if (lowerCaseLine.startsWith(key)) {
-      for (const platform of lowerCaseLine
-        .slice(key.length)
-        .split(/^\s+|\s*,\s*|\s+$/)) {
-        if (supportedPlatforms.has(platform)) {
-          platformsToSkip.add(platform);
-        } else if (platform !== "") {
-          invalidPlatforms.add(platform);
-        }
-      }
-    } else {
-      bodyWithoutPlatforms.push(line);
-    }
-  }
-  return {
-    platformsToSkip: Array.from(platformsToSkip).sort((a, b) =>
-      a.localeCompare(b)
-    ),
-    invalidPlatforms: Array.from(invalidPlatforms).sort((a, b) =>
-      a.localeCompare(b)
-    ),
-    bodyWithoutPlatforms: bodyWithoutPlatforms.join(""),
-  };
-}
-
 export function parseTitle(title: string, prefix: string): string {
   return title.slice(prefix.length).trim();
-}
-
-function testNameIsExpected(testName: string): boolean {
-  const split = testName.split(/\s+/);
-  if (split.length !== 2) {
-    return false;
-  }
-
-  const testSuite = split[1].split(".");
-  if (testSuite.length < 2) {
-    return false;
-  }
-  return true;
-}
-
-export function formValidationComment(
-  username: string,
-  authorized: boolean,
-  testName: string,
-  platformsToSkip: string[],
-  invalidPlatforms: string[],
-  issueNumber: number
-): string {
-  const platformMsg =
-    platformsToSkip.length === 0
-      ? "none parsed, defaulting to ALL platforms"
-      : platformsToSkip.join(", ");
-
-  let body =
-    "<body>Hello there! From the DISABLED prefix in this issue title, ";
-  body += "it looks like you are attempting to disable a test in PyTorch CI. ";
-  body += "The information I have parsed is below:\n\n";
-  body += `* Test name: \`${testName}\`\n`;
-  body += `* Platforms for which to skip the test: ${platformMsg}\n`;
-  body += `* Disabled by \`${username}\`\n\n`;
-
-  if (invalidPlatforms.length > 0) {
-    body +=
-      "<b>WARNING!</b> In the parsing process, I received these invalid inputs as platforms for ";
-    body += `which the test will be disabled: ${invalidPlatforms.join(
-      ", "
-    )}. These could `;
-    body +=
-      "be typos or platforms we do not yet support test disabling. Please ";
-    body +=
-      "verify the platform list above and modify your issue body if needed.\n\n";
-  }
-
-  if (!authorized) {
-    body += `<b>ERROR!</b> You (${username}) don't have permission to disable ${testName} on ${platformMsg}.\n\n`;
-    body += "</body>";
-    return validationCommentStart + body + validationCommentEnd;
-  }
-
-  if (!testNameIsExpected(testName)) {
-    body +=
-      "<b>ERROR!</b> As you can see above, I could not properly parse the test ";
-    body +=
-      "information and determine which test to disable. Please modify the ";
-    body +=
-      "title to be of the format: DISABLED test_case_name (test.ClassName), ";
-    body += "for example, `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
-  } else {
-    body += `Within ~15 minutes, \`${testName}\` will be disabled in PyTorch CI for `;
-    body +=
-      platformsToSkip.length === 0
-        ? "all platforms"
-        : `these platforms: ${platformsToSkip.join(", ")}`;
-    body +=
-      ". Please verify that your test name looks correct, e.g., `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
-  }
-
-  body +=
-    "To modify the platforms list, please include a line in the issue body, like below. The default ";
-  body +=
-    "action will disable the test for all platforms if no platforms list is specified. \n";
-  body +=
-    "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
-  body += `${Array.from(supportedPlatforms.keys())
-    .sort((a, b) => a.localeCompare(b))
-    .join(", ")}.\n\n`;
-
-  body += `
-### How to re-enable a test
-To re-enable the test globally, close the issue. To re-enable a test for only a subset of platforms, remove the platforms from the list in the issue body. This may take some time to propagate. To re-enable a test only for a PR, put \`Fixes #${issueNumber}\` in the PR body and rerun the test jobs. Note that if a test is flaky, it maybe be difficult to tell if the test is still flaky on the PR.
-`;
-
-  body += "</body>";
-  return validationCommentStart + body + validationCommentEnd;
 }
 
 export function formJobValidationComment(
@@ -257,7 +91,9 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const existingValidationComment = existingValidationCommentData[1];
 
     const target = parseTitle(title, prefix);
-    const { platformsToSkip, invalidPlatforms } = parseBody(body!);
+    const { platformsToSkip, invalidPlatforms } = singleDisableIssue.parseBody(
+      body!
+    );
     const username = context.payload["issue"]["user"]["login"];
     const authorized =
       context.payload["issue"]["user"]["id"] === pytorchBotId ||
@@ -266,7 +102,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
 
     const validationComment = isDisabledTest(title)
-      ? formValidationComment(
+      ? singleDisableIssue.formValidationComment(
           username,
           authorized,
           target,
@@ -307,7 +143,10 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     } else {
       // check labels, add labels as needed
       let [expectedPlatformLabels, invalidPlatformLabels] =
-        getExpectedPlatformModuleLabels(platformsToSkip, labels);
+        singleDisableIssue.getExpectedPlatformModuleLabels(
+          platformsToSkip,
+          labels
+        );
       let labelsSet = new Set(labels);
       if (!expectedPlatformLabels.every((label) => labelsSet.has(label))) {
         await context.octokit.issues.addLabels({
