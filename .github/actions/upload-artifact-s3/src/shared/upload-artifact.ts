@@ -67,6 +67,9 @@ export async function uploadArtifact(
       // conform windows paths to unix style paths
       Key: uploadKey.replace(path.sep, '/')
     }
+    if (!options.overwrite) {
+      uploadParams.IfNoneMatch = '*'
+    }
     const uploadOptions = {partSize: 10 * 1024 * 1024, queueSize: 5}
     core.info(`Starting upload of ${relativeName}`)
     try {
