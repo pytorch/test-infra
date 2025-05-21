@@ -53,3 +53,6 @@ aws/lambda/log-classifier/data/dataset/
 
 # Generated file
 /aws/lambda/clickhouse-replicator-dynamo/generated_query.sql
+
+# We use yarn.lock instead of package-lock.json for torchci
+/torchci/package-lock.json
