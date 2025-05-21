@@ -1,3 +1,8 @@
+import {
+  formValidationComment,
+  getExpectedPlatformModuleLabels,
+  parseBody,
+} from "lib/flakyBot/singleDisableIssue";
 import _ from "lodash";
 import nock from "nock";
 import { Probot } from "probot";
@@ -39,10 +44,10 @@ describe("verify-disable-test-issue", () => {
     title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "Platforms:linux,macos";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
 
-    comment = bot.formValidationComment(
+    comment = formValidationComment(
       "mock-user",
       false,
       testName,
@@ -62,13 +67,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:win\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject(["win"]);
     expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -91,13 +96,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:windows, ROCm, ASAN\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject(["asan", "rocm", "windows"]);
     expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -122,13 +127,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever yay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject([]);
     expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -151,13 +156,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:everything\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject([]);
     expect(invalidPlatforms).toMatchObject(["everything"]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -186,7 +191,7 @@ describe("verify-disable-test-issue", () => {
       "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)";
     const body = "whatever\nPlatforms:\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject([]);
     expect(invalidPlatforms).toMatchObject([]);
@@ -194,7 +199,7 @@ describe("verify-disable-test-issue", () => {
       "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)"
     );
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -212,13 +217,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName   cuz it borked  ";
     const body = "whatever\nPlatforms:\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject([]);
     expect(invalidPlatforms).toMatchObject([]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -236,13 +241,13 @@ describe("verify-disable-test-issue", () => {
     const title = "DISABLED testMethodName   cuz it borked  ";
     const body = "whatever\nPlatforms:all of them\nyay";
 
-    const { platformsToSkip, invalidPlatforms } = bot.parseBody(body);
+    const { platformsToSkip, invalidPlatforms } = parseBody(body);
     const testName = bot.parseTitle(title, disabledKey);
     expect(platformsToSkip).toMatchObject([]);
     expect(invalidPlatforms).toMatchObject(["all of them"]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
-    const comment = bot.formValidationComment(
+    const comment = formValidationComment(
       "mock-user",
       true,
       testName,
@@ -327,37 +332,37 @@ describe("verify-disable-test-issue", () => {
 
   test("various getExpectedPlatformModuleLabels tests", async () => {
     expect(
-      await bot.getExpectedPlatformModuleLabels(["linux"], ["random"])
+      await getExpectedPlatformModuleLabels(["linux"], ["random"])
     ).toEqual([[], []]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(["inductor"], ["random"])
+      await getExpectedPlatformModuleLabels(["inductor"], ["random"])
     ).toEqual([["oncall: pt2"], []]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(
+      await getExpectedPlatformModuleLabels(
         ["linux"],
         ["random", "module: rocm"]
       )
     ).toEqual([[], ["module: rocm"]]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(
+      await getExpectedPlatformModuleLabels(
         ["rocm"],
         ["random", "module: rocm"]
       )
     ).toEqual([["module: rocm"], []]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(
+      await getExpectedPlatformModuleLabels(
         ["dynamo", "inductor"],
         ["random", "module: rocm"]
       )
     ).toEqual([["oncall: pt2"], ["module: rocm"]]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(
+      await getExpectedPlatformModuleLabels(
         ["linux", "rocm"],
         ["random", "module: rocm"]
       )
     ).toEqual([[], ["module: rocm"]]);
     expect(
-      await bot.getExpectedPlatformModuleLabels(
+      await getExpectedPlatformModuleLabels(
         ["linux", "rocm"],
         ["random", "module: rocm", "oncall: pt2"]
       )
