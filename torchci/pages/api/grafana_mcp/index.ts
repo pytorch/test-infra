@@ -1,6 +1,5 @@
 import { spawn } from "child_process";
 import { NextApiRequest, NextApiResponse } from "next";
-import path from "path";
 
 export const config = {
   api: {
@@ -49,22 +48,24 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     const timeout = setTimeout(() => {
       console.log("Process timed out after 60 seconds");
       res.write(`{"error":"Process timed out after 60 seconds"}\n`);
-      
+
       if (claudeProcess && !claudeProcess.killed) {
         console.log("Killing process due to timeout");
         claudeProcess.kill();
       }
-      
+
       res.end();
-    }, 60000); // 60 seconds timeout
+    }, 120000); // 120 seconds timeout
 
     // Direct paths to Node and Claude
-    const nodePath = "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/bin/node";
-    const claudeJsPath = "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/lib/node_modules/@anthropic-ai/claude-code/cli.js";
-    
+    const nodePath =
+      "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/bin/node";
+    const claudeJsPath =
+      "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/lib/node_modules/@anthropic-ai/claude-code/cli.js";
+
     console.log(`Using Node: ${nodePath}`);
     console.log(`Using Claude: ${claudeJsPath}`);
-    
+
     // Set environment for the process
     const env = {
       ...process.env,
@@ -75,16 +76,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Launch Claude directly with Node.js
     const claudeProcess = spawn(
-      nodePath, 
-      [claudeJsPath, "-p", query, "--output-format", "stream-json", "--verbose"],
+      nodePath,
+      [
+        claudeJsPath,
+        "-p",
+        query,
+        "--output-format",
+        "stream-json",
+        "--verbose",
+      ],
       {
         env,
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ["ignore", "pipe", "pipe"],
       }
     );
 
     console.log(`Claude process started with PID: ${claudeProcess.pid}`);
-    
+
     // Stream stdout (Claude's JSON output)
     claudeProcess.stdout.on("data", (data) => {
       const output = data.toString();
@@ -124,7 +132,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         claudeProcess.kill();
       }
     });
-
   } catch (error) {
     console.error("Error starting Claude process:", error);
     res.status(500).json({ error: String(error) });
