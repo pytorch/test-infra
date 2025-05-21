@@ -11,14 +11,18 @@ export const config = {
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("Claude API endpoint called");
+
   // Only allow POST method
   if (req.method !== "POST") {
+    console.log("Rejected: Method not allowed");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   // Only allow requests from localhost
   const host = req.headers.host || "";
   if (!host.includes("localhost")) {
+    console.log(`Rejected: Host not allowed: ${host}`);
     return res
       .status(403)
       .json({ error: "Forbidden: Only localhost is allowed" });
@@ -28,10 +32,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req.body;
 
   if (!query || typeof query !== "string") {
+    console.log("Rejected: Invalid query parameter");
     return res
       .status(400)
       .json({ error: "Query parameter is required and must be a string" });
   }
+
+  console.log(`Processing query (${query.length} chars)`);
 
   // Set headers for streaming
   res.setHeader("Content-Type", "application/json");
@@ -50,6 +57,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       }
       res.end();
       isResponseEnded = true;
+      console.log("Response ended");
     }
   };
 
@@ -59,12 +67,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Setup a timeout
     const timeout = setTimeout(() => {
-      safeEndResponse(`{"error":"Process timed out after 120 seconds"}\n`);
+      console.log("Process timed out after 240 seconds");
+      safeEndResponse(`{"error":"Process timed out after 240 seconds"}\n`);
 
       if (claudeProcess && !claudeProcess.killed) {
+        console.log("Killing Claude process due to timeout");
         claudeProcess.kill();
       }
-    }, 120000); // 120 seconds timeout
+    }, 240000); // 240 seconds timeout
 
     // Create a promise to capture when the process ends
     const processPromise = new Promise((resolve, reject) => {
@@ -86,6 +96,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         "mcp__clickhouse__semantic_search_docs",
       ].join(",");
 
+      console.log("Starting Claude process");
+
       // Launch Claude process with claude command directly
       claudeProcess = spawn(
         "claude",
@@ -106,22 +118,34 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         }
       );
 
+      console.log(`Claude process started with PID: ${claudeProcess.pid}`);
+
       // Stream stdout (Claude's JSON output)
       claudeProcess.stdout.on("data", (data) => {
+        const output = data.toString();
+        console.log(`Got output: ${output.length} bytes`);
         if (!isResponseEnded) {
-          res.write(data.toString());
+          res.write(output);
         }
+      });
+
+      // Handle stderr
+      claudeProcess.stderr.on("data", (data) => {
+        const errorMsg = data.toString();
+        console.error(`Claude stderr: ${errorMsg.trim()}`);
       });
 
       // Handle process completion
       claudeProcess.on("close", (code) => {
         clearTimeout(timeout);
+        console.log(`Claude process exited with code ${code}`);
         resolve(code);
       });
 
       // Handle process error
       claudeProcess.on("error", (error) => {
         clearTimeout(timeout);
+        console.error(`Claude process error: ${error.message}`);
         if (!isResponseEnded) {
           res.write(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
         }
@@ -131,7 +155,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       // Handle request aborted
       req.on("close", () => {
         clearTimeout(timeout);
+        console.log("Request closed by client");
         if (claudeProcess && !claudeProcess.killed) {
+          console.log(`Killing Claude process ${claudeProcess.pid}`);
           claudeProcess.kill();
         }
         safeEndResponse();
@@ -145,9 +171,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         safeEndResponse();
       })
       .catch((error) => {
+        console.error(`Promise error: ${error.message}`);
         safeEndResponse(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
       });
   } catch (error) {
+    console.error(`Unexpected error: ${error}`);
     res.status(500).json({ error: String(error) });
   }
 }
