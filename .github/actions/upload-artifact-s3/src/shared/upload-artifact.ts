@@ -6,7 +6,11 @@ import mime from 'mime'
 import * as path from 'path'
 
 import {Upload} from '@aws-sdk/lib-storage'
-import {S3Client, PutObjectCommandInput} from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommandInput,
+  S3ServiceException
+} from '@aws-sdk/client-s3'
 
 function getFileType(path: string | null): string | undefined {
   if (path === null) {
@@ -17,6 +21,12 @@ function getFileType(path: string | null): string | undefined {
     return fileType
   }
   return 'application/octet-stream'
+}
+
+// function to check and typecast the thrown
+// error to the service base error type.
+function isS3ServiceError(e: unknown): e is S3ServiceException {
+  return !!(e as S3ServiceException)?.$metadata
 }
 
 export async function uploadArtifact(
@@ -81,6 +91,16 @@ export async function uploadArtifact(
       })
       await parallelUpload.done()
     } catch (err) {
+      if (isS3ServiceError(err)) {
+        switch (err.$metadata.httpStatusCode) {
+          case 412: {
+            core.warning(
+              `File ${relativeName} already exists in S3 bucket ${s3Bucket}.`
+            )
+            break
+          }
+        }
+      }
       core.error(`Error uploading ${relativeName}`)
       throw err
     } finally {
