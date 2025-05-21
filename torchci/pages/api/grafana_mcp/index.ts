@@ -60,7 +60,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     // Setup a timeout
     const timeout = setTimeout(() => {
       safeEndResponse(`{"error":"Process timed out after 120 seconds"}\n`);
-      
+
       if (claudeProcess && !claudeProcess.killed) {
         claudeProcess.kill();
       }
@@ -88,7 +88,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
       // Launch Claude process with claude command directly
       claudeProcess = spawn(
-        "claude", 
+        "claude",
         [
           "-p",
           query,
@@ -97,6 +97,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           "--verbose",
           "--allowedTools",
           allowedTools,
+          "--mcp-config",
+          "pages/api/grafana_mcp/mcp.json",
         ],
         {
           env,
@@ -145,7 +147,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       .catch((error) => {
         safeEndResponse(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
       });
-
   } catch (error) {
     res.status(500).json({ error: String(error) });
   }
