@@ -16,7 +16,7 @@ export function getInputs(): UploadInputs {
   const ifNoFilesFound = core.getInput(Inputs.IfNoFilesFound)
   const noFileBehavior: NoFileOptions = NoFileOptions[ifNoFilesFound]
   const s3AclOption = core.getInput(Inputs.S3Acl)
-  const s3Acl: ObjectCannedACL = ObjectCannedACL[s3AclOption]
+  const s3Acl: ObjectCannedACL = s3AclOption as ObjectCannedACL
   const s3Bucket = core.getInput(Inputs.S3Bucket)
   const s3Prefix = core.getInput(Inputs.S3Prefix)
   const region = core.getInput(Inputs.Region)
@@ -35,7 +35,7 @@ export function getInputs(): UploadInputs {
     core.setFailed(
       `Unrecognized ${
         Inputs.S3Acl
-      } input. Provided: ${s3AclOption}. Available options: ${Object.keys(
+      } input. Provided: ${s3AclOption}. Available options: ${Object.values(
         ObjectCannedACL
       )}`
     )
