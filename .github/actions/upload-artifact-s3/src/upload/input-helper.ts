@@ -2,6 +2,8 @@ import * as core from '@actions/core'
 import {Inputs, NoFileOptions} from './constants'
 import {UploadInputs} from './upload-inputs'
 
+import {ObjectCannedACL} from '@aws-sdk/client-s3'
+
 /**
  * Helper to get all the inputs for the action
  */
@@ -13,7 +15,8 @@ export function getInputs(): UploadInputs {
 
   const ifNoFilesFound = core.getInput(Inputs.IfNoFilesFound)
   const noFileBehavior: NoFileOptions = NoFileOptions[ifNoFilesFound]
-  const s3Acl = core.getInput(Inputs.S3Acl)
+  const s3AclOption = core.getInput(Inputs.S3Acl)
+  const s3Acl: ObjectCannedACL = ObjectCannedACL[s3AclOption]
   const s3Bucket = core.getInput(Inputs.S3Bucket)
   const s3Prefix = core.getInput(Inputs.S3Prefix)
   const region = core.getInput(Inputs.Region)
@@ -24,6 +27,16 @@ export function getInputs(): UploadInputs {
         Inputs.IfNoFilesFound
       } input. Provided: ${ifNoFilesFound}. Available options: ${Object.keys(
         NoFileOptions
+      )}`
+    )
+  }
+
+  if (!s3Acl) {
+    core.setFailed(
+      `Unrecognized ${
+        Inputs.S3Acl
+      } input. Provided: ${s3AclOption}. Available options: ${Object.keys(
+        ObjectCannedACL
       )}`
     )
   }

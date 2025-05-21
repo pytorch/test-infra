@@ -1,11 +1,12 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as fs from 'fs'
+import {UploadArtifactOptions} from './interfaces'
 import mime from 'mime'
 import * as path from 'path'
 
 import {Upload} from '@aws-sdk/lib-storage'
-import {S3Client} from '@aws-sdk/client-s3'
+import {S3Client, PutObjectCommandInput} from '@aws-sdk/client-s3'
 
 function getFileType(path: string | null): string | undefined {
   if (path === null) {
@@ -19,20 +20,23 @@ function getFileType(path: string | null): string | undefined {
 }
 
 export async function uploadArtifact(
+  region: string,
+  s3Bucket: string,
+  s3Prefix: string,
   artifactName: string,
   filesToUpload: string[],
   rootDirectory: string,
-  options: Record<string, any>
+  options: UploadArtifactOptions
 ) {
-  if (options.s3Prefix !== '') {
+  if (s3Prefix !== '') {
     core.info('NOTE: s3-prefix specified, ignoring name parameter')
   }
   // If s3Prefix is left blank then just use the actual default derived from the github context
-  const s3Prefix =
-    options.s3Prefix === ''
+  const finalS3Prefix =
+    s3Prefix === ''
       ? `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}/${artifactName}`
-      : options.s3Prefix
-  core.info(`Uploading to s3 prefix: ${s3Prefix}`)
+      : s3Prefix
+  core.info(`Uploading to s3 prefix: ${finalS3Prefix}`)
   core.debug(`Root artifact directory is ${rootDirectory} `)
 
   const retentionDays = options.retentionDays ? options.retentionDays : 90
@@ -41,7 +45,7 @@ export async function uploadArtifact(
   expirationDate.setDate(expirationDate.getDate() + retentionDays)
 
   const s3Client = new S3Client({
-    region: options.region,
+    region: region,
     maxAttempts: 10
   })
 
@@ -53,11 +57,11 @@ export async function uploadArtifact(
       String.raw`${rootDirectory}${path.sep}`,
       ''
     )
-    const uploadKey = `${s3Prefix}/${relativeName}`
-    const uploadParams = {
+    const uploadKey = `${finalS3Prefix}/${relativeName}`
+    const uploadParams: PutObjectCommandInput = {
       ACL: options.s3Acl,
       Body: fs.createReadStream(fileName),
-      Bucket: options.s3Bucket,
+      Bucket: s3Bucket,
       ContentType: getFileType(uploadKey),
       Expires: expirationDate,
       // conform windows paths to unix style paths

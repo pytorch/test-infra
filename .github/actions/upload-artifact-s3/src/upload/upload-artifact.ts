@@ -3,6 +3,7 @@ import {findFilesToUpload} from '../shared/search'
 import {getInputs} from './input-helper'
 import {NoFileOptions} from './constants'
 import {uploadArtifact} from '../shared/upload-artifact'
+import {UploadArtifactOptions} from '../shared/interfaces'
 
 export async function run(): Promise<void> {
   const inputs = getInputs()
@@ -39,16 +40,19 @@ export async function run(): Promise<void> {
     )
     core.debug(`Root artifact directory is ${searchResult.rootDirectory}`)
 
-    const options: Record<string, any> = {}
+    const options: UploadArtifactOptions = {}
     if (inputs.retentionDays) {
       options.retentionDays = inputs.retentionDays
     }
 
     await uploadArtifact(
+      inputs.region,
+      inputs.s3Bucket,
+      inputs.s3Prefix,
       inputs.artifactName,
       searchResult.filesToUpload,
       searchResult.rootDirectory,
-      inputs
+      options
     )
   }
 }
