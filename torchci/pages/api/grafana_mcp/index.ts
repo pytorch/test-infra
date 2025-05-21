@@ -10,7 +10,7 @@ export const config = {
   },
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log("Claude API endpoint called");
 
   // Only allow POST method
@@ -166,7 +166,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     });
 
     // Wait for the process to complete and end the response
-    processPromise
+    await processPromise
       .then(() => {
         safeEndResponse();
       })
