@@ -1,21 +1,19 @@
 import { spawn } from "child_process";
 import { NextApiRequest, NextApiResponse } from "next";
+import path from "path";
 
 export const config = {
   api: {
     responseLimit: false,
     bodyParser: {
-      sizeLimit: '1mb',
+      sizeLimit: "1mb",
     },
   },
 };
 
-export default function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  console.log("getting started with Claude");
-  
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("Starting Claude API endpoint");
+
   // Only allow POST method
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -39,49 +37,96 @@ export default function handler(
   }
 
   // Set headers for streaming
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
 
-  console.log(`Starting claude-p with query: ${query}`);
-  
+  console.log(`Processing query: ${query}`);
+
   try {
-    // Spawn claude-p process
-    const claudeProcess = spawn("sh", ["-c", `echo "Running claude with query: ${query}"; claude -p "${query}"`]);
-    console.log(`claude-p process started with PID: ${claudeProcess.pid}`);
+    // Setup a timeout
+    const timeout = setTimeout(() => {
+      console.log("Process timed out after 60 seconds");
+      res.write(`{"error":"Process timed out after 60 seconds"}\n`);
+      
+      if (claudeProcess && !claudeProcess.killed) {
+        console.log("Killing process due to timeout");
+        claudeProcess.kill();
+      }
+      
+      res.end();
+    }, 60000); // 60 seconds timeout
 
-    // Stream stdout
-    claudeProcess.stdout.on("data", (data) => {
-      console.log(`Got stdout: ${data.toString().substring(0, 50)}...`);
-      res.write(data);
-    });
-
-    // Stream stderr
-    claudeProcess.stderr.on("data", (data) => {
-      console.log(`Got stderr: ${data.toString()}`);
-      res.write(`Error: ${data}`);
-    });
-
-    console.log("waiting for claude-p to finish");
+    // Direct paths to Node and Claude
+    const nodePath = "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/bin/node";
+    const claudeJsPath = "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/lib/node_modules/@anthropic-ai/claude-code/cli.js";
     
+    console.log(`Using Node: ${nodePath}`);
+    console.log(`Using Claude: ${claudeJsPath}`);
+    
+    // Set environment for the process
+    const env = {
+      ...process.env,
+      PATH: process.env.PATH || "",
+      HOME: process.env.HOME || "",
+      SHELL: process.env.SHELL || "/bin/bash",
+    };
+
+    // Launch Claude directly with Node.js
+    const claudeProcess = spawn(
+      nodePath, 
+      [claudeJsPath, "-p", query, "--output-format", "stream-json", "--verbose"],
+      {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
+
+    console.log(`Claude process started with PID: ${claudeProcess.pid}`);
+    
+    // Stream stdout (Claude's JSON output)
+    claudeProcess.stdout.on("data", (data) => {
+      const output = data.toString();
+      console.log(`Got Claude output (${output.length} bytes)`);
+      res.write(output);
+    });
+
+    // Stream stderr (log errors but don't send to client)
+    claudeProcess.stderr.on("data", (data) => {
+      const errorMsg = data.toString();
+      console.error(`Claude error: ${errorMsg.trim()}`);
+    });
+
+    console.log("Waiting for Claude to respond");
+
     // Handle process completion
     claudeProcess.on("close", (code) => {
-      console.log(`Process exited with code ${code}`);
-      res.write(`\nProcess exited with code ${code}`);
+      clearTimeout(timeout);
+      console.log(`Claude process exited with code ${code}`);
+      res.end();
+    });
+
+    // Handle process error
+    claudeProcess.on("error", (error) => {
+      clearTimeout(timeout);
+      console.error(`Process error: ${error}`);
+      res.write(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
       res.end();
     });
 
     // Handle request aborted
     req.on("close", () => {
+      clearTimeout(timeout);
       console.log("Request closed by client");
-      if (!claudeProcess.killed) {
-        console.log(`Killing claude process ${claudeProcess.pid}`);
+      if (claudeProcess && !claudeProcess.killed) {
+        console.log(`Killing Claude process ${claudeProcess.pid}`);
         claudeProcess.kill();
       }
     });
+
   } catch (error) {
-    console.error("Error spawning process:", error);
-    res.status(500).json({ error: "Failed to spawn process" });
+    console.error("Error starting Claude process:", error);
+    res.status(500).json({ error: String(error) });
   }
 }
