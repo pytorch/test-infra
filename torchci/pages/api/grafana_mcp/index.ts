@@ -11,8 +11,6 @@ export const config = {
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log("Starting Claude API endpoint");
-
   // Only allow POST method
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -41,99 +39,114 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  console.log(`Processing query: ${query}`);
+  // Flag to track if the response has been ended
+  let isResponseEnded = false;
+
+  // Helper function to safely end response
+  const safeEndResponse = (message?: string) => {
+    if (!isResponseEnded) {
+      if (message) {
+        res.write(message);
+      }
+      res.end();
+      isResponseEnded = true;
+    }
+  };
 
   try {
+    // Create claudeProcess variable in outer scope
+    let claudeProcess: ReturnType<typeof spawn> | null = null;
+
     // Setup a timeout
     const timeout = setTimeout(() => {
-      console.log("Process timed out after 60 seconds");
-      res.write(`{"error":"Process timed out after 60 seconds"}\n`);
-
+      safeEndResponse(`{"error":"Process timed out after 120 seconds"}\n`);
+      
       if (claudeProcess && !claudeProcess.killed) {
-        console.log("Killing process due to timeout");
         claudeProcess.kill();
       }
-
-      res.end();
     }, 120000); // 120 seconds timeout
 
-    // Direct paths to Node and Claude
-    const nodePath =
-      "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/bin/node";
-    const claudeJsPath =
-      "/Users/wouterdevriendt/.nvm/versions/node/v20.17.0/lib/node_modules/@anthropic-ai/claude-code/cli.js";
+    // Create a promise to capture when the process ends
+    const processPromise = new Promise((resolve, reject) => {
+      // Environment variables
+      const env = {
+        ...process.env,
+        PATH: process.env.PATH || "",
+        HOME: process.env.HOME || "",
+        SHELL: process.env.SHELL || "/bin/bash",
+      };
 
-    console.log(`Using Node: ${nodePath}`);
-    console.log(`Using Claude: ${claudeJsPath}`);
+      // List of allowed MCP tools
+      const allowedTools = [
+        "mcp__grafana__create_time_series_dashboard",
+        "mcp__clickhouse__readme_howto_use_clickhouse_tools",
+        "mcp__clickhouse__run_clickhouse_query",
+        "mcp__clickhouse__get_clickhouse_schema",
+        "mcp__clickhouse__get_clickhouse_tables",
+        "mcp__clickhouse__semantic_search_docs",
+      ].join(",");
 
-    // Set environment for the process
-    const env = {
-      ...process.env,
-      PATH: process.env.PATH || "",
-      HOME: process.env.HOME || "",
-      SHELL: process.env.SHELL || "/bin/bash",
-    };
+      // Launch Claude process with claude command directly
+      claudeProcess = spawn(
+        "claude", 
+        [
+          "-p",
+          query,
+          "--output-format",
+          "stream-json",
+          "--verbose",
+          "--allowedTools",
+          allowedTools,
+        ],
+        {
+          env,
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
 
-    // Launch Claude directly with Node.js
-    const claudeProcess = spawn(
-      nodePath,
-      [
-        claudeJsPath,
-        "-p",
-        query,
-        "--output-format",
-        "stream-json",
-        "--verbose",
-      ],
-      {
-        env,
-        stdio: ["ignore", "pipe", "pipe"],
-      }
-    );
+      // Stream stdout (Claude's JSON output)
+      claudeProcess.stdout.on("data", (data) => {
+        if (!isResponseEnded) {
+          res.write(data.toString());
+        }
+      });
 
-    console.log(`Claude process started with PID: ${claudeProcess.pid}`);
+      // Handle process completion
+      claudeProcess.on("close", (code) => {
+        clearTimeout(timeout);
+        resolve(code);
+      });
 
-    // Stream stdout (Claude's JSON output)
-    claudeProcess.stdout.on("data", (data) => {
-      const output = data.toString();
-      console.log(`Got Claude output (${output.length} bytes)`);
-      res.write(output);
+      // Handle process error
+      claudeProcess.on("error", (error) => {
+        clearTimeout(timeout);
+        if (!isResponseEnded) {
+          res.write(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
+        }
+        reject(error);
+      });
+
+      // Handle request aborted
+      req.on("close", () => {
+        clearTimeout(timeout);
+        if (claudeProcess && !claudeProcess.killed) {
+          claudeProcess.kill();
+        }
+        safeEndResponse();
+        resolve(null);
+      });
     });
 
-    // Stream stderr (log errors but don't send to client)
-    claudeProcess.stderr.on("data", (data) => {
-      const errorMsg = data.toString();
-      console.error(`Claude error: ${errorMsg.trim()}`);
-    });
+    // Wait for the process to complete and end the response
+    processPromise
+      .then(() => {
+        safeEndResponse();
+      })
+      .catch((error) => {
+        safeEndResponse(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
+      });
 
-    console.log("Waiting for Claude to respond");
-
-    // Handle process completion
-    claudeProcess.on("close", (code) => {
-      clearTimeout(timeout);
-      console.log(`Claude process exited with code ${code}`);
-      res.end();
-    });
-
-    // Handle process error
-    claudeProcess.on("error", (error) => {
-      clearTimeout(timeout);
-      console.error(`Process error: ${error}`);
-      res.write(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
-      res.end();
-    });
-
-    // Handle request aborted
-    req.on("close", () => {
-      clearTimeout(timeout);
-      console.log("Request closed by client");
-      if (claudeProcess && !claudeProcess.killed) {
-        console.log(`Killing Claude process ${claudeProcess.pid}`);
-        claudeProcess.kill();
-      }
-    });
   } catch (error) {
-    console.error("Error starting Claude process:", error);
     res.status(500).json({ error: String(error) });
   }
 }
