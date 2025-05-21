@@ -95,7 +95,7 @@ export async function uploadArtifact(
         switch (err.$metadata.httpStatusCode) {
           case 412: {
             core.warning(
-              `File ${relativeName} already exists in S3 bucket ${s3Bucket}.`
+              `File ${relativeName} already exists in S3 bucket ${s3Bucket} and overwrite is set to ${options.overwrite}. Skipping upload.`
             )
             break
           }
