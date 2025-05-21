@@ -44,6 +44,7 @@
     "echarts": "^5.5.1",
     "echarts-for-react": "^3.0.2",
     "eslint-plugin-unused-imports": "^3.2.0",
+    "file-saver": "^2.0.5",
     "jaro-winkler-typescript": "^1.0.1",
     "lodash": "^4.17.21",
     "lz-string": "^1.5.0",
@@ -67,12 +68,14 @@
     "trie-search": "^1.4.2",
     "typed-rest-client": "^1.8.9",
     "urllib": "2.44.0",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/argparse": "^2.0.10",
     "@types/d3": "^7.4.3",
     "@types/echarts": "^4.9.14",
+    "@types/file-saver": "^2.0.7",
     "@types/jest": "^29.5.14",
     "@types/jsdom": "^16.2.14",
     "@types/lodash": "^4.14.182",
