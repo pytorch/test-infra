@@ -9,6 +9,7 @@ import {Upload} from '@aws-sdk/lib-storage'
 import {
   S3Client,
   PutObjectCommandInput,
+  CompleteMultipartUploadCommandOutput,
   S3ServiceException
 } from '@aws-sdk/client-s3'
 
@@ -89,7 +90,14 @@ export async function uploadArtifact(
         queueSize: uploadOptions.queueSize,
         partSize: uploadOptions.partSize
       })
-      await parallelUpload.done()
+      const output: CompleteMultipartUploadCommandOutput =
+        await parallelUpload.done()
+      core.info(
+        [
+          `Upload complete: ${relativeName} to ${s3Bucket}/${uploadKey}`,
+          `ETag: ${output.ETag}`
+        ].join('\n')
+      )
     } catch (err) {
       if (isS3ServiceError(err)) {
         switch (err.$metadata.httpStatusCode) {
