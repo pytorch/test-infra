@@ -979,7 +979,7 @@ export const McpQueryPage = () => {
 
   // Detect when user scrolls up and disable auto-scrolling
   useEffect(() => {
-    // Using a more reliable way to detect if we're at the bottom
+    // Using a reliable way to detect if we're at the bottom
     const isAtBottom = () => {
       // Allow a small buffer (100px) to consider as "at bottom"
       const scrollPosition = window.innerHeight + window.scrollY;
@@ -987,14 +987,23 @@ export const McpQueryPage = () => {
       return scrollPosition >= bottomOfPage;
     };
 
+    // Check if we have any active typewriter animations
+    const hasActiveTypewriterAnimation = () => {
+      return parsedResponses.some(item => item.isAnimating);
+    };
+
     const handleScroll = () => {
       const atBottom = isAtBottom();
+      const hasAnimation = hasActiveTypewriterAnimation();
       
-      // Only change state when needed to avoid unnecessary re-renders
-      if (!atBottom && isLoading) {
-        // When user scrolls up during loading, disable auto-scroll and show button
-        setAutoScrollEnabled(false);
-        setShowScrollButton(true);
+      // Process scroll events differently based on animation state
+      if (!atBottom) {
+        // When user scrolls up, disable auto-scroll and show button
+        // We do this regardless of loading state to better handle typewriter effects
+        if (autoScrollEnabled) {
+          setAutoScrollEnabled(false);
+          setShowScrollButton(true);
+        }
       } else if (atBottom && showScrollButton) {
         // When user manually scrolls back to bottom, hide button and re-enable auto-scroll
         setShowScrollButton(false);
@@ -1004,7 +1013,7 @@ export const McpQueryPage = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isLoading, showScrollButton]);
+  }, [isLoading, showScrollButton, parsedResponses, autoScrollEnabled]);
 
   // Function to scroll to bottom and re-enable auto-scrolling when button is clicked
   const scrollToBottomAndEnable = useCallback(() => {
@@ -1029,16 +1038,33 @@ export const McpQueryPage = () => {
     // Only run this effect when we have content, we're loading, and auto-scroll is enabled
     if (!isLoading || !autoScrollEnabled || parsedResponses.length === 0) return;
     
-    // Scroll with smooth behavior after DOM updates
-    const scrollToBottom = () => {
-      window.scrollTo({
-        top: document.body.scrollHeight,
-        behavior: "smooth",
-      });
+    // Check if there's any active animation to prevent scrolling during typewriter effect
+    const hasActiveTypewriterAnimation = parsedResponses.some(item => item.isAnimating);
+    if (hasActiveTypewriterAnimation) {
+      // Skip auto-scrolling when typewriter animation is active to allow user scrolling
+      return;
+    }
+    
+    // Only scroll if we're not already at the bottom - this helps prevent scroll jumping
+    const isAtBottom = () => {
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const bottomOfPage = document.body.offsetHeight - 50; // Use smaller buffer for this check
+      return scrollPosition >= bottomOfPage;
     };
     
-    // Use requestAnimationFrame to ensure DOM updates are applied first
-    requestAnimationFrame(scrollToBottom);
+    // Don't scroll if we're already at the bottom to avoid unnecessary operations
+    if (!isAtBottom()) {
+      // Scroll with smooth behavior after DOM updates
+      const scrollToBottom = () => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: "smooth",
+        });
+      };
+      
+      // Use requestAnimationFrame to ensure DOM updates are applied first
+      requestAnimationFrame(scrollToBottom);
+    }
   }, [parsedResponses, isLoading, autoScrollEnabled]);
 
   // Calculate total tokens whenever parsedResponses changes
@@ -1120,18 +1146,28 @@ export const McpQueryPage = () => {
   useEffect(() => {
     // Only scroll when loading finishes AND we have content AND auto-scroll is enabled
     if (!isLoading && parsedResponses.length > 0 && autoScrollEnabled) {
+      // Check if there's any active animation to prevent scrolling during typewriter effect
+      const hasActiveTypewriterAnimation = parsedResponses.some(item => item.isAnimating);
+      if (hasActiveTypewriterAnimation) {
+        // If there's still an active typewriter effect, don't force scroll
+        return;
+      }
+      
       // Use a slight delay to ensure all content is fully rendered
       const finalScrollTimer = setTimeout(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: "smooth",
-        });
-        console.log("Final scroll to bottom on completion");
+        // Do one final check before scrolling to make sure user hasn't scrolled away
+        if (autoScrollEnabled) {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth",
+          });
+          console.log("Final scroll to bottom on completion");
+        }
       }, 200);
 
       return () => clearTimeout(finalScrollTimer);
     }
-  }, [isLoading, parsedResponses.length, autoScrollEnabled]);
+  }, [isLoading, parsedResponses.length, autoScrollEnabled, parsedResponses]);
 
   // Clean up on component unmount
   useEffect(() => {
