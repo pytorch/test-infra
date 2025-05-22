@@ -1505,6 +1505,7 @@ export const McpQueryPage = () => {
                                 component="span"
                                 sx={{
                                   wordBreak: "break-word",
+                                  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
                                 }}
                               >
                                 {todo.content}
@@ -1706,6 +1707,7 @@ export const McpQueryPage = () => {
                                 sx={{
                                   wordBreak: "break-word",
                                   fontSize: "0.875rem",
+                                  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
                                 }}
                               >
                                 {todo.content}
