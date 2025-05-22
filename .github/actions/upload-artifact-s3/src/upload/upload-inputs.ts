@@ -1,4 +1,5 @@
 import {NoFileOptions} from './constants'
+import {ObjectCannedACL} from '@aws-sdk/client-s3'
 
 export interface UploadInputs {
   /**
@@ -24,7 +25,7 @@ export interface UploadInputs {
   /**
    * The S3 ACL to use when uploading the artifact
    */
-  s3Acl: string
+  s3Acl: ObjectCannedACL
 
   /**
    * S3 Bucket to uploads to
