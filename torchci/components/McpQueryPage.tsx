@@ -979,69 +979,65 @@ export const McpQueryPage = () => {
 
   // Detect when user scrolls up and disable auto-scrolling
   useEffect(() => {
-    const handleScroll = () => {
-      // Calculate if we're near the bottom (within 100px)
-      const nearBottom =
-        window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
+    // Using a more reliable way to detect if we're at the bottom
+    const isAtBottom = () => {
+      // Allow a small buffer (100px) to consider as "at bottom"
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const bottomOfPage = document.body.offsetHeight - 100;
+      return scrollPosition >= bottomOfPage;
+    };
 
-      // If we're not near the bottom and we're loading, disable auto-scroll
-      if (!nearBottom && isLoading) {
+    const handleScroll = () => {
+      const atBottom = isAtBottom();
+      
+      // Only change state when needed to avoid unnecessary re-renders
+      if (!atBottom && isLoading) {
+        // When user scrolls up during loading, disable auto-scroll and show button
         setAutoScrollEnabled(false);
         setShowScrollButton(true);
-      }
-
-      // If we're near the bottom, hide the scroll button
-      if (nearBottom) {
+      } else if (atBottom && showScrollButton) {
+        // When user manually scrolls back to bottom, hide button and re-enable auto-scroll
         setShowScrollButton(false);
+        setAutoScrollEnabled(true);
       }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isLoading]);
+  }, [isLoading, showScrollButton]);
 
-  // Function to scroll to bottom and re-enable auto-scrolling
+  // Function to scroll to bottom and re-enable auto-scrolling when button is clicked
   const scrollToBottomAndEnable = useCallback(() => {
-    // First re-enable auto-scrolling
+    // Re-enable auto-scrolling
     setAutoScrollEnabled(true);
-
-    // Then hide the button
+    
+    // Hide the button
     setShowScrollButton(false);
-
-    // Use a slight delay to ensure state updates before scrolling
-    setTimeout(() => {
-      // Scroll to bottom with smooth animation
-      window.scrollTo({
-        top: document.body.scrollHeight,
-        behavior: "smooth",
-      });
-
-      console.log("Auto-scroll re-enabled and scrolled to bottom");
-    }, 50);
+    
+    // Scroll to bottom with smooth animation
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: "smooth"
+    });
+    
+    console.log("Auto-scroll re-enabled and scrolled to bottom");
   }, []);
 
   // Auto-scroll to bottom when new responses are added, but only when enabled
+  // Auto-scroll to bottom when new content is added (only when enabled)
   useEffect(() => {
-    // Only auto-scroll while loading and auto-scroll is enabled
-    if (!isLoading) return;
-
-    // Skip if auto-scroll is disabled
-    if (!autoScrollEnabled) {
-      console.log("Auto-scroll disabled, skipping scroll");
-      return;
-    }
-
-    console.log("Auto-scrolling to bottom...");
-
-    // Scroll with smooth behavior
+    // Only run this effect when we have content, we're loading, and auto-scroll is enabled
+    if (!isLoading || !autoScrollEnabled || parsedResponses.length === 0) return;
+    
+    // Scroll with smooth behavior after DOM updates
     const scrollToBottom = () => {
       window.scrollTo({
         top: document.body.scrollHeight,
         behavior: "smooth",
       });
     };
-
-    // Execute scroll after DOM updates
+    
+    // Use requestAnimationFrame to ensure DOM updates are applied first
     requestAnimationFrame(scrollToBottom);
   }, [parsedResponses, isLoading, autoScrollEnabled]);
 
@@ -1120,21 +1116,22 @@ export const McpQueryPage = () => {
     }
   }, [parsedResponses, calculateTotalTokens, totalTokens]);
 
-  // Final scroll to bottom when loading finishes
+  // Final scroll to bottom when loading finishes (respects auto-scroll setting)
   useEffect(() => {
-    // When loading changes from true to false, do one final scroll
-    if (!isLoading && parsedResponses.length > 0) {
-      // Use a slight delay to ensure all content is rendered
+    // Only scroll when loading finishes AND we have content AND auto-scroll is enabled
+    if (!isLoading && parsedResponses.length > 0 && autoScrollEnabled) {
+      // Use a slight delay to ensure all content is fully rendered
       const finalScrollTimer = setTimeout(() => {
         window.scrollTo({
           top: document.body.scrollHeight,
           behavior: "smooth",
         });
+        console.log("Final scroll to bottom on completion");
       }, 200);
 
       return () => clearTimeout(finalScrollTimer);
     }
-  }, [isLoading, parsedResponses.length]);
+  }, [isLoading, parsedResponses.length, autoScrollEnabled]);
 
   // Clean up on component unmount
   useEffect(() => {
