@@ -64,6 +64,7 @@ LINUX = "linux"
 LINUX_AARCH64 = "linux-aarch64"
 MACOS_ARM64 = "macos-arm64"
 WINDOWS = "windows"
+WINDOWS_ARM64 = "windows-arm64"
 
 # Accelerator architectures
 CPU = "cpu"
@@ -94,9 +95,11 @@ LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
 WIN_CPU_RUNNER = "windows.4xlarge"
+WIN_ARM64_RUNNER = "windows-11-arm64"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
@@ -135,6 +138,8 @@ def validation_runner(arch_type: str, os: str) -> str:
             return WIN_GPU_RUNNER
         else:
             return WIN_CPU_RUNNER
+    elif os == WINDOWS_ARM64:
+        return WIN_ARM64_RUNNER
     elif os == MACOS_ARM64:
         return MACOS_M1_RUNNER
     else:  # default to linux cpu runner
@@ -228,7 +233,7 @@ def get_libtorch_install_command(
     desired_cuda: str,
     libtorch_config: str,
 ) -> str:
-    prefix = "libtorch" if os != WINDOWS else "libtorch-win"
+    prefix = "libtorch" if not (os in (WINDOWS, WINDOWS_ARM64)) else "libtorch-win"
     _libtorch_variant = (
         f"{libtorch_variant}-{libtorch_config}"
         if libtorch_config == "debug"
@@ -264,6 +269,20 @@ def get_libtorch_install_command(
             if libtorch_config == "debug"
             else f"{prefix}-shared-with-deps-latest.zip"
         )
+    elif os == WINDOWS_ARM64 and (channel in (RELEASE, TEST)):
+        arch = "arm64"
+        build_name = (
+            f"{prefix}-{arch}-shared-with-deps-debug-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+            if libtorch_config == "debug"
+            else f"{prefix}-{arch}-shared-with-deps-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+        )
+    elif os == WINDOWS_ARM64 and channel == NIGHTLY:
+        arch = "arm64"
+        build_name = (
+            f"{prefix}-{arch}-shared-with-deps-debug-latest.zip"
+            if libtorch_config == "debug"
+            else f"{prefix}-{arch}-shared-with-deps-latest.zip"
+        )
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
@@ -295,13 +314,18 @@ def get_wheel_install_command(
         )
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+    elif os == WINDOWS_ARM64:
+        whl_install_command = (
+            f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"
+        )
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
     else:
         whl_install_command = (
             f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
             if channel == "nightly"
             else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         )
-        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 
 def generate_libtorch_matrix(
@@ -334,7 +358,7 @@ def generate_libtorch_matrix(
             arches += ROCM_ARCHES
 
     if abi_versions is None:
-        if os == WINDOWS:
+        if os in (WINDOWS, WINDOWS_ARM64):
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
             abi_versions = [CXX11_ABI]
@@ -360,8 +384,8 @@ def generate_libtorch_matrix(
                 gpu_arch_version = "" if arch_version == CPU else arch_version
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
-                devtoolset = abi_version if os != WINDOWS else ""
-                libtorch_config = abi_version if os == WINDOWS else ""
+                devtoolset = abi_version if not (os in (WINDOWS, WINDOWS_ARM64)) else ""
+                libtorch_config = abi_version if os in (WINDOWS, WINDOWS_ARM64) else ""
                 ret.append(
                     {
                         "gpu_arch_type": gpu_arch_type,
@@ -372,7 +396,7 @@ def generate_libtorch_matrix(
                         "devtoolset": devtoolset,
                         "container_image": (
                             LIBTORCH_CONTAINER_IMAGES[(arch_version, abi_version)]
-                            if os != WINDOWS
+                            if not (os in (WINDOWS, WINDOWS_ARM64))
                             else ""
                         ),
                         "package_type": "libtorch",
@@ -415,6 +439,9 @@ def generate_wheels_matrix(
     if not python_versions:
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
+
+    if os == WINDOWS_ARM64:
+        python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
