@@ -1,5 +1,7 @@
 import { spawn } from "child_process";
+import fs from "fs";
 import { NextApiRequest, NextApiResponse } from "next";
+import path from "path";
 
 // Configure Next.js to accept streaming responses
 export const config = {
@@ -61,6 +63,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // Flag to track if the response has been ended
   let isResponseEnded = false;
 
+  // Create claudeProcess variable in outer scope
+  let claudeProcess: ReturnType<typeof spawn> | null = null;
+
   // Helper function to safely end response
   const safeEndResponse = (message?: string) => {
     if (!isResponseEnded) {
@@ -74,9 +79,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
   };
 
-  // Create claudeProcess variable in outer scope
-  let claudeProcess: ReturnType<typeof spawn> | null = null;
-
   try {
     // Setup a timeout
     const timeout = setTimeout(() => {
@@ -89,6 +91,41 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       }
     }, 240000); // 240 seconds timeout
 
+    // Create unique temp directory with timestamp and random string
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 10);
+    const sessionId = `${timestamp}_${randomStr}`;
+    const tempDir = `/tmp/claude_hud_${sessionId}`;
+
+    // Create temp directory
+    try {
+      fs.mkdirSync(tempDir, { recursive: true });
+      console.log(`Created temp directory: ${tempDir}`);
+
+      // Copy CLAUDE.md to temp directory
+      const claudeMdPath = path.join(
+        process.cwd(),
+        "pages/api/grafana_mcp/CLAUDE.md"
+      );
+      if (fs.existsSync(claudeMdPath)) {
+        fs.copyFileSync(claudeMdPath, path.join(tempDir, "CLAUDE.md"));
+        console.log("Copied CLAUDE.md to temp directory");
+      }
+
+      // Copy .env to temp directory as .env
+      const envTemplatePath = path.join(
+        process.cwd(),
+        "pages/api/grafana_mcp/.env"
+      );
+      if (fs.existsSync(envTemplatePath)) {
+        fs.copyFileSync(envTemplatePath, path.join(tempDir, ".env"));
+        console.log("Copied .env.template to temp directory as .env");
+      }
+    } catch (err) {
+      console.error(`Error creating temp directory: ${err}`);
+      return safeEndResponse(`{"error":"Failed to create temp environment"}`);
+    }
+
     // Environment variables
     const env = {
       ...process.env,
@@ -97,6 +134,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       SHELL: process.env.SHELL || "/bin/bash",
       NODE_NO_BUFFERING: "1", // Ensure Node.js doesn't buffer output
     };
+
+    // Set working directory to temp directory
+    const cwd = tempDir;
 
     // List of allowed MCP tools
     const allowedTools = [
@@ -111,7 +151,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     console.log("Starting Claude process");
 
     // Write initial message to start the stream
-    res.write('{"status":"starting"}\n');
+    res.write(`{"status":"starting","tempDir":"${tempDir}"}\n`);
     flushStream(res);
 
     // Launch Claude process with claude command directly
@@ -126,12 +166,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         "--allowedTools",
         allowedTools,
         "--mcp-config",
-        "pages/api/grafana_mcp/mcp.json",
+        process.cwd() + "/pages/api/grafana_mcp/mcp.json",
       ],
       {
         env,
-        stdio: ["ignore", "pipe", "pipe"],
-        // Explicitly disable buffering
+        cwd, // Run from the temp directory
         stdio: ["ignore", "pipe", "pipe"],
       }
     );
@@ -185,9 +224,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
       // Send final status message
       if (!isResponseEnded) {
-        res.write(`\n{"status":"complete","code":${code || 0}}\n`);
+        res.write(
+          `\n{"status":"complete","code":${code || 0},"tempDir":"${tempDir}"}\n`
+        );
         flushStream(res);
       }
+
+      // Consider cleaning up the temp directory here if needed
+      // For debugging purposes, we're keeping it for now
 
       safeEndResponse();
     });
