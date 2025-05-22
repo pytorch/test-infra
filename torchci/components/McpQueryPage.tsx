@@ -466,10 +466,10 @@ export const McpQueryPage = () => {
   return (
     <McpQueryPageContainer>
       <Typography variant="h4" gutterBottom>
-        MCP Query Interface
+        PyTorch Grafana Agent
       </Typography>
       <Typography variant="body1" paragraph>
-        Enter your MCP query below and click RUN to execute it.
+        What timeseries should we create for you?
       </Typography>
 
       <QuerySection>
