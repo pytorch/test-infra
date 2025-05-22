@@ -23,3 +23,8 @@ export interface UploadArtifactOptions {
   s3Acl?: ObjectCannedACL
   overwrite?: boolean
 }
+
+export interface S3ObjectMetadata {
+  etag: string | undefined
+  canonicalUrl: string
+}

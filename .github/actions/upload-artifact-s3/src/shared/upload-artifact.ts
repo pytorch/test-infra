@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as fs from 'fs'
-import {UploadArtifactOptions} from './interfaces'
+import {S3ObjectMetadata, UploadArtifactOptions} from './interfaces'
 import mime from 'mime'
 import * as path from 'path'
 
@@ -62,6 +62,8 @@ export async function uploadArtifact(
 
   const canonicalObjectUrlPrefix: string = `https://${s3Bucket}.s3.${region}.amazonaws.com/${s3Prefix}`
 
+  const objects: Record<string, S3ObjectMetadata> = {}
+
   for await (const fileName of filesToUpload) {
     core.debug(JSON.stringify({rootDirectory: rootDirectory, fileName}))
     // Add trailing path.sep to root directory to solve issues where root directory doesn't
@@ -94,13 +96,18 @@ export async function uploadArtifact(
       })
       const output: CompleteMultipartUploadCommandOutput =
         await parallelUpload.done()
+      const canonicalUrl: string = `${canonicalObjectUrlPrefix}/${uploadKey}`
       core.info(
         [
           `Upload complete: ${relativeName} to ${s3Bucket}/${uploadKey}`,
           `ETag: ${output.ETag}`,
-          `URL: ${canonicalObjectUrlPrefix}/${relativeName}`
+          `URL: ${canonicalUrl}`
         ].join('\n')
       )
+      objects[uploadKey] = {
+        etag: output.ETag,
+        canonicalUrl: canonicalUrl
+      }
     } catch (err) {
       if (isS3ServiceError(err)) {
         switch (err.$metadata.httpStatusCode) {
@@ -118,4 +125,5 @@ export async function uploadArtifact(
       core.info(`Finished upload of ${relativeName}`)
     }
   }
+  core.setOutput('artifact-id', JSON.stringify(objects))
 }
