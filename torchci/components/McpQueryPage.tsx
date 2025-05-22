@@ -1,7 +1,8 @@
 import styled from "@emotion/styled";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import {
   Box,
   Button,
@@ -13,7 +14,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import ToolIcon from "./ToolIcon";
 
@@ -82,7 +83,10 @@ const ToolInput = styled("pre")(({ theme }) => ({
 
 const ChunkMetadata = styled(Typography)(({ theme }) => ({
   fontSize: "0.75em",
-  color: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
+  color:
+    theme.palette.mode === "dark"
+      ? "rgba(255, 255, 255, 0.5)"
+      : "rgba(0, 0, 0, 0.5)",
   textAlign: "right",
   marginTop: "4px",
   marginBottom: "16px",
@@ -129,6 +133,31 @@ const ChartHeader = styled(Box)(({ theme }) => ({
   alignItems: "center",
   borderBottom: `1px solid ${theme.palette.divider}`,
   backgroundColor: theme.palette.mode === "dark" ? "#1f1f1f" : "#f5f5f5",
+}));
+
+const ScrollToBottomButton = styled(Button)(({ theme }) => ({
+  position: "fixed",
+  bottom: "20px",
+  right: "20px",
+  width: "48px",
+  height: "48px",
+  minWidth: "48px", // Ensure consistent size (MUI button default is larger)
+  borderRadius: "50%",
+  backgroundColor: theme.palette.primary.main,
+  color: "white",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  cursor: "pointer",
+  zIndex: 2000, // Higher z-index to ensure it's above everything
+  boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+  transition: "all 0.2s ease-in-out",
+  padding: 0, // Remove default button padding
+  "&:hover": {
+    backgroundColor: theme.palette.primary.dark,
+    transform: "scale(1.1)",
+    boxShadow: "0 6px 10px rgba(0, 0, 0, 0.4)",
+  },
 }));
 
 // Component for embedding Grafana charts
@@ -228,7 +257,7 @@ interface MessageWrapper {
   tool_result?: {
     tool_use_id: string;
     type: string;
-    content: {type: string, text: string}[];
+    content: { type: string; text: string }[];
   };
 }
 
@@ -277,7 +306,10 @@ const extractGrafanaLinks = (text: string): GrafanaLink[] => {
 };
 
 // Function to make text with Grafana links clickable
-const renderTextWithLinks = (text: string, isAnimating?: boolean): React.ReactNode => {
+const renderTextWithLinks = (
+  text: string,
+  isAnimating?: boolean
+): React.ReactNode => {
   if (!text) return null;
 
   // Create a React element array to build the result
@@ -358,44 +390,15 @@ const renderTextWithLinks = (text: string, isAnimating?: boolean): React.ReactNo
   return result;
 };
 
-// Custom hook for animated counter
-const useAnimatedCounter = (targetValue: number, duration: number = 2000) => {
+// Custom hook for animated counter - completely rewritten for reliability
+const useAnimatedCounter = (targetValue: number) => {
   const [displayValue, setDisplayValue] = useState(0);
   
-  
   useEffect(() => {
-    if (targetValue === displayValue) return;
-    
-    // Don't animate small increments, just set directly
-    if (targetValue - displayValue < 3) {
-      setDisplayValue(targetValue);
-      return;
-    }
-    
-    const startValue = displayValue;
-    const endValue = targetValue;
-    const startTime = performance.now();
-    const change = endValue - startValue;
-    
-    const animateCount = (timestamp: number) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Easing function for smooth animation
-      const easedProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      
-      const currentValue = Math.floor(startValue + change * easedProgress);
-      setDisplayValue(currentValue);
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateCount);
-      } else {
-        setDisplayValue(endValue); // Ensure exact target value at end
-      }
-    };
-    
-    requestAnimationFrame(animateCount);
-  }, [targetValue, duration, displayValue]);
+    // Simply set the display value directly to the target value
+    // This ensures we always show the accurate value without animation artifacts
+    setDisplayValue(targetValue);
+  }, [targetValue]);
   
   return displayValue;
 };
@@ -405,18 +408,20 @@ const formatElapsedTime = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
-  
+
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
   } else {
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 };
 
 // Format token count with K for thousands
 const formatTokenCount = (count: number): string => {
   if (count >= 1000) {
-    return (count / 1000).toFixed(1) + 'k';
+    return (count / 1000).toFixed(1) + "k";
   }
   return count.toString();
 };
@@ -427,17 +432,18 @@ const generateQueryId = (): string => {
   const hex = [];
   for (let i = 0; i < 36; i++) {
     if (i === 8 || i === 13 || i === 18 || i === 23) {
-      hex[i] = '-';
+      hex[i] = "-";
     } else if (i === 14) {
-      hex[i] = '4'; // UUID version 4
+      hex[i] = "4"; // UUID version 4
     } else {
       hex[i] = Math.floor(Math.random() * 16).toString(16);
     }
   }
-  return hex.join('');
+  return hex.join("");
 };
 
-const CLICKHOUSE_CONSOLE_BASE_URL = "https://console.clickhouse.cloud/services/c9b76950-2cf3-4fa0-93bb-94a65ff5f27d/console/query/";
+const CLICKHOUSE_CONSOLE_BASE_URL =
+  "https://console.clickhouse.cloud/services/c9b76950-2cf3-4fa0-93bb-94a65ff5f27d/console/query/";
 
 export const McpQueryPage = () => {
   const theme = useTheme();
@@ -446,7 +452,9 @@ export const McpQueryPage = () => {
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
   // Default all tools to collapsed (false)
-  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
+    {}
+  );
   // Track whether all tools are currently expanded
   const [allToolsExpanded, setAllToolsExpanded] = useState(false);
   const [typingSpeed] = useState(10); // ms per character for typewriter effect
@@ -456,7 +464,8 @@ export const McpQueryPage = () => {
   const [totalTokens, setTotalTokens] = useState(0); // track total tokens for display
   const [completedTokens, setCompletedTokens] = useState(0); // final token count after completion
   const [completedTime, setCompletedTime] = useState(0); // final time after completion
-  const totalTokensRef = useRef(0); // Reference to track running sum between renders
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // whether auto-scrolling is enabled
+  const [showScrollButton, setShowScrollButton] = useState(false); // whether to show the scroll-to-bottom button
   const displayedTokens = useAnimatedCounter(totalTokens); // animated token display
 
   // Funny thinking messages
@@ -507,17 +516,17 @@ export const McpQueryPage = () => {
       setThinkingMessageIndex((prev) => (prev + 1) % thinkingMessages.length);
     }
   }, [parsedResponses.length, isLoading, thinkingMessages.length]);
-  
+
   // Timer effect to update elapsed time
   useEffect(() => {
     if (!isLoading || !startTime) return;
-    
+
     const timer = setInterval(() => {
       const now = Date.now();
       const elapsed = Math.floor((now - startTime) / 1000);
       setElapsedTime(elapsed);
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, [isLoading, startTime]);
 
@@ -585,18 +594,22 @@ export const McpQueryPage = () => {
 
       // Parse the JSON
       const json = JSON.parse(line) as MessageWrapper;
-      
+
       // Process timing data from result messages
       try {
         // For result type which contains timing data
-        if (json.type === "result" && json.subtype === "success" && json.duration_ms) {
+        if (
+          json.type === "result" &&
+          json.subtype === "success" &&
+          json.duration_ms
+        ) {
           // Duration is in milliseconds, convert to seconds
           const durationSec = Math.round(json.duration_ms / 1000);
           // Update the elapsed time for more accuracy
           setElapsedTime(durationSec);
         }
       } catch (err) {
-        console.error('Error processing message data:', err);
+        console.error("Error processing message data:", err);
       }
 
       // Handle different response types
@@ -610,19 +623,13 @@ export const McpQueryPage = () => {
 
             setParsedResponses((prev) => {
               // Get previous timestamp if it exists
-              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+              const prevTimestamp =
+                prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
               const now = Date.now();
-              
+
               // Get output tokens from message usage
               const outputTokens = json.message?.usage?.output_tokens || 0;
-              
-              // Update running total with message tokens if available
-              if (outputTokens > 0) {
-                totalTokensRef.current += outputTokens;
-                setTotalTokens(totalTokensRef.current);
-                console.log('Adding message tokens to total:', outputTokens, 'New total:', totalTokensRef.current);
-              }
-              
+
               return [
                 ...prev,
                 {
@@ -630,7 +637,8 @@ export const McpQueryPage = () => {
                   content: textContent,
                   displayedContent: "", // Start empty for typewriter effect
                   isAnimating: true, // Mark as currently animating
-                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                  grafanaLinks:
+                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
                   timestamp: now,
                   outputTokens: outputTokens, // Get tokens from message usage
                 },
@@ -645,18 +653,12 @@ export const McpQueryPage = () => {
             setParsedResponses((prev) => {
               const now = Date.now();
               // Get previous timestamp if it exists
-              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
-              
+              const prevTimestamp =
+                prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+
               // Get output tokens from message usage
               const outputTokens = json.message?.usage?.output_tokens || 0;
-              
-              // Update running total with message tokens if available
-              if (outputTokens > 0) {
-                totalTokensRef.current += outputTokens;
-                setTotalTokens(totalTokensRef.current);
-                console.log('Adding tool use tokens to total:', outputTokens, 'New total:', totalTokensRef.current);
-              }
-              
+
               return [
                 ...prev,
                 {
@@ -680,9 +682,11 @@ export const McpQueryPage = () => {
             setParsedResponses((prev) => {
               const updated = [...prev];
               const toolUseIndex = updated.findIndex(
-                (response) => response.type === "tool_use" && response.toolUseId === item.tool_use_id
+                (response) =>
+                  response.type === "tool_use" &&
+                  response.toolUseId === item.tool_use_id
               );
-              
+
               if (toolUseIndex !== -1) {
                 // Add the tool result to the existing tool use
                 updated[toolUseIndex] = {
@@ -690,7 +694,7 @@ export const McpQueryPage = () => {
                   toolResult: item.content?.[0]?.text || "No result content",
                 };
               }
-              
+
               return updated;
             });
           }
@@ -699,37 +703,34 @@ export const McpQueryPage = () => {
         if (json.delta?.type === "text" && json.delta.text) {
           setParsedResponses((prev) => {
             const now = Date.now();
-            
+
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
               updated[updated.length - 1].isAnimating = true;
-              
+
               // Re-extract Grafana links from the updated content
               const fullContent = updated[updated.length - 1].content;
-              updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
-              
-              // For delta updates, add a fixed token per chunk - this approximates token usage
-              const fixedIncrement = 1;
-              
+              updated[updated.length - 1].grafanaLinks =
+                extractGrafanaLinks(fullContent);
+
+              // For delta updates, add a token for the chunk - this approximates token usage
+              const tokenIncrement = 1;
+
               // Update the current chunk token count
-              const currentTokens = updated[updated.length - 1].outputTokens || 0;
-              updated[updated.length - 1].outputTokens = currentTokens + fixedIncrement;
-              
-              // Increment our running total
-              totalTokensRef.current += fixedIncrement;
-              
-              // Update the displayed total tokens
-              setTotalTokens(totalTokensRef.current);
-              console.log('Updated total tokens:', totalTokensRef.current);
+              const currentTokens =
+                updated[updated.length - 1].outputTokens || 0;
+              updated[updated.length - 1].outputTokens =
+                currentTokens + tokenIncrement;
               updated[updated.length - 1].timestamp = now;
-              
+
               return updated;
             } else {
               // Get previous timestamp if it exists
-              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+              const prevTimestamp =
+                prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
               const textContent = json.delta.text;
-              
+
               return [
                 ...prev,
                 {
@@ -763,28 +764,150 @@ export const McpQueryPage = () => {
     }
   };
 
-  // Auto-scroll to bottom when new responses are added, but only while loading
+  // Detect when user scrolls up and disable auto-scrolling
   useEffect(() => {
-    // Only auto-scroll while loading
+    const handleScroll = () => {
+      // Calculate if we're near the bottom (within 100px)
+      const nearBottom =
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
+
+      // If we're not near the bottom and we're loading, disable auto-scroll
+      if (!nearBottom && isLoading) {
+        setAutoScrollEnabled(false);
+        setShowScrollButton(true);
+      }
+
+      // If we're near the bottom, hide the scroll button
+      if (nearBottom) {
+        setShowScrollButton(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isLoading]);
+
+  // Function to scroll to bottom and re-enable auto-scrolling
+  const scrollToBottomAndEnable = useCallback(() => {
+    // First re-enable auto-scrolling
+    setAutoScrollEnabled(true);
+
+    // Then hide the button
+    setShowScrollButton(false);
+
+    // Use a slight delay to ensure state updates before scrolling
+    setTimeout(() => {
+      // Scroll to bottom with smooth animation
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: "smooth"
+      });
+      
+      console.log("Auto-scroll re-enabled and scrolled to bottom");
+    }, 50);
+  }, []);
+
+  // Auto-scroll to bottom when new responses are added, but only when enabled
+  useEffect(() => {
+    // Only auto-scroll while loading and auto-scroll is enabled
     if (!isLoading) return;
     
-    // Scroll the whole window to the bottom
+    // Skip if auto-scroll is disabled
+    if (!autoScrollEnabled) {
+      console.log("Auto-scroll disabled, skipping scroll");
+      return;
+    }
+    
+    console.log("Auto-scrolling to bottom...");
+    
+    // Scroll with smooth behavior
     const scrollToBottom = () => {
       window.scrollTo({
         top: document.body.scrollHeight,
-        behavior: "smooth",
+        behavior: "smooth"
       });
     };
-
+    
     // Execute scroll after DOM updates
     requestAnimationFrame(scrollToBottom);
+    
+  }, [parsedResponses, isLoading, autoScrollEnabled]);
 
-    // Also try with a timer as a backup (some browsers need this)
-    const timer = setTimeout(scrollToBottom, 100);
+  // Calculate total tokens whenever parsedResponses changes
+  // Avoid double counting by tracking which messages we've already counted
+  const calculateTotalTokens = useCallback((responses: ParsedContent[]) => {
+    // Using a Number rather than an integer to avoid overflow
+    let total = 0;
+    const textTokens = [];
 
-    return () => clearTimeout(timer);
-  }, [parsedResponses, isLoading]);
-  
+    try {
+      // First, check if we've been given empty responses
+      if (!Array.isArray(responses) || responses.length === 0) {
+        return 0;
+      }
+
+      // Calculate an incremental sum of token counts to detect anomalies
+      for (const item of responses) {
+        if (item.type === "text") {
+          // Only count tokens from text cells to avoid double counting
+          if (
+            typeof item.outputTokens === "number" &&
+            isFinite(item.outputTokens)
+          ) {
+            const tokenCount = Math.max(0, Number(item.outputTokens));
+            textTokens.push(tokenCount);
+
+            // Only add reasonable token counts
+            if (tokenCount >= 0 && tokenCount < 10000) {
+              total += tokenCount;
+            } else {
+              console.warn("Skipping suspicious token count:", tokenCount);
+            }
+          }
+        }
+        // Intentionally not counting tool_use tokens to avoid double counting
+      }
+    } catch (err) {
+      console.error("Error during token calculation:", err);
+      // If calculation fails, return a reasonable number instead of crashing
+      return 0;
+    }
+
+    // Ensure the total is reasonable (between 0 and 20k)
+    // Use Number() to ensure we're not dealing with weird type issues
+    total = Number(total);
+
+    // Handle NaN, Infinity, or negative numbers
+    if (!isFinite(total) || total < 0) {
+      console.warn(`Invalid token count detected: ${total}, resetting to 0`);
+      total = 0;
+    } else if (total > 20000) {
+      console.warn(`Token count capped from ${total} to 20000`);
+      total = 20000;
+    }
+
+    return total;
+  }, []);
+
+  // Dedicated effect to keep total token count in sync
+  useEffect(() => {
+    if (parsedResponses.length > 0) {
+      const total = calculateTotalTokens(parsedResponses);
+      console.log(
+        "Token counter effect - total tokens:",
+        total,
+        "from",
+        parsedResponses.length,
+        "chunks"
+      );
+
+      // Only update if the value is valid and different to avoid unnecessary re-renders
+      if (isFinite(total) && total >= 0 && total !== totalTokens) {
+        setTotalTokens(total);
+      }
+    }
+  }, [parsedResponses, calculateTotalTokens, totalTokens]);
+
   // Final scroll to bottom when loading finishes
   useEffect(() => {
     // When loading changes from true to false, do one final scroll
@@ -793,13 +916,13 @@ export const McpQueryPage = () => {
       const finalScrollTimer = setTimeout(() => {
         window.scrollTo({
           top: document.body.scrollHeight,
-          behavior: "smooth",
+          behavior: "smooth"
         });
       }, 200);
-      
+
       return () => clearTimeout(finalScrollTimer);
     }
-  }, [isLoading]);
+  }, [isLoading, parsedResponses.length]);
 
   // Clean up on component unmount
   useEffect(() => {
@@ -824,15 +947,19 @@ export const McpQueryPage = () => {
     setResponse("");
     setParsedResponses([]); // Reset to empty array of ParsedContent
     setError("");
-    
-    // Start the timer and reset token count
+    setAllToolsExpanded(false); // Reset tool expansion state
+    setAutoScrollEnabled(true); // Re-enable auto-scrolling
+    setShowScrollButton(false); // Hide scroll button
+
+    // Start the timer and reset all token counts
     const now = Date.now();
     setStartTime(now);
     setElapsedTime(0);
-    setTotalTokens(0); // Reset token count
-    totalTokensRef.current = 0; // Reset the ref-based running total
-    setCompletedTokens(0); // Reset completed tokens
-    setCompletedTime(0); // Reset completed time
+
+    // Reset all token counters
+    setTotalTokens(0);
+    setCompletedTokens(0);
+    setCompletedTime(0);
 
     // Create a new AbortController
     fetchControllerRef.current = new AbortController();
@@ -884,35 +1011,25 @@ export const McpQueryPage = () => {
           if (buffer.trim()) {
             parseJsonLine(buffer.trim());
           }
-          
+
           // Wait a short moment to ensure all state updates have processed
           setTimeout(() => {
-            // Calculate final token count from all response chunks as a safety check
-            const finalTokenCount = parsedResponses.reduce((sum, item) => sum + (item.outputTokens || 0), 0);
-            
-            console.log('Final token count calculation:', finalTokenCount, 'Running total:', totalTokensRef.current);
-            
-            // Use our running total for consistency, but make sure it's at least the sum of all chunks
-            const finalTotal = Math.max(finalTokenCount, totalTokensRef.current);
-            
-            // If we somehow don't have any tokens counted, force a recalculation
-            const actualFinalTotal = finalTotal > 0 ? finalTotal : finalTokenCount;
-            
-            // Log the final decision for debugging
-            console.log('Using final total:', actualFinalTotal);
-            
-            // Store the final tokens and time for display
-            setCompletedTokens(actualFinalTotal);
+            // Calculate the final token count using our memoized function
+            const finalTokens = calculateTotalTokens(parsedResponses);
+
+            // Store the completion time and final token count
             setCompletedTime(elapsedTime);
-            
-            // Update the total tokens for display consistency
-            setTotalTokens(actualFinalTotal);
-            totalTokensRef.current = actualFinalTotal;
-            
+            setCompletedTokens(finalTokens);
+
+            // Make sure totalTokens is consistent
+            setTotalTokens(finalTokens);
+
+            console.log("Completion - final token count:", finalTokens);
+
             // Stop the token animation
             setIsLoading(false);
-          }, 500); // Increase timeout further to ensure state updates properly
-          
+          }, 500); // Increase timeout to ensure state updates properly
+
           break;
         }
 
@@ -948,6 +1065,20 @@ export const McpQueryPage = () => {
 
   return (
     <McpQueryPageContainer>
+      {/* Floating scroll to bottom button - only shows when scrolled up during loading */}
+      {showScrollButton && (
+        <Tooltip title="Go to bottom and resume auto-scroll">
+          <ScrollToBottomButton
+            variant="contained"
+            color="primary"
+            onClick={scrollToBottomAndEnable}
+            aria-label="Scroll to bottom and resume auto-scroll"
+          >
+            <ArrowDownwardIcon />
+          </ScrollToBottomButton>
+        </Tooltip>
+      )}
+
       <Typography variant="h4" gutterBottom>
         PyTorch Grafana Agent
       </Typography>
@@ -970,7 +1101,7 @@ export const McpQueryPage = () => {
             disabled={isLoading}
             onKeyDown={(e) => {
               // Submit on Ctrl+Enter or Cmd+Enter
-              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
                 if (!isLoading && query.trim()) {
                   handleSubmit(e);
@@ -1011,36 +1142,45 @@ export const McpQueryPage = () => {
       </QuerySection>
 
       <ResultsSection>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            Results
-          </Typography>
-          {parsedResponses.length > 0 && parsedResponses.some(item => item.type === 'tool_use') && (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => {
-                // Toggle between expand all and collapse all
-                if (allToolsExpanded) {
-                  // Collapse all - set to empty object to collapse everything
-                  setExpandedTools({});
-                  setAllToolsExpanded(false);
-                } else {
-                  // Expand all - set all tool indices to true
-                  const allExpanded = parsedResponses.reduce((acc, _, index) => {
-                    if (parsedResponses[index].type === 'tool_use') {
-                      acc[index] = true;
-                    }
-                    return acc;
-                  }, {} as Record<number, boolean>);
-                  setExpandedTools(allExpanded);
-                  setAllToolsExpanded(true);
-                }
-              }}
-            >
-              {allToolsExpanded ? 'Collapse all tools' : 'Expand all tools'}
-            </Button>
-          )}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h6">Results</Typography>
+          {parsedResponses.length > 0 &&
+            parsedResponses.some((item) => item.type === "tool_use") && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  // Toggle between expand all and collapse all
+                  if (allToolsExpanded) {
+                    // Collapse all - set to empty object to collapse everything
+                    setExpandedTools({});
+                    setAllToolsExpanded(false);
+                  } else {
+                    // Expand all - set all tool indices to true
+                    const allExpanded = parsedResponses.reduce(
+                      (acc, _, index) => {
+                        if (parsedResponses[index].type === "tool_use") {
+                          acc[index] = true;
+                        }
+                        return acc;
+                      },
+                      {} as Record<number, boolean>
+                    );
+                    setExpandedTools(allExpanded);
+                    setAllToolsExpanded(true);
+                  }
+                }}
+              >
+                {allToolsExpanded ? "Collapse all tools" : "Expand all tools"}
+              </Button>
+            )}
         </Box>
         {error && (
           <Typography color="error" paragraph>
@@ -1067,13 +1207,23 @@ export const McpQueryPage = () => {
                     {/* Show metadata for completed chunks */}
                     {!item.isAnimating && (
                       <ChunkMetadata>
-                        {item.timestamp && index > 0 && parsedResponses[index-1].timestamp ? 
-                          `Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
-                          item.timestamp && startTime ? 
-                          `Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
-                          ''
-                        }
-                          {item.outputTokens ? ` • ${formatTokenCount(item.outputTokens)} tokens` : ''}
+                        {item.timestamp &&
+                        index > 0 &&
+                        parsedResponses[index - 1].timestamp
+                          ? `Generated in ${(
+                              (item.timestamp -
+                                (parsedResponses[index - 1].timestamp || 0)) /
+                              1000
+                            ).toFixed(2)}s`
+                          : item.timestamp && startTime
+                          ? `Generated in ${(
+                              (item.timestamp - (startTime || 0)) /
+                              1000
+                            ).toFixed(2)}s`
+                          : ""}
+                        {item.outputTokens
+                          ? ` • ${formatTokenCount(item.outputTokens)} tokens`
+                          : ""}
                       </ChunkMetadata>
                     )}
 
@@ -1120,23 +1270,48 @@ export const McpQueryPage = () => {
                     </Box>
                     <Collapse in={expandedTools[index]} timeout="auto">
                       {/* Tool Input */}
-                      <Typography variant="caption" sx={{ display: 'block', mt: 1, mb: 0.5, color: 'text.secondary' }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          mt: 1,
+                          mb: 0.5,
+                          color: "text.secondary",
+                        }}
+                      >
                         Input:
                       </Typography>
                       <ToolInput>
                         {JSON.stringify(item.toolInput, null, 2)}
                       </ToolInput>
-                      
+
                       {/* Tool Result (if available) */}
                       {item.toolResult && (
                         <>
-                          <Typography variant="caption" sx={{ display: 'block', mt: 2, mb: 0.5, color: 'text.secondary' }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: "block",
+                              mt: 2,
+                              mb: 0.5,
+                              color: "text.secondary",
+                            }}
+                          >
                             Result:
                           </Typography>
-                          <ToolInput sx={{
-                            backgroundColor: theme.palette.mode === 'dark' ? '#252e3d' : '#f0f7ff',
-                            borderLeft: `4px solid ${theme.palette.mode === 'dark' ? '#4caf50' : '#2e7d32'}`
-                          }}>
+                          <ToolInput
+                            sx={{
+                              backgroundColor:
+                                theme.palette.mode === "dark"
+                                  ? "#252e3d"
+                                  : "#f0f7ff",
+                              borderLeft: `4px solid ${
+                                theme.palette.mode === "dark"
+                                  ? "#4caf50"
+                                  : "#2e7d32"
+                              }`,
+                            }}
+                          >
                             {(() => {
                               try {
                                 // Try to parse and pretty print JSON responses
@@ -1150,38 +1325,46 @@ export const McpQueryPage = () => {
                           </ToolInput>
                         </>
                       )}
-                      
+
                       {/* Add ClickHouse button if this is a ClickHouse tool */}
-                      {item.toolName?.toLowerCase().includes('clickhouse') && 
+                      {item.toolName?.toLowerCase().includes("clickhouse") &&
                         item.toolInput?.query && (
-                          <Box sx={{ mt: 2, textAlign: 'right' }}>
-                            <Tooltip title="This will copy the query and open a new page in ClickHouse. Paste the query to run it there" arrow>
+                          <Box sx={{ mt: 2, textAlign: "right" }}>
+                            <Tooltip
+                              title="This will copy the query and open a new page in ClickHouse. Paste the query to run it there"
+                              arrow
+                            >
                               <Button
                                 variant="outlined"
                                 size="small"
                                 startIcon={<ContentCopyIcon />}
                                 onClick={() => {
-                                  const query = typeof item.toolInput.query === 'string' 
-                                    ? item.toolInput.query 
-                                    : JSON.stringify(item.toolInput.query);
-                                    
+                                  const query =
+                                    typeof item.toolInput.query === "string"
+                                      ? item.toolInput.query
+                                      : JSON.stringify(item.toolInput.query);
+
                                   navigator.clipboard.writeText(query);
-                                  window.open(CLICKHOUSE_CONSOLE_BASE_URL + generateQueryId(), '_blank');
+                                  window.open(
+                                    CLICKHOUSE_CONSOLE_BASE_URL +
+                                      generateQueryId(),
+                                    "_blank"
+                                  );
                                 }}
                               >
                                 Copy query and go to ClickHouse
                               </Button>
                             </Tooltip>
                           </Box>
-                        )
-                      }
+                        )}
                     </Collapse>
-                    
+
                     {/* Show metadata for tool use - only tokens */}
                     <ChunkMetadata>
-                      {item.outputTokens ? `${formatTokenCount(item.outputTokens)} tokens` : ''}
+                      {item.outputTokens
+                        ? `${formatTokenCount(item.outputTokens)} tokens`
+                        : ""}
                     </ChunkMetadata>
-                    
                   </ToolUseBlock>
                 ) : null}
                 {index < parsedResponses.length - 1 &&
@@ -1199,33 +1382,44 @@ export const McpQueryPage = () => {
                     {thinkingMessages[thinkingMessageIndex]}
                   </Typography>
                   <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                    Running for {formatElapsedTime(elapsedTime)} • {formatTokenCount(displayedTokens)} tokens
+                    Running for {formatElapsedTime(elapsedTime)} •{" "}
+                    {formatTokenCount(displayedTokens)} tokens
                   </Typography>
                 </Box>
               </LoaderWrapper>
-            ) : completedTokens > 0 && (
-              // Show completion summary when finished - with higher z-index and sticky position
-              <Box 
-                sx={{ 
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                  mt: 3, 
-                  p: 2, 
-                  borderTop: '1px solid',
-                  borderTopColor: 'divider',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30,30,30,0.95)' : 'rgba(250,250,250,0.95)',
-                  borderRadius: '0 0 8px 8px',
-                  position: 'sticky',
-                  bottom: 0,
-                  zIndex: 10,
-                  boxShadow: '0 -2px 10px rgba(0,0,0,0.1)'
-                }}
-              >
-                <Typography variant="body2" color="text.primary" sx={{ fontWeight: 'medium' }}>
-                  Completed in {formatElapsedTime(completedTime)} • Total: {formatTokenCount(completedTokens)} tokens
-                </Typography>
-              </Box>
+            ) : (
+              completedTokens > 0 && (
+                // Show completion summary when finished - with higher z-index and sticky position
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    mt: 3,
+                    p: 2,
+                    borderTop: "1px solid",
+                    borderTopColor: "divider",
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(30,30,30,0.95)"
+                        : "rgba(250,250,250,0.95)",
+                    borderRadius: "0 0 8px 8px",
+                    position: "sticky",
+                    bottom: 0,
+                    zIndex: 10,
+                    boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.primary"
+                    sx={{ fontWeight: "medium" }}
+                  >
+                    Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                    {formatTokenCount(completedTokens)} tokens
+                  </Typography>
+                </Box>
+              )
             )}
           </div>
         ) : (
@@ -1246,7 +1440,8 @@ export const McpQueryPage = () => {
                 {thinkingMessages[thinkingMessageIndex]}
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Running for {formatElapsedTime(elapsedTime)} • {formatTokenCount(displayedTokens)} tokens
+                Running for {formatElapsedTime(elapsedTime)} •{" "}
+                {formatTokenCount(displayedTokens)} tokens
               </Typography>
             </Box>
           </LoaderWrapper>
