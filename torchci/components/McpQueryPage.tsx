@@ -78,6 +78,15 @@ const ToolInput = styled("pre")(({ theme }) => ({
   color: theme.palette.mode === "dark" ? "#e2e8f0" : "#333",
 }));
 
+const ChunkMetadata = styled(Typography)(({ theme }) => ({
+  fontSize: "0.75em",
+  color: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
+  textAlign: "right",
+  marginTop: "4px",
+  marginBottom: "16px",
+  fontFamily: "monospace",
+}));
+
 const LoaderWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
@@ -193,6 +202,10 @@ interface MessageWrapper {
     text?: string;
   };
   error?: string;
+  usage?: {
+    output_tokens: number;
+    input_tokens?: number;
+  };
 }
 
 interface GrafanaLink {
@@ -209,6 +222,8 @@ type ParsedContent = {
   toolInput?: any;
   grafanaLinks?: GrafanaLink[];
   isAnimating?: boolean; // Track if this content is still animating
+  timestamp?: number; // When this content was received
+  outputTokens?: number; // Number of output tokens used
 };
 
 // Import the DarkMode context
@@ -317,6 +332,19 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
   return result;
 };
 
+// Format seconds to mm:ss or hh:mm:ss
+const formatElapsedTime = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+};
+
 export const McpQueryPage = () => {
   const theme = useTheme();
   const [query, setQuery] = useState("");
@@ -328,6 +356,8 @@ export const McpQueryPage = () => {
   );
   const [typingSpeed] = useState(10); // ms per character for typewriter effect
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
 
   // Funny thinking messages
   const thinkingMessages = useMemo(
@@ -377,6 +407,19 @@ export const McpQueryPage = () => {
       setThinkingMessageIndex((prev) => (prev + 1) % thinkingMessages.length);
     }
   }, [parsedResponses.length, isLoading, thinkingMessages.length]);
+  
+  // Timer effect to update elapsed time
+  useEffect(() => {
+    if (!isLoading || !startTime) return;
+    
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      setElapsedTime(elapsed);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isLoading, startTime]);
 
   // Handle typewriter effect for text content
   useEffect(() => {
@@ -452,50 +495,75 @@ export const McpQueryPage = () => {
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
 
-            setParsedResponses((prev) => [
-              ...prev,
-              {
-                type: "text",
-                content: textContent,
-                displayedContent: "", // Start empty for typewriter effect
-                isAnimating: true, // Mark as currently animating
-                grafanaLinks:
-                  grafanaLinks.length > 0 ? grafanaLinks : undefined,
-              },
-            ]);
+            setParsedResponses((prev) => {
+              // Get previous timestamp if it exists
+              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+              const now = Date.now();
+              
+              return [
+                ...prev,
+                {
+                  type: "text",
+                  content: textContent,
+                  displayedContent: "", // Start empty for typewriter effect
+                  isAnimating: true, // Mark as currently animating
+                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                  timestamp: now,
+                  outputTokens: json.usage?.output_tokens || 0,
+                },
+              ];
+            });
           } else if (
             item.type === "tool_use" &&
             "name" in item &&
             "input" in item
           ) {
             // Handle tool use content
-            setParsedResponses((prev) => [
-              ...prev,
-              {
-                type: "tool_use",
-                content: "",
-                toolName: item.name,
-                toolInput: item.input,
-              },
-            ]);
+            setParsedResponses((prev) => {
+              const now = Date.now();
+              // Get previous timestamp if it exists
+              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+              
+              return [
+                ...prev,
+                {
+                  type: "tool_use",
+                  content: "",
+                  toolName: item.name,
+                  toolInput: item.input,
+                  timestamp: now,
+                  outputTokens: json.usage?.output_tokens || 0,
+                },
+              ];
+            });
           }
         });
       } else if (json.type === "content_block_delta") {
         if (json.delta?.type === "text" && json.delta.text) {
           setParsedResponses((prev) => {
+            const now = Date.now();
+            
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
               updated[updated.length - 1].isAnimating = true;
-
+              
               // Re-extract Grafana links from the updated content
               const fullContent = updated[updated.length - 1].content;
-              updated[updated.length - 1].grafanaLinks =
-                extractGrafanaLinks(fullContent);
-
+              updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
+              
+              // Update token count and timestamp
+              if (json.usage?.output_tokens) {
+                updated[updated.length - 1].outputTokens = json.usage.output_tokens;
+              }
+              updated[updated.length - 1].timestamp = now;
+              
               return updated;
             } else {
+              // Get previous timestamp if it exists
+              const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
               const textContent = json.delta.text;
+              
               return [
                 ...prev,
                 {
@@ -504,6 +572,8 @@ export const McpQueryPage = () => {
                   displayedContent: "", // Start empty for typewriter effect
                   isAnimating: true, // Mark as currently animating
                   grafanaLinks: extractGrafanaLinks(textContent),
+                  timestamp: now,
+                  outputTokens: json.usage?.output_tokens || 0,
                 },
               ];
             }
@@ -569,6 +639,11 @@ export const McpQueryPage = () => {
     setResponse("");
     setParsedResponses([]); // Reset to empty array of ParsedContent
     setError("");
+    
+    // Start the timer
+    const now = Date.now();
+    setStartTime(now);
+    setElapsedTime(0);
 
     // Create a new AbortController
     fetchControllerRef.current = new AbortController();
@@ -734,6 +809,19 @@ export const McpQueryPage = () => {
                       )}
                     </ResponseText>
 
+                    {/* Show metadata for completed chunks */}
+                    {!item.isAnimating && (
+                      <ChunkMetadata>
+                        {item.outputTokens ? `${item.outputTokens} tokens` : ''}
+                        {item.timestamp && index > 0 && parsedResponses[index-1].timestamp ? 
+                          ` • Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
+                          item.timestamp && startTime ? 
+                          ` • Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
+                          ''
+                        }
+                      </ChunkMetadata>
+                    )}
+
                     {/* Render Grafana embeds if links are present */}
                     {item.grafanaLinks && item.grafanaLinks.length > 0 && (
                       <Box mt={2}>
@@ -780,6 +868,17 @@ export const McpQueryPage = () => {
                         {JSON.stringify(item.toolInput, null, 2)}
                       </ToolInput>
                     </Collapse>
+                    
+                    {/* Show metadata for tool use */}
+                    <ChunkMetadata>
+                      {item.outputTokens ? `${item.outputTokens} tokens` : ''}
+                      {item.timestamp && index > 0 && parsedResponses[index-1].timestamp ? 
+                        ` • Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
+                        item.timestamp && startTime ? 
+                        ` • Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
+                        ''
+                      }
+                    </ChunkMetadata>
                   </ToolUseBlock>
                 ) : null}
                 {index < parsedResponses.length - 1 &&
@@ -792,9 +891,14 @@ export const McpQueryPage = () => {
             {isLoading && (
               <LoaderWrapper>
                 <AISpinner />
-                <Typography variant="body2" sx={{ ml: 2 }}>
-                  {thinkingMessages[thinkingMessageIndex]}
-                </Typography>
+                <Box sx={{ ml: 2 }}>
+                  <Typography variant="body2">
+                    {thinkingMessages[thinkingMessageIndex]}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                    Running for {formatElapsedTime(elapsedTime)}
+                  </Typography>
+                </Box>
               </LoaderWrapper>
             )}
           </div>
@@ -811,9 +915,14 @@ export const McpQueryPage = () => {
         {isLoading && parsedResponses.length === 0 && (
           <LoaderWrapper>
             <AISpinner />
-            <Typography variant="body2" sx={{ ml: 2 }}>
-              {thinkingMessages[thinkingMessageIndex]}
-            </Typography>
+            <Box sx={{ ml: 2 }}>
+              <Typography variant="body2">
+                {thinkingMessages[thinkingMessageIndex]}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                Running for {formatElapsedTime(elapsedTime)}
+              </Typography>
+            </Box>
           </LoaderWrapper>
         )}
 
