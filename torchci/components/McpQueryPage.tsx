@@ -31,7 +31,35 @@ const ResponseText = styled("pre")(({ theme }) => ({
   fontFamily: "monospace",
   margin: 0,
   lineHeight: 1.5,
+  paddingTop: "1em",
   color: theme.palette.mode === "dark" ? "#e0e0e0" : "inherit",
+}));
+
+// Tool use block styling
+const ToolUseBlock = styled(Paper)(({ theme }) => ({
+  padding: "12px",
+  marginTop: "10px",
+  marginBottom: "10px",
+  backgroundColor: theme.palette.mode === "dark" ? "#2d3748" : "#e6f7ff",
+  borderLeft: `4px solid ${theme.palette.mode === "dark" ? "#63b3ed" : "#1890ff"}`,
+}));
+
+const ToolName = styled(Typography)(({ theme }) => ({
+  fontWeight: "bold",
+  marginBottom: "8px",
+  color: theme.palette.mode === "dark" ? "#90cdf4" : "#0050b3",
+}));
+
+const ToolInput = styled("pre")(({ theme }) => ({
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  fontFamily: "monospace",
+  margin: 0,
+  fontSize: "0.9em",
+  padding: "8px",
+  backgroundColor: theme.palette.mode === "dark" ? "#1a202c" : "#f0f7ff",
+  borderRadius: "4px",
+  color: theme.palette.mode === "dark" ? "#e2e8f0" : "#333",
 }));
 
 const LoaderWrapper = styled("div")({
@@ -40,12 +68,53 @@ const LoaderWrapper = styled("div")({
   right: "10px",
 });
 
+// Define interfaces for response types
+interface ToolUse {
+  type: "tool_use";
+  id: string;
+  name: string;
+  input: any;
+}
+
+interface ContentBlock {
+  type: string;
+  text?: string;
+  id?: string;
+}
+
+interface AssistantMessage {
+  id: string;
+  type: string;
+  role: string;
+  content: (ContentBlock | ToolUse)[];
+  stop_reason?: string;
+  model?: string;
+}
+
+interface MessageWrapper {
+  type: string;
+  message?: AssistantMessage;
+  delta?: {
+    type: string;
+    text?: string;
+  };
+  error?: string;
+}
+
+// Type to represent different types of parsed content
+type ParsedContent = {
+  type: "text" | "tool_use";
+  content: string;
+  toolName?: string;
+  toolInput?: any;
+};
+
 export const McpQueryPage = () => {
   const theme = useTheme();
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
-  const [parsedResponses, setParsedResponses] = useState<string[]>([]);
+  const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   
@@ -59,7 +128,7 @@ export const McpQueryPage = () => {
     setQuery(event.target.value);
   };
 
-  // Parse response JSON and extract text content  
+  // Parse response JSON and extract content  
   const parseJsonLine = (line: string) => {
     try {
       if (!line.trim()) return;
@@ -68,27 +137,45 @@ export const McpQueryPage = () => {
       setResponse(prev => prev + line + "\n");
       
       // Parse the JSON
-      const json = JSON.parse(line);
+      const json = JSON.parse(line) as MessageWrapper;
       
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
-        const texts = json.message.content
-          .filter((item: any) => item.type === "text")
-          .map((item: any) => item.text);
-        
-        if (texts.length > 0) {
-          setParsedResponses(prev => [...prev, ...texts]);
-        }
+        // Process each content block
+        json.message.content.forEach(item => {
+          if (item.type === "text" && 'text' in item) {
+            // Handle text content
+            setParsedResponses(prev => [
+              ...prev, 
+              { 
+                type: "text", 
+                content: item.text || "" 
+              }
+            ]);
+          } 
+          else if (item.type === "tool_use" && 'name' in item && 'input' in item) {
+            // Handle tool use content
+            setParsedResponses(prev => [
+              ...prev, 
+              { 
+                type: "tool_use", 
+                content: "", 
+                toolName: item.name,
+                toolInput: item.input
+              }
+            ]);
+          }
+        });
       } 
       else if (json.type === "content_block_delta") {
         if (json.delta?.type === "text" && json.delta.text) {
           setParsedResponses(prev => {
-            if (prev.length > 0) {
+            if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
-              updated[updated.length - 1] += json.delta.text;
+              updated[updated.length - 1].content += json.delta.text;
               return updated;
             } else {
-              return [json.delta.text];
+              return [...prev, { type: "text", content: json.delta.text }];
             }
           });
         }
@@ -139,7 +226,7 @@ export const McpQueryPage = () => {
     // Reset state
     setIsLoading(true);
     setResponse("");
-    setParsedResponses([]);
+    setParsedResponses([]); // Reset to empty array of ParsedContent
     setError("");
 
     // Create a new AbortController
@@ -299,11 +386,24 @@ export const McpQueryPage = () => {
         
         {parsedResponses.length > 0 ? (
           <div>
-            {parsedResponses.map((text, index) => (
-              <ResponseText key={index}>
-                {text}
-                {index < parsedResponses.length - 1 && <hr />}
-              </ResponseText>
+            {parsedResponses.map((item, index) => (
+              <div key={index}>
+                {item.type === "text" ? (
+                  <ResponseText>
+                    {item.content?.trim()}
+                  </ResponseText>
+                ) : item.type === "tool_use" && item.toolName ? (
+                  <ToolUseBlock>
+                    <ToolName variant="subtitle2">
+                      🛠️ Tool: {item.toolName}
+                    </ToolName>
+                    <ToolInput>
+                      {JSON.stringify(item.toolInput, null, 2)}
+                    </ToolInput>
+                  </ToolUseBlock>
+                ) : null}
+                {index < parsedResponses.length - 1 && item.type === "text" && parsedResponses[index + 1].type === "text" && <hr />}
+              </div>
             ))}
           </div>
         ) : (
