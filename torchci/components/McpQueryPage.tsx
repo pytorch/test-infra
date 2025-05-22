@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import {
   Box,
   Button,
@@ -8,6 +9,7 @@ import {
   IconButton,
   Paper,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -251,7 +253,7 @@ const extractGrafanaLinks = (text: string): GrafanaLink[] => {
 };
 
 // Function to make text with Grafana links clickable
-const renderTextWithLinks = (text: string): React.ReactNode => {
+const renderTextWithLinks = (text: string, isAnimating?: boolean): React.ReactNode => {
   if (!text) return null;
 
   // Create a React element array to build the result
@@ -294,8 +296,8 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
     result.push(text.substring(lastIndex));
   }
 
-  // Add blinking cursor at the end for text that's still typing
-  if (text.length > 0 && result.length > 0) {
+  // Add blinking cursor at the end for text that's still typing - only if explicitly animating
+  if (text.length > 0 && result.length > 0 && isAnimating) {
     // Get the last item in the array
     const lastItem = result[result.length - 1];
 
@@ -344,6 +346,24 @@ const formatElapsedTime = (seconds: number): string => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 };
+
+// Generate a unique ID for the ClickHouse console query URL
+const generateQueryId = (): string => {
+  // This is a simplified version of UUID v4 generation
+  const hex = [];
+  for (let i = 0; i < 36; i++) {
+    if (i === 8 || i === 13 || i === 18 || i === 23) {
+      hex[i] = '-';
+    } else if (i === 14) {
+      hex[i] = '4'; // UUID version 4
+    } else {
+      hex[i] = Math.floor(Math.random() * 16).toString(16);
+    }
+  }
+  return hex.join('');
+};
+
+const CLICKHOUSE_CONSOLE_BASE_URL = "https://console.clickhouse.cloud/services/c9b76950-2cf3-4fa0-93bb-94a65ff5f27d/console/query/";
 
 export const McpQueryPage = () => {
   const theme = useTheme();
@@ -597,8 +617,11 @@ export const McpQueryPage = () => {
     }
   };
 
-  // Auto-scroll to bottom when new responses are added or loading state changes
+  // Auto-scroll to bottom when new responses are added, but only while loading
   useEffect(() => {
+    // Only auto-scroll while loading
+    if (!isLoading) return;
+    
     // Scroll the whole window to the bottom
     const scrollToBottom = () => {
       window.scrollTo({
@@ -615,6 +638,22 @@ export const McpQueryPage = () => {
 
     return () => clearTimeout(timer);
   }, [parsedResponses, isLoading]);
+  
+  // Final scroll to bottom when loading finishes
+  useEffect(() => {
+    // When loading changes from true to false, do one final scroll
+    if (!isLoading && parsedResponses.length > 0) {
+      // Use a slight delay to ensure all content is rendered
+      const finalScrollTimer = setTimeout(() => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 200);
+      
+      return () => clearTimeout(finalScrollTimer);
+    }
+  }, [isLoading]);
 
   // Clean up on component unmount
   useEffect(() => {
@@ -805,7 +844,8 @@ export const McpQueryPage = () => {
                         (item.displayedContent !== undefined
                           ? item.displayedContent
                           : item.content
-                        )?.trim() || ""
+                        )?.trim() || "",
+                        item.isAnimating
                       )}
                     </ResponseText>
 
@@ -867,17 +907,36 @@ export const McpQueryPage = () => {
                       <ToolInput>
                         {JSON.stringify(item.toolInput, null, 2)}
                       </ToolInput>
+                      
+                      {/* Add ClickHouse button if this is a ClickHouse tool */}
+                      {item.toolName?.toLowerCase().includes('clickhouse') && 
+                        item.toolInput?.query && (
+                          <Box sx={{ mt: 2, textAlign: 'right' }}>
+                            <Tooltip title="This will copy the query and open a new page in ClickHouse. Paste the query to run it there" arrow>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<ContentCopyIcon />}
+                                onClick={() => {
+                                  const query = typeof item.toolInput.query === 'string' 
+                                    ? item.toolInput.query 
+                                    : JSON.stringify(item.toolInput.query);
+                                    
+                                  navigator.clipboard.writeText(query);
+                                  window.open(CLICKHOUSE_CONSOLE_BASE_URL + generateQueryId(), '_blank');
+                                }}
+                              >
+                                Copy query and go to ClickHouse
+                              </Button>
+                            </Tooltip>
+                          </Box>
+                        )
+                      }
                     </Collapse>
                     
-                    {/* Show metadata for tool use */}
+                    {/* Show metadata for tool use - only tokens */}
                     <ChunkMetadata>
                       {item.outputTokens ? `${item.outputTokens} tokens` : ''}
-                      {item.timestamp && index > 0 && parsedResponses[index-1].timestamp ? 
-                        ` • Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
-                        item.timestamp && startTime ? 
-                        ` • Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
-                        ''
-                      }
                     </ChunkMetadata>
                   </ToolUseBlock>
                 ) : null}
