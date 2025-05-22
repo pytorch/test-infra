@@ -60,7 +60,7 @@ export async function uploadArtifact(
     maxAttempts: 10
   })
 
-  const canonicalObjectUrlPrefix: string = `https://${s3Bucket}.s3.${region}.amazonaws.com/${s3Prefix}`
+  const canonicalObjectUrlPrefix: string = `https://${s3Bucket}.s3.${region}.amazonaws.com`
 
   const objects: Record<string, S3ObjectMetadata> = {}
 
