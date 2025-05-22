@@ -1,6 +1,8 @@
 import styled from "@emotion/styled";
 import { useState, useEffect, useRef } from "react";
-import { Typography, Paper, TextField, Button, Box, CircularProgress, useTheme } from "@mui/material";
+import { Typography, Paper, TextField, Button, Box, CircularProgress, useTheme, Collapse, IconButton } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
 const McpQueryPageContainer = styled("div")({
   fontFamily: "Roboto",
@@ -18,8 +20,11 @@ const QuerySection = styled(Paper)({
 const ResultsSection = styled(Paper)(({ theme }) => ({
   padding: "20px",
   minHeight: "300px",
+  maxHeight: "70vh", // Limit height to 70% of viewport
+  overflowY: "auto", // Add scrolling
   position: "relative",
   backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
+  scrollBehavior: "smooth", // Add smooth scrolling
 }));
 
 // Use theme-aware styling for the response text
@@ -40,6 +45,8 @@ const ToolUseBlock = styled(Paper)(({ theme }) => ({
   marginBottom: "10px",
   backgroundColor: theme.palette.mode === "dark" ? "#2d3748" : "#e6f7ff",
   borderLeft: `4px solid ${theme.palette.mode === "dark" ? "#63b3ed" : "#1890ff"}`,
+  overflow: "hidden",
+  transition: "max-height 0.3s ease-in-out"
 }));
 
 const ToolName = styled(Typography)(({ theme }) => ({
@@ -60,10 +67,15 @@ const ToolInput = styled("pre")(({ theme }) => ({
   color: theme.palette.mode === "dark" ? "#e2e8f0" : "#333",
 }));
 
-const LoaderWrapper = styled("div")({
-  position: "absolute",
-  top: "10px",
-  right: "10px",
+const LoaderWrapper = styled(Box)({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "15px",
+  marginTop: "20px",
+  marginBottom: "20px",
+  backgroundColor: "rgba(0, 0, 0, 0.05)",
+  borderRadius: "8px"
 });
 
 const GrafanaChartContainer = styled(Box)(({ theme }) => ({
@@ -247,6 +259,7 @@ export const McpQueryPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
+  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   
@@ -255,6 +268,16 @@ export const McpQueryPage = () => {
   
   // Reference to the results container for auto-scrolling
   const resultsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Function to scroll to bottom of results
+  const scrollToBottom = () => {
+    if (resultsContainerRef.current) {
+      const scrollHeight = resultsContainerRef.current.scrollHeight;
+      const height = resultsContainerRef.current.clientHeight;
+      const maxScrollTop = scrollHeight - height;
+      resultsContainerRef.current.scrollTop = maxScrollTop > 0 ? maxScrollTop : 0;
+    }
+  };
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -280,44 +303,54 @@ export const McpQueryPage = () => {
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
             
-            setParsedResponses(prev => [
-              ...prev, 
-              { 
-                type: "text", 
-                content: textContent, 
-                grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
-              }
-            ]);
+            setParsedResponses(prev => {
+              const newResponses = [
+                ...prev, 
+                { 
+                  type: "text", 
+                  content: textContent, 
+                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
+                }
+              ];
+              // Schedule a scroll after the state update
+              setTimeout(scrollToBottom, 0);
+              return newResponses;
+            });
           } 
           else if (item.type === "tool_use" && 'name' in item && 'input' in item) {
             // Handle tool use content
-            setParsedResponses(prev => [
-              ...prev, 
-              { 
-                type: "tool_use", 
-                content: "", 
-                toolName: item.name,
-                toolInput: item.input
-              }
-            ]);
+            setParsedResponses(prev => {
+              const newResponses = [
+                ...prev, 
+                { 
+                  type: "tool_use", 
+                  content: "", 
+                  toolName: item.name,
+                  toolInput: item.input
+                }
+              ];
+              // Schedule a scroll after the state update
+              setTimeout(scrollToBottom, 0);
+              return newResponses;
+            });
           }
         });
       } 
       else if (json.type === "content_block_delta") {
         if (json.delta?.type === "text" && json.delta.text) {
           setParsedResponses(prev => {
+            let updated;
+            
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
-              const updated = [...prev];
+              updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
               
               // Re-extract Grafana links from the updated content
               const fullContent = updated[updated.length - 1].content;
               updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
-              
-              return updated;
             } else {
               const textContent = json.delta.text;
-              return [
+              updated = [
                 ...prev, 
                 { 
                   type: "text", 
@@ -326,6 +359,10 @@ export const McpQueryPage = () => {
                 }
               ];
             }
+            
+            // Schedule a scroll after the state update
+            setTimeout(scrollToBottom, 0);
+            return updated;
           });
         }
       }
@@ -347,11 +384,22 @@ export const McpQueryPage = () => {
     }
   };
   
-  // Auto-scroll to bottom when new responses are added
+  // Auto-scroll to bottom when new responses are added or loading state changes
   useEffect(() => {
-    if (resultsContainerRef.current && isLoading) {
-      resultsContainerRef.current.scrollTop = resultsContainerRef.current.scrollHeight;
-    }
+    // Use multiple timeouts to ensure scrolling works
+    // First immediate scroll
+    scrollToBottom();
+    
+    // Then after a short delay to allow DOM updates
+    const timer1 = setTimeout(scrollToBottom, 50);
+    
+    // And again after a longer delay for any async content
+    const timer2 = setTimeout(scrollToBottom, 150);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [parsedResponses, isLoading]);
   
   // Clean up on component unmount
@@ -527,11 +575,6 @@ export const McpQueryPage = () => {
             {error}
           </Typography>
         )}
-        {isLoading && (
-          <LoaderWrapper>
-            <CircularProgress size={24} />
-          </LoaderWrapper>
-        )}
         
         {parsedResponses.length > 0 ? (
           <div>
@@ -554,17 +597,40 @@ export const McpQueryPage = () => {
                   </>
                 ) : item.type === "tool_use" && item.toolName ? (
                   <ToolUseBlock>
-                    <ToolName variant="subtitle2">
-                      🛠️ Tool: {item.toolName}
-                    </ToolName>
-                    <ToolInput>
-                      {JSON.stringify(item.toolInput, null, 2)}
-                    </ToolInput>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <ToolName variant="subtitle2">
+                        🛠️ Tool: {item.toolName}
+                      </ToolName>
+                      <IconButton 
+                        onClick={() => setExpandedTools(prev => ({
+                          ...prev, 
+                          [index]: !prev[index]
+                        }))}
+                        size="small"
+                      >
+                        {expandedTools[index] ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                      </IconButton>
+                    </Box>
+                    <Collapse in={expandedTools[index]} timeout="auto">
+                      <ToolInput>
+                        {JSON.stringify(item.toolInput, null, 2)}
+                      </ToolInput>
+                    </Collapse>
                   </ToolUseBlock>
                 ) : null}
                 {index < parsedResponses.length - 1 && item.type === "text" && parsedResponses[index + 1].type === "text" && <hr />}
               </div>
             ))}
+            
+            {/* Add thinking indicator at the bottom if still loading */}
+            {isLoading && (
+              <LoaderWrapper>
+                <CircularProgress size={24} sx={{ mr: 2 }} />
+                <Typography variant="body2">
+                  Claude is thinking...
+                </Typography>
+              </LoaderWrapper>
+            )}
           </div>
         ) : (
           !isLoading && !error && (
@@ -576,6 +642,16 @@ export const McpQueryPage = () => {
               Run a query to see results here.
             </Typography>
           )
+        )}
+        
+        {/* Show loading indicator for empty results case */}
+        {isLoading && parsedResponses.length === 0 && (
+          <LoaderWrapper>
+            <CircularProgress size={24} sx={{ mr: 2 }} />
+            <Typography variant="body2">
+              Claude is thinking...
+            </Typography>
+          </LoaderWrapper>
         )}
         
         {/* Debug section with raw response */}
