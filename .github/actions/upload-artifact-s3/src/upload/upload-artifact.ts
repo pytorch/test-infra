@@ -45,6 +45,10 @@ export async function run(): Promise<void> {
       options.retentionDays = inputs.retentionDays
     }
 
+    if (inputs.overwrite !== undefined) {
+      options.overwrite = inputs.overwrite
+    }
+
     await uploadArtifact(
       inputs.region,
       inputs.s3Bucket,
