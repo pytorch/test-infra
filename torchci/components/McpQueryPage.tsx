@@ -1,8 +1,9 @@
 import styled from "@emotion/styled";
-import { useState, useEffect, useRef } from "react";
-import { Typography, Paper, TextField, Button, Box, CircularProgress, useTheme, Collapse, IconButton } from "@mui/material";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Typography, Paper, TextField, Button, Box, useTheme, Collapse, IconButton } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import AISpinner from "./AISpinner";
 
 const McpQueryPageContainer = styled("div")({
   fontFamily: "Roboto",
@@ -65,16 +66,19 @@ const ToolInput = styled("pre")(({ theme }) => ({
   color: theme.palette.mode === "dark" ? "#e2e8f0" : "#333",
 }));
 
-const LoaderWrapper = styled(Box)({
+const LoaderWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   padding: "15px",
   marginTop: "20px",
   marginBottom: "20px",
-  backgroundColor: "rgba(0, 0, 0, 0.05)",
-  borderRadius: "8px"
-});
+  backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
+  borderRadius: "12px",
+  boxShadow: theme.palette.mode === "dark" ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "0 4px 12px rgba(0, 0, 0, 0.05)",
+  border: `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}`,
+  transition: "all 0.3s ease-in-out"
+}));
 
 const GrafanaChartContainer = styled(Box)(({ theme }) => ({
   marginTop: "15px",
@@ -258,6 +262,35 @@ export const McpQueryPage = () => {
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
+  
+  // Funny thinking messages
+  const thinkingMessages = useMemo(() => [
+    "Crunching numbers...",
+    "Working hard...",
+    "Quantum tunneling...",
+    "Consulting the oracle...",
+    "Training neurons...",
+    "Brewing dashboard magic...",
+    "Mining insights...",
+    "Recalibrating flux capacitor...",
+    "Untangling spaghetti code...",
+    "Summoning visualization wizards...",
+    "Defragmenting brain cells...",
+    "Polishing pixels...",
+    "Warming up GPUs..."
+  ], []);
+  
+  // Rotate through thinking messages every 3 seconds
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    const interval = setInterval(() => {
+      setThinkingMessageIndex(prev => (prev + 1) % thinkingMessages.length);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [isLoading, thinkingMessages.length]);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   
@@ -623,9 +656,9 @@ export const McpQueryPage = () => {
             {/* Add thinking indicator at the bottom if still loading */}
             {isLoading && (
               <LoaderWrapper>
-                <CircularProgress size={24} sx={{ mr: 2 }} />
-                <Typography variant="body2">
-                  Claude is thinking...
+                <AISpinner />
+                <Typography variant="body2" sx={{ ml: 2 }}>
+                  {thinkingMessages[thinkingMessageIndex]}
                 </Typography>
               </LoaderWrapper>
             )}
@@ -645,9 +678,9 @@ export const McpQueryPage = () => {
         {/* Show loading indicator for empty results case */}
         {isLoading && parsedResponses.length === 0 && (
           <LoaderWrapper>
-            <CircularProgress size={24} sx={{ mr: 2 }} />
-            <Typography variant="body2">
-              Claude is thinking...
+            <AISpinner />
+            <Typography variant="body2" sx={{ ml: 2 }}>
+              {thinkingMessages[thinkingMessageIndex]}
             </Typography>
           </LoaderWrapper>
         )}
