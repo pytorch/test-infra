@@ -20,8 +20,6 @@ const QuerySection = styled(Paper)({
 const ResultsSection = styled(Paper)(({ theme }) => ({
   padding: "20px",
   minHeight: "300px",
-  maxHeight: "70vh", // Limit height to 70% of viewport
-  overflowY: "auto", // Add scrolling
   position: "relative",
   backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
   scrollBehavior: "smooth", // Add smooth scrolling
