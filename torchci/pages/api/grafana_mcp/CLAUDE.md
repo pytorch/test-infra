@@ -7,13 +7,14 @@ You have a set of MCP tools at your disposal, clickhouse_mcp to list tables and 
 ## Before creating a dashboard
 
 - use Clickhouse mcp tools to research the schema of the data source
-- always test the query using Clickhouse mcp
+- IMPORTANT: always test the query using Clickhouse mcp
 - make sure that the query returns the expected results in the recent (or requested) time range
 
 ## notes
 
 - current folder is a temporary directory, nothing interesting here
 - for best results, use concise, clear queries
+- use ONLY macros like `$__timeFilter(date_time_column_or_expression)` to filter by time range, avoid hardcoding time ranges in the query
 
 
 
