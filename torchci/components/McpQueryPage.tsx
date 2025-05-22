@@ -4,6 +4,7 @@ import { Typography, Paper, TextField, Button, Box, useTheme, Collapse, IconButt
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import AISpinner from "./AISpinner";
+import ToolIcon from "./ToolIcon";
 
 const McpQueryPageContainer = styled("div")({
   fontFamily: "Roboto",
@@ -70,14 +71,15 @@ const LoaderWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "15px",
+  padding: "20px 25px", // More horizontal padding for the wider spinner
   marginTop: "20px",
   marginBottom: "20px",
   backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
-  borderRadius: "12px",
+  borderRadius: "16px", // Larger radius
   boxShadow: theme.palette.mode === "dark" ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "0 4px 12px rgba(0, 0, 0, 0.05)",
   border: `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}`,
-  transition: "all 0.3s ease-in-out"
+  transition: "all 0.3s ease-in-out",
+  overflow: "visible" // Allow sparkles to overflow
 }));
 
 const GrafanaChartContainer = styled(Box)(({ theme }) => ({
@@ -281,34 +283,30 @@ export const McpQueryPage = () => {
     "Warming up GPUs..."
   ], []);
   
-  // Rotate through thinking messages every 3 seconds
+  // Rotate through thinking messages every 6 seconds
   useEffect(() => {
     if (!isLoading) return;
     
     const interval = setInterval(() => {
       setThinkingMessageIndex(prev => (prev + 1) % thinkingMessages.length);
-    }, 3000);
+    }, 6000); // Doubled to 6 seconds
     
     return () => clearInterval(interval);
   }, [isLoading, thinkingMessages.length]);
+  
+  // Also update message when new data comes in
+  useEffect(() => {
+    if (isLoading && parsedResponses.length > 0) {
+      // This will update the message whenever we receive new content
+      setThinkingMessageIndex(prev => (prev + 1) % thinkingMessages.length);
+    }
+  }, [parsedResponses.length, isLoading, thinkingMessages.length]);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   
   // Reference to the active fetch controller
   const fetchControllerRef = useRef<AbortController | null>(null);
   
-  // Reference to the results container for auto-scrolling
-  const resultsContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Function to scroll to bottom of results
-  const scrollToBottom = () => {
-    if (resultsContainerRef.current) {
-      const scrollHeight = resultsContainerRef.current.scrollHeight;
-      const height = resultsContainerRef.current.clientHeight;
-      const maxScrollTop = scrollHeight - height;
-      resultsContainerRef.current.scrollTop = maxScrollTop > 0 ? maxScrollTop : 0;
-    }
-  };
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -334,54 +332,44 @@ export const McpQueryPage = () => {
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
             
-            setParsedResponses(prev => {
-              const newResponses = [
-                ...prev, 
-                { 
-                  type: "text", 
-                  content: textContent, 
-                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
-                }
-              ];
-              // Schedule a scroll after the state update
-              setTimeout(scrollToBottom, 0);
-              return newResponses;
-            });
+            setParsedResponses(prev => [
+              ...prev, 
+              { 
+                type: "text", 
+                content: textContent, 
+                grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
+              }
+            ]);
           } 
           else if (item.type === "tool_use" && 'name' in item && 'input' in item) {
             // Handle tool use content
-            setParsedResponses(prev => {
-              const newResponses = [
-                ...prev, 
-                { 
-                  type: "tool_use", 
-                  content: "", 
-                  toolName: item.name,
-                  toolInput: item.input
-                }
-              ];
-              // Schedule a scroll after the state update
-              setTimeout(scrollToBottom, 0);
-              return newResponses;
-            });
+            setParsedResponses(prev => [
+              ...prev, 
+              { 
+                type: "tool_use", 
+                content: "", 
+                toolName: item.name,
+                toolInput: item.input
+              }
+            ]);
           }
         });
       } 
       else if (json.type === "content_block_delta") {
         if (json.delta?.type === "text" && json.delta.text) {
           setParsedResponses(prev => {
-            let updated;
-            
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
-              updated = [...prev];
+              const updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
               
               // Re-extract Grafana links from the updated content
               const fullContent = updated[updated.length - 1].content;
               updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
+              
+              return updated;
             } else {
               const textContent = json.delta.text;
-              updated = [
+              return [
                 ...prev, 
                 { 
                   type: "text", 
@@ -390,10 +378,6 @@ export const McpQueryPage = () => {
                 }
               ];
             }
-            
-            // Schedule a scroll after the state update
-            setTimeout(scrollToBottom, 0);
-            return updated;
           });
         }
       }
@@ -417,20 +401,21 @@ export const McpQueryPage = () => {
   
   // Auto-scroll to bottom when new responses are added or loading state changes
   useEffect(() => {
-    // Use multiple timeouts to ensure scrolling works
-    // First immediate scroll
-    scrollToBottom();
-    
-    // Then after a short delay to allow DOM updates
-    const timer1 = setTimeout(scrollToBottom, 50);
-    
-    // And again after a longer delay for any async content
-    const timer2 = setTimeout(scrollToBottom, 150);
-    
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+    // Scroll the whole window to the bottom
+    const scrollToBottom = () => {
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+      });
     };
+    
+    // Execute scroll after DOM updates
+    requestAnimationFrame(scrollToBottom);
+    
+    // Also try with a timer as a backup (some browsers need this)
+    const timer = setTimeout(scrollToBottom, 100);
+    
+    return () => clearTimeout(timer);
   }, [parsedResponses, isLoading]);
   
   // Clean up on component unmount
@@ -597,7 +582,7 @@ export const McpQueryPage = () => {
         </Box>
       </QuerySection>
 
-      <ResultsSection ref={resultsContainerRef}>
+      <ResultsSection>
         <Typography variant="h6" gutterBottom>
           Results
         </Typography>
@@ -629,9 +614,12 @@ export const McpQueryPage = () => {
                 ) : item.type === "tool_use" && item.toolName ? (
                   <ToolUseBlock>
                     <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <ToolName variant="subtitle2">
-                        🛠️ Tool: {item.toolName}
-                      </ToolName>
+                      <Box display="flex" alignItems="center">
+                        <ToolIcon toolName={item.toolName} />
+                        <ToolName variant="subtitle2">
+                          Tool: {item.toolName}
+                        </ToolName>
+                      </Box>
                       <IconButton 
                         onClick={() => setExpandedTools(prev => ({
                           ...prev, 
