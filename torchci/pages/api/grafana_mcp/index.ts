@@ -206,6 +206,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       const output = data.toString();
       console.log(`Got output: ${output.length} bytes`);
 
+      // Check if this output contains usage data for debugging
+      if (output.includes('"usage"') || output.includes('"total_tokens"')) {
+        console.log("Found token data in chunk:", output);
+      }
+      
       // Send the chunk immediately and flush the stream
       res.write(output);
       flushStream(res);
@@ -222,10 +227,25 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       clearTimeout(timeout);
       console.log(`Claude process exited with code ${code}`);
 
-      // Send final status message
+      // Send final status message with token usage if available
       if (!isResponseEnded) {
+        // Check if we can find any token usage information in the process output
+        // This could be in a file in the temp directory
+        const usageFilePath = path.join(tempDir, 'usage.json');
+        let tokenUsage = {};
+        
+        try {
+          if (fs.existsSync(usageFilePath)) {
+            const usageData = fs.readFileSync(usageFilePath, 'utf8');
+            tokenUsage = JSON.parse(usageData);
+            console.log('Found token usage data:', tokenUsage);
+          }
+        } catch (error) {
+          console.error('Error reading token usage data:', error);
+        }
+        
         res.write(
-          `\n{"status":"complete","code":${code || 0},"tempDir":"${tempDir}"}\n`
+          `\n{"status":"complete","code":${code || 0},"tempDir":"${tempDir}","usage":${JSON.stringify(tokenUsage)}}\n`
         );
         flushStream(res);
       }

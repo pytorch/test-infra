@@ -13,7 +13,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import AISpinner from "./AISpinner";
 import ToolIcon from "./ToolIcon";
 
@@ -194,6 +194,12 @@ interface AssistantMessage {
   content: (ContentBlock | ToolUse)[];
   stop_reason?: string;
   model?: string;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
 }
 
 interface MessageWrapper {
@@ -204,9 +210,25 @@ interface MessageWrapper {
     text?: string;
   };
   error?: string;
+  status?: string;
+  subtype?: string;
+  total_tokens?: number;
+  total_cost?: number;
+  cost_usd?: number;
+  duration_ms?: number;
+  duration_api_ms?: number;
+  is_error?: boolean;
+  result?: string;
+  session_id?: string;
   usage?: {
     output_tokens: number;
     input_tokens?: number;
+  };
+  tool_use_id?: string; // For tool result messages
+  tool_result?: {
+    tool_use_id: string;
+    type: string;
+    content: {type: string, text: string}[];
   };
 }
 
@@ -222,6 +244,8 @@ type ParsedContent = {
   displayedContent?: string; // For typewriter effect
   toolName?: string;
   toolInput?: any;
+  toolUseId?: string; // ID to match with tool results
+  toolResult?: string; // The result returned from the tool
   grafanaLinks?: GrafanaLink[];
   isAnimating?: boolean; // Track if this content is still animating
   timestamp?: number; // When this content was received
@@ -334,6 +358,48 @@ const renderTextWithLinks = (text: string, isAnimating?: boolean): React.ReactNo
   return result;
 };
 
+// Custom hook for animated counter
+const useAnimatedCounter = (targetValue: number, duration: number = 2000) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  
+  
+  useEffect(() => {
+    if (targetValue === displayValue) return;
+    
+    // Don't animate small increments, just set directly
+    if (targetValue - displayValue < 3) {
+      setDisplayValue(targetValue);
+      return;
+    }
+    
+    const startValue = displayValue;
+    const endValue = targetValue;
+    const startTime = performance.now();
+    const change = endValue - startValue;
+    
+    const animateCount = (timestamp: number) => {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function for smooth animation
+      const easedProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      
+      const currentValue = Math.floor(startValue + change * easedProgress);
+      setDisplayValue(currentValue);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateCount);
+      } else {
+        setDisplayValue(endValue); // Ensure exact target value at end
+      }
+    };
+    
+    requestAnimationFrame(animateCount);
+  }, [targetValue, duration, displayValue]);
+  
+  return displayValue;
+};
+
 // Format seconds to mm:ss or hh:mm:ss
 const formatElapsedTime = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -345,6 +411,14 @@ const formatElapsedTime = (seconds: number): string => {
   } else {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
+};
+
+// Format token count with K for thousands
+const formatTokenCount = (count: number): string => {
+  if (count >= 1000) {
+    return (count / 1000).toFixed(1) + 'k';
+  }
+  return count.toString();
 };
 
 // Generate a unique ID for the ClickHouse console query URL
@@ -371,13 +445,19 @@ export const McpQueryPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
-  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
-    {}
-  );
+  // Default all tools to collapsed (false)
+  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  // Track whether all tools are currently expanded
+  const [allToolsExpanded, setAllToolsExpanded] = useState(false);
   const [typingSpeed] = useState(10); // ms per character for typewriter effect
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0); // in seconds
+  const [totalTokens, setTotalTokens] = useState(0); // track total tokens for display
+  const [completedTokens, setCompletedTokens] = useState(0); // final token count after completion
+  const [completedTime, setCompletedTime] = useState(0); // final time after completion
+  const totalTokensRef = useRef(0); // Reference to track running sum between renders
+  const displayedTokens = useAnimatedCounter(totalTokens); // animated token display
 
   // Funny thinking messages
   const thinkingMessages = useMemo(
@@ -505,6 +585,19 @@ export const McpQueryPage = () => {
 
       // Parse the JSON
       const json = JSON.parse(line) as MessageWrapper;
+      
+      // Process timing data from result messages
+      try {
+        // For result type which contains timing data
+        if (json.type === "result" && json.subtype === "success" && json.duration_ms) {
+          // Duration is in milliseconds, convert to seconds
+          const durationSec = Math.round(json.duration_ms / 1000);
+          // Update the elapsed time for more accuracy
+          setElapsedTime(durationSec);
+        }
+      } catch (err) {
+        console.error('Error processing message data:', err);
+      }
 
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
@@ -520,6 +613,16 @@ export const McpQueryPage = () => {
               const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
               const now = Date.now();
               
+              // Get output tokens from message usage
+              const outputTokens = json.message?.usage?.output_tokens || 0;
+              
+              // Update running total with message tokens if available
+              if (outputTokens > 0) {
+                totalTokensRef.current += outputTokens;
+                setTotalTokens(totalTokensRef.current);
+                console.log('Adding message tokens to total:', outputTokens, 'New total:', totalTokensRef.current);
+              }
+              
               return [
                 ...prev,
                 {
@@ -529,7 +632,7 @@ export const McpQueryPage = () => {
                   isAnimating: true, // Mark as currently animating
                   grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
                   timestamp: now,
-                  outputTokens: json.usage?.output_tokens || 0,
+                  outputTokens: outputTokens, // Get tokens from message usage
                 },
               ];
             });
@@ -544,6 +647,16 @@ export const McpQueryPage = () => {
               // Get previous timestamp if it exists
               const prevTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
               
+              // Get output tokens from message usage
+              const outputTokens = json.message?.usage?.output_tokens || 0;
+              
+              // Update running total with message tokens if available
+              if (outputTokens > 0) {
+                totalTokensRef.current += outputTokens;
+                setTotalTokens(totalTokensRef.current);
+                console.log('Adding tool use tokens to total:', outputTokens, 'New total:', totalTokensRef.current);
+              }
+              
               return [
                 ...prev,
                 {
@@ -552,9 +665,33 @@ export const McpQueryPage = () => {
                   toolName: item.name,
                   toolInput: item.input,
                   timestamp: now,
-                  outputTokens: json.usage?.output_tokens || 0,
+                  outputTokens: outputTokens, // Get tokens from message usage
+                  toolUseId: "id" in item ? item.id : undefined, // Save tool use ID to match with results later
                 },
               ];
+            });
+          }
+        });
+      } else if (json.type === "user" && json.message?.content) {
+        // Process tool results from user message
+        json.message.content.forEach((item) => {
+          if (item.type === "tool_result" && item.tool_use_id) {
+            // Find the matching tool_use in our parsed responses
+            setParsedResponses((prev) => {
+              const updated = [...prev];
+              const toolUseIndex = updated.findIndex(
+                (response) => response.type === "tool_use" && response.toolUseId === item.tool_use_id
+              );
+              
+              if (toolUseIndex !== -1) {
+                // Add the tool result to the existing tool use
+                updated[toolUseIndex] = {
+                  ...updated[toolUseIndex],
+                  toolResult: item.content?.[0]?.text || "No result content",
+                };
+              }
+              
+              return updated;
             });
           }
         });
@@ -572,10 +709,19 @@ export const McpQueryPage = () => {
               const fullContent = updated[updated.length - 1].content;
               updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
               
-              // Update token count and timestamp
-              if (json.usage?.output_tokens) {
-                updated[updated.length - 1].outputTokens = json.usage.output_tokens;
-              }
+              // For delta updates, add a fixed token per chunk - this approximates token usage
+              const fixedIncrement = 1;
+              
+              // Update the current chunk token count
+              const currentTokens = updated[updated.length - 1].outputTokens || 0;
+              updated[updated.length - 1].outputTokens = currentTokens + fixedIncrement;
+              
+              // Increment our running total
+              totalTokensRef.current += fixedIncrement;
+              
+              // Update the displayed total tokens
+              setTotalTokens(totalTokensRef.current);
+              console.log('Updated total tokens:', totalTokensRef.current);
               updated[updated.length - 1].timestamp = now;
               
               return updated;
@@ -679,10 +825,14 @@ export const McpQueryPage = () => {
     setParsedResponses([]); // Reset to empty array of ParsedContent
     setError("");
     
-    // Start the timer
+    // Start the timer and reset token count
     const now = Date.now();
     setStartTime(now);
     setElapsedTime(0);
+    setTotalTokens(0); // Reset token count
+    totalTokensRef.current = 0; // Reset the ref-based running total
+    setCompletedTokens(0); // Reset completed tokens
+    setCompletedTime(0); // Reset completed time
 
     // Create a new AbortController
     fetchControllerRef.current = new AbortController();
@@ -734,7 +884,35 @@ export const McpQueryPage = () => {
           if (buffer.trim()) {
             parseJsonLine(buffer.trim());
           }
-          setIsLoading(false);
+          
+          // Wait a short moment to ensure all state updates have processed
+          setTimeout(() => {
+            // Calculate final token count from all response chunks as a safety check
+            const finalTokenCount = parsedResponses.reduce((sum, item) => sum + (item.outputTokens || 0), 0);
+            
+            console.log('Final token count calculation:', finalTokenCount, 'Running total:', totalTokensRef.current);
+            
+            // Use our running total for consistency, but make sure it's at least the sum of all chunks
+            const finalTotal = Math.max(finalTokenCount, totalTokensRef.current);
+            
+            // If we somehow don't have any tokens counted, force a recalculation
+            const actualFinalTotal = finalTotal > 0 ? finalTotal : finalTokenCount;
+            
+            // Log the final decision for debugging
+            console.log('Using final total:', actualFinalTotal);
+            
+            // Store the final tokens and time for display
+            setCompletedTokens(actualFinalTotal);
+            setCompletedTime(elapsedTime);
+            
+            // Update the total tokens for display consistency
+            setTotalTokens(actualFinalTotal);
+            totalTokensRef.current = actualFinalTotal;
+            
+            // Stop the token animation
+            setIsLoading(false);
+          }, 500); // Increase timeout further to ensure state updates properly
+          
           break;
         }
 
@@ -787,9 +965,18 @@ export const McpQueryPage = () => {
             margin="normal"
             multiline
             rows={3}
-            placeholder="Enter your MCP query here..."
+            placeholder="Enter your MCP query here... (Ctrl+Enter to submit)"
             variant="outlined"
             disabled={isLoading}
+            onKeyDown={(e) => {
+              // Submit on Ctrl+Enter or Cmd+Enter
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (!isLoading && query.trim()) {
+                  handleSubmit(e);
+                }
+              }
+            }}
           />
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Button
@@ -824,9 +1011,37 @@ export const McpQueryPage = () => {
       </QuerySection>
 
       <ResultsSection>
-        <Typography variant="h6" gutterBottom>
-          Results
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">
+            Results
+          </Typography>
+          {parsedResponses.length > 0 && parsedResponses.some(item => item.type === 'tool_use') && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                // Toggle between expand all and collapse all
+                if (allToolsExpanded) {
+                  // Collapse all - set to empty object to collapse everything
+                  setExpandedTools({});
+                  setAllToolsExpanded(false);
+                } else {
+                  // Expand all - set all tool indices to true
+                  const allExpanded = parsedResponses.reduce((acc, _, index) => {
+                    if (parsedResponses[index].type === 'tool_use') {
+                      acc[index] = true;
+                    }
+                    return acc;
+                  }, {} as Record<number, boolean>);
+                  setExpandedTools(allExpanded);
+                  setAllToolsExpanded(true);
+                }
+              }}
+            >
+              {allToolsExpanded ? 'Collapse all tools' : 'Expand all tools'}
+            </Button>
+          )}
+        </Box>
         {error && (
           <Typography color="error" paragraph>
             {error}
@@ -852,13 +1067,13 @@ export const McpQueryPage = () => {
                     {/* Show metadata for completed chunks */}
                     {!item.isAnimating && (
                       <ChunkMetadata>
-                        {item.outputTokens ? `${item.outputTokens} tokens` : ''}
                         {item.timestamp && index > 0 && parsedResponses[index-1].timestamp ? 
-                          ` • Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
+                          `Generated in ${((item.timestamp - (parsedResponses[index-1].timestamp || 0)) / 1000).toFixed(2)}s` : 
                           item.timestamp && startTime ? 
-                          ` • Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
+                          `Generated in ${((item.timestamp - (startTime || 0)) / 1000).toFixed(2)}s` : 
                           ''
                         }
+                          {item.outputTokens ? ` • ${formatTokenCount(item.outputTokens)} tokens` : ''}
                       </ChunkMetadata>
                     )}
 
@@ -904,9 +1119,37 @@ export const McpQueryPage = () => {
                       </IconButton>
                     </Box>
                     <Collapse in={expandedTools[index]} timeout="auto">
+                      {/* Tool Input */}
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, mb: 0.5, color: 'text.secondary' }}>
+                        Input:
+                      </Typography>
                       <ToolInput>
                         {JSON.stringify(item.toolInput, null, 2)}
                       </ToolInput>
+                      
+                      {/* Tool Result (if available) */}
+                      {item.toolResult && (
+                        <>
+                          <Typography variant="caption" sx={{ display: 'block', mt: 2, mb: 0.5, color: 'text.secondary' }}>
+                            Result:
+                          </Typography>
+                          <ToolInput sx={{
+                            backgroundColor: theme.palette.mode === 'dark' ? '#252e3d' : '#f0f7ff',
+                            borderLeft: `4px solid ${theme.palette.mode === 'dark' ? '#4caf50' : '#2e7d32'}`
+                          }}>
+                            {(() => {
+                              try {
+                                // Try to parse and pretty print JSON responses
+                                const parsed = JSON.parse(item.toolResult);
+                                return JSON.stringify(parsed, null, 2);
+                              } catch (e) {
+                                // If not valid JSON, return as is
+                                return item.toolResult;
+                              }
+                            })()}
+                          </ToolInput>
+                        </>
+                      )}
                       
                       {/* Add ClickHouse button if this is a ClickHouse tool */}
                       {item.toolName?.toLowerCase().includes('clickhouse') && 
@@ -936,8 +1179,9 @@ export const McpQueryPage = () => {
                     
                     {/* Show metadata for tool use - only tokens */}
                     <ChunkMetadata>
-                      {item.outputTokens ? `${item.outputTokens} tokens` : ''}
+                      {item.outputTokens ? `${formatTokenCount(item.outputTokens)} tokens` : ''}
                     </ChunkMetadata>
+                    
                   </ToolUseBlock>
                 ) : null}
                 {index < parsedResponses.length - 1 &&
@@ -947,7 +1191,7 @@ export const McpQueryPage = () => {
             ))}
 
             {/* Add thinking indicator at the bottom if still loading */}
-            {isLoading && (
+            {isLoading ? (
               <LoaderWrapper>
                 <AISpinner />
                 <Box sx={{ ml: 2 }}>
@@ -955,10 +1199,33 @@ export const McpQueryPage = () => {
                     {thinkingMessages[thinkingMessageIndex]}
                   </Typography>
                   <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                    Running for {formatElapsedTime(elapsedTime)}
+                    Running for {formatElapsedTime(elapsedTime)} • {formatTokenCount(displayedTokens)} tokens
                   </Typography>
                 </Box>
               </LoaderWrapper>
+            ) : completedTokens > 0 && (
+              // Show completion summary when finished - with higher z-index and sticky position
+              <Box 
+                sx={{ 
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  mt: 3, 
+                  p: 2, 
+                  borderTop: '1px solid',
+                  borderTopColor: 'divider',
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30,30,30,0.95)' : 'rgba(250,250,250,0.95)',
+                  borderRadius: '0 0 8px 8px',
+                  position: 'sticky',
+                  bottom: 0,
+                  zIndex: 10,
+                  boxShadow: '0 -2px 10px rgba(0,0,0,0.1)'
+                }}
+              >
+                <Typography variant="body2" color="text.primary" sx={{ fontWeight: 'medium' }}>
+                  Completed in {formatElapsedTime(completedTime)} • Total: {formatTokenCount(completedTokens)} tokens
+                </Typography>
+              </Box>
             )}
           </div>
         ) : (
@@ -979,7 +1246,7 @@ export const McpQueryPage = () => {
                 {thinkingMessages[thinkingMessageIndex]}
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Running for {formatElapsedTime(elapsedTime)}
+                Running for {formatElapsedTime(elapsedTime)} • {formatTokenCount(displayedTokens)} tokens
               </Typography>
             </Box>
           </LoaderWrapper>
