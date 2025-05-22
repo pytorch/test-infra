@@ -18,8 +18,6 @@ const QuerySection = styled(Paper)({
 const ResultsSection = styled(Paper)(({ theme }) => ({
   padding: "20px",
   minHeight: "300px",
-  maxHeight: "600px",
-  overflowY: "auto",
   position: "relative",
   backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
 }));
@@ -68,6 +66,65 @@ const LoaderWrapper = styled("div")({
   right: "10px",
 });
 
+const GrafanaChartContainer = styled(Box)(({ theme }) => ({
+  marginTop: "15px",
+  marginBottom: "15px",
+  borderRadius: "4px",
+  border: `1px solid ${theme.palette.divider}`,
+  overflow: "hidden",
+}));
+
+const ChartHeader = styled(Box)(({ theme }) => ({
+  padding: "10px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  backgroundColor: theme.palette.mode === "dark" ? "#1f1f1f" : "#f5f5f5",
+}));
+
+// Component for embedding Grafana charts
+const GrafanaEmbed = ({ dashboardId }: { dashboardId: string }) => {
+  const { themeMode, darkMode } = useDarkMode();
+  
+  // Set theme parameter based on dark mode context
+  let chartTheme = "light";
+  if (themeMode === "system") {
+    chartTheme = darkMode ? "dark" : "light";
+  } else {
+    chartTheme = themeMode;
+  }
+  
+  // Replace the host with our proxy
+  // This assumes your API proxy setup is consistent with other dashboard embeds
+  const dashboardUrl = `https://disz2yd9jqnwc.cloudfront.net/public-dashboards/${dashboardId}?theme=${chartTheme}`;
+  
+  return (
+    <GrafanaChartContainer>
+      <ChartHeader>
+        <Typography variant="subtitle2">Grafana Dashboard</Typography>
+        <Button 
+          href={`https://pytorchci.grafana.net/public-dashboards/${dashboardId}`} 
+          target="_blank"
+          size="small"
+          variant="outlined"
+        >
+          Open in Grafana
+        </Button>
+      </ChartHeader>
+      <Box sx={{ height: "640px", width: "100%" }}>
+        <iframe
+          src={dashboardUrl}
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          title={`Grafana Dashboard ${dashboardId}`}
+        />
+      </Box>
+    </GrafanaChartContainer>
+  );
+};
+
 // Define interfaces for response types
 interface ToolUse {
   type: "tool_use";
@@ -101,12 +158,87 @@ interface MessageWrapper {
   error?: string;
 }
 
+interface GrafanaLink {
+  fullUrl: string;
+  dashboardId: string;
+}
+
 // Type to represent different types of parsed content
 type ParsedContent = {
   type: "text" | "tool_use";
   content: string;
   toolName?: string;
   toolInput?: any;
+  grafanaLinks?: GrafanaLink[];
+};
+
+// Import the DarkMode context
+import { useDarkMode } from "../lib/DarkModeContext";
+
+// Function to extract Grafana dashboard links from text
+const extractGrafanaLinks = (text: string): GrafanaLink[] => {
+  // Regular expression to match Grafana dashboard links
+  // This pattern matches links like https://pytorchci.grafana.net//public-dashboards/d0739d05d0544b88b9aea8a785b409d2
+  // It extracts the dashboard ID
+  const grafanaLinkRegex = /https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/([a-zA-Z0-9]+)/g;
+  
+  const links: GrafanaLink[] = [];
+  let match;
+  
+  while ((match = grafanaLinkRegex.exec(text)) !== null) {
+    links.push({
+      fullUrl: match[0],
+      dashboardId: match[1]
+    });
+  }
+  
+  return links;
+};
+
+// Function to make text with Grafana links clickable
+const renderTextWithLinks = (text: string): React.ReactNode => {
+  if (!text) return null;
+  
+  // Create a React element array to build the result
+  const result: React.ReactNode[] = [];
+  
+  // Regular expression to match Grafana dashboard links
+  // Using capture groups to extract just the URL
+  const grafanaLinkRegex = /(https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/[a-zA-Z0-9]+)/g;
+  
+  let lastIndex = 0;
+  let match;
+  let counter = 0;
+  
+  // Find all matches and build the result array
+  while ((match = grafanaLinkRegex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      result.push(text.substring(lastIndex, match.index));
+    }
+    
+    // Add the link
+    result.push(
+      <a 
+        key={counter++}
+        href={match[1]} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{ color: '#1976d2', textDecoration: 'underline' }}
+      >
+        {match[1]}
+      </a>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    result.push(text.substring(lastIndex));
+  }
+  
+  return result;
 };
 
 export const McpQueryPage = () => {
@@ -145,11 +277,15 @@ export const McpQueryPage = () => {
         json.message.content.forEach(item => {
           if (item.type === "text" && 'text' in item) {
             // Handle text content
+            const textContent = item.text || "";
+            const grafanaLinks = extractGrafanaLinks(textContent);
+            
             setParsedResponses(prev => [
               ...prev, 
               { 
                 type: "text", 
-                content: item.text || "" 
+                content: textContent, 
+                grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
               }
             ]);
           } 
@@ -173,9 +309,22 @@ export const McpQueryPage = () => {
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
+              
+              // Re-extract Grafana links from the updated content
+              const fullContent = updated[updated.length - 1].content;
+              updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
+              
               return updated;
             } else {
-              return [...prev, { type: "text", content: json.delta.text }];
+              const textContent = json.delta.text;
+              return [
+                ...prev, 
+                { 
+                  type: "text", 
+                  content: textContent,
+                  grafanaLinks: extractGrafanaLinks(textContent)
+                }
+              ];
             }
           });
         }
@@ -389,9 +538,20 @@ export const McpQueryPage = () => {
             {parsedResponses.map((item, index) => (
               <div key={index}>
                 {item.type === "text" ? (
-                  <ResponseText>
-                    {item.content?.trim()}
-                  </ResponseText>
+                  <>
+                    <ResponseText>
+                      {renderTextWithLinks(item.content?.trim() || "")}
+                    </ResponseText>
+                    
+                    {/* Render Grafana embeds if links are present */}
+                    {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                      <Box mt={2}>
+                        {item.grafanaLinks.map((link, i) => (
+                          <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                        ))}
+                      </Box>
+                    )}
+                  </>
                 ) : item.type === "tool_use" && item.toolName ? (
                   <ToolUseBlock>
                     <ToolName variant="subtitle2">
