@@ -21,8 +21,6 @@ export function getInputs(): UploadInputs {
   const s3Prefix = core.getInput(Inputs.S3Prefix)
   const region = core.getInput(Inputs.Region)
 
-  core.warning(`Overwrite is set to ${overwrite}`)
-
   if (!noFileBehavior) {
     core.setFailed(
       `Unrecognized ${
