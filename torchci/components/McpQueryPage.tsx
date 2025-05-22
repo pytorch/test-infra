@@ -1,8 +1,17 @@
 import styled from "@emotion/styled";
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Typography, Paper, TextField, Button, Box, useTheme, Collapse, IconButton } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import {
+  Box,
+  Button,
+  Collapse,
+  IconButton,
+  Paper,
+  TextField,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import ToolIcon from "./ToolIcon";
 
@@ -44,9 +53,11 @@ const ToolUseBlock = styled(Paper)(({ theme }) => ({
   marginTop: "10px",
   marginBottom: "10px",
   backgroundColor: theme.palette.mode === "dark" ? "#2d3748" : "#e6f7ff",
-  borderLeft: `4px solid ${theme.palette.mode === "dark" ? "#63b3ed" : "#1890ff"}`,
+  borderLeft: `4px solid ${
+    theme.palette.mode === "dark" ? "#63b3ed" : "#1890ff"
+  }`,
   overflow: "hidden",
-  transition: "max-height 0.3s ease-in-out"
+  transition: "max-height 0.3s ease-in-out",
 }));
 
 const ToolName = styled(Typography)(({ theme }) => ({
@@ -74,12 +85,22 @@ const LoaderWrapper = styled(Box)(({ theme }) => ({
   padding: "20px 25px", // More horizontal padding for the wider spinner
   marginTop: "20px",
   marginBottom: "20px",
-  backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
+  backgroundColor:
+    theme.palette.mode === "dark"
+      ? "rgba(255, 255, 255, 0.05)"
+      : "rgba(0, 0, 0, 0.03)",
   borderRadius: "16px", // Larger radius
-  boxShadow: theme.palette.mode === "dark" ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "0 4px 12px rgba(0, 0, 0, 0.05)",
-  border: `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}`,
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? "0 4px 12px rgba(0, 0, 0, 0.2)"
+      : "0 4px 12px rgba(0, 0, 0, 0.05)",
+  border: `1px solid ${
+    theme.palette.mode === "dark"
+      ? "rgba(255, 255, 255, 0.1)"
+      : "rgba(0, 0, 0, 0.05)"
+  }`,
   transition: "all 0.3s ease-in-out",
-  overflow: "visible" // Allow sparkles to overflow
+  overflow: "visible", // Allow sparkles to overflow
 }));
 
 const GrafanaChartContainer = styled(Box)(({ theme }) => ({
@@ -102,7 +123,7 @@ const ChartHeader = styled(Box)(({ theme }) => ({
 // Component for embedding Grafana charts
 const GrafanaEmbed = ({ dashboardId }: { dashboardId: string }) => {
   const { themeMode, darkMode } = useDarkMode();
-  
+
   // Set theme parameter based on dark mode context
   let chartTheme = "light";
   if (themeMode === "system") {
@@ -110,17 +131,17 @@ const GrafanaEmbed = ({ dashboardId }: { dashboardId: string }) => {
   } else {
     chartTheme = themeMode;
   }
-  
+
   // Replace the host with our proxy
   // This assumes your API proxy setup is consistent with other dashboard embeds
   const dashboardUrl = `https://disz2yd9jqnwc.cloudfront.net/public-dashboards/${dashboardId}?theme=${chartTheme}`;
-  
+
   return (
     <GrafanaChartContainer>
       <ChartHeader>
         <Typography variant="subtitle2">Grafana Dashboard</Typography>
-        <Button 
-          href={`https://pytorchci.grafana.net/public-dashboards/${dashboardId}`} 
+        <Button
+          href={`https://pytorchci.grafana.net/public-dashboards/${dashboardId}`}
           target="_blank"
           size="small"
           variant="outlined"
@@ -183,9 +204,11 @@ interface GrafanaLink {
 type ParsedContent = {
   type: "text" | "tool_use";
   content: string;
+  displayedContent?: string; // For typewriter effect
   toolName?: string;
   toolInput?: any;
   grafanaLinks?: GrafanaLink[];
+  isAnimating?: boolean; // Track if this content is still animating
 };
 
 // Import the DarkMode context
@@ -196,64 +219,101 @@ const extractGrafanaLinks = (text: string): GrafanaLink[] => {
   // Regular expression to match Grafana dashboard links
   // This pattern matches links like https://pytorchci.grafana.net//public-dashboards/d0739d05d0544b88b9aea8a785b409d2
   // It extracts the dashboard ID
-  const grafanaLinkRegex = /https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/([a-zA-Z0-9]+)/g;
-  
+  const grafanaLinkRegex =
+    /https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/([a-zA-Z0-9]+)/g;
+
   const links: GrafanaLink[] = [];
   let match;
-  
+
   while ((match = grafanaLinkRegex.exec(text)) !== null) {
     links.push({
       fullUrl: match[0],
-      dashboardId: match[1]
+      dashboardId: match[1],
     });
   }
-  
+
   return links;
 };
 
 // Function to make text with Grafana links clickable
 const renderTextWithLinks = (text: string): React.ReactNode => {
   if (!text) return null;
-  
+
   // Create a React element array to build the result
   const result: React.ReactNode[] = [];
-  
+
   // Regular expression to match Grafana dashboard links
   // Using capture groups to extract just the URL
-  const grafanaLinkRegex = /(https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/[a-zA-Z0-9]+)/g;
-  
+  const grafanaLinkRegex =
+    /(https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/[a-zA-Z0-9]+)/g;
+
   let lastIndex = 0;
   let match;
   let counter = 0;
-  
+
   // Find all matches and build the result array
   while ((match = grafanaLinkRegex.exec(text)) !== null) {
     // Add text before the match
     if (match.index > lastIndex) {
       result.push(text.substring(lastIndex, match.index));
     }
-    
+
     // Add the link
     result.push(
-      <a 
+      <a
         key={counter++}
-        href={match[1]} 
-        target="_blank" 
+        href={match[1]}
+        target="_blank"
         rel="noopener noreferrer"
-        style={{ color: '#1976d2', textDecoration: 'underline' }}
+        style={{ color: "#1976d2", textDecoration: "underline" }}
       >
         {match[1]}
       </a>
     );
-    
+
     lastIndex = match.index + match[0].length;
   }
-  
+
   // Add remaining text
   if (lastIndex < text.length) {
     result.push(text.substring(lastIndex));
   }
-  
+
+  // Add blinking cursor at the end for text that's still typing
+  if (text.length > 0 && result.length > 0) {
+    // Get the last item in the array
+    const lastItem = result[result.length - 1];
+
+    // If it's a string, we can add the cursor (can't append to React components)
+    if (typeof lastItem === "string") {
+      // Replace the last item with the text + cursor
+      result[result.length - 1] = (
+        <>
+          {lastItem}
+          <span
+            className="blinking-cursor"
+            style={{
+              borderRight: "2px solid currentColor",
+              marginLeft: "2px",
+              animation: "blink 1s step-end infinite",
+            }}
+          ></span>
+          <style jsx>{`
+            @keyframes blink {
+              0%,
+              100% {
+                opacity: 1;
+              }
+              50% {
+                opacity: 0;
+              }
+            }
+          `}</style>
+        </>
+      );
+    }
+  }
+
   return result;
 };
 
@@ -263,125 +323,193 @@ export const McpQueryPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
-  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
+    {}
+  );
+  const [typingSpeed] = useState(10); // ms per character for typewriter effect
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
-  
+
   // Funny thinking messages
-  const thinkingMessages = useMemo(() => [
-    "Crunching numbers...",
-    "Working hard...",
-    "Quantum tunneling...",
-    "Consulting the oracle...",
-    "Training neurons...",
-    "Brewing dashboard magic...",
-    "Mining insights...",
-    "Recalibrating flux capacitor...",
-    "Untangling spaghetti code...",
-    "Summoning visualization wizards...",
-    "Defragmenting brain cells...",
-    "Polishing pixels...",
-    "Warming up GPUs..."
-  ], []);
-  
+  const thinkingMessages = useMemo(
+    () => [
+      "Crunching numbers...",
+      "Working hard...",
+      "Quantum tunneling...",
+      "Consulting the oracle...",
+      "Training neurons...",
+      "Brewing dashboard magic...",
+      "Mining insights...",
+      "Recalibrating flux capacitor...",
+      "Untangling spaghetti code...",
+      "Summoning visualization wizards...",
+      "Defragmenting brain cells...",
+      "Polishing pixels...",
+      "Warming up GPUs...",
+      "Convincing metrics to behave...",
+      "Interrogating databases...",
+      "Reticulating splines...",
+      "Calibrating the metric-o-meter...",
+      "Wrangling unruly data points...",
+      "Converting caffeine to dashboards...",
+      "Bending time series to my will...",
+      "Calculating the meaning of metrics...",
+      "Hacking the mainframe...",
+      "Negotiating with stubborn algorithms...",
+    ],
+    []
+  );
+
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
     if (!isLoading) return;
-    
+
     const interval = setInterval(() => {
-      setThinkingMessageIndex(prev => (prev + 1) % thinkingMessages.length);
+      setThinkingMessageIndex((prev) => (prev + 1) % thinkingMessages.length);
     }, 6000); // Doubled to 6 seconds
-    
+
     return () => clearInterval(interval);
   }, [isLoading, thinkingMessages.length]);
-  
+
   // Also update message when new data comes in
   useEffect(() => {
     if (isLoading && parsedResponses.length > 0) {
       // This will update the message whenever we receive new content
-      setThinkingMessageIndex(prev => (prev + 1) % thinkingMessages.length);
+      setThinkingMessageIndex((prev) => (prev + 1) % thinkingMessages.length);
     }
   }, [parsedResponses.length, isLoading, thinkingMessages.length]);
+
+  // Handle typewriter effect for text content
+  useEffect(() => {
+    // Find any content items that are still animating
+    const animatingItems = parsedResponses.filter(
+      (item) => item.type === "text" && item.isAnimating
+    );
+
+    if (animatingItems.length === 0) return;
+
+    // Process the latest animating item
+    const itemIndex = parsedResponses.findIndex((item) => item.isAnimating);
+
+    if (itemIndex === -1) return;
+
+    const item = parsedResponses[itemIndex];
+    const fullText = item.content;
+    const currentText = item.displayedContent || "";
+
+    // If we've displayed all characters, mark as done
+    if (currentText.length >= fullText.length) {
+      setParsedResponses((prev) => {
+        const updated = [...prev];
+        updated[itemIndex].isAnimating = false;
+        updated[itemIndex].displayedContent = fullText;
+        return updated;
+      });
+      return;
+    }
+
+    // Otherwise, add the next character with a delay
+    const timer = setTimeout(() => {
+      setParsedResponses((prev) => {
+        const updated = [...prev];
+        // Add one more character
+        updated[itemIndex].displayedContent = fullText.substring(
+          0,
+          (updated[itemIndex].displayedContent || "").length + 1
+        );
+        return updated;
+      });
+    }, typingSpeed);
+
+    return () => clearTimeout(timer);
+  }, [parsedResponses, typingSpeed]);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
-  
+
   // Reference to the active fetch controller
   const fetchControllerRef = useRef<AbortController | null>(null);
-  
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
   };
 
-  // Parse response JSON and extract content  
+  // Parse response JSON and extract content
   const parseJsonLine = (line: string) => {
     try {
       if (!line.trim()) return;
-      
+
       // For debug display
-      setResponse(prev => prev + line + "\n");
-      
+      setResponse((prev) => prev + line + "\n");
+
       // Parse the JSON
       const json = JSON.parse(line) as MessageWrapper;
-      
+
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
         // Process each content block
-        json.message.content.forEach(item => {
-          if (item.type === "text" && 'text' in item) {
+        json.message.content.forEach((item) => {
+          if (item.type === "text" && "text" in item) {
             // Handle text content
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
-            
-            setParsedResponses(prev => [
-              ...prev, 
-              { 
-                type: "text", 
-                content: textContent, 
-                grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined
-              }
+
+            setParsedResponses((prev) => [
+              ...prev,
+              {
+                type: "text",
+                content: textContent,
+                displayedContent: "", // Start empty for typewriter effect
+                isAnimating: true, // Mark as currently animating
+                grafanaLinks:
+                  grafanaLinks.length > 0 ? grafanaLinks : undefined,
+              },
             ]);
-          } 
-          else if (item.type === "tool_use" && 'name' in item && 'input' in item) {
+          } else if (
+            item.type === "tool_use" &&
+            "name" in item &&
+            "input" in item
+          ) {
             // Handle tool use content
-            setParsedResponses(prev => [
-              ...prev, 
-              { 
-                type: "tool_use", 
-                content: "", 
+            setParsedResponses((prev) => [
+              ...prev,
+              {
+                type: "tool_use",
+                content: "",
                 toolName: item.name,
-                toolInput: item.input
-              }
+                toolInput: item.input,
+              },
             ]);
           }
         });
-      } 
-      else if (json.type === "content_block_delta") {
+      } else if (json.type === "content_block_delta") {
         if (json.delta?.type === "text" && json.delta.text) {
-          setParsedResponses(prev => {
+          setParsedResponses((prev) => {
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
               updated[updated.length - 1].content += json.delta.text;
-              
+              updated[updated.length - 1].isAnimating = true;
+
               // Re-extract Grafana links from the updated content
               const fullContent = updated[updated.length - 1].content;
-              updated[updated.length - 1].grafanaLinks = extractGrafanaLinks(fullContent);
-              
+              updated[updated.length - 1].grafanaLinks =
+                extractGrafanaLinks(fullContent);
+
               return updated;
             } else {
               const textContent = json.delta.text;
               return [
-                ...prev, 
-                { 
-                  type: "text", 
+                ...prev,
+                {
+                  type: "text",
                   content: textContent,
-                  grafanaLinks: extractGrafanaLinks(textContent)
-                }
+                  displayedContent: "", // Start empty for typewriter effect
+                  isAnimating: true, // Mark as currently animating
+                  grafanaLinks: extractGrafanaLinks(textContent),
+                },
               ];
             }
           });
         }
-      }
-      else if (json.error) {
+      } else if (json.error) {
         setError(`Error: ${json.error}`);
       }
     } catch (err) {
@@ -389,7 +517,7 @@ export const McpQueryPage = () => {
       console.log("Failed to parse:", line);
     }
   };
-  
+
   // Cancel ongoing request
   const cancelRequest = () => {
     if (fetchControllerRef.current) {
@@ -398,26 +526,26 @@ export const McpQueryPage = () => {
       setIsLoading(false);
     }
   };
-  
+
   // Auto-scroll to bottom when new responses are added or loading state changes
   useEffect(() => {
     // Scroll the whole window to the bottom
     const scrollToBottom = () => {
       window.scrollTo({
         top: document.body.scrollHeight,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
     };
-    
+
     // Execute scroll after DOM updates
     requestAnimationFrame(scrollToBottom);
-    
+
     // Also try with a timer as a backup (some browsers need this)
     const timer = setTimeout(scrollToBottom, 100);
-    
+
     return () => clearTimeout(timer);
   }, [parsedResponses, isLoading]);
-  
+
   // Clean up on component unmount
   useEffect(() => {
     return () => {
@@ -427,7 +555,7 @@ export const McpQueryPage = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     if (!query.trim()) {
       setError("Query cannot be empty");
       return;
@@ -435,7 +563,7 @@ export const McpQueryPage = () => {
 
     // Cancel any ongoing request
     cancelRequest();
-    
+
     // Reset state
     setIsLoading(true);
     setResponse("");
@@ -444,24 +572,24 @@ export const McpQueryPage = () => {
 
     // Create a new AbortController
     fetchControllerRef.current = new AbortController();
-    
+
     // Enable streaming directly
     try {
       // Use the Fetch API with appropriate settings
-      const response = await fetch('/api/grafana_mcp', {
-        method: 'POST',
+      const response = await fetch("/api/grafana_mcp", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'X-Requested-With': 'XMLHttpRequest',
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-Requested-With": "XMLHttpRequest",
         },
         body: JSON.stringify({ query }),
         signal: fetchControllerRef.current.signal,
         // These are critical for proper streaming
-        cache: 'no-store',
+        cache: "no-store",
         // @ts-ignore - This is not in the type defs but is supported
-        duplex: 'half',
+        duplex: "half",
       });
 
       // Handle non-ok responses
@@ -479,14 +607,14 @@ export const McpQueryPage = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      
+
       // Process the stream
       while (true) {
         // Break if request was aborted
         if (fetchControllerRef.current === null) break;
-        
+
         const { done, value } = await reader.read();
-        
+
         if (done) {
           // Process any incomplete buffer content
           if (buffer.trim()) {
@@ -495,32 +623,31 @@ export const McpQueryPage = () => {
           setIsLoading(false);
           break;
         }
-        
+
         // Convert bytes to text
         const text = decoder.decode(value, { stream: true });
-        
+
         // Add to buffer
         buffer += text;
-        
+
         // Process complete lines
-        const lines = buffer.split('\n');
-        
+        const lines = buffer.split("\n");
+
         // Process all complete lines
         for (let i = 0; i < lines.length - 1; i++) {
           if (lines[i].trim()) {
             parseJsonLine(lines[i].trim());
           }
         }
-        
+
         // Keep last potentially incomplete line in buffer
         buffer = lines[lines.length - 1];
       }
-      
     } catch (err) {
-      if (err.name === 'AbortError') {
-        setError('Request cancelled');
+      if (err.name === "AbortError") {
+        setError("Request cancelled");
       } else {
-        console.error('Fetch error:', err);
+        console.error("Fetch error:", err);
         setError(`Error: ${err.message}`);
       }
       setIsLoading(false);
@@ -551,7 +678,7 @@ export const McpQueryPage = () => {
             disabled={isLoading}
           />
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-            <Button 
+            <Button
               variant="outlined"
               color="secondary"
               onClick={() => setDebugVisible(!debugVisible)}
@@ -591,7 +718,7 @@ export const McpQueryPage = () => {
             {error}
           </Typography>
         )}
-        
+
         {parsedResponses.length > 0 ? (
           <div>
             {parsedResponses.map((item, index) => (
@@ -599,35 +726,53 @@ export const McpQueryPage = () => {
                 {item.type === "text" ? (
                   <>
                     <ResponseText>
-                      {renderTextWithLinks(item.content?.trim() || "")}
+                      {renderTextWithLinks(
+                        (item.displayedContent !== undefined
+                          ? item.displayedContent
+                          : item.content
+                        )?.trim() || ""
+                      )}
                     </ResponseText>
-                    
+
                     {/* Render Grafana embeds if links are present */}
                     {item.grafanaLinks && item.grafanaLinks.length > 0 && (
                       <Box mt={2}>
                         {item.grafanaLinks.map((link, i) => (
-                          <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                          <GrafanaEmbed
+                            key={i}
+                            dashboardId={link.dashboardId}
+                          />
                         ))}
                       </Box>
                     )}
                   </>
                 ) : item.type === "tool_use" && item.toolName ? (
                   <ToolUseBlock>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
                       <Box display="flex" alignItems="center">
                         <ToolIcon toolName={item.toolName} />
                         <ToolName variant="subtitle2">
                           Tool: {item.toolName}
                         </ToolName>
                       </Box>
-                      <IconButton 
-                        onClick={() => setExpandedTools(prev => ({
-                          ...prev, 
-                          [index]: !prev[index]
-                        }))}
+                      <IconButton
+                        onClick={() =>
+                          setExpandedTools((prev) => ({
+                            ...prev,
+                            [index]: !prev[index],
+                          }))
+                        }
                         size="small"
                       >
-                        {expandedTools[index] ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                        {expandedTools[index] ? (
+                          <KeyboardArrowUpIcon />
+                        ) : (
+                          <KeyboardArrowDownIcon />
+                        )}
                       </IconButton>
                     </Box>
                     <Collapse in={expandedTools[index]} timeout="auto">
@@ -637,10 +782,12 @@ export const McpQueryPage = () => {
                     </Collapse>
                   </ToolUseBlock>
                 ) : null}
-                {index < parsedResponses.length - 1 && item.type === "text" && parsedResponses[index + 1].type === "text" && <hr />}
+                {index < parsedResponses.length - 1 &&
+                  item.type === "text" &&
+                  parsedResponses[index + 1].type === "text" && <hr />}
               </div>
             ))}
-            
+
             {/* Add thinking indicator at the bottom if still loading */}
             {isLoading && (
               <LoaderWrapper>
@@ -652,17 +799,14 @@ export const McpQueryPage = () => {
             )}
           </div>
         ) : (
-          !isLoading && !error && (
-            <Typography 
-              color="textSecondary" 
-              align="center" 
-              sx={{ mt: 5 }}
-            >
+          !isLoading &&
+          !error && (
+            <Typography color="textSecondary" align="center" sx={{ mt: 5 }}>
               Run a query to see results here.
             </Typography>
           )
         )}
-        
+
         {/* Show loading indicator for empty results case */}
         {isLoading && parsedResponses.length === 0 && (
           <LoaderWrapper>
@@ -672,27 +816,28 @@ export const McpQueryPage = () => {
             </Typography>
           </LoaderWrapper>
         )}
-        
+
         {/* Debug section with raw response */}
         {debugVisible && (
-          <Box 
-            sx={{ 
-              marginTop: '20px', 
-              borderTop: `1px solid ${theme.palette.divider}`, 
-              paddingTop: '10px' 
+          <Box
+            sx={{
+              marginTop: "20px",
+              borderTop: `1px solid ${theme.palette.divider}`,
+              paddingTop: "10px",
             }}
           >
             <Typography variant="subtitle2">Debug: Raw Response</Typography>
-            <pre 
-              style={{ 
-                fontSize: '0.8em',
-                opacity: 0.7, 
-                maxHeight: '200px', 
-                overflowY: 'auto',
-                backgroundColor: theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                padding: '8px',
-                borderRadius: '4px',
-                color: theme.palette.mode === "dark" ? "#e0e0e0" : "#333333"
+            <pre
+              style={{
+                fontSize: "0.8em",
+                opacity: 0.7,
+                maxHeight: "200px",
+                overflowY: "auto",
+                backgroundColor:
+                  theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
+                padding: "8px",
+                borderRadius: "4px",
+                color: theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
               }}
             >
               {response || "(No data yet)"}
