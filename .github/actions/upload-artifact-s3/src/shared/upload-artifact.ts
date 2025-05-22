@@ -60,6 +60,8 @@ export async function uploadArtifact(
     maxAttempts: 10
   })
 
+  const canonicalObjectUrlPrefix: string = `https://${s3Bucket}.s3.${region}.amazonaws.com/${s3Prefix}`
+
   for await (const fileName of filesToUpload) {
     core.debug(JSON.stringify({rootDirectory: rootDirectory, fileName}))
     // Add trailing path.sep to root directory to solve issues where root directory doesn't
@@ -95,7 +97,8 @@ export async function uploadArtifact(
       core.info(
         [
           `Upload complete: ${relativeName} to ${s3Bucket}/${uploadKey}`,
-          `ETag: ${output.ETag}`
+          `ETag: ${output.ETag}`,
+          `URL: ${canonicalObjectUrlPrefix}/${relativeName}`
         ].join('\n')
       )
     } catch (err) {
