@@ -1,5 +1,7 @@
 import styled from "@emotion/styled";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -40,10 +42,10 @@ const ResultsSection = styled(Paper)(({ theme }) => ({
 }));
 
 // Use theme-aware styling for the response text
-const ResponseText = styled("pre")(({ theme }) => ({
+const ResponseText = styled("div")(({ theme }) => ({
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
-  fontFamily: "monospace",
+  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
   margin: 0,
   lineHeight: 1.5,
   paddingTop: "1em",
@@ -61,6 +63,43 @@ const ToolUseBlock = styled(Paper)(({ theme }) => ({
   }`,
   overflow: "hidden",
   transition: "max-height 0.3s ease-in-out",
+}));
+
+// Todo list styling
+const TodoListBlock = styled(Paper)(({ theme }) => ({
+  padding: "8px 12px",
+  marginTop: "12px",
+  marginBottom: "12px",
+  backgroundColor: theme.palette.mode === "dark" ? "#2d2d3a" : "#f7f9fc",
+  borderLeft: `4px solid ${
+    theme.palette.mode === "dark" ? "#9c27b0" : "#673ab7"
+  }`,
+  overflow: "hidden",
+}));
+
+const TodoListTitle = styled(Typography)(({ theme }) => ({
+  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
+  fontWeight: 500,
+  marginBottom: "8px"
+}));
+
+const TodoItem = styled(Box)<{ status: string }>(({ theme, status }) => ({
+  display: "flex",
+  alignItems: "flex-start",
+  marginBottom: "2px",
+  padding: "2px 0",
+  textDecoration: status === "completed" ? "line-through" : "none",
+  color:
+    status === "completed"
+      ? theme.palette.mode === "dark"
+        ? "#72bb72"
+        : "#2e7d32"
+      : status === "in_progress"
+      ? theme.palette.mode === "dark"
+        ? "#f0c674"
+        : "#ed6c02"
+      : "inherit",
+  fontWeight: status === "in_progress" ? "bold" : "normal",
 }));
 
 const ToolName = styled(Typography)(({ theme }) => ({
@@ -90,7 +129,7 @@ const ChunkMetadata = styled(Typography)(({ theme }) => ({
   textAlign: "right",
   marginTop: "4px",
   marginBottom: "16px",
-  fontFamily: "monospace",
+  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
 }));
 
 const LoaderWrapper = styled(Box)(({ theme }) => ({
@@ -266,9 +305,17 @@ interface GrafanaLink {
   dashboardId: string;
 }
 
+// Type to represent a single todo item
+interface TodoItem {
+  id: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+  priority: "high" | "medium" | "low";
+}
+
 // Type to represent different types of parsed content
 type ParsedContent = {
-  type: "text" | "tool_use";
+  type: "text" | "tool_use" | "todo_list";
   content: string;
   displayedContent?: string; // For typewriter effect
   toolName?: string;
@@ -279,6 +326,7 @@ type ParsedContent = {
   isAnimating?: boolean; // Track if this content is still animating
   timestamp?: number; // When this content was received
   outputTokens?: number; // Number of output tokens used
+  todoItems?: TodoItem[]; // For todo_list type
 };
 
 // Import the DarkMode context
@@ -393,13 +441,13 @@ const renderTextWithLinks = (
 // Custom hook for animated counter - completely rewritten for reliability
 const useAnimatedCounter = (targetValue: number) => {
   const [displayValue, setDisplayValue] = useState(0);
-  
+
   useEffect(() => {
     // Simply set the display value directly to the target value
     // This ensures we always show the accurate value without animation artifacts
     setDisplayValue(targetValue);
   }, [targetValue]);
-  
+
   return displayValue;
 };
 
@@ -649,29 +697,97 @@ export const McpQueryPage = () => {
             "name" in item &&
             "input" in item
           ) {
-            // Handle tool use content
-            setParsedResponses((prev) => {
-              const now = Date.now();
-              // Get previous timestamp if it exists
-              const prevTimestamp =
-                prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+            // Special handling for Todo tools
+            if (item.name === "TodoWrite" || item.name === "TodoRead") {
+              // For TodoWrite, we can directly extract todos from the input
+              if (item.name === "TodoWrite" && "todos" in item.input) {
+                setParsedResponses((prev) => {
+                  const now = Date.now();
+                  // Get todos from input
+                  const todos = item.input.todos;
 
-              // Get output tokens from message usage
-              const outputTokens = json.message?.usage?.output_tokens || 0;
+                  // Find if we already have a todo_list type entry
+                  const todoListIndex = prev.findIndex(
+                    (response) => response.type === "todo_list"
+                  );
 
-              return [
-                ...prev,
-                {
-                  type: "tool_use",
-                  content: "",
-                  toolName: item.name,
-                  toolInput: item.input,
-                  timestamp: now,
-                  outputTokens: outputTokens, // Get tokens from message usage
-                  toolUseId: "id" in item ? item.id : undefined, // Save tool use ID to match with results later
-                },
-              ];
-            });
+                  const updated = [...prev];
+
+                  if (todoListIndex !== -1) {
+                    // Update existing todo list
+                    updated[todoListIndex] = {
+                      ...updated[todoListIndex],
+                      todoItems: todos,
+                      timestamp: now,
+                    };
+                  } else {
+                    // Add a new todo list at the end
+                    updated.push({
+                      type: "todo_list",
+                      content: "Todo List",
+                      todoItems: todos,
+                      timestamp: now,
+                    });
+                  }
+
+                  // We still need to add the tool use for now, but we'll hide its display
+                  // and replace it with the result when we get the response
+                  updated.push({
+                    type: "tool_use",
+                    content: "",
+                    toolName: item.name,
+                    toolInput: item.input,
+                    timestamp: now,
+                    outputTokens: json.message?.usage?.output_tokens || 0,
+                    toolUseId: "id" in item ? item.id : undefined,
+                  });
+
+                  return updated;
+                });
+              } else {
+                // For TodoRead or if TodoWrite doesn't have todos, add normal tool use
+                // We'll process it when we get the result
+                setParsedResponses((prev) => {
+                  const now = Date.now();
+                  return [
+                    ...prev,
+                    {
+                      type: "tool_use",
+                      content: "",
+                      toolName: item.name,
+                      toolInput: item.input,
+                      timestamp: now,
+                      outputTokens: json.message?.usage?.output_tokens || 0,
+                      toolUseId: "id" in item ? item.id : undefined,
+                    },
+                  ];
+                });
+              }
+            } else {
+              // Normal tool use handling for non-todo tools
+              setParsedResponses((prev) => {
+                const now = Date.now();
+                // Get previous timestamp if it exists
+                const prevTimestamp =
+                  prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
+
+                // Get output tokens from message usage
+                const outputTokens = json.message?.usage?.output_tokens || 0;
+
+                return [
+                  ...prev,
+                  {
+                    type: "tool_use",
+                    content: "",
+                    toolName: item.name,
+                    toolInput: item.input,
+                    timestamp: now,
+                    outputTokens: outputTokens, // Get tokens from message usage
+                    toolUseId: "id" in item ? item.id : undefined, // Save tool use ID to match with results later
+                  },
+                ];
+              });
+            }
           }
         });
       } else if (json.type === "user" && json.message?.content) {
@@ -688,11 +804,108 @@ export const McpQueryPage = () => {
               );
 
               if (toolUseIndex !== -1) {
-                // Add the tool result to the existing tool use
-                updated[toolUseIndex] = {
-                  ...updated[toolUseIndex],
-                  toolResult: item.content?.[0]?.text || "No result content",
-                };
+                // Get the tool name from the matching tool use
+                const toolName = updated[toolUseIndex].toolName;
+
+                // Process Todo tools specially
+                if (toolName === "TodoWrite" || toolName === "TodoRead") {
+                  try {
+                    // For Todo tools, we'll parse the content to extract the todos
+                    // The result should mention "Todos have been modified successfully"
+                    // but we need to look at the tool input for actual todo data
+
+                    const toolInput = updated[toolUseIndex].toolInput;
+
+                    // Check if we have todos in the input (for TodoWrite)
+                    if (
+                      toolName === "TodoWrite" &&
+                      toolInput &&
+                      "todos" in toolInput
+                    ) {
+                      // Get the todos directly from the input
+                      const todos = toolInput.todos;
+
+                      // Update or create todo list
+                      const todoListIndex = updated.findIndex(
+                        (response) => response.type === "todo_list"
+                      );
+
+                      if (todoListIndex !== -1) {
+                        // Update existing todo list
+                        updated[todoListIndex] = {
+                          ...updated[todoListIndex],
+                          todoItems: todos,
+                          timestamp: Date.now(),
+                        };
+                      } else {
+                        // Create new todo list
+                        updated.push({
+                          type: "todo_list",
+                          content: "Todo List",
+                          todoItems: todos,
+                          timestamp: Date.now(),
+                        });
+                      }
+                    }
+                    // For TodoRead, try to extract todos from the result
+                    else if (toolName === "TodoRead") {
+                      try {
+                        // Try to parse the content as JSON
+                        const resultContent = item.content?.[0]?.text || "";
+                        // Parse only if the content is valid JSON and contains todos
+                        if (resultContent.includes('"todos":')) {
+                          const todoData = JSON.parse(resultContent);
+                          if (
+                            todoData &&
+                            todoData.todos &&
+                            Array.isArray(todoData.todos)
+                          ) {
+                            // Found valid todos in the result
+                            const todoListIndex = updated.findIndex(
+                              (response) => response.type === "todo_list"
+                            );
+
+                            if (todoListIndex !== -1) {
+                              // Update existing todo list
+                              updated[todoListIndex] = {
+                                ...updated[todoListIndex],
+                                todoItems: todoData.todos,
+                                timestamp: Date.now(),
+                              };
+                            } else {
+                              // Create new todo list
+                              updated.push({
+                                type: "todo_list",
+                                content: "Todo List",
+                                todoItems: todoData.todos,
+                                timestamp: Date.now(),
+                              });
+                            }
+                          }
+                        }
+                      } catch (e) {
+                        console.error("Failed to parse TodoRead result:", e);
+                      }
+                    }
+
+                    // For both TodoWrite and TodoRead, remove the tool use entry
+                    updated.splice(toolUseIndex, 1);
+                  } catch (err) {
+                    console.error("Failed to process todo data:", err);
+                    // Leave the tool use as is if we encounter an error
+                    updated[toolUseIndex] = {
+                      ...updated[toolUseIndex],
+                      toolResult:
+                        item.content?.[0]?.text || "No result content",
+                    };
+                  }
+                } else {
+                  // Normal tool result handling for non-todo tools
+                  updated[toolUseIndex] = {
+                    ...updated[toolUseIndex],
+                    toolResult: item.content?.[0]?.text || "No result content",
+                  };
+                }
               }
 
               return updated;
@@ -800,9 +1013,9 @@ export const McpQueryPage = () => {
       // Scroll to bottom with smooth animation
       window.scrollTo({
         top: document.body.scrollHeight,
-        behavior: "smooth"
+        behavior: "smooth",
       });
-      
+
       console.log("Auto-scroll re-enabled and scrolled to bottom");
     }, 50);
   }, []);
@@ -811,26 +1024,25 @@ export const McpQueryPage = () => {
   useEffect(() => {
     // Only auto-scroll while loading and auto-scroll is enabled
     if (!isLoading) return;
-    
+
     // Skip if auto-scroll is disabled
     if (!autoScrollEnabled) {
       console.log("Auto-scroll disabled, skipping scroll");
       return;
     }
-    
+
     console.log("Auto-scrolling to bottom...");
-    
+
     // Scroll with smooth behavior
     const scrollToBottom = () => {
       window.scrollTo({
         top: document.body.scrollHeight,
-        behavior: "smooth"
+        behavior: "smooth",
       });
     };
-    
+
     // Execute scroll after DOM updates
     requestAnimationFrame(scrollToBottom);
-    
   }, [parsedResponses, isLoading, autoScrollEnabled]);
 
   // Calculate total tokens whenever parsedResponses changes
@@ -916,7 +1128,7 @@ export const McpQueryPage = () => {
       const finalScrollTimer = setTimeout(() => {
         window.scrollTo({
           top: document.body.scrollHeight,
-          behavior: "smooth"
+          behavior: "smooth",
         });
       }, 200);
 
@@ -1096,7 +1308,7 @@ export const McpQueryPage = () => {
             margin="normal"
             multiline
             rows={3}
-            placeholder="Enter your MCP query here... (Ctrl+Enter to submit)"
+            placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
             variant="outlined"
             disabled={isLoading}
             onKeyDown={(e) => {
@@ -1190,188 +1402,322 @@ export const McpQueryPage = () => {
 
         {parsedResponses.length > 0 ? (
           <div>
-            {parsedResponses.map((item, index) => (
-              <div key={index}>
-                {item.type === "text" ? (
-                  <>
-                    <ResponseText>
-                      {renderTextWithLinks(
-                        (item.displayedContent !== undefined
-                          ? item.displayedContent
-                          : item.content
-                        )?.trim() || "",
-                        item.isAnimating
+            {/* Map all non-todo_list items first */}
+            {parsedResponses
+              .filter((item) => item.type !== "todo_list")
+              .map((item, index) => (
+                <div key={`content-${index}`}>
+                  {item.type === "text" ? (
+                    <>
+                      <ResponseText>
+                        {renderTextWithLinks(
+                          (item.displayedContent !== undefined
+                            ? item.displayedContent
+                            : item.content
+                          )?.trim() || "",
+                          item.isAnimating
+                        )}
+                      </ResponseText>
+
+                      {/* Show metadata for completed chunks */}
+                      {!item.isAnimating && (
+                        <ChunkMetadata>
+                          {item.timestamp &&
+                          index > 0 &&
+                          parsedResponses[index - 1].timestamp
+                            ? `Generated in ${(
+                                (item.timestamp -
+                                  (parsedResponses[index - 1].timestamp || 0)) /
+                                1000
+                              ).toFixed(2)}s`
+                            : item.timestamp && startTime
+                            ? `Generated in ${(
+                                (item.timestamp - (startTime || 0)) /
+                                1000
+                              ).toFixed(2)}s`
+                            : ""}
+                          {item.outputTokens
+                            ? ` • ${formatTokenCount(item.outputTokens)} tokens`
+                            : ""}
+                        </ChunkMetadata>
                       )}
-                    </ResponseText>
 
-                    {/* Show metadata for completed chunks */}
-                    {!item.isAnimating && (
-                      <ChunkMetadata>
-                        {item.timestamp &&
-                        index > 0 &&
-                        parsedResponses[index - 1].timestamp
-                          ? `Generated in ${(
-                              (item.timestamp -
-                                (parsedResponses[index - 1].timestamp || 0)) /
-                              1000
-                            ).toFixed(2)}s`
-                          : item.timestamp && startTime
-                          ? `Generated in ${(
-                              (item.timestamp - (startTime || 0)) /
-                              1000
-                            ).toFixed(2)}s`
-                          : ""}
-                        {item.outputTokens
-                          ? ` • ${formatTokenCount(item.outputTokens)} tokens`
-                          : ""}
-                      </ChunkMetadata>
-                    )}
-
-                    {/* Render Grafana embeds if links are present */}
-                    {item.grafanaLinks && item.grafanaLinks.length > 0 && (
-                      <Box mt={2}>
-                        {item.grafanaLinks.map((link, i) => (
-                          <GrafanaEmbed
-                            key={i}
-                            dashboardId={link.dashboardId}
+                      {/* Render Grafana embeds if links are present */}
+                      {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                        <Box mt={2}>
+                          {item.grafanaLinks.map((link, i) => (
+                            <GrafanaEmbed
+                              key={i}
+                              dashboardId={link.dashboardId}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    </>
+                  ) : item.type === "todo_list" && item.todoItems ? (
+                    <TodoListBlock>
+                      <TodoListTitle variant="subtitle1">
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <CheckBoxIcon
+                            sx={{
+                              color:
+                                theme.palette.mode === "dark"
+                                  ? "#9c27b0"
+                                  : "#673ab7",
+                            }}
                           />
+                          Todo List
+                        </Box>
+                      </TodoListTitle>
+
+                      <Box sx={{ pl: 1 }}>
+                        {item.todoItems.map((todo) => (
+                          <TodoItem key={todo.id} status={todo.status}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 1.5,
+                              }}
+                            >
+                              {todo.status === "completed" ? (
+                                <CheckBoxIcon
+                                  color="success"
+                                  sx={{ mt: 0.3 }}
+                                />
+                              ) : (
+                                <CheckBoxOutlineBlankIcon
+                                  sx={{
+                                    mt: 0.3,
+                                    color:
+                                      todo.status === "in_progress"
+                                        ? theme.palette.mode === "dark"
+                                          ? "#f0c674"
+                                          : "#ed6c02"
+                                        : "text.secondary",
+                                  }}
+                                />
+                              )}
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {todo.content}
+                              </Typography>
+                            </Box>
+                          </TodoItem>
                         ))}
                       </Box>
-                    )}
-                  </>
-                ) : item.type === "tool_use" && item.toolName ? (
-                  <ToolUseBlock>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Box display="flex" alignItems="center">
-                        <ToolIcon toolName={item.toolName} />
-                        <ToolName variant="subtitle2">
-                          Tool: {item.toolName}
-                        </ToolName>
-                      </Box>
-                      <IconButton
-                        onClick={() =>
-                          setExpandedTools((prev) => ({
-                            ...prev,
-                            [index]: !prev[index],
-                          }))
-                        }
-                        size="small"
-                      >
-                        {expandedTools[index] ? (
-                          <KeyboardArrowUpIcon />
-                        ) : (
-                          <KeyboardArrowDownIcon />
-                        )}
-                      </IconButton>
-                    </Box>
-                    <Collapse in={expandedTools[index]} timeout="auto">
-                      {/* Tool Input */}
+
                       <Typography
                         variant="caption"
                         sx={{
                           display: "block",
-                          mt: 1,
-                          mb: 0.5,
+                          mt: 2,
+                          textAlign: "right",
                           color: "text.secondary",
+                          fontStyle: "italic",
                         }}
                       >
-                        Input:
+                        Last updated:{" "}
+                        {item.timestamp
+                          ? new Date(item.timestamp).toLocaleTimeString()
+                          : "Unknown"}
                       </Typography>
-                      <ToolInput>
-                        {JSON.stringify(item.toolInput, null, 2)}
-                      </ToolInput>
+                    </TodoListBlock>
+                  ) : item.type === "tool_use" && item.toolName ? (
+                    <ToolUseBlock>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Box display="flex" alignItems="center">
+                          <ToolIcon toolName={item.toolName} />
+                          <ToolName variant="subtitle2">
+                            Tool: {item.toolName}
+                          </ToolName>
+                        </Box>
+                        <IconButton
+                          onClick={() =>
+                            setExpandedTools((prev) => ({
+                              ...prev,
+                              [index]: !prev[index],
+                            }))
+                          }
+                          size="small"
+                        >
+                          {expandedTools[index] ? (
+                            <KeyboardArrowUpIcon />
+                          ) : (
+                            <KeyboardArrowDownIcon />
+                          )}
+                        </IconButton>
+                      </Box>
+                      <Collapse in={expandedTools[index]} timeout="auto">
+                        {/* Tool Input */}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            mt: 1,
+                            mb: 0.5,
+                            color: "text.secondary",
+                          }}
+                        >
+                          Input:
+                        </Typography>
+                        <ToolInput>
+                          {JSON.stringify(item.toolInput, null, 2)}
+                        </ToolInput>
 
-                      {/* Tool Result (if available) */}
-                      {item.toolResult && (
-                        <>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: "block",
-                              mt: 2,
-                              mb: 0.5,
-                              color: "text.secondary",
-                            }}
-                          >
-                            Result:
-                          </Typography>
-                          <ToolInput
-                            sx={{
-                              backgroundColor:
-                                theme.palette.mode === "dark"
-                                  ? "#252e3d"
-                                  : "#f0f7ff",
-                              borderLeft: `4px solid ${
-                                theme.palette.mode === "dark"
-                                  ? "#4caf50"
-                                  : "#2e7d32"
-                              }`,
-                            }}
-                          >
-                            {(() => {
-                              try {
-                                // Try to parse and pretty print JSON responses
-                                const parsed = JSON.parse(item.toolResult);
-                                return JSON.stringify(parsed, null, 2);
-                              } catch (e) {
-                                // If not valid JSON, return as is
-                                return item.toolResult;
-                              }
-                            })()}
-                          </ToolInput>
-                        </>
-                      )}
-
-                      {/* Add ClickHouse button if this is a ClickHouse tool */}
-                      {item.toolName?.toLowerCase().includes("clickhouse") &&
-                        item.toolInput?.query && (
-                          <Box sx={{ mt: 2, textAlign: "right" }}>
-                            <Tooltip
-                              title="This will copy the query and open a new page in ClickHouse. Paste the query to run it there"
-                              arrow
+                        {/* Tool Result (if available) */}
+                        {item.toolResult && (
+                          <>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: "block",
+                                mt: 2,
+                                mb: 0.5,
+                                color: "text.secondary",
+                              }}
                             >
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<ContentCopyIcon />}
-                                onClick={() => {
-                                  const query =
-                                    typeof item.toolInput.query === "string"
-                                      ? item.toolInput.query
-                                      : JSON.stringify(item.toolInput.query);
+                              Result:
+                            </Typography>
+                            <ToolInput
+                              sx={{
+                                backgroundColor:
+                                  theme.palette.mode === "dark"
+                                    ? "#252e3d"
+                                    : "#f0f7ff",
+                                borderLeft: `4px solid ${
+                                  theme.palette.mode === "dark"
+                                    ? "#4caf50"
+                                    : "#2e7d32"
+                                }`,
+                              }}
+                            >
+                              {(() => {
+                                try {
+                                  // Try to parse and pretty print JSON responses
+                                  const parsed = JSON.parse(item.toolResult);
+                                  return JSON.stringify(parsed, null, 2);
+                                } catch (e) {
+                                  // If not valid JSON, return as is
+                                  return item.toolResult;
+                                }
+                              })()}
+                            </ToolInput>
+                          </>
+                        )}
 
-                                  navigator.clipboard.writeText(query);
-                                  window.open(
-                                    CLICKHOUSE_CONSOLE_BASE_URL +
-                                      generateQueryId(),
-                                    "_blank"
-                                  );
+                        {/* Add ClickHouse button if this is a ClickHouse tool */}
+                        {item.toolName?.toLowerCase().includes("clickhouse") &&
+                          item.toolInput?.query && (
+                            <Box sx={{ mt: 2, textAlign: "right" }}>
+                              <Tooltip
+                                title="This will copy the query and open a new page in ClickHouse. Paste the query to run it there"
+                                arrow
+                              >
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<ContentCopyIcon />}
+                                  onClick={() => {
+                                    const query =
+                                      typeof item.toolInput.query === "string"
+                                        ? item.toolInput.query
+                                        : JSON.stringify(item.toolInput.query);
+
+                                    navigator.clipboard.writeText(query);
+                                    window.open(
+                                      CLICKHOUSE_CONSOLE_BASE_URL +
+                                        generateQueryId(),
+                                      "_blank"
+                                    );
+                                  }}
+                                >
+                                  Copy query and go to ClickHouse
+                                </Button>
+                              </Tooltip>
+                            </Box>
+                          )}
+                      </Collapse>
+
+                      {/* Show metadata for tool use - only tokens */}
+                      <ChunkMetadata>
+                        {item.outputTokens
+                          ? `${formatTokenCount(item.outputTokens)} tokens`
+                          : ""}
+                      </ChunkMetadata>
+                    </ToolUseBlock>
+                  ) : null}
+                  {index < parsedResponses.length - 1 &&
+                    item.type === "text" &&
+                    parsedResponses[index + 1].type === "text" && <hr />}
+                </div>
+              ))}
+
+            {/* Display todo list at the bottom if it exists */}
+            {parsedResponses
+              .filter((item) => item.type === "todo_list")
+              .map((item, index) => (
+                <div key={`todo-${index}`}>
+                  {item.todoItems && (
+                    <TodoListBlock>
+                      <Box>
+                        {item.todoItems.map((todo) => (
+                          <TodoItem key={todo.id} status={todo.status}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 1,
+                              }}
+                            >
+                              {todo.status === "completed" ? (
+                                <CheckBoxIcon
+                                  color="success"
+                                  sx={{ mt: 0.15, fontSize: "1rem" }}
+                                />
+                              ) : (
+                                <CheckBoxOutlineBlankIcon
+                                  sx={{
+                                    mt: 0.15,
+                                    fontSize: "1rem",
+                                    color:
+                                      todo.status === "in_progress"
+                                        ? theme.palette.mode === "dark"
+                                          ? "#f0c674"
+                                          : "#ed6c02"
+                                        : "text.secondary",
+                                  }}
+                                />
+                              )}
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{
+                                  wordBreak: "break-word",
+                                  fontSize: "0.875rem",
                                 }}
                               >
-                                Copy query and go to ClickHouse
-                              </Button>
-                            </Tooltip>
-                          </Box>
-                        )}
-                    </Collapse>
-
-                    {/* Show metadata for tool use - only tokens */}
-                    <ChunkMetadata>
-                      {item.outputTokens
-                        ? `${formatTokenCount(item.outputTokens)} tokens`
-                        : ""}
-                    </ChunkMetadata>
-                  </ToolUseBlock>
-                ) : null}
-                {index < parsedResponses.length - 1 &&
-                  item.type === "text" &&
-                  parsedResponses[index + 1].type === "text" && <hr />}
-              </div>
-            ))}
+                                {todo.content}
+                              </Typography>
+                            </Box>
+                          </TodoItem>
+                        ))}
+                      </Box>
+                    </TodoListBlock>
+                  )}
+                </div>
+              ))}
 
             {/* Add thinking indicator at the bottom if still loading */}
             {isLoading ? (

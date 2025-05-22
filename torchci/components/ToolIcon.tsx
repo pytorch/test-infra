@@ -62,6 +62,22 @@ const ToolIcon: React.FC<ToolIconProps> = ({ toolName }) => {
     );
   }
   
+  if (lowerCaseName === 'bash') {
+    return (
+      <IconWrapper>
+        <Box position="relative" width="24px" height="24px">
+          <Image 
+            src="/icons/bash_icon.svg"
+            alt="Bash Icon"
+            width={24}
+            height={24}
+            style={{objectFit: 'contain'}}
+          />
+        </Box>
+      </IconWrapper>
+    );
+  }
+  
   return (
     <IconWrapper>
       <DefaultToolIcon />

@@ -82,14 +82,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Setup a timeout
     const timeout = setTimeout(() => {
-      console.log("Process timed out after 240 seconds");
-      safeEndResponse(`{"error":"Process timed out after 240 seconds"}\n`);
+      console.log("Process timed out after 900 seconds");
+      safeEndResponse(`{"error":"Process timed out after 900 seconds"}\n`);
 
       if (claudeProcess && !claudeProcess.killed) {
         console.log("Killing Claude process due to timeout");
         claudeProcess.kill();
       }
-    }, 240000); // 240 seconds timeout
+    }, 900000); // 900 seconds timeout
 
     // Create unique temp directory with timestamp and random string
     const timestamp = Date.now();
@@ -159,7 +159,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       "claude",
       [
         "-p",
-        query,
+        "Use TodoRead/TodoWrite to create a plan first (find tables, understand tables, create query, optimize query for Grafana, make Grafana dashboard). " +
+          query,
         "--output-format",
         "stream-json",
         "--verbose",
@@ -210,7 +211,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       if (output.includes('"usage"') || output.includes('"total_tokens"')) {
         console.log("Found token data in chunk:", output);
       }
-      
+
       // Send the chunk immediately and flush the stream
       res.write(output);
       flushStream(res);
@@ -231,21 +232,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       if (!isResponseEnded) {
         // Check if we can find any token usage information in the process output
         // This could be in a file in the temp directory
-        const usageFilePath = path.join(tempDir, 'usage.json');
+        const usageFilePath = path.join(tempDir, "usage.json");
         let tokenUsage = {};
-        
+
         try {
           if (fs.existsSync(usageFilePath)) {
-            const usageData = fs.readFileSync(usageFilePath, 'utf8');
+            const usageData = fs.readFileSync(usageFilePath, "utf8");
             tokenUsage = JSON.parse(usageData);
-            console.log('Found token usage data:', tokenUsage);
+            console.log("Found token usage data:", tokenUsage);
           }
         } catch (error) {
-          console.error('Error reading token usage data:', error);
+          console.error("Error reading token usage data:", error);
         }
-        
+
         res.write(
-          `\n{"status":"complete","code":${code || 0},"tempDir":"${tempDir}","usage":${JSON.stringify(tokenUsage)}}\n`
+          `\n{"status":"complete","code":${
+            code || 0
+          },"tempDir":"${tempDir}","usage":${JSON.stringify(tokenUsage)}}\n`
         );
         flushStream(res);
       }
