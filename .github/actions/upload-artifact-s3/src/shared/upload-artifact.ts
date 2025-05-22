@@ -125,5 +125,5 @@ export async function uploadArtifact(
       core.info(`Finished upload of ${relativeName}`)
     }
   }
-  core.setOutput('artifact-id', JSON.stringify(objects))
+  core.setOutput('uploaded-objects', JSON.stringify(objects))
 }
