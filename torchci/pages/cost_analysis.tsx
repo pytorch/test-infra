@@ -29,7 +29,7 @@ import _ from "lodash";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useState } from "react";
 import { BiLineChart } from "react-icons/bi";
-import { FaFilter, FaInfoCircle, FaRegChartBar, FaTable } from "react-icons/fa";
+import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
 

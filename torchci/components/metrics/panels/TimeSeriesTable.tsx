@@ -7,7 +7,6 @@ import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";
-import _ from "lodash";
 import { useMemo } from "react";
 import useSWR from "swr";
 import { ChartType, Granularity, seriesWithInterpolatedTimes } from "./TimeSeriesPanel";
