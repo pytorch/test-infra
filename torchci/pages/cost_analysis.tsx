@@ -264,7 +264,9 @@ export default function Page() {
     initialSearchFilter as string
   );
   const [isRegex, setIsRegex] = useState(initialIsRegex);
-  const [showInstanceType, setShowInstanceType] = useState(initialShowInstanceType);
+  const [showInstanceType, setShowInstanceType] = useState(
+    initialShowInstanceType
+  );
 
   const [routerReady, setRouterReady] = useState(false);
 
@@ -353,7 +355,8 @@ export default function Page() {
     if (selectedYAxis) params.set("yAxis", selectedYAxis);
     if (searchFilter) params.set("searchFilter", searchFilter);
     if (isRegex) params.set("isRegex", isRegex.toString());
-    if (showInstanceType) params.set("showInstanceType", showInstanceType.toString());
+    if (showInstanceType)
+      params.set("showInstanceType", showInstanceType.toString());
     if (selectedRepos && selectedRepos.length < availableRepos.length) {
       params.set("repos", selectedRepos.join(","));
     }
@@ -385,8 +388,12 @@ export default function Page() {
     yAxis: "cost" | "duration"
   ) => {
     // Handle toggle between runner_type and instance_type
-    const actualGroupBy = groupby === "runner_type" && showInstanceType ? "instance_type" : groupby;
-    const displayName = actualGroupBy === "instance_type" ? "instance type" : actualGroupBy.replace("_", " ");
+    const actualGroupBy =
+      groupby === "runner_type" && showInstanceType ? "instance_type" : groupby;
+    const displayName =
+      actualGroupBy === "instance_type"
+        ? "instance type"
+        : actualGroupBy.replace("_", " ");
 
     return (
       <Grid2 size={{ xs: 8 }} height={ROW_HEIGHT}>
