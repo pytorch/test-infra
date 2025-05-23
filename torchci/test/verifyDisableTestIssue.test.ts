@@ -16,6 +16,45 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 
+function mockCloseIssue(owner: string, repo: string, number: number) {
+  return nock("https://api.github.com")
+    .patch(
+      `/repos/${owner}/${repo}/issues/${number}`,
+      (body) => body.state === "closed"
+    )
+    .reply(200);
+}
+
+function mockFetchExistingComment(owner: string, repo: string, number: number) {
+  return nock("https://api.github.com")
+    .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+    .reply(200, []);
+}
+
+function mockCommentHas(
+  owner: string,
+  repo: string,
+  number: number,
+  shouldContain: string[],
+  shouldNotContain: string[]
+) {
+  return nock("https://api.github.com")
+    .post(
+      `/repos/${owner}/${repo}/issues/${number}/comments`,
+
+      (body) => {
+        for (const containedString of shouldContain) {
+          expect(body.body).toContain(containedString);
+        }
+        for (const notContainedString of shouldNotContain) {
+          expect(body.body).not.toContain(notContainedString);
+        }
+        return true;
+      }
+    )
+    .reply(200);
+}
+
 function defaultE2ETestInputs({
   title,
   body,
@@ -355,14 +394,10 @@ describe("verify-disable-test-issue-bot", () => {
   test("pytorch-bot[bot] is authorized", async () => {
     const { payload, owner, repo, number } = defaultE2ETestInputs({});
 
-    const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
-      .reply(200, [])
-      .post(
-        `/repos/${owner}/${repo}/issues/${number}/comments`,
-        (body) => !body.body.includes("don't have permission")
-      )
-      .reply(200);
+    const scope = [
+      mockFetchExistingComment(owner, repo, number),
+      mockCommentHas(owner, repo, number, [], ["don't have permission"]),
+    ];
 
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
@@ -374,22 +409,16 @@ describe("verify-disable-test-issue-bot", () => {
       userLogin: "randomuser",
     });
 
-    const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
-      .reply(200, [])
-      .get(`/repos/${owner}/${repo}/collaborators/randomuser/permission`)
-      .reply(200, {
-        permission: "read",
-      })
-      .post(`/repos/${owner}/${repo}/issues/${number}/comments`, (body) =>
-        body.body.includes("don't have permission")
-      )
-      .reply(200)
-      .patch(
-        `/repos/${owner}/${repo}/issues/${number}`,
-        (body) => body.state === "closed"
-      )
-      .reply(200);
+    const scope = [
+      mockFetchExistingComment(owner, repo, number),
+      nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/collaborators/randomuser/permission`)
+        .reply(200, {
+          permission: "read",
+        }),
+      mockCommentHas(owner, repo, number, ["don't have permission"], []),
+      mockCloseIssue(owner, repo, number),
+    ];
 
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
@@ -401,18 +430,15 @@ describe("verify-disable-test-issue-bot", () => {
       body: "Platforms: rocm",
     });
 
-    const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
-      .reply(200, [])
-      .post(
-        `/repos/${owner}/${repo}/issues/${number}/comments`,
-        (body) => !body.body.includes("don't have permission")
-      )
-      .reply(200)
-      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-        _.isEqual(body.labels, ["module: rocm"])
-      )
-      .reply(200, []);
+    const scope = [
+      mockFetchExistingComment(owner, repo, number),
+      mockCommentHas(owner, repo, number, [], ["don't have permission"]),
+      nock("https://api.github.com")
+        .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+          _.isEqual(body.labels, ["module: rocm"])
+        )
+        .reply(200, []),
+    ];
 
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
@@ -425,22 +451,16 @@ describe("verify-disable-test-issue-bot", () => {
       labels: ["module: windows", "random label"],
     });
 
-    const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
-      .reply(200, [])
-      .post(
-        `/repos/${owner}/${repo}/issues/${number}/comments`,
-        (body) => !body.body.includes("don't have permission")
-      )
-      .reply(200)
-      .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-        _.isEqual(body.labels, ["module: rocm"])
-      )
-      .reply(200, [])
-      .delete(
-        `/repos/${owner}/${repo}/issues/${number}/labels/module%3A%20windows`
-      )
-      .reply(200, []);
+    const scope = [
+      mockFetchExistingComment(owner, repo, number),
+      mockCommentHas(owner, repo, number, [], ["don't have permission"]),
+      nock("https://api.github.com")
+        .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+          _.isEqual(body.labels, ["module: rocm"])
+        )
+        .reply(200, []),
+      mockCloseIssue(owner, repo, number),
+    ];
 
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
@@ -453,14 +473,11 @@ describe("verify-disable-test-issue-bot", () => {
       labels: ["module: rocm", "random label"],
     });
 
-    const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
-      .reply(200, [])
-      .post(
-        `/repos/${owner}/${repo}/issues/${number}/comments`,
-        (body) => !body.body.includes("don't have permission")
-      )
-      .reply(200);
+    const scope = [
+      mockFetchExistingComment(owner, repo, number),
+      mockCommentHas(owner, repo, number, [], ["don't have permission"]),
+    ];
+
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
     handleScope(scope);
