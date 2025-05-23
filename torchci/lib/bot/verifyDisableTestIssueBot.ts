@@ -1,3 +1,4 @@
+import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
 import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
@@ -97,6 +98,11 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
         authorized
       );
       singleDisableIssue.fixLabels(context);
+    } else if (aggregateDisableIssue.isAggregateIssue(title)) {
+      validationComment = aggregateDisableIssue.formValidationComment(
+        context.payload["issue"],
+        authorized
+      );
     } else {
       // UNSTABLE
       const prefix = title.startsWith(unstableKey) ? unstableKey : disabledKey;

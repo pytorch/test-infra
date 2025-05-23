@@ -145,320 +145,414 @@ describe("Verify disable issues integration tests", () => {
     };
   }
 
-  test("pytorch-bot[bot] is authorized", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({});
+  describe("authorization", () => {
+    test("pytorch-bot[bot] is authorized", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({});
 
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "all platforms"],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "all platforms"],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
 
-    handleScope(scope);
-  });
-
-  test("random user is not authorized", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      userLogin: "randomuser",
+      handleScope(scope);
     });
 
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      nock("https://api.github.com")
-        .get(`/repos/${owner}/${repo}/collaborators/randomuser/permission`)
-        .reply(200, {
-          permission: "read",
-        }),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        [
-          "You (randomuser) don't have permission",
-          "<!-- validation-comment-start -->",
-          "ERROR",
-        ],
-        ["WARNING"]
-      ),
-      mockCloseIssue(owner, repo, number),
-    ];
+    test("random user is not authorized", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        userLogin: "randomuser",
+      });
 
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        nock("https://api.github.com")
+          .get(`/repos/${owner}/${repo}/collaborators/randomuser/permission`)
+          .reply(200, {
+            permission: "read",
+          }),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          [
+            "don't have permission",
+            "<!-- validation-comment-start -->",
+            "ERROR",
+          ],
+          ["WARNING"]
+        ),
+        mockCloseIssue(owner, repo, number),
+      ];
 
-    handleScope(scope);
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
   });
 
-  test("issue with missing labels adds labels", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      labels: [],
-      body: "Platforms: rocm",
+  describe("single disable test issues", () => {
+    test("issue with missing labels adds labels", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        labels: [],
+        body: "Platforms: rocm",
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "these platforms: rocm."],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+        nock("https://api.github.com")
+          .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+            _.isEqual(body.labels, ["module: rocm"])
+          )
+          .reply(200, []),
+      ];
+
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
     });
 
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "these platforms: rocm."],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-      nock("https://api.github.com")
-        .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-          _.isEqual(body.labels, ["module: rocm"])
-        )
-        .reply(200, []),
-    ];
+    test("issue with wrong labels adds and removes labels", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: rocm",
+        labels: ["module: windows", "random label"],
+      });
 
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "these platforms: rocm."],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+        nock("https://api.github.com")
+          .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+            _.isEqual(body.labels, ["module: rocm"])
+          )
+          .reply(200, [])
+          .delete(
+            `/repos/${owner}/${repo}/issues/${number}/labels/module%3A%20windows`
+          )
+          .reply(200, []),
+      ];
 
-    handleScope(scope);
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue with correct labels doesn't change", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: rocm",
+        labels: ["module: rocm", "random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "these platforms: rocm."],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: disable for win", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: win",
+        labels: ["module: windows", "random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "these platforms: win."],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: disable for win", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "whatever\nPlatforms:win\nyay",
+        labels: ["module: windows", "random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "these platforms: win."],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: disable for windows, rocm, asan", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: win, ROCm, ASAN",
+        labels: ["random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          [
+            "<!-- validation-comment-start -->",
+            "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
+            "these platforms: asan, rocm, win.",
+          ],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: disable for all", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "whatever yay",
+        labels: ["random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          [
+            "<!-- validation-comment-start -->",
+            "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
+            "all platforms.",
+          ],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: disable unknown platform", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "whatever\nPlatforms:invalid\nyay",
+        labels: ["random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          [
+            "<!-- validation-comment-start -->",
+            "all platforms",
+            "WARNING",
+            "invalid inputs as platforms for which the test will be disabled: invalid.",
+          ],
+          ["don't have permission", "ERROR"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: can parse nested test suites", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: win",
+        labels: ["module: windows", "random label"],
+        title:
+          "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          [
+            "<!-- validation-comment-start -->",
+            "these platforms: win.",
+            "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
+          ],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED: cannot parse platforms", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "Platforms: all of them",
+        labels: ["random label"],
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "all platforms", "WARNING"],
+          ["don't have permission", "ERROR"]
+        ),
+      ];
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
+
+    test("issue opened with title starts w/ DISABLED:, not a test", async () => {
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        body: "whatever\nPlatforms:\nyay",
+        labels: ["module: windows", "random label"],
+        title: "DISABLED testMethodName   cuz it borked  ",
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "attempting to disabled a job"],
+          ["don't have permission", "WARNING", "ERROR"]
+        ),
+      ];
+
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
+    });
   });
 
-  test("issue with wrong labels gets correct labels", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: rocm",
-      labels: ["module: windows", "random label"],
+  describe("multiple disable test issues", () => {
+    test("normal case", async () => {
+      const body = `disable the following tests:
+\`\`\`
+test_a (__main__.suite_a): win
+test_b (__main__.suite_a): win, linux
+test_c (__main__.suite_a):
+\`\`\`
+`;
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        title: "DISABLED MULTIPLE junk random",
+        body: body,
+      });
+
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->"],
+          ["don't have permission", "ERROR", "WARNING"]
+        ),
+      ];
+
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
     });
 
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "these platforms: rocm."],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-      nock("https://api.github.com")
-        .post(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-          _.isEqual(body.labels, ["module: rocm"])
-        )
-        .reply(200, [])
-        .delete(
-          `/repos/${owner}/${repo}/issues/${number}/labels/module%3A%20windows`
-        )
-        .reply(200, []),
-    ];
+    test("invalid platforms", async () => {
+      const body = `disable the following tests:
+\`\`\`
+test_a (__main__.suite_a): win, invalid
+test_b (__main__.suite_a): win, linux
+test_c (__main__.suite_a):
+\`\`\`
+`;
 
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        title: "DISABLED MULTIPLE junk random",
+        body: body,
+      });
 
-    handleScope(scope);
-  });
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "WARNING"],
+          ["don't have permission", "ERROR"]
+        ),
+      ];
 
-  test("issue with correct labels doesn't change", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: rocm",
-      labels: ["module: rocm", "random label"],
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
     });
 
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "these platforms: rocm."],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
+    test("invalid test name", async () => {
+      const body = `disable the following tests:
+\`\`\`
+test_a asdf (__main__.suite_a): win
+test_b (__main__.suite_a): win, linux
+test_c (__main__.suite_a):
+\`\`\`
+      `;
+      const { payload, owner, repo, number } = defaultE2ETestInputs({
+        title: "DISABLED MULTIPLE junk random",
+        body: body,
+      });
 
-    handleScope(scope);
-  });
+      const scope = [
+        mockFetchExistingComment(owner, repo, number),
+        mockCommentHas(
+          owner,
+          repo,
+          number,
+          ["<!-- validation-comment-start -->", "ERROR"],
+          ["don't have permission", "WARNING"]
+        ),
+      ];
 
-  test("issue opened with title starts w/ DISABLED: disable for win", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: win",
-      labels: ["module: windows", "random label"],
+      await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+      handleScope(scope);
     });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "these platforms: win."],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: disable for win", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "whatever\nPlatforms:win\nyay",
-      labels: ["module: windows", "random label"],
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "these platforms: win."],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: disable for windows, rocm, asan", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: win, ROCm, ASAN",
-      labels: ["random label"],
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        [
-          "<!-- validation-comment-start -->",
-          "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
-          "these platforms: asan, rocm, win.",
-        ],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: disable for all", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "whatever yay",
-      labels: ["random label"],
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        [
-          "<!-- validation-comment-start -->",
-          "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
-          "all platforms.",
-        ],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: disable unknown platform", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "whatever\nPlatforms:invalid\nyay",
-      labels: ["random label"],
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        [
-          "<!-- validation-comment-start -->",
-          "all platforms",
-          "WARNING",
-          "invalid inputs as platforms for which the test will be disabled: invalid.",
-        ],
-        ["don't have permission", "ERROR"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: can parse nested test suites", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: win",
-      labels: ["module: windows", "random label"],
-      title:
-        "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        [
-          "<!-- validation-comment-start -->",
-          "these platforms: win.",
-          "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
-        ],
-        ["don't have permission", "ERROR", "WARNING"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED: cannot parse platforms", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "Platforms: all of them",
-      labels: ["random label"],
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "all platforms", "WARNING"],
-        ["don't have permission", "ERROR"]
-      ),
-    ];
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
-  });
-
-  test("issue opened with title starts w/ DISABLED:, not a test", async () => {
-    const { payload, owner, repo, number } = defaultE2ETestInputs({
-      body: "whatever\nPlatforms:\nyay",
-      labels: ["module: windows", "random label"],
-      title: "DISABLED testMethodName   cuz it borked  ",
-    });
-
-    const scope = [
-      mockFetchExistingComment(owner, repo, number),
-      mockCommentHas(
-        owner,
-        repo,
-        number,
-        ["<!-- validation-comment-start -->", "attempting to disabled a job"],
-        ["don't have permission", "WARNING", "ERROR"]
-      ),
-    ];
-
-    await probot.receive({ name: "issues", payload: payload, id: "2" });
-
-    handleScope(scope);
   });
 });
