@@ -260,7 +260,15 @@ export const parseBody = _.memoize((body: string) => {
 
 // MARK: validation
 
+const disabledTestIssueTitle = new RegExp(
+  "test.+\\s*\\(.+\\)"
+);
+
 function testNameIsExpected(testName: string): boolean {
+  if (!disabledTestIssueTitle.test(testName)) {
+    return false;
+  }
+
   const split = testName.split(/\s+/);
   if (split.length !== 2) {
     return false;
