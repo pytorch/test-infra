@@ -77,7 +77,7 @@ export default function TimeSeriesTable({
     refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
 
-  // Process data for table display
+  // Process data for table display - transposed version (dates as columns, series as rows)
   const { tableData, columns } = useMemo(() => {
     if (!rawData || isLoading) {
       return { tableData: [], columns: [] };
@@ -121,59 +121,69 @@ export default function TimeSeriesTable({
     // Sort timestamps chronologically
     const timestamps = Array.from(allTimestamps).sort();
     
-    // Create rows with timestamp as first column and series values in subsequent columns
-    const tableData = timestamps.map((timestamp) => {
-      const formattedTime = formatTimeForCharts(timestamp, timeFieldDisplayFormat);
+    // TRANSPOSED: Create columns with timestamps as headers
+    const columns: GridColDef[] = [
+      {
+        field: 'seriesName',
+        headerName: 'Series',
+        width: 250,
+        headerClassName: 'first-column-header',
+        cellClassName: 'first-column-cell',
+      },
+      ...timestamps.map((timestamp) => {
+        const formattedTime = formatTimeForCharts(timestamp, timeFieldDisplayFormat);
+        return {
+          field: timestamp,
+          headerName: formattedTime,
+          width: 120,
+          renderCell: (params) => (
+            <div>{yAxisRenderer(params.value)}</div>
+          ),
+        };
+      }),
+    ];
+
+    // TRANSPOSED: Create rows with series as rows and timestamps as columns
+    const tableData = series.map((s, index) => {
       const row: any = {
-        id: timestamp,
-        timestamp: formattedTime,
+        id: s.name,
+        seriesName: s.name,
       };
 
-      // Add value for each series
-      series.forEach((s) => {
+      // Add value for each timestamp
+      timestamps.forEach((timestamp) => {
         const point = s.data.find((d: [string, any]) => d[0] === timestamp);
-        row[s.name] = point ? point[1] : 0;
+        row[timestamp] = point ? point[1] : 0;
       });
 
       return row;
     });
-
-    // Create columns definition
-    const columns: GridColDef[] = [
-      {
-        field: 'timestamp',
-        headerName: 'Time',
-        width: 120,
-      },
-      ...series.map((s) => ({
-        field: s.name,
-        headerName: s.name,
-        width: 150,
-        renderCell: (params) => (
-          <div>{yAxisRenderer(params.value)}</div>
-        ),
-      })),
-    ];
 
     return { tableData, columns };
   }, [rawData, isLoading, queryParams, granularity, groupByFieldName, timeFieldName, yAxisFieldName, sort_by, chartType, filter, isRegex, yAxisRenderer, timeFieldDisplayFormat, dataReader]);
 
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <div style={{ height: "100%", width: "100%" }}>
+    <Paper sx={{ p: 2 }} elevation={3}>
+      <div style={{ width: "100%" }}>
         <DataGrid
           rows={tableData}
           columns={columns}
           density="compact"
           pageSizeOptions={[25, 50, 100]}
+          columnVisibilityModel={{
+            // Ensure all columns are visible by default
+            timestamp: true,
+          }}
           initialState={{
             pagination: {
               paginationModel: { pageSize: 25 }
             }
           }}
           loading={isLoading}
+          autoHeight
           sx={{
+            width: "100%",
             '& .MuiDataGrid-columnHeaders': {
               backgroundColor: '#2f847c', /* Blueish-green to match common chart colors */
               color: '#ffffff',
@@ -187,6 +197,19 @@ export default function TimeSeriesTable({
               py: '8px',
             },
             '& .MuiDataGrid-columnHeaderTitle': {
+              fontWeight: 'bold',
+            },
+            // Alternating row colors
+            '& .MuiDataGrid-row:nth-of-type(odd)': {
+              backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            },
+            // First column styling
+            '& .first-column-header': {
+              backgroundColor: '#1a635d', /* Darker shade for emphasis */
+              color: '#ffffff',
+            },
+            '& .first-column-cell': {
+              backgroundColor: 'rgba(47, 132, 124, 0.1)',
               fontWeight: 'bold',
             }
           }}

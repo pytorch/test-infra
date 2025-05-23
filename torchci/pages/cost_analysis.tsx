@@ -817,7 +817,7 @@ export default function Page() {
         </Grid2>
         
         <Grid2 container marginTop={1} size={{ xs: 12 }}>
-          <Grid2 size={{ xs: 8 }} height={400}>
+          <Grid2 size={{ xs: 11 }}>
             {!isLoading && (
               <TimeSeriesTable
                 queryName={`${selectedYAxis}_job_per_${groupby === "runner_type" && showInstanceType ? "instance_type" : groupby}`}
@@ -846,8 +846,6 @@ export default function Page() {
             )}
             {isLoading && <div>Loading...</div>}
           </Grid2>
-          <Grid2 size={{ xs: 1 }}></Grid2>
-          <Grid2 size={{ xs: 2 }}></Grid2>
         </Grid2>
       </Grid2>
     </div>
