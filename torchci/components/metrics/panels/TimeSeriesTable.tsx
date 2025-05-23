@@ -9,7 +9,11 @@ import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";
 import { useMemo } from "react";
 import useSWR from "swr";
-import { ChartType, Granularity, seriesWithInterpolatedTimes } from "./TimeSeriesPanel";
+import {
+  ChartType,
+  Granularity,
+  seriesWithInterpolatedTimes,
+} from "./TimeSeriesPanel";
 
 dayjs.extend(utc);
 
@@ -123,21 +127,22 @@ export default function TimeSeriesTable({
     // TRANSPOSED: Create columns with timestamps as headers
     const columns: GridColDef[] = [
       {
-        field: 'seriesName',
-        headerName: 'Series',
+        field: "seriesName",
+        headerName: "Series",
         width: 250,
-        headerClassName: 'first-column-header',
-        cellClassName: 'first-column-cell',
+        headerClassName: "first-column-header",
+        cellClassName: "first-column-cell",
       },
       ...timestamps.map((timestamp) => {
-        const formattedTime = formatTimeForCharts(timestamp, timeFieldDisplayFormat);
+        const formattedTime = formatTimeForCharts(
+          timestamp,
+          timeFieldDisplayFormat
+        );
         return {
           field: timestamp,
           headerName: formattedTime,
           width: 120,
-          renderCell: (params) => (
-            <div>{yAxisRenderer(params.value)}</div>
-          ),
+          renderCell: (params) => <div>{yAxisRenderer(params.value)}</div>,
         };
       }),
     ];
@@ -159,8 +164,22 @@ export default function TimeSeriesTable({
     });
 
     return { tableData, columns };
-  }, [rawData, isLoading, queryParams, granularity, groupByFieldName, timeFieldName, yAxisFieldName, sort_by, chartType, filter, isRegex, yAxisRenderer, timeFieldDisplayFormat, dataReader]);
-
+  }, [
+    rawData,
+    isLoading,
+    queryParams,
+    granularity,
+    groupByFieldName,
+    timeFieldName,
+    yAxisFieldName,
+    sort_by,
+    chartType,
+    filter,
+    isRegex,
+    yAxisRenderer,
+    timeFieldDisplayFormat,
+    dataReader,
+  ]);
 
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
@@ -176,41 +195,42 @@ export default function TimeSeriesTable({
           }}
           initialState={{
             pagination: {
-              paginationModel: { pageSize: 25 }
-            }
+              paginationModel: { pageSize: 25 },
+            },
           }}
           loading={isLoading}
           autoHeight
           sx={{
             width: "100%",
-            '& .MuiDataGrid-columnHeaders': {
-              backgroundColor: '#2f847c', /* Blueish-green to match common chart colors */
-              color: '#ffffff',
-              fontWeight: 'bold',
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor:
+                "#2f847c" /* Blueish-green to match common chart colors */,
+              color: "#ffffff",
+              fontWeight: "bold",
             },
-            '& .MuiDataGrid-columnHeader': {
-              backgroundColor: '#2f847c',
-              color: '#ffffff',
+            "& .MuiDataGrid-columnHeader": {
+              backgroundColor: "#2f847c",
+              color: "#ffffff",
             },
-            '&.MuiDataGrid-root--densityCompact .MuiDataGrid-cell': {
-              py: '8px',
+            "&.MuiDataGrid-root--densityCompact .MuiDataGrid-cell": {
+              py: "8px",
             },
-            '& .MuiDataGrid-columnHeaderTitle': {
-              fontWeight: 'bold',
+            "& .MuiDataGrid-columnHeaderTitle": {
+              fontWeight: "bold",
             },
             // Alternating row colors
-            '& .MuiDataGrid-row:nth-of-type(odd)': {
-              backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            "& .MuiDataGrid-row:nth-of-type(odd)": {
+              backgroundColor: "rgba(0, 0, 0, 0.04)",
             },
             // First column styling
-            '& .first-column-header': {
-              backgroundColor: '#1a635d', /* Darker shade for emphasis */
-              color: '#ffffff',
+            "& .first-column-header": {
+              backgroundColor: "#1a635d" /* Darker shade for emphasis */,
+              color: "#ffffff",
             },
-            '& .first-column-cell': {
-              backgroundColor: 'rgba(47, 132, 124, 0.1)',
-              fontWeight: 'bold',
-            }
+            "& .first-column-cell": {
+              backgroundColor: "rgba(47, 132, 124, 0.1)",
+              fontWeight: "bold",
+            },
           }}
         />
       </div>

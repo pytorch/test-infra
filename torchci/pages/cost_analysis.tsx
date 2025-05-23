@@ -820,10 +820,17 @@ export default function Page() {
           <Grid2 size={{ xs: 11 }}>
             {!isLoading && (
               <TimeSeriesTable
-                queryName={`${selectedYAxis}_job_per_${groupby === "runner_type" && showInstanceType ? "instance_type" : groupby}`}
+                queryName={`${selectedYAxis}_job_per_${
+                  groupby === "runner_type" && showInstanceType
+                    ? "instance_type"
+                    : groupby
+                }`}
                 queryParams={{
                   ...timeParamsClickHouse,
-                  groupby: groupby === "runner_type" && showInstanceType ? "instance_type" : groupby,
+                  groupby:
+                    groupby === "runner_type" && showInstanceType
+                      ? "instance_type"
+                      : groupby,
                   selectedRepos,
                   selectedGPU,
                   selectedOwners,
@@ -831,10 +838,16 @@ export default function Page() {
                   selectedProviders,
                 }}
                 granularity={granularity}
-                groupByFieldName={groupby === "runner_type" && showInstanceType ? "instance_type" : groupby}
+                groupByFieldName={
+                  groupby === "runner_type" && showInstanceType
+                    ? "instance_type"
+                    : groupby
+                }
                 timeFieldName={"granularity_bucket"}
                 yAxisFieldName={`total_${selectedYAxis}`}
-                yAxisRenderer={selectedYAxis === "cost" ? costDisplay : hourDisplay}
+                yAxisRenderer={
+                  selectedYAxis === "cost" ? costDisplay : hourDisplay
+                }
                 chartType={chartType}
                 filter={searchFilter}
                 isRegex={isRegex}
