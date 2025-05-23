@@ -260,9 +260,7 @@ export const parseBody = _.memoize((body: string) => {
 
 // MARK: validation
 
-const disabledTestIssueTitle = new RegExp(
-  "test.+\\s*\\(.+\\)"
-);
+const disabledTestIssueTitle = new RegExp("test.+\\s*\\(.+\\)");
 
 function testNameIsExpected(testName: string): boolean {
   if (!disabledTestIssueTitle.test(testName)) {
