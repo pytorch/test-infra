@@ -134,7 +134,7 @@ jobs:
       repository: "pytorch/pytorch"
       ref: release/2.7
       job-name: ${{ matrix.build_name }}
-      docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
+      docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && format('{0}-24bda01a93e44e2d4057af734a056ed31324157d',matrix.container_image)) || 'pytorch/almalinux-builder:cpu-1713ea75b5598cc0796f659d44686d25c7f17421' }}
       binary-matrix: ${{ toJSON(matrix) }}
       docker-build-dir: "skip-docker-build"
       timeout: 180
