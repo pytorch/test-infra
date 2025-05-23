@@ -185,10 +185,10 @@ const hourDisplay = (value: number) => {
 
 const ROW_HEIGHT = 700;
 
-const OS_OPTIONS = ["linux", "windows", "macos"];
+const OS_OPTIONS = ["linux", "windows", "macos", "NA"];
 const GPU_OPTIONS = ["gpu", "non-gpu"];
-const PROVIDER_OPTIONS = ["aws", "gcp", "github"];
-const OWNER_OPTIONS = ["linux_foundation", "meta"];
+const PROVIDER_OPTIONS = ["aws", "gcp", "github", "NA"];
+const OWNER_OPTIONS = ["linux_foundation", "meta", "NA"];
 
 export default function Page() {
   const router = useRouter();
