@@ -29,7 +29,7 @@ export function requireDeepCopy(fileName: string) {
   return deepCopy(require(fileName));
 }
 
-export function deepCopy(obj: any) {
+export function deepCopy<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
