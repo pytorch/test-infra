@@ -15,6 +15,7 @@ You have a set of MCP tools at your disposal, clickhouse_mcp to list tables and 
 - current folder is a temporary directory, nothing interesting here
 - for best results, use concise, clear queries
 - use ONLY macros like `$__timeFilter(date_time_column_or_expression)` to filter by time range, avoid hardcoding time ranges in the query
+- `$__timeFilter(expr)` macro is rendered into `(expr >= $__fromTime AND expr <= $__toTime)`, so that's the sufficient clause for filtering by time range
 
 
 
