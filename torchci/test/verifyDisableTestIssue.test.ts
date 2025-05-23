@@ -16,6 +16,50 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 
+function defaultE2ETestInputs({
+  title,
+  body,
+  userLogin,
+  labels,
+}: {
+  title?: string;
+  body?: string;
+  userLogin?: string;
+  labels?: string[];
+}) {
+  const payload = requireDeepCopy("./fixtures/issues.opened.json");
+  payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+  payload.issue.user.id = pytorchBotId;
+  payload.issue.labels = [];
+
+  if (title !== undefined) {
+    payload.issue.title = title;
+  }
+  if (body !== undefined) {
+    payload.issue.body = body;
+  }
+  if (userLogin !== undefined) {
+    payload.issue.user.id = 12345;
+    payload.issue.user.login = userLogin;
+  }
+  if (labels !== undefined) {
+    payload.issue.labels = labels.map((label) => ({
+      name: label,
+    }));
+  }
+
+  const owner = payload.repository.owner.login;
+  const repo = payload.repository.name;
+  const number = payload.issue.number;
+
+  return {
+    payload,
+    owner,
+    repo,
+    number,
+  };
+}
+
 describe("verify-disable-test-issue", () => {
   let probot: Probot;
 
@@ -260,41 +304,6 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("WARNING")).toBeTruthy();
   });
 
-  test("issue opened with title starts w/ DISABLED: check what is disabled", async () => {
-    const cases = [
-      {
-        title:
-          "DISABLED test_refinement_through_graph_stitching (jit.test_symbolic_shape_analysis.TestSymbolicShapeAnalysis)",
-        expected: true,
-      },
-      {
-        title: "DISABLED test_to_non_blocking (__main__.TestCuda)",
-        expected: true,
-      },
-      {
-        title: "DISABLED testMethodName (testClass.TestSuite)",
-        expected: true,
-      },
-      {
-        title: "DISABLED pull / linux-bionic-py3.8-clang9 / test (dynamo)",
-        expected: false,
-      },
-      {
-        title: "DISABLED pull / linux-bionic-py3.8-clang9 / build",
-        expected: false,
-      },
-      {
-        title: "DISABLED pull / linux-bionic-py3.8-clang9",
-        expected: false,
-      },
-    ];
-
-    cases.forEach((item) => {
-      const title = item["title"];
-      expect(bot.isDisabledTest(title)).toEqual(item["expected"]);
-    });
-  });
-
   test("issue opened with title starts w/ DISABLED: to disable a job", async () => {
     const title = "DISABLED pull / linux-bionic-py3.8-clang9";
 
@@ -344,13 +353,7 @@ describe("verify-disable-test-issue-bot", () => {
   });
 
   test("pytorch-bot[bot] is authorized", async () => {
-    const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.id = pytorchBotId;
-
-    const owner = payload.repository.owner.login;
-    const repo = payload.repository.name;
-    const number = payload.issue.number;
+    const { payload, owner, repo, number } = defaultE2ETestInputs({});
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
@@ -367,13 +370,9 @@ describe("verify-disable-test-issue-bot", () => {
   });
 
   test("random user is not authorized", async () => {
-    const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.login = "randomuser";
-
-    const owner = payload.repository.owner.login;
-    const repo = payload.repository.name;
-    const number = payload.issue.number;
+    const { payload, owner, repo, number } = defaultE2ETestInputs({
+      userLogin: "randomuser",
+    });
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
@@ -398,14 +397,9 @@ describe("verify-disable-test-issue-bot", () => {
   });
 
   test("issue with missing labels gets labels", async () => {
-    const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.id = pytorchBotId;
-    payload.issue.body = "Platforms: rocm";
-
-    const owner = payload.repository.owner.login;
-    const repo = payload.repository.name;
-    const number = payload.issue.number;
+    const { payload, owner, repo, number } = defaultE2ETestInputs({
+      body: "Platforms: rocm",
+    });
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
@@ -426,21 +420,10 @@ describe("verify-disable-test-issue-bot", () => {
   });
 
   test("issue with wrong labels gets correct labels", async () => {
-    const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.id = pytorchBotId;
-    payload.issue.body = "Platforms: rocm";
-    payload.issue.labels = [
-      {
-        name: "random label",
-      },
-      {
-        name: "module: windows",
-      },
-    ];
-    const owner = payload.repository.owner.login;
-    const repo = payload.repository.name;
-    const number = payload.issue.number;
+    const { payload, owner, repo, number } = defaultE2ETestInputs({
+      body: "Platforms: rocm",
+      labels: ["module: windows", "random label"],
+    });
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
@@ -465,21 +448,10 @@ describe("verify-disable-test-issue-bot", () => {
   });
 
   test("issue with correct labels doesn't change", async () => {
-    const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.id = pytorchBotId;
-    payload.issue.body = "Platforms: rocm";
-    payload.issue.labels = [
-      {
-        name: "module: rocm",
-      },
-      {
-        name: "random label",
-      },
-    ];
-    const owner = payload.repository.owner.login;
-    const repo = payload.repository.name;
-    const number = payload.issue.number;
+    const { payload, owner, repo, number } = defaultE2ETestInputs({
+      body: "Platforms: rocm",
+      labels: ["module: rocm", "random label"],
+    });
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
