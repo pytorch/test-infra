@@ -112,10 +112,10 @@ jobs:
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
-        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}',
+        ${{ inputs.gpu-arch-type == 'rocm' && format('pytorch/manylinux2_28-builder:{0}{1}-24bda01a93e44e2d4057af734a056ed31324157d',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
-                                                            || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
+                                                            || inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}-1713ea75b5598cc0796f659d44686d25c7f17421',
                                                                       inputs.gpu-arch-type,
                                                                       inputs.gpu-arch-version)
                                                             || inputs.docker-image }}
