@@ -21,6 +21,7 @@ import TimeSeriesPanel, {
   ChartType,
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
+import TimeSeriesTable from "components/metrics/panels/TimeSeriesTable";
 import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
@@ -28,7 +29,7 @@ import _ from "lodash";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useState } from "react";
 import { BiLineChart } from "react-icons/bi";
-import { FaFilter, FaInfoCircle, FaRegChartBar } from "react-icons/fa";
+import { FaFilter, FaInfoCircle, FaRegChartBar, FaTable } from "react-icons/fa";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWR from "swr";
 
@@ -267,7 +268,7 @@ export default function Page() {
   const [showInstanceType, setShowInstanceType] = useState(
     initialShowInstanceType
   );
-
+  
   const [routerReady, setRouterReady] = useState(false);
 
   if (!routerReady && router.isReady) {
@@ -642,16 +643,13 @@ export default function Page() {
       <Box>
         <TextField
           id={`outlined-basic-${type}`}
-          label={
-            <div>
-              <FaFilter /> Filter {type}
-            </div>
-          }
+          label={`Filter ${type}`}
           onChange={handleChange}
           variant="outlined"
           fullWidth
           value={inputValue}
           InputProps={{
+            startAdornment: <FaFilter />,
             endAdornment: (
               <Tooltip
                 title={
@@ -816,6 +814,40 @@ export default function Page() {
           )}
           <Grid2 size={{ xs: 1 }}></Grid2>
           {generateGroupByAndFilterBar()}
+        </Grid2>
+        
+        <Grid2 container marginTop={1} size={{ xs: 12 }}>
+          <Grid2 size={{ xs: 8 }} height={400}>
+            {!isLoading && (
+              <TimeSeriesTable
+                queryName={`${selectedYAxis}_job_per_${groupby === "runner_type" && showInstanceType ? "instance_type" : groupby}`}
+                queryParams={{
+                  ...timeParamsClickHouse,
+                  groupby: groupby === "runner_type" && showInstanceType ? "instance_type" : groupby,
+                  selectedRepos,
+                  selectedGPU,
+                  selectedOwners,
+                  selectedPlatforms: selectedOS,
+                  selectedProviders,
+                }}
+                granularity={granularity}
+                groupByFieldName={groupby === "runner_type" && showInstanceType ? "instance_type" : groupby}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={`total_${selectedYAxis}`}
+                yAxisRenderer={selectedYAxis === "cost" ? costDisplay : hourDisplay}
+                chartType={chartType}
+                filter={searchFilter}
+                isRegex={isRegex}
+                timeFieldDisplayFormat="M/D (UTC)"
+                sort_by="total"
+                auto_refresh={false}
+                max_items_in_series={30}
+              />
+            )}
+            {isLoading && <div>Loading...</div>}
+          </Grid2>
+          <Grid2 size={{ xs: 1 }}></Grid2>
+          <Grid2 size={{ xs: 2 }}></Grid2>
         </Grid2>
       </Grid2>
     </div>
