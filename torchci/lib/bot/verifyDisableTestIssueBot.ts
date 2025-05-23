@@ -108,7 +108,6 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
       );
     }
     validationComment = `${validationCommentStart}${validationComment}${validationCommentEnd}`;
-    console.log(validationComment);
 
     if (existingValidationComment === validationComment) {
       return;
