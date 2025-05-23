@@ -86,7 +86,7 @@ export default function TimeSeriesTable({
     const data = dataReader ? dataReader(rawData) : rawData;
     let startTime = dayjs.utc(queryParams["startTime"]);
     let stopTime = dayjs.utc(queryParams["stopTime"]);
-    
+
     // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
     // align with the data we get from the database
     startTime = startTime.startOf(granularity);
@@ -120,7 +120,7 @@ export default function TimeSeriesTable({
 
     // Sort timestamps chronologically
     const timestamps = Array.from(allTimestamps).sort();
-    
+
     // TRANSPOSED: Create columns with timestamps as headers
     const columns: GridColDef[] = [
       {
