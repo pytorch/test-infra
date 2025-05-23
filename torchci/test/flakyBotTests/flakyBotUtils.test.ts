@@ -1,9 +1,8 @@
-import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import * as flakyBotUtils from "lib/flakyBot/utils";
 import { IssueData } from "lib/types";
 import nock from "nock";
 import * as flakyBot from "pages/api/flaky-tests/disable";
-import { deepCopy, handleScope } from "test/common";
+import { handleScope } from "test/common";
 import {
   flakyTestA,
   flakyTestAcrossJobA,

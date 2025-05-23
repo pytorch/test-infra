@@ -1,6 +1,5 @@
 import {
   formValidationComment,
-  getExpectedPlatformModuleLabels,
   parseBody,
 } from "lib/flakyBot/singleDisableIssue";
 import _ from "lodash";
