@@ -1,6 +1,5 @@
 import {
   formValidationComment,
-  getExpectedPlatformModuleLabels,
   parseBody,
 } from "lib/flakyBot/singleDisableIssue";
 import _ from "lodash";
@@ -328,45 +327,6 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
-  });
-
-  test("various getExpectedPlatformModuleLabels tests", async () => {
-    expect(
-      await getExpectedPlatformModuleLabels(["linux"], ["random"])
-    ).toEqual([[], []]);
-    expect(
-      await getExpectedPlatformModuleLabels(["inductor"], ["random"])
-    ).toEqual([["oncall: pt2"], []]);
-    expect(
-      await getExpectedPlatformModuleLabels(
-        ["linux"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
-    expect(
-      await getExpectedPlatformModuleLabels(
-        ["rocm"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([["module: rocm"], []]);
-    expect(
-      await getExpectedPlatformModuleLabels(
-        ["dynamo", "inductor"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([["oncall: pt2"], ["module: rocm"]]);
-    expect(
-      await getExpectedPlatformModuleLabels(
-        ["linux", "rocm"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
-    expect(
-      await getExpectedPlatformModuleLabels(
-        ["linux", "rocm"],
-        ["random", "module: rocm", "oncall: pt2"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
   });
 });
 
