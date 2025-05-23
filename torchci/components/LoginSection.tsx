@@ -1,9 +1,9 @@
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import SyncIcon from "@mui/icons-material/Sync";
-import { Button as _Button, Menu, MenuItem } from "@mui/material";
+import { Button as _Button, MenuItem } from "@mui/material";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import React from "react";
+import { HoverDropDownMenu } from "./common/HoverDropDownMenu";
 import styles from "./LoginSection.module.css";
 
 const Button = (props: any) => {
@@ -13,13 +13,6 @@ const Button = (props: any) => {
 
 export default function LoginSection() {
   const { data: session, status } = useSession();
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const onClick = (event: any) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const onClose = () => {
-    setAnchorEl(null);
-  };
 
   return (
     <>
@@ -42,20 +35,21 @@ export default function LoginSection() {
       )}
       {session && (
         <>
-          <Button onClick={onClick}>
-            {session.user?.image ? (
-              <img
-                style={{
-                  backgroundImage: `url('${session.user.image}')`,
-                }}
-                className={styles.avatar}
-              />
-            ) : (
-              // Hopefully shouldn't get here
-              <QuestionMarkIcon fontSize="inherit" />
-            )}
-          </Button>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
+          <HoverDropDownMenu
+            title={
+              session.user?.image ? (
+                <img
+                  style={{
+                    backgroundImage: `url('${session.user.image}')`,
+                  }}
+                  className={styles.avatar}
+                />
+              ) : (
+                // Hopefully shouldn't get here
+                <QuestionMarkIcon fontSize="inherit" />
+              )
+            }
+          >
             {session.user?.name && (
               <MenuItem>Signed in as {session.user.name}</MenuItem>
             )}
@@ -68,7 +62,7 @@ export default function LoginSection() {
             >
               <MenuItem>Sign out</MenuItem>
             </Link>
-          </Menu>
+          </HoverDropDownMenu>
         </>
       )}
     </>
