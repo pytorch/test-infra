@@ -47,6 +47,17 @@ describe("Verify disable issues unittests", () => {
 });
 
 describe("Verify disable issues integration tests", () => {
+  let probot: Probot;
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+    jest.restoreAllMocks();
+  });
   function mockCloseIssue(owner: string, repo: string, number: number) {
     return nock("https://api.github.com")
       .patch(
@@ -133,17 +144,6 @@ describe("Verify disable issues integration tests", () => {
       number,
     };
   }
-  let probot: Probot;
-
-  beforeEach(() => {
-    probot = utils.testProbot();
-    probot.load(myProbotApp);
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-    jest.restoreAllMocks();
-  });
 
   test("pytorch-bot[bot] is authorized", async () => {
     const { payload, owner, repo, number } = defaultE2ETestInputs({});
