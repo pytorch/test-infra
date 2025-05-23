@@ -143,6 +143,7 @@ export function DateRangePicker({
 
 type CostCategory =
   | "runner_type"
+  | "instance_type"
   | "workflow_name"
   | "job_name"
   | "platform"
@@ -230,6 +231,7 @@ export default function Page() {
   const initialSearchFilter = query.searchFilter || "";
   const initialIsRegex = query.isRegex === "true";
   const initialSelectedRepos = query.repos ? splitString(query.repos) : [];
+  const initialShowInstanceType = query.showInstanceType === "true";
 
   // State variables
   const [startDate, setStartDate] = useState(initialStartDate);
@@ -262,6 +264,9 @@ export default function Page() {
     initialSearchFilter as string
   );
   const [isRegex, setIsRegex] = useState(initialIsRegex);
+  const [showInstanceType, setShowInstanceType] = useState(
+    initialShowInstanceType
+  );
 
   const [routerReady, setRouterReady] = useState(false);
 
@@ -280,6 +285,7 @@ export default function Page() {
     setSelectedYAxis(initialSelectedYAxis || "cost");
     setSearchFilter(initialSearchFilter as string);
     setIsRegex(initialIsRegex);
+    setShowInstanceType(initialShowInstanceType);
     if (initialSelectedRepos) {
       setSelectedRepos(initialSelectedRepos);
     }
@@ -349,6 +355,8 @@ export default function Page() {
     if (selectedYAxis) params.set("yAxis", selectedYAxis);
     if (searchFilter) params.set("searchFilter", searchFilter);
     if (isRegex) params.set("isRegex", isRegex.toString());
+    if (showInstanceType)
+      params.set("showInstanceType", showInstanceType.toString());
     if (selectedRepos && selectedRepos.length < availableRepos.length) {
       params.set("repos", selectedRepos.join(","));
     }
@@ -371,6 +379,7 @@ export default function Page() {
     selectedYAxis,
     searchFilter,
     isRegex,
+    showInstanceType,
     selectedRepos,
   ]);
 
@@ -378,15 +387,23 @@ export default function Page() {
     groupby: CostCategory,
     yAxis: "cost" | "duration"
   ) => {
+    // Handle toggle between runner_type and instance_type
+    const actualGroupBy =
+      groupby === "runner_type" && showInstanceType ? "instance_type" : groupby;
+    const displayName =
+      actualGroupBy === "instance_type"
+        ? "instance type"
+        : actualGroupBy.replace("_", " ");
+
     return (
       <Grid2 size={{ xs: 8 }} height={ROW_HEIGHT}>
         {!isLoading && (
           <TimeSeriesPanel
-            title={`CI ${yAxis} per ${groupby} per ${granularity}`}
-            queryName={`${yAxis}_job_per_${groupby}`}
+            title={`CI ${yAxis} per ${displayName} per ${granularity}`}
+            queryName={`${yAxis}_job_per_${actualGroupBy}`}
             queryParams={{
               ...timeParamsClickHouse,
-              groupby,
+              groupby: actualGroupBy,
               selectedRepos,
               selectedGPU,
               selectedOwners,
@@ -394,7 +411,7 @@ export default function Page() {
               selectedProviders,
             }}
             granularity={granularity}
-            groupByFieldName={groupby}
+            groupByFieldName={actualGroupBy}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={`total_${yAxis}`}
             yAxisRenderer={yAxis === "cost" ? costDisplay : hourDisplay}
@@ -468,6 +485,29 @@ export default function Page() {
             </Select>
           </FormControl>
         </Grid2>
+        {groupby === "runner_type" && (
+          <Grid2 size={{ xs: 2 }}>
+            <FormControl style={{ width: "100%" }}>
+              <ToggleButtonGroup
+                exclusive
+                value={showInstanceType ? "instance_type" : "runner_type"}
+                onChange={(event, newValue) => {
+                  if (newValue !== null) {
+                    setShowInstanceType(newValue === "instance_type");
+                  }
+                }}
+                style={{ width: "100%", height: 56 }}
+              >
+                <ToggleButton value="runner_type" style={{ flex: 1 }}>
+                  Runner Type
+                </ToggleButton>
+                <ToggleButton value="instance_type" style={{ flex: 1 }}>
+                  Instance Type
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </FormControl>
+          </Grid2>
+        )}
         <Grid2 size={{ xs: 2 }}>
           {generateFilterBar(groupby, marginStyle)}
         </Grid2>
