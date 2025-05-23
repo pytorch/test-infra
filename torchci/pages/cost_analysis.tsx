@@ -268,7 +268,7 @@ export default function Page() {
   const [showInstanceType, setShowInstanceType] = useState(
     initialShowInstanceType
   );
-  
+
   const [routerReady, setRouterReady] = useState(false);
 
   if (!routerReady && router.isReady) {
@@ -815,7 +815,7 @@ export default function Page() {
           <Grid2 size={{ xs: 1 }}></Grid2>
           {generateGroupByAndFilterBar()}
         </Grid2>
-        
+
         <Grid2 container marginTop={1} size={{ xs: 12 }}>
           <Grid2 size={{ xs: 11 }}>
             {!isLoading && (
