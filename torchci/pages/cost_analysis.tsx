@@ -387,7 +387,7 @@ export default function Page() {
     // Handle toggle between runner_type and instance_type
     const actualGroupBy = groupby === "runner_type" && showInstanceType ? "instance_type" : groupby;
     const displayName = actualGroupBy === "instance_type" ? "instance type" : actualGroupBy.replace("_", " ");
-    
+
     return (
       <Grid2 size={{ xs: 8 }} height={ROW_HEIGHT}>
         {!isLoading && (
