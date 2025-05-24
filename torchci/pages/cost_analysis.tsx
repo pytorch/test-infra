@@ -397,7 +397,7 @@ export default function Page() {
         : actualGroupBy.replace("_", " ");
 
     return (
-      <Grid2 size={{ xs: 8 }} height={ROW_HEIGHT}>
+      <Grid2 size={{ xs: 10 }} height={ROW_HEIGHT}>
         {!isLoading && (
           <TimeSeriesPanel
             title={`CI ${yAxis} per ${displayName} per ${granularity}`}
@@ -436,7 +436,7 @@ export default function Page() {
       marginTop: 20,
     };
     return (
-      <Grid2 size={{ xs: 2 }} container columns={2}>
+      <Grid2 size={{ xs: 1.5 }} container columns={2}>
         <Grid2 size={{ xs: 2 }}>
           <Typography fontSize={"1rem"} fontWeight={"bold"}>
             Dimension
@@ -806,59 +806,58 @@ export default function Page() {
           </FormControl>
         </Grid2>
       </Grid2>
-      <Grid2 container spacing={2}>
-        <Grid2 container marginTop={4} size={{ xs: 12 }}>
+      <Grid2 container spacing={1.5} paddingRight={0}>
+        <Grid2 container marginTop={4} size={{ xs: 11.5 }}>
           {generateTimeSeriesGridItem(
             groupby || "workflow_name",
             selectedYAxis || "cost"
           )}
-          <Grid2 size={{ xs: 1 }}></Grid2>
+          <Grid2 size={{ xs: 0.5 }}></Grid2>
           {generateGroupByAndFilterBar()}
         </Grid2>
 
-        <Grid2 container marginTop={1} size={{ xs: 12 }}>
-          <Grid2 size={{ xs: 11 }}>
-            {!isLoading && (
-              <TimeSeriesTable
-                queryName={`${selectedYAxis}_job_per_${
+        <Grid2 marginTop={1} size={{ xs: 11.5 }} paddingRight={0}>
+          {!isLoading && (
+            <TimeSeriesTable
+              title=""
+              queryName={`${selectedYAxis}_job_per_${
+                groupby === "runner_type" && showInstanceType
+                  ? "instance_type"
+                  : groupby
+              }`}
+              queryParams={{
+                ...timeParamsClickHouse,
+                groupby:
                   groupby === "runner_type" && showInstanceType
                     ? "instance_type"
-                    : groupby
-                }`}
-                queryParams={{
-                  ...timeParamsClickHouse,
-                  groupby:
-                    groupby === "runner_type" && showInstanceType
-                      ? "instance_type"
-                      : groupby,
-                  selectedRepos,
-                  selectedGPU,
-                  selectedOwners,
-                  selectedPlatforms: selectedOS,
-                  selectedProviders,
-                }}
-                granularity={granularity}
-                groupByFieldName={
-                  groupby === "runner_type" && showInstanceType
-                    ? "instance_type"
-                    : groupby
-                }
-                timeFieldName={"granularity_bucket"}
-                yAxisFieldName={`total_${selectedYAxis}`}
-                yAxisRenderer={
-                  selectedYAxis === "cost" ? costDisplay : hourDisplay
-                }
-                chartType={chartType}
-                filter={searchFilter}
-                isRegex={isRegex}
-                timeFieldDisplayFormat="M/D (UTC)"
-                sort_by="total"
-                auto_refresh={false}
-                max_items_in_series={30}
-              />
-            )}
-            {isLoading && <div>Loading...</div>}
-          </Grid2>
+                    : groupby,
+                selectedRepos,
+                selectedGPU,
+                selectedOwners,
+                selectedPlatforms: selectedOS,
+                selectedProviders,
+              }}
+              granularity={granularity}
+              groupByFieldName={
+                groupby === "runner_type" && showInstanceType
+                  ? "instance_type"
+                  : groupby
+              }
+              timeFieldName={"granularity_bucket"}
+              yAxisFieldName={`total_${selectedYAxis}`}
+              yAxisRenderer={
+                selectedYAxis === "cost" ? costDisplay : hourDisplay
+              }
+              chartType={chartType}
+              filter={searchFilter}
+              isRegex={isRegex}
+              timeFieldDisplayFormat="M/D (UTC)"
+              sort_by="total"
+              auto_refresh={false}
+              max_items_in_series={30}
+            />
+          )}
+          {isLoading && <div>Loading...</div>}
         </Grid2>
       </Grid2>
     </div>
