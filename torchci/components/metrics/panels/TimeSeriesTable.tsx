@@ -183,7 +183,7 @@ export default function TimeSeriesTable({
 
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
-      <div style={{ width: "100%" }}>
+      <div style={{ width: "auto", overflowX: "auto" }}>
         <DataGrid
           rows={tableData}
           columns={columns}
@@ -201,7 +201,8 @@ export default function TimeSeriesTable({
           loading={isLoading}
           autoHeight
           sx={{
-            width: "100%",
+            width: "fit-content",
+            maxWidth: "100%",
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor:
                 "#2f847c" /* Blueish-green to match common chart colors */,
