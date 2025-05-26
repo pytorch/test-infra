@@ -90,6 +90,7 @@ else
     if [[ ${TARGET_OS} == 'linux' ]]; then
         export CONDA_LIBRARY_PATH="$(dirname $(which python))/../lib"
         export LD_LIBRARY_PATH=$CONDA_LIBRARY_PATH:$LD_LIBRARY_PATH
+        dnf install -y glibc-langpack-en
         source ./check_binary.sh
     fi
 
