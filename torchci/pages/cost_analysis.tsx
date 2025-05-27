@@ -187,7 +187,7 @@ const hourDisplay = (value: number) => {
 const ROW_HEIGHT = 700;
 
 const OS_OPTIONS = ["linux", "windows", "macos", "NA"];
-const GPU_OPTIONS = ["0", "1"];
+const GPU_OPTIONS = ["gpu", "non-gpu"];
 const PROVIDER_OPTIONS = ["aws", "gcp", "github", "amd", "NA"];
 const OWNER_OPTIONS = ["linux_foundation", "meta", "amd", "NA"];
 
