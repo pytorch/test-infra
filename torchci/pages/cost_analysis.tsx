@@ -854,7 +854,12 @@ export default function Page() {
               timeFieldDisplayFormat="M/D (UTC)"
               sort_by="total"
               auto_refresh={false}
-              max_items_in_series={30}
+              defaultOptions={{
+                platform: OS_OPTIONS,
+                gpu: GPU_OPTIONS,
+                provider: PROVIDER_OPTIONS,
+                owner: OWNER_OPTIONS,
+              }}
             />
           )}
           {isLoading && <div>Loading...</div>}
