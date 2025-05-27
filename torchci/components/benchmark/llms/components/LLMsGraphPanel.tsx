@@ -22,8 +22,7 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
+import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
 
 import {
   Granularity,
@@ -348,7 +347,7 @@ const MetricTable = ({
 }) => {
   const repoUrl = "https://github.com/" + repo;
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const baseData = chartData[availableMetric] ?? [];
     const rows = baseData.map((entry, index) => {
       const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
@@ -367,14 +366,9 @@ const MetricTable = ({
       return row;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "MetricTable");
-    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "metric_table.xlsx"
-    );
+    const csvData = arrayToCSV(rows);
+    const filename = generateCSVFilename("benchmark", "metrics", [repo.replace("/", "_")]);
+    downloadCSV(csvData, filename);
   };
   return (
     <>
@@ -382,9 +376,9 @@ const MetricTable = ({
         variant="outlined"
         size="small"
         sx={{ mb: 1 }}
-        onClick={exportToExcel}
+        onClick={exportToCSV}
       >
-        Download as Excel
+        Download as CSV
       </Button>
       <TableContainer
         component={Paper}

@@ -9,6 +9,7 @@ import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";
+import { arrayToCSV, downloadCSV } from "lib/csvUtils";
 import { useMemo } from "react";
 import useSWR from "swr";
 import {
@@ -182,28 +183,6 @@ export default function TimeSeriesTable({
     return [headers, ...rows].join("\n");
   };
 
-  // Helper function to format data for CSV
-  const formatForCSV = (data: any[], columns: GridColDef[]) => {
-    const escapeCSV = (str: string) => {
-      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-
-    const headers = columns
-      .map((col) => escapeCSV(col.headerName || col.field))
-      .join(",");
-    const rows = data.map((row) =>
-      columns
-        .map((col) => {
-          const value = row[col.field];
-          return escapeCSV(String(value));
-        })
-        .join(",")
-    );
-    return [headers, ...rows].join("\n");
-  };
 
   // Copy to clipboard handler
   const handleCopyToClipboard = async () => {
@@ -289,19 +268,19 @@ export default function TimeSeriesTable({
 
   // Export CSV handler
   const handleExportCSV = () => {
-    const csvData = formatForCSV(tableData, columns);
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
+    // Convert table data to format expected by arrayToCSV
+    const headers = columns.map((col) => col.headerName || col.field);
+    const rows = tableData.map((row) => {
+      const csvRow: Record<string, any> = {};
+      columns.forEach((col) => {
+        csvRow[col.headerName || col.field] = row[col.field];
+      });
+      return csvRow;
+    });
+    
+    const csvData = arrayToCSV(rows, headers);
     const filename = generateFilename();
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(csvData, filename);
   };
 
   return (
