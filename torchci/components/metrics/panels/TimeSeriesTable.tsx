@@ -116,7 +116,7 @@ export default function TimeSeriesTable({
     // First, we need to get all timestamps
     const allTimestamps = new Set<string>();
     series.forEach((s) => {
-      s.data.forEach((point: [string, number]) => {
+      s.data.forEach((point: any) => {
         allTimestamps.add(point[0]);
       });
     });
@@ -142,7 +142,7 @@ export default function TimeSeriesTable({
           field: timestamp,
           headerName: formattedTime,
           width: 120,
-          renderCell: (params) => <div>{yAxisRenderer(params.value)}</div>,
+          renderCell: (params: any) => <div>{yAxisRenderer(params.value)}</div>,
         };
       }),
     ];
@@ -156,7 +156,7 @@ export default function TimeSeriesTable({
 
       // Add value for each timestamp
       timestamps.forEach((timestamp) => {
-        const point = s.data.find((d: [string, any]) => d[0] === timestamp);
+        const point = s.data.find((d: any) => d[0] === timestamp);
         row[timestamp] = point ? point[1] : 0;
       });
 
