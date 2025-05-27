@@ -26,7 +26,7 @@ export const arrayToCSV = (data: any[], headers?: string[]): string => {
 
   const csvHeaders = headers || Object.keys(data[0]);
   const headerRow = csvHeaders.map(escapeCSV).join(",");
-  
+
   const rows = data.map((row) =>
     csvHeaders
       .map((header) => {
@@ -35,7 +35,7 @@ export const arrayToCSV = (data: any[], headers?: string[]): string => {
       })
       .join(",")
   );
-  
+
   return [headerRow, ...rows].join("\n");
 };
 
@@ -72,8 +72,10 @@ export const generateCSVFilename = (
   const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
   const sanitizedComponents = components
     .filter(Boolean)
-    .map(component => component.replace(/[^a-z0-9]/gi, "_"));
-  
-  const parts = [prefix, type, timestamp, ...sanitizedComponents].filter(Boolean);
+    .map((component) => component.replace(/[^a-z0-9]/gi, "_"));
+
+  const parts = [prefix, type, timestamp, ...sanitizedComponents].filter(
+    Boolean
+  );
   return `${parts.join("_")}.csv`;
 };

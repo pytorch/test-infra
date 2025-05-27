@@ -183,7 +183,6 @@ export default function TimeSeriesTable({
     return [headers, ...rows].join("\n");
   };
 
-
   // Copy to clipboard handler
   const handleCopyToClipboard = async () => {
     try {
@@ -277,7 +276,7 @@ export default function TimeSeriesTable({
       });
       return csvRow;
     });
-    
+
     const csvData = arrayToCSV(rows, headers);
     const filename = generateFilename();
     downloadCSV(csvData, filename);

@@ -367,7 +367,9 @@ const MetricTable = ({
     });
 
     const csvData = arrayToCSV(rows);
-    const filename = generateCSVFilename("benchmark", "metrics", [repo.replace("/", "_")]);
+    const filename = generateCSVFilename("benchmark", "metrics", [
+      repo.replace("/", "_"),
+    ]);
     downloadCSV(csvData, filename);
   };
   return (
