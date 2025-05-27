@@ -1,8 +1,10 @@
 /**
  * A metrics panel that shows time series data in a table format.
  */
-import { Paper } from "@mui/material";
+import { IconButton, Paper, Stack, Tooltip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -51,6 +53,8 @@ export default function TimeSeriesTable({
   auto_refresh = true,
   // Additional function to process the data after querying
   dataReader = undefined,
+  // Default option arrays for filtering filename parameters
+  defaultOptions = {},
 }: {
   title: string;
   queryName: string;
@@ -68,6 +72,7 @@ export default function TimeSeriesTable({
   isRegex?: boolean;
   auto_refresh?: boolean;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
+  defaultOptions?: { [key: string]: string[] };
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -181,8 +186,141 @@ export default function TimeSeriesTable({
     dataReader,
   ]);
 
+  // Helper function to format data for clipboard (tab-separated for Excel)
+  const formatForClipboard = (data: any[], columns: GridColDef[]) => {
+    const headers = columns.map(col => col.headerName || col.field).join('\t');
+    const rows = data.map(row => 
+      columns.map(col => {
+        const value = row[col.field];
+        return String(value);
+      }).join('\t')
+    );
+    return [headers, ...rows].join('\n');
+  };
+
+  // Helper function to format data for CSV
+  const formatForCSV = (data: any[], columns: GridColDef[]) => {
+    const escapeCSV = (str: string) => {
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    const headers = columns.map(col => escapeCSV(col.headerName || col.field)).join(',');
+    const rows = data.map(row => 
+      columns.map(col => {
+        const value = row[col.field];
+        return escapeCSV(String(value));
+      }).join(',')
+    );
+    return [headers, ...rows].join('\n');
+  };
+
+  // Copy to clipboard handler
+  const handleCopyToClipboard = async () => {
+    try {
+      const clipboardData = formatForClipboard(tableData, columns);
+      await navigator.clipboard.writeText(clipboardData);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
+  // Export CSV handler
+  const handleExportCSV = () => {
+    const csvData = formatForCSV(tableData, columns);
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Build filename components
+    const startDate = dayjs.utc(queryParams["startTime"]).format('YYYY-MM-DD');
+    const endDate = dayjs.utc(queryParams["stopTime"]).format('YYYY-MM-DD');
+    const groupBy = groupByFieldName?.replace(/[^a-z0-9]/gi, '_') || 'ungrouped';
+    
+    // Determine metric type from query name or title
+    const metricType = queryName.includes('cost') || title.toLowerCase().includes('cost') ? 'cost' : 'duration';
+    
+    // Collect non-default parameters
+    const nonDefaultParams = [];
+    
+    // Only check parameters that correspond to defaultOptions (skip repos and other params)
+    Object.keys(defaultOptions).forEach(optionKey => {
+      // Find matching query parameter key
+      const matchingQueryKey = Object.keys(queryParams).find(key => 
+        key.toLowerCase().includes(optionKey.toLowerCase()) && 
+        key !== 'startTime' && key !== 'stopTime' && key !== 'granularity'
+      );
+      
+      if (matchingQueryKey) {
+        const value = queryParams[matchingQueryKey];
+        
+        // Skip if empty or "all"
+        if (!value || String(value).trim() === '' || String(value).toLowerCase() === 'all') {
+          return;
+        }
+        
+        const valueStr = String(value);
+        const valueArray = valueStr.includes(',') ? valueStr.split(',') : [valueStr];
+        
+        // Only add if not all options are selected
+        if (valueArray.length !== defaultOptions[optionKey].length) {
+          // Transform GPU values for filename
+          let filenameValue = valueStr;
+          if (optionKey.toLowerCase() === 'gpu') {
+            filenameValue = filenameValue.replace(/1/g, 'withGPU').replace(/0/g, 'withoutGPU');
+          }
+          nonDefaultParams.push(`${matchingQueryKey}_${filenameValue.replace(/[^a-z0-9]/gi, '_')}`);
+        }
+      }
+    });
+    
+    // Add filter if present
+    if (filter && filter.trim()) {
+      nonDefaultParams.push(`filter_${filter.replace(/[^a-z0-9]/gi, '_')}`);
+    }
+    
+    // Build filename: pytorchci_{cost|duration}_YYYY-MM-DD_YYYY-MM-DD_groupby_{group}_{params}
+    const paramsSuffix = nonDefaultParams.length > 0 ? `_${nonDefaultParams.join('_')}` : '';
+    const filename = `pytorchci_${metricType}_${startDate}_${endDate}_groupby_${groupBy}${paramsSuffix}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Tooltip title="Copy table data to clipboard (Excel-pastable format)">
+          <span>
+            <IconButton
+              size="small"
+              sx={{ color: 'black' }}
+              onClick={handleCopyToClipboard}
+              disabled={tableData.length === 0}
+            >
+              <ContentCopyIcon fontSize="inherit" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Export table data as CSV file">
+          <span>
+            <IconButton
+              size="small"
+              sx={{ color: 'black' }}
+              onClick={handleExportCSV}
+              disabled={tableData.length === 0}
+            >
+              <FileDownloadIcon fontSize="inherit" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Stack>
       <div style={{ width: "auto", overflowX: "auto" }}>
         <DataGrid
           rows={tableData}

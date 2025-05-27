@@ -187,7 +187,7 @@ const hourDisplay = (value: number) => {
 const ROW_HEIGHT = 700;
 
 const OS_OPTIONS = ["linux", "windows", "macos", "NA"];
-const GPU_OPTIONS = ["gpu", "non-gpu"];
+const GPU_OPTIONS = ["0", "1"];
 const PROVIDER_OPTIONS = ["aws", "gcp", "github", "amd", "NA"];
 const OWNER_OPTIONS = ["linux_foundation", "meta", "amd", "NA"];
 
@@ -855,6 +855,12 @@ export default function Page() {
               sort_by="total"
               auto_refresh={false}
               max_items_in_series={30}
+              defaultOptions={{
+                platform: OS_OPTIONS,
+                gpu: GPU_OPTIONS,
+                provider: PROVIDER_OPTIONS,
+                owner: OWNER_OPTIONS,
+              }}
             />
           )}
           {isLoading && <div>Loading...</div>}
