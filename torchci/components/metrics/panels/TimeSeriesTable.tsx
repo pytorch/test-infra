@@ -276,7 +276,6 @@ export default function TimeSeriesTable({
       });
       return csvRow;
     });
-
     const csvData = arrayToCSV(rows, headers);
     const filename = generateFilename();
     downloadCSV(csvData, filename);
