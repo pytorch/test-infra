@@ -2,13 +2,10 @@ import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
 
-export const validationCommentStart = "<!-- validation-comment-start -->";
-export const validationCommentEnd = "<!-- validation-comment-end -->";
+const validationCommentStart = "<!-- validation-comment-start -->";
+const validationCommentEnd = "<!-- validation-comment-end -->";
 export const disabledKey = "DISABLED ";
 export const unstableKey = "UNSTABLE ";
-export const disabledTestIssueTitle = new RegExp(
-  "DISABLED\\s*test.+\\s*\\(.+\\)"
-);
 export const pytorchBotId = 54816060;
 
 async function getValidationComment(
@@ -57,11 +54,7 @@ export function formJobValidationComment(
   }
   body += "</body>";
 
-  return validationCommentStart + body + validationCommentEnd;
-}
-
-export function isDisabledTest(title: string): boolean {
-  return disabledTestIssueTitle.test(title);
+  return body;
 }
 
 export default function verifyDisableTestIssueBot(app: Probot): void {
@@ -71,14 +64,14 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const owner = context.payload["repository"]["owner"]["login"];
     const repo = context.payload["repository"]["name"];
 
-    if (
-      state === "closed" ||
-      (!title.startsWith(disabledKey) && !title.startsWith(unstableKey))
-    ) {
+    if (state === "closed") {
       return;
     }
 
-    const prefix = title.startsWith(disabledKey) ? disabledKey : unstableKey;
+    if (!title.startsWith(disabledKey) && !title.startsWith(unstableKey)) {
+      return;
+    }
+
     const body = context.payload["issue"]["body"];
     const number = context.payload["issue"]["number"];
     const existingValidationCommentData = await getValidationComment(
@@ -90,10 +83,6 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const existingValidationCommentID = existingValidationCommentData[0];
     const existingValidationComment = existingValidationCommentData[1];
 
-    const target = parseTitle(title, prefix);
-    const { platformsToSkip, invalidPlatforms } = singleDisableIssue.parseBody(
-      body!
-    );
     const username = context.payload["issue"]["user"]["login"];
     const authorized =
       context.payload["issue"]["user"]["id"] === pytorchBotId ||
@@ -101,16 +90,24 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const labels =
       context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
 
-    const validationComment = isDisabledTest(title)
-      ? singleDisableIssue.formValidationComment(
-          username,
-          authorized,
-          target,
-          platformsToSkip,
-          invalidPlatforms,
-          number
-        )
-      : formJobValidationComment(username, authorized, target, prefix);
+    let validationComment = "";
+    if (singleDisableIssue.isSingleIssue(title)) {
+      validationComment = singleDisableIssue.formValidationComment(
+        context.payload["issue"],
+        authorized
+      );
+      singleDisableIssue.fixLabels(context);
+    } else {
+      // UNSTABLE
+      const prefix = title.startsWith(unstableKey) ? unstableKey : disabledKey;
+      validationComment = formJobValidationComment(
+        username,
+        authorized,
+        parseTitle(title, prefix),
+        prefix
+      );
+    }
+    validationComment = `${validationCommentStart}${validationComment}${validationCommentEnd}`;
 
     if (existingValidationComment === validationComment) {
       return;
@@ -140,30 +137,6 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
         issue_number: number,
         state: "closed",
       });
-    } else {
-      // check labels, add labels as needed
-      let [expectedPlatformLabels, invalidPlatformLabels] =
-        singleDisableIssue.getExpectedPlatformModuleLabels(
-          platformsToSkip,
-          labels
-        );
-      let labelsSet = new Set(labels);
-      if (!expectedPlatformLabels.every((label) => labelsSet.has(label))) {
-        await context.octokit.issues.addLabels({
-          owner,
-          repo,
-          issue_number: number,
-          labels: expectedPlatformLabels,
-        });
-      }
-      for (const invalidLabel of invalidPlatformLabels) {
-        await context.octokit.issues.removeLabel({
-          owner,
-          repo,
-          issue_number: number,
-          name: invalidLabel,
-        });
-      }
     }
   });
 }

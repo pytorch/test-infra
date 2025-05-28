@@ -1,4 +1,4 @@
-import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
+import { __forTesting__ as singleDisableIssue } from "lib/flakyBot/singleDisableIssue";
 import nock from "nock";
 import { flakyTestA } from "./flakyBotTestsUtils";
 
@@ -40,49 +40,31 @@ describe("Flaky Test Bot Single Issue Unit Tests", () => {
     });
   });
 
-  test("various singleDisableIssue.getExpectedPlatformModuleLabels tests", async () => {
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["linux"],
-        ["random"]
-      )
-    ).toEqual([[], []]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["inductor"],
-        ["random"]
-      )
-    ).toEqual([["oncall: pt2"], []]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["linux"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["rocm"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([["module: rocm"], []]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["dynamo", "inductor"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([["oncall: pt2"], ["module: rocm"]]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["linux", "rocm"],
-        ["random", "module: rocm"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
-    expect(
-      await singleDisableIssue.getExpectedPlatformModuleLabels(
-        ["linux", "rocm"],
-        ["random", "module: rocm", "oncall: pt2"]
-      )
-    ).toEqual([[], ["module: rocm"]]);
+  test("getExpectedLabels tests", async () => {
+    function helper(
+      body: string,
+      existingLabels: string[],
+      expectedLabels: string[]
+    ) {
+      expect(
+        singleDisableIssue.getExpectedLabels(body, existingLabels)
+      ).toEqual(expectedLabels);
+    }
+    helper("", ["module: rocm"], []);
+    helper("", ["random"], ["random"]);
+    helper("Platforms: linux, rocm", ["module: rocm", "random"], ["random"]);
+    helper("Platforms: inductor, dynamo", ["module: windows"], ["oncall: pt2"]);
+    helper("Platforms: linux", ["module: rocm"], []);
+    helper("Platforms: inductor", ["random"], ["oncall: pt2", "random"]);
+    helper("Platforms: ", ["random"], ["random"]);
+    helper("Platforms: inductor", ["module: rocm"], ["oncall: pt2"]);
+    helper("Platforms: dynamo", ["module: rocm"], ["oncall: pt2"]);
+    helper(
+      "Platforms: inductor, dynamo",
+      ["module: rocm", "random"],
+      ["oncall: pt2", "random"]
+    );
+    helper("Platforms: rocm", ["oncall: pt2"], ["module: rocm", "oncall: pt2"]);
   });
 
   test("getIssueTitle: test suite in subclass should not have __main__", async () => {
@@ -98,5 +80,27 @@ describe("Flaky Test Bot Single Issue Unit Tests", () => {
     expect(
       singleDisableIssue.getIssueTitle("test_cool_op_cpu", "TestLinAlgCPU")
     ).toEqual("DISABLED test_cool_op_cpu (__main__.TestLinAlgCPU)");
+  });
+
+  test("isSingleIssue: should return true for single issue", async () => {
+    const areSingleIssues = [
+      "DISABLED test_a (__main__.suite_a)",
+      "DISABLED test_a (t.test_a)",
+      "DISABLED test_a   (t.test_a.TestLinAlgCPU)",
+      "DISABLED test_aDFSOIDJ (t.test_a.TestLinAlgCPU)",
+    ];
+    for (const issue of areSingleIssues) {
+      expect(singleDisableIssue.isSingleIssue(issue)).toEqual(true);
+    }
+
+    const areNotSingleIssues = [
+      "DISABLED MULTIPLE test_a (__main__.suite_a)",
+      "UNSTABLE test_a (__main__.suite_a)",
+      "DISABLED test_a asdf (__main__.suite_a)",
+      "DISABLED test_a asdf (suite_a)",
+    ];
+    for (const issue of areNotSingleIssues) {
+      expect(singleDisableIssue.isSingleIssue(issue)).toEqual(false);
+    }
   });
 });
