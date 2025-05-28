@@ -214,7 +214,7 @@ async function condenseJobs(
         continue;
       }
 
-      // Check if they have write permissions
+      // Check if the author is the bot or has permission
       if (
         issue.author.login !== "pytorch-bot" &&
         !(await hasPermission(issue.author.login, octokit))
@@ -227,9 +227,9 @@ async function condenseJobs(
         username: issue.author.login,
         number: issue.number,
         url: issue.url,
-        workflowName: parts[0],
-        platformName: parts[1] || "",
-        configName: parts[2] || "",
+        workflowName: parts[0].trim(),
+        platformName: (parts[1] || "").trim(),
+        configName: (parts[2] || "").trim(),
       });
     }
   }
