@@ -15,6 +15,7 @@ import {
   getTestOwnerLabels,
   getWorkflowJobNames,
   NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING,
+  parseTestName,
   supportedPlatforms,
 } from "./utils";
 
@@ -182,7 +183,7 @@ function parsePlatformsFromString(s: string) {
  *   - invalidPlatformMapping: a map of test name to invalid platforms
  *   - failedToParse: a list of tests that failed to parse
  */
-function parseBody(body: string) {
+export function parseBody(body: string) {
   const start = body.toLowerCase().search("disable the following tests:");
   const platformMapping = new Map<string, string[]>();
   const invalidPlatformMapping = new Map<string, string[]>();
@@ -197,17 +198,16 @@ function parseBody(body: string) {
   }
   const codeBlock = body.substring(start).split("```")[1];
 
-  const testRegex = new RegExp("(test_[a-zA-Z0-9_]+) \\(([a-zA-Z0-9\\._]+)\\)");
   const possibleTests = codeBlock
     .split("\n")
     .filter((line) => line.trim().length > 0);
   for (const test of possibleTests) {
-    const match = test.match(testRegex);
-    if (match) {
+    const splitTest = test.split(":");
+    const key = parseTestName(splitTest[0]);
+    if (key) {
       const platforms = parsePlatformsFromString(
-        test.split(":").length > 1 ? test.split(":")[1] : ""
+        splitTest.length > 1 ? splitTest[1] : ""
       );
-      const key = `${match[1]} (${match[2]})`;
       const [validPlatforms, invalidPlatforms] = _.partition(
         platforms,
         (platform) => supportedPlatforms.has(platform)
