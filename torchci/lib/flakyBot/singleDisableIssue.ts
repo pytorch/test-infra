@@ -267,7 +267,7 @@ function testNameIsExpected(testName: string): boolean {
     return false;
   }
 
-  const split = testName.split(/\s+/);
+  const split = testName.trim().split(/\s+/);
   if (split.length !== 2) {
     return false;
   }
