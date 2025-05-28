@@ -305,6 +305,7 @@ export default function TimeSeriesPanel({
   sort_by = "name",
   max_items_in_series = 0,
   filter = undefined,
+  legendPadding = 200,
   isRegex = false,
   auto_refresh = true,
   // Additional function to process the data after querying
@@ -328,6 +329,7 @@ export default function TimeSeriesPanel({
   filter?: string;
   isRegex?: boolean;
   auto_refresh?: boolean;
+  legendPadding?: number;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
 }) {
   // - Granularity
@@ -430,6 +432,7 @@ export default function TimeSeriesPanel({
       yAxisLabel={yAxisLabel}
       timeFieldDisplayFormat={timeFieldDisplayFormat}
       additionalOptions={additionalOptions}
+      legendPadding={legendPadding}
     />
   );
 }
