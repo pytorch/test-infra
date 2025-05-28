@@ -12,7 +12,7 @@ from typing import Any, Dict
 from urllib.request import Request, urlopen
 
 
-HUD_URL = "https://torchci-git-csl-gendisabletestjsonapi-fbopensource.vercel.app"
+HUD_URL = "https://hud.pytorch.org"
 
 
 def dump_json(data: Dict[str, Any], filename: str):
