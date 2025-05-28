@@ -1,20 +1,23 @@
 import * as flakyBotUtils from "lib/flakyBot/utils";
 import { IssueData } from "lib/types";
 import nock from "nock";
-import * as flakyBot from "pages/api/flaky-tests/disable";
+import { __forTesting__ as flakyBot } from "pages/api/flaky-tests/disable";
 import { handleScope } from "test/common";
 import {
   flakyTestA,
   flakyTestAcrossJobA,
   flakyTestB,
   flakyTestE,
+  genValidFlakyTest,
   mockGetRawTestFile,
   nonFlakyTestA,
   nonFlakyTestZ,
 } from "test/flakyBotTests/flakyBotTestsUtils";
 import * as utils from "test/utils";
 
-describe("Disable Flaky Test Bot Unit Tests", () => {
+nock.disableNetConnect();
+
+describe("Disable Flaky Test Bot Utils Unit Tests", () => {
   const octokit = utils.testOctokit();
 
   beforeEach(() => {});
@@ -24,75 +27,30 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     jest.restoreAllMocks();
   });
 
-  test("filterOutPRFlakyTests: correctly filters and updates flaky test list", async () => {
+  test("filterOutPRFlakyTests: correctly removes PR only instances", async () => {
+    const good1 = genValidFlakyTest({
+      branches: ["master", "gh/janeyx99/idk", "master"],
+    });
+    const good2 = genValidFlakyTest({
+      branches: ["main", "gh/janeyx99/idk", "main"],
+    });
     const flakyTests = [
       flakyTestA,
-      {
-        file: "file_b.py",
-        invoking_file: "file_b",
-        suite: "suite_b",
-        name: "test_b",
-        numGreen: 4,
-        numRed: 2,
-        workflowIds: ["12345678"],
-        workflowNames: ["pull"],
-        jobIds: [56789123],
-        jobNames: ["win-cpu-vs-2019 / test"],
-        branches: ["ciflow/all/12345"],
-      },
-      {
-        file: "file_c.py",
-        invoking_file: "file_c",
-        suite: "suite_c",
-        name: "test_c",
-        numGreen: 4,
-        numRed: 2,
-        workflowIds: ["12345678", "13456789", "14253647"],
-        workflowNames: ["pull", "periodic", "trunk"],
-        jobIds: [54545454, 55555555, 56565656],
-        jobNames: [
-          "win-cpu-vs-2019 / test",
-          "linux-xenial-cuda11.5-py3 / test",
-          "macos-11-x86 / test",
+      genValidFlakyTest({
+        branches: [
+          "ciflow/all/12345",
+          "ciflow/scheduled/22222",
+          "ciflow/all/12345",
         ],
-        branches: ["master", "gh/janeyx99/idk", "master"],
-      },
-      {
-        file: "file_d.py",
-        invoking_file: "file_d",
-        suite: "suite_d",
-        name: "test_d",
-        numGreen: 4,
-        numRed: 2,
-        workflowIds: ["12345678", "13456789"],
-        workflowNames: ["pull", "periodic"],
-        jobIds: [54545454, 55555555],
-        jobNames: ["win-cpu-vs-2019 / test", "win-cuda11.3-vs-2019 / test"],
+      }),
+      good1,
+      good2,
+      genValidFlakyTest({
         branches: ["quick-fix", "ciflow/scheduled/22222"],
-      },
+      }),
       flakyTestE,
     ];
-    const expectedFlakyTestsOnTrunk = [
-      flakyTestA,
-      {
-        file: "file_c.py",
-        invoking_file: "file_c",
-        suite: "suite_c",
-        name: "test_c",
-        numGreen: 4,
-        numRed: 2,
-        workflowIds: ["12345678", "13456789", "14253647"],
-        workflowNames: ["pull", "periodic", "trunk"],
-        jobIds: [54545454, 55555555, 56565656],
-        jobNames: [
-          "win-cpu-vs-2019 / test",
-          "linux-xenial-cuda11.5-py3 / test",
-          "macos-11-x86 / test",
-        ],
-        branches: ["master", "gh/janeyx99/idk", "master"],
-      },
-      flakyTestE,
-    ];
+    const expectedFlakyTestsOnTrunk = [flakyTestA, good1, good2, flakyTestE];
     expect(flakyBot.filterOutPRFlakyTests(flakyTests)).toEqual(
       expectedFlakyTestsOnTrunk
     );
