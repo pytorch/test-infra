@@ -26,7 +26,6 @@ export const arrayToCSV = (data: any[], headers?: string[]): string => {
 
   const csvHeaders = headers || Object.keys(data[0]);
   const headerRow = csvHeaders.map(escapeCSV).join(",");
-
   const rows = data.map((row) =>
     csvHeaders
       .map((header) => {
@@ -35,7 +34,6 @@ export const arrayToCSV = (data: any[], headers?: string[]): string => {
       })
       .join(",")
   );
-
   return [headerRow, ...rows].join("\n");
 };
 

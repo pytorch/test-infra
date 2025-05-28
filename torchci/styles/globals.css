@@ -11,6 +11,7 @@
   --button-color: #212529;
   --button-bg: transparent;
   --border-color: #e1e1e1;
+  --table-border-color: #e1e1e1;
 
   /* HUD specific colors */
   --forced-merge-bg: lightyellow;
@@ -82,6 +83,7 @@
   --button-color: #e0e0e0;
   --button-bg: transparent;
   --border-color: #3a3a3a;
+  --table-border-color: rgba(255, 255, 255, 0.3);
 
   /* HUD specific colors - dark mode variants */
   --forced-merge-bg: #7e7000;

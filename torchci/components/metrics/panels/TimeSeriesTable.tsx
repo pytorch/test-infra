@@ -66,7 +66,6 @@ export default function TimeSeriesTable({
     refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
 
-  // Process data for table display - transposed version (dates as columns, series as rows)
   const { tableData, columns } = useMemo(() => {
     if (!rawData || isLoading) {
       return { tableData: [], columns: [] };
@@ -91,15 +90,13 @@ export default function TimeSeriesTable({
       timeFieldName,
       yAxisFieldName,
       true,
-      false, // Smooth doesn't apply to table
+      false,
       sort_by,
       chartType,
       filter,
       isRegex
     );
 
-    // Process series into table data
-    // First, we need to get all timestamps
     const allTimestamps = new Set<string>();
     series.forEach((s) => {
       s.data.forEach((point: any) => {
@@ -107,10 +104,8 @@ export default function TimeSeriesTable({
       });
     });
 
-    // Sort timestamps chronologically
     const timestamps = Array.from(allTimestamps).sort();
 
-    // TRANSPOSED: Create columns with timestamps as headers
     const columns: GridColDef[] = [
       {
         field: "seriesName",
@@ -133,14 +128,12 @@ export default function TimeSeriesTable({
       }),
     ];
 
-    // TRANSPOSED: Create rows with series as rows and timestamps as columns
     const tableData = series.map((s, index) => {
       const row: any = {
         id: s.name,
         seriesName: s.name,
       };
 
-      // Add value for each timestamp
       timestamps.forEach((timestamp) => {
         const point = s.data.find((d: any) => d[0] === timestamp);
         row[timestamp] = point ? point[1] : 0;
@@ -276,7 +269,6 @@ export default function TimeSeriesTable({
       });
       return csvRow;
     });
-
     const csvData = arrayToCSV(rows, headers);
     const filename = generateFilename();
     downloadCSV(csvData, filename);
@@ -289,7 +281,7 @@ export default function TimeSeriesTable({
           <span>
             <IconButton
               size="small"
-              sx={{ color: "black" }}
+              sx={{ color: "var(--text-color)" }}
               onClick={handleCopyToClipboard}
               disabled={tableData.length === 0}
             >
@@ -301,7 +293,7 @@ export default function TimeSeriesTable({
           <span>
             <IconButton
               size="small"
-              sx={{ color: "black" }}
+              sx={{ color: "var(--text-color)" }}
               onClick={handleExportCSV}
               disabled={tableData.length === 0}
             >
@@ -326,10 +318,10 @@ export default function TimeSeriesTable({
             },
           }}
           loading={isLoading}
-          autoHeight
           sx={{
             width: "fit-content",
             maxWidth: "100%",
+            border: "1px solid var(--table-border-color)",
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor:
                 "#2f847c" /* Blueish-green to match common chart colors */,
@@ -348,7 +340,10 @@ export default function TimeSeriesTable({
             },
             // Alternating row colors
             "& .MuiDataGrid-row:nth-of-type(odd)": {
-              backgroundColor: "rgba(0, 0, 0, 0.04)",
+              backgroundColor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(255, 255, 255, 0.04)"
+                  : "rgba(0, 0, 0, 0.04)",
             },
             // First column styling
             "& .first-column-header": {
@@ -358,6 +353,10 @@ export default function TimeSeriesTable({
             "& .first-column-cell": {
               backgroundColor: "rgba(47, 132, 124, 0.1)",
               fontWeight: "bold",
+            },
+            // Cell borders using CSS variable
+            "& .MuiDataGrid-cell": {
+              borderBottom: "1px solid var(--table-border-color)",
             },
           }}
         />
