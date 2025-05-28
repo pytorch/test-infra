@@ -19,13 +19,17 @@ export const PYTORCH: string = "pytorch";
 const NUM_HOURS_ACROSS_JOBS = 72;
 
 // MARK: create issue
-export function getIssueTitle(testName: string, testSuite: string) {
+export function formatTestNameForTitle(testName: string, testSuite: string) {
   let suite = testSuite;
   // If the test class is not a subclass, it belongs to __main__
   if (testSuite.indexOf(".") < 0) {
     suite = "__main__." + suite;
   }
-  return `DISABLED ${testName} (${suite})`;
+  return `${testName} (${suite})`;
+}
+
+function getIssueTitle(testName: string, testSuite: string) {
+  return `DISABLED ${formatTestNameForTitle(testName, testSuite)}`;
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
@@ -87,7 +91,7 @@ export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
   For all disabled tests (by GitHub issue), see https://hud.pytorch.org/disabled.`;
 }
 
-export async function createIssueFromFlakyTest(
+export async function createNewSingleIssue(
   test: FlakyTestData,
   octokit: Octokit
 ): Promise<void> {
@@ -107,6 +111,22 @@ export async function createIssueFromFlakyTest(
 }
 
 // MARK: update issue
+
+function testMatchesIssue(
+  issue: IssueData,
+  name: string,
+  suite: string
+): boolean {
+  const title = getIssueTitle(name, suite);
+  return issue.title === title;
+}
+
+export function matchesSingleFlakyTestIssue(
+  issue: IssueData,
+  test: FlakyTestData
+): boolean {
+  return testMatchesIssue(issue, test.name, test.suite);
+}
 
 export async function updateExistingIssueForFlakyTest(
   octokit: Octokit,
@@ -164,57 +184,63 @@ export async function updateExistingIssueForFlakyTest(
     });
   }
 }
+
 // MARK: close issue
-export async function handleNonFlakyTest(
+
+export function nonFlakyTestMatchesIssue(
+  issue: IssueData,
+  test: DisabledNonFlakyTestData
+): boolean {
+  return testMatchesIssue(issue, test.name, test.classname);
+}
+
+/**
+ * Handle the case where a test is no longer flaky and the issue is still open.
+ * The issue should be open and the test should correspond to the issue.
+ *
+ * @param test
+ * @param issue
+ * @param octokit
+ * @returns
+ */
+export async function handleNoLongerFlakyTest(
   test: DisabledNonFlakyTestData,
-  issues: IssueData[],
+  issue: IssueData,
   octokit: Octokit
 ) {
-  const issueTitle = getIssueTitle(test.name, test.classname);
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const updatedAt = dayjs(issue.updated_at);
+  const daysSinceLastUpdate: number = NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
 
-  if (matchingIssues.length === 0) {
+  // Only close the issue if the issue is not flaky and hasn't been updated in
+  // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
+  if (
+    updatedAt.isAfter(
+      dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
+    )
+  ) {
+    console.log(`${issue.number} is not flaky but is too recent.`);
     return;
   }
+  console.log(`${issue.number} is not longer flaky`);
 
-  const matchingIssue = matchingIssues[0];
+  const body =
+    `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
+    `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
+    `issue to re-disable the test if you think this is a false positive`;
+  await octokit.rest.issues.createComment({
+    owner: PYTORCH,
+    repo: PYTORCH,
+    issue_number: issue.number,
+    body,
+  });
 
-  if (matchingIssue.state === "open") {
-    const updatedAt = dayjs(matchingIssue.updated_at);
-    const daysSinceLastUpdate: number =
-      NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
-
-    // Only close the issue if the issue is not flaky and hasn't been updated in
-    // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
-    if (
-      updatedAt.isAfter(
-        dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
-      )
-    ) {
-      console.log(`${matchingIssue.number} is not flaky but is too recent.`);
-      return;
-    }
-    console.log(`${matchingIssue.number} is not longer flaky`);
-
-    const body =
-      `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
-      `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
-      `issue to re-disable the test if you think this is a false positive`;
-    await octokit.rest.issues.createComment({
-      owner: PYTORCH,
-      repo: PYTORCH,
-      issue_number: matchingIssue.number,
-      body,
-    });
-
-    // Close the issue
-    await octokit.rest.issues.update({
-      owner: PYTORCH,
-      repo: PYTORCH,
-      issue_number: matchingIssue.number,
-      state: "closed",
-    });
-  }
+  // Close the issue
+  await octokit.rest.issues.update({
+    owner: PYTORCH,
+    repo: PYTORCH,
+    issue_number: issue.number,
+    state: "closed",
+  });
 }
 // MARK: parse issue
 
