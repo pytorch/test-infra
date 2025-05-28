@@ -424,6 +424,7 @@ export default function Page() {
             sort_by="total"
             auto_refresh={false}
             max_items_in_series={30}
+            legendPadding={300}
           />
         )}
         {isLoading && <div>Loading...</div>}
