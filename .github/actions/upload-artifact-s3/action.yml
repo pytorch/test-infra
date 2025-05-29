@@ -70,7 +70,7 @@ outputs:
       It comes as a json encoded dictionary mapping S3 object keys to additional metadata,
       which contains the following properties:
         - etag: The eTag of the object
-        - canonicalUrl: The canonical, virtual-host style URL of the object, built from region, bucket, and key information. 
+        - canonicalUrl: The canonical, virtual-host style URL of the object, built from region, bucket, and key information.
 
 runs:
   using: 'node20'
