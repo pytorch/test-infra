@@ -1,4 +1,4 @@
-import { Alert, styled } from "@mui/material";
+import { Alert, Box, styled } from "@mui/material";
 import LoadingPage from "components/LoadingPage";
 import ToggleIconPicker, {
   ToggleIconPickerContent,
@@ -20,25 +20,16 @@ const FlexNoWrap = styled("div")({
 
 const chartToggleList: ToggleIconPickerContent[] = [
   {
-    icon: <FcHeatMap size={"2em"} />,
-    tooltipContent: "Heatmap chart",
-    value: "heatmap",
-  },
-  {
     icon: <MdOutlineStackedBarChart size={"2em"} />,
     tooltipContent: "Histogram chart",
     value: "histogram_bar_horizontal",
   },
   {
-    icon: <BiLineChart size={"2em"} />,
-    tooltipContent: "Count chart",
-    value: "count_job_line",
+    icon: <FcHeatMap size={"2em"} />,
+    tooltipContent: "Heatmap chart",
+    value: "heatmap",
   },
-  {
-    icon: <BiLineChart size={"2em"} />,
-    tooltipContent: "Max queue time chart",
-    value: "max_queue_time_line",
-  },
+
 ];
 
 export default function QueueTimeCharts({
@@ -48,7 +39,7 @@ export default function QueueTimeCharts({
   props: any;
   width?: string;
 }) {
-  const [chartType, setChartType] = useState<any>("heatmap");
+  const [chartType, setChartType] = useState<any>("histogram_bar_horizontal");
   const { darkMode } = useDarkMode();
 
   const { data, error, isLoading } = useQueryWithError(props);
@@ -72,16 +63,26 @@ export default function QueueTimeCharts({
           please select less items in search.
         </Alert>
       )}
-      <FlexNoWrap sx={{ width: width }}>
+      {
+        renderCharts(chartType, data, props, width)
+      }
+    </div>
+  );
+}
+
+function renderCharts(chartType:string, data:any, props:any, width:any){
+  switch (chartType) {
+    case "heatmap":
+      return (
+        <FlexNoWrap sx={{ width: width }}>
         <QueueTimeEchartElement
           data={data}
           granularity={props.granularity}
           chartType={chartType}
-          width={chartType === "heatmap" ? `70%` : `100%`}
+          width={`70%`}
           height={"60vh"}
-          minWidth={chartType === "heatmap" ? `200px` : `300px`}
+          minWidth={`200px`}
         />
-        {data && chartType === "heatmap" && (
           <QueueTimeEchartElement
             data={data}
             granularity={props.granularity}
@@ -90,10 +91,57 @@ export default function QueueTimeCharts({
             height={"60vh"}
             minWidth="100px"
           />
-        )}
       </FlexNoWrap>
-    </div>
-  );
+      )
+    case "histogram_bar_horizontal":
+      const subcharts = ["max_queue_time_line", "avg_queue_time_line","p50_line","percentile_lines"]
+      if (!subcharts) {
+        return <></>;
+      }
+      return(
+        <>
+        <FlexNoWrap sx={{ width: width }}>
+          <QueueTimeEchartElement
+          data={data}
+          granularity={props.granularity}
+          chartType={chartType}
+          width={`100%`}
+          height={"60vh"}
+          minWidth={`300px`}
+        />
+        </FlexNoWrap>
+        <Box sx={{ width: width, display:'flex', flexWrap:'wrap'}}>
+          {subcharts.map((sub) => {
+            return (
+              <Box key={sub} sx={{ width: '45%' }}>
+                <div> {sub.replaceAll('_',' ')} </div>
+                <QueueTimeEchartElement
+                  data={data}
+                  granularity={props.granularity}
+                  chartType={sub}
+                  chartGroup="stats_line_group"
+                  width={`100%`}
+                  height={"30vh"}
+                  minWidth={`200px`}
+                />
+              </Box>
+            )
+          })}
+        </Box>
+        </>
+      )
+    default:
+      return(<FlexNoWrap sx={{ width: width }}>
+      <QueueTimeEchartElement
+        data={data}
+        granularity={props.granularity}
+        chartType={chartType}
+        width={`100%`}
+        height={"60vh"}
+        minWidth={`300px`}
+      />
+      </FlexNoWrap>)
+  }
 }
 
 function useQueryWithError(props: any) {
@@ -101,12 +149,15 @@ function useQueryWithError(props: any) {
   const params = {
     startTime: props.startDate?.utc().format("YYYY-MM-DDTHH:mm:ss"),
     endTime: props.endDate?.utc().format("YYYY-MM-DDTHH:mm:ss"),
-    items: props.items ? props.items : [],
     repos: props.repos,
     granularity: props.granularity ? props.granularity : "",
-    workflowNames: [],
+    workflowNames: props.workflowNames? props.workflowNames : [],
+    jobNames: props.jobNames? props.jobNames : [],
+    machineTypes: props.machineTypes? props.machineTypes : [],
+    runnerLabels: props.runnerLabels? props.runnerLabels : [],
   };
-  const queryName = `queue_time_analysis/queue_time_per_${category}`;
+
+  const queryName = `queue_time_analysis/queue_time_query`;
   const url = `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
     parameters: JSON.stringify(params),
   })}`;

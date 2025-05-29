@@ -1,4 +1,4 @@
-import { Grid2, Stack, styled, Typography } from "@mui/material";
+import { Box, Stack, styled, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect, useReducer, useState } from "react";
 
@@ -40,7 +40,7 @@ export default function QueueTimeChartPage() {
           * All datetime values are in UTC. <Clock />
         </Typography>
       </Stack>
-      <Grid2 container spacing={2}>
+      <div>
         <FlexNoWrap>
           <div>
             <QueueTimeCharts
@@ -57,7 +57,7 @@ export default function QueueTimeChartPage() {
             />
           </div>
         </FlexNoWrap>
-      </Grid2>
+      </div>
     </div>
   );
 }

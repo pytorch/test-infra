@@ -48,6 +48,7 @@ export function QueueTimeEchartElement({
     setRawData(data);
   }, [data, granularity]);
 
+
   // Initialize chart instance and handle resize events
   useEffect(() => {
     if (!chartRef.current) return;
@@ -64,6 +65,10 @@ export function QueueTimeEchartElement({
     );
     chartInstanceRef.current = instance;
 
+    if (chartGroup) {
+      instance.group = chartGroup;
+      echarts.connect(chartGroup); // Safe to call multiple times
+    }
     // Set up resize handlers
     const handleResize = () => {
       instance.resize();
@@ -156,16 +161,6 @@ function updateChart(
         queue_axis_value
       );
       break;
-    case "count_job_line":
-      const jobCountData = generateFilledTimeSeriesLine(
-        startTime,
-        endTime,
-        rawData,
-        granularity,
-        "total_count"
-      );
-      chartRenderOptions = getLineChart(jobCountData, timeDates);
-      break;
     case "max_queue_time_line":
       const maxQueueTimeData = generateFilledTimeSeriesLine(
         startTime,
@@ -174,23 +169,165 @@ function updateChart(
         granularity,
         "max_queue_time"
       );
-      chartRenderOptions = getLineChart(maxQueueTimeData, timeDates);
+      chartRenderOptions = getTimeLineChart(maxQueueTimeData, timeDates);
       break;
+    case "avg_queue_time_line":
+      const d = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "avg_queue_time"
+      );
+      chartRenderOptions = getTimeLineChart(d, timeDates);
+      break;
+      case "p50_line":
+        const p50s = [
+          {
+            name: 'P50',
+            type: 'line',
+            data: generateFilledTimeSeriesLine(
+              startTime,
+              endTime,
+              rawData,
+              granularity,
+              "p50_index"
+            )
+          },
+        ]
+        chartRenderOptions = getPercentileLineChart(
+          p50s,
+          timeDates,
+          queue_axis_value
+        );
+        break;
+    case "percentile_lines":
+      const p50 = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "p50_index"
+      );
+      const p90 = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "p90_index"
+      );
+      const p20 = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "p20_index"
+      );
+      const series = [
+        {
+          name: 'P90',
+          type: 'line',
+          data: p90,
+        },
+        {
+          name: 'P50',
+          type: 'line',
+          data: p50,
+        },
+        {
+          name: 'P20',
+          type: 'line',
+          data: p20,
+        }
+      ]
+      chartRenderOptions = getPercentileLineChart(
+        series,
+        timeDates,
+        queue_axis_value
+      );
+      break;
+    default:
+      chartRenderOptions = getHeatMapOptions(
+        chartData,
+        queue_axis_value,
+        timeDates
+      );
+
   }
   instance.setOption(chartRenderOptions, true);
 }
 
-const getLineChart = (data: any[], xAxisLabels: string[]) => {
-  return {
+const getPercentileLineChart = (series: any[], xAxisLabels: string[], yAxisLabels: string[]) => {
+  return  {
     tooltip: {
-      trigger: "axis",
+      trigger: 'axis',
+      formatter: function (params:any) {
+        const lines = [];
+        const date = params[0].name
+        lines.push(`<b>${date}</b>`);
+        for (const item of params) {
+          const idx = item.data;
+          const lineName = item.seriesName;
+          if (idx == 0) {
+            lines.push(`${lineName}: located at range  < 1mins`);
+          } else if (idx == yAxisLabels.length - 1) {
+            lines.push(`${lineName}:located at range  > 7days`);
+          } else{
+            const endRange = yAxisLabels[idx];
+            const startRange = yAxisLabels[idx - 1] || "N/A";
+            lines.push(`${lineName}: located at range ${startRange} - ${endRange}`);
+          }
+        }
+        return lines.join('<br/>');
+      }
     },
     xAxis: {
       type: "category",
       data: xAxisLabels,
     },
     yAxis: {
-      type: "value",
+      type: 'category',
+      data: yAxisLabels
+    },
+    series: series,
+  };
+
+}
+
+const getTimeLineChart = (data: any[], xAxisLabels: string[]) => {
+  return {
+    tooltip: {
+      trigger: "axis",
+      formatter: (params:any) => {
+        const value = params.length>0? params[0].value: undefined;
+        const format = (v: number) => {
+          if (v >= 86400) return (v / 86400).toFixed(1) + 'd';
+          if (v >= 3600) return (v / 3600).toFixed(1) + 'h';
+          if (v >= 60) return (v / 60).toFixed(1) + 'm';
+          return v + 's';
+        };
+        return `${params[0].axisValue}: ${format(value)}`;
+      }
+    },
+    xAxis: {
+      type: "category",
+      data: xAxisLabels,
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: (value: number) => {
+          if (value >= 86400) {
+            return (value / 86400).toFixed(1) + 'd'; // 天
+          } else if (value >= 3600) {
+            return (value / 3600).toFixed(1) + 'h';  // 小时
+          } else if (value >= 60) {
+            return (value / 60).toFixed(1) + 'm';    // 分钟
+          } else {
+            return value.toFixed(0) + 's';           // 秒
+          }
+        }
+      }
     },
     series: [
       {
@@ -210,12 +347,12 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
         const xLabel = params.name;
         const value = params.value;
         if (idx == 0) {
-          return `detect ${value}% jobs were in queue in range: < ${xLabel}`;
+          return `detect ${value}% queueing jobs in range: < ${xLabel}`;
         } else if (idx == xAxisLabels.length - 1) {
-          return `detect ${value}% jobs were in queue within time range: ${xLabel}`;
+          return `detect ${value}% queueing jobs within time range: ${xLabel}`;
         }
         const nextName = xAxisLabels[idx - 1] || "N/A";
-        return `detect ${value}% jobs were in queue within time range: ${nextName}- ${xLabel}`;
+        return `detect ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`;
       },
     },
     grid: {
@@ -239,6 +376,8 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
     ],
   };
 };
+
+
 
 const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
   return {
