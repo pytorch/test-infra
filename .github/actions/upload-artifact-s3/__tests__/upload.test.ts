@@ -1,6 +1,7 @@
 import { describe, expect, jest, it, beforeAll, beforeEach } from '@jest/globals'
 import { mockClient } from 'aws-sdk-client-mock'
 import 'aws-sdk-client-mock-jest'
+import './toBeOnSameDay'
 import {
   S3Client,
   CreateMultipartUploadCommand,
@@ -162,6 +163,20 @@ describe('upload', () => {
     })
 
     await run()
+
+    const expirationDate = new Date()
+    expirationDate.setDate(expirationDate.getDate() + 7)
+
+    const calls = s3Mock.calls()
+
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
+      {
+        Bucket: 'my-bucket',
+        Key: filenameToKey(fixtures.filesToUpload[0]),
+        Body: expect.anything(),
+        ACL: 'private',
+        Expires: expect.toBeOnSameDay(expirationDate)
+      })
 
   })
 
