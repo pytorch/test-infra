@@ -10,16 +10,19 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/actions/upload-artifact-s3/**'
   pull_request:
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/actions/upload-artifact-s3/**'
   workflow_dispatch:
 
 jobs:
   check-dist:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/upload-artifact-s3
 
     steps:
       - uses: actions/checkout@v4
