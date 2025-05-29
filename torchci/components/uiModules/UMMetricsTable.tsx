@@ -1,6 +1,9 @@
+import { Box } from "@mui/system";
 import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { UMCheckboxPopover } from "./UMCheckboxPopover";
 
 export enum ValueType {
   String = "string",
@@ -42,6 +45,8 @@ export interface MetricsTableUserMappingEntry {
   link_url?: string;
 
   unit?: string;
+
+  width?: number;
 }
 
 type Props = {
@@ -50,22 +55,63 @@ type Props = {
 };
 
 export default function MetricsTable({ userMapping, data }: Props) {
+  const [filteredMetrics, setFilteredMetrics] = useState<string[]>([]);
+
   const staticColumns = generateStaticColumns(userMapping);
-  const metricKeys = extractMetricKeys(data);
-  const metricColumns = generateMetricColumns(metricKeys, userMapping);
+  const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
+  const originalMetricColumns = generateMetricColumns(metricKeys, userMapping);
+
+  const metricColumns = originalMetricColumns.map((col) => ({
+    ...col,
+    hide: filteredMetrics.includes(col.field), // hide if it's in filteredMetrics
+  }));
+
   const columns = [...staticColumns, ...metricColumns];
   const rows = getRows(data, userMapping);
 
+  const columnVisibilityModel = Object.fromEntries(
+    metricColumns.map((col) => [
+      col.field,
+      !filteredMetrics.includes(col.field),
+    ])
+  );
+
+  // Reset when data changes
+  useEffect(() => {
+    setFilteredMetrics([]); // reset unselected → everything selected
+  }, [metricKeys.join(",")]); // join to compare value, not just ref
+
   return (
-    <div style={{ height: "1000px", width: "100%" }}>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        pageSizeOptions={[100]}
-        density="compact"
-        pagination
-      />
-    </div>
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+        }}
+      >
+        <Box sx={{ margin: "0 5px 0 0", fontSize: "0.8rem" }}>
+          Filter columns:
+        </Box>
+        <UMCheckboxPopover
+          options={metricKeys}
+          buttonLabel="options"
+          onChange={(unselected: string[]) => {
+            setFilteredMetrics(unselected); // store unselected fields
+          }}
+        />
+      </Box>
+      <div style={{ height: "600px", width: "100%" }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          columnVisibilityModel={columnVisibilityModel}
+          pageSizeOptions={[100]}
+          density="compact"
+          pagination
+        />
+      </div>
+    </>
   );
 }
 
@@ -75,7 +121,7 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
     .map(([field, conf]) => ({
       field,
       headerName: conf.headerName ?? field,
-      width: 120,
+      width: conf.width ?? 120,
       renderCell: (params: any) => {
         const value = params.value;
         const row = params.row;
@@ -95,7 +141,7 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
     }));
 }
 
-function extractMetricKeys(dataList: any[]): string[] {
+export function extractMetricKeys(dataList: any[]): string[] {
   const metricKeys = new Set<string>();
   dataList.map((d) => {
     if (d.metrics && typeof d.metrics === "object") {
@@ -133,7 +179,7 @@ function getRows(data: any[], userMapping: { [key: string]: any }) {
   return rows;
 }
 
-function generateMetricColumns(
+export function generateMetricColumns(
   metricKeys: string[],
   userMapping: { [key: string]: any }
 ) {
