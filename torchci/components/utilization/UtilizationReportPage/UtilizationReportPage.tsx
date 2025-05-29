@@ -1,20 +1,19 @@
 import { Box } from "@mui/system";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMPropReducer } from "components/uiModules/UMPropReducer";
-import { UMSymlink } from "components/uiModules/UMSymlink";
+import { UMCopySymLink } from "components/uiModules/UMSymbLink";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useEffect, useReducer, useState } from "react";
-import { objectToQueryString } from "./hepler";
+import { useRouter } from "next/router";
+import { useEffect, useReducer } from "react";
 import { ReportMetricsTable } from "./ReportMetricsTable";
 import UtilizationReportProvider, {
   useUtilizationReportContext,
 } from "./UtilizationReportContext";
-import CopyLink from "components/CopyLink";
-import router, { useRouter } from "next/router";
-import { UMCopySymLink } from "components/uiModules/UMSymbLink";
+import { UtilReportPageSyncParamsToUrl } from "./UtilReportPageSyncParamsToUrl";
 
 dayjs.extend(utc);
+
 const UtilizationReportPage = () => {
   const [timeRange, dispatch] = useReducer(UMPropReducer, {});
 
@@ -22,8 +21,8 @@ const UtilizationReportPage = () => {
   useEffect(() => {
     const {
       start_time = dayjs.utc().format("YYYY-MM-DD"),
-      end_time =  dayjs.utc().format("YYYY-MM-DD"),
-     } = router.query;
+      end_time = dayjs.utc().format("YYYY-MM-DD"),
+    } = router.query;
     const newprops: any = {
       start_time,
       end_time,
@@ -33,11 +32,11 @@ const UtilizationReportPage = () => {
 
   return (
     <UtilizationReportProvider>
+      <UtilReportPageSyncParamsToUrl />
       <InnerUtilizationContent timeRange={timeRange} dispatch={dispatch} />
     </UtilizationReportProvider>
   );
 };
-
 
 const InnerUtilizationContent = ({
   timeRange,
@@ -47,7 +46,6 @@ const InnerUtilizationContent = ({
   dispatch: React.Dispatch<any>;
 }) => {
   const { values } = useUtilizationReportContext();
-
   return (
     <div>
       <Box
@@ -58,9 +56,9 @@ const InnerUtilizationContent = ({
           gap: 0.5,
         }}
       >
-        <h2>Utilization Report Table: {values.group_by}</h2>{" "} <UMCopySymLink params={values} />
+        <h2>Utilization Report Table: {values.group_by}</h2>{" "}
+        <UMCopySymLink params={values} />
       </Box>
-
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {
           const newprops: any = {
