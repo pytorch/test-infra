@@ -13,5 +13,5 @@
       "sourceMap": true,
       "lib": ["es6"]
     },
-    "exclude": ["node_modules", "**/*.test.ts"]
+    "exclude": ["node_modules", "**/*.test.ts", "__tests__"],
   }
