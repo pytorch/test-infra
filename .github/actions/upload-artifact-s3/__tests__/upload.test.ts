@@ -58,7 +58,7 @@ jest.mock('@actions/core')
 const mockInputs = (overrides?: Partial<{ [K in Inputs]?: any }>) => {
   const inputs = {
     [Inputs.Name]: 'artifact-name',
-    [Inputs.Path]: '/some/artifact/path',
+    [Inputs.Path]: paths["root"],
     [Inputs.IfNoFilesFound]: 'warn',
     [Inputs.RetentionDays]: 0,
     [Inputs.S3Acl]: 'private',
@@ -180,99 +180,74 @@ describe('upload', () => {
 
   })
 
-  // it('supports warn if-no-files-found', async () => {
-  //   mockInputs({
-  //     [Inputs.IfNoFilesFound]: 'warn'
-  //   })
+  it('supports warn if-no-files-found', async () => {
+    mockInputs({
+      [Inputs.IfNoFilesFound]: 'warn'
+    })
 
-  //   jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
-  //     filesToUpload: [],
-  //     rootDirectory: fixtures.rootDirectory
-  //   })
+    jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
+      filesToUpload: [],
+      rootDirectory: fixtures.rootDirectory
+    })
 
-  //   await run()
+    await run()
 
-  //   expect(core.warning).toHaveBeenCalledWith(
-  //     `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
-  //   )
-  // })
+    expect(core.warning).toHaveBeenCalledWith(
+      `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
+    )
+  })
 
-  // it('supports error if-no-files-found', async () => {
-  //   mockInputs({
-  //     [Inputs.IfNoFilesFound]: 'error'
-  //   })
+  it('supports error if-no-files-found', async () => {
+    mockInputs({
+      [Inputs.IfNoFilesFound]: 'error'
+    })
 
-  //   jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
-  //     filesToUpload: [],
-  //     rootDirectory: fixtures.rootDirectory
-  //   })
+    jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
+      filesToUpload: [],
+      rootDirectory: fixtures.rootDirectory
+    })
 
-  //   await run()
+    await run()
 
-  //   expect(core.setFailed).toHaveBeenCalledWith(
-  //     `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
-  //   )
-  // })
+    expect(core.setFailed).toHaveBeenCalledWith(
+      `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
+    )
+  })
 
-  // it('supports ignore if-no-files-found', async () => {
-  //   mockInputs({
-  //     [Inputs.IfNoFilesFound]: 'ignore'
-  //   })
+  it('supports ignore if-no-files-found', async () => {
+    mockInputs({
+      [Inputs.IfNoFilesFound]: 'ignore'
+    })
 
-  //   jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
-  //     filesToUpload: [],
-  //     rootDirectory: fixtures.rootDirectory
-  //   })
+    jest.spyOn(search, 'findFilesToUpload').mockResolvedValue({
+      filesToUpload: [],
+      rootDirectory: fixtures.rootDirectory
+    })
 
-  //   await run()
+    await run()
 
-  //   expect(core.info).toHaveBeenCalledWith(
-  //     `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
-  //   )
-  // })
+    expect(core.info).toHaveBeenCalledWith(
+      `No files were found with the provided path: ${fixtures.rootDirectory}. No artifacts will be uploaded.`
+    )
+  })
 
-  // it('supports overwrite', async () => {
-  //   mockInputs({
-  //     [Inputs.Overwrite]: true
-  //   })
+  it('supports overwrite', async () => {
+    mockInputs({
+      [Inputs.Overwrite]: true
+    })
 
-  //   jest.spyOn(artifact, 'deleteArtifact').mockResolvedValue({
-  //     id: 1337
-  //   })
+    await run()
 
-  //   await run()
-
-  //   expect(artifact.uploadArtifact).toHaveBeenCalledWith(
-  //     fixtures.artifactName,
-  //     fixtures.filesToUpload,
-  //     fixtures.rootDirectory,
-  //     {compressionLevel: 6}
-  //   )
-
-  //   expect(artifact.deleteArtifact).toHaveBeenCalledWith(fixtures.artifactName)
-  // })
-
-  // it('supports overwrite and continues if not found', async () => {
-  //   mockInputs({
-  //     [Inputs.Overwrite]: true
-  //   })
-
-  //   jest
-  //     .spyOn(artifact, 'deleteArtifact')
-  //     .mockRejectedValue(new ArtifactNotFoundError('not found'))
-
-  //   await run()
-
-  //   expect(artifact.uploadArtifact).toHaveBeenCalledWith(
-  //     fixtures.artifactName,
-  //     fixtures.filesToUpload,
-  //     fixtures.rootDirectory,
-  //     {compressionLevel: 6}
-  //   )
-
-  //   expect(artifact.deleteArtifact).toHaveBeenCalledWith(fixtures.artifactName)
-  //   expect(core.debug).toHaveBeenCalledWith(
-  //     `Skipping deletion of '${fixtures.artifactName}', it does not exist`
-  //   )
-  // })
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
+      {
+        Bucket: 'my-bucket',
+        Key: filenameToKey(fixtures.filesToUpload[0]),
+        Body: expect.anything(),
+        ACL: 'private',
+      })
+    expect(s3Mock).not.toHaveReceivedCommandWith(PutObjectCommand,
+      {
+        IfNoneMatch: '*',
+      })
+  })
 })
