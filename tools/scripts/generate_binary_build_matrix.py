@@ -80,7 +80,7 @@ LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str]
 WHEEL_CONTAINER_IMAGES: Dict[str, str]
 
 LINUX_CUDA_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
-LINUX_ROCM_RUNNER = "linux.rocm.gpu.binaries_validation"
+LINUX_ROCM_RUNNER = "linux.rocm.gpu.mi300.2"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
