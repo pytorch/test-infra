@@ -175,7 +175,7 @@ export default function QueueTimeSearchBar({
     };
 
     if (rQuery.items) {
-      const items = splitString(rQuery.items as string) // if items is not specified, it will fetch all items belongs to category
+      const items = splitString(rQuery.items as string); // if items is not specified, it will fetch all items belongs to category
       newprops = getSearchItems(newprops.category, items, newprops);
     }
     updateSearch({ type: "UPDATE_FIELDS", payload: newprops });
@@ -288,7 +288,11 @@ export default function QueueTimeSearchBar({
                   startDate={props.startDate}
                   endDate={props.endDate}
                   updateFields={(val: any) => {
-                    const payload = getSearchItems(props.category, val.items,val);
+                    const payload = getSearchItems(
+                      props.category,
+                      val.items,
+                      val
+                    );
                     dispatch({ type: "UPDATE_FIELDS", payload: payload });
                   }}
                 />

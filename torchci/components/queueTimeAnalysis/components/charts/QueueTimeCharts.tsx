@@ -6,7 +6,6 @@ import ToggleIconPicker, {
 import { useDarkMode } from "lib/DarkModeContext";
 import { encodeParams, fetcherCatchErrorStatus } from "lib/GeneralUtils";
 import { useState } from "react";
-import { BiLineChart } from "react-icons/bi";
 import { FcHeatMap } from "react-icons/fc";
 import { MdOutlineStackedBarChart } from "react-icons/md";
 import useSWRImmutable from "swr/immutable";
@@ -29,7 +28,6 @@ const chartToggleList: ToggleIconPickerContent[] = [
     tooltipContent: "Heatmap chart",
     value: "heatmap",
   },
-
 ];
 
 export default function QueueTimeCharts({
@@ -63,26 +61,24 @@ export default function QueueTimeCharts({
           please select less items in search.
         </Alert>
       )}
-      {
-        renderCharts(chartType, data, props, width)
-      }
+      {renderCharts(chartType, data, props, width)}
     </div>
   );
 }
 
-function renderCharts(chartType:string, data:any, props:any, width:any){
+function renderCharts(chartType: string, data: any, props: any, width: any) {
   switch (chartType) {
     case "heatmap":
       return (
         <FlexNoWrap sx={{ width: width }}>
-        <QueueTimeEchartElement
-          data={data}
-          granularity={props.granularity}
-          chartType={chartType}
-          width={`70%`}
-          height={"60vh"}
-          minWidth={`200px`}
-        />
+          <QueueTimeEchartElement
+            data={data}
+            granularity={props.granularity}
+            chartType={chartType}
+            width={`70%`}
+            height={"60vh"}
+            minWidth={`200px`}
+          />
           <QueueTimeEchartElement
             data={data}
             granularity={props.granularity}
@@ -91,56 +87,63 @@ function renderCharts(chartType:string, data:any, props:any, width:any){
             height={"60vh"}
             minWidth="100px"
           />
-      </FlexNoWrap>
-      )
+        </FlexNoWrap>
+      );
     case "histogram_bar_horizontal":
-      const subcharts = ["max_queue_time_line", "avg_queue_time_line","p50_line","percentile_lines"]
+      const subcharts = [
+        "max_queue_time_line",
+        "avg_queue_time_line",
+        "p50_line",
+        "percentile_lines",
+      ];
       if (!subcharts) {
         return <></>;
       }
-      return(
+      return (
         <>
+          <FlexNoWrap sx={{ width: width }}>
+            <QueueTimeEchartElement
+              data={data}
+              granularity={props.granularity}
+              chartType={chartType}
+              width={`100%`}
+              height={"60vh"}
+              minWidth={`300px`}
+            />
+          </FlexNoWrap>
+          <Box sx={{ width: width, display: "flex", flexWrap: "wrap" }}>
+            {subcharts.map((sub) => {
+              return (
+                <Box key={sub} sx={{ width: "45%" }}>
+                  <div> {sub.replaceAll("_", " ")} </div>
+                  <QueueTimeEchartElement
+                    data={data}
+                    granularity={props.granularity}
+                    chartType={sub}
+                    chartGroup="stats_line_group"
+                    width={`100%`}
+                    height={"30vh"}
+                    minWidth={`200px`}
+                  />
+                </Box>
+              );
+            })}
+          </Box>
+        </>
+      );
+    default:
+      return (
         <FlexNoWrap sx={{ width: width }}>
           <QueueTimeEchartElement
-          data={data}
-          granularity={props.granularity}
-          chartType={chartType}
-          width={`100%`}
-          height={"60vh"}
-          minWidth={`300px`}
-        />
+            data={data}
+            granularity={props.granularity}
+            chartType={chartType}
+            width={`100%`}
+            height={"60vh"}
+            minWidth={`300px`}
+          />
         </FlexNoWrap>
-        <Box sx={{ width: width, display:'flex', flexWrap:'wrap'}}>
-          {subcharts.map((sub) => {
-            return (
-              <Box key={sub} sx={{ width: '45%' }}>
-                <div> {sub.replaceAll('_',' ')} </div>
-                <QueueTimeEchartElement
-                  data={data}
-                  granularity={props.granularity}
-                  chartType={sub}
-                  chartGroup="stats_line_group"
-                  width={`100%`}
-                  height={"30vh"}
-                  minWidth={`200px`}
-                />
-              </Box>
-            )
-          })}
-        </Box>
-        </>
-      )
-    default:
-      return(<FlexNoWrap sx={{ width: width }}>
-      <QueueTimeEchartElement
-        data={data}
-        granularity={props.granularity}
-        chartType={chartType}
-        width={`100%`}
-        height={"60vh"}
-        minWidth={`300px`}
-      />
-      </FlexNoWrap>)
+      );
   }
 }
 
@@ -151,10 +154,10 @@ function useQueryWithError(props: any) {
     endTime: props.endDate?.utc().format("YYYY-MM-DDTHH:mm:ss"),
     repos: props.repos,
     granularity: props.granularity ? props.granularity : "",
-    workflowNames: props.workflowNames? props.workflowNames : [],
-    jobNames: props.jobNames? props.jobNames : [],
-    machineTypes: props.machineTypes? props.machineTypes : [],
-    runnerLabels: props.runnerLabels? props.runnerLabels : [],
+    workflowNames: props.workflowNames ? props.workflowNames : [],
+    jobNames: props.jobNames ? props.jobNames : [],
+    machineTypes: props.machineTypes ? props.machineTypes : [],
+    runnerLabels: props.runnerLabels ? props.runnerLabels : [],
   };
 
   const queryName = `queue_time_analysis/queue_time_query`;

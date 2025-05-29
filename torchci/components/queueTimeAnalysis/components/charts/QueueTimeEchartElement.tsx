@@ -48,7 +48,6 @@ export function QueueTimeEchartElement({
     setRawData(data);
   }, [data, granularity]);
 
-
   // Initialize chart instance and handle resize events
   useEffect(() => {
     if (!chartRef.current) return;
@@ -181,26 +180,26 @@ function updateChart(
       );
       chartRenderOptions = getTimeLineChart(d, timeDates);
       break;
-      case "p50_line":
-        const p50s = [
-          {
-            name: 'P50',
-            type: 'line',
-            data: generateFilledTimeSeriesLine(
-              startTime,
-              endTime,
-              rawData,
-              granularity,
-              "p50_index"
-            )
-          },
-        ]
-        chartRenderOptions = getPercentileLineChart(
-          p50s,
-          timeDates,
-          queue_axis_value
-        );
-        break;
+    case "p50_line":
+      const p50s = [
+        {
+          name: "P50",
+          type: "line",
+          data: generateFilledTimeSeriesLine(
+            startTime,
+            endTime,
+            rawData,
+            granularity,
+            "p50_index"
+          ),
+        },
+      ];
+      chartRenderOptions = getPercentileLineChart(
+        p50s,
+        timeDates,
+        queue_axis_value
+      );
+      break;
     case "percentile_lines":
       const p50 = generateFilledTimeSeriesLine(
         startTime,
@@ -225,21 +224,21 @@ function updateChart(
       );
       const series = [
         {
-          name: 'P90',
-          type: 'line',
+          name: "P90",
+          type: "line",
           data: p90,
         },
         {
-          name: 'P50',
-          type: 'line',
+          name: "P50",
+          type: "line",
           data: p50,
         },
         {
-          name: 'P20',
-          type: 'line',
+          name: "P20",
+          type: "line",
           data: p20,
-        }
-      ]
+        },
+      ];
       chartRenderOptions = getPercentileLineChart(
         series,
         timeDates,
@@ -252,18 +251,21 @@ function updateChart(
         queue_axis_value,
         timeDates
       );
-
   }
   instance.setOption(chartRenderOptions, true);
 }
 
-const getPercentileLineChart = (series: any[], xAxisLabels: string[], yAxisLabels: string[]) => {
-  return  {
+const getPercentileLineChart = (
+  series: any[],
+  xAxisLabels: string[],
+  yAxisLabels: string[]
+) => {
+  return {
     tooltip: {
-      trigger: 'axis',
-      formatter: function (params:any) {
+      trigger: "axis",
+      formatter: function (params: any) {
         const lines = [];
-        const date = params[0].name
+        const date = params[0].name;
         lines.push(`<b>${date}</b>`);
         for (const item of params) {
           const idx = item.data;
@@ -272,62 +274,63 @@ const getPercentileLineChart = (series: any[], xAxisLabels: string[], yAxisLabel
             lines.push(`${lineName}: located at range  < 1mins`);
           } else if (idx == yAxisLabels.length - 1) {
             lines.push(`${lineName}:located at range  > 7days`);
-          } else{
+          } else {
             const endRange = yAxisLabels[idx];
             const startRange = yAxisLabels[idx - 1] || "N/A";
-            lines.push(`${lineName}: located at range ${startRange} - ${endRange}`);
+            lines.push(
+              `${lineName}: located at range ${startRange} - ${endRange}`
+            );
           }
         }
-        return lines.join('<br/>');
-      }
+        return lines.join("<br/>");
+      },
     },
     xAxis: {
       type: "category",
       data: xAxisLabels,
     },
     yAxis: {
-      type: 'category',
-      data: yAxisLabels
+      type: "category",
+      data: yAxisLabels,
     },
     series: series,
   };
-
-}
+};
 
 const getTimeLineChart = (data: any[], xAxisLabels: string[]) => {
   return {
     tooltip: {
       trigger: "axis",
-      formatter: (params:any) => {
-        const value = params.length>0? params[0].value: undefined;
+      formatter: (params: any) => {
+        const value = params.length > 0 ? params[0].value : undefined;
         const format = (v: number) => {
-          if (v >= 86400) return (v / 86400).toFixed(1) + 'd';
-          if (v >= 3600) return (v / 3600).toFixed(1) + 'h';
-          if (v >= 60) return (v / 60).toFixed(1) + 'm';
-          return v + 's';
+          if (v >= 86400) return (v / 86400).toFixed(1) + "d";
+          if (v >= 3600) return (v / 3600).toFixed(1) + "h";
+          if (v >= 60) return (v / 60).toFixed(1) + "m";
+          return v + "s";
         };
         return `${params[0].axisValue}: ${format(value)}`;
-      }
+      },
     },
     xAxis: {
       type: "category",
       data: xAxisLabels,
     },
     yAxis: {
-      type: 'value',
+      type: "value",
       axisLabel: {
         formatter: (value: number) => {
           if (value >= 86400) {
-            return (value / 86400).toFixed(1) + 'd'; // 天
+            return (value / 86400).toFixed(1) + "d"; // 天
           } else if (value >= 3600) {
-            return (value / 3600).toFixed(1) + 'h';  // 小时
+            return (value / 3600).toFixed(1) + "h"; // 小时
           } else if (value >= 60) {
-            return (value / 60).toFixed(1) + 'm';    // 分钟
+            return (value / 60).toFixed(1) + "m"; // 分钟
           } else {
-            return value.toFixed(0) + 's';           // 秒
+            return value.toFixed(0) + "s"; // 秒
           }
-        }
-      }
+        },
+      },
     },
     series: [
       {
@@ -376,8 +379,6 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
     ],
   };
 };
-
-
 
 const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
   return {

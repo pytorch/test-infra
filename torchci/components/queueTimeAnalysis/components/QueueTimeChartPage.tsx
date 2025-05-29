@@ -1,4 +1,4 @@
-import { Box, Stack, styled, Typography } from "@mui/material";
+import { Stack, styled, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect, useReducer, useState } from "react";
 
