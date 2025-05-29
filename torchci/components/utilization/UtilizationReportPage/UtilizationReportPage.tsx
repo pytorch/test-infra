@@ -4,24 +4,32 @@ import { UMPropReducer } from "components/uiModules/UMPropReducer";
 import { UMSymlink } from "components/uiModules/UMSymlink";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { objectToQueryString } from "./hepler";
 import { ReportMetricsTable } from "./ReportMetricsTable";
 import UtilizationReportProvider, {
   useUtilizationReportContext,
 } from "./UtilizationReportContext";
+import CopyLink from "components/CopyLink";
+import router, { useRouter } from "next/router";
+import { UMCopySymLink } from "components/uiModules/UMSymbLink";
 
 dayjs.extend(utc);
 const UtilizationReportPage = () => {
   const [timeRange, dispatch] = useReducer(UMPropReducer, {});
 
+  const router = useRouter();
   useEffect(() => {
+    const {
+      start_time = dayjs.utc().format("YYYY-MM-DD"),
+      end_time =  dayjs.utc().format("YYYY-MM-DD"),
+     } = router.query;
     const newprops: any = {
-      start_time: dayjs.utc().format("YYYY-MM-DD"),
-      end_time: dayjs.utc().format("YYYY-MM-DD"),
+      start_time,
+      end_time,
     };
     dispatch({ type: "UPDATE_FIELDS", payload: newprops });
-  }, []);
+  }, [router.query]);
 
   return (
     <UtilizationReportProvider>
@@ -29,6 +37,7 @@ const UtilizationReportPage = () => {
     </UtilizationReportProvider>
   );
 };
+
 
 const InnerUtilizationContent = ({
   timeRange,
@@ -38,10 +47,9 @@ const InnerUtilizationContent = ({
   dispatch: React.Dispatch<any>;
 }) => {
   const { values } = useUtilizationReportContext();
-  const symlink = `/utilization/report?${objectToQueryString(values)}`;
+
   return (
     <div>
-      <div>useUtilizationReportContext: {JSON.stringify(values)}</div>
       <Box
         sx={{
           display: "flex",
@@ -50,8 +58,7 @@ const InnerUtilizationContent = ({
           gap: 0.5,
         }}
       >
-        <h2>Utilization Report Table: {values.group_by}</h2>{" "}
-        <UMSymlink target={symlink} />
+        <h2>Utilization Report Table: {values.group_by}</h2>{" "} <UMCopySymLink params={values} />
       </Box>
 
       <UMDateButtonPicker
