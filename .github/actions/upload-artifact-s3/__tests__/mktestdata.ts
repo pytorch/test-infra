@@ -38,7 +38,7 @@ import {promises as fs} from 'fs'
  */
 export function setupPaths(): Record<string, string> {
   const paths = {}
-  paths["root"] = path.join(__dirname, '_temp', 'search')
+  paths['root'] = path.join(__dirname, '_temp', 'search')
   paths['searchItem1Path'] = path.join(
     paths['root'],
     'folder-a',

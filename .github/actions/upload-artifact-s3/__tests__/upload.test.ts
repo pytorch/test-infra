@@ -1,36 +1,31 @@
-import { describe, expect, jest, it, beforeAll, beforeEach } from '@jest/globals'
-import { mockClient } from 'aws-sdk-client-mock'
+import {describe, expect, jest, it, beforeAll, beforeEach} from '@jest/globals'
+import {mockClient} from 'aws-sdk-client-mock'
 import 'aws-sdk-client-mock-jest'
 import './toBeOnSameDay'
 import {
   S3Client,
   CreateMultipartUploadCommand,
   UploadPartCommand,
-  PutObjectCommand,
-  CompleteMultipartUploadCommand
+  PutObjectCommand
 } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
 import * as core from '@actions/core'
 import * as path from 'path'
-import * as io from '@actions/io'
-import { promises as fs } from 'fs'
-import * as github from '@actions/github'
-import { run } from '../src/upload/upload-artifact'
-import { Inputs } from '../src/upload/constants'
+import {run} from '../src/upload/upload-artifact'
+import {Inputs} from '../src/upload/constants'
 import * as search from '../src/shared/search'
-import { setupPaths, recreateTestData } from './mktestdata'
+import {setupPaths, recreateTestData} from './mktestdata'
 
 const paths: Record<string, string> = setupPaths()
 
 const fixtures = {
   artifactName: 'artifact-name',
-  rootDirectory: paths["root"],
+  rootDirectory: paths['root'],
   filesToUpload: [
-    `${paths["root"]}/folder-a/folder-b/folder-c/search-item1.txt`,
-    `${paths["root"]}/folder-d/search-item2.txt`,
-    `${paths["root"]}/folder-d/search-item3.txt`,
-    `${paths["root"]}/folder-d/search-item4.txt`,
-    `${paths["root"]}/folder-f/extraSearch-item3.txt`,
+    `${paths['root']}/folder-a/folder-b/folder-c/search-item1.txt`,
+    `${paths['root']}/folder-d/search-item2.txt`,
+    `${paths['root']}/folder-d/search-item3.txt`,
+    `${paths['root']}/folder-d/search-item4.txt`,
+    `${paths['root']}/folder-f/extraSearch-item3.txt`
   ]
 }
 
@@ -46,7 +41,7 @@ jest.mock('@actions/github', () => ({
 }))
 
 function filenameToKey(filename: string): string {
-  const relativePath = path.relative(paths["root"], filename)
+  const relativePath = path.relative(paths['root'], filename)
   return `pytorch/test-infra/123/${fixtures.artifactName}/${relativePath}`
 }
 
@@ -55,10 +50,10 @@ const s3Mock = mockClient(S3Client)
 jest.mock('@actions/core')
 
 /* eslint-disable no-unused-vars */
-const mockInputs = (overrides?: Partial<{ [K in Inputs]?: any }>) => {
+const mockInputs = (overrides?: Partial<{[K in Inputs]?: any}>) => {
   const inputs = {
     [Inputs.Name]: 'artifact-name',
-    [Inputs.Path]: paths["root"],
+    [Inputs.Path]: paths['root'],
     [Inputs.IfNoFilesFound]: 'warn',
     [Inputs.RetentionDays]: 0,
     [Inputs.S3Acl]: 'private',
@@ -70,16 +65,16 @@ const mockInputs = (overrides?: Partial<{ [K in Inputs]?: any }>) => {
     ...overrides
   }
 
-    ; (core.getInput as jest.Mock<(name: string) => string>).mockImplementation(
-      (name: string) => {
-        return inputs[name]
-      }
-    )
-    ; (
-      core.getBooleanInput as jest.Mock<(name: string) => boolean>
-    ).mockImplementation((name: string) => {
+  ;(core.getInput as jest.Mock<(name: string) => string>).mockImplementation(
+    (name: string) => {
       return inputs[name]
-    })
+    }
+  )
+  ;(
+    core.getBooleanInput as jest.Mock<(name: string) => boolean>
+  ).mockImplementation((name: string) => {
+    return inputs[name]
+  })
 
   return inputs
 }
@@ -100,13 +95,12 @@ describe('upload', () => {
     s3Mock.reset()
 
     // for big files upload:
-    s3Mock.on(CreateMultipartUploadCommand).resolves({ UploadId: '1' })
-    s3Mock.on(UploadPartCommand).resolves({ ETag: '1' })
-    //s3Mock.on(CompleteMultipartUploadCommand).resolves({ ETag: '1' })
+    s3Mock.on(CreateMultipartUploadCommand).resolves({UploadId: '1'})
+    s3Mock.on(UploadPartCommand).resolves({ETag: '1'})
 
     // for small files upload:
     s3Mock.on(PutObjectCommand).callsFake(async (input, getClient) => {
-      getClient().config.endpoint = () => ({ hostname: '' } as any)
+      getClient().config.endpoint = () => ({hostname: ''} as any)
       return {ETag: '1'}
     })
   })
@@ -114,13 +108,12 @@ describe('upload', () => {
   it('uploads a single file', async () => {
     await run()
     const calls = s3Mock.calls()
-    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
-      {
-        Bucket: 'my-bucket',
-        Key: filenameToKey(fixtures.filesToUpload[0]),
-        Body: expect.anything(),
-        ACL: 'private'
-      })
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'my-bucket',
+      Key: filenameToKey(fixtures.filesToUpload[0]),
+      Body: expect.anything(),
+      ACL: 'private'
+    })
   })
 
   it('uploads multiple files', async () => {
@@ -131,15 +124,17 @@ describe('upload', () => {
 
     await run()
 
-    expect(s3Mock).toHaveReceivedCommandTimes(PutObjectCommand, fixtures.filesToUpload.length)
+    expect(s3Mock).toHaveReceivedCommandTimes(
+      PutObjectCommand,
+      fixtures.filesToUpload.length
+    )
     for (const filename of fixtures.filesToUpload) {
-      expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
-        {
-          Bucket: 'my-bucket',
-          Key: filenameToKey(filename),
-          Body: expect.anything(),
-          ACL: 'private'
-        })
+      expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand, {
+        Bucket: 'my-bucket',
+        Key: filenameToKey(filename),
+        Body: expect.anything(),
+        ACL: 'private'
+      })
     }
   })
 
@@ -147,14 +142,17 @@ describe('upload', () => {
     await run()
 
     const key = filenameToKey(fixtures.filesToUpload[0])
-    const prefix = "https://my-bucket.s3.us-east-1.amazonaws.com"
+    const prefix = 'https://my-bucket.s3.us-east-1.amazonaws.com'
     const info: Record<string, Record<string, string>> = {}
     info[key] = {
       etag: '1',
-      canonicalUrl: `${prefix}/${key}`,
+      canonicalUrl: `${prefix}/${key}`
     }
 
-    expect(core.setOutput).toHaveBeenCalledWith('uploaded-objects', JSON.stringify(info))
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'uploaded-objects',
+      JSON.stringify(info)
+    )
   })
 
   it('supports custom retention days', async () => {
@@ -169,15 +167,13 @@ describe('upload', () => {
 
     const calls = s3Mock.calls()
 
-    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
-      {
-        Bucket: 'my-bucket',
-        Key: filenameToKey(fixtures.filesToUpload[0]),
-        Body: expect.anything(),
-        ACL: 'private',
-        Expires: expect.toBeOnSameDay(expirationDate)
-      })
-
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'my-bucket',
+      Key: filenameToKey(fixtures.filesToUpload[0]),
+      Body: expect.anything(),
+      ACL: 'private',
+      Expires: expect.toBeOnSameDay(expirationDate)
+    })
   })
 
   it('supports warn if-no-files-found', async () => {
@@ -238,16 +234,14 @@ describe('upload', () => {
 
     await run()
 
-    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand,
-      {
-        Bucket: 'my-bucket',
-        Key: filenameToKey(fixtures.filesToUpload[0]),
-        Body: expect.anything(),
-        ACL: 'private',
-      })
-    expect(s3Mock).not.toHaveReceivedCommandWith(PutObjectCommand,
-      {
-        IfNoneMatch: '*',
-      })
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'my-bucket',
+      Key: filenameToKey(fixtures.filesToUpload[0]),
+      Body: expect.anything(),
+      ACL: 'private'
+    })
+    expect(s3Mock).not.toHaveReceivedCommandWith(PutObjectCommand, {
+      IfNoneMatch: '*'
+    })
   })
 })
