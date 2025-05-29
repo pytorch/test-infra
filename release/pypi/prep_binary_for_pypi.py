@@ -3,7 +3,6 @@
 
 """
 Preps binaries for publishing to PyPI by removing the version suffix normally added for binaries.
-(outside of default ones, CUDA 10.2 currently)
 
 Usage:
 $ python prep_binary_for_pypi_auditwheel.py <path_to_whl_file> [<path_to_more_whl_files>...]
