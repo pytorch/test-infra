@@ -36,7 +36,6 @@ def get_clickhouse_client(
         host=host, user=user, password=password, secure=True
     )
 
-
 def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Client:
     for name, env_val in ENVS.items():
         if not env_val:
@@ -59,9 +58,7 @@ def validate_datetime(dt_str):
 
 
 def get_data_from_ce(client, start, end):
-    logger.info(
-        f"Fetching data from aws cost explorer endpoint within time range {start} to {end} ....."
-    )
+    logger.info(f"Fetching data from aws cost explorer endpoint within time range {start} to {end} .....")
     return client.get_cost_and_usage(
         TimePeriod={
             "Start": start,
@@ -131,12 +128,13 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
     time_now = datetime.now(timezone.utc)
     logger.info(f"Starting job at utc time {time_now}")
 
-    # pick time range for day before by default, since aws cost exploerer has delay to geenrate data
+    # pick time range for day before by default, since aws cost exploerer has delay to generate data
     end_time = datetime.now(timezone.utc).date()
-    start_time = end_time - timedelta(days=1)
+    start_time  = end_time - timedelta(days=1)
 
     start = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     end = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
     aws_ce_client = boto3.client("ce")
 
@@ -150,6 +148,7 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
             end = args.end_time
     else:
         cc = get_clickhouse_client_environment()
+
 
     data = get_data_from_ce(aws_ce_client, start, end)
     results = data.get("ResultsByTime", [])
@@ -165,7 +164,7 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
     recordList = processCostExplorerResults(results)
     logger.info(f"Done. Flattening the raw data into pre-db records")
 
-    if len(recordList) > 0:
+    if len(recordList)>0:
         logger.info(f"Peeking the record: {json.dumps(recordList[0])}")
     else:
         logger.info(f"No  pre-db records were generated")
@@ -174,7 +173,7 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
     logger.info(f"Generating db records .....")
     db_records = []
     for record in recordList:
-        db_rec = to_db_schema(record, "meta-runner-ec", "hourly")
+        db_rec = to_db_schema(record,"meta-runner-ec", "hourly")
         if not db_rec:
             continue
         db_records.append(db_rec)
@@ -189,47 +188,43 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
         insert_to_db(cc, db_records)
 
 
-def insert_to_db(
-    cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]
-):
-    db_name = "misc"
-    db_table_name = "oss_ci_aws_ce_tracking"
-    logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
-    if len(records) == 0:
-        logger.info(f" No histogram records, skipping writing..")
-        return
-    columns = list(records[0].keys())
-    data = [list(record.values()) for record in records]
-    cc.insert(
-        table=db_table_name,
-        data=data,
-        column_names=columns,
-        database=db_name,
-    )
-    logger.info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
+def insert_to_db(cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]):
+        db_name = "misc"
+        db_table_name = "oss_ci_aws_ce_tracking"
+        logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
+        if len(records) == 0:
+            logger.info(f" No histogram records, skipping writing..")
+            return
+        columns = list(records[0].keys())
+        data = [list(record.values()) for record in records]
+        cc.insert(
+            table=db_table_name,
+            data=data,
+            column_names=columns,
+            database=db_name,
+        )
+        logger.info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
 
 
 def to_db_schema(record, type, granularity):
-    keys = record.get("Keys", [])
+    keys = record.get("Keys",[])
     endTime = record.get("End")
     endtimeDate = endTime.replace("Z", "+00:00")
     now = datetime.now(timezone.utc).isoformat()
     if len(keys) < 2:
-        logger.warning(
-            f"Expected two keys from Record, but got {len(record)}, skipping the record"
-        )
+        logger.warning(f"Expected two keys from Record, but got {len(record)}, skipping the record")
         return None
     return {
         "created": now,
         "type": type,
         "granularity": granularity,
         "time": endtimeDate,
-        "instance_type": keys[0],
+        "instance_type":keys[0],
         "usage_type": keys[1],
-        "unit": record.get("Unit", ""),
+        'unit': record.get('Unit',''),
         "value": record.get("Amount", 0),
         "extra_info": {},
-        "tags": [],
+        'tags': []
     }
 
 
@@ -252,7 +247,6 @@ def processCostExplorerResults(resp_reults):
         res.extend(falttened_list)
     return res
 
-
 def flatten_ts_record(record):
     """
     return {'Start': '2025-05-28T00:00:00Z', 'End': '2025-05-28T01:00:00Z', 'Keys': ['c5.12xlarge', 'BoxUsage:c5.12xlarge'], 'Amount': '157.445277', 'Unit': 'Hrs'}
@@ -271,7 +265,6 @@ def flatten_ts_record(record):
         results.append(new_group)
     return results
 
-
 def local_run() -> None:
     args = parse_args()
     # always run in dry-run mode in local environment, unless it's disabled.
@@ -284,7 +277,6 @@ def local_run() -> None:
 
 def lambda_handler(event, context):
     main()
-
 
 if __name__ == "__main__":
     local_run()
