@@ -129,6 +129,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "cmake",
     "colorama",
     "fbgemm_gpu",
+    "fbgemm_gpu_genai",
     "filelock",
     "fsspec",
     "idna",
