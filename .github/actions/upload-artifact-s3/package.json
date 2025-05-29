@@ -40,10 +40,13 @@
     "minimatch": "^9.0.3"
   },
   "devDependencies": {
-    "@types/jest": "^29.2.5",
+    "@babel/preset-env": "^7.27.2",
+    "@types/jest": "^29.5.14",
     "@types/node": "^18.11.18",
     "@typescript-eslint/parser": "^5.48.0",
     "@vercel/ncc": "^0.36.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "aws-sdk-client-mock-jest": "^4.1.0",
     "concurrently": "^7.6.0",
     "eslint": "^8.31.0",
     "eslint-plugin-github": "^4.6.0",
