@@ -94,7 +94,7 @@ Run ncipollo/release-action@v1
     tag: v20250422-162548
 ```
 
-Use the release name to find your release artifacts in the release page. [pytorch/test-infra/releases][https://github.com/pytorch/test-infra/releases]. If you build successfully, you can find your zip file in the release Assets.
+Use the release name to find your release artifacts in the release page. [pytorch/test-infra/releases](https://github.com/pytorch/test-infra/releases). If you build successfully, you can find your zip file in the release Assets.
 
 ## Setup infra resources and deploy the function to cloud
 go to [pytorch-gha-infra](https://github.com/pytorch-labs/pytorch-gha-infra)
