@@ -90,15 +90,9 @@ def insert_to_db(
 
 
 def get_clickhouse_client(
-    host: str, user: str, password: str, is_local: bool = False
+    host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-
-    # Only use in local development
-    if is_local:
-        return clickhouse_connect.get_client(
-            host=host, user=user, password=password, secure=True, verify=False
-        )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -232,6 +226,7 @@ class CostExplorerProcessor:
     ) -> Optional[List[str]]:
         """
         Get a list of time ranges based on the start and end time.
+
         """
         time_now = datetime.now(timezone.utc)
         logger.info(f"Local mode {self.is_local}: Starting job at UTC time {time_now}")
@@ -244,10 +239,15 @@ class CostExplorerProcessor:
 
         if self.is_local:
             # local run override the time range setup if start_time and end_time are provided
-            if self.is_local and args and args.start_time and args.end_time:
+            if args and args.start_time and args.end_time:
                 logger.warning(
                     f"[local run] Overriding the start time from default start_time: {start} to {args.start_time.strftime('%Y-%m-%d')}  end_time: {end} to {args.end_time.strftime('%Y-%m-%d')}"
                 )
+
+                # invalid time range, skip the job
+                if start > end:
+                    logger.warning(f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job")
+                    return None
                 start = args.start_time.strftime("%Y-%m-%d")
                 end = args.end_time.strftime("%Y-%m-%d")
                 return [start, end]
@@ -256,8 +256,12 @@ class CostExplorerProcessor:
         latest_unix_ts = get_latest_time_from_table(
             self.cc, DB_TABLE_NAME, DB_NAME, field_name
         )
-
         timestamp = int(latest_unix_ts)
+
+        # No data detected in the table, return the default time range
+        if timestamp == 0:
+            return  [start, end]
+
         db_start = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
         db_end = db_start + timedelta(days=1)
 
@@ -268,7 +272,6 @@ class CostExplorerProcessor:
         # skip the job if the latest time is already covered
         if db_end >= end_time:
             return None  # skip the job if the latest time is already covered
-
         start = max(db_end, start_time).strftime("%Y-%m-%d")
         return [start, end]
 
@@ -288,7 +291,6 @@ class CostExplorerProcessor:
                 args.clickhouse_endpoint,
                 args.clickhouse_username,
                 args.clickhouse_password,
-                is_local=True,
             )
             if args.start_time:
                 start = args.start_time.strftime("%Y-%m-%d")
