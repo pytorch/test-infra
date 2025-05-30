@@ -1,4 +1,5 @@
 import LoadingPage from "components/LoadingPage";
+import CustomDateRangePicker from "components/uiModules/CustomDateRangePicker";
 import MetricsTable, {
   MetricsTableUserMappingEntry,
 } from "components/uiModules/MetricsTable";
@@ -89,6 +90,7 @@ const UtilizationReport = () => {
   return (
     <div>
       <h2> Utilization Report Table: {params.group_by}</h2>
+      <CustomDateRangePicker />
       <MetricsTable userMapping={tableConfig} data={data.list} />
     </div>
   );
