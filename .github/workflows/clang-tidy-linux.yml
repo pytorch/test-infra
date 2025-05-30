@@ -41,7 +41,7 @@ jobs:
         uses: ./.github/actions/clang-tidy-upload
         with:
           platform: linux64
-          version: 19.1.4
+          version: 20.1.1
           upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 concurrency:
