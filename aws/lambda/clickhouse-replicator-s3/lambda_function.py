@@ -532,6 +532,17 @@ def stable_pushes_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def disabled_tests_historical_adapter(table, bucket, key):
+    schema = """
+    `day` Date,
+    `timestamp` DateTime,
+    `name` String,
+    `issueNumber` Int32,
+    `platforms` Array(String)
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -551,6 +562,7 @@ SUPPORTED_PATHS = {
     "debug_util_timeseries": "fortesting.oss_ci_time_series",
     "util_metadata":"misc.oss_ci_utilization_metadata",
     "util_timeseries":"misc.oss_ci_time_series",
+    "disabled_tests_historical": "misc.disabled_tests_historical"
 }
 
 OBJECT_CONVERTER = {
@@ -572,6 +584,7 @@ OBJECT_CONVERTER = {
     "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
+    "misc.disabled_tests_historical": disabled_tests_historical_adapter
 }
 
 
