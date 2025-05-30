@@ -221,12 +221,23 @@ class CostExplorerProcessor:
             "tags": [],
         }
 
+    def get_time_range_for_local(self, args: argparse.Namespace, start: str, end: str):
+        if args.start_time and args.end_time:
+            # invalid time range, skip the job
+            if args.start_time > args.end_time:
+                logger.warning(
+                    f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job"
+                )
+                return None
+            start = args.start_time.strftime("%Y-%m-%d")
+            end = args.end_time.strftime("%Y-%m-%d")
+        return [start, end]
+
     def get_time_range(
         self, field_name: str, args: Optional[argparse.Namespace] = None
     ) -> Optional[List[str]]:
         """
         Get a list of time ranges based on the start and end time.
-
         """
         time_now = datetime.now(timezone.utc)
         logger.info(f"Local mode {self.is_local}: Starting job at UTC time {time_now}")
@@ -237,34 +248,25 @@ class CostExplorerProcessor:
         start = start_time.strftime("%Y-%m-%d")
         end = end_time.strftime("%Y-%m-%d")
 
+        # For local run, the time range if time range is valid.
         if self.is_local:
-            # local run override the time range setup if start_time and end_time are provided
-            if args and args.start_time and args.end_time:
-                logger.warning(
-                    f"[local run] Overriding the start time from default start_time: {start} to {args.start_time.strftime('%Y-%m-%d')}  end_time: {end} to {args.end_time.strftime('%Y-%m-%d')}"
-                )
-
-                # invalid time range, skip the job
-                if start > end:
-                    logger.warning(f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job")
-                    return None
-                start = args.start_time.strftime("%Y-%m-%d")
-                end = args.end_time.strftime("%Y-%m-%d")
-                return [start, end]
+            return self.get_time_range_for_local(args, start, end) if args else None
 
         # Fetch the latest time from the table in case backfiling is needed
         latest_unix_ts = get_latest_time_from_table(
             self.cc, DB_TABLE_NAME, DB_NAME, field_name
         )
-        timestamp = int(latest_unix_ts)
 
         # No data detected in the table, return the default time range
+        timestamp = int(latest_unix_ts)
         if timestamp == 0:
-            return  [start, end]
+            logger.info(
+                f"no time data found in the table, use default plan: {start} to {end}"
+            )
+            return [start, end]
 
         db_start = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
         db_end = db_start + timedelta(days=1)
-
         logger.info(
             f"[get_time_range] Detected latest time range in the table is {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}, default plan is {start_time} to {end_time} "
         )
