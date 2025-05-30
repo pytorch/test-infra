@@ -521,7 +521,9 @@ export async function tryReuseRunner(
         console.debug(
           `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ${
             Config.Instance.minimumRunningTimeInMinutes
-          } mins, so it's likely to be reclaimed soon and should not be reused. It's been idle since ${finishedAt.format()}`,
+          } mins, so it's likely to be reclaimed soon and should not be reused. It's been idle since ${
+            finishedAt.format()
+          }`,
         );
         continue;
       }
