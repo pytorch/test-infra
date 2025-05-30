@@ -81,7 +81,7 @@ async function getUtilizationMetadata(
   job_id: string,
   run_attempt: string,
   repo: string = UTILIZATION_DEFAULT_REPO
-) {
+): Promise<UtilizationMetadata[]> {
   const response = await queryClickhouseSaved(UTIL_METADATA_QUERY_FOLDER_NAME, {
     workflowId: workflow_id,
     jobId: job_id,
@@ -89,7 +89,7 @@ async function getUtilizationMetadata(
     type: UTILIZATION_TYPE,
     repo: repo,
   });
-  return response;
+  return response as UtilizationMetadata[];
 }
 
 function getDisplayName(name: string) {
