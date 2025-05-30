@@ -145,6 +145,40 @@ jobs:
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
+      release-oss-ci-job-queue-time:
+
+    name:  Upload Release for oss-ci-aws-ce-tracking lambda
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build deployment.zip
+        working-directory: aws/lambda/oss_ci_aws_ce_tracking
+        run: make deployment.zip
+
+      - name: Copy deployment.zip to root
+        run: cp aws/lambda/oss_ci_aws_ce_tracking/deployment.zip oss-ci-aws-ce-tracking.zip
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "oss-ci-aws-ce-tracking.zip"
+          allowUpdates: true
+          draft: true
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+          updateOnlyUnreleased: true
+
 
   finish-release:
     needs:
