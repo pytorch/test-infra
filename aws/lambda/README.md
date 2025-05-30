@@ -6,15 +6,15 @@ This folder contains lambda functions used by the AWS Lambda service and managed
 
 ## Adding a New Lambda Function
 ### Step 1: Code Structure and Deployment File
-
-Create a new folder under this folder with the name of the lambda function. It should contain:
-
+Create a new folder under this folder with the name of the lambda function, It should contain:
 * `lambda_function.py`: the lambda function code.
 * `requirements.txt`: the dependencies of the lambda function.
 * `.gitignore`: the gitignore file.
 * `Makefile`: the makefile is used to build the lambda function package.
 * `[Recommended]README.MD`: a README file that explains what the lambda function does and how to use it.
 * `[Recommended]tests`: you can put your tests in `aws/lambda/tests` folder. The tests will be run by the CI.
+
+refer to exmaple: [aws/lambda/oss_ci_job_queue_time](https://github.com/pytorch/test-infra/tree/main/aws/lambda/oss_ci_job_queue_time).
 
 #### Makefile Example
 
