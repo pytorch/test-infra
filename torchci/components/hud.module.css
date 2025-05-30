@@ -3,6 +3,15 @@
   border-collapse: collapse;
   width: max-content;
   line-height: 1;
+  padding: 0;
+}
+
+/* Table wrapper with background to support rotated headers */
+.hudTableContainer {
+  background-color: var(--dropdown-bg);
+  display: inline-block;
+  padding-right: 100px;
+  margin-right: -100px; /* Offset the padding to maintain original spacing */
 }
 
 /* Fix the width of these columns to avoid layout shift when loading the HUD
@@ -22,6 +31,7 @@
 .colJob {
   width: 2ch;
   min-width: 14px;
+  position: relative; /* Add this to extend background */
 }
 .colAuthor {
   width: 12ch;
