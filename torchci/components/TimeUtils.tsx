@@ -72,7 +72,11 @@ export const TIME_DISPLAY_FORMAT = "M/D h:mm:ss A";
 
 export function formatTimeForCharts(
   time: string,
-  format = TIME_DISPLAY_FORMAT
+  format = TIME_DISPLAY_FORMAT,
+  useUTC = false
 ) {
+  if (useUTC) {
+    return dayjs.utc(time).format(format);
+  }
   return dayjs.utc(time).local().format(format);
 }
