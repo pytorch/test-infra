@@ -91,6 +91,16 @@ def validate_datetime(dt_str: str):
 
 
 class CostExplorerProcessor:
+    """
+    A processor for fetching, processing, and inserting AWS Cost Explorer data into a ClickHouse database.
+
+    Attributes:
+    - is_dry_run (bool): Indicates if the processor is running in dry-run mode, where no data is inserted into the database.
+    - aws_ce_client (boto3.client): A boto3 client for interacting with AWS Cost Explorer.
+    - cc (clickhouse_connect.driver.client.Client): A ClickHouse client for database operations, initialized at runtime.
+    - granularity (str): The granularity of the data to fetch from AWS Cost Explorer, default is "DAILY".
+    """
+
     def __init__(self, is_dry_run: bool = False):
         self.is_dry_run = is_dry_run
         self.aws_ce_client = boto3.client("ce")
@@ -179,6 +189,12 @@ class CostExplorerProcessor:
         }
 
     def start(self, args: Optional[argparse.Namespace] = None):
+        """
+        Starts the processor
+        Parameters:
+        - args (Optional[argparse.Namespace]): Command-line arguments for local execution.
+        """
+
         # set up time range for fetching data from AWS Cost Explorer
         time_now = datetime.now(timezone.utc)
         logger.info(f"Starting job at UTC time {time_now}")
@@ -189,7 +205,7 @@ class CostExplorerProcessor:
         start = start_time.strftime("%Y-%m-%d")
         end = end_time.strftime("%Y-%m-%d")
 
-        # set up initialization for clickhouse and arguments based on running environments
+        # set up clickhouse client based on running environments
         if args:
             logger.info("Running with provided command-line arguments.")
             self.cc = get_clickhouse_client(
@@ -205,10 +221,9 @@ class CostExplorerProcessor:
             logger.info("Running with environment variables.")
             self.cc = get_clickhouse_client_environment()
 
-        # fetch data from AWS Cost Explorer
+        # Fetch data from AWS Cost Explorer
         data = self._fetch(self.aws_ce_client, start, end, self.granularity)
         results = data.get("ResultsByTime", [])
-
         if not results:
             logger.info("No result data found from AWS Cost Explorer.")
             return
@@ -217,7 +232,7 @@ class CostExplorerProcessor:
                 f"Detected {len(results)} time series data points from AWS Cost Explorer."
             )
 
-        # process the raw data into database records
+        # convert data into database records
         logger.info("Flattening the raw data into pre-database records.")
         recordList = self._process_raw_ce_data(results)
         logger.info("Completed flattening the raw data into pre-database records.")
@@ -241,7 +256,7 @@ class CostExplorerProcessor:
                 f"Peeking the first database record: {json.dumps(db_records[0])}"
             )
 
-        # insert records
+        # Insert records
         if self.is_dry_run:
             logger.info("Running in dry-run mode, skipping database insertion.")
             return
