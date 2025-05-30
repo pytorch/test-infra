@@ -1,0 +1,84 @@
+{
+    "agent": {
+        "metrics_collection_interval": 10
+    },
+    "metrics": {
+      "namespace": "GHARunners/gi-ci-pet-benchmark",
+      "append_dimensions": {
+        "ImageID":"${aws:ImageId}",
+        "InstanceId":"${aws:InstanceId}",
+        "InstanceType":"${aws:InstanceType}"
+      },
+      "aggregation_dimensions": [
+        ["ImageID"],
+        ["InstanceType"],
+        ["ImageID", "InstanceType"],
+        ["InstanceId"]
+      ],
+       "metrics_collected": {
+            "cpu": {
+                "measurement": [
+                    "cpu_usage_idle",
+                    "cpu_usage_iowait",
+                    "cpu_usage_user",
+                    "cpu_usage_system"
+                ],
+                "metrics_collection_interval": 10
+            },
+            "disk": {
+                "measurement": [
+                    "free",
+                    "total",
+                    "used",
+                    "used_percent",
+                    "inodes_free",
+                    "inodes_total"
+                ],
+                "metrics_collection_interval": 10,
+                "resources": [
+                    "/"
+                ]
+            },
+            "diskio": {
+                "measurement": [
+                    "io_time"
+                ],
+                "metrics_collection_interval": 10,
+                "resources": [
+                    "/"
+                ]
+            },
+            "mem": {
+                "measurement": [
+                    "total",
+                    "used",
+                    "free",
+                    "used_percent"
+                ],
+                "metrics_collection_interval": 10
+            },
+            "swap": {
+                "measurement": [
+                    "swap_used_percent"
+                ],
+                "metrics_collection_interval": 10
+            }
+        }
+    },
+    "logs": {
+        "logs_collected": {
+            "files": {
+                "collect_list": [{
+                    "log_group_name": "benchmark_ghad",
+                    "file_path": "/var/log/ghad-manager.log",
+                    "log_stream_name": "{instance_id}"
+                },
+                {
+                    "log_group_name" : "linux_msyslog",
+                    "file_path" : "/var/log/syslog",
+                    "log_stream_name" : "{instance_id}"
+                }]
+            }
+        }
+    }
+}
