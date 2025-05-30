@@ -204,10 +204,10 @@ def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
 def insert_to_db(
     cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]
 ):
-    #db_name = "misc"
+    # db_name = "misc"
     db_name = "fortesting"
 
-    #db_table_name = "oss_ci_aws_ce_tracking"
+    # db_table_name = "oss_ci_aws_ce_tracking"
     db_table_name = "oss_ci_ce_tracking"
     logger.info(f"Insert data to db table: {db_name}.{db_table_name}")
     if len(records) == 0:
