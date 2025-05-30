@@ -230,7 +230,7 @@ class CostExplorerProcessor:
                 f"Detected {len(results)} time series data points from AWS Cost Explorer."
             )
 
-        # convert data into database records
+        # Convert data into database records
         logger.info("Flattening the raw data into pre-database records.")
         recordList = self._process_raw_ce_data(results)
         logger.info("Completed flattening the raw data into pre-database records.")
