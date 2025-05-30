@@ -425,6 +425,7 @@ export default function Page() {
             auto_refresh={false}
             max_items_in_series={30}
             legendPadding={300}
+            useUTC={true}
           />
         )}
         {isLoading && <div>Loading...</div>}
@@ -855,6 +856,7 @@ export default function Page() {
               timeFieldDisplayFormat="M/D (UTC)"
               sort_by="total"
               auto_refresh={false}
+              useUTC={true}
               defaultOptions={{
                 platform: OS_OPTIONS,
                 gpu: GPU_OPTIONS,
