@@ -25,8 +25,8 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
 
-DB_NAME = "fortesting"
-DB_TABLE_NAME = "oss_ci_ce_tracking"
+DB_NAME = "misc"
+DB_TABLE_NAME = "oss_ci_aws_ce_tracking"
 
 
 # todo(elainewy): make it a shared library for lambda

@@ -10,7 +10,7 @@ CREATE TABLE misc.oss_ci_aws_ce_tracking(
     `extra_info` Map(String,String),
     `tags` Array(String) DEFAULT []
 )
-ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
+ENGINE = ReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(time)
 ORDER BY (
     type,
@@ -19,5 +19,4 @@ ORDER BY (
     instance_type,
     usage_type
 )
-TTL toDate(time) + toIntervalYear(5)
 SETTINGS index_granularity = 8192
