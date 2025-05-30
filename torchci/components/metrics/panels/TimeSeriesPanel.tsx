@@ -180,6 +180,8 @@ export function TimeSeriesPanelWithData({
   // To avoid overlapping long legends and the chart
   legendPadding = 200,
   onEvents,
+  // Whether to keep dates in UTC or convert to local time
+  useUTC = false,
 }: {
   data: any;
   series: any;
@@ -191,6 +193,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions?: EChartsOption;
   legendPadding?: number;
   onEvents?: { [key: string]: any };
+  useUTC?: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
@@ -247,7 +250,8 @@ export function TimeSeriesPanelWithData({
           `${params.seriesName}` +
           `<br/>${formatTimeForCharts(
             params.value[0],
-            timeFieldDisplayFormat
+            timeFieldDisplayFormat,
+            useUTC
           )}<br/>` +
           `${getTooltipMarker(params.color)}` +
           `<b>${yAxisRenderer(params.value[1])}</b>` +
@@ -436,6 +440,7 @@ export default function TimeSeriesPanel({
       timeFieldDisplayFormat={timeFieldDisplayFormat}
       additionalOptions={additionalOptions}
       legendPadding={legendPadding}
+      useUTC={useUTC}
     />
   );
 }
