@@ -28,7 +28,6 @@ ENVS = {
 DB_NAME = "misc"
 DB_TABLE_NAME = "oss_ci_aws_ce_tracking"
 
-
 # todo(elainewy): make it a shared library for lambda
 def get_latest_time_from_table(
     cc: clickhouse_connect.driver.client.Client,
@@ -93,9 +92,10 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
+    return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True
+        host=host, user=user, password=password, secure=True,
     )
 
 
@@ -221,16 +221,14 @@ class CostExplorerProcessor:
             "tags": [],
         }
 
-    def get_time_range_for_local(self, args: argparse.Namespace, start: str, end: str):
-        if args.start_time and args.end_time:
-            # invalid time range, skip the job
-            if args.start_time > args.end_time:
-                logger.warning(
-                    f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job"
-                )
-                return None
-            start = args.start_time.strftime("%Y-%m-%d")
-            end = args.end_time.strftime("%Y-%m-%d")
+    def get_time_range_for_local(self, args: argparse.Namespace):
+        if args.start_time > args.end_time:
+            logger.warning(
+                f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job"
+            )
+            return None
+        start = args.start_time.strftime("%Y-%m-%d")
+        end = args.end_time.strftime("%Y-%m-%d")
         return [start, end]
 
     def get_time_range(
@@ -248,9 +246,9 @@ class CostExplorerProcessor:
         start = start_time.strftime("%Y-%m-%d")
         end = end_time.strftime("%Y-%m-%d")
 
-        # For local run, the time range if time range is valid.
-        if self.is_local:
-            return self.get_time_range_for_local(args, start, end) if args else None
+        # For local run, overrides the time range if time range is valid.
+        if self.is_local and args and args.start_time and args.end_time:
+            return self.get_time_range_for_local(args)
 
         # Fetch the latest time from the table in case backfiling is needed
         latest_unix_ts = get_latest_time_from_table(
