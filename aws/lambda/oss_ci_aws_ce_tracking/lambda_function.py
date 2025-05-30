@@ -12,6 +12,7 @@ import copy
 from typing import Any, Optional, Dict, List
 from datetime import datetime, timezone, timedelta
 
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
 )
@@ -23,6 +24,36 @@ ENVS = {
     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
+
+DB_NAME = "fortesting"
+DB_TABLE_NAME = "oss_ci_ce_tracking"
+
+
+def insert_to_db(
+    client: clickhouse_connect.driver.client.Client,
+    records: List[Dict[str, Any]],
+    db_name: str,
+    db_table_name: str,
+):
+    logger.info(f"Preparing to insert data into table: {db_name}.{db_table_name}")
+
+    if not records:
+        logger.info("No records to insert, skipping database write operation.")
+        return
+
+    columns = list(records[0].keys())
+    data = [list(record.values()) for record in records]
+
+    logger.info(f"Inserting {len(data)} records into {db_name}.{db_table_name}")
+    client.insert(
+        table=db_table_name,
+        data=data,
+        column_names=columns,
+        database=db_name,
+    )
+    logger.info(
+        f"Successfully inserted {len(data)} records into {db_name}.{db_table_name}"
+    )
 
 
 def get_clickhouse_client(
@@ -49,41 +80,174 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
 
 def validate_datetime(dt_str: str):
     """
-    use to validate the datetime string in the format of "YYYY-MM-DDTHH:MM:SSZ" for local run input
+    use to validate the datetime string in the format of "YYYY-MM-DD" for local run input
     """
     try:
-        return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ")
+        return datetime.strptime(dt_str, "%Y-%m-%d")
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid datetime format: '{dt_str}'. Expected format: YYYY-MM-DDTHH:MM:SSZ"
+            f"Invalid datetime format: '{dt_str}'. Expected format: YYYY-MM-DD"
         )
 
 
-def get_data_from_ce(client: Any, start: str, end: str, granularity="HOURLY"):
-    """
-    get data from aws cost explorer endpoint for EC2 UsageQuantity with HOURLY granularity
-    """
-    logger.info(
-        f"Fetching data from aws cost explorer endpoint within time range {start} to {end} ....."
-    )
-    return client.get_cost_and_usage(
-        TimePeriod={
-            "Start": start,
-            "End": end,
-        },
-        Granularity=granularity,
-        Metrics=["UsageQuantity"],
-        GroupBy=[
-            {"Type": "DIMENSION", "Key": "INSTANCE_TYPE"},
-            {"Type": "DIMENSION", "Key": "USAGE_TYPE"},
-        ],
-        Filter={
-            "Dimensions": {
-                "Key": "SERVICE",
-                "Values": ["Amazon Elastic Compute Cloud - Compute"],
-            }
-        },
-    )
+class CostExplorerProcessor:
+    def __init__(self, is_dry_run: bool = False):
+        self.is_dry_run = is_dry_run
+        self.aws_ce_client = boto3.client("ce")
+        self.cc = None  # clickhouse client set in runtime
+        self.granularity = "DAILY"
+
+    def _fetch(self, client: Any, start: str, end: str, granularity="HOURLY"):
+        logger.info(
+            f"Fetching data from aws cost explorer endpoint within time range {start} to {end} ....."
+        )
+        return client.get_cost_and_usage(
+            TimePeriod={
+                "Start": start,
+                "End": end,
+            },
+            Granularity=granularity,
+            Metrics=["UsageQuantity"],
+            GroupBy=[
+                {"Type": "DIMENSION", "Key": "INSTANCE_TYPE"},
+                {"Type": "DIMENSION", "Key": "USAGE_TYPE"},
+            ],
+            Filter={
+                "Dimensions": {
+                    "Key": "SERVICE",
+                    "Values": ["Amazon Elastic Compute Cloud - Compute"],
+                }
+            },
+        )
+
+    def _process_raw_ce_data(self, resp_reults: List[Dict[str, Any]]):
+        filtered = copy.deepcopy(resp_reults)
+        # filter NoInstanceType since it's normally related to other usages
+        for res in filtered:
+            # filted Groups with keys `NoInstanceType``
+            filtered_groups = [
+                group
+                for group in res.get("Groups", [])
+                if "NoInstanceType" not in group.get("Keys", [])
+            ]
+            res["Groups"] = filtered_groups
+
+        # flatten the aws results in to a record that is ready for clickhouse schema conversion
+        res = []
+        for ts_record in filtered:
+            falttened_list = self.flatten_ts_record(ts_record)
+            res.extend(falttened_list)
+        return res
+
+    def flatten_ts_record(self, record: Dict[str, Any]) -> List[Dict[str, Any]]:
+        results = []
+        start = record.get("TimePeriod", {}).get("Start")
+        end = record.get("TimePeriod", {}).get("End")
+        for group in record["Groups"]:
+            new_group = {}
+            new_group["Start"] = start
+            new_group["End"] = end
+            new_group["Keys"] = group.get("Keys", [])
+            usage_quantity = group.get("Metrics", {}).get("UsageQuantity", {})
+            new_group["Amount"] = usage_quantity.get("Amount", 0)
+            new_group["Unit"] = usage_quantity.get("Unit", 0)
+            results.append(new_group)
+        return results
+
+    def to_db_schema(
+        self, record: Dict[str, Any], record_type: str, granularity: str
+    ) -> Optional[Dict[str, Any]]:
+        keys = record.get("Keys", [])
+        startTime = record.get("Start", "").replace("Z", "+00:00")
+        now = datetime.now(timezone.utc).isoformat()
+        if len(keys) < 2:
+            logger.warning(
+                f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
+            )
+            return None
+        return {
+            "created": now,
+            "type": record_type,
+            "granularity": granularity,
+            "time": startTime,
+            "instance_type": keys[0],
+            "usage_type": keys[1],
+            "unit": record.get("Unit", ""),
+            "value": record.get("Amount", 0),
+            "extra_info": {},
+            "tags": [],
+        }
+
+    def start(self, args: Optional[argparse.Namespace] = None):
+        # set up time range for fetching data from AWS Cost Explorer
+        time_now = datetime.now(timezone.utc)
+        logger.info(f"Starting job at UTC time {time_now}")
+
+        end_time = datetime.now(timezone.utc).date() - timedelta(days=1)
+        start_time = end_time - timedelta(days=1)
+
+        start = start_time.strftime("%Y-%m-%d")
+        end = end_time.strftime("%Y-%m-%d")
+
+        # set up initialization for clickhouse and arguments based on running environments
+        if args:
+            logger.info("Running with provided command-line arguments.")
+            self.cc = get_clickhouse_client(
+                args.clickhouse_endpoint,
+                args.clickhouse_username,
+                args.clickhouse_password,
+            )
+            if args.start_time:
+                start = args.start_time.strftime("%Y-%m-%d")
+            if args.end_time:
+                end = args.end_time.strftime("%Y-%m-%d")
+        else:
+            logger.info("Running with environment variables.")
+            self.cc = get_clickhouse_client_environment()
+
+        # fetch data from AWS Cost Explorer
+        data = self._fetch(self.aws_ce_client, start, end, self.granularity)
+        results = data.get("ResultsByTime", [])
+
+        if not results:
+            logger.info("No result data found from AWS Cost Explorer.")
+            return
+        else:
+            logger.info(
+                f"Detected {len(results)} time series data points from AWS Cost Explorer."
+            )
+
+        # process the raw data into database records
+        logger.info("Flattening the raw data into pre-database records.")
+        recordList = self._process_raw_ce_data(results)
+        logger.info("Completed flattening the raw data into pre-database records.")
+
+        if recordList:
+            logger.info(f"Peeking the first record: {json.dumps(recordList[0])}")
+            logger.info(f"Peeking the last record: {json.dumps(recordList[-1])}")
+        else:
+            logger.info("No pre-database records were generated.")
+            return
+
+        logger.info("Generating database records.")
+        db_records = []
+        for record in recordList:
+            db_rec = self.to_db_schema(record, "meta-runner-ec", self.granularity)
+            if db_rec:
+                db_records.append(db_rec)
+        logger.info(f"Generated {len(db_records)} database records.")
+        if db_records:
+            logger.info(
+                f"Peeking the first database record: {json.dumps(db_records[0])}"
+            )
+
+        # insert records
+        if self.is_dry_run:
+            logger.info("Running in dry-run mode, skipping database insertion.")
+            return
+        else:
+            logger.info("Inserting records into the database.")
+            insert_to_db(self.cc, db_records, DB_NAME, DB_TABLE_NAME)
 
 
 def parse_args() -> argparse.Namespace:
@@ -130,173 +294,17 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def main(args: Optional[argparse.Namespace] = None, is_dry_run: bool = False):
-    # set up initialization for clickhouse and arguments based on running environments
-    time_now = datetime.now(timezone.utc)
-    logger.info(f"Starting job at utc time {time_now}")
-
-    # hard-code for granularity to be DAILY for now
-    granularity = "DAILY"
-
-    # Get date 2 days ago, since aws cost exploerer has delay to generate the data, we leave 1 day buffer
-    end_time = datetime.now(timezone.utc).date() - timedelta(days=1)
-    start_time = end_time - timedelta(days=1)
-
-    start = start_time.strftime("%Y-%m-%d")
-    end = end_time.strftime("%Y-%m-%d")
-
-    aws_ce_client = boto3.client("ce")
-
-    if args:
-        cc = get_clickhouse_client(
-            args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
-        )
-        if args.start_time:
-            start = args.start_time.strftime("%Y-%m-%d")
-        if args.end_time:
-            end = args.end_time.strftime("%Y-%m-%d")
-    else:
-        cc = get_clickhouse_client_environment()
-
-    data = get_data_from_ce(aws_ce_client, start, end, granularity)
-    results = data.get("ResultsByTime", [])
-
-    if len(results) == 0:
-        logger.info("no result data is found from aws ce")
-        return
-    else:
-        logger.info(f"detecting {len(results)} time series data point from aws ce")
-    logger.info(f"Flattening the raw data into pre-db records .....")
-
-    # extra and flatten aws result to pre-db record
-    recordList = processCostExplorerResults(results)
-    logger.info(f"Done. Flattening the raw data into pre-db records")
-
-    if len(recordList) > 0:
-        logger.info(f"Peeking the record: {json.dumps(recordList[0])}")
-        logger.info(f"Peeking the last record: {json.dumps(recordList[-1])}")
-    else:
-        logger.info(f"No pre-db records were generated")
-        return
-
-    logger.info(f"Generating db records .....")
-    db_records = []
-    for record in recordList:
-        db_rec = to_db_schema(record, "meta-runner-ec", granularity)
-        if not db_rec:
-            continue
-        db_records.append(db_rec)
-    logger.info(f"Done. Generated {len(db_records)} db records .....")
-    logger.info(f"Peeking the db record: {json.dumps(db_records[0])}")
-
-    if is_dry_run:
-        logger.info(
-            f"run in dry-run mode, skipping writing to db, instead print the db records"
-        )
-        # print(json.dumps(db_records))
-        return
-    else:
-        insert_to_db(cc, db_records)
-
-
-def insert_to_db(
-    cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]
-):
-    # db_name = "misc"
-    db_name = "fortesting"
-
-    # db_table_name = "oss_ci_aws_ce_tracking"
-    db_table_name = "oss_ci_ce_tracking"
-    logger.info(f"Insert data to db table: {db_name}.{db_table_name}")
-    if len(records) == 0:
-        logger.info(f" No histogram records, skipping writing..")
-        return
-    columns = list(records[0].keys())
-    data = [list(record.values()) for record in records]
-    cc.insert(
-        table=db_table_name,
-        data=data,
-        column_names=columns,
-        database=db_name,
-    )
-    logger.info(f" done. Insert {len(data)} to db table: {db_name}.{db_table_name}")
-
-
-def to_db_schema(record: Dict[str, Any], type: str, granularity: str) -> Dict[str, Any]:
-    keys = record.get("Keys", [])
-    startTime = record.get("Start")
-    startTime = startTime.replace("Z", "+00:00")
-    now = datetime.now(timezone.utc).isoformat()
-    if len(keys) < 2:
-        logger.warning(
-            f"Expected two keys from Record, but got {len(record)}, skipping the record"
-        )
-        return None
-    return {
-        "created": now,
-        "type": type,
-        "granularity": granularity,
-        "time": startTime,
-        "instance_type": keys[0],
-        "usage_type": keys[1],
-        "unit": record.get("Unit", ""),
-        "value": record.get("Amount", 0),
-        "extra_info": {},
-        "tags": [],
-    }
-
-
-def processCostExplorerResults(resp_reults: List[Dict[str, Any]]):
-    filtered = copy.deepcopy(resp_reults)
-    # filter NoInstanceType since it's normally related to other usages
-    for res in filtered:
-        # filted Groups with keys `NoInstanceType``
-        filtered_groups = [
-            group
-            for group in res.get("Groups", [])
-            if "NoInstanceType" not in group.get("Keys", [])
-        ]
-        res["Groups"] = filtered_groups
-
-    # flatten the aws results in to a record that is ready for clickhouse schema conversion
-    res = []
-    for ts_record in filtered:
-        falttened_list = flatten_ts_record(ts_record)
-        res.extend(falttened_list)
-    return res
-
-
-def flatten_ts_record(record: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    return ex;{'Start': '2025-05-28T00:00:00Z', 'End': '2025-05-28T01:00:00Z', 'Keys': ['c5.12xlarge', 'BoxUsage:c5.12xlarge'], 'Amount': '157.445277', 'Unit': 'Hrs'}
-    """
-    results = []
-    start = record.get("TimePeriod", {}).get("Start")
-    end = record.get("TimePeriod", {}).get("End")
-    for group in record["Groups"]:
-        new_group = {}
-        new_group["Start"] = start
-        new_group["End"] = end
-        new_group["Keys"] = group.get("Keys", [])
-        usage_quantity = group.get("Metrics", {}).get("UsageQuantity", {})
-        new_group["Amount"] = usage_quantity.get("Amount", 0)
-        new_group["Unit"] = usage_quantity.get("Unit", 0)
-        results.append(new_group)
-    return results
-
-
+# Usage
 def local_run() -> None:
     args = parse_args()
-    # always run in dry-run mode in local environment, unless it's disabled.
-
     is_dry_run = not args.not_dry_run
-    if is_dry_run:
-        logger.info(f"run locally with dry run mode")
-    main(args, is_dry_run)
+    processor = CostExplorerProcessor(is_dry_run)
+    processor.start(args)
 
 
 def lambda_handler(event: Any, context: Any) -> None:
-    main()
+    processor = CostExplorerProcessor()
+    processor.start()
 
 
 if __name__ == "__main__":
