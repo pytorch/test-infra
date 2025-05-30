@@ -207,7 +207,7 @@ class CostExplorerProcessor:
             logger.warning(
                 f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
             )
-            return None
+            raise Exception(f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}")
         return {
             "created": now,
             "type": record_type,
