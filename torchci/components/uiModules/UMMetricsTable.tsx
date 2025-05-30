@@ -1,9 +1,7 @@
-import { Box } from "@mui/system";
 import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { UMCheckboxPopover } from "./UMCheckboxPopover";
+import { useMemo } from "react";
 
 export enum ValueType {
   String = "string",
@@ -55,14 +53,12 @@ type Props = {
 };
 
 export default function MetricsTable({ userMapping, data }: Props) {
-
   const staticColumns = generateStaticColumns(userMapping);
   const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
   const metricColumns = generateMetricColumns(metricKeys, userMapping);
-
+  
   const columns = [...staticColumns, ...metricColumns];
   const rows = getRows(data, userMapping);
-
   return (
     <>
       <div style={{ height: "600px", width: "100%" }}>
