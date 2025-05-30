@@ -10,14 +10,14 @@ import argparse
 import json
 import os
 import re
+import time
 import urllib
+from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any, cast, Dict, List, Optional, Tuple
-import time
-from typing import Any, Dict
 from urllib.request import Request, urlopen
+
 from gen_historical_disabled_issue_data import format_info
-from datetime import datetime, timezone
 
 
 DISABLED_PREFIX = "DISABLED"
@@ -351,12 +351,11 @@ def main() -> None:
     with open("for_historical_records.json", mode="w") as file:
         timestamp = time.time()
         day = datetime.fromtimestamp(timestamp, tz=timezone.utc).date().isoformat()
-        info = format_info(
-            disabled_test_info, day, int(timestamp)
-        )
+        info = format_info(disabled_test_info, day, int(timestamp))
         for item in info:
             json.dump(item, file)
             file.write("\n")
+
 
 if __name__ == "__main__":
     main()
