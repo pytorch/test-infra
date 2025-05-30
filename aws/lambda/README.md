@@ -1,6 +1,3 @@
-Here is the raw markdown content with some improvements:
-
-```markdown
 # AWS Lambda Functions
 This folder contains lambda functions used by the AWS Lambda service and managed by the PyTorch team.
 
