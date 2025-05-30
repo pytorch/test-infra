@@ -55,11 +55,17 @@ def insert_to_db(
         f"Successfully inserted {len(data)} records into {db_name}.{db_table_name}"
     )
 
+
 def get_clickhouse_client(
-    host: str, user: str, password: str
+    host: str, user: str, password: str, is_local: bool = False
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+
+    # Only use in local development
+    if is_local:
+        return clickhouse_connect.get_client(
+            host=host, user=user, password=password, secure=True, verify=False
+        )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -87,6 +93,7 @@ def validate_datetime(dt_str: str):
         raise argparse.ArgumentTypeError(
             f"Invalid datetime format: '{dt_str}'. Expected format: YYYY-MM-DD"
         )
+
 
 class CostExplorerProcessor:
     """
@@ -205,11 +212,14 @@ class CostExplorerProcessor:
 
         # set up clickhouse client based on running environments
         if args:
-            logger.info("Running with provided command-line arguments.")
+            logger.info(
+                "Running with provided command-line arguments for local environment."
+            )
             self.cc = get_clickhouse_client(
                 args.clickhouse_endpoint,
                 args.clickhouse_username,
                 args.clickhouse_password,
+                is_local=True,
             )
             if args.start_time:
                 start = args.start_time.strftime("%Y-%m-%d")
