@@ -74,5 +74,5 @@ export function formatTimeForCharts(
   time: string,
   format = TIME_DISPLAY_FORMAT
 ) {
-  return dayjs.utc(time).local().format(format);
+  return dayjs.utc(time).format(format);
 }
