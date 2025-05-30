@@ -145,8 +145,8 @@ jobs:
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
-      release-oss-ci-job-queue-time:
 
+  release-oss-ci-aws-ce-tracking:
     name:  Upload Release for oss-ci-aws-ce-tracking lambda
     runs-on: ubuntu-latest
     permissions:
