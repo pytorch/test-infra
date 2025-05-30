@@ -29,6 +29,39 @@ DB_NAME = "fortesting"
 DB_TABLE_NAME = "oss_ci_ce_tracking"
 
 
+# todo(elainewy): make it a shared library for lambda
+def get_latest_time_from_table(
+    cc: clickhouse_connect.driver.client.Client,
+    table_name: str,
+    db_name: str,
+    field_name: str,
+) -> str:
+    if not field_name:
+        raise ValueError("field_name is required")
+    if not table_name:
+        raise ValueError("table_name is required")
+    if not db_name:
+        raise ValueError("db_name is required")
+
+    query = f"""
+        SELECT toUnixTimestamp(MAX(time)) as latest FROM {db_name}.{table_name}
+        """
+    logger.info(
+        f"Getting lastest time field '{field_name}' from {db_name}.{table_name}...."
+    )
+    res = cc.query(query, {})
+
+    if res.row_count != 1:
+        raise ValueError(
+            f" [get_latest_time_from_table] Expected 1 row, got {res.row_count}"
+        )
+    if len(res.column_names) != 1:
+        raise ValueError(
+            f" [get_latest_time_from_table] Expected 1 column, got {str(len(res.column_names))}"
+        )
+    return res.result_rows[0][0]
+
+
 def insert_to_db(
     client: clickhouse_connect.driver.client.Client,
     records: List[Dict[str, Any]],
@@ -106,8 +139,9 @@ class CostExplorerProcessor:
     - granularity (str): The granularity of the data to fetch from AWS Cost Explorer, default is "DAILY".
     """
 
-    def __init__(self, is_dry_run: bool = False):
+    def __init__(self, is_dry_run: bool = False, is_local: bool = False):
         self.is_dry_run = is_dry_run
+        self.is_local = is_local
         self.aws_ce_client = boto3.client("ce")
         self.cc = None  # clickhouse client set in runtime
         self.granularity = "DAILY"
@@ -193,22 +227,57 @@ class CostExplorerProcessor:
             "tags": [],
         }
 
+    def get_time_range(
+        self, field_name: str, args: Optional[argparse.Namespace] = None
+    ) -> Optional[List[str]]:
+        """
+        Get a list of time ranges based on the start and end time.
+        """
+        time_now = datetime.now(timezone.utc)
+        logger.info(f"Local mode {self.is_local}: Starting job at UTC time {time_now}")
+
+        # Set default data range to be 2 days ago
+        end_time = time_now.date() - timedelta(days=1)
+        start_time = end_time - timedelta(days=1)
+        start = start_time.strftime("%Y-%m-%d")
+        end = end_time.strftime("%Y-%m-%d")
+
+        if self.is_local:
+            # local run override the time range setup if start_time and end_time are provided
+            if self.is_local and args and args.start_time and args.end_time:
+                logger.warning(
+                    f"[local run] Overriding the start time from default start_time: {start} to {args.start_time.strftime('%Y-%m-%d')}  end_time: {end} to {args.end_time.strftime('%Y-%m-%d')}"
+                )
+                start = args.start_time.strftime("%Y-%m-%d")
+                end = args.end_time.strftime("%Y-%m-%d")
+                return [start, end]
+
+        # Fetch the latest time from the table in case backfiling is needed
+        latest_unix_ts = get_latest_time_from_table(
+            self.cc, DB_TABLE_NAME, DB_NAME, field_name
+        )
+
+        timestamp = int(latest_unix_ts)
+        db_start = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
+        db_end = db_start + timedelta(days=1)
+
+        logger.info(
+            f"[get_time_range] Detected latest time range in the table is {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}, default plan is {start_time} to {end_time} "
+        )
+
+        # skip the job if the latest time is already covered
+        if db_end >= end_time:
+            return None  # skip the job if the latest time is already covered
+
+        start = max(db_end, start_time).strftime("%Y-%m-%d")
+        return [start, end]
+
     def start(self, args: Optional[argparse.Namespace] = None):
         """
         Starts the processor
         Parameters:
         - args (Optional[argparse.Namespace]): Command-line arguments for local execution.
         """
-
-        # set up time range for fetching data from AWS Cost Explorer
-        time_now = datetime.now(timezone.utc)
-        logger.info(f"Starting job at UTC time {time_now}")
-
-        end_time = datetime.now(timezone.utc).date() - timedelta(days=1)
-        start_time = end_time - timedelta(days=1)
-
-        start = start_time.strftime("%Y-%m-%d")
-        end = end_time.strftime("%Y-%m-%d")
 
         # set up clickhouse client based on running environments
         if args:
@@ -228,6 +297,17 @@ class CostExplorerProcessor:
         else:
             logger.info("Running with environment variables.")
             self.cc = get_clickhouse_client_environment()
+
+        time_range = self.get_time_range("time", args)
+        if not time_range:
+            logger.info("No data needed to process, skipping the job.")
+            return
+
+        start = time_range[0]
+        end = time_range[1]
+        logger.info(
+            f"Planning to fetch data from AWS Cost Explorer for time range {start} to {end}"
+        )
 
         # Fetch data from AWS Cost Explorer
         data = self._fetch(self.aws_ce_client, start, end, self.granularity)
@@ -321,7 +401,7 @@ def parse_args() -> argparse.Namespace:
 def local_run() -> None:
     args = parse_args()
     is_dry_run = not args.not_dry_run
-    processor = CostExplorerProcessor(is_dry_run)
+    processor = CostExplorerProcessor(is_dry_run, is_local=True)
     processor.start(args)
 
 
