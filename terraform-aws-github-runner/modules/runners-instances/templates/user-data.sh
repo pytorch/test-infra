@@ -72,7 +72,7 @@ if ! command -v git 2>/dev/null; then
   retry sudo dnf install -y git
 fi
 if ! command -v pip3 2>/dev/null; then
-  echo "Installing git"
+  echo "Installing pip"
   retry sudo dnf install -y pip
 fi
 
@@ -94,10 +94,11 @@ else
   fi
 fi
 
-service docker start
-usermod -a -G docker ec2-user
-
 USER_NAME=ec2-user
+
+service docker start
+usermod -a -G docker $USER_NAME
+
 ${install_config_runner}
 
 retry sudo dnf groupinstall -y 'Development Tools'
@@ -120,7 +121,7 @@ retry sudo dnf install -y dnf-plugins-core
 retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
 
 echo Installing nvidia-docker tools
-retry sudo $PKG_MANAGER install -y nvidia-docker2
+retry sudo dnf install -y nvidia-docker2
 sudo systemctl restart docker
 
 %{ endif ~}
