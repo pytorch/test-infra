@@ -37,6 +37,7 @@ export default function TimeSeriesTable({
   auto_refresh = true,
   dataReader = undefined,
   defaultOptions = {},
+  useUTC = false,
 }: {
   title: string;
   queryName: string;
@@ -54,6 +55,7 @@ export default function TimeSeriesTable({
   auto_refresh?: boolean;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
   defaultOptions?: { [key: string]: string[] };
+  useUTC?: boolean;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -117,7 +119,8 @@ export default function TimeSeriesTable({
       ...timestamps.map((timestamp) => {
         const formattedTime = formatTimeForCharts(
           timestamp,
-          timeFieldDisplayFormat
+          timeFieldDisplayFormat,
+          useUTC
         );
         return {
           field: timestamp,
