@@ -519,11 +519,9 @@ export async function tryReuseRunner(
 
       if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
         console.debug(
-          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ${
-            Config.Instance.minimumRunningTimeInMinutes
-          } mins, so it's likely to be reclaimed soon and should not be reused. It's been idle since ${
-            finishedAt.format()
-          }`,
+          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+            `not be reused. It's been idle since ${finishedAt.format()}`,
         );
         continue;
       }
