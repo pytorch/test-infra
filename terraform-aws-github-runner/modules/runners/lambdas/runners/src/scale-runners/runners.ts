@@ -517,13 +517,11 @@ export async function tryReuseRunner(
         continue;
       }
 
-      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes - 5, 'minutes') < moment(new Date()).utc()) {
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
         console.debug(
-          `[tryReuseRunner]: Runner ${
-            runner.instanceId
-          } is already over minimumRunningTimeInMinutes time to be reused ${
+          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ${
             Config.Instance.minimumRunningTimeInMinutes
-          } ${runner.ephemeralRunnerFinished} ${moment(new Date()).utc().toDate().getTime() / 1000}`,
+          } mins, so it's likely to be reclaimed soon and should not be reused. It's been idle since ${finishedAt.format()}`,
         );
         continue;
       }
@@ -552,7 +550,7 @@ export async function tryReuseRunner(
           const ec2 = ec2M.get(runner.awsRegion) as EC2;
 
           // should come before removing other tags, this is useful so
-          // there is always a tag present for scaeDown to know that
+          // there is always a tag present for scaleDown to know that
           // it can/will be reused and avoid deleting it
           await expBackOff(() => {
             return metrics.trackRequestRegion(

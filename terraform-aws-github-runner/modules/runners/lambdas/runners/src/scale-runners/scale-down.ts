@@ -471,7 +471,9 @@ export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
     baseTime = moment.unix(runner.ephemeralRunnerFinished);
     reason = `is an ephemeral runner that finished at ${baseTime}`;
   } else if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
-    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp);
+    // Add 5 minutes to the EBS volume replacement request timestamp to account
+    // for the time it takes to replace the volume and start the runner.
+    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp).add(5, 'minutes');
     reason = `had an EBS volume replacement request started at ${baseTime}`;
   } else {
     baseTime = moment(runner.launchTime || new Date()).utc();
