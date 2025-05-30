@@ -55,57 +55,20 @@ type Props = {
 };
 
 export default function MetricsTable({ userMapping, data }: Props) {
-  const [filteredMetrics, setFilteredMetrics] = useState<string[]>([]);
 
   const staticColumns = generateStaticColumns(userMapping);
   const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
-  const originalMetricColumns = generateMetricColumns(metricKeys, userMapping);
-
-  const metricColumns = originalMetricColumns.map((col) => ({
-    ...col,
-    hide: filteredMetrics.includes(col.field), // hide if it's in filteredMetrics
-  }));
+  const metricColumns = generateMetricColumns(metricKeys, userMapping);
 
   const columns = [...staticColumns, ...metricColumns];
   const rows = getRows(data, userMapping);
 
-  const columnVisibilityModel = Object.fromEntries(
-    metricColumns.map((col) => [
-      col.field,
-      !filteredMetrics.includes(col.field),
-    ])
-  );
-
-  // Reset when data changes
-  useEffect(() => {
-    setFilteredMetrics([]); // reset unselected → everything selected
-  }, [metricKeys.join(",")]); // join to compare value, not just ref
-
   return (
     <>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-        }}
-      >
-        <Box sx={{ margin: "0 5px 0 0", fontSize: "0.8rem" }}>
-          Filter columns:
-        </Box>
-        <UMCheckboxPopover
-          options={metricKeys}
-          buttonLabel="options"
-          onChange={(unselected: string[]) => {
-            setFilteredMetrics(unselected); // store unselected fields
-          }}
-        />
-      </Box>
       <div style={{ height: "600px", width: "100%" }}>
         <DataGrid
           rows={rows}
           columns={columns}
-          columnVisibilityModel={columnVisibilityModel}
           pageSizeOptions={[100]}
           density="compact"
           pagination

@@ -1,7 +1,7 @@
 import { Box } from "@mui/system";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMPropReducer } from "components/uiModules/UMPropReducer";
-import { UMCopySymLink } from "components/uiModules/UMSymbLink";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useRouter } from "next/router";
@@ -57,7 +57,7 @@ const InnerUtilizationContent = ({
         }}
       >
         <h2>Utilization Report Table: {values.group_by}</h2>{" "}
-        <UMCopySymLink params={values} />
+        <UMCopyLink params={values} />
       </Box>
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {

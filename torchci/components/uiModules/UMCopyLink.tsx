@@ -3,7 +3,7 @@ import { objectToQueryString } from "components/utilization/UtilizationReportPag
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
-export const UMCopySymLink = ({ params }: { params: any }) => {
+export const UMCopyLink = ({ params }: { params: any }) => {
   const router = useRouter();
   const [cleanUrl, setCleanUrl] = useState("");
 
