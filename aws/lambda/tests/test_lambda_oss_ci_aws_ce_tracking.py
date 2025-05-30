@@ -1,10 +1,17 @@
+from typing import Any, Dict, List, Tuple
 import unittest
-from unittest import mock
 from unittest.mock import patch, MagicMock
+from .common import (
+    MockClickHouseQuery,
+    setup_mock_db_client,
+)
+import logging
 
 from oss_ci_aws_ce_tracking.lambda_function import (
     CostExplorerProcessor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_default_environment_variables():
@@ -15,14 +22,14 @@ def get_default_environment_variables():
     }
 
 
-def get_mock_fetch_data():
+def get_mock_fetch_data() -> Dict[str, Any]:
     return {
         "ResultsByTime": [
             {
                 "TimePeriod": {"Start": "2025-05-28", "End": "2025-05-29"},
                 "Groups": [
                     {
-                        "Keys": ["c5.12xlarge", "BoxUsage:c5.12xlarge"],
+                        "Keys": ["c5.12xlarge", "Test:c5.12xlarge"],
                         "Metrics": {
                             "UsageQuantity": {"Amount": "157.445277", "Unit": "Hrs"}
                         },
@@ -31,6 +38,31 @@ def get_mock_fetch_data():
             }
         ]
     }
+
+
+class CostExplorerMockQuery(MockClickHouseQuery):
+    def __init__(self):
+        super().__init__()
+
+    def get_response_for_query(
+        self, query: str, parameters: None, type: str = ""
+    ) -> Tuple[Tuple[str, ...], List[Tuple]]:
+        column_names = ()
+        rows = []
+        match type:
+            case "empty":
+                column_names = ()
+                rows = []
+            case "one_row":
+                column_names = ("time",)
+                rows = [("1748380800",)]
+            case "two_rows":
+                column_names = ("time",)
+                rows = [("1748380800",), ("1748380800",)]
+            case _:
+                column_names = ("time",)
+                rows = [("1748380800",)]
+        return column_names, rows
 
 
 class TestCostExplorerProcessor(unittest.TestCase):
@@ -55,19 +87,20 @@ class TestCostExplorerProcessor(unittest.TestCase):
         self.mock_get_cc = get_clickhouse_client_patcher.start()
         self.addCleanup(get_clickhouse_client_patcher.stop)
 
+        # Set up the mock for clickhouse client
+        self.mock_cc = MagicMock()
+        setup_mock_db_client(self.mock_cc, CostExplorerMockQuery(), "", False)
+        self.mock_get_cc.return_value = self.mock_cc
+
         # Set up the mock for AWS Cost Explorer client
         self.mock_ce_client = MagicMock()
         self.mock_boto3_client.return_value = self.mock_ce_client
-
-        # Set up the mock for clickhouse client
-        self.mock_cc = MagicMock()
-        self.mock_get_cc.return_value = self.mock_cc
 
         self.processor = CostExplorerProcessor(True)
 
     def test_process_raw_ce_data(self):
         # Sample input data
-        input_data = get_mock_fetch_data().get("ResultsByTime")
+        input_data = get_mock_fetch_data().get("ResultsByTime", {})
         # Call the _process_raw_ce_data method
         result = self.processor._process_raw_ce_data(input_data)
 
@@ -79,12 +112,12 @@ class TestCostExplorerProcessor(unittest.TestCase):
         # Sample input data
         input_record = {
             "TimePeriod": {
-                "Start": "2025-05-28T00:00:00Z",
+                "Start": "2025-05-27T00:00:00Z",
                 "End": "2025-05-28T01:00:00Z",
             },
             "Groups": [
                 {
-                    "Keys": ["c5.12xlarge", "BoxUsage:c5.12xlarge"],
+                    "Keys": ["c5.12xlarge", "Test:c5.12xlarge"],
                     "Metrics": {
                         "UsageQuantity": {"Amount": "157.445277", "Unit": "Hrs"}
                     },
@@ -102,7 +135,7 @@ class TestCostExplorerProcessor(unittest.TestCase):
         # Sample input data
         input_record = {
             "Start": "2025-05-28T00:00:00Z",
-            "Keys": ["c5.12xlarge", "BoxUsage:c5.12xlarge"],
+            "Keys": ["c5.12xlarge", "Test:c5.12xlarge"],
             "Unit": "Hrs",
             "Amount": "157.445277",
         }
@@ -114,6 +147,24 @@ class TestCostExplorerProcessor(unittest.TestCase):
         if result:
             self.assertEqual(result["instance_type"], "c5.12xlarge")
             self.assertEqual(result["value"], "157.445277")
+
+    def test_fetch_max_time_missing_rows_throws_error(self):
+        # Mock the response from AWS Cost Explorer
+        setup_mock_db_client(self.mock_cc, CostExplorerMockQuery(), "empty", False)
+        processor = CostExplorerProcessor()
+
+        with self.assertRaises(ValueError) as context:
+            processor.start()
+        self.assertTrue("Expected 1 row, got 0" in str(context.exception))
+
+    def test_fetch_max_time_multiple_rows_throws_error(self):
+        # Mock the response from AWS Cost Explorer
+        setup_mock_db_client(self.mock_cc, CostExplorerMockQuery(), "two_rows", False)
+        processor = CostExplorerProcessor()
+
+        with self.assertRaises(ValueError) as context:
+            processor.start()
+        self.assertTrue("Expected 1 row, got 2" in str(context.exception))
 
     def test_start_dry_run(self):
         # Mock the response from AWS Cost Explorer
