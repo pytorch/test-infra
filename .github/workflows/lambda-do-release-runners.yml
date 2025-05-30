@@ -155,11 +155,11 @@ jobs:
       REF: ${{ inputs.tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ inputs.tag }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
 
@@ -170,7 +170,7 @@ jobs:
       - name: Copy deployment.zip to root
         run: cp aws/lambda/oss_ci_aws_ce_tracking/deployment.zip oss-ci-aws-ce-tracking.zip
 
-      - uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
         with:
           artifacts: "oss-ci-aws-ce-tracking.zip"
           allowUpdates: true
