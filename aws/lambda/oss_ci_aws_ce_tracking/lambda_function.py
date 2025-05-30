@@ -55,7 +55,6 @@ def insert_to_db(
         f"Successfully inserted {len(data)} records into {db_name}.{db_table_name}"
     )
 
-
 def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
@@ -88,7 +87,6 @@ def validate_datetime(dt_str: str):
         raise argparse.ArgumentTypeError(
             f"Invalid datetime format: '{dt_str}'. Expected format: YYYY-MM-DD"
         )
-
 
 class CostExplorerProcessor:
     """
