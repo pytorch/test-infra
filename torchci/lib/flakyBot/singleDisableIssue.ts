@@ -12,6 +12,7 @@ import {
   getTestOwnerLabels,
   getWorkflowJobNames,
   NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING,
+  parseTestName,
   supportedPlatforms,
 } from "./utils";
 
@@ -286,30 +287,11 @@ export const parseBody = _.memoize((body: string) => {
 
 // MARK: validation
 
-const disabledTestIssueTitle = new RegExp("test.+\\s*\\(.+\\)");
-
-function testNameIsExpected(testName: string): boolean {
-  if (!disabledTestIssueTitle.test(testName)) {
-    return false;
-  }
-
-  const split = testName.trim().split(/\s+/);
-  if (split.length !== 2) {
-    return false;
-  }
-
-  const testSuite = split[1].split(".");
-  if (testSuite.length < 2) {
-    return false;
-  }
-  return true;
-}
-
 export function isSingleIssue(title: string): boolean {
   const prefix = "DISABLED ";
   return (
     title.startsWith(prefix) &&
-    testNameIsExpected(title.substring(prefix.length))
+    parseTestName(title.substring(prefix.length)) !== undefined
   );
 }
 
@@ -319,7 +301,7 @@ export function formValidationComment(
 ): string {
   const username = issue.user.login;
   const { platformsToSkip, invalidPlatforms } = parseBody(issue.body || "");
-  const testName = issue.title.slice("DISABLED ".length);
+  const testName = parseTestName(issue.title.slice("DISABLED ".length));
   const platformMsg =
     platformsToSkip.length === 0
       ? "none parsed, defaulting to ALL platforms"
@@ -429,4 +411,5 @@ export const __forTesting__ = {
   parseBody,
   getExpectedLabels,
   isSingleIssue,
+  parseTestName,
 };

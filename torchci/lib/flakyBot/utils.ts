@@ -131,6 +131,19 @@ export function getWorkflowJobNames(test: FlakyTestData): string[] {
   );
 }
 
+const disabledTestIssueTitle = new RegExp(
+  "^\\s*(test_[a-zA-Z0-9-_\\.]+)\\s+\\(([a-zA-Z0-9-_\\.]+)\\)\\s*$"
+);
+
+export function parseTestName(testName: string): string | undefined {
+  const parsed = testName.trim().match(disabledTestIssueTitle);
+  if (parsed === null) {
+    return undefined;
+  }
+
+  return `${parsed[1]} (${parsed[2]})`;
+}
+
 // MARK: validation
 
 export function genInvalidPlatformsValidationSection(

@@ -30,7 +30,7 @@ jobs:
           # PyTorch bot token is the most obvious choice.  Outside of the
           # environment, we do not have access to this token so fall back to the
           # GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}
+          FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
         run: |
           python3 .github/scripts/update_disabled_issues.py
 

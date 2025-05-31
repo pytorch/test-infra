@@ -48,8 +48,8 @@ export function mockConfig(
     .reply(200, content);
 }
 
-export function mockAccessToken(): void {
-  nock("https://api.github.com")
+export function mockAccessToken() {
+  return nock("https://api.github.com")
     .post("/app/installations/2/access_tokens")
     .reply(200, { token: "test" });
 }
