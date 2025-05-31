@@ -55,14 +55,14 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    res.status(200).json(await getDisabledTestsAndJobs());
+    const octokit = await getOctokit(PYTORCH, PYTORCH);
+    res.status(200).json(await getDisabledTestsAndJobs(octokit));
   } else {
     res.status(403).end();
   }
 }
 
-async function getDisabledTestsAndJobs() {
-  const octokit = await getOctokit(PYTORCH, PYTORCH);
+async function getDisabledTestsAndJobs(octokit: Octokit) {
   const disableIssues = await getIssues(octokit, "DISABLED");
   const unstableIssues = await getIssues(octokit, "UNSTABLE");
   const { disableTestIssues, disableJobIssues } =

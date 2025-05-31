@@ -11,18 +11,6 @@ import {
 
 nock.disableNetConnect();
 
-nock.emitter.on("no match", (req) => {
-  console.warn("No Nock match for:", req.method, req.path);
-});
-
-function mockInstallation() {
-  return nock("https://api.github.com")
-    .get("/repos/pytorch/pytorch/installation")
-    .reply(200, {
-      id: 2,
-    });
-}
-
 function mockGraphQLQuery(
   issues: {
     number: number;
@@ -53,7 +41,8 @@ function mockGraphQLQuery(
     });
 }
 
-describe("Disable Flaky Test Integration Tests", () => {
+describe("Get disable/unstable job/test jsons", () => {
+  const octokit = utils.testOctokit();
   beforeEach(() => {});
 
   afterEach(async () => {
@@ -61,14 +50,11 @@ describe("Disable Flaky Test Integration Tests", () => {
     jest.restoreAllMocks();
   });
   test("Sanity check no results", async () => {
-    const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
-      mockGraphQLQuery([]),
-      mockGraphQLQuery([]),
-    ];
+    const scope = [mockGraphQLQuery([]), mockGraphQLQuery([])];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {},
       disabledJobs: {},
@@ -81,8 +67,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   test("One test", async () => {
     const issue = genSingleIssueFor(flakyTestA, {});
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: issue.number,
@@ -95,7 +79,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {
         "test_a (__main__.suite_a)": ["1", "url", ["win"]],
@@ -110,8 +96,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   test("Two tests merge platforms", async () => {
     const issue = genSingleIssueFor(flakyTestA, {});
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: issue.number,
@@ -131,7 +115,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {
         "test_a (__main__.suite_a)": ["1", "url", ["linux", "win"]],
@@ -146,8 +132,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   test("Many tests merge platforms: all", async () => {
     const issue = genSingleIssueFor(flakyTestA, {});
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: issue.number,
@@ -181,7 +165,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {
         "test_a (__main__.suite_a)": ["1", "url", []],
@@ -196,8 +182,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   test("Malformed test -> job", async () => {
     const issue = genSingleIssueFor(flakyTestA, {});
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: issue.number,
@@ -210,7 +194,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {},
       disabledJobs: {
@@ -231,8 +217,6 @@ describe("Disable Flaky Test Integration Tests", () => {
 
   test("disabled job", async () => {
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: 1,
@@ -245,7 +229,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {},
       disabledJobs: {
@@ -266,8 +252,6 @@ describe("Disable Flaky Test Integration Tests", () => {
 
   test("unstable job", async () => {
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([]),
       mockGraphQLQuery([
         {
@@ -280,7 +264,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       ]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {},
       disabledJobs: {},
@@ -301,8 +287,6 @@ describe("Disable Flaky Test Integration Tests", () => {
 
   test("unstable/disable mix up", async () => {
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: 1,
@@ -323,7 +307,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       ]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(result).toEqual({
       disabledTests: {},
       disabledJobs: {},
@@ -336,8 +322,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   test("aggregate issue", async () => {
     const issue = genAggIssueFor(genAggTests(flakyTestA), {});
     const scope = [
-      mockInstallation(),
-      utils.mockAccessToken(),
       mockGraphQLQuery([
         {
           number: 1,
@@ -350,7 +334,9 @@ describe("Disable Flaky Test Integration Tests", () => {
       mockGraphQLQuery([]),
     ];
 
-    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+    const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+      octokit
+    );
     expect(Object.keys(result.disabledTests).length).toBe(11);
     expect(result.disabledTests["test_5 (__main__.suite_5)"]).toEqual([
       "1",
@@ -367,8 +353,6 @@ describe("Disable Flaky Test Integration Tests", () => {
 
     test("aggregate issue and single issue", async () => {
       const scope = [
-        mockInstallation(),
-        utils.mockAccessToken(),
         mockGraphQLQuery([
           {
             number: 1,
@@ -388,7 +372,9 @@ describe("Disable Flaky Test Integration Tests", () => {
         mockGraphQLQuery([]),
       ];
 
-      const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+      const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+        octokit
+      );
       expect(Object.keys(result.disabledTests).length).toBe(11);
       expect(result.disabledTests["test_5 (__main__.suite_5)"]).toEqual([
         "1",
@@ -400,8 +386,6 @@ describe("Disable Flaky Test Integration Tests", () => {
 
     test("aggregate issue and single issue, all platforms", async () => {
       const scope = [
-        mockInstallation(),
-        utils.mockAccessToken(),
         mockGraphQLQuery([
           {
             number: 1,
@@ -421,7 +405,9 @@ describe("Disable Flaky Test Integration Tests", () => {
         mockGraphQLQuery([]),
       ];
 
-      const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs();
+      const result = await getDisabledTestsAndJobs.getDisabledTestsAndJobs(
+        octokit
+      );
       expect(Object.keys(result.disabledTests).length).toBe(11);
       expect(result.disabledTests["test_5 (__main__.suite_5)"]).toEqual([
         "1",
