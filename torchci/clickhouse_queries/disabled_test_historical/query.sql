@@ -1,164 +1,88 @@
--- This query returns the number of new disabled tests (number_of_new_disabled_tests)
--- and the number of open disabled tests (number_of_open_disabled_tests) daily
-WITH issues_with_labels AS (
+WITH day_info as (
     SELECT
-        i.title,
-        i.body,
-        groupArrayArray(i.labels. 'name') AS labels,
-        parseDateTimeBestEffortOrNull(i.created_at) AS created_at,
-        parseDateTimeBestEffortOrNull(i.closed_at) AS closed_at
+        day,
+        lagInFrame(day, 1, day) OVER (
+            ORDER BY
+                day asc ROWS BETWEEN UNBOUNDED PRECEDING
+                AND UNBOUNDED FOLLOWING
+        ) AS prev_day,
+        leadInFrame(day, 1, day) OVER (
+            ORDER BY
+                day asc ROWS BETWEEN UNBOUNDED PRECEDING
+                AND UNBOUNDED FOLLOWING
+        ) AS next_day
     FROM
-        default .issues i FINAL
-    WHERE
-        i.repository_url = CONCAT('https://api.github.com/repos/', {repo: String })
-        AND i.title LIKE '%DISABLED%'
-        AND (
+        misc.disabled_tests_historical
+    where
+        day >= {startTime: DateTime64(3) }
+        and day <= {stopTime: DateTime64(3) }
+    group by
+        day
+),
+tests as (
+    select
+        distinct t.day as day,
+        t.name as name,
+        d.prev_day as prev_day,
+        d.next_day as next_day
+    from
+        misc.disabled_tests_historical t
+        join day_info d on d.day = t.day
+        join default.issues i on i.number = t.issueNumber
+    where
+        (
             {platform: String } = ''
-            OR i.body LIKE CONCAT('%', {platform: String }, '%')
-            OR (NOT i.body LIKE '%Platforms: %')
+            OR arrayExists(x -> x like CONCAT('%', {platform: String }, '%'), t.platforms)
         )
-    GROUP BY
-        i.title,
-        i.body,
-        i.created_at,
-        i.closed_at
-),
--- There could be day where there is no new issue or no issue is closed and we want
--- the count on that day to be 0
-buckets AS (
-    SELECT
-        DATE_TRUNC(
-            {granularity: String },
-            parseDateTimeBestEffortOrNull(i.created_at)
-        ) AS granularity_bucket
-    FROM
-        default .issues i FINAL
-    WHERE
-        i.created_at != ''
-    UNION
-        DISTINCT
-    SELECT
-        DATE_TRUNC(
-            {granularity: String },
-            parseDateTimeBestEffortOrNull(i.closed_at)
-        ) AS granularity_bucket
-    FROM
-        default .issues i FINAL
-    WHERE
-        i.closed_at != ''
-),
--- Count the newly created disabled tests
-raw_new_disabled_tests AS (
-    SELECT
-        DATE_TRUNC({granularity: String }, i.created_at) AS granularity_bucket,
-        COUNT(i.title) AS number_of_new_disabled_tests
-    FROM
-        issues_with_labels i
-    WHERE
-        has(i.labels, 'skipped')
-        AND (
+        and (
             {label: String } = ''
-            OR has(i.labels, {label: String })
+            OR arrayExists(l -> l.'name' = {label: String}, i.labels)
         )
         AND (
             {triaged: String } = ''
             OR (
                 {triaged: String } = 'yes'
-                AND has(i.labels, 'triaged')
+                AND arrayExists(l -> l.'name' = 'triaged', i.labels)
             )
             OR (
                 {triaged: String } = 'no'
-                AND NOT has(i.labels, 'triaged')
+                AND NOT arrayExists(l -> l.'name' = 'triaged', i.labels)
             )
         )
+        and i.html_url like '%pytorch/pytorch%'
+),
+new_tests AS (
+    SELECT
+        t.day as day,
+        countIf(p.name = '') as new,
+        count(*) as curr
+    FROM
+        tests t
+        LEFT JOIN tests p ON p.name = t.name
+        AND p.day = t.prev_day
     GROUP BY
-        granularity_bucket
+        t.day
 ),
-new_disabled_tests AS (
+deleted_tests AS (
     SELECT
-        buckets.granularity_bucket,
-        COALESCE(number_of_new_disabled_tests, 0) AS number_of_new_disabled_tests
+        p.next_day as day,
+        COUNT(*) AS deleted
     FROM
-        buckets
-        LEFT JOIN raw_new_disabled_tests ON buckets.granularity_bucket = raw_new_disabled_tests.granularity_bucket
-),
-aggregated_new_disabled_tests AS (
-    SELECT
-        granularity_bucket,
-        number_of_new_disabled_tests,
-        SUM(number_of_new_disabled_tests) OVER (
-            ORDER BY
-                granularity_bucket
-        ) AS total_number_of_new_disabled_tests
-    FROM
-        new_disabled_tests
-),
--- Count the closed disabled tests
-raw_closed_disabled_tests AS (
-    SELECT
-        DATE_TRUNC({granularity: String }, i.closed_at) AS granularity_bucket,
-        COUNT(i.title) AS number_of_closed_disabled_tests
-    FROM
-        issues_with_labels i
+        tests p
+        left join tests t on t.name = p.name
+        and t.day = p.next_day
     WHERE
-        i.closed_at IS NOT NULL
-        AND has(i.labels, 'skipped')
-        AND (
-            {label: String } = ''
-            OR has(i.labels, {label: String })
-        )
-        AND (
-            {triaged: String } = ''
-            OR (
-                {triaged: String } = 'yes'
-                AND has(i.labels, 'triaged')
-            )
-            OR (
-                {triaged: String } = 'no'
-                AND NOT has(i.labels, 'triaged')
-            )
-        )
+        t.name = ''
     GROUP BY
-        granularity_bucket
-),
-closed_disabled_tests AS (
-    SELECT
-        buckets.granularity_bucket,
-        COALESCE(number_of_closed_disabled_tests, 0) AS number_of_closed_disabled_tests
-    FROM
-        buckets
-        LEFT JOIN raw_closed_disabled_tests ON buckets.granularity_bucket = raw_closed_disabled_tests.granularity_bucket
-),
-aggregated_closed_disabled_tests AS (
-    SELECT
-        granularity_bucket,
-        number_of_closed_disabled_tests,
-        SUM(number_of_closed_disabled_tests) OVER (
-            ORDER BY
-                granularity_bucket
-        ) AS total_number_of_closed_disabled_tests
-    FROM
-        closed_disabled_tests
-),
--- The final aggregated count
-aggregated_disabled_tests AS (
-    SELECT
-        aggregated_new_disabled_tests.granularity_bucket AS granularity_bucket,
-        number_of_new_disabled_tests,
-        number_of_closed_disabled_tests,
-        total_number_of_new_disabled_tests,
-        total_number_of_closed_disabled_tests,
-        total_number_of_new_disabled_tests - total_number_of_closed_disabled_tests AS number_of_open_disabled_tests
-    FROM
-        aggregated_new_disabled_tests
-        LEFT JOIN aggregated_closed_disabled_tests ON aggregated_new_disabled_tests.granularity_bucket = aggregated_closed_disabled_tests.granularity_bucket
+        p.next_day
 )
 SELECT
-    *
+    n.day,
+    n.curr as count,
+    n.new,
+    d.deleted
 FROM
-    aggregated_disabled_tests
-WHERE
-    granularity_bucket >= {startTime: DateTime64(3) }
-    AND granularity_bucket < {stopTime: DateTime64(3) }
+    new_tests n
+    left JOIN deleted_tests d ON n.day = d.day
 ORDER BY
-    granularity_bucket DESC
+    day

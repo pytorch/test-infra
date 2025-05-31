@@ -310,6 +310,7 @@ export default function TimeSeriesPanel({
   auto_refresh = true,
   // Additional function to process the data after querying
   dataReader = undefined,
+  fillMissingData = true,
 }: {
   title: string;
   queryName: string;
@@ -331,6 +332,7 @@ export default function TimeSeriesPanel({
   auto_refresh?: boolean;
   legendPadding?: number;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
+  fillMissingData?: boolean;
 }) {
   // - Granularity
   // - Group by
@@ -367,7 +369,7 @@ export default function TimeSeriesPanel({
     groupByFieldName,
     timeFieldName,
     yAxisFieldName,
-    true,
+    fillMissingData,
     smooth,
     sort_by,
     chartType,
