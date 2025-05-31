@@ -9,7 +9,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
 
 const PYTORCH = "pytorch";
-const JOB_NAME_MAXSPLIT = 3;
 
 const GRAPHQL_QUERY = `
 query ($q: String!, $cursor: String) {
@@ -56,19 +55,18 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    res.status(200).json(await getJSON());
+    res.status(200).json(await getDisabledTestsAndJobs());
   } else {
     res.status(403).end();
   }
 }
 
-async function getJSON() {
+async function getDisabledTestsAndJobs() {
   const octokit = await getOctokit(PYTORCH, PYTORCH);
   const disableIssues = await getIssues(octokit, "DISABLED");
+  const unstableIssues = await getIssues(octokit, "UNSTABLE");
   const { disableTestIssues, disableJobIssues } =
     filterDisableIssues(disableIssues);
-
-  const unstableIssues = await getIssues(octokit, "UNSTABLE");
 
   return {
     disabledTests: getDisabledTests(disableTestIssues),
@@ -141,6 +139,8 @@ function getDisabledTests(issues: IssueData[]) {
     const existing = disabledTests.get(name);
     if (existing === undefined) {
       disabledTests.set(name, { number, url, platforms: platformsToSkip });
+    } else if (platformsToSkip.length === 0) {
+      existing.platforms = [];
     } else if (existing.platforms.length !== 0) {
       existing.platforms.push(...platformsToSkip);
     }
@@ -156,7 +156,7 @@ function getDisabledTests(issues: IssueData[]) {
       updateMap(name, issue.number, issue.url, platformsToSkip);
     } else if (aggregateDisableIssue.isAggregateIssue(issue.title)) {
       const { platformMapping } = aggregateDisableIssue.parseBody(issue.body);
-      for (const [test, platforms] of Object.entries(platformMapping)) {
+      for (const [test, platforms] of platformMapping.entries()) {
         const name = parseTestName(test);
         if (name === undefined) {
           console.warn(`Failed to parse test name from issue: ${issue.title}`);
@@ -222,14 +222,14 @@ async function condenseJobs(
         continue;
       }
 
-      const parts = jobName.split("/", JOB_NAME_MAXSPLIT);
+      const parts = jobName.split("/");
       jobs.set(jobName, {
         username: issue.author.login,
         number: issue.number,
         url: issue.url,
         workflowName: parts[0].trim(),
         platformName: (parts[1] || "").trim(),
-        configName: (parts[2] || "").trim(),
+        configName: parts.slice(2).join("/").trim(),
       });
     }
   }
@@ -250,3 +250,7 @@ async function condenseJobs(
     ])
   );
 }
+
+export const __forTesting__ = {
+  getDisabledTestsAndJobs,
+};

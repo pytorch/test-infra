@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-Query for the DISABLED and UNSTABLE issues and check:
-  * if they are still flaky for disabled tests
-  * if they are to disable workflow jobs
-  * if they are to mark workflow jobs as unstable
+Query for the DISABLED and UNSTABLE issues and generate the JSON files that go
+in the stats folder of the generated-stats branch.
 """
 
 import json
@@ -23,7 +21,7 @@ def dump_json(data: Dict[str, Any], filename: str):
 def main() -> None:
     with urlopen(
         Request(
-            f"{HUD_URL}/api/flaky-tests/getJSON",
+            f"{HUD_URL}/api/flaky-tests/getDisabledTestsAndJobs",
             headers={"Authorization": os.environ["FLAKY_TEST_BOT_KEY"]},
         )
     ) as result:

@@ -1,5 +1,7 @@
 import dayjs from "dayjs";
-import { FlakyTestData } from "lib/types";
+import { __forTesting__ as aggregateDisableIssue } from "lib/flakyBot/aggregateDisableIssue";
+import { getPlatformsAffected } from "lib/flakyBot/utils";
+import { FlakyTestData, IssueData } from "lib/types";
 import nock from "nock";
 
 // This file contains utils and mock data for flaky bot tests. I think if you
@@ -125,4 +127,49 @@ export function mockGetRawTestFile(file: string, content: string) {
   return nock("https://raw.githubusercontent.com")
     .get(`/pytorch/pytorch/main/test/${file}`)
     .reply(200, Buffer.from(content));
+}
+
+export function genSingleIssueFor(
+  test: FlakyTestData,
+  input: Partial<IssueData>
+): IssueData {
+  return {
+    number: 1,
+    title: `DISABLED ${test.name} (__main__.${test.suite})`,
+    html_url: "test url",
+    state: "open" as "open" | "closed",
+    body: `Platforms: ${getPlatformsAffected(test.jobNames)}`,
+    updated_at: dayjs().subtract(4, "hour").toString(),
+    author_association: "MEMBER",
+    labels: [],
+    ...input,
+  };
+}
+
+export function genAggTests(test: FlakyTestData) {
+  return Array.from({ length: 11 }, (_, i) =>
+    genValidFlakyTest({
+      ...test,
+
+      name: `test_${i}`,
+      suite: `suite_${i}`,
+    })
+  );
+}
+
+export function genAggIssueFor(
+  tests: FlakyTestData[],
+  input: Partial<IssueData>
+): IssueData {
+  return {
+    number: 1,
+    title: aggregateDisableIssue.getTitle(tests[0]),
+    html_url: "test url",
+    state: "open" as "open" | "closed",
+    body: aggregateDisableIssue.getBody(tests),
+    updated_at: dayjs().subtract(4, "hour").toString(),
+    author_association: "MEMBER",
+    labels: [],
+    ...input,
+  };
 }
