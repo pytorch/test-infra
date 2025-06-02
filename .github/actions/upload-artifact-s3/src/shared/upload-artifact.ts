@@ -68,10 +68,9 @@ export async function uploadArtifact(
     core.debug(JSON.stringify({rootDirectory: rootDirectory, fileName}))
     // Add trailing path.sep to root directory to solve issues where root directory doesn't
     // look to be relative
-    const relativeName = fileName.replace(
-      String.raw`${rootDirectory}${path.sep}`,
-      ''
-    )
+    const relativeName = path
+      .relative(rootDirectory, fileName)
+      .replace(/\\/g, '/')
     const uploadKey = `${finalS3Prefix}/${relativeName}`
     const uploadParams: PutObjectCommandInput = {
       ACL: options.s3Acl,
