@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
+    paths:
       - '.github/actions/upload-artifact-s3/**'
   pull_request:
-    paths-ignore:
+    paths:
       - '.github/actions/upload-artifact-s3/**'
 
 jobs:
