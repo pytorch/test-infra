@@ -15,7 +15,6 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { TimeRangePicker } from "./metrics";
 
-const MIN_ENTRIES = 10;
 const GRAPH_ROW_HEIGHT = 240;
 const DEFAULT_ISSUE_STATE = "open";
 const ISSUE_STATES = [DEFAULT_ISSUE_STATE, "closed"];
@@ -227,8 +226,6 @@ function DisabledTestsPanel({
       </Grid2>
     </Grid2>
   );
-
-  return <></>;
 }
 
 export default function Page() {
