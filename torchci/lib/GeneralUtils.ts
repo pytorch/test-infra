@@ -96,6 +96,7 @@ export async function hasWritePermissionsUsingOctokit(
   return permissions === "admin" || permissions === "write";
 }
 
+type ConfigType = Parameters<typeof useSWR<any[]>>[2];
 /**
  * This hook function is a convenience wrapper for useSWR that fetches data from
  * the ClickHouse API.  Handles things like encoding the query name and
@@ -112,7 +113,8 @@ export async function hasWritePermissionsUsingOctokit(
 export function useClickHouseAPI<T = any>(
   queryName: string,
   parameters: { [key: string]: string },
-  condition: boolean = true
+  condition: boolean = true,
+  config?: ConfigType
 ) {
   // Helper function to format the URL nicely
   return useSWR<T[]>(
@@ -120,7 +122,8 @@ export function useClickHouseAPI<T = any>(
       `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
         parameters: JSON.stringify(parameters),
       })}`,
-    fetcher
+    fetcher,
+    config
   );
 }
 
