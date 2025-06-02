@@ -23,6 +23,9 @@ See also [download-artifact-s3](https://github.com/pytorch/test-infra/main/tree/
       - [Example output between jobs](#example-output-between-jobs)
     - [Overwriting an Artifact](#overwriting-an-artifact)
     - [Uploading Hidden Files](#uploading-hidden-files)
+  - [How to update this action](#how-to-update-this-action)
+    - [Updates due to @actions/upload-artifact](#updates-due-to-actionsupload-artifact)
+    - [Updates due to AWS SDK](#updates-due-to-aws-sdk)
 
 
 ## v6 - What's new
@@ -345,3 +348,43 @@ using the `path`:
 Hidden files are defined as any file beginning with `.` or files within folders beginning with `.`.
 On Windows, files and directories with the hidden attribute are not considered hidden files unless
 they have the `.` prefix.
+
+## How to update this action
+
+This action is primarily based on two libraries, namely the standard
+@actions/upload-artifact action and the AWS SDK v3.
+From the former, we retain the local file handling, i.e. the search in the local
+file system and the handling of inputs, particularly as relevant for the search.
+From the latter, we use the Upload functionality provided as part of lib-storage.
+
+An update may be necessary because of a change in either of these dependencies,
+or because of an update in one of the general dependencies, such as jest or
+typescript.
+
+### Updates due to @actions/upload-artifact
+As it stands, this action does not directly depend on the original
+upload-artifact action, but rather incorporates parts of its code.
+This is mostly due to the fact that the central part, i.e. the upload differs
+significantly between the target of the original action, the Azure platform
+used for hosting action artifacts, and the S3 platform used here.
+As such, any update in the original action that relates to changes in Azure
+related functionality, such as the upload itself or the auxiliary merge action,
+can be ignored and does not necessitate an update of this action.
+On the other hand, a change in the local file handling and search part of the
+original action should be examined for relevance to this action.
+
+To help with an eventual update due to changes in the original action, we
+largely maintain the directory and file structure of that action.
+Practically, that means that changes to the following files in the upstream
+repository are likely to be relevant for us:
+
+- `src/shared/search.ts`
+- `src/upload/constants.ts`
+- `src/upload/upload-inputs.ts`
+
+### Updates due to AWS SDK
+At present, we are not aware of any deprecations or changes that would require
+significant changes of this action due to changes in the AWS SDK.
+However, should an update of the SDK become necessary and induce changes to
+this action, they are expected to be limited to the code in
+`src/shared/upload-artifact.ts`.
