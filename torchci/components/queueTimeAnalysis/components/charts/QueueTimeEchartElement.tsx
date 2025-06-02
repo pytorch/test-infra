@@ -4,6 +4,7 @@ import * as echarts from "echarts";
 import { useDarkMode } from "lib/DarkModeContext";
 import darkThemeHud from "lib/chartTheme";
 import { useEffect, useRef, useState } from "react";
+import { deepCopy } from "test/common";
 
 dayjs.extend(isoWeek);
 
@@ -398,6 +399,13 @@ const getTimeLineChart = (
 };
 
 const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
+    const counts = deepCopy(barData);
+    console.log("bardatea",barData)
+    const total = counts.reduce((a, b) => a + b, 0);
+    const cumulative = counts.map((_, i) =>
+      counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
+    );
+
   return {
     tooltip: {
       position: "top",
@@ -405,13 +413,20 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
         const idx = params.dataIndex;
         const xLabel = params.name;
         const value = params.value;
+        const count = counts[idx];
+        const percentile = ((cumulative[idx] / total) * 100).toFixed(1);
+        const lines = []
+        lines.push(`<${xLabel} percentile ${percentile}%`);
         if (idx == 0) {
-          return `detected ${value}% queueing jobs in range: < ${xLabel}`;
+           lines.push(`detected ${value}% queueing jobs in range: < ${xLabel}`);
         } else if (idx == xAxisLabels.length - 1) {
-          return `detected ${value}% queueing jobs within time range: ${xLabel}`;
+          lines.push(`detected ${value}% queueing jobs within time range: ${xLabel}`);
+        } else{
+          const nextName = xAxisLabels[idx - 1] || "N/A";
+          lines.push(`detected ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`);
         }
-        const nextName = xAxisLabels[idx - 1] || "N/A";
-        return `detected ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`;
+        return lines.join("<br/>");
+
       },
     },
     grid: {
@@ -436,7 +451,19 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
   };
 };
 
+const getCumulativeList = (data: any[]) => {
+  const counts = data.map(Number);
+  console.log("bardatea",data)
+  const total = counts.reduce((a, b) => a + b, 0);
+  const cumulative = counts.map((_, i) =>
+    counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
+  );
+  return {cumulative, total}
+}
+
 const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
+  const {cumulative, total} = getCumulativeList(data);
+
   return {
     tooltip: {
       position: "top",
@@ -444,13 +471,20 @@ const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
         const idx = params.dataIndex;
         const xLabel = params.name;
         const value = params.value;
+        const percentile = ((cumulative[idx] / total) * 100).toFixed(1);
+        const lines = []
         if (idx == 0) {
-          return `detect ${value}% jobs were in queue in range: < ${xLabel}`;
+          lines.push(`<b>Histogram Bucket: < ${xLabel}</b>`);
         } else if (idx == xAxisLabels.length - 1) {
-          return `detect ${value}% jobs were in queue within time range: ${xLabel}`;
+          lines.push(`<b>Histogram Bucket: >= ${xLabel}</b>`);
+        }else{
+          const nextName = xAxisLabels[idx - 1] || "N/A";
+          lines.push(`<b>Histogram Bucket: ${nextName}- ${xLabel}</b>`);
         }
-        const nextName = xAxisLabels[idx - 1] || "N/A";
-        return `detect ${value}% jobs were in queue within time range: ${nextName}- ${xLabel}`;
+
+        lines.push(`<b>Single Bucket</b>: ${value}% queued jobs landed in the bucket`);
+        lines.push(`<b>Accumulative ≤ ${xLabel}</b>: ${percentile}% of detected queued jobs are ≤ ${xLabel}.`);
+        return lines.join("<br/>");
       },
     },
     grid: {
