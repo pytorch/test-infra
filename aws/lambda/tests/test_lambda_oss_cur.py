@@ -7,7 +7,7 @@ from .common import (
 )
 import logging
 
-from oss_ci_aws_ce_tracking.lambda_function import (
+from oss_ci_cur.lambda_function import (
     CostExplorerProcessor,
 )
 
@@ -69,20 +69,20 @@ class TestCostExplorerProcessor(unittest.TestCase):
     def setUp(self):
         # Mock environment variables
         envs_patcher = patch(
-            "oss_ci_aws_ce_tracking.lambda_function.ENVS",
+            "oss_ci_cur.lambda_function.ENVS",
             new=get_default_environment_variables(),
         )
         self.mock_envs = envs_patcher.start()
         self.addCleanup(envs_patcher.stop)
 
         # Mock boto3 client
-        boto3_patcher = patch("oss_ci_aws_ce_tracking.lambda_function.boto3.client")
+        boto3_patcher = patch("oss_ci_cur.lambda_function.boto3.client")
         self.mock_boto3_client = boto3_patcher.start()
         self.addCleanup(boto3_patcher.stop)
 
         # Mock get_clickhouse_client method
         get_clickhouse_client_patcher = patch(
-            "oss_ci_aws_ce_tracking.lambda_function.get_clickhouse_client"
+            "oss_ci_cur.lambda_function.get_clickhouse_client"
         )
         self.mock_get_cc = get_clickhouse_client_patcher.start()
         self.addCleanup(get_clickhouse_client_patcher.stop)

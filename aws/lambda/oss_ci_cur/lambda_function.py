@@ -26,7 +26,7 @@ ENVS = {
 }
 
 DB_NAME = "misc"
-DB_TABLE_NAME = "oss_ci_aws_ce_tracking"
+DB_TABLE_NAME = "oss_ci_cur"
 
 # todo(elainewy): make it a shared library for lambda
 def get_latest_time_from_table(
@@ -272,7 +272,7 @@ class CostExplorerProcessor:
         # skip the job if the latest time is already covered
         if db_end >= end_time:
             return None  # skip the job if the latest time is already covered
-        start = max(db_end, start_time).strftime("%Y-%m-%d")
+        start = db_end.strftime("%Y-%m-%d")
         return [start, end]
 
     def start(self, args: Optional[argparse.Namespace] = None):
