@@ -56,7 +56,7 @@ export default function MetricsTable({ userMapping, data }: Props) {
   const staticColumns = generateStaticColumns(userMapping);
   const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
   const metricColumns = generateMetricColumns(metricKeys, userMapping);
-  
+
   const columns = [...staticColumns, ...metricColumns];
   const rows = getRows(data, userMapping);
   return (
