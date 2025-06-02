@@ -355,7 +355,7 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
           return `detect ${value}% queueing jobs within time range: ${xLabel}`;
         }
         const nextName = xAxisLabels[idx - 1] || "N/A";
-        return `detect ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`;
+        return `detected ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`;
       },
     },
     grid: {
