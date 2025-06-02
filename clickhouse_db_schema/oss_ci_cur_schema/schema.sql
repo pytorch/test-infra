@@ -1,4 +1,4 @@
-CREATE TABLE misc.oss_ci_aws_ce_tracking(
+CREATE TABLE misc.oss_ci_cur(
     `created` DateTime64(0, 'UTC'),
     `time` DateTime64(0, 'UTC'),
     `type` String,
