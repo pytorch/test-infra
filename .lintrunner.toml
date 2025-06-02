@@ -127,6 +127,7 @@ exclude_patterns=[
     '**/fixtures/**',
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
+    '.github/actions/upload-artifact-s3/dist/upload/index.js',
     'aws/lambda/log-classifier/data/**',
     'tools/clang-tidy-checks/*-patches/**',
 ]
@@ -148,6 +149,7 @@ exclude_patterns = [
     '**/fixtures/**',
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
+    '.github/actions/upload-artifact-s3/dist/upload/index.js',
 ]
 command = [
     'python3',
@@ -175,6 +177,7 @@ exclude_patterns = [
     '**/fixtures/**',
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
+    '.github/actions/upload-artifact-s3/dist/upload/index.js',
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
 ]
