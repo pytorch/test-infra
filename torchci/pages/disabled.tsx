@@ -396,7 +396,7 @@ export default function Page() {
           label={"Triaged?"}
         />
       </Stack>
-      <GraphPanel queryParams={{...queryParams, state: "not used"}} />
+      <GraphPanel queryParams={{ ...queryParams, state: "not used" }} />
       <Stack direction="row" spacing={2}>
         <ValuePicker
           value={state}

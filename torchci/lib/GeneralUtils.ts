@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import useSWR from "swr";
+import useSWR, { SWRConfiguration } from "swr";
 import useSWRImmutable from "swr/immutable";
 import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
@@ -96,7 +96,6 @@ export async function hasWritePermissionsUsingOctokit(
   return permissions === "admin" || permissions === "write";
 }
 
-type ConfigType = Parameters<typeof useSWR<any[]>>[2];
 /**
  * This hook function is a convenience wrapper for useSWR that fetches data from
  * the ClickHouse API.  Handles things like encoding the query name and
@@ -114,7 +113,7 @@ export function useClickHouseAPI<T = any>(
   queryName: string,
   parameters: { [key: string]: string },
   condition: boolean = true,
-  config?: ConfigType
+  config?: SWRConfiguration<T[]>
 ) {
   // Helper function to format the URL nicely
   return useSWR<T[]>(
