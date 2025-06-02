@@ -93,8 +93,9 @@ function renderCharts(chartType: string, data: any, props: any, width: any) {
       const subcharts = [
         "max_queue_time_line",
         "avg_queue_time_line",
-        "p50_line",
-        "percentile_lines",
+        "p50_queue_time_line",
+        "percentile_queue_time_lines",
+        "avg_queued_jobs_count_line",
       ];
       if (!subcharts) {
         return <></>;

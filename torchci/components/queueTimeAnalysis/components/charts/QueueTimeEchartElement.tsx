@@ -117,6 +117,18 @@ export function QueueTimeEchartElement({
   );
 }
 
+const getTooltipLabelIndicator = (color: string) => {
+  return `
+      <span style="
+        display:inline-block;
+        width:10px;
+        height:10px;
+        border-radius:50%;
+        background-color:${color};
+        margin-right:6px;
+      "></span>`;
+};
+
 // Extracted chart update logic to avoid code duplication
 function updateChart(
   instance: echarts.EChartsType,
@@ -168,8 +180,29 @@ function updateChart(
         granularity,
         "max_queue_time"
       );
-      chartRenderOptions = getTimeLineChart(maxQueueTimeData, timeDates);
+      chartRenderOptions = getTimeLineChart(
+        maxQueueTimeData,
+        timeDates,
+        "time",
+        "max queue time"
+      );
       break;
+    case "avg_queued_jobs_count_line":
+      const avgCount = generateFilledTimeSeriesLine(
+        startTime,
+        endTime,
+        rawData,
+        granularity,
+        "avg_queued_job_count"
+      );
+      chartRenderOptions = getTimeLineChart(
+        avgCount,
+        timeDates,
+        "count",
+        "avg # of queued jobs"
+      );
+      break;
+
     case "avg_queue_time_line":
       const d = generateFilledTimeSeriesLine(
         startTime,
@@ -178,9 +211,14 @@ function updateChart(
         granularity,
         "avg_queue_time"
       );
-      chartRenderOptions = getTimeLineChart(d, timeDates);
+      chartRenderOptions = getTimeLineChart(
+        d,
+        timeDates,
+        "time",
+        "avg queued time"
+      );
       break;
-    case "p50_line":
+    case "p50_queue_time_line":
       const p50s = [
         {
           name: "P50",
@@ -200,7 +238,7 @@ function updateChart(
         queue_axis_value
       );
       break;
-    case "percentile_lines":
+    case "percentile_queue_time_lines":
       const p50 = generateFilledTimeSeriesLine(
         startTime,
         endTime,
@@ -265,20 +303,22 @@ const getPercentileLineChart = (
       trigger: "axis",
       formatter: function (params: any) {
         const lines = [];
-        const date = params[0].name;
+        const date = params[0].axisValue;
         lines.push(`<b>${date}</b>`);
+        console.log(lines);
         for (const item of params) {
           const idx = item.data;
           const lineName = item.seriesName;
+          const dot = getTooltipLabelIndicator(item.color);
           if (idx == 0) {
-            lines.push(`${lineName}: located at range  < 1mins`);
+            lines.push(`${dot}${lineName}: located at range  < 1mins`);
           } else if (idx == yAxisLabels.length - 1) {
-            lines.push(`${lineName}:located at range  > 7days`);
+            lines.push(`${dot}${lineName}:located at range  > 7days`);
           } else {
             const endRange = yAxisLabels[idx];
             const startRange = yAxisLabels[idx - 1] || "N/A";
             lines.push(
-              `${lineName}: located at range ${startRange} - ${endRange}`
+              `${dot}${lineName}: located at range ${startRange} - ${endRange}`
             );
           }
         }
@@ -297,19 +337,39 @@ const getPercentileLineChart = (
   };
 };
 
-const getTimeLineChart = (data: any[], xAxisLabels: string[]) => {
+// convert seconds to human readable format
+const formatTime = (value: number) => {
+  if (value >= 86400) {
+    return (value / 86400).toFixed(1) + "d";
+  } else if (value >= 3600) {
+    return (value / 3600).toFixed(1) + "h";
+  } else if (value >= 60) {
+    return (value / 60).toFixed(1) + "m";
+  } else {
+    return value.toFixed(0) + "s";
+  }
+};
+
+const getTimeLineChart = (
+  data: any[],
+  xAxisLabels: string[],
+  valueFormat: string = "time",
+  tooltipLabel: string
+) => {
   return {
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
+        let lines = [];
+        const dot = getTooltipLabelIndicator(params[0].color);
         const value = params.length > 0 ? params[0].value : undefined;
-        const format = (v: number) => {
-          if (v >= 86400) return (v / 86400).toFixed(1) + "d";
-          if (v >= 3600) return (v / 3600).toFixed(1) + "h";
-          if (v >= 60) return (v / 60).toFixed(1) + "m";
-          return v + "s";
-        };
-        return `${params[0].axisValue}: ${format(value)}`;
+        lines.push(`<b>${params[0].axisValue}</b>`);
+        let renderValue = value;
+        if (valueFormat === "time") {
+          renderValue = formatTime(value);
+        }
+        lines.push(`${dot}${tooltipLabel}: ${renderValue}`);
+        return lines.join("<br/>");
       },
     },
     xAxis: {
@@ -320,15 +380,11 @@ const getTimeLineChart = (data: any[], xAxisLabels: string[]) => {
       type: "value",
       axisLabel: {
         formatter: (value: number) => {
-          if (value >= 86400) {
-            return (value / 86400).toFixed(1) + "d"; // 天
-          } else if (value >= 3600) {
-            return (value / 3600).toFixed(1) + "h"; // 小时
-          } else if (value >= 60) {
-            return (value / 60).toFixed(1) + "m"; // 分钟
-          } else {
-            return value.toFixed(0) + "s"; // 秒
+          let rv = `${value}`;
+          if (valueFormat === "time") {
+            rv = formatTime(value);
           }
+          return rv;
         },
       },
     },
@@ -632,7 +688,11 @@ const sumArrayValues = (data: any[]) => {
     .map((obj) => obj.data)
     .flat()
     .reduce((sum, val) => sum + val, 0);
+
   for (const item of data) {
+    if (!item.data) {
+      continue;
+    }
     for (let i = 0; i < length; i++) {
       result[i] += item.data[i] / total;
     }

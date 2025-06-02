@@ -1,4 +1,4 @@
-import { Stack, styled, Typography } from "@mui/material";
+import { Stack, styled, Tooltip, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect, useReducer, useState } from "react";
 
@@ -13,6 +13,9 @@ const FlexNoWrap = styled("div")({
   display: "flex",
   flexWrap: "nowrap",
 });
+
+import InfoIcon from "@mui/icons-material/Info"; // Add this import statement
+import QueueDataExplanation from "./QueueDataExplanation";
 
 export default function QueueTimeChartPage() {
   const router = useRouter();
@@ -38,6 +41,16 @@ export default function QueueTimeChartPage() {
       <Stack sx={{ mb: 2, fontSize: 15 }}>
         <Typography variant="caption" color="textSecondary">
           * All datetime values are in UTC. <Clock />
+        </Typography>
+        <Typography variant="caption" color="textSecondary">
+          <span>
+            {" "}
+            * Data is collected every 30 minutes, including all jobs in queue at
+            that time.{" "}
+          </span>
+          <Tooltip title={<QueueDataExplanation />}>
+            <InfoIcon fontSize="small" />
+          </Tooltip>
         </Typography>
       </Stack>
       <div>

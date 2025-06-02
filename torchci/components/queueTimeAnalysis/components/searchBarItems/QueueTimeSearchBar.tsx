@@ -246,7 +246,7 @@ export default function QueueTimeSearchBar({
                   setStopDate={(val: any) => {
                     dispatch({
                       type: "UPDATE_FIELD",
-                      field: "stopDate",
+                      field: "endDate",
                       value: val,
                     });
                   }}
