@@ -4,7 +4,6 @@ import * as echarts from "echarts";
 import { useDarkMode } from "lib/DarkModeContext";
 import darkThemeHud from "lib/chartTheme";
 import { useEffect, useRef, useState } from "react";
-import { deepCopy } from "test/common";
 
 dayjs.extend(isoWeek);
 
@@ -164,13 +163,22 @@ function updateChart(
       break;
     case "histogram_bar_vertical":
       const aggre_hist = sumArrayValues(rawData);
-      chartRenderOptions = getBarOptions(aggre_hist, queue_axis_value);
+      const { cumulative: cv, total: tv } = getCumulativeList(aggre_hist);
+      chartRenderOptions = getHistogramChartVertical(
+        aggre_hist,
+        queue_axis_value,
+        cv,
+        tv
+      );
       break;
     case "histogram_bar_horizontal":
       const aggre_hist_bar = sumArrayValues(rawData);
-      chartRenderOptions = getBarChartHorizontal(
+      const { cumulative, total } = getCumulativeList(aggre_hist_bar);
+      chartRenderOptions = getHistogramChartHorizontal(
         aggre_hist_bar,
-        queue_axis_value
+        queue_axis_value,
+        cumulative,
+        total
       );
       break;
     case "max_queue_time_line":
@@ -351,6 +359,16 @@ const formatTime = (value: number) => {
   }
 };
 
+const getCumulativeList = (data: any[]) => {
+  const counts = data.map(Number);
+  console.log("bardatea", data);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const cumulative = counts.map((_, i) =>
+    counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
+  );
+  return { cumulative, total };
+};
+
 const getTimeLineChart = (
   data: any[],
   xAxisLabels: string[],
@@ -398,38 +416,46 @@ const getTimeLineChart = (
   };
 };
 
-const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
-  const counts = deepCopy(barData);
-  console.log("bardatea", barData);
-  const total = counts.reduce((a, b) => a + b, 0);
-  const cumulative = counts.map((_, i) =>
-    counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
-  );
+const renderHistogramTooltip = (
+  params: any,
+  cumulative: number[],
+  total: number,
+  axis: any
+) => {
+  const idx = params.dataIndex;
+  const xLabel = params.name;
+  const value = params.value;
+  const percentile = ((cumulative[idx] / total) * 100).toFixed(1);
+  const lines = [];
+  if (idx == 0) {
+    lines.push(`<b>Histogram Bucket: < ${xLabel}</b>`);
+  } else if (idx == axis.length - 1) {
+    lines.push(`<b>Histogram Bucket: >= ${xLabel}</b>`);
+  } else {
+    const nextName = axis[idx - 1] || "N/A";
+    lines.push(`<b>Histogram Bucket: ${nextName}- ${xLabel}</b>`);
+  }
 
+  lines.push(
+    `<b>Single Bucket</b>: ${value}% queued jobs landed in the bucket`
+  );
+  lines.push(
+    `<b>Accumulative ≤ ${xLabel}</b>: ${percentile}% of detected queued jobs are ≤ ${xLabel}.`
+  );
+  return lines.join("<br/>");
+};
+
+const getHistogramChartVertical = (
+  barData: any[],
+  xAxisLabels: string[],
+  cumulative: number[],
+  total: number
+) => {
   return {
     tooltip: {
       position: "top",
       formatter: function (params: any) {
-        const idx = params.dataIndex;
-        const xLabel = params.name;
-        const value = params.value;
-        const count = counts[idx];
-        const percentile = ((cumulative[idx] / total) * 100).toFixed(1);
-        const lines = [];
-        lines.push(`<${xLabel} percentile ${percentile}%`);
-        if (idx == 0) {
-          lines.push(`detected ${value}% queueing jobs in range: < ${xLabel}`);
-        } else if (idx == xAxisLabels.length - 1) {
-          lines.push(
-            `detected ${value}% queueing jobs within time range: ${xLabel}`
-          );
-        } else {
-          const nextName = xAxisLabels[idx - 1] || "N/A";
-          lines.push(
-            `detected ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`
-          );
-        }
-        return lines.join("<br/>");
+        return renderHistogramTooltip(params, cumulative, total, xAxisLabels);
       },
     },
     grid: {
@@ -454,44 +480,17 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
   };
 };
 
-const getCumulativeList = (data: any[]) => {
-  const counts = data.map(Number);
-  console.log("bardatea", data);
-  const total = counts.reduce((a, b) => a + b, 0);
-  const cumulative = counts.map((_, i) =>
-    counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
-  );
-  return { cumulative, total };
-};
-
-const getBarChartHorizontal = (data: any[], xAxisLabels: string[]) => {
-  const { cumulative, total } = getCumulativeList(data);
-
+const getHistogramChartHorizontal = (
+  data: any[],
+  xAxisLabels: string[],
+  cumulative: any[],
+  total: number
+) => {
   return {
     tooltip: {
       position: "top",
       formatter: function (params: any) {
-        const idx = params.dataIndex;
-        const xLabel = params.name;
-        const value = params.value;
-        const percentile = ((cumulative[idx] / total) * 100).toFixed(1);
-        const lines = [];
-        if (idx == 0) {
-          lines.push(`<b>Histogram Bucket: < ${xLabel}</b>`);
-        } else if (idx == xAxisLabels.length - 1) {
-          lines.push(`<b>Histogram Bucket: >= ${xLabel}</b>`);
-        } else {
-          const nextName = xAxisLabels[idx - 1] || "N/A";
-          lines.push(`<b>Histogram Bucket: ${nextName}- ${xLabel}</b>`);
-        }
-
-        lines.push(
-          `<b>Single Bucket</b>: ${value}% queued jobs landed in the bucket`
-        );
-        lines.push(
-          `<b>Accumulative ≤ ${xLabel}</b>: ${percentile}% of detected queued jobs are ≤ ${xLabel}.`
-        );
-        return lines.join("<br/>");
+        return renderHistogramTooltip(params, cumulative, total, xAxisLabels);
       },
     },
     grid: {
