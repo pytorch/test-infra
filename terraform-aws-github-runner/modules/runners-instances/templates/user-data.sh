@@ -53,42 +53,37 @@ exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&
 metric_report "linux_userdata.execution" 1
 
 OS_ID=$(. /etc/os-release;echo $ID$VERSION_ID)
-if [[ "$OS_ID" =~ ^amzn2023* ]]; then
-  PKG_MANAGER="dnf"
-else
-  PKG_MANAGER="yum"
-fi
 
 ${pre_install}
 
 if ! command -v curl 2>/dev/null; then
   echo "Installing curl"
-  sudo $PKG_MANAGER install -y curl
+  sudo dnf install -y curl
 fi
 
-retry sudo $PKG_MANAGER update -y
+retry sudo dnf update -y
 
 if ! command -v jq 2>/dev/null; then
   echo "Installing jq"
-  retry sudo $PKG_MANAGER install -y jq
+  retry sudo dnf install -y jq
 fi
 if ! command -v git 2>/dev/null; then
   echo "Installing git"
-  retry sudo $PKG_MANAGER install -y git
+  retry sudo dnf install -y git
 fi
 if ! command -v pip3 2>/dev/null; then
-  echo "Installing git"
-  retry sudo $PKG_MANAGER install -y pip
+  echo "Installing pip"
+  retry sudo dnf install -y pip
 fi
 
 %{ if enable_cloudwatch_agent ~}
-retry sudo $PKG_MANAGER install amazon-cloudwatch-agent -y
+retry sudo dnf install amazon-cloudwatch-agent -y
 amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${ssm_key_cloudwatch_agent_config}
 %{ endif ~}
 
 # Install docker
 if [ "$(uname -m)" == "aarch64" ]; then
-  retry sudo $PKG_MANAGER install -y docker
+  retry sudo dnf install -y docker
 else
   if command -v amazon-linux-extras 2>/dev/null; then
     echo "Installing docker using amazon-linux-extras"
@@ -99,41 +94,36 @@ else
   fi
 fi
 
-service docker start
-usermod -a -G docker ec2-user
-
 USER_NAME=ec2-user
+
+service docker start
+usermod -a -G docker $USER_NAME
+
 ${install_config_runner}
 
-retry sudo $PKG_MANAGER groupinstall -y 'Development Tools'
-retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
+retry sudo dnf groupinstall -y 'Development Tools'
+retry sudo dnf install -y "kernel-devel-uname-r == $(uname -r)" || true
 
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 echo "NVIDIA driver install required"
-if [[ "$OS_ID" =~ ^amzn.* ]]; then
-    if [[ "$OS_ID" =~ "amzn2023" ]] ; then
-      echo "On Amazon Linux 2023, installing kernel-modules-extra"
-      retry sudo dnf install kernel-modules-extra -y
-    fi
-    echo Installing Development Tools
-    sudo modprobe backlight
-fi
+
+echo "Installing kernel-modules-extra"
+retry sudo dnf install kernel-modules-extra -y
+echo Installing Development Tools
+sudo modprobe backlight
+
 retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-570.133.07.run'
 retry sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
-if [[ "$OS_ID" =~ ^amzn.* ]]; then
-    if [[ "$OS_ID" == ^amzn2023* ]]; then
-      retry sudo dnf install -y dnf-plugins-core
-      retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
-    else
-      retry sudo yum install -y yum-utils
-      retry sudo yum-config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
-    fi
-    echo Installing nvidia-docker tools
-    retry sudo $PKG_MANAGER install -y nvidia-docker2
-    sudo systemctl restart docker
-fi
+
+retry sudo dnf install -y dnf-plugins-core
+retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
+
+echo Installing nvidia-docker tools
+retry sudo dnf install -y nvidia-docker2
+sudo systemctl restart docker
+
 %{ endif ~}
 
 ${post_install}
