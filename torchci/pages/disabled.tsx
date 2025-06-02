@@ -373,7 +373,6 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-
         <ValuePicker
           value={platform}
           setValue={setPlatform}
