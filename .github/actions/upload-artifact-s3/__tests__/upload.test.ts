@@ -41,7 +41,9 @@ jest.mock('@actions/github', () => ({
 }))
 
 function filenameToKey(filename: string): string {
-  const relativePath = path.relative(paths['root'], filename).replace(/\\/g, '/')
+  const relativePath = path
+    .relative(paths['root'], filename)
+    .replace(/\\/g, '/')
   return `pytorch/test-infra/123/${fixtures.artifactName}/${relativePath}`
 }
 
