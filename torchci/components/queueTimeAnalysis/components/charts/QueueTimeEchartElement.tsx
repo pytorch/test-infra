@@ -352,7 +352,7 @@ const getBarOptions = (barData: any[], xAxisLabels: string[]) => {
         if (idx == 0) {
           return `detected ${value}% queueing jobs in range: < ${xLabel}`;
         } else if (idx == xAxisLabels.length - 1) {
-          return `detect ${value}% queueing jobs within time range: ${xLabel}`;
+          return `detected ${value}% queueing jobs within time range: ${xLabel}`;
         }
         const nextName = xAxisLabels[idx - 1] || "N/A";
         return `detected ${value}% queueing jobs within time range: ${nextName}- ${xLabel}`;
