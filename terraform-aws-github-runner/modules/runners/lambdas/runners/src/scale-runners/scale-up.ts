@@ -206,7 +206,7 @@ export async function createRunnerConfigArgument(
   }
 }
 
-export async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
+async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
   if (Config.Instance.mustHaveIssuesLabels) {
     for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
       const label = Config.Instance.mustHaveIssuesLabels[i];
