@@ -6,7 +6,6 @@ in the stats folder of the generated-stats branch.
 
 import json
 import os
-from typing import Any, Dict
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict
