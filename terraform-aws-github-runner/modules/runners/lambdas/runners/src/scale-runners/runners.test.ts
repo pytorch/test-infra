@@ -89,6 +89,9 @@ function createExpectedRunInstancesLinux(
   const tags = [
     { Key: 'Application', Value: 'github-action-runner' },
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+    { Key: 'RunnerTypeLabels', Value: runnerParameters.runnerType.labels?  runnerParameters.runnerType.labels.join(','):'' },
+    { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
+    { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
   ];
   if (enableOrg) {
     tags.push({
@@ -500,6 +503,8 @@ describe('tryReuseRunner', () => {
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
+      repositoryOwner: 'jeanschmidt',
+      repositoryName: 'regularizationTheory'
     };
 
     it('does not have any runner', async () => {
@@ -831,6 +836,8 @@ describe('tryReuseRunner', () => {
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
+      repositoryOwner: 'jeanschmidt',
+      repositoryName: 'test-repo'
     };
 
     it('does not have any runner', async () => {
@@ -1125,7 +1132,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && linux', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1138,6 +1145,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1149,7 +1158,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && linux && organization', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters= {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: undefined,
@@ -1162,6 +1171,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu.nvidia.gpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'test-repo'
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1173,7 +1184,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && windows', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters= {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1186,6 +1197,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1228,6 +1241,9 @@ describe('createRunner', () => {
             Tags: [
               { Key: 'Application', Value: 'github-action-runner' },
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+              { Key: "RunnerTypeLabels", Value: ''},
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
+              { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
@@ -1245,6 +1261,8 @@ describe('createRunner', () => {
           environment: 'wg113',
           repoName: 'SomeAwesomeCoder/some-amazing-library',
           orgName: undefined,
+          repositoryName: 'some-amazing-library',
+          repositoryOwner: 'SomeAwesomeCoder',
           runnerType: {
             instance_type: 'c5.2xlarge',
             os: 'linux',
@@ -1267,7 +1285,7 @@ describe('createRunner', () => {
     });
 
     it('creates ssm experiment parameters when joining experiment', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1284,6 +1302,8 @@ describe('createRunner', () => {
             percentage: 0.1,
           },
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
       jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0999);
 
@@ -1323,6 +1343,8 @@ describe('createRunner', () => {
           {
             runnerConfig: runnerConfigFn,
             environment: 'wg113',
+            repositoryName: 'some-amazing-library',
+            repositoryOwner: 'SomeAwesomeCoder',
             repoName: 'SomeAwesomeCoder/some-amazing-library',
             orgName: undefined,
             runnerType: {
@@ -1344,7 +1366,7 @@ describe('createRunner', () => {
     it('fails to attach to any network and raises exception', async () => {
       const errorMsg = 'test error msg ASDF';
       mockRunInstances.promise.mockClear().mockRejectedValue(new Error(errorMsg));
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1357,6 +1379,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();
@@ -1495,7 +1519,7 @@ describe('createRunner', () => {
     });
 
     it('succeed in the first try, first subnet and region', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1508,6 +1532,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
@@ -1522,7 +1548,7 @@ describe('createRunner', () => {
       mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters= {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1535,6 +1561,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
@@ -1556,7 +1584,7 @@ describe('createRunner', () => {
       }
       mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1569,6 +1597,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library'
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[1]);
@@ -1603,7 +1633,7 @@ describe('createRunner', () => {
         mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       }
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1616,6 +1646,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();

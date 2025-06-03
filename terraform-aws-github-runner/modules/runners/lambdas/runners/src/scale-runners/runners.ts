@@ -25,6 +25,8 @@ export interface RunnerInputParameters {
   repoName?: string;
   orgName?: string;
   runnerType: RunnerType;
+  repositoryOwner: string;
+  repositoryName: string;
 }
 
 export interface AmiExpermient {
@@ -691,7 +693,11 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     const tags = [
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+      { Key: 'RunnerTypeLabels', Value: runnerParameters.runnerType.labels?.join(',') ?? '' },
+      { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
+      { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
     ];
+
     /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
       tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
@@ -708,6 +714,10 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Value: runnerParameters.orgName,
       });
     }
+
+
+
+
     let customAmi = runnerParameters.runnerType.ami;
     let customAmiExperiment = false;
     if (runnerParameters.runnerType.ami_experiment) {
