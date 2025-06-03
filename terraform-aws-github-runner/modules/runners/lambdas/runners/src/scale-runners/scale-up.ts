@@ -163,7 +163,7 @@ export async function scaleUp(
   }
 }
 
-async function createRunnerConfigArgument(
+export async function createRunnerConfigArgument(
   runnerType: RunnerType,
   repo: Repo,
   installationId: number | undefined,
@@ -206,7 +206,7 @@ async function createRunnerConfigArgument(
   }
 }
 
-async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
+export async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
   if (Config.Instance.mustHaveIssuesLabels) {
     for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
       const label = Config.Instance.mustHaveIssuesLabels[i];

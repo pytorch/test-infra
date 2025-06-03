@@ -10,6 +10,7 @@ import {
 } from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
+import { refreshChron as refreshChronR } from './scale-runners/refresh-chron';
 import { scaleUpChron as scaleUpChronR } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 
@@ -155,6 +156,20 @@ export async function scaleDown(event: ScheduledEvent, context: Context, callbac
 
   try {
     await scaleDownR();
+    return callback(null);
+  } catch (e) {
+    console.error(e);
+    return callback('Failed');
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function refreshChron(event: ScheduledEvent, context: Context, callback: any) {
+  // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
+  context.callbackWaitsForEmptyEventLoop = false;
+
+  try {
+    await refreshChronR();
     return callback(null);
   } catch (e) {
     console.error(e);

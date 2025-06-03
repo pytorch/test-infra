@@ -88,6 +88,12 @@ variable "github_app" {
   })
 }
 
+variable "refresh_chron_schedule_expression" {
+  description = "Scheduler expression to check every x for refresh chron."
+  type        = string
+  default     = "cron(*/3 * * * ? *)" # every 3 minutes
+}
+
 variable "scale_down_schedule_expression" {
   description = "Scheduler expression to check every x for scale down."
   type        = string
@@ -116,6 +122,12 @@ variable "lambda_timeout_scale_up" {
   description = "Time out for the scale up lambda in seconds."
   type        = number
   default     = 60
+}
+
+variable "lambda_timeout_refresh_chron" {
+  description = "Time out for the refresh chron lambda in seconds."
+  type        = number
+  default     = 900
 }
 
 variable "lambda_timeout_scale_up_chron" {

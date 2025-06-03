@@ -1630,6 +1630,13 @@ export class ScaleDownMetrics extends Metrics {
   }
 }
 
+export class RefreshChronMetrics extends ScaleUpMetrics {
+  constructor() {
+    super('refreshChron');
+  }
+
+}
+
 export class ScaleUpChronMetrics extends ScaleUpMetrics {
   constructor() {
     super('scaleUpChron');
