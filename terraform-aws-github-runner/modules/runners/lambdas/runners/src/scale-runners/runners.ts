@@ -212,6 +212,7 @@ export async function listRunners(
               const ebsVolumeReplacementRequestTimestamp = instance.Tags?.find(
                 (e) => e.Key === 'EBSVolumeReplacementRequestTm',
               )?.Value;
+              const stage = instance.Tags?.find((e) => e.Key === 'Stage')?.Value;
               const ephemeralRunnerFinished = instance.Tags?.find((e) => e.Key === 'EphemeralRunnerFinished')?.Value;
               return {
                 applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
@@ -229,6 +230,7 @@ export async function listRunners(
                 org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
                 repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
                 runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
+                stage: stage,
               };
             }) ?? []
           );
@@ -504,21 +506,30 @@ export async function tryReuseRunner(
       continue;
     }
     if (runner.awsRegion === undefined) {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
+      console.debug(`[tryReuseRunner]: Runner ${ runner.instanceId} does not have a region`);
       continue;
     }
     if (runner.org === undefined && runner.repo === undefined) {
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
       continue;
     }
+
+    if (runner.stage !== undefined && runner.stage === 'ReplaceEBSVolume') {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} the runner is in ReplaceEBSVolume stage, skip to reuse it`);
+    }
+
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
 
+      // when runner.ephemeralRunnerFinished is set, it indicates that the runner is at post-test stage of github,
+      // there are some left cleanup in the ec2 instancdes, this gives the buffer to make sure we handle it gracefully.
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
         continue;
       }
 
+      // since the runner finshed the previous github job, it's idling for a long time that it is likely to
+      //  be caught in scale-down pipeline, we do not reuse it to avoid the race condition.
       if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
         console.debug(
           `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
@@ -536,6 +547,7 @@ export async function tryReuseRunner(
         metrics.runnersReuseTryRepo(1, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
       }
 
+      // appies redis locks to avoid race condition between multiple scale-up/scale-down pipelines
       await redisLocked(
         `tryReuseRunner`,
         runner.instanceId,
@@ -553,7 +565,15 @@ export async function tryReuseRunner(
 
           // should come before removing other tags, this is useful so
           // there is always a tag present for scaleDown to know that
-          // it can/will be reused and avoid deleting it
+          // it can/will be reused and avoid deleting it.
+          // Tags created:
+          //
+          // EBSVolumeReplacementRequestTm: record when was last time the task to replace volume was created.
+          // scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTmp is present and it's less than 5 mins.
+          //
+          // Stage: record the stage of the runner, in this case, it's in the ReplaceEBSVolume.
+          // Refresh and scaleup pipelines will not reuse the runner if the Stage is present and it's ReplaceEBSVolume.
+          // the stage tag will be removed once the replace volume task is completed at job's startup.sh
           await expBackOff(() => {
             return metrics.trackRequestRegion(
               runner.awsRegion,
@@ -563,7 +583,10 @@ export async function tryReuseRunner(
                 return ec2
                   .createTags({
                     Resources: [runner.instanceId],
-                    Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` }],
+                    Tags: [
+                      { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}`},
+                      { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+                    ],
                   })
                   .promise();
               },
@@ -571,6 +594,8 @@ export async function tryReuseRunner(
           });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
 
+          // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
+          // pick this instance up since it's in next stage, in this case, it's in the ReplaceVolume stage.
           await expBackOff(() => {
             return metrics.trackRequestRegion(
               runner.awsRegion,
