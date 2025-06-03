@@ -13,7 +13,6 @@ resource "aws_kms_grant" "refresh_chron" {
 }
 
 resource "aws_lambda_function" "refresh_chron" {
-  count             = var.retry_refresh_chron_hud_query_url != "" ? 1 : 0
   s3_bucket         = var.lambda_s3_bucket != null ? var.lambda_s3_bucket : null
   s3_key            = var.runners_lambda_s3_key != null ? var.runners_lambda_s3_key : null
   s3_object_version = var.runners_lambda_s3_object_version != null ? var.runners_lambda_s3_object_version : null
@@ -21,7 +20,7 @@ resource "aws_lambda_function" "refresh_chron" {
   source_code_hash  = var.lambda_s3_bucket == null ? filebase64sha256(local.lambda_zip) : null
   function_name     = "${var.environment}-refresh-chron"
   role              = aws_iam_role.refresh_chron[0].arn
-  handler           = "index.scaleUpChron"
+  handler           = "index.refreshChron"
   runtime           = "nodejs20.x"
   timeout           = var.lambda_timeout_refresh_chron
   tags              = local.tags
