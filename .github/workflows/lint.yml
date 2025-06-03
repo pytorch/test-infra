@@ -40,9 +40,9 @@ jobs:
           if ! lintrunner -v --force-color --all-files --tee-json=lint.json; then
               echo ""
               echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner -m main\`.\e[0m"
+              cat lint.json
               exit 1
           fi
-          cat lint.json
       - name: Produce SARIF
         if: always() && matrix.os == 'ubuntu-latest'
         run: |
