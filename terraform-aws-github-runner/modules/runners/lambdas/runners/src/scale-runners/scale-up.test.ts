@@ -963,8 +963,8 @@ describe('scaleUp', () => {
         runnerType: runnerType1,
         repositoryName: 'repo',
         repositoryOwner: 'owner',
-         // eslint-disable-next-line max-len
-         runnerConfig: expect.any(Function),
+        // eslint-disable-next-line max-len
+        runnerConfig: expect.any(Function),
       },
       metrics,
     );

@@ -110,7 +110,7 @@ export async function scaleUp(
               payload.installationId,
               metrics,
               awsRegion,
-              experimentalRunner
+              experimentalRunner,
             );
           },
           runnerType: runnerType,

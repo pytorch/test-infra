@@ -506,7 +506,7 @@ export async function tryReuseRunner(
       continue;
     }
     if (runner.awsRegion === undefined) {
-      console.debug(`[tryReuseRunner]: Runner ${ runner.instanceId} does not have a region`);
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
       continue;
     }
     if (runner.org === undefined && runner.repo === undefined) {
@@ -515,7 +515,9 @@ export async function tryReuseRunner(
     }
 
     if (runner.stage !== undefined && runner.stage === 'ReplaceEBSVolume') {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} the runner is in ReplaceEBSVolume stage, skip to reuse it`);
+      console.debug(
+        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in ReplaceEBSVolume stage, skip to reuse it`,
+      );
       continue;
     }
 
@@ -585,7 +587,7 @@ export async function tryReuseRunner(
                   .createTags({
                     Resources: [runner.instanceId],
                     Tags: [
-                      { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}`},
+                      { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` },
                       { Key: 'Stage', Value: 'ReplaceEBSVolume' },
                     ],
                   })
@@ -740,9 +742,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Value: runnerParameters.orgName,
       });
     }
-
-
-
 
     let customAmi = runnerParameters.runnerType.ami;
     let customAmiExperiment = false;
