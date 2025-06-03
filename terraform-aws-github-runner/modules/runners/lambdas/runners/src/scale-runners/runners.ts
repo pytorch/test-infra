@@ -954,7 +954,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   }
 }
 
-async function innerCreateRunnerConfigArgument(
+export async function innerCreateRunnerConfigArgument(
   runnerTypeName: string,
   repositoryName: string,
   repositoryOwner: string,
