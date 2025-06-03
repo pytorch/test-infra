@@ -103,9 +103,7 @@ if __name__ == "__main__":
     main_branch_shas = list_past_year_shas()
     print(f"There are {len(main_branch_shas)} shas, uploading in batches of {interval}")
     for i in range(0, len(main_branch_shas), interval):
-        shas = [
-            x["head_sha"]
-            for x in query_clickhouse(
+        shas = [x["head_sha"] for x in query_clickhouse(
                 NOT_IN_MERGE_BASES_TABLE,
                 {"shas": main_branch_shas[i : i + interval]},
             )
