@@ -1,7 +1,5 @@
-import { spawn } from "child_process";
-import fs from "fs";
+import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
-import path from "path";
 
 // Configure Next.js to accept streaming responses
 export const config = {
@@ -13,6 +11,15 @@ export const config = {
   },
 };
 
+// Lambda function URL with direct streaming support
+const LAMBDA_URL =
+  process.env.GRAFANA_MCP_LAMBDA_URL ||
+  "https://your-lambda-url.lambda-url.us-east-1.on.aws/";
+
+// Auth token for Lambda access
+const AUTH_TOKEN =
+  process.env.GRAFANA_MCP_AUTH_TOKEN || "your-placeholder-token";
+
 // This is critical for proper streaming - signals to browser to flush each chunk immediately
 const flushStream = (res: NextApiResponse) => {
   if (typeof res.flush === "function") {
@@ -23,8 +30,11 @@ const flushStream = (res: NextApiResponse) => {
   }
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log("Claude API endpoint called");
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  console.log("Claude API endpoint called - proxying to Lambda");
 
   // Only allow POST method
   if (req.method !== "POST") {
@@ -51,20 +61,19 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       .json({ error: "Query parameter is required and must be a string" });
   }
 
-  console.log(`Processing query (${query.length} chars)`);
+  console.log(
+    `Processing query (${query.length} chars) - forwarding to Lambda`
+  );
 
   // CRITICAL STREAMING HEADERS
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
-  res.setHeader("Transfer-Encoding", "chunked"); // Force chunked encoding
+  res.setHeader("Transfer-Encoding", "chunked");
 
   // Flag to track if the response has been ended
   let isResponseEnded = false;
-
-  // Create claudeProcess variable in outer scope
-  let claudeProcess: ReturnType<typeof spawn> | null = null;
 
   // Helper function to safely end response
   const safeEndResponse = (message?: string) => {
@@ -80,186 +89,69 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   };
 
   try {
-    // Setup a timeout
-    const timeout = setTimeout(() => {
-      console.log("Process timed out after 900 seconds");
-      safeEndResponse(`{"error":"Process timed out after 900 seconds"}\n`);
+    // Generate a session ID for this user (could be made more sophisticated)
+    const userUuid = randomUUID();
 
-      if (claudeProcess && !claudeProcess.killed) {
-        console.log("Killing Claude process due to timeout");
-        claudeProcess.kill();
-      }
-    }, 900000); // 900 seconds timeout
-
-    // Create unique temp directory with timestamp and random string
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 10);
-    const sessionId = `${timestamp}_${randomStr}`;
-    const tempDir = `/tmp/claude_hud_${sessionId}`;
-
-    // Create temp directory
-    try {
-      fs.mkdirSync(tempDir, { recursive: true });
-      console.log(`Created temp directory: ${tempDir}`);
-
-      // Copy CLAUDE.md to temp directory
-      const claudeMdPath = path.join(
-        process.cwd(),
-        "pages/api/grafana_mcp/CLAUDE.md"
-      );
-      if (fs.existsSync(claudeMdPath)) {
-        fs.copyFileSync(claudeMdPath, path.join(tempDir, "CLAUDE.md"));
-        console.log("Copied CLAUDE.md to temp directory");
-      }
-
-      // Copy .env to temp directory as .env
-      const envTemplatePath = path.join(
-        process.cwd(),
-        "pages/api/grafana_mcp/.env"
-      );
-      if (fs.existsSync(envTemplatePath)) {
-        fs.copyFileSync(envTemplatePath, path.join(tempDir, ".env"));
-        console.log("Copied .env.template to temp directory as .env");
-      }
-    } catch (err) {
-      console.error(`Error creating temp directory: ${err}`);
-      return safeEndResponse(`{"error":"Failed to create temp environment"}`);
-    }
-
-    // Environment variables
-    const env = {
-      ...process.env,
-      PATH: process.env.PATH || "",
-      HOME: process.env.HOME || "",
-      SHELL: process.env.SHELL || "/bin/bash",
-      NODE_NO_BUFFERING: "1", // Ensure Node.js doesn't buffer output
-    };
-
-    // Set working directory to temp directory
-    const cwd = tempDir;
-
-    // List of allowed MCP tools
-    const allowedTools = [
-      "mcp__grafana__create_time_series_dashboard",
-      "mcp__clickhouse__readme_howto_use_clickhouse_tools",
-      "mcp__clickhouse__run_clickhouse_query",
-      "mcp__clickhouse__get_clickhouse_schema",
-      "mcp__clickhouse__get_clickhouse_tables",
-      "mcp__clickhouse__semantic_search_docs",
-    ].join(",");
-
-    console.log("Starting Claude process");
+    console.log(`Calling Lambda with userUuid: ${userUuid}`);
+    console.log("and token: ", AUTH_TOKEN);
 
     // Write initial message to start the stream
-    res.write(`{"status":"starting","tempDir":"${tempDir}"}\n`);
+    res.write(`{"status":"connecting","userUuid":"${userUuid}"}\n`);
+
     flushStream(res);
 
-    // Launch Claude process with claude command directly
-    claudeProcess = spawn(
-      "claude",
-      [
-        "-p",
-        "Use TodoRead/TodoWrite to create a plan first (find tables, understand tables, create query, optimize query for Grafana, make Grafana dashboard). " +
-          query,
-        "--output-format",
-        "stream-json",
-        "--verbose",
-        "--allowedTools",
-        allowedTools,
-        "--mcp-config",
-        process.cwd() + "/pages/api/grafana_mcp/mcp.json",
-      ],
-      {
-        env,
-        cwd, // Run from the temp directory
-        stdio: ["ignore", "pipe", "pipe"],
-      }
-    );
-
-    console.log(`Claude process started with PID: ${claudeProcess.pid}`);
-
-    // Register request abort handler first
-    req.on("close", () => {
-      clearTimeout(timeout);
-      console.log("Request closed by client");
-      if (claudeProcess && !claudeProcess.killed) {
-        console.log(`Killing Claude process ${claudeProcess.pid}`);
-        claudeProcess.kill();
-      }
-      safeEndResponse();
+    // Call Lambda function with auth token
+    const lambdaResponse = await fetch(LAMBDA_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${AUTH_TOKEN}`,
+      },
+      body: JSON.stringify({
+        query: query,
+        userUuid: userUuid,
+      }),
     });
 
-    // Register error handler
-    claudeProcess.on("error", (error) => {
-      clearTimeout(timeout);
-      console.error(`Claude process error: ${error.message}`);
-      if (!isResponseEnded) {
-        res.write(`{"error":"${error.message.replace(/"/g, '\\"')}"}\n`);
-        flushStream(res);
-      }
-      safeEndResponse();
-    });
+    if (!lambdaResponse.ok) {
+      throw new Error(
+        `Lambda returned ${lambdaResponse.status}: ${lambdaResponse.statusText}`
+      );
+    }
 
-    // Stream stdout (Claude's JSON output)
-    claudeProcess.stdout.on("data", (data) => {
-      if (isResponseEnded) return;
+    if (!lambdaResponse.body) {
+      throw new Error("Lambda response has no body");
+    }
 
-      const output = data.toString();
-      console.log(`Got output: ${output.length} bytes`);
+    // Stream the response from Lambda
+    const reader = lambdaResponse.body.getReader();
+    const decoder = new TextDecoder();
 
-      // Check if this output contains usage data for debugging
-      if (output.includes('"usage"') || output.includes('"total_tokens"')) {
-        console.log("Found token data in chunk:", output);
-      }
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
 
-      // Send the chunk immediately and flush the stream
-      res.write(output);
-      flushStream(res);
-    });
-
-    // Handle stderr
-    claudeProcess.stderr.on("data", (data) => {
-      const errorMsg = data.toString();
-      console.error(`Claude stderr: ${errorMsg.trim()}`);
-    });
-
-    // Handle process completion
-    claudeProcess.on("close", (code) => {
-      clearTimeout(timeout);
-      console.log(`Claude process exited with code ${code}`);
-
-      // Send final status message with token usage if available
-      if (!isResponseEnded) {
-        // Check if we can find any token usage information in the process output
-        // This could be in a file in the temp directory
-        const usageFilePath = path.join(tempDir, "usage.json");
-        let tokenUsage = {};
-
-        try {
-          if (fs.existsSync(usageFilePath)) {
-            const usageData = fs.readFileSync(usageFilePath, "utf8");
-            tokenUsage = JSON.parse(usageData);
-            console.log("Found token usage data:", tokenUsage);
-          }
-        } catch (error) {
-          console.error("Error reading token usage data:", error);
+        if (done) {
+          console.log("Lambda stream ended");
+          break;
         }
 
-        res.write(
-          `\n{"status":"complete","code":${
-            code || 0
-          },"tempDir":"${tempDir}","usage":${JSON.stringify(tokenUsage)}}\n`
-        );
+        const chunk = decoder.decode(value, { stream: true });
+        console.log(`Streaming chunk from Lambda: ${chunk.length} bytes`);
+
+        // Forward the chunk to the client
+        res.write(chunk);
         flushStream(res);
       }
+    } finally {
+      reader.releaseLock();
+    }
 
-      // Consider cleaning up the temp directory here if needed
-      // For debugging purposes, we're keeping it for now
-
-      safeEndResponse();
-    });
+    safeEndResponse();
   } catch (error) {
-    console.error(`Unexpected error: ${error}`);
-    safeEndResponse(`{"error":"${String(error).replace(/"/g, '\\"')}"}\n`);
+    console.error(`Lambda proxy error: ${error}`);
+    safeEndResponse(
+      `{"error":"Lambda proxy error: ${String(error).replace(/"/g, '\\"')}"}\n`
+    );
   }
 }

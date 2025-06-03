@@ -146,11 +146,46 @@ jobs:
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
 
+  release-grafana-mcp:
+    name: Upload Release for grafana-mcp lambda
+    runs-on: ubuntu-latest
+    container: node:20
+    permissions:
+      contents: write
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Install dependencies
+        working-directory: aws/lambda/grafana-mcp
+        run: yarn install --production
+
+      - name: Build deployment.zip
+        working-directory: aws/lambda/grafana-mcp
+        run: make deployment.zip
+
+      - name: Copy deployment.zip to root
+        run: cp aws/lambda/grafana-mcp/deployment.zip grafana-mcp-lambda.zip
+
+      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+        with:
+          artifacts: "grafana-mcp-lambda.zip"
+          allowUpdates: true
+          draft: true
+          name: ${{ inputs.tag }}
+          tag: ${{ inputs.tag }}
+          updateOnlyUnreleased: true
+
   finish-release:
     needs:
       - release-lambdas
       - release-ci-queue-pct
       - release-oss-ci-job-queue-time
+      - release-grafana-mcp
     name: Mark the release as final and publish it
     runs-on: ubuntu-latest
     permissions:
