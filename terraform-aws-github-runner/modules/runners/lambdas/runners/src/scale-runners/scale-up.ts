@@ -165,7 +165,7 @@ export async function scaleUp(
   }
 }
 
-export async function createRunnerConfigArgument(
+async function createRunnerConfigArgument(
   runnerType: RunnerType,
   repo: Repo,
   installationId: number | undefined,
