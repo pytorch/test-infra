@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "grafana": {
+      "command": "python",
+      "args": ["-m", "grafana_mcp"]
+    },
+    "clickhouse": {
+      "command": "python",
+      "args": ["-m", "clickhouse_mcp"]
+    }
+  }
+}
