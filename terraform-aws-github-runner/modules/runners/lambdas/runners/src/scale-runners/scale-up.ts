@@ -1,12 +1,6 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey, sleep } from './utils';
-import {
-  RunnerType,
-  RunnerInputParameters,
-  createRunner,
-  tryReuseRunner,
-  innerCreateRunnerConfigArgument,
-} from './runners';
+import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -395,4 +389,49 @@ export function _calculateScaleUpAmount(
   );
 
   return scaleUpAmount;
+}
+
+export async function innerCreateRunnerConfigArgument(
+  runnerTypeName: string,
+  repositoryName: string,
+  repositoryOwner: string,
+  awsRegion: string,
+  metrics: Metrics,
+  ghesUrlHost: string,
+  isOrgRunner: boolean,
+  isEphemeral: boolean,
+  experimentalRunner: boolean,
+  runnersExtraLabels?: string[] | undefined,
+  runnerLabels?: string[] | undefined,
+  runnerGroupName?: string | undefined,
+  installationId?: number | undefined,
+): Promise<string> {
+  const ephemeralArgument = isEphemeral ? '--ephemeral' : '';
+  const labelsArgument = [
+    `AWS:${awsRegion}`,
+    runnerTypeName,
+    ...(experimentalRunner ? ['experimental.ami'] : []),
+    ...(runnersExtraLabels ? runnersExtraLabels : []),
+    ...(runnerLabels ?? []),
+  ].join(',');
+
+  if (isOrgRunner) {
+    /* istanbul ignore next */
+    const runnerGroupArgument = runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
+    const token = await createRegistrationTokenOrg(repositoryOwner, metrics, installationId);
+    return (
+      `--url ${ghesUrlHost}/${repositoryOwner} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
+    );
+  } else {
+    const token = await createRegistrationTokenRepo(
+      { repo: repositoryName, owner: repositoryOwner },
+      metrics,
+      installationId,
+    );
+    return (
+      `--url ${ghesUrlHost}/${repositoryOwner}/${repositoryName} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
+    );
+  }
 }

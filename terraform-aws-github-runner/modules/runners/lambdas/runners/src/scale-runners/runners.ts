@@ -210,29 +210,7 @@ export async function listRunners(
           /* istanbul ignore next */
           return (
             reservation.Instances?.map((instance) => {
-              const ebsVolumeReplacementRequestTimestamp = instance.Tags?.find(
-                (e) => e.Key === 'EBSVolumeReplacementRequestTm',
-              )?.Value;
-              const stage = instance.Tags?.find((e) => e.Key === 'Stage')?.Value;
-              const ephemeralRunnerFinished = instance.Tags?.find((e) => e.Key === 'EphemeralRunnerFinished')?.Value;
-              return {
-                applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
-                awsRegion: itm.awsRegion,
-                az: instance.Placement?.AvailabilityZone?.toLocaleLowerCase(),
-                ebsVolumeReplacementRequestTimestamp: ebsVolumeReplacementRequestTimestamp
-                  ? parseInt(ebsVolumeReplacementRequestTimestamp)
-                  : undefined,
-                environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
-                ephemeralRunnerFinished: ephemeralRunnerFinished ? parseInt(ephemeralRunnerFinished) : undefined,
-                ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
-                instanceId: instance.InstanceId as string,
-                instanceManagement: instance.Tags?.find((e) => e.Key == 'InstanceManagement')?.Value,
-                launchTime: instance.LaunchTime,
-                org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
-                repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
-                runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
-                stage: stage,
-              };
+              return toRunnerInfo(instance, itm.awsRegion);
             }) ?? []
           );
         }) ?? []
@@ -242,6 +220,36 @@ export async function listRunners(
     console.error(`[listRunners]: ${e}`);
     throw e;
   }
+}
+
+/**
+ * converts ec2 instance metadata to RunnerInfo
+ * @param instance
+ * @param awsRegion
+ * @returns
+ */
+function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
+  const getTag = (key: string) => instance.Tags?.find((t) => t.Key === key)?.Value;
+  return {
+    applicationDeployDatetime: getTag('ApplicationDeployDatetime'),
+    awsRegion,
+    az: instance.Placement?.AvailabilityZone?.toLowerCase(),
+    ebsVolumeReplacementRequestTimestamp: getTag('EBSVolumeReplacementRequestTm')
+      ? parseInt(getTag('EBSVolumeReplacementRequestTm')!)
+      : undefined,
+    environment: getTag('Environment'),
+    ephemeralRunnerFinished: getTag('EphemeralRunnerFinished')
+      ? parseInt(getTag('EphemeralRunnerFinished')!)
+      : undefined,
+    ghRunnerId: getTag('GithubRunnerID'),
+    instanceId: instance.InstanceId!,
+    instanceManagement: getTag('InstanceManagement'),
+    launchTime: instance.LaunchTime,
+    org: getTag('Org'),
+    repo: getTag('Repo'),
+    runnerType: getTag('RunnerType'),
+    stage: getTag('Stage'),
+  };
 }
 
 export function getParameterNameForRunner(environment: string, instanceId: string): string {
@@ -951,50 +959,5 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       console.error(`[createRunner]: ${e}`);
     }
     throw e;
-  }
-}
-
-export async function innerCreateRunnerConfigArgument(
-  runnerTypeName: string,
-  repositoryName: string,
-  repositoryOwner: string,
-  awsRegion: string,
-  metrics: Metrics,
-  ghesUrlHost: string,
-  isOrgRunner: boolean,
-  isEphemeral: boolean,
-  experimentalRunner: boolean,
-  runnersExtraLabels?: string[] | undefined,
-  runnerLabels?: string[] | undefined,
-  runnerGroupName?: string | undefined,
-  installationId?: number | undefined,
-): Promise<string> {
-  const ephemeralArgument = isEphemeral ? '--ephemeral' : '';
-  const labelsArgument = [
-    `AWS:${awsRegion}`,
-    runnerTypeName,
-    ...(experimentalRunner ? ['experimental.ami'] : []),
-    ...(runnersExtraLabels ? runnersExtraLabels : []),
-    ...(runnerLabels ?? []),
-  ].join(',');
-
-  if (isOrgRunner) {
-    /* istanbul ignore next */
-    const runnerGroupArgument = runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
-    const token = await createRegistrationTokenOrg(repositoryOwner, metrics, installationId);
-    return (
-      `--url ${ghesUrlHost}/${repositoryOwner} ` +
-      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
-    );
-  } else {
-    const token = await createRegistrationTokenRepo(
-      { repo: repositoryName, owner: repositoryOwner },
-      metrics,
-      installationId,
-    );
-    return (
-      `--url ${ghesUrlHost}/${repositoryOwner}/${repositoryName} ` +
-      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
-    );
   }
 }
