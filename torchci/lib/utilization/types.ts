@@ -104,7 +104,10 @@ export interface ListUtilizationMetadataInfoAPIResponse {
 
 export interface ListUtilizationReportAPIResponse {
   group_key?: string;
-  metadata_list: any[];
+  metadata_list?: any[];
+  min_time?: any;
+  max_time?: any;
+  error?: string;
 }
 
 export interface ListUtilizationReportParams {

@@ -12,6 +12,7 @@ export interface ToggleIconPickerContent {
   value: string;
   icon: JSX.Element;
   tooltipContent: string;
+  charts?: string[];
 }
 
 export default function ToggleIconPicker({

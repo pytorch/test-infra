@@ -1,6 +1,7 @@
 import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
+import { useMemo } from "react";
 
 export enum ValueType {
   String = "string",
@@ -10,7 +11,7 @@ export enum ValueType {
   Link = "link",
 }
 
-export interface MetricsTableUserMappingEntry {
+export interface UMMetricsTableUserMappingEntry {
   /**
    * Optional: field name from the data object (e.g. 'group_key', 'metrics')
    */
@@ -42,30 +43,34 @@ export interface MetricsTableUserMappingEntry {
   link_url?: string;
 
   unit?: string;
+
+  width?: number;
 }
 
 type Props = {
-  userMapping: { [key: string]: MetricsTableUserMappingEntry };
+  userMapping: { [key: string]: UMMetricsTableUserMappingEntry };
   data: any[];
 };
 
-export default function MetricsTable({ userMapping, data }: Props) {
+export default function UMMetricsTable({ userMapping, data }: Props) {
   const staticColumns = generateStaticColumns(userMapping);
-  const metricKeys = extractMetricKeys(data);
+  const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
   const metricColumns = generateMetricColumns(metricKeys, userMapping);
+
   const columns = [...staticColumns, ...metricColumns];
   const rows = getRows(data, userMapping);
-
   return (
-    <div style={{ height: "1000px", width: "100%" }}>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        pageSizeOptions={[100]}
-        density="compact"
-        pagination
-      />
-    </div>
+    <>
+      <div style={{ height: "600px", width: "100%" }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          pageSizeOptions={[100]}
+          density="compact"
+          pagination
+        />
+      </div>
+    </>
   );
 }
 
@@ -74,8 +79,9 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
     .filter(([, conf]) => conf.visible !== false)
     .map(([field, conf]) => ({
       field,
+      minWidth: conf.width ?? 120,
+      flex: 1,
       headerName: conf.headerName ?? field,
-      width: 120,
       renderCell: (params: any) => {
         const value = params.value;
         const row = params.row;
@@ -95,7 +101,7 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
     }));
 }
 
-function extractMetricKeys(dataList: any[]): string[] {
+export function extractMetricKeys(dataList: any[]): string[] {
   const metricKeys = new Set<string>();
   dataList.map((d) => {
     if (d.metrics && typeof d.metrics === "object") {
@@ -133,7 +139,7 @@ function getRows(data: any[], userMapping: { [key: string]: any }) {
   return rows;
 }
 
-function generateMetricColumns(
+export function generateMetricColumns(
   metricKeys: string[],
   userMapping: { [key: string]: any }
 ) {
