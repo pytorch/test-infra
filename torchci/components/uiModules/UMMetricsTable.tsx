@@ -1,4 +1,3 @@
-import { minWidth } from "@mui/system";
 import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
