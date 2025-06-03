@@ -26,13 +26,13 @@ const dummyRunner = {
 } as any;
 
 describe('refreshChron', () => {
-    jest.clearAllMocks();
-    beforeEach(() => {
-      (Config.Instance as any).environment = 'dev';
-      (Config.Instance as any).enableOrganizationRunners = true;
-      (Config.Instance as any).scaleConfigRepo = 'infra';
-      (Config.Instance as any).minimumRunningTimeInMinutes = 10;
-    });
+  jest.clearAllMocks();
+  beforeEach(() => {
+    (Config.Instance as any).environment = 'dev';
+    (Config.Instance as any).enableOrganizationRunners = true;
+    (Config.Instance as any).scaleConfigRepo = 'infra';
+    (Config.Instance as any).minimumRunningTimeInMinutes = 10;
+  });
 
   it('should call tryReuseRunner for eligible ephemeral runners', async () => {
     mockedListRunners.mockResolvedValue([dummyRunner]);

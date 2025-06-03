@@ -1634,7 +1634,6 @@ export class RefreshChronMetrics extends ScaleUpMetrics {
   constructor() {
     super('refreshChron');
   }
-
 }
 
 export class ScaleUpChronMetrics extends ScaleUpMetrics {

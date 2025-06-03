@@ -1,4 +1,4 @@
-import { Metrics, RefreshChronMetrics } from './metrics';
+import { Metrics, RefreshChronMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { Config } from './config';
 import { getRunnerTypes } from './gh-runners';
 import { listRunners, RunnerInputParameters, RunnerType, shouldRefreshRunner, tryReuseRunner } from './runners';
@@ -6,13 +6,24 @@ import { getRepo, getRepoKey, Repo, RunnerInfo } from './utils';
 import { createRunnerConfigArgument } from './scale-up';
 
 export async function refreshChron(): Promise<void> {
-  const metrics = new RefreshChronMetrics()
+  const metrics = new RefreshChronMetrics();
+  const sndMetricsTimout: sendMetricsTimeoutVars = {
+    metrics: metrics,
+  };
+  sndMetricsTimout.setTimeout = setTimeout(
+    sendMetricsAtTimeout(sndMetricsTimout),
+    (Config.Instance.lambdaTimeout - 10) * 1000,
+  );
 
   const ec2runners = await listRunners(metrics, {
     containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
   });
+
   for (const ec2runner of ec2runners) {
     try {
+      if (!shouldRefreshRunner(ec2runner, 'refresh-runner')) {
+        continue;
+      }
 
       // fetches the repo from the runner config
       const repo: Repo = (() => {
@@ -34,10 +45,6 @@ export async function refreshChron(): Promise<void> {
 
       // only refresh ephemeral runners
       if (!runnerType.is_ephemeral) {
-        continue;
-      }
-
-      if(!shouldRefreshRunner(ec2runner, 'refresh-runner')) {
         continue;
       }
 
