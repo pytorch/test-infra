@@ -451,7 +451,7 @@ export async function isRunnerRemovable(
     const latestRunnerInfo = (await listRunners(metrics, { instanceId: ec2runner.instanceId }))[0];
     const latestMinTimeExceeded = runnerMinimumTimeExceeded(latestRunnerInfo);
     if (latestMinTimeExceeded) {
-      console.debug(`Runner ${ec2runner.instanceId} has been doubly verified and is eligible for scale down.`);
+      console.debug(`Pulled fresh EC2 data and verified runner ${ec2runner.instanceId} is eligible for scale down.`);
     }
   } else {
     console.debug(`Runner ${ec2runner.instanceId} has not exceeded the minimum running time.`);
