@@ -265,9 +265,12 @@ fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
 
-# Set tag as runner id for scale down later
+# Set tag `GithubRunnerID` as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)
 retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
+
+# Remove tag `Stage`` from instance to indicate that the instance is finished the previous step with fresh start
+retry aws ec2 delete-tags --region "$REGION" --resources "$INSTANCE_ID" --tags "Key=Stage"
 
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}
