@@ -459,13 +459,11 @@ describe('scale-down', () => {
       });
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
-      mockedRemoveGithubRunnerOrg.mockImplementation(
-        async (runnerId: number) => {
-          if (runnerId == 7) {
-            throw 'Failure';
-          }
-        },
-      );
+      mockedRemoveGithubRunnerOrg.mockImplementation(async (runnerId: number) => {
+        if (runnerId == 7) {
+          throw 'Failure';
+        }
+      });
 
       await scaleDown();
 
@@ -817,13 +815,11 @@ describe('scale-down', () => {
       });
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
-      mockedRemoveGithubRunnerRepo.mockImplementation(
-        async (runnerId: number) => {
-          if (runnerId == 7) {
-            throw 'Failure';
-          }
-        },
-      );
+      mockedRemoveGithubRunnerRepo.mockImplementation(async (runnerId: number) => {
+        if (runnerId == 7) {
+          throw 'Failure';
+        }
+      });
 
       await scaleDown();
 

@@ -458,7 +458,6 @@ export async function isRunnerRemovable(
     metrics.runnerLessMinimumTime(ec2runner);
     return false;
   }
-  
 
   if (ghRunner === undefined) {
     console.debug(`Runner ${ec2runner.instanceId} was not found on GitHub. It might not be running an agent`);
