@@ -25,7 +25,10 @@ import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
 import { useEffect, useState } from "react";
-import useSWR from "swr";
+import { default as useSWR, default as useSWRImmutable } from "swr";
+
+const DISABLED_TESTS_CONDENSED_URL =
+  "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
 
 function MasterCommitRedPanel({
   params,
@@ -490,6 +493,10 @@ export default function Page() {
     "docs push / build-docs-functorch-true",
   ];
 
+  const disabledTestsTotal = Object.keys(
+    useSWRImmutable(DISABLED_TESTS_CONDENSED_URL, fetcher).data || {}
+  ).length;
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -642,12 +649,10 @@ export default function Page() {
               }}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
             />
-            <ScalarPanel
+            <ScalarPanelWithValue
               title={"# disabled tests"}
-              queryName={"disabled_test_total"}
-              metricName={"number_of_open_disabled_tests"}
+              value={disabledTestsTotal}
               valueRenderer={(value) => value}
-              queryParams={{ state: "open" }}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
           </Stack>
@@ -919,8 +924,8 @@ export default function Page() {
             queryName={"disabled_test_historical"}
             queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
             granularity={"day"}
-            timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"number_of_new_disabled_tests"}
+            timeFieldName={"day"}
+            yAxisFieldName={"new"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
           />

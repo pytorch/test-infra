@@ -1,7 +1,6 @@
 import { Grid2, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import CopyLink from "components/CopyLink";
-import GranularityPicker from "components/GranularityPicker";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel, {
@@ -61,7 +60,7 @@ function getLabels(data: any) {
 function generateDisabledTestsTable(data: any) {
   const disabledTests: any = [];
   data.forEach((r: any) => {
-    const title = r.title.substring("DISABLED ".length);
+    const title = r.name;
     const titleMatch = title.match(DISABLED_TEST_TITLE_REGEX);
     const testCase = titleMatch ? titleMatch.groups.testCase : title;
     const testClass = titleMatch ? titleMatch.groups.testClass : "";
@@ -94,9 +93,10 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
         queryName={"disabled_test_historical"}
         queryParams={queryParams}
         granularity={"day"}
-        timeFieldName={"granularity_bucket"}
-        yAxisFieldName={"number_of_open_disabled_tests"}
+        timeFieldName={"day"}
+        yAxisFieldName={"count"}
         yAxisRenderer={(duration) => duration}
+        fillMissingData={false}
       />
     </Grid2>
   );
@@ -219,7 +219,10 @@ function DisabledTestsPanel({
               },
             },
           ]}
-          dataGridProps={{ getRowId: (el: any) => el.metadata.number }}
+          dataGridProps={{
+            getRowId: (el: any) =>
+              `${el.metadata.number}-${el.testCase}-${el.testClass}`,
+          }}
           showFooter={true}
           pageSize={100}
         />
@@ -367,11 +370,6 @@ export default function Page() {
           setStopTime={setStopTime}
           timeRange={timeRange}
           setTimeRange={setTimeRange}
-          setGranularity={setGranularity}
-        />
-        <GranularityPicker
-          granularity={granularity}
-          setGranularity={setGranularity}
         />
         <ValuePicker
           value={platform}

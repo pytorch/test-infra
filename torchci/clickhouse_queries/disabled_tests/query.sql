@@ -1,56 +1,53 @@
 -- This query returns the list of DISABLED tests together with their labels.  This powers
 -- the disabled tests dashboard, contributing them to their owners.
-WITH issues_with_labels AS (
-    SELECT
-        i.number,
-        i.title,
-        i.body,
-        groupArrayArray(i.labels. 'name') AS labels,
-        i.assignee.login AS assignee,
-        i.html_url,
-        i.updated_at
-    FROM
-        default .issues i FINAL
-    WHERE
-        (
-            i.state = {state: String }
-            OR {state: String } = ''
-        )
-        AND i.repository_url = CONCAT('https://api.github.com/repos/', { repo: String })
-        AND i.title LIKE '%DISABLED%'
-        AND (
-            {platform: String } = ''
-            OR i.body LIKE CONCAT('%', {platform: String }, '%')
-            OR (NOT i.body LIKE '%Platforms: %')
-        )
-    GROUP BY
-        i.number,
-        i.title,
-        i.body,
-        i.assignee.login,
-        i.html_url,
-        i.updated_at
+with tests as (
+    select
+        argMax(t.name, timestamp) as name,
+        argMax(t.issueNumber, timestamp) as issueNumber,
+        argMax(t.platforms, timestamp) as platforms
+    from
+        misc.disabled_tests_historical t
+    group by
+        t.name
 )
-SELECT
-    *
-FROM
-    issues_with_labels
-WHERE
-    has(issues_with_labels.labels, 'skipped')
-    AND (
+select
+    i.number,
+    t.name,
+    i.assignee. 'login' AS assignee,
+    i.html_url,
+    i.updated_at,
+    arrayMap(x -> x. 'name', i.labels) as labels,
+    i.body
+from
+    default .issues i final
+    join tests t on i.number = t.issueNumber
+where
+    (
+        i.state = {state: String }
+        OR {state: String } = ''
+    )
+    and (
+        {platform: String } = ''
+        OR arrayExists(
+            x -> x like CONCAT('%', {platform: String }, '%'),
+            t.platforms
+        )
+    )
+    and (
         {label: String } = ''
-        OR has(issues_with_labels.labels, {label: String })
+        OR arrayExists(l -> l. 'name' = {label: String }, i.labels)
     )
     AND (
         {triaged: String } = ''
         OR (
             {triaged: String } = 'yes'
-            AND has(issues_with_labels.labels, 'triaged')
+            AND arrayExists(l -> l. 'name' = 'triaged', i.labels)
         )
         OR (
             {triaged: String } = 'no'
-            AND NOT has(issues_with_labels.labels, 'triaged')
+            AND NOT arrayExists(l -> l. 'name' = 'triaged', i.labels)
         )
     )
+    and i.html_url like '%pytorch/pytorch%'
 ORDER BY
-    issues_with_labels.updated_at DESC
+    i.updated_at DESC
