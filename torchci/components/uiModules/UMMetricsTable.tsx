@@ -1,3 +1,4 @@
+import { minWidth } from "@mui/system";
 import { DataGrid } from "@mui/x-data-grid";
 import { deepClone } from "@mui/x-data-grid/internals";
 import Link from "next/link";
@@ -11,7 +12,7 @@ export enum ValueType {
   Link = "link",
 }
 
-export interface MetricsTableUserMappingEntry {
+export interface UMMetricsTableUserMappingEntry {
   /**
    * Optional: field name from the data object (e.g. 'group_key', 'metrics')
    */
@@ -48,11 +49,11 @@ export interface MetricsTableUserMappingEntry {
 }
 
 type Props = {
-  userMapping: { [key: string]: MetricsTableUserMappingEntry };
+  userMapping: { [key: string]: UMMetricsTableUserMappingEntry };
   data: any[];
 };
 
-export default function MetricsTable({ userMapping, data }: Props) {
+export default function UMMetricsTable({ userMapping, data }: Props) {
   const staticColumns = generateStaticColumns(userMapping);
   const metricKeys = useMemo(() => extractMetricKeys(data), [data]);
   const metricColumns = generateMetricColumns(metricKeys, userMapping);
@@ -79,8 +80,9 @@ function generateStaticColumns(userMapping: { [key: string]: any }) {
     .filter(([, conf]) => conf.visible !== false)
     .map(([field, conf]) => ({
       field,
+      minWidth: conf.width ?? 120,
+      flex: 1,
       headerName: conf.headerName ?? field,
-      width: conf.width ?? 120,
       renderCell: (params: any) => {
         const value = params.value;
         const row = params.row;

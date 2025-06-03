@@ -1,7 +1,7 @@
 import { Box } from "@mui/system";
 import LoadingPage from "components/LoadingPage";
-import MetricsTable, {
-  MetricsTableUserMappingEntry,
+import UMMetricsTable, {
+  UMMetricsTableUserMappingEntry,
 } from "components/uiModules/UMMetricsTable";
 import { UMPropReducer } from "components/uiModules/UMPropReducer";
 import dayjs from "dayjs";
@@ -20,7 +20,7 @@ export function ReportMetricsTable({
   startTime,
   endTime,
 }: ReportMetricsTableProps) {
-  const userMapping: { [key: string]: MetricsTableUserMappingEntry } = {
+  const userMapping: { [key: string]: UMMetricsTableUserMappingEntry } = {
     key: {
       custom_field_expression: "${group_key}|${parent_group}|${time_group}",
       value_type: "string",
@@ -30,7 +30,7 @@ export function ReportMetricsTable({
       field: "group_key",
       headerName: "name",
       value_type: "string",
-      width: 350,
+      width: 400,
     },
     counts: {
       field: "total_runs",
@@ -131,7 +131,7 @@ export function ReportMetricsTable({
   const tableData = data.list;
   return (
     <div>
-      <MetricsTable userMapping={tableConfig} data={tableData} />
+      <UMMetricsTable userMapping={tableConfig} data={tableData} />
       <Box
         sx={{
           fontSize: "0.5rem",
