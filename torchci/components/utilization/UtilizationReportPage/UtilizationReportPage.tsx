@@ -1,150 +1,85 @@
-import LoadingPage from "components/LoadingPage";
-import MetricsTable, {
-  MetricsTableUserMappingEntry,
-} from "components/uiModules/MetricsTable";
+import { Box } from "@mui/system";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
+import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
+import { UMPropReducer } from "components/uiModules/UMPropReducer";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { fetcher } from "lib/GeneralUtils";
-import { ListUtilizationReportAPIResponse } from "lib/utilization/types";
 import { useRouter } from "next/router";
-import useSWR from "swr";
+import { useEffect, useReducer } from "react";
+import { ReportMetricsTable } from "./ReportMetricsTable";
+import UtilizationReportProvider, {
+  useUtilizationReportContext,
+} from "./UtilizationReportContext";
+import { UtilReportPageSyncParamsToUrl } from "./UtilReportPageSyncParamsToUrl";
 
 dayjs.extend(utc);
 
-const userMapping: { [key: string]: MetricsTableUserMappingEntry } = {
-  key: {
-    custom_field_expression: "${group_key}|${parent_group}|${time_group}",
-    value_type: "string",
-    visible: false,
-  },
-  name: {
-    field: "group_key",
-    headerName: "name",
-    value_type: "string",
-  },
-  counts: {
-    field: "total_runs",
-    headerName: "detected # of runs",
-    value_type: "number",
-  },
-  parent: {
-    field: "parent_group",
-    headerName: "parent",
-    value_type: "string",
-  },
-  time: {
-    field: "time_group",
-    value_type: "string",
-    headerName: "date",
-  },
-  metrics: {
-    field: "metrics",
-    visible: false,
-    value_type: "list",
-    unit: "%",
-  },
-};
+const UtilizationReportPage = () => {
+  const [timeRange, dispatch] = useReducer(UMPropReducer, {});
 
-const UtilizationReport = () => {
   const router = useRouter();
-  const {
-    group_by,
-    granularity = "day",
-    start_time = dayjs.utc().format("YYYY-MM-DD"),
-    end_time = dayjs.utc().format("YYYY-MM-DD"),
-    parent_group,
-  } = router.query;
-  const params: any = {
-    repo: "pytorch/pytorch",
-    group_by: group_by,
-    granularity: granularity,
-    start_time: start_time,
-    end_time: end_time,
-    parent_group: parent_group,
-  };
-
-  const data = useUtilReports(params);
-
-  let tableConfig = userMapping;
-
-  if (group_by == "workflow_name") {
-    const url = `/utilization/report?group_by=job_name&${objectToQueryString(
-      params,
-      ["group_by"]
-    )}&parent_group=\$\{parent_group\}|\$\{group_key\}`;
-    tableConfig = {
-      ...userMapping,
-      link: {
-        custom_field_expression: "job report link",
-        headerName: "job report",
-        value_type: "link",
-        link_url: url,
-      },
+  useEffect(() => {
+    const {
+      start_time = dayjs.utc().format("YYYY-MM-DD"),
+      end_time = dayjs.utc().format("YYYY-MM-DD"),
+    } = router.query;
+    const newprops: any = {
+      start_time,
+      end_time,
     };
-  }
-  if (!data) {
-    return <LoadingPage />;
-  }
+    dispatch({ type: "UPDATE_FIELDS", payload: newprops });
+  }, [router.query]);
 
   return (
+    <UtilizationReportProvider>
+      <UtilReportPageSyncParamsToUrl />
+      <InnerUtilizationContent timeRange={timeRange} dispatch={dispatch} />
+    </UtilizationReportProvider>
+  );
+};
+
+const InnerUtilizationContent = ({
+  timeRange,
+  dispatch,
+}: {
+  timeRange: any;
+  dispatch: React.Dispatch<any>;
+}) => {
+  const { values } = useUtilizationReportContext();
+  return (
     <div>
-      <h2> Utilization Report Table: {params.group_by}</h2>
-      <MetricsTable userMapping={tableConfig} data={data.list} />
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 0.5,
+        }}
+      >
+        <h2>Utilization Report Table: {values.group_by}</h2>{" "}
+        <UMCopyLink params={values} />
+      </Box>
+      <UMDateButtonPicker
+        setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {
+          const newprops: any = {
+            ...timeRange,
+            start_time: start.format("YYYY-MM-DD"),
+            end_time: end.format("YYYY-MM-DD"),
+          };
+          dispatch({
+            type: "UPDATE_FIELDS",
+            payload: newprops,
+          });
+        }}
+        start={timeRange.start_time}
+        end={timeRange.end_time}
+      />
+      <ReportMetricsTable
+        startTime={timeRange.start_time}
+        endTime={timeRange.end_time}
+      />
     </div>
   );
 };
-export default UtilizationReport;
 
-function useUtilReports(params: any): {
-  list: any[];
-  metaError: any;
-} {
-  const nowDateString = dayjs.utc().format("YYYY-MM-DD");
-  const queryParams = new URLSearchParams({
-    repo: params.repo,
-    group_by: params.group_by,
-    granularity: params.granularity || "day",
-    start_time: params.start_time || nowDateString,
-    end_time: params.end_time || nowDateString,
-    parent_group: params.parent_group || "",
-  });
-
-  const url = `/api/list_util_reports/${
-    params.group_by
-  }?${queryParams.toString()}`;
-
-  const { data, error } = useSWR<ListUtilizationReportAPIResponse>(
-    url,
-    fetcher
-  );
-
-  if (error != null) {
-    return {
-      list: [],
-      metaError: "Error occured while fetching util metadata",
-    };
-  }
-
-  if (data == null) {
-    return { list: [], metaError: "Loading..." };
-  }
-
-  if (data.metadata_list == null) {
-    return { list: [], metaError: "No metadata list found" };
-  }
-
-  return { list: data.metadata_list, metaError: null };
-}
-
-function objectToQueryString(
-  obj: Record<string, any>,
-  excludeKeys: string[] = []
-): string {
-  const excludeSet = new Set(excludeKeys);
-  return new URLSearchParams(
-    Object.entries(obj).filter(
-      ([key, value]) =>
-        !excludeSet.has(key) && value !== undefined && value !== null
-    )
-  ).toString();
-}
+export default UtilizationReportPage;
