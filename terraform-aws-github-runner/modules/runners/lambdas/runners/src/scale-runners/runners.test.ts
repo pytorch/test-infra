@@ -745,7 +745,9 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [
+          { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+          { Key: 'Stage', Value: 'ReplaceEBSVolume'}],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
         Resources: ['i-0113'],
@@ -816,7 +818,7 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }, { Key: 'Stage', Value: 'ReplaceEBSVolume'}],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
@@ -949,7 +951,7 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }, { Key: 'Stage', Value: 'ReplaceEBSVolume'}],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
         Resources: ['i-0113'],
@@ -1020,7 +1022,7 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }, { Key: 'Stage', Value: 'ReplaceEBSVolume'}],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();

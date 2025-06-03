@@ -516,6 +516,7 @@ export async function tryReuseRunner(
 
     if (runner.stage !== undefined && runner.stage === 'ReplaceEBSVolume') {
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} the runner is in ReplaceEBSVolume stage, skip to reuse it`);
+      continue;
     }
 
     if (runner.ephemeralRunnerFinished !== undefined) {
