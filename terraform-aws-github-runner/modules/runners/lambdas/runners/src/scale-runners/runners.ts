@@ -8,6 +8,7 @@ import { Metrics, ScaleUpMetrics } from './metrics';
 import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache';
 import moment from 'moment';
 import { RetryableScalingError } from './scale-up';
+import { createRegistrationTokenOrg, createRegistrationTokenRepo } from './gh-runners';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
@@ -722,10 +723,13 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     const tags = [
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-      { Key: 'RunnerTypeLabels', Value: runnerParameters.runnerType.labels?.join(',') ?? '' },
       { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
       { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
     ];
+
+    if (runnerParameters.runnerType.labels) {
+      tags.push({ Key: 'RunnerTypeLabels', Value: runnerParameters.runnerType.labels.join(',') ?? '' });
+    }
 
     /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
@@ -737,11 +741,22 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Value: runnerParameters.repoName,
       });
     }
+
     if (runnerParameters.orgName !== undefined) {
       tags.push({
         Key: 'Org',
         Value: runnerParameters.orgName,
       });
+    }
+
+    /* istanbul ignore next */
+    if (Config.Instance.runnersExtraLabels) {
+      tags.push({ Key: 'RunnerExtraLabels', Value: Config.Instance.runnersExtraLabels });
+    }
+
+    /* istanbul ignore next */
+    if (Config.Instance.runnerGroupName) {
+      tags.push({ Key: 'RunnerGroupName', Value: Config.Instance.runnerGroupName });
     }
 
     let customAmi = runnerParameters.runnerType.ami;
@@ -936,5 +951,50 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       console.error(`[createRunner]: ${e}`);
     }
     throw e;
+  }
+}
+
+async function innerCreateRunnerConfigArgument(
+  runnerTypeName: string,
+  repositoryName: string,
+  repositoryOwner: string,
+  awsRegion: string,
+  metrics: Metrics,
+  ghesUrlHost: string,
+  isOrgRunner: boolean,
+  isEphemeral: boolean,
+  experimentalRunner: boolean,
+  runnersExtraLabels?: string[] | undefined,
+  runnerLabels?: string[] | undefined,
+  runnerGroupName?: string | undefined,
+  installationId?: number | undefined,
+): Promise<string> {
+  const ephemeralArgument = isEphemeral ? '--ephemeral' : '';
+  const labelsArgument = [
+    `AWS:${awsRegion}`,
+    runnerTypeName,
+    ...(experimentalRunner ? ['experimental.ami'] : []),
+    ...(runnersExtraLabels ? runnersExtraLabels : []),
+    ...(runnerLabels ?? []),
+  ].join(',');
+
+  if (isOrgRunner) {
+    /* istanbul ignore next */
+    const runnerGroupArgument = runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
+    const token = await createRegistrationTokenOrg(repositoryOwner, metrics, installationId);
+    return (
+      `--url ${ghesUrlHost}/${repositoryOwner} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
+    );
+  } else {
+    const token = await createRegistrationTokenRepo(
+      { repo: repositoryName, owner: repositoryOwner },
+      metrics,
+      installationId,
+    );
+    return (
+      `--url ${ghesUrlHost}/${repositoryOwner}/${repositoryName} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
+    );
   }
 }

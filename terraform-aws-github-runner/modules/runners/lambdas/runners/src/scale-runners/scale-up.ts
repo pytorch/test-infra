@@ -1,6 +1,12 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey, sleep } from './utils';
-import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
+import {
+  RunnerType,
+  RunnerInputParameters,
+  createRunner,
+  tryReuseRunner,
+  innerCreateRunnerConfigArgument,
+} from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -165,7 +171,7 @@ export async function scaleUp(
   }
 }
 
-async function createRunnerConfigArgument(
+export async function createRunnerConfigArgument(
   runnerType: RunnerType,
   repo: Repo,
   installationId: number | undefined,
@@ -180,32 +186,30 @@ async function createRunnerConfigArgument(
     );
     await sleep(60 * 1000);
   }
+  const runnerTypeName = runnerType.runnerTypeName;
+  const isEphemeral = runnerType.is_ephemeral || experimentalRunner;
+  const runnerTypeLabels = runnerType.labels;
 
-  const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';
-  const labelsArgument = [
-    `AWS:${awsRegion}`,
-    `${runnerType.runnerTypeName}`,
-    ...(experimentalRunner ? ['experimental.ami'] : []),
-    ...(Config.Instance.runnersExtraLabels ? Config.Instance.runnersExtraLabels.split(',') : []),
-    ...(runnerType.labels ?? []),
-  ].join(',');
+  const extraRunnerLabels = Config.Instance.runnersExtraLabels?.split(',') ?? [];
+  const isOrgRunner = Config.Instance.enableOrganizationRunners;
+  const runnerGroupName = Config.Instance.runnerGroupName;
+  const ghesUrl = Config.Instance.ghesUrlHost;
 
-  if (Config.Instance.enableOrganizationRunners) {
-    /* istanbul ignore next */
-    const runnerGroupArgument =
-      Config.Instance.runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
-    const token = await createRegistrationTokenOrg(repo.owner, metrics, installationId);
-    return (
-      `--url ${Config.Instance.ghesUrlHost}/${repo.owner} ` +
-      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
-    );
-  } else {
-    const token = await createRegistrationTokenRepo(repo, metrics, installationId);
-    return (
-      `--url ${Config.Instance.ghesUrlHost}/${repo.owner}/${repo.repo} ` +
-      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
-    );
-  }
+  return innerCreateRunnerConfigArgument(
+    runnerTypeName,
+    repo.repo,
+    repo.owner,
+    awsRegion,
+    metrics,
+    ghesUrl,
+    isOrgRunner,
+    isEphemeral,
+    experimentalRunner,
+    runnerTypeLabels,
+    extraRunnerLabels,
+    runnerGroupName,
+    installationId,
+  );
 }
 
 async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {

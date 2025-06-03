@@ -89,13 +89,17 @@ function createExpectedRunInstancesLinux(
   const tags = [
     { Key: 'Application', Value: 'github-action-runner' },
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-    {
-      Key: 'RunnerTypeLabels',
-      Value: runnerParameters.runnerType.labels ? runnerParameters.runnerType.labels.join(',') : '',
-    },
     { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
     { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
   ];
+
+  if (runnerParameters.runnerType.labels) {
+    tags.push({
+      Key: 'RunnerTypeLabels',
+      Value: runnerParameters.runnerType.labels.join(','),
+    });
+  }
+
   if (enableOrg) {
     tags.push({
       Key: 'Org',
@@ -1324,12 +1328,98 @@ describe('createRunner', () => {
             Tags: [
               { Key: 'Application', Value: 'github-action-runner' },
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-              { Key: 'RunnerTypeLabels', Value: '' },
               { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('creates tags for extraTypeLabels and runnerGroupName if set', async () => {
+      // Custom config for this test
+      const customConfig = {
+        ...config,
+        runnerGroupName: 'CustomRunnerGroup',
+        runnersExtraLabels: 'CustomExtraLabels',
+      };
+      // Override the Config.Instance for this test
+      jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => customConfig as unknown as Config);
+
+      const runnerParameters: RunnerInputParameters = {
+        runnerConfig: runnerConfigFn,
+        environment: 'wg113',
+        repoName: 'SomeAwesomeCoder/some-amazing-library',
+        orgName: undefined,
+        runnerType: {
+          instance_type: 'c5.2xlarge',
+          os: 'windows',
+          max_available: 200,
+          disk_size: 100,
+          runnerTypeName: 'linuxCpu',
+          is_ephemeral: true,
+        },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
+      };
+
+      await createRunner(runnerParameters, metrics);
+
+      expect(runnerConfigFn).toBeCalledTimes(1);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
+      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
+      expect(mockEC2.runInstances).toBeCalledWith({
+        MaxCount: 1,
+        MinCount: 1,
+        LaunchTemplate: {
+          LaunchTemplateName: Config.Instance.launchTemplateNameWindows,
+          Version: Config.Instance.launchTemplateVersionWindows,
+        },
+        InstanceType: runnerParameters.runnerType.instance_type,
+        BlockDeviceMappings: [
+          {
+            DeviceName: '/dev/sda1',
+            Ebs: {
+              VolumeSize: runnerParameters.runnerType.disk_size,
+              VolumeType: 'gp3',
+              Encrypted: true,
+              DeleteOnTermination: true,
+            },
+          },
+        ],
+        NetworkInterfaces: [
+          {
+            Ipv6AddressCount: 1,
+            AssociatePublicIpAddress: true,
+            SubnetId: 'sub-0113',
+            Groups: secGroup,
+            DeviceIndex: 0,
+          },
+        ],
+        TagSpecifications: [
+          {
+            ResourceType: 'instance',
+            Tags: [
+              { Key: 'Application', Value: 'github-action-runner' },
+              { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
+              { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+              {
+                Key: 'Repo',
+                Value: runnerParameters.repoName,
+              },
+              {
+                Key: 'RunnerExtraLabels',
+                Value: 'CustomExtraLabels',
+              },
+              {
+                Key: 'RunnerGroupName',
+                Value: 'CustomRunnerGroup',
               },
             ],
           },
