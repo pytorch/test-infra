@@ -32,6 +32,7 @@ jobs:
           # GITHUB_TOKEN.
           FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
         run: |
+          python3 -m pip install GitPython==3.1.44
           python3 .github/scripts/update_disabled_issues.py
 
       - name: Print the list of disabled tests
@@ -117,3 +118,6 @@ jobs:
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
           aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
+
+          unix_time="$(date +%s)"
+          aws s3 cp for_historical_records.json s3://ossci-metrics/disabled_tests_historical/"${unix_time}".json
