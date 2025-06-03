@@ -460,7 +460,7 @@ describe('scale-down', () => {
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
       mockedRemoveGithubRunnerOrg.mockImplementation(
-        async (runnerId: number, org: string, metrics: MetricsModule.Metrics) => {
+        async (runnerId: number) => {
           if (runnerId == 7) {
             throw 'Failure';
           }
@@ -818,7 +818,7 @@ describe('scale-down', () => {
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
       mockedRemoveGithubRunnerRepo.mockImplementation(
-        async (runnerId: number, repo: Repo, metrics: MetricsModule.Metrics) => {
+        async (runnerId: number) => {
           if (runnerId == 7) {
             throw 'Failure';
           }
