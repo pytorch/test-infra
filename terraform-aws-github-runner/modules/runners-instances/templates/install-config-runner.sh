@@ -270,7 +270,7 @@ GH_RUNNER_ID=$(jq '.agentId' .runner)
 
 retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
  "Key=GithubRunnerID,Value=$GH_RUNNER_ID" \
- "Key=Stage,Value=Default" \
+ "Key=Stage,Value=RunnerStart" \
  "Key=EphemeralRunnerStarted,Value=$(date +%s)"
 
 chown -R $USER_NAME:$USER_NAME .
