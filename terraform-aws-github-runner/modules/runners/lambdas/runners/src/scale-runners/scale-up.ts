@@ -187,7 +187,7 @@ async function createRunnerConfigArgument(
   const extraRunnerLabels = Config.Instance.runnersExtraLabels?.split(',') ?? [];
   const isOrgRunner = Config.Instance.enableOrganizationRunners;
   const runnerGroupName = Config.Instance.runnerGroupName;
-  const ghesUrl = Config.Instance.ghesUrlHost;
+  const ghesUrlHost = Config.Instance.ghesUrlHost;
 
   return innerCreateRunnerConfigArgument(
     runnerTypeName,
@@ -195,7 +195,7 @@ async function createRunnerConfigArgument(
     repo.owner,
     awsRegion,
     metrics,
-    ghesUrl,
+    ghesUrlHost,
     isOrgRunner,
     isEphemeral,
     experimentalRunner,
