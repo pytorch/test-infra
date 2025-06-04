@@ -1270,6 +1270,175 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
     });
+
+    describe('when initial runnerMinimumTimeExceeded is true and latestRunnerInfo is checked', () => {
+      it('should return true if latestMinTimeExceeded is true', async () => {
+        const initialLaunchTime = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 10, 'minutes') // Exceeds min time
+          .toDate();
+        const latestLaunchTime = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes') // Still exceeds min time
+          .toDate();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'AGDGADUWG113',
+          launchTime: initialLaunchTime,
+        };
+        const latestEc2RunnerInfo: RunnerInfo = {
+          ...ec2RunnerInfo,
+          launchTime: latestLaunchTime,
+        };
+
+        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([latestEc2RunnerInfo]);
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+
+        expect(response).toEqual(true);
+        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
+      });
+
+      it('should return false if latestMinTimeExceeded is false', async () => {
+        const initialLaunchTime = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 10, 'minutes') // Exceeds min time
+          .toDate();
+        // latestRunnerInfo's launch time makes it NOT exceed the minimum running time
+        const latestLaunchTime = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes - 2, 'minutes') // Does NOT exceed min time
+          .toDate();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'AGDGADUWG114',
+          launchTime: initialLaunchTime,
+        };
+        const latestEc2RunnerInfo: RunnerInfo = {
+          ...ec2RunnerInfo,
+          launchTime: latestLaunchTime,
+        };
+
+        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([latestEc2RunnerInfo]);
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+
+        expect(response).toEqual(false);
+        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
+      });
+    });
+
+    describe('when ebsVolumeReplacementRequestTimestamp is present', () => {
+      it('should return false if EBS replacement was recent (not exceeding min time after buffer)', async () => {
+        const ebsTimestamp = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes - 3, 'minutes') // e.g., 7 minutes ago for a 10 min minimum. After 5 min buffer, this is 2 mins ago, so not exceeded.
+          .unix();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'ebs-runner-recent',
+          launchTime: moment(new Date())
+            .utc()
+            .subtract(minimumRunningTimeInMinutes + 20, 'minutes') // launch time is old
+            .toDate(),
+          ebsVolumeReplacementRequestTimestamp: ebsTimestamp,
+        };
+
+        // No need to mock listRunners if the first check (runnerMinimumTimeExceeded(ec2runner)) fails
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+        expect(response).toEqual(false);
+      });
+
+      it('should return true if EBS replacement was old (exceeding min time) and latestRunnerInfo also exceeds', async () => {
+        const oldEbsTimestamp = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 10, 'minutes') // e.g., 20 minutes ago. After 5 min buffer, this is 15 mins ago, so exceeded.
+          .unix();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'ebs-runner-old-still-old',
+          launchTime: moment(new Date())
+            .utc()
+            .subtract(minimumRunningTimeInMinutes + 30, 'minutes')
+            .toDate(),
+          ebsVolumeReplacementRequestTimestamp: oldEbsTimestamp,
+        };
+        const latestEc2RunnerInfo: RunnerInfo = {
+          ...ec2RunnerInfo, // ebsVolumeReplacementRequestTimestamp is still the same old one
+        };
+
+        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([latestEc2RunnerInfo]);
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+
+        expect(response).toEqual(true);
+        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
+      });
+
+      it('should return false if EBS replacement was old, but latestRunnerInfo shows it as recent (not exceeding min time)', async () => {
+        const oldEbsTimestampInitial = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 10, 'minutes') // Initially old
+          .unix();
+        const recentEbsTimestampLatest = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes - 3, 'minutes') // Updated to be recent in latestRunnerInfo
+          .unix();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'ebs-runner-old-now-recent',
+          launchTime: moment(new Date())
+            .utc()
+            .subtract(minimumRunningTimeInMinutes + 30, 'minutes')
+            .toDate(),
+          ebsVolumeReplacementRequestTimestamp: oldEbsTimestampInitial,
+        };
+        const latestEc2RunnerInfo: RunnerInfo = {
+          ...ec2RunnerInfo,
+          ebsVolumeReplacementRequestTimestamp: recentEbsTimestampLatest, // Simulate an update
+        };
+
+        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([latestEc2RunnerInfo]);
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+
+        expect(response).toEqual(false);
+        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
+      });
+
+      it('should return false if EBS replacement was old, but latestRunnerInfo shows a recent launch time (not exceeding min time)', async () => {
+        const oldEbsTimestamp = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes + 10, 'minutes')
+          .unix();
+        const recentLaunchTimeLatest = moment(new Date())
+          .utc()
+          .subtract(minimumRunningTimeInMinutes - 3, 'minutes') // Updated to be recent in latestRunnerInfo
+          .toDate();
+
+        const ec2RunnerInfo: RunnerInfo = {
+          awsRegion: baseConfig.awsRegion,
+          instanceId: 'ebs-runner-old-launch-recent',
+          launchTime: moment(new Date()) // Original launch time doesn't matter as much if ebs is set
+            .utc()
+            .subtract(minimumRunningTimeInMinutes + 30, 'minutes')
+            .toDate(),
+          ebsVolumeReplacementRequestTimestamp: oldEbsTimestamp,
+        };
+        const latestEc2RunnerInfo: RunnerInfo = {
+          ...ec2RunnerInfo,
+          launchTime: recentLaunchTimeLatest, // Simulate an update, and ebsVolumeReplacementRequestTimestamp might be undefined or older
+          ebsVolumeReplacementRequestTimestamp: undefined, // Or it could be an older timestamp, the launchTime takes precedence if more recent
+        };
+
+        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([latestEc2RunnerInfo]);
+        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+
+        expect(response).toEqual(false);
+        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
+      });
+    });
   });
 
   describe('isEphemeralRunner', () => {
