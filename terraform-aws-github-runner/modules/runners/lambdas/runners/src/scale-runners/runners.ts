@@ -239,7 +239,7 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     ebsVolumeReplacementRequestTimestamp: getTag('EBSVolumeReplacementRequestTm')
       ? parseInt(getTag('EBSVolumeReplacementRequestTm')!)
       : undefined,
-    ephemeralRunnerStarted: getTag('EphemeralRunnerStarted') ? parseInt(getTag('EphemeralRunnerFinished')!) : undefined,
+    ephemeralRunnerStarted: getTag('EphemeralRunnerStarted') ? parseInt(getTag('EphemeralRunnerStarted')!) : undefined,
     ephemeralRunnerFinished: getTag('EphemeralRunnerFinished')
       ? parseInt(getTag('EphemeralRunnerFinished')!)
       : undefined,
@@ -526,9 +526,9 @@ export async function tryReuseRunner(
       continue;
     }
 
-    if (runner.stage !== undefined && runner.stage === 'ReplaceEBSVolume') {
+    if (runner.stage !== undefined && runner.stage === 'RunnerReplaceEBSVolume') {
       console.debug(
-        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in ReplaceEBSVolume stage, skip to reuse it`,
+        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
       );
       continue;
     }
@@ -587,8 +587,8 @@ export async function tryReuseRunner(
           // scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTmp is present
           // and it's less than 5 mins.
           //
-          // Stage: record the stage of the runner, in this case, it's in the ReplaceEBSVolume.
-          // Refresh and scaleup pipelines will not reuse the runner if the Stage is present and it's ReplaceEBSVolume.
+          // Stage: record the stage of the runner, in this case, it's in the RunnerReplaceEBSVolume.
+          // Refresh and scaleup pipelines will not reuse the runner if the Stage is present and it's RunnerReplaceEBSVolume.
           // the stage tag will be removed once the replace volume task is completed at job's startup.sh
           await expBackOff(() => {
             return metrics.trackRequestRegion(
@@ -601,7 +601,7 @@ export async function tryReuseRunner(
                     Resources: [runner.instanceId],
                     Tags: [
                       { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` },
-                      { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+                      { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
                     ],
                   })
                   .promise();

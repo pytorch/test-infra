@@ -723,7 +723,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-                  { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+                  { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
                 ],
               },
             ],
@@ -823,7 +823,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
@@ -897,7 +897,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
@@ -1033,7 +1033,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
@@ -1107,7 +1107,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'ReplaceEBSVolume' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
