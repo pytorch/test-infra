@@ -222,7 +222,7 @@ export async function listRunners(
 }
 
 
-export async function getEc2Runner(
+export async function getRunner(
   metrics: Metrics,
   awsRegion: string,
   instanceId: string,
@@ -254,7 +254,7 @@ export async function getEc2Runner(
  * @param awsRegion
  * @returns
  */
-function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
+export function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
   const getTag = (key: string) => instance.Tags?.find((t) => t.Key === key)?.Value;
   return {
     applicationDeployDatetime: getTag('ApplicationDeployDatetime'),

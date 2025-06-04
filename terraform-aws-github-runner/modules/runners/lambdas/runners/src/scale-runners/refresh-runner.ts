@@ -1,5 +1,6 @@
 import { ScaleUpMetrics } from "./metrics";
-import { getEc2Runner } from "./runners";
+import { getRunner } from "./runners";
+import { innerCreateRunnerConfigArgument } from "./scale-up";
 
 export interface ActionRequestMessage {
   id: number;
@@ -14,7 +15,7 @@ class RetryableRefreshError extends Error {
   }
 }
 
-export async function scaleUp(
+export async function refreshRunner(
   eventSource: string,
   payload: ActionRequestMessage,
   metrics: ScaleUpMetrics,
@@ -24,15 +25,28 @@ export async function scaleUp(
   }
   try {
     console.debug(`Start refresh a runner with instance id ${payload.instanceId} in region ${payload.awsRegion}`);
-    const runner = await getEc2Runner(metrics, payload.instanceId, payload.awsRegion)
+    const runner = await getRunner(metrics, payload.instanceId, payload.awsRegion)
+
     if (runner === undefined){
         console.warn(`Cannot find runner with instance id ${payload} in region ${payload.awsRegion}`)
         throw new RetryableRefreshError(`Cannot find runner with instance id ${payload} in region ${payload.awsRegion}`)
     }
 
+
+    const runnerTypeName = runner.runnerType;
+    const repositoryOwner = runner.repositoryOwner;
+
+
+    innerCreateRunnerConfigArgument(
+
+
+    )
+
+
+
     } catch (e) {
       /* istanbul ignore next */
-      console.error(`Error getting ec2 runner with instance id ${payload} in region ${payload.awsRegion}: ${e}`);
+      console.error(`Error refresh runner with  instance id: ${payload.instanceId} in region ${payload.awsRegion}: ${e}`);
     }
 
 
