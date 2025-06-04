@@ -753,6 +753,7 @@ describe('tryReuseRunner', () => {
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
     });
 
+    //
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
       mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
