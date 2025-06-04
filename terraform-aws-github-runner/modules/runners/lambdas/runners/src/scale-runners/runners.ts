@@ -14,6 +14,7 @@ export interface ListRunnerFilters {
   containsTags?: Array<string>;
   environment?: string;
   instanceType?: string;
+  instanceId?: string;
   orgName?: string;
   repoName?: string;
   runnerType?: string;
@@ -136,6 +137,12 @@ export async function listRunners(
         ec2Filters.push({
           Name: 'instance-type',
           Values: [filters.instanceType],
+        });
+      }
+      if (filters.instanceId) {
+        ec2Filters.push({
+          Name: 'instance-id',
+          Values: [filters.instanceId],
         });
       }
 

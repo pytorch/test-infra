@@ -70,7 +70,7 @@ export async function scaleDown(): Promise<void> {
           // if configured to repo, don't mess with organization runners
           if (!Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
-            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+            if (await isRunnerRemovable(ghRunner, ec2runner, metrics)) {
               if (ghRunner === undefined) {
                 ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
               } else {
@@ -85,7 +85,7 @@ export async function scaleDown(): Promise<void> {
           // if configured to org, don't mess with repo runners
           if (Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
-            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+            if (await isRunnerRemovable(ghRunner, ec2runner, metrics)) {
               if (ghRunner === undefined) {
                 ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
               } else {
@@ -427,11 +427,11 @@ export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetric
   return runnerTypes.get(ec2runner.runnerType)?.min_available ?? Config.Instance.minAvailableRunners;
 }
 
-export function isRunnerRemovable(
+export async function isRunnerRemovable(
   ghRunner: GhRunner | undefined,
   ec2runner: RunnerInfo,
   metrics: ScaleDownMetrics,
-): boolean {
+): Promise<boolean> {
   /* istanbul ignore next */
   if (ec2runner.instanceManagement?.toLowerCase() === 'pet') {
     console.debug(`Runner ${ec2runner.instanceId} is a pet instance and cannot be removed.`);
@@ -443,7 +443,22 @@ export function isRunnerRemovable(
     return false;
   }
 
-  if (!runnerMinimumTimeExceeded(ec2runner)) {
+  if (runnerMinimumTimeExceeded(ec2runner)) {
+    // Double check with refreshed RunnerInfo to see if the runner has recently been refreshed
+    // 1. Grab the latest RunnerInfo
+    // 2. Re-run runnerMinimumTimeExceeded with the latest RunnerInfo
+    // 3. If the runner still has exceeded the minimum running time, return true
+    const latestRunnerInfo = (await listRunners(metrics, { instanceId: ec2runner.instanceId }))[0];
+    const latestMinTimeExceeded = runnerMinimumTimeExceeded(latestRunnerInfo);
+    if (latestMinTimeExceeded) {
+      console.debug(`Pulled fresh EC2 data and verified runner ${ec2runner.instanceId} is eligible for scale down.`);
+    } else {
+      console.debug(
+        `Pulled fresh EC2 data and verified runner ${ec2runner.instanceId} has not exceeded the minimum running time.`,
+      );
+      return false;
+    }
+  } else {
     console.debug(`Runner ${ec2runner.instanceId} has not exceeded the minimum running time.`);
     metrics.runnerLessMinimumTime(ec2runner);
     return false;
