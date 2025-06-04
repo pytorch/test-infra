@@ -8,7 +8,6 @@ import { Metrics, ScaleUpMetrics } from './metrics';
 import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache';
 import moment from 'moment';
 import { RetryableScalingError } from './scale-up';
-import { createRegistrationTokenOrg, createRegistrationTokenRepo } from './gh-runners';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
@@ -218,6 +217,33 @@ export async function listRunners(
     });
   } catch (e) {
     console.error(`[listRunners]: ${e}`);
+    throw e;
+  }
+}
+
+
+export async function getEc2Runner(
+  metrics: Metrics,
+  awsRegion: string,
+  instanceId: string,
+): Promise<RunnerInfo | undefined> {
+  try {
+    const result = await metrics.trackRequestRegion(
+      awsRegion,
+      metrics.ec2DescribeInstancesAWSCallSuccess,
+      metrics.ec2DescribeInstancesAWSCallFailure,
+      () => {
+        return new EC2({ region: awsRegion })
+          .describeInstances({ InstanceIds: [instanceId] })
+          .promise();
+      },
+    );
+    const instance = result.Reservations?.[0]?.Instances?.[0];
+    if (!instance) return undefined;
+
+    return toRunnerInfo(instance, awsRegion)
+  } catch (e) {
+    console.error(`[getEc2Runner]: ${e}`);
     throw e;
   }
 }
