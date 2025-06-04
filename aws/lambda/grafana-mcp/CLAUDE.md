@@ -48,9 +48,9 @@ workflow_created_at   -- When the workflow was created
 Access workflow data directly from job records without joining:
 
 ```sql
-SELECT 
-  j.name, 
-  j.conclusion, 
+SELECT
+  j.name,
+  j.conclusion,
   j.workflow_name,    -- From workflow automatically
   j.workflow_event,   -- From workflow via dictionary
   j.repository_full_name
@@ -145,7 +145,7 @@ WHERE arrayExists(x -> x.'name' = 'skipped', issue.labels)
 
 ```sql
 -- Expand label arrays to count issues per label
-SELECT 
+SELECT
   label.name AS label_name,
   count() AS issue_count
 FROM default.issues AS iss FINAL
@@ -156,7 +156,7 @@ GROUP BY label_name
 ### Time-Series Aggregation
 
 ```sql
-SELECT 
+SELECT
   toStartOfDay(j.completed_at) AS day,
   j.conclusion,
   count() AS job_count
@@ -172,7 +172,7 @@ ClickHouse supports powerful window functions for analyzing time-series patterns
 
 ```sql
 -- Example: Detect green/red/green pattern (flaky jobs)
-SELECT job_name, 
+SELECT job_name,
   FIRST_VALUE(conclusion) OVER(
     PARTITION BY job_name
     ORDER BY commit_timestamp DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING

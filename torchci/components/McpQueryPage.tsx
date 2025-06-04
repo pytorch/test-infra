@@ -80,7 +80,7 @@ const TodoListBlock = styled(Paper)(({ theme }) => ({
 const TodoListTitle = styled(Typography)(({ theme }) => ({
   fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
   fontWeight: 500,
-  marginBottom: "8px"
+  marginBottom: "8px",
 }));
 
 const TodoItem = styled(Box)<{ status: string }>(({ theme, status }) => ({
@@ -989,13 +989,13 @@ export const McpQueryPage = () => {
 
     // Check if we have any active typewriter animations
     const hasActiveTypewriterAnimation = () => {
-      return parsedResponses.some(item => item.isAnimating);
+      return parsedResponses.some((item) => item.isAnimating);
     };
 
     const handleScroll = () => {
       const atBottom = isAtBottom();
       const hasAnimation = hasActiveTypewriterAnimation();
-      
+
       // Process scroll events differently based on animation state
       if (!atBottom) {
         // When user scrolls up, disable auto-scroll and show button
@@ -1019,16 +1019,16 @@ export const McpQueryPage = () => {
   const scrollToBottomAndEnable = useCallback(() => {
     // Re-enable auto-scrolling
     setAutoScrollEnabled(true);
-    
+
     // Hide the button
     setShowScrollButton(false);
-    
+
     // Scroll to bottom with smooth animation
     window.scrollTo({
       top: document.body.scrollHeight,
-      behavior: "smooth"
+      behavior: "smooth",
     });
-    
+
     console.log("Auto-scroll re-enabled and scrolled to bottom");
   }, []);
 
@@ -1036,22 +1036,25 @@ export const McpQueryPage = () => {
   // Auto-scroll to bottom when new content is added (only when enabled)
   useEffect(() => {
     // Only run this effect when we have content, we're loading, and auto-scroll is enabled
-    if (!isLoading || !autoScrollEnabled || parsedResponses.length === 0) return;
-    
+    if (!isLoading || !autoScrollEnabled || parsedResponses.length === 0)
+      return;
+
     // Check if there's any active animation to prevent scrolling during typewriter effect
-    const hasActiveTypewriterAnimation = parsedResponses.some(item => item.isAnimating);
+    const hasActiveTypewriterAnimation = parsedResponses.some(
+      (item) => item.isAnimating
+    );
     if (hasActiveTypewriterAnimation) {
       // Skip auto-scrolling when typewriter animation is active to allow user scrolling
       return;
     }
-    
+
     // Only scroll if we're not already at the bottom - this helps prevent scroll jumping
     const isAtBottom = () => {
       const scrollPosition = window.innerHeight + window.scrollY;
       const bottomOfPage = document.body.offsetHeight - 50; // Use smaller buffer for this check
       return scrollPosition >= bottomOfPage;
     };
-    
+
     // Don't scroll if we're already at the bottom to avoid unnecessary operations
     if (!isAtBottom()) {
       // Scroll with smooth behavior after DOM updates
@@ -1061,7 +1064,7 @@ export const McpQueryPage = () => {
           behavior: "smooth",
         });
       };
-      
+
       // Use requestAnimationFrame to ensure DOM updates are applied first
       requestAnimationFrame(scrollToBottom);
     }
@@ -1147,12 +1150,14 @@ export const McpQueryPage = () => {
     // Only scroll when loading finishes AND we have content AND auto-scroll is enabled
     if (!isLoading && parsedResponses.length > 0 && autoScrollEnabled) {
       // Check if there's any active animation to prevent scrolling during typewriter effect
-      const hasActiveTypewriterAnimation = parsedResponses.some(item => item.isAnimating);
+      const hasActiveTypewriterAnimation = parsedResponses.some(
+        (item) => item.isAnimating
+      );
       if (hasActiveTypewriterAnimation) {
         // If there's still an active typewriter effect, don't force scroll
         return;
       }
-      
+
       // Use a slight delay to ensure all content is fully rendered
       const finalScrollTimer = setTimeout(() => {
         // Do one final check before scrolling to make sure user hasn't scrolled away
@@ -1538,7 +1543,8 @@ export const McpQueryPage = () => {
                                 component="span"
                                 sx={{
                                   wordBreak: "break-word",
-                                  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
+                                  fontFamily:
+                                    "Roboto, 'Helvetica Neue', Arial, sans-serif",
                                 }}
                               >
                                 {todo.content}
@@ -1740,7 +1746,8 @@ export const McpQueryPage = () => {
                                 sx={{
                                   wordBreak: "break-word",
                                   fontSize: "0.875rem",
-                                  fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
+                                  fontFamily:
+                                    "Roboto, 'Helvetica Neue', Arial, sans-serif",
                                 }}
                               >
                                 {todo.content}
