@@ -91,6 +91,7 @@ function createExpectedRunInstancesLinux(
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
     { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
     { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+    { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
   ];
 
   if (runnerParameters.runnerType.labels) {
@@ -1331,6 +1332,7 @@ describe('createRunner', () => {
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
               { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+              { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
@@ -1410,6 +1412,7 @@ describe('createRunner', () => {
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
               { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+              { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,

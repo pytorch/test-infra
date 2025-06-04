@@ -739,6 +739,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
       { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
       { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+      { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
     ];
 
     if (runnerParameters.runnerType.labels) {
