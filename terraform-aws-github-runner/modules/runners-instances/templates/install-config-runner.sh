@@ -252,6 +252,11 @@ get_labels_from_config $CONFIG > /home/$USER_NAME/runner-labels
 if grep "ephemeral" <<< $CONFIG; then
   echo "Ephemeral runner detected"
   echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=Stage,Value=RunnerFinished\" \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
+  
+  # We add a tag to the instance to signal that the ephemeral runner has started
+  retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
+  "Key=Stage,Value=RunnerStarted" \
+  "Key=EphemeralRunnerStarted,Value=$(date +%s)"
 fi
 
 export RUNNER_ALLOW_RUNASROOT=1
@@ -268,10 +273,7 @@ fi
 # Set tag `GithubRunnerID` as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)
 
-retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
- "Key=GithubRunnerID,Value=$GH_RUNNER_ID" \
- "Key=Stage,Value=RunnerStarted" \
- "Key=EphemeralRunnerStarted,Value=$(date +%s)"
+retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
 
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}
