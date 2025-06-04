@@ -391,6 +391,23 @@ export function _calculateScaleUpAmount(
   return scaleUpAmount;
 }
 
+/**
+ *
+ * @param runnerTypeName
+ * @param repositoryName
+ * @param repositoryOwner
+ * @param awsRegion
+ * @param metrics
+ * @param ghesUrlHost
+ * @param isOrgRunner
+ * @param isEphemeral
+ * @param experimentalRunner
+ * @param runnersExtraLabels
+ * @param runnerLabels
+ * @param runnerGroupName
+ * @param installationId
+ * @returns
+ */
 export async function innerCreateRunnerConfigArgument(
   runnerTypeName: string,
   repositoryName: string,
