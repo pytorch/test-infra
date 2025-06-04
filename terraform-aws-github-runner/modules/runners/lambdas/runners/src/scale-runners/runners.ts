@@ -25,9 +25,9 @@ export interface RunnerInputParameters {
   environment: string;
   repoName?: string;
   orgName?: string;
+  repositoryOwner?: string;
+  repositoryName?: string;
   runnerType: RunnerType;
-  repositoryOwner: string;
-  repositoryName: string;
 }
 
 export interface AmiExpermient {
@@ -234,11 +234,12 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     applicationDeployDatetime: getTag('ApplicationDeployDatetime'),
     awsRegion,
     az: instance.Placement?.AvailabilityZone?.toLowerCase(),
+    environment: getTag('Environment'),
+    stage: getTag('Stage'),
     ebsVolumeReplacementRequestTimestamp: getTag('EBSVolumeReplacementRequestTm')
       ? parseInt(getTag('EBSVolumeReplacementRequestTm')!)
       : undefined,
-
-    environment: getTag('Environment'),
+    ephemeralRunnerStarted: getTag('EphemeralRunnerStarted') ? parseInt(getTag('EphemeralRunnerFinished')!) : undefined,
     ephemeralRunnerFinished: getTag('EphemeralRunnerFinished')
       ? parseInt(getTag('EphemeralRunnerFinished')!)
       : undefined,
@@ -248,14 +249,9 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     launchTime: instance.LaunchTime,
     repositoryName: getTag('RepositoryName'),
     repositoryOwner: getTag('RepositoryOwner'),
-    runnerTypeLabels: getTag('RunnerTypeLabels') ? getTag('RunnerTypeLabels')?.split(',') : undefined,
-    runnerExtraLabels: getTag('RunnerExtraLabels') ? getTag('RunnerExtraLabels')?.split(',') : undefined,
-    runnerGroupName: getTag('RunngerGroupName'),
     org: getTag('Org'),
     repo: getTag('Repo'),
     runnerType: getTag('RunnerType'),
-    stage: getTag('Stage'),
-    instanceType: getTag('InstanceType'),
   };
 }
 
@@ -738,19 +734,21 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     const tags = [
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-      { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
-      { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
-      { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
     ];
 
-    if (runnerParameters.runnerType.labels) {
-      tags.push({ Key: 'RunnerTypeLabels', Value: runnerParameters.runnerType.labels.join(',') ?? '' });
+    if (runnerParameters.repositoryName !== undefined) {
+      tags.push({ Key: 'RepositoryName', Value: runnerParameters.repositoryName });
+    }
+
+    if (runnerParameters.repositoryOwner !== undefined) {
+      tags.push({ Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner });
     }
 
     /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
       tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
     }
+
     if (runnerParameters.repoName !== undefined) {
       tags.push({
         Key: 'Repo',
@@ -763,16 +761,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         Key: 'Org',
         Value: runnerParameters.orgName,
       });
-    }
-
-    /* istanbul ignore next */
-    if (Config.Instance.runnersExtraLabels) {
-      tags.push({ Key: 'RunnerExtraLabels', Value: Config.Instance.runnersExtraLabels });
-    }
-
-    /* istanbul ignore next */
-    if (Config.Instance.runnerGroupName) {
-      tags.push({ Key: 'RunnerGroupName', Value: Config.Instance.runnerGroupName });
     }
 
     let customAmi = runnerParameters.runnerType.ami;

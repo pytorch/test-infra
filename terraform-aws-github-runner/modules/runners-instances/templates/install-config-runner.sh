@@ -267,7 +267,11 @@ fi
 
 # Set tag `GithubRunnerID` as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)
-retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"  "Key=Stage,Value=Default"
+
+retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
+ "Key=GithubRunnerID,Value=$GH_RUNNER_ID" \
+ "Key=Stage,Value=Default" \
+ "Key=EphemeralRunnerStarted,Value=$(date +%s)"
 
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}

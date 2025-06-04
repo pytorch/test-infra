@@ -9,23 +9,21 @@ export interface RunnerInfo {
   applicationDeployDatetime?: string;
   awsRegion: string;
   az?: string;
-  ebsVolumeReplacementRequestTimestamp?: number;
   environment?: string;
+  stage?: string;
+  // time stamps
+  ebsVolumeReplacementRequestTimestamp?: number;
+  ephemeralRunnerStarted?: number;
   ephemeralRunnerFinished?: number;
+  launchTime?: Date;
   ghRunnerId?: string;
   instanceId: string;
   instanceManagement?: string;
-  launchTime?: Date;
   repositoryOwner?: string;
   repositoryName?: string;
-  runnerTypeLabels?: string[];
-  runnerExtraLabels?: string[];
-  runnerGroupName?: string;
   org?: string;
   repo?: string;
   runnerType?: string;
-  stage?: string;
-  instanceType?: string;
 }
 
 export function getRepoKey(repo: Repo): string {

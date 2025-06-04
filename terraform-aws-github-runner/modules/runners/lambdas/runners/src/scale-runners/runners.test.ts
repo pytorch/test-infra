@@ -89,9 +89,8 @@ function createExpectedRunInstancesLinux(
   const tags = [
     { Key: 'Application', Value: 'github-action-runner' },
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-    { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
     { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
-    { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
+    { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
   ];
 
   if (runnerParameters.runnerType.labels) {
@@ -1330,9 +1329,8 @@ describe('createRunner', () => {
             Tags: [
               { Key: 'Application', Value: 'github-action-runner' },
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
-              { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
@@ -1343,7 +1341,7 @@ describe('createRunner', () => {
       });
     });
 
-    it('creates tags for extraTypeLabels and runnerGroupName if set', async () => {
+    it('creates does not create for extraTypeLabels and runnerGroupName if set', async () => {
       // Custom config for this test
       const customConfig = {
         ...config,
@@ -1410,20 +1408,11 @@ describe('createRunner', () => {
             Tags: [
               { Key: 'Application', Value: 'github-action-runner' },
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
-              { Key: 'InstanceType', Value: runnerParameters.runnerType.instance_type },
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
-              },
-              {
-                Key: 'RunnerExtraLabels',
-                Value: 'CustomExtraLabels',
-              },
-              {
-                Key: 'RunnerGroupName',
-                Value: 'CustomRunnerGroup',
               },
             ],
           },
