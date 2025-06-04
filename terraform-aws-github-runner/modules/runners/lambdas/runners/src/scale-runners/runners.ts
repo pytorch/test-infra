@@ -237,6 +237,7 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     ebsVolumeReplacementRequestTimestamp: getTag('EBSVolumeReplacementRequestTm')
       ? parseInt(getTag('EBSVolumeReplacementRequestTm')!)
       : undefined,
+
     environment: getTag('Environment'),
     ephemeralRunnerFinished: getTag('EphemeralRunnerFinished')
       ? parseInt(getTag('EphemeralRunnerFinished')!)
@@ -245,6 +246,11 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     instanceId: instance.InstanceId!,
     instanceManagement: getTag('InstanceManagement'),
     launchTime: instance.LaunchTime,
+    repositoryName: getTag('RepositoryName'),
+    repositoryOwner: getTag('RepositoryOwner'),
+    runnerTypeLabels: getTag('RunnerTypeLabels') ? getTag('RunnerTypeLabels')?.split(',') : [],
+    runnerExtraLabels: getTag('RunnerExtraLabels') ? getTag('RunnerExtraLabels')?.split(',') : [],
+    runnerGroupName: getTag('RunngerGroupName'),
     org: getTag('Org'),
     repo: getTag('Repo'),
     runnerType: getTag('RunnerType'),
