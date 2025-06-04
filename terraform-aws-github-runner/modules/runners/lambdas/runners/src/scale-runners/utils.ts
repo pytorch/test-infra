@@ -25,6 +25,7 @@ export interface RunnerInfo {
   repo?: string;
   runnerType?: string;
   stage?: string;
+  instanceType?: string;
 }
 
 export function getRepoKey(repo: Repo): string {

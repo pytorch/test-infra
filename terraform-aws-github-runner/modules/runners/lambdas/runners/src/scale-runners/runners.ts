@@ -255,6 +255,7 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     repo: getTag('Repo'),
     runnerType: getTag('RunnerType'),
     stage: getTag('Stage'),
+    instanceType: getTag('InstanceType'),
   };
 }
 
