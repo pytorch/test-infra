@@ -7,7 +7,6 @@ import {
   listSSMParameters,
   resetRunnersCaches,
   terminateRunner,
-  tryReuseRunner,
 } from './runners';
 import { RunnerInfo } from './utils';
 import { ScaleUpMetrics } from './metrics';
@@ -16,6 +15,7 @@ import { Config } from './config';
 import nock from 'nock';
 import { locallyCached, clearLocalCache, redisLocked } from './cache';
 import moment from 'moment';
+import { tryReuseRunner } from './scale-up-try-reuse-runner-utils';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;

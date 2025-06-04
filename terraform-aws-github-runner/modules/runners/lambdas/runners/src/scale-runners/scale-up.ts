@@ -1,6 +1,6 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey, sleep } from './utils';
-import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
+import { RunnerType, RunnerInputParameters, createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -13,6 +13,7 @@ import {
 import { Config } from './config';
 import { getRepoIssuesWithLabel } from './gh-issues';
 import { getJoinedStressTestExperiment } from './cache';
+import { tryReuseRunner } from './scale-up-try-reuse-runner-utils';
 
 export interface ActionRequestMessage {
   id: number;

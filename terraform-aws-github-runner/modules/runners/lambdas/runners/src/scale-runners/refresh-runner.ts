@@ -1,9 +1,10 @@
-import { Config } from "./config";
-import { getRunnerTypes } from "./gh-runners";
-import { ScaleUpMetrics } from "./metrics";
-import { getRunner, RunnerInputParameters } from "./runners";
-import { innerCreateRunnerConfigArgument } from "./scale-up";
-import { Repo } from "./utils";
+import { Config } from './config';
+import { getRunnerTypes } from './gh-runners';
+import { ScaleUpMetrics } from './metrics';
+import { getRunner, RunnerInputParameters } from './runners';
+import { innerCreateRunnerConfigArgument } from './scale-up';
+import { tryRefreshRunner } from './scale-up-try-reuse-runner-utils';
+import { getRepoKey, Repo, RunnerInfo } from './utils';
 
 export interface ActionRequestMessage {
   id: number;
@@ -19,128 +20,88 @@ class RetryableRefreshError extends Error {
 }
 
 export async function refreshRunner(
-  eventSource: string,
-  payload: ActionRequestMessage,
-  metrics: ScaleUpMetrics,
-): Promise<void> {
-  if (eventSource !== 'aws:sqs') {
-    throw Error('Cannot handle non-SQS events!');
-  }
-
-  if (!payload.instanceId){
-    console.warn(`[Skip]missing required field instance id `)
-    return
-}
-
-if (!payload.awsRegion){
-    console.warn(`[Skip]missing required field aws region `)
-    return
-}
-
-  const instanceId = payload.instanceId
-  const awsRegion = payload.awsRegion
-
-  try {
-
-    console.debug(`Start refresh a runner with instance id ${instanceId} in region ${awsRegion}`);
-    const runner = await getRunner(metrics, instanceId, awsRegion)
-
-    if (runner === undefined){
-        console.warn(`Cannot find runner with instance id ${instanceId} in region ${awsRegion}`)
-        return
+    eventSource: string,
+    payload: ActionRequestMessage,
+    metrics: ScaleUpMetrics,
+  ): Promise<void> {
+    if (eventSource !== 'aws:sqs') {
+      throw new Error('Cannot handle non-SQS events!');
     }
 
-    const runnerTypeName = runner.runnerType;
-    const repositoryOwner = runner.repositoryOwner;
-    const repositoryName = runner.repositoryName;
-
-    if (runnerTypeName === undefined){
-        console.warn(`[Skip] Cannot find runner type name for runner with instance id ${instanceId} in region ${awsRegion}`)
-        return
-    }
-    if (repositoryOwner === undefined){
-        console.warn(`[Skip] Missing repositoryOwner for runner with instance id ${instanceId} in region ${awsRegion}`)
-        return
-    }
-    if (repositoryName === undefined){
-        console.warn(`[Skip] Missing  repository name for runner with instance id ${instanceId} in region ${awsRegion}`)
-        return
+    const { instanceId, awsRegion } = payload;
+    if (!instanceId || !awsRegion) {
+      console.warn(`[Skip] Missing required field(s):${!instanceId ? ' instanceId' : ''}${!awsRegion ? ' awsRegion' : ''}`);
+      return;
     }
 
-    if (runner.org === undefined && runner.repo === undefined){
-        console.warn(`Missing repo and org from runner tags, one must be defined for runner with instance id ${instanceId} in region ${awsRegion}`)
-        return
+    console.debug(`Refreshing runner: instanceId=${instanceId}, region=${awsRegion}`);
+
+    let runner: RunnerInfo | undefined;
+    try {
+      runner = await getRunner(metrics, instanceId, awsRegion);
+      if (!runner) {
+        console.warn(`Runner not found in aws: instanceId=${instanceId}, region=${awsRegion}`);
+        return;
+      }
+    } catch (e) {
+      console.error(`Failed to get runner: ${e}`);
+      return;
     }
 
-    const ghesUrl = Config.Instance.ghesUrl
-    if (ghesUrl === undefined){
-        console.warn(`[Skip] Missing ghesUrl from config.instance, cannot refresh runner with instance id ${instanceId}`)
-        return
-    }
-    const isEphemeral = true
-    console.debug(`By default assuming the instance runnber is Ephemeral`)
-
-    const isOrgRunner = runner.org!==undefined
-
-    const extraLabels = runner?.runnerExtraLabels
-    const typeLabels = runner?.runnerTypeLabels
-    const runngerGroupName = runner?.runnerGroupName
-
-    const repo: Repo = {
-      owner: repositoryOwner,
-      repo: repositoryName
+    const { runnerType: runnerTypeName, repositoryOwner, repositoryName, org, repo } = runner;
+    if (!runnerTypeName || !repositoryOwner || !repositoryName) {
+      console.warn(`[Skip] Missing runner metadata: ${JSON.stringify({ runnerTypeName, repositoryOwner, repositoryName })}`);
+      return;
     }
 
-    export interface RunnerType extends RunnerTypeOptional {
-      disk_size: number;
-      instance_type: string;
-      is_ephemeral: boolean;
-      os: string;
-      runnerTypeName: string;
+    if (!org && !repo) {
+      console.warn(`Runner is missing both org and repo: instanceId=${instanceId}`);
+      return;
     }
-    runnerType: RunnerType = {
-      disk_size: 0,
-      instance_type: "",
-      is_ephemeral: true,
-      runnerTypeName: runnerTypeName
+
+    const isOrgRunner = !!org;
+    const isEphemeral = true;
+    const ghesUrlHost = Config.Instance.ghesUrlHost;
+    const repoInfo: Repo = { owner: repositoryOwner, repo: repositoryName };
+
+    console.debug(`Fetching runner type for: ${runnerTypeName}`);
+    const runnerTypes = await getRunnerTypes(repoInfo, metrics, awsRegion);
+    const runnerType = runnerTypes.get(runnerTypeName);
+
+    if (!runnerType) {
+      console.warn(`Runner type not found: ${runnerTypeName}`);
+      return;
     }
 
     const createRunnerParams: RunnerInputParameters = {
-              environment: Config.Instance.environment,
-              runnerConfig: (awsRegion: string, experimentalRunner: boolean) => {
-                return innerCreateRunnerConfigArgument(
-                    runnerTypeName,
-                    repositoryName,
-                    repositoryOwner,
-                    awsRegion,
-                    metrics,
-                    ghesUrl,
-                    isOrgRunner,
-                    isEphemeral,
-                    experimentalRunner,
-                    extraLabels,
-                    typeLabels,
-                    runngerGroupName
-                );
-              },
-              runnerType: {
+      environment: Config.Instance.environment,
+      runnerConfig: (awsRegion: string, experimentalRunner: boolean) =>
+        innerCreateRunnerConfigArgument(
+          runnerTypeName,
+          repositoryName,
+          repositoryOwner,
+          awsRegion,
+          metrics,
+          ghesUrlHost,
+          isOrgRunner,
+          isEphemeral,
+          experimentalRunner,
+          runner.runnerExtraLabels,
+          runner.runnerTypeLabels,
+          runner.runnerGroupName,
+        ),
+      runnerType,
+      repositoryOwner,
+      repositoryName,
+      ...(Config.Instance.enableOrganizationRunners
+        ? { orgName: repositoryOwner }
+        : { repoName: getRepoKey(repoInfo) }),
+    };
 
-              },
-              repositoryOwner: repo.owner,
-              repositoryName: repo.repo,
-            };
-            if (Config.Instance.enableOrganizationRunners) {
-              createRunnerParams.orgName = repo.owner;
-            } else {
-              createRunnerParams.repoName = getRepoKey(repo);
-            }
-
-
-
+    try {
+      await tryRefreshRunner(createRunnerParams, metrics, runner);
+      console.debug(`Refreshed runner: instanceId=${instanceId}, region=${awsRegion}`);
     } catch (e) {
-      /* istanbul ignore next */
-      console.error(`Error refresh runner with  instance id: ${payload.instanceId} in region ${payload.awsRegion}: ${e}`);
+      console.error(`Error refreshing runner: ${e}`);
     }
-
-
-}
+  }

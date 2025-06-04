@@ -1,4 +1,4 @@
-import { createRunner, tryReuseRunner } from './runners';
+import { createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -16,6 +16,7 @@ import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
 import { getJoinedStressTestExperiment } from './cache';
 import { sleep } from './utils';
+import { tryReuseRunner } from './scale-up-try-reuse-runner-utils';
 
 jest.mock('./cache');
 jest.mock('./gh-issues');
