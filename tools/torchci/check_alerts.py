@@ -246,7 +246,7 @@ def close_if_too_many_comments(issue: Dict[str, Any], dry_run: bool) -> bool:
                 print(
                     f"Error closing issue #{issue['number']} due to too many comments: {e}"
                 )
-            return True
+        return True
     return False
 
 
