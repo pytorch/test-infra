@@ -1,6 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
+import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, logAndThrow, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -998,8 +998,9 @@ export async function tryRefreshRunner(
   try {
     if (!isRunnerReusable(runner, 'tryRefreshRunner')) {
       console.debug(`[tryRefreshRunner][Skip]: Runner ${runner.instanceId} is not reusable`);
-      return;
+      return undefined;
     }
+
     // appies redis locks to avoid race condition between multiple scale-up/scale-down pipelines
     await redisLocked(
       lockNameSpace,
@@ -1027,12 +1028,10 @@ export async function tryRefreshRunner(
       180,
       0.05,
     );
+    return runner;
     // logReuseSucces(runnerParameters, metrics, 1);
   } catch (e) {
-    console.debug(
-      `[tryReuseRunner]: something happened preventing to reuse runnerid ` +
-        `${runner.instanceId}, either an error or it is already locked to be reused ${e}`,
-    );
     //logReuseFailure(runnerParameters, metrics, 1);
+    logAndThrow(`[tryRefreshRunner]: error refreshing runner ${runner.instanceId}: ${e}`);
   }
 }
