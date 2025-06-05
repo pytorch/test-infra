@@ -26,6 +26,7 @@ Info = namedtuple(
         "last_verified_by",
         "last_edited",
         "last_edited_by",
+        "link",
     ],
 )
 
@@ -90,7 +91,7 @@ def get_line_last_edited_by(file: str, line: int):
     return last_edited_by
 
 
-def analyze_file(file: str):
+def analyze_file(file: str, link_prefix: str) -> Info:
     magic_string_maintainer = "page maintainers:"
     magic_string_last_verified = "last verified:"
     with open(file) as f:
@@ -107,27 +108,27 @@ def analyze_file(file: str):
                 last_verified_by = get_line_last_edited_by(file, i)
         last_edited_by, last_edited = get_last_edited(file)
     return Info(
-        file, maintainers, last_verified, last_verified_by, last_edited, last_edited_by
+        file, maintainers, last_verified, last_verified_by, last_edited, last_edited_by, link=f"{link_prefix}/{file}"
     )
 
 
-def _check_repo(repo: str, branch: str, file_type: str):
+def _check_repo(repo: str, branch: str, file_type: str, link_prefix: str) -> None:
     files = []
     with tempfile.TemporaryDirectory() as tempdir:
         clone_repo(tempdir, repo, branch)
 
         for file in glob.glob(file_type, recursive=True):
-            files.append(analyze_file(file))
+            files.append(analyze_file(file, link_prefix))
     save_csv(files, PATH / f"{repo}.csv")
 
 
 def check_repo_wiki(repo: str):
     repo = f"{repo}.wiki"
-    _check_repo(repo, "master", "**/*.md")
+    _check_repo(repo, "master", "**/*.md", f"https://github.com/{repo}/wiki/")
 
 
 def check_repo_readmes(repo: str):
-    _check_repo(repo, "main", "**/README.md")
+    _check_repo(repo, "main", "**/README.md", f"https://github.com/{repo}/blob/main/")
 
 
 def main():
