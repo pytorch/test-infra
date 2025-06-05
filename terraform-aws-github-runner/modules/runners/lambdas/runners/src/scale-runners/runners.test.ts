@@ -694,13 +694,6 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
-      const ephemeralRunnerFinished = Math.floor(
-        moment(new Date())
-          .subtract(Config.Instance.minimumRunningTimeInMinutes + 10, 'minutes')
-          .utc()
-          .toDate()
-          .getTime() / 1000,
-      );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
         Reservations: [

@@ -491,6 +491,30 @@ async function getCreateRunnerSubnetSequence(
     .flat();
 }
 
+/**
+ * Attempt to find and reuse an existing EC2 GitHub Actions runner instance that meets the criteria
+ * specified in `runnerParameters`.
+ *
+ * The method performs the following steps:
+ * 1. Skips reuse if a stress test is active.
+ * 2. Queries and filters existing runners matching specific tags and metadata.
+ * 3. Validates each runner for reusability based on tag presence and recent activity.
+ * 4. Acquires a Redis-based distributed lock to avoid concurrent reuse conflicts.
+ * 5. Applies necessary EC2 and SSM updates to prepare the runner for reuse:
+ *    - Adds a reuse tag to prevent scale-down deletion.
+ *    - Deletes the `EphemeralRunnerFinished` tag to signal it's being reused.
+ *    - Triggers a root volume replacement task.
+ *    - Writes updated runner configuration to SSM Parameter Store.
+ * 6. Tracks detailed CloudWatch metrics across success/failure/retry paths.
+ *
+ * Throws:
+ * - `RetryableScalingError` if stress test logic requires bypassing reuse.
+ * - Generic `Error` if no suitable runners are found.
+ *
+ * @param runnerParameters - Parameters used to filter and configure reusable runners.
+ * @param metrics - Metrics tracker for logging reuse attempts and outcomes.
+ * @returns A successfully reused `RunnerInfo` instance.
+ */
 export async function tryReuseRunner(
   runnerParameters: RunnerInputParameters,
   metrics: ScaleUpMetrics,
@@ -528,32 +552,14 @@ export async function tryReuseRunner(
   const ssmM: Map<string, SSM> = new Map();
 
   for (const runner of runners) {
-    const { status, msg } = isRunnerReusable(runner, 'maybeReuseRunner');
+    const { status, msg } = isRunnerReusable(runner);
     if (status !== ReuseStatusDecision.Reuse) {
       console.debug(`[tryReuseRunner][ Runner ${runner.instanceId}] ${status.toString()}: ${msg}`);
       continue;
     }
 
-    if (runner.awsRegion === undefined) {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
-      continue;
-    }
-    if (runner.org === undefined && runner.repo === undefined) {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
-      continue;
-    }
-
-    if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
-      console.debug(
-        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume
-        ephemeralRunnerStage, skip to reuse it`,
-      );
-      continue;
-    }
-
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
-
       // when runner.ephemeralRunnerFinished is set, it
       // indicates that the runner is at post-test
       // ephemeralRunnerStage of github,cthere is some cleanup
@@ -561,23 +567,6 @@ export async function tryReuseRunner(
       // to make sure the cleanup gets completed.
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
-        continue;
-      }
-
-      // since the runner finshed the previous github job,
-      // it's idling for a long time that it is likely tobe
-      // caught in scale-down pipeline, we do not reuse it
-      //  to avoid the race condition.
-      // since the runner finshed the previous github job,
-      // it's idling for a long time that it is likely tobe
-      // caught in scale-down pipeline, we do not reuse it
-      //  to avoid the race condition.
-      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
-        console.debug(
-          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
-            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
-            `not be reused. It's been idle since ${finishedAt.format()}`,
-        );
         continue;
       }
     }
@@ -590,7 +579,7 @@ export async function tryReuseRunner(
         metrics.runnersReuseTryRepo(1, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
       }
 
-      // appies redis locks to avoid race condition between multiple scale-up/scale-down workers
+      // applies redis locks to avoid race condition between multiple scale-up/scale-down workers
       await redisLocked(
         `tryReuseRunner`,
         runner.instanceId,
@@ -676,6 +665,7 @@ export async function tryReuseRunner(
     }
   }
 
+  // logging metrics to cloudwatch
   if (runnerParameters.orgName !== undefined) {
     metrics.runnersReuseGiveUpOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
   } else if (runnerParameters.repoName !== undefined) {
@@ -946,7 +936,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
  * @returns An object containing a reuse status decision and an explanatory message.
  * If reunner is reusable, returns ReuseStatusDecision.Reuse, otherwise, returns enum value with reason.
  */
-function isRunnerReusable(runner: RunnerInfo, useCase: string): { status: ReuseStatusDecision; msg: string } {
+function isRunnerReusable(runner: RunnerInfo): { status: ReuseStatusDecision; msg: string } {
   if (runner.ghRunnerId === undefined) {
     return {
       status: ReuseStatusDecision.NoReuse_NoGithubRunnerIDTag,
@@ -954,7 +944,7 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): { status: ReuseS
     };
   }
   if (runner.awsRegion === undefined) {
-    console.debug(`[${useCase}]: does not have a region`);
+    console.debug(`does not have a region`);
     return {
       status: ReuseStatusDecision.NoReuse_NoRegionTag,
       msg: `does not have a region`,
@@ -968,7 +958,7 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): { status: ReuseS
   }
 
   if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
-    console.debug(`[${useCase}]: the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`);
+    console.debug(`the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`);
 
     return {
       status: ReuseStatusDecision.NoReuse_ReplaceEBSVolumeStage,
@@ -993,7 +983,7 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): { status: ReuseS
   }
   return {
     status: ReuseStatusDecision.Reuse,
-    msg: "",
+    msg: '',
   };
 }
 
