@@ -31,6 +31,15 @@ export enum EphemeralRunnerStage {
   RunnerStarted = 'RunnerStarted',
 }
 
+export enum ReuseStatusDecision {
+  NoReuse_NoGithubRunnerIDTag = 'NoReuse_NoGithubRunnerIDTag',
+  NoReuse_NoRegionTag = 'NoReuse_NoRegionTag',
+  NoReuse_NoOrgOrRepoTag = 'NoReuse_NoOrgOrRepoTag',
+  NoReuse_IdleTimeTooLong = 'NoReuse_IdleTimeTooLong',
+  NoReuse_ReplaceEBSVolumeStage = 'NoReuse_ReplaceEBSVolumeStage',
+  Reuse = 'Reuse',
+}
+
 export function getRepoKey(repo: Repo): string {
   return `${repo.owner}/${repo.repo}`;
 }

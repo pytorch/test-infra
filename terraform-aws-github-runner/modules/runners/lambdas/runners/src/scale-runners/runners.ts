@@ -1,6 +1,13 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
+import {
+  EphemeralRunnerStage,
+  ReuseStatusDecision,
+  RunnerInfo,
+  expBackOff,
+  getRepo,
+  shuffleArrayInPlace,
+} from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -521,9 +528,12 @@ export async function tryReuseRunner(
   const ssmM: Map<string, SSM> = new Map();
 
   for (const runner of runners) {
-    if (!isRunnerReusable(runner, 'tryReuseRunner')) {
+    const { status, msg } = isRunnerReusable(runner, 'maybeReuseRunner');
+    if (status !== ReuseStatusDecision.Reuse) {
+      console.debug(`[tryReuseRunner][ Runner ${runner.instanceId}] ${status.toString()}: ${msg}`);
       continue;
     }
+
     if (runner.awsRegion === undefined) {
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
       continue;
@@ -926,25 +936,44 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   }
 }
 
-function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
+/**
+ * Determines whether a given EC2 runner is eligible for reuse in a GitHub Actions workflow.
+ * The function checks a series of conditions that would disqualify the runner from reuse,
+ * including missing metadata or conflicting runner state (e.g., pending shutdown or already reused).
+ *
+ * @param runner - The runner metadata retrieved from EC2 tags and instance state.
+ * @param useCase - A string used to prefix debug logs for traceability.
+ * @returns An object containing a reuse status decision and an explanatory message.
+ * If reunner is reusable, returns ReuseStatusDecision.Reuse, otherwise, returns enum value with reason.
+ */
+function isRunnerReusable(runner: RunnerInfo, useCase: string): { status: ReuseStatusDecision; msg: string } {
   if (runner.ghRunnerId === undefined) {
-    console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have a GithubRunnerID tag`);
-    return false;
+    return {
+      status: ReuseStatusDecision.NoReuse_NoGithubRunnerIDTag,
+      msg: `does not have a GithubRunnerID tag`,
+    };
   }
   if (runner.awsRegion === undefined) {
-    console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have a region`);
-    return false;
+    console.debug(`[${useCase}]: does not have a region`);
+    return {
+      status: ReuseStatusDecision.NoReuse_NoRegionTag,
+      msg: `does not have a region`,
+    };
   }
   if (runner.org === undefined && runner.repo === undefined) {
-    console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have org or repo`);
-    return false;
+    return {
+      status: ReuseStatusDecision.NoReuse_NoOrgOrRepoTag,
+      msg: `does not have org or repo`,
+    };
   }
 
   if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
-    console.debug(
-      `[${useCase}]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
-    );
-    return false;
+    console.debug(`[${useCase}]: the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`);
+
+    return {
+      status: ReuseStatusDecision.NoReuse_ReplaceEBSVolumeStage,
+      msg: `the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
+    };
   }
 
   if (runner.ephemeralRunnerFinished !== undefined) {
@@ -953,15 +982,19 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
     // for a long time that it is likely tobe caught in scale-down
     // pipeline, we do not reuse it to avoid the race condition.
     if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
-      console.debug(
-        `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+      return {
+        status: ReuseStatusDecision.NoReuse_IdleTimeTooLong,
+        msg:
+          `has been idle for over minimumRunningTimeInMinutes time of ` +
           `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
           `not be reused. It's been idle since ${finishedAt.format()}`,
-      );
-      return false;
+      };
     }
   }
-  return true;
+  return {
+    status: ReuseStatusDecision.Reuse,
+    msg: "",
+  };
 }
 
 /**
