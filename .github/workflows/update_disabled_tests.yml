@@ -98,6 +98,7 @@ jobs:
             disabled-tests-condensed.json
             disabled-jobs.json
             unstable-jobs.json
+            for_historical_records.json
 
   # NB: Use our self-hosted runner to upload the files to S3, the runners already
   # have access to the bucket
