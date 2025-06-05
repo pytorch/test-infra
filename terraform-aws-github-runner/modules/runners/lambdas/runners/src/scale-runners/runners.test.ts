@@ -93,13 +93,6 @@ function createExpectedRunInstancesLinux(
     { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
   ];
 
-  if (runnerParameters.runnerType.labels) {
-    tags.push({
-      Key: 'RunnerTypeLabels',
-      Value: runnerParameters.runnerType.labels.join(','),
-    });
-  }
-
   if (enableOrg) {
     tags.push({
       Key: 'Org',
