@@ -225,27 +225,22 @@ def close_if_too_many_comments(issue: Dict[str, Any], dry_run: bool) -> bool:
     """Close the issue if it has too many comments. Return True if there are too many comments."""
     if issue["comments"]["totalCount"] > SOFT_COMMENT_THRESHOLD:
         if not issue["closed"]:
-            try:
-                print(f"Closing issue #{issue['number']} due to too many comments")
-                if dry_run:
-                    print("NOTE: Dry run, not doing any real work")
-                    return True
-                r = requests.post(
-                    f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
-                    data=json.dumps({"body": "Closing due to too many comments"}),
-                    headers=headers,
-                )
-                r.raise_for_status()
-                r = requests.patch(
-                    UPDATE_ISSUE_URL + str(issue["number"]),
-                    json={"state": "closed"},
-                    headers=headers,
-                )
-                r.raise_for_status()
-            except Exception as e:
-                print(
-                    f"Error closing issue #{issue['number']} due to too many comments: {e}"
-                )
+            print(f"Closing issue #{issue['number']} due to too many comments")
+            if dry_run:
+                print("NOTE: Dry run, not doing any real work")
+                return True
+            r = requests.post(
+                f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
+                data=json.dumps({"body": "Closing due to too many comments"}),
+                headers=headers,
+            )
+            r.raise_for_status()
+            r = requests.patch(
+                UPDATE_ISSUE_URL + str(issue["number"]),
+                json={"state": "closed"},
+                headers=headers,
+            )
+            r.raise_for_status()
         return True
     return False
 
