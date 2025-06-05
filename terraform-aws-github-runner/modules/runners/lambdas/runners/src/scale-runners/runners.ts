@@ -521,7 +521,6 @@ export async function tryReuseRunner(
   const ssmM: Map<string, SSM> = new Map();
 
   for (const runner of runners) {
-    // check if runner is reusable
     if (!isRunnerReusable(runner, 'tryReuseRunner')) {
       continue;
     }
@@ -594,7 +593,7 @@ export async function tryReuseRunner(
           }
           const ssm = ssmM.get(runner.awsRegion) as SSM;
 
-          if (!ec2M.has(runner.awsRegion)) {
+          if (ec2M.has(runner.awsRegion) === false) {
             ec2M.set(runner.awsRegion, new EC2({ region: runner.awsRegion }));
           }
           const ec2 = ec2M.get(runner.awsRegion) as EC2;
