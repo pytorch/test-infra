@@ -584,7 +584,7 @@ export async function tryReuseRunner(
           // Tags created:
           //
           // EBSVolumeReplacementRequestTm: record when was last time the task to replace volume was created.
-          // scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTmp is present
+          // scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTm is present
           // and it's less than 5 mins.
           //
           // Stage: record the stage of the runner, in this case, it's in the RunnerReplaceEBSVolume.
