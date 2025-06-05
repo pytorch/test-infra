@@ -1,12 +1,9 @@
 {
   "params": {
-    "granularity": "String",
     "label": "String",
     "platform": "String",
-    "repo": "String",
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "timezone": "String",
     "triaged": "String"
   },
   "tests": []

@@ -316,6 +316,8 @@ export default function TimeSeriesPanel({
   dataReader = undefined,
   // Whether to keep dates in UTC or convert to local time
   useUTC = false,
+  // Whether to fill in missing data points with 0s
+  fillMissingData = true,
 }: {
   title: string;
   queryName: string;
@@ -338,6 +340,7 @@ export default function TimeSeriesPanel({
   legendPadding?: number;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
   useUTC?: boolean;
+  fillMissingData?: boolean;
 }) {
   // - Granularity
   // - Group by
@@ -374,7 +377,7 @@ export default function TimeSeriesPanel({
     groupByFieldName,
     timeFieldName,
     yAxisFieldName,
-    true,
+    fillMissingData,
     smooth,
     sort_by,
     chartType,
