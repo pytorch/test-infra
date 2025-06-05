@@ -537,7 +537,7 @@ export async function tryReuseRunner(
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
 
       // when runner.ephemeralRunnerFinished is set, it indicates that the runner is at post-test stage of github,
-      // there are some left cleanup in the ec2 instancdes, this gives the buffer to make sure we handle it gracefully.
+      // there is some cleanup still left in the runner job though. This adds a buffer to make sure the cleanup gets completed.
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
         continue;
