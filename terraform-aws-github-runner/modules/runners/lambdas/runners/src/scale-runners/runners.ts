@@ -912,7 +912,7 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
     return false;
   }
 
-  if (runner.stage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
+  if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
     console.debug(
       `[${useCase}]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
     );
@@ -961,7 +961,7 @@ async function createTagForReuse(ec2: EC2, runner: RunnerInfo, metrics: ScaleUpM
             Resources: [runner.instanceId],
             Tags: [
               { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` },
-              { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+              { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
             ],
           })
           .promise();
