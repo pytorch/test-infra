@@ -10,7 +10,7 @@ export default function GitHubIncidentBanner() {
   const { data, error } = useSWR(
     "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
     fetcher,
-    { refreshInterval: 5 * 60 * 1000 } // every 5 minutes
+    { refreshInterval: 2 * 60 * 1000 } // every 2 minutes
   );
 
   if (error || !data?.incidents?.length) return null;
