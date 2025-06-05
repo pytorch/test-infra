@@ -529,7 +529,8 @@ export async function tryReuseRunner(
 
     if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
       console.debug(
-        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume ephemeralRunnerStage, skip to reuse it`,
+        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume
+        ephemeralRunnerStage, skip to reuse it`,
       );
       continue;
     }
@@ -573,7 +574,8 @@ export async function tryReuseRunner(
         `tryReuseRunner`,
         runner.instanceId,
         async () => {
-          // I suspect it will be too many requests against GH API to check if runner is really offline
+          // I suspect it will be too many requests against GH API to check
+          // if runner is really offline
 
           if (ssmM.has(runner.awsRegion) === false) {
             ssmM.set(runner.awsRegion, new SSM({ region: runner.awsRegion }));
@@ -597,8 +599,8 @@ export async function tryReuseRunner(
           // Stage: record the ephemeralRunnerStage of the runner, in this case, it's in the
           // RunnerReplaceEBSVolume.  Refresh and scaleup pipelines will not
           // reuse the runner if the Stage is present and it's RunnerReplaceEBSVolume.
-          // the ephemeralRunnerStage tag will be removed once the replace volume task is completed
-          // at job's startup.sh
+          // the ephemeralRunnerStage tag will be removed once the replace volume task
+          // is completed at job's startup.sh
           await expBackOff(() => {
             return metrics.trackRequestRegion(
               runner.awsRegion,
