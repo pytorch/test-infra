@@ -656,6 +656,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
