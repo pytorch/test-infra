@@ -501,8 +501,7 @@ async function getCreateRunnerSubnetSequence(
  * 3. Validates each runner for reusability based on tag presence and recent activity.
  * 4. Acquires a Redis-based distributed lock to avoid concurrent reuse conflicts.
  * 5. Applies necessary EC2 and SSM updates to prepare the runner for reuse:
- *    - Adds a reuse tag to prevent scale-down deletion.
- *    - Deletes the `EphemeralRunnerFinished` tag to signal it's being reused.
+ *    - Create & delete tags to indicate the ec2 instance's EphemeralRunnerStage.
  *    - Triggers a root volume replacement task.
  *    - Writes updated runner configuration to SSM Parameter Store.
  * 6. Tracks detailed CloudWatch metrics across success/failure/retry paths.
