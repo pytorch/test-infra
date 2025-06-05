@@ -5,8 +5,10 @@ import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function GitHubIncidentBanner() {
+
+
   const { data, error } = useSWR(
-    "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
+    "https://www.githubstatus.com/api/v2/incidents.json",
     fetcher,
     { refreshInterval: 5 * 60 * 1000 } // every 5 minutes
   );
@@ -36,11 +38,11 @@ export default function GitHubIncidentBanner() {
 const Banner = styled('div')({
   fontSize: '0.875rem',
   color: '#666',
-  backgroundColor: '#f1f1f1',
   padding: '6px 12px',
   borderRadius: '4px',
   marginBottom: '8px',
   display: 'inline-block',
+  outline: '1px solid #ccc',
 });
 
 const Title = styled('span')({
