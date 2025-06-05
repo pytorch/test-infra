@@ -29,6 +29,7 @@ DB_NAME = "misc"
 DB_TABLE_NAME = "oss_ci_cur"
 
 
+
 # todo(elainewy): make it a shared library for lambda
 def get_latest_time_from_table(
     cc: clickhouse_connect.driver.client.Client,
@@ -93,9 +94,15 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False )
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
+        host=host,
+        user=user,
+        password=password,
+        secure=True,
         host=host,
         user=user,
         password=password,
@@ -209,9 +216,16 @@ class CostExplorerProcessor:
             record.get("Start", "").replace("Z", "+00:00")
         )
         now = datetime.now(timezone.utc)
+        startTime = datetime.fromisoformat(
+            record.get("Start", "").replace("Z", "+00:00")
+        )
+        now = datetime.now(timezone.utc)
         if len(keys) < 2:
             logger.warning(
                 f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
+            )
+            raise Exception(
+                f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}"
             )
             raise Exception(
                 f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}"
@@ -342,6 +356,12 @@ class CostExplorerProcessor:
             logger.info(
                 f"Peeking the last record: {json.dumps(recordList[-1], default=str)}"
             )
+            logger.info(
+                f"Peeking the first record: {json.dumps(recordList[0], default=str)}"
+            )
+            logger.info(
+                f"Peeking the last record: {json.dumps(recordList[-1], default=str)}"
+            )
         else:
             logger.info("No pre-database records were generated.")
             return
@@ -355,6 +375,7 @@ class CostExplorerProcessor:
         logger.info(f"Generated {len(db_records)} database records.")
         if db_records:
             logger.info(
+                f"Peeking the first database record: {json.dumps(db_records[0], default=str)}"
                 f"Peeking the first database record: {json.dumps(db_records[0], default=str)}"
             )
 
