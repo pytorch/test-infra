@@ -45,16 +45,27 @@ export function useBenchmark(
  * @param props LLMsBenchmarkProps
  */
 export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
+
+  let dtypes: any[] = []
+  if(props.dtypeName === DEFAULT_DTYPE_NAME){
+    dtypes = []
+  } else if (props.repoName == "pytorch/ao"){
+    if (props.backendName.startsWith("micro-benchmark")){
+      
+      dtypes = [props.dtypeName]
+    }else{
+      dtypes = [props.dtypeName, TORCHAO_BASELINE]
+    }
+  } else{
+    dtypes = [props.dtypeName]
+  }
+
+
   const queryParams = {
     arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
     device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
     mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
-    dtypes:
-      props.dtypeName === DEFAULT_DTYPE_NAME
-        ? []
-        : props.repoName !== "pytorch/ao" // TODO(elainewy): add config to handle repos-specific logics
-        ? [props.dtypeName]
-        : [props.dtypeName, TORCHAO_BASELINE],
+    dtypes: dtypes,
     excludedMetrics: EXCLUDED_METRICS,
     benchmarks: props.benchmarkName
       ? [props.benchmarkName]
