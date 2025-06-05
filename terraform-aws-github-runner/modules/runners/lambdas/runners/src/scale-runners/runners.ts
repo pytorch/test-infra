@@ -499,7 +499,6 @@ export async function tryReuseRunner(
 
   const runners = shuffleArrayInPlace(await listRunners(metrics, filters));
 
-  /// logging metrics to cloudwatch
   /* istanbul ignore next */
   if (runnerParameters.orgName !== undefined) {
     metrics.runnersReuseFoundOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
@@ -559,15 +558,15 @@ export async function tryReuseRunner(
           // should come before removing other tags, this is useful so
           // there is always a tag present for scaleDown to know that
           // it can/will be reused and avoid deleting it.
-          createTagForReuse(ec2, runner, metrics)
+          await createTagForReuse(ec2, runner, metrics)
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
 
           // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
           // pick this instance up since it's in next stage, in this case, it's in the ReplaceVolume stage.
-          deleteTagForReuse(ec2, runner, metrics)
+          await deleteTagForReuse(ec2, runner, metrics)
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Tags deleted`);
 
-          replaceRootVolume(ec2, runner, metrics)
+          await replaceRootVolume(ec2, runner, metrics)
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
 
           await addSSMParameterRunnerConfig(
