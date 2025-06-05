@@ -183,3 +183,41 @@ export function sleep(time: number | undefined) {
 export function stripUndefined<T extends object>(obj: T): Partial<T> {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
+
+
+export class ValueError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValueError';
+  }
+}
+
+export class RunnerValueError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RunnerValueError';
+  }
+}
+
+export class RunnerNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RunnerNotFoundError';
+  }
+}
+
+export class RunnerTypeNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RunnerTypeNotFoundError';
+  }
+}
+
+export function logAndThrow( message: string,errorClass: new (msg: string) => Error = Error): never {
+  const error = new errorClass(message);
+  if (Error.captureStackTrace) {
+    Error.captureStackTrace(error, logAndThrow);
+  }
+  console.error(`[${error.name}] ${message}`);
+  throw error;
+}

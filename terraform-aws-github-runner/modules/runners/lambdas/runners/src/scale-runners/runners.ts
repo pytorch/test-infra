@@ -1,6 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
+import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, logAndThrow, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -227,7 +227,7 @@ export async function listRunners(
  * @param awsRegion
  * @returns
  */
-function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
+export function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
   const getTag = (key: string) => instance.Tags?.find((t) => t.Key === key)?.Value;
   const ephemeralRunnerFinished = getTag('EphemeralRunnerFinished');
   const ephemeralRunnerStarted = getTag('EphemeralRunnerStarted');
@@ -987,4 +987,51 @@ async function replaceRootVolume(ec2: EC2, runner: RunnerInfo, metrics: ScaleUpM
           .promise(),
     ),
   );
+}
+
+export async function tryRefreshRunner(
+  runnerParameters: RunnerInputParameters,
+  metrics: ScaleUpMetrics,
+  runner: RunnerInfo,
+  lockNameSpace: string = 'tryRefreshRunner',
+) {
+  try {
+    if (!isRunnerReusable(runner, 'tryRefreshRunner')) {
+      console.debug(`[tryRefreshRunner][Skip]: Runner ${runner.instanceId} is not reusable`);
+      return undefined;
+    }
+
+    // appies redis locks to avoid race condition between multiple scale-up/scale-down pipelines
+    await redisLocked(
+      lockNameSpace,
+      runner.instanceId,
+      async () => {
+        // set new ssm and ec2 clients
+        const ssm = new SSM({ region: runner.awsRegion });
+        const ec2 = new EC2({ region: runner.awsRegion });
+
+        createTagForReuse(ec2, runner, metrics);
+        console.debug(`[tryRefreshRunner]: Refrehing runner ${runner.instanceId}: Created reuse tag`);
+
+        // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
+        // pick this instance up since it's in next stage, in this case, it's in the ReplaceVolume stage.
+        deleteTagForReuse(ec2, runner, metrics);
+        console.debug(`[tryRefreshRunner]: Refrehing runner ${runner.instanceId}: Tags deleted`);
+
+        replaceRootVolume(ec2, runner, metrics);
+        console.debug(`[tryRefreshRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
+
+        await addSSMParameterRunnerConfig([runner.instanceId], runnerParameters, false, ssm, metrics, runner.awsRegion);
+        console.debug(`[tryRefreshRunner]: Refrehing runner ${runner.instanceId}: Ssm parameter created`);
+      },
+      undefined,
+      180,
+      0.05,
+    );
+    return runner;
+    // logReuseSucces(runnerParameters, metrics, 1);
+  } catch (e) {
+    //logReuseFailure(runnerParameters, metrics, 1);
+    logAndThrow(`[tryRefreshRunner]: error refreshing runner ${runner.instanceId}: ${e}`);
+  }
 }
