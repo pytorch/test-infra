@@ -238,7 +238,7 @@ function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo
     awsRegion,
     az: instance.Placement?.AvailabilityZone?.toLowerCase(),
     environment: getTag('Environment'),
-    stage: getTag('Stage'),
+    ephemeralRunnerStage: getTag('EphemeralRunnerStage'),
     ebsVolumeReplacementRequestTimestamp: ebsVolumeReplacementRequestTimestamp
       ? parseInt(ebsVolumeReplacementRequestTimestamp)
       : undefined,
@@ -521,11 +521,27 @@ export async function tryReuseRunner(
 
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
-      // when runner.ephemeralRunnerFinished is set, it indicates that the runner is at
-      // post-test stage of github,there is some cleanup still left in the runner job
-      // though. This adds a buffer to make sure the cleanup gets completed.
+
+      // when runner.ephemeralRunnerFinished is set, it
+      // indicates that the runner is at post-test
+      // ephemeralRunnerStage of github,cthere is some cleanup
+      //  still left in the runner job though. This adds a buffer
+      // to make sure the cleanup gets completed.
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+        continue;
+      }
+
+      // since the runner finshed the previous github job,
+      // it's idling for a long time that it is likely tobe
+      // caught in scale-down pipeline, we do not reuse it
+      //  to avoid the race condition.
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
+        console.debug(
+          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+            `not be reused. It's been idle since ${finishedAt.format()}`,
+        );
         continue;
       }
     }

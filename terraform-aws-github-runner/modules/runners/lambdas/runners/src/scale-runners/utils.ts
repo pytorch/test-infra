@@ -9,20 +9,19 @@ export interface RunnerInfo {
   applicationDeployDatetime?: string;
   awsRegion: string;
   az?: string;
-  environment?: string;
-  stage?: string;
-  // time stamps
   ebsVolumeReplacementRequestTimestamp?: number;
-  ephemeralRunnerStarted?: number;
+  environment?: string;
   ephemeralRunnerFinished?: number;
-  launchTime?: Date;
+  ephemeralRunnerStage?: string;
+  ephemeralRunnerStarted?: number;
   ghRunnerId?: string;
   instanceId: string;
   instanceManagement?: string;
-  repositoryOwner?: string;
-  repositoryName?: string;
+  launchTime?: Date;
   org?: string;
   repo?: string;
+  repositoryName?: string;
+  repositoryOwner?: string;
   runnerType?: string;
 }
 

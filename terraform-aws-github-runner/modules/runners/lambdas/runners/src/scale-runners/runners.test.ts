@@ -93,13 +93,6 @@ function createExpectedRunInstancesLinux(
     { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
   ];
 
-  if (runnerParameters.runnerType.labels) {
-    tags.push({
-      Key: 'RunnerTypeLabels',
-      Value: runnerParameters.runnerType.labels.join(','),
-    });
-  }
-
   if (enableOrg) {
     tags.push({
       Key: 'Org',
@@ -656,7 +649,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
-                  { Key: 'Stage', Value: 'RunnerFinished' },
+                  { Key: 'EphemeralRunnerStage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -724,7 +717,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-                  { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+                  { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
                 ],
               },
             ],
@@ -777,7 +770,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
-                  { Key: 'Stage', Value: 'RunnerFinished' },
+                  { Key: 'EphemeralRunnerStage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -794,7 +787,7 @@ describe('tryReuseRunner', () => {
         ghRunnerId: '1234',
         instanceId: 'i-0113',
         repo: 'jeanschmidt/regularizationTheory',
-        stage: 'RunnerFinished',
+        ephemeralRunnerStage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({
@@ -814,7 +807,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+          { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
@@ -861,7 +854,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
-                  { Key: 'Stage', Value: 'RunnerFinished' },
+                  { Key: 'EphemeralRunnerStage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -889,7 +882,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+          { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
@@ -990,7 +983,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
-                  { Key: 'Stage', Value: 'RunnerFinished' },
+                  { Key: 'EphemeralRunnerStage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -1007,7 +1000,7 @@ describe('tryReuseRunner', () => {
         instanceId: 'i-0113',
         launchTime: launchTime,
         repo: 'jeanschmidt/regularizationTheory',
-        stage: 'RunnerFinished',
+        ephemeralRunnerStage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({
@@ -1027,7 +1020,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+          { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
@@ -1101,7 +1094,7 @@ describe('tryReuseRunner', () => {
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
-          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+          { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
