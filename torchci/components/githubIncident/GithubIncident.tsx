@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import useSWR from 'swr';
+import styled from "@mui/system/styled";
+import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function GitHubIncidentBanner() {
   const { data, error } = useSWR(
-    'https://www.githubstatus.com/api/v2/incidents/unresolved.json',
+    "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
     fetcher,
-    { refreshInterval: 5 * 60 * 1000 }
+    { refreshInterval: 5 * 60 * 1000 } // every 5 minutes
   );
 
   if (error || !data?.incidents?.length) return null;
@@ -16,20 +17,33 @@ export default function GitHubIncidentBanner() {
   const lastUpdate = incident.incident_updates?.[0]?.created_at;
   const lastUpdateDate = lastUpdate
     ? new Date(lastUpdate).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
+        dateStyle: "medium",
+        timeStyle: "short",
       })
     : null;
 
   return (
-    <div style={{ fontSize: '14px', color: '#666', background: '#f4f4f4', padding: '6px 10px', borderRadius: '4px' }}>
-      <strong>GitHub Incident:</strong>{' '}
-      {incident.name}
-      {lastUpdateDate && <> — Updated: {lastUpdateDate}</>}
-      {' '}
+    <Banner>
+      <Title>GitHub Incident:</Title> {incident.name}
+      {lastUpdateDate && <> — Updated: {lastUpdateDate}</>}{" "}
       <a href={incident.shortlink} target="_blank" rel="noreferrer">
         (link)
       </a>
-    </div>
+    </Banner>
   );
 }
+
+const Banner = styled('div')({
+  fontSize: '0.875rem',
+  color: '#666',
+  backgroundColor: '#f1f1f1',
+  padding: '6px 12px',
+  borderRadius: '4px',
+  marginBottom: '8px',
+  display: 'inline-block',
+});
+
+const Title = styled('span')({
+  fontWeight: 600,
+  marginRight: '4px',
+});
