@@ -1,5 +1,4 @@
 import { RequestError } from '@octokit/request-error';
-import { get } from 'http';
 
 export interface Repo {
   owner: string;
