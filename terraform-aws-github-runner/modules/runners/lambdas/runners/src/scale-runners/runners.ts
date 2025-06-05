@@ -558,15 +558,15 @@ export async function tryReuseRunner(
           // should come before removing other tags, this is useful so
           // there is always a tag present for scaleDown to know that
           // it can/will be reused and avoid deleting it.
-          await createTagForReuse(ec2, runner, metrics)
+          await createTagForReuse(ec2, runner, metrics);
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
 
           // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
           // pick this instance up since it's in next stage, in this case, it's in the ReplaceVolume stage.
-          await deleteTagForReuse(ec2, runner, metrics)
+          await deleteTagForReuse(ec2, runner, metrics);
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Tags deleted`);
 
-          await replaceRootVolume(ec2, runner, metrics)
+          await replaceRootVolume(ec2, runner, metrics);
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
 
           await addSSMParameterRunnerConfig(
@@ -891,18 +891,18 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
   }
   if (runner.awsRegion === undefined) {
     console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have a region`);
-    return false
+    return false;
   }
   if (runner.org === undefined && runner.repo === undefined) {
     console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have org or repo`);
-    return false
+    return false;
   }
 
   if (runner.stage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
     console.debug(
       `[${useCase}]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
     );
-    return false
+    return false;
   }
 
   if (runner.ephemeralRunnerFinished !== undefined) {
@@ -916,10 +916,10 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
             `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
             `not be reused. It's been idle since ${finishedAt.format()}`,
         );
-        return false
+        return false;
       }
     }
-    return true
+    return true;
 }
 
 
