@@ -6,7 +6,7 @@ from typing import Any, Dict, List, NamedTuple
 
 import requests
 from setuptools import distutils  # type: ignore[import]
-from torchci.check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
+from torchci.check_alerts import clear_alerts, close_if_too_many_comments, create_issue, fetch_alerts, update_issue
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -100,6 +100,10 @@ def queuing_alert(dry_run: bool) -> None:
         print("Closing queuing alert")
         clear_alerts(existing_alerts, dry_run=dry_run)
         return
+
+    existing_alerts = [
+        x for x in existing_alerts if not close_if_too_many_comments(x, dry_run)
+    ]
 
     if len(existing_alerts) == 0:
         # Generate a blank issue if there are no issues with the label and
