@@ -586,13 +586,16 @@ export async function tryReuseRunner(
           // it can/will be reused and avoid deleting it.
           // Tags created:
           //
-          // EBSVolumeReplacementRequestTm: record when was last time the task to replace volume was created.
-          // scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTm is present
-          // and it's less than 5 mins.
+          // EBSVolumeReplacementRequestTm: record when was last time
+          // the task to replace volume was created. scale-down pipeline
+          // will not delete the runner if the EBSVolumeReplacementRequestTm
+          // is present and it's less than 5 mins.
           //
-          // Stage: record the stage of the runner, in this case, it's in the RunnerReplaceEBSVolume.
-          // Refresh and scaleup pipelines will not reuse the runner if the Stage is present and it's RunnerReplaceEBSVolume.
-          // the stage tag will be removed once the replace volume task is completed at job's startup.sh
+          // Stage: record the stage of the runner, in this case, it's in the
+          // RunnerReplaceEBSVolume.  Refresh and scaleup pipelines will not
+          // reuse the runner if the Stage is present and it's RunnerReplaceEBSVolume.
+          // the stage tag will be removed once the replace volume task is completed
+          // at job's startup.sh
           await expBackOff(() => {
             return metrics.trackRequestRegion(
               runner.awsRegion,
