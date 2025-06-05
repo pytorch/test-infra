@@ -45,21 +45,18 @@ export function useBenchmark(
  * @param props LLMsBenchmarkProps
  */
 export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
-
-  let dtypes: any[] = []
-  if(props.dtypeName === DEFAULT_DTYPE_NAME){
-    dtypes = []
-  } else if (props.repoName == "pytorch/ao"){
-    if (props.backendName.startsWith("micro-benchmark")){
-      
-      dtypes = [props.dtypeName]
-    }else{
-      dtypes = [props.dtypeName, TORCHAO_BASELINE]
+  let dtypes: any[] = [];
+  if (props.dtypeName === DEFAULT_DTYPE_NAME) {
+    dtypes = [];
+  } else if (props.repoName == "pytorch/ao") {
+    if (props.backendName.startsWith("micro-benchmark")) {
+      dtypes = [props.dtypeName];
+    } else {
+      dtypes = [props.dtypeName, TORCHAO_BASELINE];
     }
-  } else{
-    dtypes = [props.dtypeName]
+  } else {
+    dtypes = [props.dtypeName];
   }
-
 
   const queryParams = {
     arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
