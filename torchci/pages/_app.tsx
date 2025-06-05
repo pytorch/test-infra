@@ -5,6 +5,7 @@ import AnnouncementBanner from "components/AnnouncementBanner";
 import TitleProvider from "components/DynamicTitle";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
+import GitHubIncidentBanner from "components/githubIncident/GithubIncident";
 import { DarkModeProvider } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
@@ -55,6 +56,7 @@ function AppContent({
         <NavBar />
         <AnnouncementBanner />
         <SevReport />
+        <GitHubIncidentBanner />
         <div style={{ margin: "20px" }}>
           <Component {...pageProps} />
           <Analytics />
