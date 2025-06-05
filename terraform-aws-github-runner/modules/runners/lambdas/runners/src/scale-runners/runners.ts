@@ -236,7 +236,7 @@ export async function listRunners(
 }
 
 /**
- * converts ec2 instance metadata to RunnerInfo
+ * Convert ec2 instance metadata to RunnerInfo
  * @param instance
  * @param awsRegion
  * @returns
