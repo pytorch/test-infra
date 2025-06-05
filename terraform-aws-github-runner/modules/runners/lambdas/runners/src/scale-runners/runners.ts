@@ -537,9 +537,10 @@ export async function tryReuseRunner(
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
 
-      // when runner.ephemeralRunnerFinished is set, it indicates that the runner is at
-      // post-test ephemeralRunnerStage of github,there is some cleanup still left in the runner job
-      // though. This adds a buffer to make sure the cleanup gets completed.
+      // when runner.ephemeralRunnerFinished is set, it indicates that
+      //  the runner is at post-test ephemeralRunnerStage of github,
+      // there is some cleanup still left in the runner job though.
+      //  This adds a buffer to make sure the cleanup gets completed.
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
         continue;
@@ -617,7 +618,8 @@ export async function tryReuseRunner(
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
 
           // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
-          // pick this instance up since it's in next ephemeralRunnerStage, in this case, it's in the ReplaceVolume ephemeralRunnerStage.
+          // pick this instance up since it's in next ephemeralRunnerStage,
+          // in this case, it's in the ReplaceVolume ephemeralRunnerStage.
           await expBackOff(() => {
             return metrics.trackRequestRegion(
               runner.awsRegion,
