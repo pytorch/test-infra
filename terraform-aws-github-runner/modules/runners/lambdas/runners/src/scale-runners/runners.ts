@@ -526,13 +526,12 @@ export async function tryReuseRunner(
       continue;
     }
 
-    if (runner.stage === EphemeralRunnerStage.RunnerReplaceEBSVolume){
+    if (runner.stage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
       console.debug(
         `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
       );
       continue;
     }
-
 
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
