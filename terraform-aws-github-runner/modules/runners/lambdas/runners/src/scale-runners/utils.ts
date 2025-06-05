@@ -180,6 +180,6 @@ export function sleep(time: number | undefined) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
-export function stripUndefined(obj: Record<string, any>) {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+export function stripUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
