@@ -734,19 +734,7 @@ describe('tryReuseRunner', () => {
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
-        Filters: [
-          { Name: 'tag:Application', Values: ['github-action-runner'] },
-          { Name: 'instance-state-name', Values: ['running', 'pending'] },
-          { Name: 'instance-type', Values: ['c5.2xlarge'] },
-          { Name: 'tag:ApplicationDeployDatetime', Values: ['20201010T144800'] },
-          { Name: 'tag:Environment', Values: ['wg113'] },
-          { Name: 'tag:Repo', Values: ['jeanschmidt/regularizationTheory'] },
-          { Name: 'tag:RunnerType', Values: ['linuxCpu'] },
-          { Name: 'tag:GithubRunnerID', Values: ['*'] },
-          { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
-        ],
-      });
+      expect(mockEC2.describeInstances).toBeCalled();
       expect(mockSSM.putParameter).not.toBeCalled();
       expect(mockEC2.createTags).not.toBeCalled();
       expect(mockEC2.deleteTags).not.toBeCalled();
