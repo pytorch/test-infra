@@ -86,6 +86,7 @@ describe("Flaky Test Bot Single Issue Unit Tests", () => {
     const areSingleIssues = [
       "DISABLED test_a (__main__.suite_a)",
       "DISABLED test_a (t.test_a)",
+      "DISABLED   test_a   (t.test_a)  ",
       "DISABLED test_a   (t.test_a.TestLinAlgCPU)",
       "DISABLED test_aDFSOIDJ (t.test_a.TestLinAlgCPU)",
     ];

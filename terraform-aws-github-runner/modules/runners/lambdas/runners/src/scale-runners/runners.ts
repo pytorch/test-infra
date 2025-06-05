@@ -14,6 +14,7 @@ export interface ListRunnerFilters {
   containsTags?: Array<string>;
   environment?: string;
   instanceType?: string;
+  instanceId?: string;
   orgName?: string;
   repoName?: string;
   runnerType?: string;
@@ -138,6 +139,12 @@ export async function listRunners(
         ec2Filters.push({
           Name: 'instance-type',
           Values: [filters.instanceType],
+        });
+      }
+      if (filters.instanceId) {
+        ec2Filters.push({
+          Name: 'instance-id',
+          Values: [filters.instanceId],
         });
       }
 
@@ -518,6 +525,22 @@ export async function tryReuseRunner(
     if (!isRunnerReusable(runner, 'tryReuseRunner')) {
       continue;
     }
+    if (runner.awsRegion === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
+      continue;
+    }
+    if (runner.org === undefined && runner.repo === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
+      continue;
+    }
+
+    if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
+      console.debug(
+        `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume
+        ephemeralRunnerStage, skip to reuse it`,
+      );
+      continue;
+    }
 
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
@@ -532,6 +555,10 @@ export async function tryReuseRunner(
         continue;
       }
 
+      // since the runner finshed the previous github job,
+      // it's idling for a long time that it is likely tobe
+      // caught in scale-down pipeline, we do not reuse it
+      //  to avoid the race condition.
       // since the runner finshed the previous github job,
       // it's idling for a long time that it is likely tobe
       // caught in scale-down pipeline, we do not reuse it
@@ -559,8 +586,10 @@ export async function tryReuseRunner(
         `tryReuseRunner`,
         runner.instanceId,
         async () => {
-          // I suspect it will be too many requests against GH API to check if runner is really offline
-          if (!ssmM.has(runner.awsRegion)) {
+          // I suspect it will be too many requests against GH API to check
+          // if runner is really offline
+
+          if (ssmM.has(runner.awsRegion) === false) {
             ssmM.set(runner.awsRegion, new SSM({ region: runner.awsRegion }));
           }
           const ssm = ssmM.get(runner.awsRegion) as SSM;

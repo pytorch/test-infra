@@ -113,7 +113,7 @@ describe("Verify disable issues integration tests", () => {
     labels?: string[];
   }) {
     const payload = requireDeepCopy("./fixtures/issues.opened.json");
-    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.title = "DISABLED test_method_name (testClass.TestSuite)";
     payload.issue.user.id = pytorchBotId;
     payload.issue.labels = [];
 
@@ -332,7 +332,7 @@ describe("Verify disable issues integration tests", () => {
           number,
           [
             "<!-- validation-comment-start -->",
-            "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
+            "~15 minutes, `test_method_name (testClass.TestSuite)` will be disabled",
             "these platforms: asan, rocm, win.",
           ],
           ["don't have permission", "ERROR", "WARNING"]
@@ -357,7 +357,7 @@ describe("Verify disable issues integration tests", () => {
           number,
           [
             "<!-- validation-comment-start -->",
-            "~15 minutes, `testMethodName (testClass.TestSuite)` will be disabled",
+            "~15 minutes, `test_method_name (testClass.TestSuite)` will be disabled",
             "all platforms.",
           ],
           ["don't have permission", "ERROR", "WARNING"]
@@ -399,7 +399,7 @@ describe("Verify disable issues integration tests", () => {
         body: "Platforms: win",
         labels: ["module: windows", "random label"],
         title:
-          "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
+          "DISABLED test_method_name   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
       });
 
       const scope = [
@@ -411,7 +411,7 @@ describe("Verify disable issues integration tests", () => {
           [
             "<!-- validation-comment-start -->",
             "these platforms: win.",
-            "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
+            "test_method_name (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
           ],
           ["don't have permission", "ERROR", "WARNING"]
         ),
@@ -446,7 +446,7 @@ describe("Verify disable issues integration tests", () => {
       const { payload, owner, repo, number } = defaultE2ETestInputs({
         body: "whatever\nPlatforms:\nyay",
         labels: ["module: windows", "random label"],
-        title: "DISABLED testMethodName   cuz it borked  ",
+        title: "DISABLED test_method_name   cuz it borked  ",
       });
 
       const scope = [

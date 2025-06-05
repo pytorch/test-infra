@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
-import { __forTesting__ as aggregateDisableIssue } from "lib/flakyBot/aggregateDisableIssue";
 import * as flakyBotUtils from "lib/flakyBot/utils";
-import { FlakyTestData, IssueData } from "lib/types";
+import { IssueData } from "lib/types";
 import nock from "nock";
 import { __forTesting__ as disableFlakyTestBot } from "pages/api/flaky-tests/disable";
 import { deepCopy, handleScope } from "../common";
@@ -9,6 +8,9 @@ import * as utils from "../utils";
 import {
   flakyTestA,
   flakyTestB,
+  genAggIssueFor,
+  genAggTests,
+  genSingleIssueFor,
   genValidFlakyTest,
   mockGetRawTestFile,
   nonFlakyTestA,
@@ -54,22 +56,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   });
 
   describe("Single Test Issue", () => {
-    function genSingleIssueFor(
-      test: FlakyTestData,
-      input: Partial<IssueData>
-    ): IssueData {
-      return {
-        number: 1,
-        title: `DISABLED ${test.name} (__main__.${test.suite})`,
-        html_url: "test url",
-        state: "open" as "open" | "closed",
-        body: `Platforms: ${flakyBotUtils.getPlatformsAffected(test.jobNames)}`,
-        updated_at: dayjs().subtract(4, "hour").toString(),
-        author_association: "MEMBER",
-        labels: [],
-        ...input,
-      };
-    }
     describe("Create/update issues", () => {
       test("Create new issue", async () => {
         const flakyTest = { ...flakyTestA };
@@ -384,33 +370,6 @@ describe("Disable Flaky Test Integration Tests", () => {
   });
 
   describe("Aggregate Test Issue", () => {
-    function genAggTests(test: FlakyTestData) {
-      return Array.from({ length: 11 }, (_, i) =>
-        genValidFlakyTest({
-          ...test,
-
-          name: `test_${i}`,
-          suite: `suite_${i}`,
-        })
-      );
-    }
-    function genAggIssueFor(
-      tests: FlakyTestData[],
-      input: Partial<IssueData>
-    ): IssueData {
-      return {
-        number: 1,
-        title: aggregateDisableIssue.getTitle(tests[0]),
-        html_url: "test url",
-        state: "open" as "open" | "closed",
-        body: aggregateDisableIssue.getBody(tests),
-        updated_at: dayjs().subtract(4, "hour").toString(),
-        author_association: "MEMBER",
-        labels: [],
-        ...input,
-      };
-    }
-
     describe("Create/update issues", () => {
       test("Create new issue", async () => {
         const tests = genAggTests(flakyTestA);
