@@ -515,7 +515,7 @@ export async function tryReuseRunner(
 
   for (const runner of runners) {
     // check if runner is reusable
-    if (!isRunnerReusable(runner, 'tryReuseRunner')){
+    if (!isRunnerReusable(runner, 'tryReuseRunner')) {
       continue;
     }
 
@@ -531,7 +531,6 @@ export async function tryReuseRunner(
     }
 
     try {
-
       // logging metrics to cloudwatch
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
@@ -584,7 +583,7 @@ export async function tryReuseRunner(
         0.05,
       );
 
-     // logging metrics to cloudwatch
+      // logging metrics to cloudwatch
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseSuccessOrg(
           runners.length,
@@ -883,7 +882,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   }
 }
 
-
 function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
   if (runner.ghRunnerId === undefined) {
     console.debug(`[${useCase}]: Runner ${runner.instanceId} does not have a GithubRunnerID tag`);
@@ -907,21 +905,20 @@ function isRunnerReusable(runner: RunnerInfo, useCase: string): boolean {
 
   if (runner.ephemeralRunnerFinished !== undefined) {
     const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
-      // since the runner finshed the previous github job, it's idling
-      // for a long time that it is likely tobe caught in scale-down
-      // pipeline, we do not reuse it to avoid the race condition.
-      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
-        console.debug(
-          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
-            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
-            `not be reused. It's been idle since ${finishedAt.format()}`,
-        );
-        return false;
-      }
+    // since the runner finshed the previous github job, it's idling
+    // for a long time that it is likely tobe caught in scale-down
+    // pipeline, we do not reuse it to avoid the race condition.
+    if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
+      console.debug(
+        `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+          `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+          `not be reused. It's been idle since ${finishedAt.format()}`,
+      );
+      return false;
     }
-    return true;
+  }
+  return true;
 }
-
 
 /**
  *
