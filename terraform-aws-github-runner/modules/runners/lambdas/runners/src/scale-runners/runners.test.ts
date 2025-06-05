@@ -9,7 +9,7 @@ import {
   terminateRunner,
   tryReuseRunner,
 } from './runners';
-import { RunnerInfo } from './utils';
+import { RunnerInfo, stripUndefined } from './utils';
 import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
@@ -788,6 +788,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -796,7 +797,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
+      expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
         ephemeralRunnerFinished: ephemeralRunnerFinished,
@@ -804,6 +805,7 @@ describe('tryReuseRunner', () => {
         ghRunnerId: '1234',
         instanceId: 'i-0113',
         repo: 'jeanschmidt/regularizationTheory',
+        stage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({
@@ -870,6 +872,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -998,6 +1001,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -1006,7 +1010,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
+      expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
         ephemeralRunnerFinished: ephemeralRunnerFinished,
@@ -1014,6 +1018,7 @@ describe('tryReuseRunner', () => {
         instanceId: 'i-0113',
         launchTime: launchTime,
         repo: 'jeanschmidt/regularizationTheory',
+        stage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({

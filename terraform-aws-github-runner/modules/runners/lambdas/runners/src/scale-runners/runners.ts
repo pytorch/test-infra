@@ -1,6 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
+import { EphemeralRunnerStage, RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -526,7 +526,7 @@ export async function tryReuseRunner(
       continue;
     }
 
-    if (runner.stage !== undefined && runner.stage === 'RunnerReplaceEBSVolume') {
+    if (runner.stage && runner.stage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
       console.debug(
         `[tryReuseRunner]: Runner ${runner.instanceId} the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
       );

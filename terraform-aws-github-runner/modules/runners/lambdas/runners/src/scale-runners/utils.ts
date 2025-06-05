@@ -26,6 +26,12 @@ export interface RunnerInfo {
   runnerType?: string;
 }
 
+export enum EphemeralRunnerStage {
+  RunnerReplaceEBSVolume = 'RunnerReplaceEBSVolume',
+  RunnerFinished = 'RunnerFinished',
+  RunnerStarted = 'RunnerStarted',
+}
+
 export function getRepoKey(repo: Repo): string {
   return `${repo.owner}/${repo.repo}`;
 }
@@ -172,4 +178,8 @@ export function shuffleArrayInPlace<T>(arr: T[]): T[] {
 
 export function sleep(time: number | undefined) {
   return new Promise((resolve) => setTimeout(resolve, time));
+}
+
+export function stripUndefined(obj: Record<string, any>) {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 }
