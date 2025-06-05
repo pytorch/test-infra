@@ -225,23 +225,28 @@ def close_if_too_many_comments(issue: Dict[str, Any], dry_run: bool) -> bool:
     """Close the issue if it has too many comments. Return True if there are too many comments."""
     if issue["comments"]["totalCount"] > SOFT_COMMENT_THRESHOLD:
         if not issue["closed"]:
-            print(f"Closing issue #{issue['number']} due to too many comments")
-            if dry_run:
-                print("NOTE: Dry run, not doing any real work")
-                return True
-            r = requests.post(
-                f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
-                data=json.dumps({"body": "Closing due to too many comments"}),
-                headers=headers,
-            )
-            r.raise_for_status()
-            r = requests.patch(
-                UPDATE_ISSUE_URL + str(issue["number"]),
-                json={"state": "closed"},
-                headers=headers,
-            )
-            r.raise_for_status()
-        return True
+            try:
+                print(f"Closing issue #{issue['number']} due to too many comments")
+                if dry_run:
+                    print("NOTE: Dry run, not doing any real work")
+                    return True
+                r = requests.post(
+                    f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue['number']}/comments",
+                    data=json.dumps({"body": "Closing due to too many comments"}),
+                    headers=headers,
+                )
+                r.raise_for_status()
+                r = requests.patch(
+                    UPDATE_ISSUE_URL + str(issue["number"]),
+                    json={"state": "closed"},
+                    headers=headers,
+                )
+                r.raise_for_status()
+            except Exception as e:
+                print(
+                    f"Error closing issue #{issue['number']} due to too many comments: {e}"
+                )
+            return True
     return False
 
 
@@ -363,10 +368,11 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
     print(f"Creating issue with content:{os.linesep}{issue}")
     if dry_run:
         print("NOTE: Dry run activated, not doing any real work")
-        return
+        return {"number": -1, "closed": False, "body": ""}
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
-    return {"number": r.json()["number"], "closed": False}
+    res = r.json()
+    return {"number": res["number"], "closed": False, "body": res["body"]}
 
 
 def fetch_hud_data(repo: str, branch: str) -> Any:
@@ -574,7 +580,7 @@ def check_for_recurrently_failing_jobs_alert(
         new_issue = create_issue(
             generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=[]), dry_run
         )
-        existing_alerts.push(new_issue)
+        existing_alerts.append(new_issue)
 
     # Always favor the most recent issue, close all other ones
     existing_issue = existing_alerts[-1]

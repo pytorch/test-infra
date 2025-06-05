@@ -116,7 +116,7 @@ def queuing_alert(dry_run: bool) -> None:
         # re-fetch the issues so we can post an update comment, which will
         # trigger a more informative workchat ping
         new_issue = create_issue(gen_issue([]), dry_run)
-        existing_alerts.push(new_issue)
+        existing_alerts.append(new_issue)
 
     # Favor the most recent issue and close the rest
     existing_issue = existing_alerts[-1]
