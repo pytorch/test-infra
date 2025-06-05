@@ -251,11 +251,11 @@ get_labels_from_config $CONFIG > /home/$USER_NAME/runner-labels
 # this is useful to hint the scale up lambda that this instance might be reused
 if grep "ephemeral" <<< $CONFIG; then
   echo "Ephemeral runner detected"
-  echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=Stage,Value=RunnerFinished\" \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
+  echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=EphemeralRunnerStage,Value=RunnerFinished\" \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
 
   # We add a tag to the instance to signal that the ephemeral runner has started
   retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
-  "Key=Stage,Value=RunnerStarted" \
+  "Key=EphemeralRunnerStage,Value=RunnerStarted" \
   "Key=EphemeralRunnerStarted,Value=$(date +%s)"
 fi
 

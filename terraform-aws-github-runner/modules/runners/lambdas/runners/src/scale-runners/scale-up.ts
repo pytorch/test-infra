@@ -189,7 +189,6 @@ async function createRunnerConfigArgument(
   const ghesUrlHost = Config.Instance.ghesUrlHost;
 
   return innerCreateRunnerConfigArgument(
-    runnerTypeName,
     repo,
     awsRegion,
     metrics,
@@ -390,7 +389,6 @@ export function _calculateScaleUpAmount(
 }
 
 export async function innerCreateRunnerConfigArgument(
-  runnerTypeName: string,
   repo: Repo,
   awsRegion: string,
   metrics: Metrics,
@@ -406,7 +404,7 @@ export async function innerCreateRunnerConfigArgument(
   const ephemeralArgument = isEphemeral ? '--ephemeral' : '';
   const labelsArgument = [
     `AWS:${awsRegion}`,
-    runnerTypeName,
+    runnerType.runnerTypeName,
     ...(experimentalRunner ? ['experimental.ami'] : []),
     ...(runnersExtraLabels ? runnersExtraLabels : []),
     ...(runnerType.labels ?? []),
