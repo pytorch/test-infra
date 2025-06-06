@@ -125,7 +125,7 @@ variable "runners_scale_up_lambda_timeout" {
 variable "runners_scale_down_lambda_timeout" {
   description = "Time out for the scale down lambda in seconds."
   type        = number
-  default     = 60
+  default     = 120
 }
 
 variable "runner_binaries_syncer_lambda_zip" {
