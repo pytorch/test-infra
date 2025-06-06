@@ -114,7 +114,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             ),
         }
 
-    # Extract authentication parameters
     try:
         username = parsed_body["username"]
         password = parsed_body["password"]
@@ -124,14 +123,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "body": json.dumps({"message": "Authentication credentials are required"}),
         }
 
-    # Validate authentication
     if not authenticate(username, password):
         return {
             "statusCode": 403,
             "body": json.dumps({"message": "Invalid authentication credentials"}),
         }
 
-    # Extract input parameters from the event
     try:
         s3_path = parsed_body["s3_path"]
         content = parsed_body["content"]
@@ -141,7 +138,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "body": json.dumps({"message": f"Missing required parameter: {str(e)}"}),
         }
 
-    # Check if the path already exists in the bucket
     if check_path_exists(s3_path):
         return {
             "statusCode": 409,  # Conflict status code
@@ -152,5 +148,4 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             ),
         }
 
-    # Upload the content to S3
     return upload_to_s3(s3_path, content)
