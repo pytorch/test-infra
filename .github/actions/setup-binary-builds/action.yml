@@ -84,77 +84,35 @@ runs:
           # and "/" is not allowed in artifact names. //\//_ is to replace all forward slashes,
           # not just the first one
           echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
-      - name: Setup miniconda (for pytorch_pkg_helpers)
-        if: ${{ inputs.setup-miniconda == 'true' }}
-        uses: conda-incubator/setup-miniconda@v3.1.1
-        with:
-          miniconda-version: "latest"
-          python-version: 3.9
-      - name: Clean conda environment
+
+      - name: Install uv environment
         shell: bash -l {0}
         run: |
           set -euxo pipefail
-          conda info | grep -i 'base environment'
-          conda clean --all --quiet --yes
-      - name: Reset channel priority
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          conda config --set channel_priority false
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
           set -euxo pipefail
-          CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
-          conda create \
-            --yes --quiet \
-            --prefix "${CONDA_ENV}" \
-            "python=3.9"
-          CONDA_ENV="${CONDA_ENV}"
-          CONDA_RUN="conda run -p ${CONDA_ENV}"
-          ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
+          uv venv --python 3.9
+          source .venv/bin/activate
+
+          uv pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
           BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
-          ${CONDA_RUN} python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           cat "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
-      - name: Setup conda environment for build
+
+      - name: Setup uv environment for build
         shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           set -euxo pipefail
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-          export CONDA_EXTRA_PARAM=""
 
-          if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
-            export PYTHON_VERSION=3.13
-            export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
-
-            # downgrade conda version for python 3.13t install.
-            # TODO: remove this once python 3.13t is fully supported on conda
-            # Please see : https://github.com/conda/conda/issues/14554
-            if [[ "$(uname)" == Darwin ]]; then
-              # required to be able to downgrade on MacOS arm64
-              conda install -y python=3.9
-              if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
-                conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
-              fi
-              conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
-            else
-              conda install -y conda=24.7.1
-            fi
-          fi
-
-          conda create \
-              --yes --quiet \
-              --prefix "${CONDA_ENV}" \
-              "python=${PYTHON_VERSION}" \
-              cmake=3.31.2 \
-              ninja=1.12.1 \
-              pkg-config=0.29 \
-              wheel=0.37  \
-              ${CONDA_EXTRA_PARAM}
-
-          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          uv venv py${PYTHON_VERSION} --python ${PYTHON_VERSION}
+          source ./py${PYTHON_VERSION}/bin/activate
+          uv pip install cmake==3.31.2  ninja wheel==0.37 setuptools
+          echo "VIRTUAL_ENV=${VIRTUAL_ENV}" >> "${GITHUB_ENV}"
