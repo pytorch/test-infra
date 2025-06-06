@@ -82,19 +82,25 @@ pub async fn upload_classification_dynamo(
     repo: &str,
     job_id: usize,
     best_match: &SerializedMatch,
+    is_temp_log: bool
 ) -> Result<()> {
     let update = AttributeValueUpdate::builder()
         .action(AttributeAction::Put)
         .value(to_attribute_value(best_match)?)
         .build();
-    client
+    let attribute_name = if is_temp_log {
+        "torchci_classification_temp"
+    } else {
+        "torchci_classification"
+    };
+        client
         .update_item()
         .table_name("torchci-workflow-job")
         .key(
             "dynamoKey",
             to_attribute_value(format!("{}/{}", repo, job_id))?,
         )
-        .attribute_updates("torchci_classification", update)
+        .attribute_updates(attribute_name, update)
         .send()
         .await?;
     info!("SUCCESS upload classification to dynamo for job {}", job_id);
