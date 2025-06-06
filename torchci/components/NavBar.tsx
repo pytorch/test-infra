@@ -62,6 +62,10 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
     {
+      name: "TorchAO Micro API",
+      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
+    },
+    {
       name: "PT CacheBench",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
     },
