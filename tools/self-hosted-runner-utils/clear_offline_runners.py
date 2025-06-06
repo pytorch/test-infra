@@ -30,10 +30,10 @@ def parse_args() -> argparse.Namespace:
         default=False,
     )
     parser.add_argument(
-        "--include",
-        help="Regex to match runner names to remove offline runners of",
+        "--runner-name",
+        help="AWS Runner Name to filter for EC2 instances.",
         type=str,
-        default=".*",
+        default="gh-ci-action-runner",
     )
     parser.add_argument(
         "--token",
