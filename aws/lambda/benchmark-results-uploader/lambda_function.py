@@ -3,6 +3,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 from typing import Dict, Any
+from json.decoder import JSONDecodeError
 
 # Configure AWS S3 client
 S3_CLIENT = boto3.client("s3")
@@ -96,10 +97,27 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: Response containing status and result information
     """
+    body = event["body"]
+    if not body:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"message": "Missing json request body"}),
+        }
+
+    try:
+        parsed_body = json.loads(body)
+    except JSONDecodeError as e:
+        return {
+            "statusCode": 400,
+            "body": json.dumps(
+                {"message": f"Cannot parse json request body: {str(e)}"}
+            ),
+        }
+
     # Extract authentication parameters
     try:
-        username = event["username"]
-        password = event["password"]
+        username = parsed_body["username"]
+        password = parsed_body["password"]
     except KeyError:
         return {
             "statusCode": 401,
@@ -115,8 +133,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # Extract input parameters from the event
     try:
-        path = event["path"]
-        content = event["content"]
+        path = parsed_body["path"]
+        content = parsed_body["content"]
     except KeyError as e:
         return {
             "statusCode": 400,

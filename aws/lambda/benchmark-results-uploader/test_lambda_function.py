@@ -19,24 +19,36 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
 
         # Test event with valid credentials
         self.valid_event = {
-            "username": "test_user",
-            "password": "test_password",
-            "path": "test/path.json",
-            "content": '{"test": "data"}',
+            "body": json.dumps(
+                {
+                    "username": "test_user",
+                    "password": "test_password",
+                    "path": "test/path.json",
+                    "content": '{"test": "data"}',
+                }
+            )
         }
 
         # Test event with invalid credentials
         self.invalid_auth_event = {
-            "username": "wrong_user",
-            "password": "wrong_password",
-            "path": "test/path.json",
-            "content": '{"test": "data"}',
+            "body": json.dumps(
+                {
+                    "username": "wrong_user",
+                    "password": "wrong_password",
+                    "path": "test/path.json",
+                    "content": '{"test": "data"}',
+                }
+            )
         }
 
         # Test event missing required fields
         self.incomplete_event = {
-            "username": "test_user",
-            "password": "test_password",
+            "body": json.dumps(
+                {
+                    "username": "test_user",
+                    "password": "test_password",
+                }
+            )
         }
 
     @patch("lambda_function.authenticate")

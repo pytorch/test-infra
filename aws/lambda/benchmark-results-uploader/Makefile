@@ -1,18 +1,19 @@
-FUNCTION_NAME=benchmark-results-uploader
-PROJECT_NAME=pytorch
-REGION=us-east-1
-
-.PHONY: prepare deploy clean
-
-prepare:
-	rm -rf ./packages
-	mkdir -p packages
-	pip install -r requirements.txt -t packages
-	cd packages && zip -r9 ../function.zip .
-	zip -g function.zip lambda_function.py
-
-deploy: prepare
-	aws lambda update-function-code --function-name $(PROJECT_NAME)-$(FUNCTION_NAME) --zip-file fileb://function.zip --region $(REGION)
+all: run-local
 
 clean:
-	rm -rf packages function.zip
+	rm -rf deployment
+	rm -rf venv
+	rm -rf deployment.zip
+
+venv/bin/python:
+	virtualenv venv
+	venv/bin/pip install -r requirements.txt
+
+deployment.zip:
+	mkdir -p deployment
+	cp lambda_function.py ./deployment/.
+	pip3.10 install -r requirements.txt -t ./deployment/. --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp --python-version 3.10 --upgrade
+	cd ./deployment && zip -q -r ../deployment.zip .
+
+.PHONY: create-deployment-package
+create-deployment-package: deployment.zip
