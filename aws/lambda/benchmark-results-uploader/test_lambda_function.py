@@ -14,8 +14,8 @@ from lambda_function import (
 class TestBenchmarkResultsUploader(unittest.TestCase):
     def setUp(self):
         # Set up test environment variables
-        os.environ["AUTH_USERNAME"] = "test_user"
-        os.environ["AUTH_PASSWORD"] = "test_password"
+        os.environ["UPLOADER_USERNAME"] = "test_user"
+        os.environ["UPLOADER_PASSWORD"] = "test_password"
 
         # Test event with valid credentials
         self.valid_event = {
@@ -23,7 +23,7 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
                 {
                     "username": "test_user",
                     "password": "test_password",
-                    "path": "test/path.json",
+                    "s3_path": "test/path.json",
                     "content": '{"test": "data"}',
                 }
             )
@@ -35,7 +35,7 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
                 {
                     "username": "wrong_user",
                     "password": "wrong_password",
-                    "path": "test/path.json",
+                    "s3_path": "test/path.json",
                     "content": '{"test": "data"}',
                 }
             )

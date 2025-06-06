@@ -21,9 +21,9 @@ def authenticate(username: str, password: str) -> bool:
     Returns:
         bool: True if authentication is successful, False otherwise
     """
-    return username == os.environ.get("AUTH_USERNAME") and password == os.environ.get(
-        "AUTH_PASSWORD"
-    )
+    return username == os.environ.get(
+        "UPLOADER_USERNAME"
+    ) and password == os.environ.get("UPLOADER_PASSWORD")
 
 
 def check_path_exists(path: str) -> bool:
@@ -88,7 +88,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Args:
         event (Dict[str, Any]): Contains input data for the Lambda function
             Required fields:
-            - path: The path within the bucket where content will be stored
+            - s3_path: The path within the bucket where content will be stored
             - content: The content to upload
             - username: Username for authentication
             - password: Password for authentication
@@ -133,7 +133,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # Extract input parameters from the event
     try:
-        path = parsed_body["path"]
+        s3_path = parsed_body["s3_path"]
         content = parsed_body["content"]
     except KeyError as e:
         return {
@@ -142,15 +142,15 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
 
     # Check if the path already exists in the bucket
-    if check_path_exists(path):
+    if check_path_exists(s3_path):
         return {
             "statusCode": 409,  # Conflict status code
             "body": json.dumps(
                 {
-                    "message": f"Path {path} already exists in bucket {OSSCI_BENCHMARKS_BUCKET}"
+                    "message": f"Path {s3_path} already exists in bucket {OSSCI_BENCHMARKS_BUCKET}"
                 }
             ),
         }
 
     # Upload the content to S3
-    return upload_to_s3(path, content)
+    return upload_to_s3(s3_path, content)
