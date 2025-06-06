@@ -66,7 +66,7 @@ async fn handle(
             info!("match: {}", body);
             if should_write_dynamo.0 {
                 let client = get_dynamo_client().await;
-                upload_classification_dynamo(&client, repo, job_id, &match_json).await?;
+                upload_classification_dynamo(&client, repo, job_id, &match_json, is_temp_log).await?;
             }
             Ok(body)
         }
