@@ -217,6 +217,7 @@ jobs:
       - release-lambdas
       - release-ci-queue-pct
       - release-oss-ci-job-queue-time
+      - release-benchmark-results-uploader
     name: Mark the release as final and publish it
     runs-on: ubuntu-latest
     permissions:
