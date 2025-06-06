@@ -36,5 +36,11 @@ where
     shas: _.map(jobs, (job: RecentWorkflowsData) => job.head_sha),
   });
 
-  return _.keyBy(results, (record) => record.sha);
+  return _.keyBy(results, (record) => record.sha) as {
+    [key: string]: {
+      email: string;
+      commit_username: string;
+      pr_username: string;
+    };
+  };
 }
