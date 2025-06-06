@@ -157,9 +157,9 @@ def main() -> None:
     else:
         runners = get_self_hosted_runners_org(gh.get_organization(options.entity))
 
-    # Get AWS instances with name 'gh-ci-action-runner'
-    aws_instances = get_aws_instances_by_name(ec2, "gh-ci-action-runner")
-    print(f"Found {len(aws_instances)} AWS instances with name 'gh-ci-action-runner'")
+    # Get AWS instances with name {options.runner_name}
+    aws_instances = get_aws_instances_by_name(ec2, f"{options.runner_name}")
+    print(f"Found {len(aws_instances)} AWS instances with name '{options.runner_name}'")
 
     # Convert runners to list for intersection calculation
     runners_list = list(runners)
