@@ -1,9 +1,11 @@
 import argparse
 import os
-import re
+import random
+import time
 from typing import List, Set
 
 import boto3  # type: ignore[import-untyped]
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from github import (  # type: ignore[import-not-found]
     Github,
     PaginatedList,
@@ -96,11 +98,6 @@ def get_runner_instance_intersection(
     ]
 
     return intersection, non_intersecting_instances
-
-
-from botocore.exceptions import ClientError
-import time
-import random
 
 
 def terminate_instances_safe(instance_ids, batch_size=100, dry_run=True):
