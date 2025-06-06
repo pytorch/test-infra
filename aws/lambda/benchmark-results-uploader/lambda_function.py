@@ -5,7 +5,8 @@ from botocore.exceptions import ClientError
 from typing import Dict, Any
 
 # Configure AWS S3 client
-s3_client = boto3.client("s3")
+S3_CLIENT = boto3.client("s3")
+OSSCI_BENCHMARKS_BUCKET = "ossci-benchmarks"
 
 
 def authenticate(username: str, password: str) -> bool:
@@ -24,19 +25,18 @@ def authenticate(username: str, password: str) -> bool:
     )
 
 
-def check_path_exists(bucket: str, path: str) -> bool:
+def check_path_exists(path: str) -> bool:
     """
     Check if a specific path exists in the S3 bucket.
 
     Args:
-        bucket (str): The name of the S3 bucket
         path (str): The path to check within the bucket
 
     Returns:
         bool: True if the path exists, False otherwise
     """
     try:
-        s3_client.head_object(Bucket=bucket, Key=path)
+        S3_CLIENT.head_object(Bucket=OSSCI_BENCHMARKS_BUCKET, Key=path)
         return True
     except ClientError as e:
         # If the error code is 404, the path doesn't exist
@@ -46,12 +46,11 @@ def check_path_exists(bucket: str, path: str) -> bool:
         raise
 
 
-def upload_to_s3(bucket: str, path: str, content: str) -> Dict[str, Any]:
+def upload_to_s3(path: str, content: str) -> Dict[str, Any]:
     """
     Upload content to a specific path in the S3 bucket.
 
     Args:
-        bucket (str): The name of the S3 bucket
         path (str): The path within the bucket where content will be stored
         content (str): The content to upload
 
@@ -59,14 +58,17 @@ def upload_to_s3(bucket: str, path: str, content: str) -> Dict[str, Any]:
         Dict[str, Any]: Response from S3 upload
     """
     try:
-        response = s3_client.put_object(
-            Bucket=bucket, Key=path, Body=content, ContentType="application/json"
+        response = S3_CLIENT.put_object(
+            Bucket=OSSCI_BENCHMARKS_BUCKET,
+            Key=path,
+            Body=content,
+            ContentType="application/json",
         )
         return {
             "statusCode": 200,
             "body": json.dumps(
                 {
-                    "message": f"File uploaded successfully to {bucket}/{path}",
+                    "message": f"File uploaded successfully to {OSSCI_BENCHMARKS_BUCKET}/{path}",
                     "etag": response.get("ETag", ""),
                 }
             ),
@@ -85,7 +87,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Args:
         event (Dict[str, Any]): Contains input data for the Lambda function
             Required fields:
-            - bucket_name: The name of the S3 bucket
             - path: The path within the bucket where content will be stored
             - content: The content to upload
             - username: Username for authentication
@@ -114,7 +115,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # Extract input parameters from the event
     try:
-        bucket_name = event["bucket_name"]
         path = event["path"]
         content = event["content"]
     except KeyError as e:
@@ -124,13 +124,15 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
 
     # Check if the path already exists in the bucket
-    if check_path_exists(bucket_name, path):
+    if check_path_exists(path):
         return {
             "statusCode": 409,  # Conflict status code
             "body": json.dumps(
-                {"message": f"Path {path} already exists in bucket {bucket_name}"}
+                {
+                    "message": f"Path {path} already exists in bucket {OSSCI_BENCHMARKS_BUCKET}"
+                }
             ),
         }
 
     # Upload the content to S3
-    return upload_to_s3(bucket_name, path, content)
+    return upload_to_s3(path, content)

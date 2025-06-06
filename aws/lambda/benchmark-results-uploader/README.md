@@ -7,7 +7,7 @@ This AWS Lambda function uploads benchmark result files to S3 buckets with authe
 This Lambda:
 
 1. Accepts S3 bucket name, path, and content of a file
-2. Authenticates the request using username/password from environment variables 
+2. Authenticates the request using username/password from environment variables
 3. Checks if the specified path already exists in the S3 bucket
 4. If the path doesn't exist, uploads the content to that path
 5. Returns appropriate HTTP status codes and messages

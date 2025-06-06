@@ -21,7 +21,6 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
         self.valid_event = {
             "username": "test_user",
             "password": "test_password",
-            "bucket_name": "test-bucket",
             "path": "test/path.json",
             "content": '{"test": "data"}',
         }
@@ -30,7 +29,6 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
         self.invalid_auth_event = {
             "username": "wrong_user",
             "password": "wrong_password",
-            "bucket_name": "test-bucket",
             "path": "test/path.json",
             "content": '{"test": "data"}',
         }
@@ -39,7 +37,6 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
         self.incomplete_event = {
             "username": "test_user",
             "password": "test_password",
-            "bucket_name": "test-bucket",
         }
 
     @patch("lambda_function.authenticate")
@@ -74,9 +71,7 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
 
         response = lambda_handler(self.valid_event, {})
         self.assertEqual(response["statusCode"], 200)
-        mock_upload_to_s3.assert_called_once_with(
-            "test-bucket", "test/path.json", '{"test": "data"}'
-        )
+        mock_upload_to_s3.assert_called_once_with("test/path.json", '{"test": "data"}')
 
     @patch("lambda_function.authenticate")
     @patch("lambda_function.check_path_exists")
@@ -98,32 +93,32 @@ class TestBenchmarkResultsUploader(unittest.TestCase):
             "Missing required parameter", json.loads(response["body"])["message"]
         )
 
-    @patch("lambda_function.s3_client")
+    @patch("lambda_function.S3_CLIENT")
     def test_check_path_exists_true(self, mock_s3_client):
         mock_s3_client.head_object.return_value = {}
-        self.assertTrue(check_path_exists("test-bucket", "test/path.json"))
+        self.assertTrue(check_path_exists("test/path.json"))
 
-    @patch("lambda_function.s3_client")
+    @patch("lambda_function.S3_CLIENT")
     def test_check_path_exists_false(self, mock_s3_client):
         error_response = {"Error": {"Code": "404"}}
         mock_s3_client.head_object.side_effect = ClientError(
             error_response, "HeadObject"
         )
-        self.assertFalse(check_path_exists("test-bucket", "test/path.json"))
+        self.assertFalse(check_path_exists("test/path.json"))
 
-    @patch("lambda_function.s3_client")
+    @patch("lambda_function.S3_CLIENT")
     def test_upload_to_s3_success(self, mock_s3_client):
         mock_s3_client.put_object.return_value = {"ETag": "test-etag"}
-        response = upload_to_s3("test-bucket", "test/path.json", '{"test": "data"}')
+        response = upload_to_s3("test/path.json", '{"test": "data"}')
         self.assertEqual(response["statusCode"], 200)
         body = json.loads(response["body"])
         self.assertIn("File uploaded successfully", body["message"])
         self.assertEqual(body["etag"], "test-etag")
 
-    @patch("lambda_function.s3_client")
+    @patch("lambda_function.S3_CLIENT")
     def test_upload_to_s3_failure(self, mock_s3_client):
         mock_s3_client.put_object.side_effect = Exception("Test error")
-        response = upload_to_s3("test-bucket", "test/path.json", '{"test": "data"}')
+        response = upload_to_s3("test/path.json", '{"test": "data"}')
         self.assertEqual(response["statusCode"], 500)
         self.assertIn("Error uploading file", json.loads(response["body"])["message"])
 
