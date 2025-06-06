@@ -23,12 +23,13 @@ async fn handle(
     repo: &str,
     should_write_dynamo: ShouldWriteDynamo,
     context_depth: usize,
+    is_temp_log: bool,
 ) -> Result<String> {
     // delete this in a future pr
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
-    let raw_log = download_log(&client, repo, job_id).await?;
+    let raw_log = download_log(&client, repo, job_id, is_temp_log).await?;
     info!("download: {:?}", start.elapsed());
 
     // Do some preprocessing.
@@ -89,7 +90,10 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
                 .first("context_depth")
                 .unwrap_or_else(|| CONTEXT_DEPTH)
                 .parse::<usize>()?;
-            handle(job_id, repo, ShouldWriteDynamo(true), context_depth)
+            let is_temp_log = query_string_parameters
+                .first("temp_log")
+                .map_or(false, |v| v == "true");
+            handle(job_id, repo, ShouldWriteDynamo(true), context_depth, is_temp_log)
                 .await?
                 .into_response()
                 .await
