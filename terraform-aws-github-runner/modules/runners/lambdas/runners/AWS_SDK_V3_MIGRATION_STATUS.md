@@ -23,19 +23,27 @@ yarn prettier --write "**/*.ts"                      # Auto-fix formatting
 NODE_OPTIONS="--openssl-legacy-provider" yarn build  # Compile TypeScript to dist/
 ```
 
-### Testing Individual Files (when Jest works)
+### Testing Individual Files (Jest v29 ready)
 ```bash
-# Test specific files
-NODE_ENV=test yarn jest src/scale-runners/runners.test.ts --detectOpenHandles
+# Test specific files (no coverage)
+NODE_ENV=test yarn jest src/scale-runners/sqs.test.ts --detectOpenHandles --coverage=false
+NODE_ENV=test yarn jest src/scale-runners/kms/index.test.ts --detectOpenHandles --coverage=false  
+NODE_ENV=test yarn jest src/scale-runners/gh-auth.test.ts --detectOpenHandles --coverage=false
 
-# Run all tests (when Jest compatibility is fixed)
+# Test all working files (no coverage)
+NODE_ENV=test yarn jest src/scale-runners/ --detectOpenHandles --coverage=false
+
+# Run all tests with coverage (when all files are fixed)
 yarn test
 ```
 
 ### Verification Commands
 ```bash
-# Check Node.js version (needs v16+ for node: imports)
+# Check Node.js version (needs v18+ for Jest v29)
 node --version
+
+# Quick test of working AWS SDK v3 files (no coverage)
+NODE_ENV=test yarn jest --testPathPattern="(sqs|kms|gh-auth)\.test\.ts" --coverage=false
 
 # Verify build output exists
 ls -la dist/
