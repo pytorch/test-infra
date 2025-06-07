@@ -17,6 +17,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import AISpinner from "./AISpinner";
 import ToolIcon from "./ToolIcon";
 
@@ -494,7 +495,9 @@ const CLICKHOUSE_CONSOLE_BASE_URL =
   "https://console.clickhouse.cloud/services/c9b76950-2cf3-4fa0-93bb-94a65ff5f27d/console/query/";
 
 export const McpQueryPage = () => {
+  const session = useSession();
   const theme = useTheme();
+  
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
@@ -1236,7 +1239,15 @@ export const McpQueryPage = () => {
       // Handle non-ok responses
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || `HTTP error: ${response.status}`);
+        
+        // Handle authentication/authorization errors with specific messages
+        if (response.status === 401) {
+          throw new Error("Authentication required. Please sign in to continue.");
+        } else if (response.status === 403) {
+          throw new Error("Access denied. You need write permissions to pytorch/pytorch repository to use this tool.");
+        } else {
+          throw new Error(errorText || `HTTP error: ${response.status}`);
+        }
       }
 
       // Get the body stream
@@ -1312,6 +1323,47 @@ export const McpQueryPage = () => {
       setIsLoading(false);
     }
   };
+
+
+  // Authentication check - only allow authenticated users with access tokens
+  if (
+    session.status === "loading"
+  ) {
+    // Show loading state while checking authentication
+    return (
+      <McpQueryPageContainer>
+        <Paper sx={{ padding: "20px", textAlign: "center" }}>
+          <AISpinner />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Checking authentication...
+          </Typography>
+        </Paper>
+      </McpQueryPageContainer>
+    );
+  }
+
+  if (
+    session.status === "unauthenticated" ||
+    !session.data?.user ||
+    !(session.data as any)?.accessToken
+  ) {
+    // Show authentication required message
+    return (
+      <McpQueryPageContainer>
+        <Paper sx={{ padding: "20px", textAlign: "center" }}>
+          <Typography variant="h4" gutterBottom>
+            Authentication Required
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            You must be logged in with write permissions to pytorch/pytorch to access this tool.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Please sign in to continue.
+          </Typography>
+        </Paper>
+      </McpQueryPageContainer>
+    );
+  }
 
   return (
     <McpQueryPageContainer>

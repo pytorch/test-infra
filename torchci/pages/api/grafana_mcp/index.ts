@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]";
+import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
+import { getOctokitWithUserToken } from "../../../lib/github";
 
 // Configure Next.js to accept streaming responses
 export const config = {
@@ -22,9 +26,9 @@ const AUTH_TOKEN =
 
 // This is critical for proper streaming - signals to browser to flush each chunk immediately
 const flushStream = (res: NextApiResponse) => {
-  if (typeof res.flush === "function") {
+  if (typeof (res as unknown as any).flush === "function") {
     console.log("Flushing stream");
-    res.flush();
+    (res as unknown as any).flush();
   } else {
     console.log("DOESNT EXIST");
   }
@@ -34,7 +38,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log("Claude API endpoint called - proxying to Lambda");
+  console.log("Grafana MCP API endpoint called - proxying to Lambda");
 
   // Only allow POST method
   if (req.method !== "POST") {
@@ -42,13 +46,47 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Only allow requests from localhost
-  const host = req.headers.host || "";
-  if (!host.includes("localhost")) {
-    console.log(`Rejected: Host not allowed: ${host}`);
-    return res
-      .status(403)
-      .json({ error: "Forbidden: Only localhost is allowed" });
+  // Check authentication
+  // @ts-ignore
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user || !session?.accessToken) {
+    console.log("Rejected: User not authenticated");
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  // Check write permissions to pytorch/pytorch repository
+  // Since this is a sensitive tool that can query CI data, we require
+  // write permissions to the main PyTorch repository
+  const repoOwner = "pytorch";
+  const repoName = "pytorch";
+  
+  try {
+    const octokit = await getOctokitWithUserToken(session.accessToken as string);
+    const user = await octokit.rest.users.getAuthenticated();
+    
+    if (!user?.data?.login) {
+      console.log("Rejected: Could not authenticate user with GitHub");
+      return res.status(401).json({ error: "GitHub authentication failed" });
+    }
+
+    const hasWritePermissions = await hasWritePermissionsUsingOctokit(
+      octokit,
+      user.data.login,
+      repoOwner,
+      repoName
+    );
+
+    if (!hasWritePermissions) {
+      console.log(`Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`);
+      return res.status(403).json({ 
+        error: "Write permissions to pytorch/pytorch repository required" 
+      });
+    }
+
+    console.log(`Authorized: User ${user.data.login} has write permissions`);
+  } catch (error) {
+    console.error("Error checking permissions:", error);
+    return res.status(500).json({ error: "Permission check failed" });
   }
 
   // Get query from request body
